@@ -77,6 +77,7 @@ public sealed partial class EvidenceRow
         ProtocolTraceTitle = BuildProtocolTraceTitle();
         ProtocolTraceMeaning = BuildProtocolTraceMeaning();
         ProtocolTraceRaw = BuildProtocolTraceRaw();
+        ProtocolTraceMeta = $"#{Sequence}  {Time}  {ProtocolName}";
         TrafficTone = ResolveTrafficTone();
     }
 
@@ -134,6 +135,7 @@ public sealed partial class EvidenceRow
     public string ProtocolTraceTitle { get; }
     public string ProtocolTraceMeaning { get; }
     public string ProtocolTraceRaw { get; }
+    public string ProtocolTraceMeta { get; }
 
 
     private string BuildProtocolTraceTitle()
@@ -162,7 +164,7 @@ public sealed partial class EvidenceRow
             tail += $"  @{time}";
         }
 
-        return $"{direction,-5} {service}  |  {address}{tail}";
+        return $"{direction}  {service}  |  {address}{tail}";
     }
 
     private string BuildProtocolTraceMeaning()

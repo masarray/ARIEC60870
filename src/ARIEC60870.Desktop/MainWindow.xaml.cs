@@ -77,12 +77,18 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, string> _lastDisplayedValueByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _evidenceSummarySignatureByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _evidenceSummaryLastUtcByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, double> _evidenceSummaryLastAnalogValueByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _evidenceSummaryLastAnalogUtcByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<EvidenceRow> _evidenceSummaryStore = new();
     private readonly List<EvidenceRow> _protocolTraceStore = new();
     private readonly HashSet<string> _giExpectedValueKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _giReceivedValueKeys = new(StringComparer.OrdinalIgnoreCase);
     private bool _giCompletenessWatchActive;
     private bool _giCompletenessReported;
+    private bool _giClass2CollectionWindowActive;
+    private DateTime _giClass2CollectionUntilUtc = DateTime.MinValue;
+    private int? _firstObservedRuntimeCa;
+    private bool _runtimeCaMismatchReported;
 
     public MainWindow()
     {
@@ -111,7 +117,7 @@ public partial class MainWindow : Window
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
         AppendSessionLog("ARIEC60870 Protocol Lab initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
-        AppendSessionLog("Output model: Operator/Engineer views first, raw hex remains available in Protocol Trace for protocol transparency.");
+        AppendSessionLog("Output model: Value Viewer stays live; Evidence Summary is de-noised proof; raw hex remains available in Protocol Trace for protocol transparency.");
         Loaded += (_, _) =>
         {
             MainTabControl.SelectedIndex = 0;
@@ -264,10 +270,51 @@ public partial class MainWindow : Window
 
 
 
+
+    private void ReportRuntimeCommonAddressMismatch(Iec103MasterEvidenceEvent item)
+    {
+        if (_runtimeCaMismatchReported || item.ProtocolMode != Iec60870ProtocolMode.Iec101 || !item.CommonAddressNumber.HasValue)
+        {
+            return;
+        }
+
+        var observedCa = item.CommonAddressNumber.Value;
+        if (observedCa <= 0)
+        {
+            return;
+        }
+
+        _firstObservedRuntimeCa ??= observedCa;
+        if (!int.TryParse(CommonAddressBox.Text, out var configuredCa) || configuredCa == observedCa)
+        {
+            return;
+        }
+
+        // Wait until an actual process value, not a command echo/noise, to avoid false warnings.
+        if (!item.IsRelayValue && item.TypeId is not (1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36))
+        {
+            return;
+        }
+
+        _runtimeCaMismatchReported = true;
+        AddUiDiagnostic(
+            "Warning",
+            "IEC-101",
+            "IEC101-RUNTIME-CA-MISMATCH",
+            "Runtime ASDU common address differs from setup/profile",
+            $"Live process data is arriving with CA={observedCa}, but setup/profile uses CA={configuredCa}. Station GI sent to the wrong CA can be negatively confirmed and may prevent SPS/DPS snapshots from arriving.",
+            "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Value Viewer still maps values by IOA where possible.");
+        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA.");
+    }
+
     private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
     {
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
+        _giClass2CollectionWindowActive = false;
+        _giClass2CollectionUntilUtc = DateTime.MinValue;
+        _firstObservedRuntimeCa = null;
+        _runtimeCaMismatchReported = false;
         _giCompletenessReported = false;
         _giCompletenessWatchActive = protocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
             && _ioaProfile.HasPoints;
@@ -317,14 +364,22 @@ public partial class MainWindow : Window
 
     private static bool IsMonitorPoint(Iec10xPointMappingEntry point)
     {
-        if (!string.IsNullOrWhiteSpace(point.CommandPolicy) &&
-            !point.CommandPolicy.Equals("MonitorOnly", StringComparison.OrdinalIgnoreCase) &&
-            !point.CommandPolicy.Equals("Feedback", StringComparison.OrdinalIgnoreCase))
+        return !IsCommandPoint(point);
+    }
+
+    private static bool IsCommandPoint(Iec10xPointMappingEntry point)
+    {
+        if (point.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
         {
-            return point.FeedbackIoa.HasValue;
+            return true;
         }
 
-        return true;
+        var policy = point.CommandPolicy ?? string.Empty;
+        return policy.Contains("Command", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("RemoteOnly", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Control", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Setpoint", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Regulating", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildIoaValueKey(int ioa)
@@ -345,32 +400,165 @@ public partial class MainWindow : Window
             return;
         }
 
-        var text = string.Join(" ", item.Category, item.Summary, item.Detail, item.CauseName, item.ProtocolMeaning, item.OperatorMessage);
-        var actterm = item.CauseOfTransmission == 10 || text.Contains("ACTTERM", StringComparison.OrdinalIgnoreCase) || text.Contains("activation termination", StringComparison.OrdinalIgnoreCase);
-        if (!actterm)
+        if (TryFinishGiCompletenessIfComplete())
         {
             return;
         }
 
+        var text = string.Join(" ", item.Category, item.Summary, item.Detail, item.CauseName, item.ProtocolMeaning, item.OperatorMessage);
+        var isGiNegativeConfirmation =
+            item.TypeId == 100 &&
+            (item.CauseName.Contains("NEG", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("negative", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("NEG activation", StringComparison.OrdinalIgnoreCase));
+
+        if (isGiNegativeConfirmation)
+        {
+            AddUiDiagnostic(
+                "Warning",
+                "IEC-101",
+                "IEC101-GI-NEGATIVE-CONFIRMATION",
+                "GI negative confirmation observed; value scan continues",
+                "The outstation negatively confirmed C_IC_NA_1. This is recorded as protocol evidence, but it does not overwrite seeded IOA rows. Values are still collected from subsequent Class 1/Class 2/background frames.",
+                "Check GI qualifier/CA/profile if GI is required by the test case. For live monitoring, treat actual received IOA frames as the source of truth.");
+            AppendSessionLog("GI note: NEGATIVE CONFIRMATION observed. Keeping Value Viewer neutral; continuing scan.");
+            StartGiClass2CollectionWindow("GI negative confirmation; continue scan-tolerant Class 1/Class 2 collection");
+            return;
+        }
+
+        var isActTerm = item.TypeId == 100 &&
+                        (item.CauseOfTransmission == 10 ||
+                         text.Contains("ACTTERM", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("activation termination", StringComparison.OrdinalIgnoreCase));
+
+        var class1NoData = item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                           item.DataClass.Equals("Class 1", StringComparison.OrdinalIgnoreCase) &&
+                           text.Contains("NO DATA", StringComparison.OrdinalIgnoreCase);
+
+        if ((isActTerm || class1NoData) && !_giClass2CollectionWindowActive)
+        {
+            StartGiClass2CollectionWindow(isActTerm ? "ACTTERM observed" : "Class 1 returned NO DATA");
+        }
+    }
+
+    private void EvaluateGiCollectionWindow()
+    {
+        if (!_giCompletenessWatchActive || _giCompletenessReported)
+        {
+            return;
+        }
+
+        if (TryFinishGiCompletenessIfComplete())
+        {
+            return;
+        }
+
+        if (!_giClass2CollectionWindowActive || DateTime.UtcNow < _giClass2CollectionUntilUtc)
+        {
+            return;
+        }
+
+        _giClass2CollectionWindowActive = false;
         _giCompletenessReported = true;
         var missing = _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray();
-        if (missing.Length == 0)
-        {
-            AppendSessionLog($"GI completeness: PASS. Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points.");
-            return;
-        }
-
         var sample = string.Join(", ", missing.Take(12).Select(x => x.Replace("IOA:", "IOA ")));
         AddUiDiagnostic(
             "Warning",
             "IEC-101",
-            "IEC101-GI-PROFILE-INCOMPLETE",
-            "GI completed but profile points are still missing in Value Viewer",
-            $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points. Missing sample: {sample}",
-            "Increase Max Class 1 drain, verify ACTCON/ACTTERM sequence, check Class 1/2 polling, CA/IOA/type profile, and confirm whether the RTU actually returns these points during GI.");
-        AppendSessionLog($"GI completeness: WARN. Missing {missing.Length}/{_giExpectedValueKeys.Count} expected profile points. Sample: {sample}");
+            "IEC101-SCAN-PROFILE-PENDING",
+            "Profile points still pending after GI/group/Class 2 observation window",
+            $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points during the GI/group/Class 2 observation window. Pending sample: {sample}",
+            "This is a non-destructive scan note. Value Viewer rows stay in waiting state until actual Class 1/Class 2 frames arrive. Verify RTU profile only if the test case requires every IOA to be returned in this window.");
+        AppendSessionLog($"Scan observation note: pending {missing.Length}/{_giExpectedValueKeys.Count} profile points after GI/group/Class 2 window. Sample: {sample}");
     }
 
+    private bool TryFinishGiCompletenessIfComplete()
+    {
+        if (_giExpectedValueKeys.Count == 0)
+        {
+            return false;
+        }
+
+        var missing = _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).Any();
+        if (missing)
+        {
+            return false;
+        }
+
+        _giCompletenessReported = true;
+        _giClass2CollectionWindowActive = false;
+        AppendSessionLog($"GI/Class 2 completeness: PASS. Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points.");
+        return true;
+    }
+
+    private void StartGiClass2CollectionWindow(string reason)
+    {
+        var window = CalculateGiClass2CollectionWindow();
+        _giClass2CollectionWindowActive = true;
+        _giClass2CollectionUntilUtc = DateTime.UtcNow.Add(window);
+
+        var isNegativeFallback = reason.Contains("negative", StringComparison.OrdinalIgnoreCase);
+
+        AddUiDiagnostic(
+            "Info",
+            "IEC-101",
+            "IEC101-GI-CLASS2-COLLECTION",
+            isNegativeFallback ? "GI negative confirmation observed; continuing normal scan" : "GI moved to Class 2/background collection window",
+            $"{reason}. Value Viewer placeholders are kept neutral; only actual Class 1/Class 2 frames are allowed to update IOA values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting a non-destructive completeness note.",
+            "SCADA master behaviour: GI is a collection trigger, not a reason to mark profile IOAs as failed. Continue bounded Class 1 drain and Class 2/background polling; do not mass-read or overwrite placeholders.");
+        AppendSessionLog($"GI/Class2 collection: {reason}; neutral background collection window ≈{Math.Ceiling(window.TotalSeconds):0}s.");
+    }
+
+    private TimeSpan CalculateGiClass2CollectionWindow()
+    {
+        var intervalMs = int.TryParse(Class2IntervalBox.Text, out var configured) ? Math.Max(configured, 500) : 1000;
+        var estimatedSeconds = Math.Ceiling(Math.Max(20, _giExpectedValueKeys.Count * intervalMs / 1000.0 * 2.5));
+        return TimeSpan.FromSeconds(Math.Clamp((int)estimatedSeconds, 20, 120));
+    }
+
+    private void MarkMissingProfileRows(string displayValue, string cot, string quality)
+    {
+        foreach (var key in _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray())
+        {
+            var ioa = ParseIoaFromValueKey(key);
+            if (ioa < 0)
+            {
+                continue;
+            }
+
+            var point = _ioaProfile.Points.FirstOrDefault(x => x.Ioa == ioa);
+            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
+            {
+                Key = key,
+                IsMapped = true,
+                SignalName = point?.Name ?? $"IOA {ioa}",
+                SignalGroup = string.IsNullOrWhiteSpace(point?.Group) ? "Profile" : point!.Group,
+                SignalType = string.IsNullOrWhiteSpace(point?.SignalType) ? $"Type {point?.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point!.SignalType,
+                DisplayValue = displayValue,
+                RawValue = string.Empty,
+                CauseOfTransmission = cot,
+                AsduType = string.IsNullOrWhiteSpace(point?.SignalType) ? string.Empty : point!.SignalType,
+                RelayTimeText = "not received",
+                ArrivalTimeUtc = DateTime.UtcNow,
+                ProtocolMode = GetSelectedProtocolMode(),
+                CommonAddress = point?.Ca ?? _ioaProfile.CommonAddress,
+                InformationObjectAddress = ioa,
+                TypeId = point?.TypeId,
+                QualityText = quality
+            }));
+        }
+    }
+
+    private static int ParseIoaFromValueKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return -1;
+        }
+
+        var normalized = key.StartsWith("IOA:", StringComparison.OrdinalIgnoreCase) ? key[4..] : key;
+        return int.TryParse(normalized, out var ioa) ? ioa : -1;
+    }
 
     private void ApplyIoaProfileDefaultsToUi(Iec10xPointMappingProfile profile, bool onlyWhenUiLooksDefault)
     {
@@ -669,7 +857,7 @@ public partial class MainWindow : Window
         public int Class2PollIntervalMs { get; set; } = 500;
         public int MaxClass1DrainFrames { get; set; } = 64;
         public bool ResetRemoteLinkOnConnect { get; set; }
-        public bool ResetFcbOnConnect { get; set; } = true;
+        public bool ResetFcbOnConnect { get; set; } = false;
         public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
         public bool SendClockSyncOnConnect { get; set; }
         public bool SendGeneralInterrogationOnConnect { get; set; } = true;
@@ -705,7 +893,11 @@ public partial class MainWindow : Window
         SaveSetupPreferencesFromUi(silent: true);
     }
 
-    private void CommandDock_Gi_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.GeneralInterrogation, OperatorNote = "Command dock GI" });
+    private void CommandDock_Gi_Click(object sender, RoutedEventArgs e)
+    {
+        SeedValueViewerFromIoaProfile(GetSelectedProtocolMode());
+        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.GeneralInterrogation, OperatorNote = "Command dock GI" });
+    }
 
     private void CommandDock_ClockSync_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.ClockSync, OperatorNote = "Command dock clock sync" });
 
@@ -1153,7 +1345,9 @@ public partial class MainWindow : Window
         settings.Class2PollIntervalMs = ReadInt(Class2IntervalBox, "Class 2 interval", 50, 60000);
         settings.MaxClass1DrainFrames = ReadInt(MaxDrainBox, "Max Class 1 drain", 1, 512);
         settings.ResetRemoteLinkOnConnect = ResetRemoteLinkCheckBox.IsChecked == true;
-        settings.ResetFcbOnConnect = ResetFcbCheckBox.IsChecked == true;
+        settings.ResetFcbOnConnect = settings.ProtocolMode == Iec60870ProtocolMode.Iec101
+            ? false
+            : ResetFcbCheckBox.IsChecked == true;
         settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
         settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
         settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
@@ -1500,6 +1694,7 @@ public partial class MainWindow : Window
             findingProcessed++;
         }
 
+        EvaluateGiCollectionWindow();
         UpdateBufferStatus();
     }
 
@@ -1600,6 +1795,7 @@ public partial class MainWindow : Window
         }
 
         UpdateLiveCounters(item);
+        ReportRuntimeCommonAddressMismatch(item);
         UpdateValueAndEventViews(item);
         if (IsDiagnosticEvidence(item))
         {
@@ -1637,6 +1833,15 @@ public partial class MainWindow : Window
         }
 
         var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning, item.CauseName, item.QualityText);
+        var startupLinkNack = item.ProtocolMode == Iec60870ProtocolMode.Iec101
+                              && item.DataClass.Equals("Link", StringComparison.OrdinalIgnoreCase)
+                              && ContainsAny(combined, "NACK", "single-character NACK")
+                              && ContainsAny(combined, "Startup", "Reset FCB", "Reset remote link", "synchronization");
+        if (startupLinkNack)
+        {
+            return false;
+        }
+
         var isIssue = ContainsAny(combined, "timeout", "failed", "error", "nack", "negative", "invalid", "not topical", "blocked", "DFC=1", "busy", "quality");
         var isGiMilestone = ContainsAny(combined, "General Interrogation", "ACTCON", "ACTTERM", "interrogation completed", "GI completed", "GI failed", "GI timeout");
         var isCommandMilestone = ContainsAny(combined, "command", "select", "operate", "activation confirmation", "activation termination", "feedback");
@@ -1673,8 +1878,14 @@ public partial class MainWindow : Window
 
         if (isSignalOutcome && !isIssue)
         {
-            // Show first proof and real value/quality/timestamp changes only. This turns Evidence Summary into
-            // a commissioning proof table instead of a duplicate frame stream.
+            // Analog measurement scan is high-volume. Value Viewer must stay live, but Evidence Summary
+            // should be proof-grade: first proof, quality/timestamp issue, significant drift, or slow heartbeat.
+            if (IsAnalogMeasurementType(item.TypeId) && !string.IsNullOrWhiteSpace(summaryKey))
+            {
+                return ShouldShowAnalogMeasurementProof(item, summaryKey);
+            }
+
+            // Digital/SP/DP and command feedback must remain event-grade. Suppress exact duplicates only.
             if (!string.IsNullOrWhiteSpace(summaryKey) &&
                 _evidenceSummarySignatureByKey.TryGetValue(summaryKey, out var previousSignature) &&
                 string.Equals(previousSignature, summarySignature, StringComparison.Ordinal))
@@ -1733,6 +1944,69 @@ public partial class MainWindow : Window
     private static string NormalizeSummaryValue(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
+    }
+
+
+    private bool ShouldShowAnalogMeasurementProof(Iec103MasterEvidenceEvent item, string summaryKey)
+    {
+        var numeric = TryExtractFirstNumeric(item.SignalDisplayValue);
+        if (!numeric.HasValue)
+        {
+            numeric = TryExtractFirstNumeric(item.ObjectSummary);
+        }
+
+        if (!numeric.HasValue)
+        {
+            return true;
+        }
+
+        var now = DateTime.UtcNow;
+        if (!_evidenceSummaryLastAnalogValueByKey.TryGetValue(summaryKey, out var previous))
+        {
+            _evidenceSummaryLastAnalogValueByKey[summaryKey] = numeric.Value;
+            _evidenceSummaryLastAnalogUtcByKey[summaryKey] = now;
+            return true;
+        }
+
+        var delta = Math.Abs(numeric.Value - previous);
+        var threshold = Math.Max(Math.Abs(previous) * 0.02, 0.2);
+        var heartbeatDue = !_evidenceSummaryLastAnalogUtcByKey.TryGetValue(summaryKey, out var lastUtc)
+                           || (now - lastUtc).TotalSeconds >= 120;
+
+        if (delta >= threshold || heartbeatDue)
+        {
+            _evidenceSummaryLastAnalogValueByKey[summaryKey] = numeric.Value;
+            _evidenceSummaryLastAnalogUtcByKey[summaryKey] = now;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsAnalogMeasurementType(int? typeId)
+        => typeId is 9 or 10 or 11 or 12 or 13 or 14 or 34 or 35 or 36;
+
+    private static double? TryExtractFirstNumeric(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(value, @"[-+]?\d+(?:[.,]\d+)?");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var normalized = match.Value.Replace(',', '.');
+        return double.TryParse(
+            normalized,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var result)
+            ? result
+            : null;
     }
 
     private static bool ContainsAny(string text, params string[] tokens)
@@ -1974,6 +2248,10 @@ public partial class MainWindow : Window
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();
             UpdateFrameInterpreterTone(null);
+            if (ActiveProtocolMapText is not null)
+            {
+                ActiveProtocolMapText.Text = "linked highlight";
+            }
             return;
         }
 
@@ -1993,7 +2271,48 @@ public partial class MainWindow : Window
         SelectedLineSummaryText.Text = BuildLineMonitorSummary(row);
         UpdateFrameInterpreterTone(row);
         RebuildProtocolMap(row);
+        ActivateDefaultProtocolMapGroup(row);
     }
+
+
+    private void ActivateDefaultProtocolMapGroup(EvidenceRow row)
+    {
+        if (PinProtocolMapCheckBox?.IsChecked == true && !string.IsNullOrWhiteSpace(_pinnedProtocolMapKey))
+        {
+            SetActiveProtocolMap(_pinnedProtocolMapKey);
+            return;
+        }
+
+        var key = row.ProtocolMode switch
+        {
+            "104" when row.ApciFormat == "I" && row.IoAddress != "-" => "object",
+            "104" => "apci",
+            "101" when row.IoAddress != "-" => "object",
+            "101" when row.TypeId != "-" => "asdu",
+            "103" when row.FunInf != "-" => "asdu",
+            _ => "raw"
+        };
+
+        SetActiveProtocolMap(key);
+    }
+
+    private static string DescribeProtocolMapKey(string key)
+    {
+        return key.ToLowerInvariant() switch
+        {
+            "apci" => "APCI selected",
+            "ft12" => "FT1.2 selected",
+            "control" => "link control selected",
+            "asdu" => "ASDU header selected",
+            "object" => "object address selected",
+            "payload" => "payload selected",
+            "value" => "value selected",
+            "check" => "integrity selected",
+            "raw" => "raw frame selected",
+            _ => key + " selected"
+        };
+    }
+
 
     private void UpdateFrameInterpreterTone(EvidenceRow? row)
     {
@@ -2475,14 +2794,23 @@ public partial class MainWindow : Window
 
     private void SetActiveProtocolMap(string key)
     {
+        var matched = false;
+
         foreach (var line in SelectedProtocolMapLines)
         {
             line.IsActive = string.Equals(line.Key, key, StringComparison.OrdinalIgnoreCase);
+            matched |= line.IsActive;
         }
 
         foreach (var segment in SelectedHexSegments)
         {
             segment.IsActive = string.Equals(segment.Key, key, StringComparison.OrdinalIgnoreCase);
+            matched |= segment.IsActive;
+        }
+
+        if (ActiveProtocolMapText is not null)
+        {
+            ActiveProtocolMapText.Text = matched ? DescribeProtocolMapKey(key) : "linked highlight";
         }
     }
 
@@ -2496,6 +2824,11 @@ public partial class MainWindow : Window
         foreach (var segment in SelectedHexSegments)
         {
             segment.IsActive = false;
+        }
+
+        if (ActiveProtocolMapText is not null)
+        {
+            ActiveProtocolMapText.Text = "linked highlight";
         }
     }
 
@@ -3400,6 +3733,8 @@ public partial class MainWindow : Window
         _valueHighlightExpiryByKey.Clear();
         _evidenceSummarySignatureByKey.Clear();
         _evidenceSummaryLastUtcByKey.Clear();
+        _evidenceSummaryLastAnalogValueByKey.Clear();
+        _evidenceSummaryLastAnalogUtcByKey.Clear();
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
         _giCompletenessWatchActive = false;

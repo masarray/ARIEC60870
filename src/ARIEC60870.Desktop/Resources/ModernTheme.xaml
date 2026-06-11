@@ -704,18 +704,19 @@
         <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="8" />
-        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
         <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
         <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
         <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
         <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True" />
     </Style>
 
     <Style x:Key="ProtocolTraceLineItem" TargetType="ListBoxItem">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,0,3" />
+        <Setter Property="Margin" Value="0,0,0,5" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource Ink800Brush}" />
@@ -726,8 +727,8 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="8,5">
+                            CornerRadius="10"
+                            Padding="10,8">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -833,9 +834,9 @@
     <Style x:Key="HexChipBorder" TargetType="Border">
         <Setter Property="Background" Value="#F5F8FF" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="7,4" />
         <Setter Property="Margin" Value="0,0,6,6" />
         <Setter Property="Cursor" Value="Hand" />
         <Style.Triggers>
@@ -854,9 +855,9 @@
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="6,5" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,6" />
         <Setter Property="Margin" Value="0,0,0,6" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

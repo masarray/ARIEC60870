@@ -286,29 +286,59 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0"
-                                                           Text="{Binding ProtocolTraceTitle, Mode=OneWay}"
-                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
-                                                           FontSize="11.6"
-                                                           FontWeight="SemiBold"
-                                                           TextWrapping="NoWrap"
-                                                           TextTrimming="CharacterEllipsis" />
+
+                                                <Grid Grid.Row="0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding ProtocolTraceTitle, Mode=OneWay}"
+                                                               FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                               FontSize="11.6"
+                                                               FontWeight="SemiBold"
+                                                               LineHeight="15"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="None"
+                                                               TextOptions.TextFormattingMode="Display" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding ProtocolTraceMeta, Mode=OneWay}"
+                                                               FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                               FontSize="9.8"
+                                                               Foreground="{StaticResource Ink500Brush}"
+                                                               Margin="12,1,0,0"
+                                                               VerticalAlignment="Top"
+                                                               TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="150" />
+                                                </Grid>
+
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding ProtocolTraceMeaning, Mode=OneWay}"
                                                            FontFamily="Sometype Mono, Cascadia Mono, Consolas"
-                                                           FontSize="10.6"
+                                                           FontSize="10.7"
+                                                           LineHeight="14.5"
                                                            Foreground="{StaticResource Ink700Brush}"
-                                                           TextWrapping="NoWrap"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Margin="0,2,0,0" />
-                                                <TextBlock Grid.Row="2"
-                                                           Text="{Binding ProtocolTraceRaw, Mode=OneWay}"
-                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
-                                                           FontSize="10.4"
-                                                           Foreground="{StaticResource Ink500Brush}"
-                                                           TextWrapping="NoWrap"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Margin="0,2,0,0" />
+                                                           TextWrapping="Wrap"
+                                                           TextTrimming="None"
+                                                           TextOptions.TextFormattingMode="Display"
+                                                           Margin="0,3,0,0" />
+
+                                                <Border Grid.Row="2"
+                                                        Background="#F8FAFC"
+                                                        BorderBrush="#E2E8F0"
+                                                        BorderThickness="1"
+                                                        CornerRadius="7"
+                                                        Padding="7,5"
+                                                        Margin="0,5,0,0">
+                                                    <TextBlock Text="{Binding ProtocolTraceRaw, Mode=OneWay}"
+                                                               FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                               FontSize="10.55"
+                                                               LineHeight="14.2"
+                                                               Foreground="{StaticResource Ink600Brush}"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="None"
+                                                               TextOptions.TextFormattingMode="Display" />
+                                                </Border>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -338,6 +368,14 @@
                                             <TextBlock x:Name="SelectedLineSummaryText" Text="Click any TX/RX row to see the full frame meaning here." Style="{StaticResource SubtleText}" FontSize="10.8" TextWrapping="Wrap" MaxHeight="34" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10,0,0,0">
+                                            <TextBlock x:Name="ActiveProtocolMapText"
+                                                       Text="linked highlight"
+                                                       Style="{StaticResource SubtleText}"
+                                                       FontSize="10.4"
+                                                       Foreground="{StaticResource Ink500Brush}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxWidth="150" />
                                             <CheckBox x:Name="PinProtocolMapCheckBox" Visibility="Collapsed" />
                                         </StackPanel>
                                     </Grid>
@@ -351,7 +389,7 @@
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <TextBlock Text="Raw frame" Style="{StaticResource EyebrowText}" DockPanel.Dock="Left" />
-                                                <TextBlock x:Name="RawFrameGroupingHintText" Text="grouped by active IEC 60870 profile" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                                <TextBlock x:Name="RawFrameGroupingHintText" Text="click group to pin" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
                                             </DockPanel>
                                             <ItemsControl Grid.Row="2" ItemsSource="{Binding SelectedHexSegments}">
                                                 <ItemsControl.ItemsPanel>
@@ -382,7 +420,7 @@
                                             </Grid.RowDefinitions>
                                             <DockPanel>
                                                 <TextBlock Text="Decoded frame content" Style="{StaticResource EyebrowText}" DockPanel.Dock="Left" />
-                                                <TextBlock Text="commissioning-readable" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                                                <TextBlock Text="linked to raw group" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
                                             </DockPanel>
                                             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                 <ItemsControl ItemsSource="{Binding SelectedProtocolMapLines}">
@@ -962,7 +1000,7 @@
 
                             <StackPanel x:Name="Iec103OptionsPanel">
                                 <CheckBox x:Name="ResetRemoteLinkCheckBox" Content="Reset remote link on connect" />
-                                <CheckBox x:Name="ResetFcbCheckBox" Content="Reset FCB on connect" IsChecked="True" />
+                                <CheckBox x:Name="ResetFcbCheckBox" Content="Reset FCB on connect" />
                                 <CheckBox x:Name="Class2StartupCheckBox" Content="Request Class 2 after startup" IsChecked="True" />
                             </StackPanel>
                             <StackPanel x:Name="Iec10xCommandPanel">

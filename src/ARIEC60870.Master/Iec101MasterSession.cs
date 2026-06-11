@@ -28,6 +28,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
     private DateTime _lastClass2ResponseUtc = DateTime.MinValue;
     private int _lastMeasuredClass2CycleMs;
+    private readonly Dictionary<int, int> _observedCommonAddressHits = new();
+    private int? _dominantObservedCommonAddress;
+    private bool _retriedGiWithObservedCommonAddress;
     private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
 
     public Iec101MasterSession(Iec103MasterSettings settings, IByteTransport transport)
@@ -87,8 +90,17 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             if (_settings.SendGeneralInterrogationOnConnect)
             {
                 _counters.GiCommands++;
-                await SendVariableAndReceiveAsync("IEC-101 general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(_settings), "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
-                await DrainClass1Async("GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                var giResponse = await SendVariableAndReceiveAsync("IEC-101 general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(_settings), "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
+                if (IsNegativeConfirmation(giResponse, 100))
+                {
+                    SetState(Iec103MasterState.NormalClass2Polling, "IEC-101 station GI negatively confirmed", "Outstation negatively confirmed QOI=20 station interrogation for configured CA. Continuing scan and enabling observed-CA retry if live traffic proves a different CA.", category: "Warning", dataClass: "Class 2");
+                    await DrainClass1Async("GI follow-up / event queue drain after negative confirmation", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DrainClass1Async("GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                }
+
                 if (_settings.RequestClass2ImmediatelyAfterStartup)
                 {
                     await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
@@ -98,6 +110,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             while (!cancellationToken.IsCancellationRequested)
             {
                 if (await ProcessPendingControlCommandsAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    continue;
+                }
+
+                if (await TryRetryGiUsingObservedCommonAddressAsync(cancellationToken).ConfigureAwait(false))
                 {
                     continue;
                 }
@@ -153,6 +170,96 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     }
 
 
+
+    private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
+    {
+        if (asdu is null)
+        {
+            return;
+        }
+
+        var ca = asdu.CommonAddress;
+        if (ca <= 0)
+        {
+            return;
+        }
+
+        _observedCommonAddressHits.TryGetValue(ca, out var count);
+        _observedCommonAddressHits[ca] = count + 1;
+
+        var dominant = _observedCommonAddressHits
+            .OrderByDescending(x => x.Value)
+            .ThenBy(x => x.Key)
+            .First();
+
+        if (dominant.Value >= 2)
+        {
+            _dominantObservedCommonAddress = dominant.Key;
+        }
+    }
+
+    private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
+    {
+        if (_retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        {
+            return false;
+        }
+
+        var observedCa = _dominantObservedCommonAddress.Value;
+        if (observedCa == _settings.CommonAddress)
+        {
+            return false;
+        }
+
+        _retriedGiWithObservedCommonAddress = true;
+        var learnedSettings = SettingsForCommonAddress(observedCa);
+
+        SetState(
+            Iec103MasterState.GeneralInterrogation,
+            "IEC-101 observed CA learned",
+            $"Live ASDU traffic is using CA={observedCa}, while configured GI CA={_settings.CommonAddress}. Retrying station/group interrogation with observed CA.",
+            category: "Warning",
+            dataClass: "Class 2");
+
+        _counters.GiCommands++;
+        var retry = await SendVariableAndReceiveAsync(
+            $"IEC-101 general interrogation using observed CA {observedCa}",
+            "Class 2",
+            Iec10xAsduBuilder.GeneralInterrogation(learnedSettings),
+            $"Auto CA learning retry GI CA={observedCa}",
+            cancellationToken).ConfigureAwait(false);
+
+        if (IsNegativeConfirmation(retry, 100))
+        {
+            SetState(
+                Iec103MasterState.NormalClass2Polling,
+                "IEC-101 observed-CA GI negatively confirmed",
+                $"Observed CA={observedCa} also negatively confirmed station GI. Trying bounded group interrogation QOI=21..36 for observed CA, then continuing Class 2/background scan.",
+                category: "Warning",
+                dataClass: "Class 2");
+            await RunGroupInterrogationFallbackAsync($"Observed CA {observedCa} station GI negative confirmation", learnedSettings, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await DrainClass1Async($"Observed CA {observedCa} GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    private Iec103MasterSettings SettingsForCommonAddress(int commonAddress)
+    {
+        if (commonAddress == _settings.CommonAddress)
+        {
+            return _settings;
+        }
+
+        var copy = _settings.CreateReportSnapshot();
+        copy.CommonAddress = commonAddress;
+        return copy;
+    }
+
     private Iec103MasterSettings SettingsForCommand(Iec60870ControlCommandRequest request)
     {
         if (!request.CommonAddress.HasValue || request.CommonAddress.Value == _settings.CommonAddress)
@@ -160,9 +267,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             return _settings;
         }
 
-        var copy = _settings.CreateReportSnapshot();
-        copy.CommonAddress = request.CommonAddress.Value;
-        return copy;
+        return SettingsForCommonAddress(request.CommonAddress.Value);
     }
 
     private async Task<bool> ProcessPendingControlCommandsAsync(CancellationToken cancellationToken)
@@ -179,8 +284,18 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         {
             case Iec60870ControlCommandKind.GeneralInterrogation:
                 _counters.GiCommands++;
-                await SendVariableAndReceiveAsync("IEC-101 manual general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(commandSettings), "Manual command dock GI", cancellationToken).ConfigureAwait(false);
-                await DrainClass1Async("Manual GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                var manualGiResponse = await SendVariableAndReceiveAsync("IEC-101 manual general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(commandSettings), "Manual command dock GI", cancellationToken).ConfigureAwait(false);
+                if (IsNegativeConfirmation(manualGiResponse, 100))
+                {
+                    SetState(Iec103MasterState.NormalClass2Polling, "IEC-101 manual station GI negatively confirmed", "Outstation negatively confirmed QOI=20 station interrogation for requested CA. Continuing scan and enabling observed-CA retry if live traffic proves a different CA.", category: "Warning", dataClass: "Class 2");
+                    await DrainClass1Async("Manual GI follow-up / event queue drain after negative confirmation", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DrainClass1Async("Manual GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                }
+
+                await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.ClockSync:
                 _counters.ClockSyncCommands++;
@@ -211,22 +326,121 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         return true;
     }
 
+
+    private bool IsNegativeConfirmation(Ft12FrameDecode? decoded, int expectedTypeId)
+    {
+        if (decoded is null)
+        {
+            return false;
+        }
+
+        if (decoded.IsSingleCharacterNack)
+        {
+            return true;
+        }
+
+        if (decoded.AsduBytes.Count == 0)
+        {
+            return false;
+        }
+
+        var asdu = _asduDecoder.Decode(decoded.AsduBytes);
+        return asdu.IsNegativeConfirm && (expectedTypeId <= 0 || asdu.TypeId == expectedTypeId);
+    }
+
+
+    private async Task RunGroupInterrogationFallbackAsync(string reason, Iec103MasterSettings settings, CancellationToken cancellationToken)
+    {
+        SetState(
+            Iec103MasterState.GeneralInterrogation,
+            "IEC-101 group interrogation fallback started",
+            reason + ". Station interrogation QOI=20 was negatively confirmed; trying bounded group interrogation QOI=21..36.",
+            category: "Warning",
+            dataClass: "Class 2");
+
+        var acceptedGroups = 0;
+        var negativeGroups = 0;
+        var noResponseGroups = 0;
+        var firstGroup = 21;
+        var lastGroup = 36;
+
+        for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
+        {
+            var beforeRx = _counters.RxFrames;
+            var beforeNoData = _counters.NoDataResponses;
+            var response = await SendVariableAndReceiveAsync(
+                $"IEC-101 group interrogation QOI={qoi}",
+                "Class 2",
+                Iec10xAsduBuilder.GeneralInterrogation(settings, (byte)qoi),
+                $"Group interrogation fallback QOI={qoi}",
+                cancellationToken).ConfigureAwait(false);
+
+            if (response is null || _counters.RxFrames == beforeRx)
+            {
+                noResponseGroups++;
+            }
+            else if (IsNegativeConfirmation(response, 100))
+            {
+                negativeGroups++;
+            }
+            else
+            {
+                acceptedGroups++;
+                await DrainClass1Async($"Group GI QOI={qoi} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+            }
+
+            // When the outstation says NO DATA after a group request and no group has been accepted
+            // yet, still continue through the remaining groups. Some RTUs implement only a subset.
+            // Once at least one group has been accepted, two consecutive NO DATA/negative groups are
+            // enough to prevent this fallback from monopolizing a slow 1200 bps link.
+            if (acceptedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, acceptedGroups + 2))
+            {
+                break;
+            }
+
+            if (_settings.Class1DrainDelayMs > 0)
+            {
+                await Task.Delay(_settings.Class1DrainDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        SetState(
+            Iec103MasterState.NormalClass2Polling,
+            "IEC-101 group interrogation fallback completed",
+            $"Groups accepted={acceptedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.",
+            dataClass: "Class 2");
+    }
+
     private async Task RunPostGiClass2VerificationSweepAsync(CancellationToken cancellationToken)
     {
         SetState(
             Iec103MasterState.NormalClass2Polling,
             "IEC-101 post-GI Class 2 verification sweep",
-            "GI drain finished. Requesting a short Class 2 sweep so RTUs that expose background values outside the Class 1 queue can still populate the Value Viewer.",
+            "Running an adaptive Class 2/background sweep after station/group interrogation path. Class 1 empty is not a failure; monitor values may arrive through GI groups or Class 2/background polling.",
             dataClass: "Class 2");
 
-        var noDataBefore = _counters.NoDataResponses;
-        for (var i = 0; i < 3 && !cancellationToken.IsCancellationRequested; i++)
+        var noDataStreak = 0;
+        var userDataBefore = _counters.UserDataResponses;
+        var maxSweeps = Math.Clamp(_settings.MaxClass1DrainFrames / 2, 8, 32);
+        for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            var beforeNoData = _counters.NoDataResponses;
+            var beforeUserData = _counters.UserDataResponses;
+
             _counters.Class2Requests++;
             await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Post-GI Class 2 verification sweep", cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
 
-            if (_counters.NoDataResponses > noDataBefore)
+            if (_counters.UserDataResponses > beforeUserData)
+            {
+                noDataStreak = 0;
+            }
+            else if (_counters.NoDataResponses > beforeNoData)
+            {
+                noDataStreak++;
+            }
+
+            if (noDataStreak >= 2 && _counters.UserDataResponses > userDataBefore)
             {
                 break;
             }
@@ -245,7 +459,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             stopWhenGiEnds ? Iec103MasterState.GiFollowUpDrain : Iec103MasterState.Class1EventDrain,
             stopWhenGiEnds ? "IEC-101 GI follow-up drain started" : "IEC-101 Class 1 drain started",
             stopWhenGiEnds
-                ? reason + "; draining until ACTTERM, NO DATA, cancellation, or drain limit. ACD=0 alone is not a valid GI drain stop condition."
+                ? reason + "; bounded drain for GI/user-data compatibility until ACTTERM, NO DATA, cancellation, or drain limit. Class 1 empty is not a failure; Class 2 sweep follows."
                 : reason,
             dataClass: "Class 1");
 
@@ -346,13 +560,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         if (response is not null && fcv && response.Format != Ft12FrameFormat.Malformed && response.IsChecksumValid) _fcb = !fcbBefore;
     }
 
-    private async Task SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
         var fcbBefore = _fcb;
         var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
         if (response is not null && response.Format != Ft12FrameFormat.Malformed && response.IsChecksumValid) _fcb = !fcbBefore;
+        return response;
     }
 
     private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
@@ -427,6 +642,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         else if (decoded.IsSingleCharacterNack) _counters.NackResponses++;
 
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
+        ObserveAsduCommonAddress(asdu);
         AuditAsduForensicFindings("IEC101", asdu);
         if (decoded.LinkControl is not null && !decoded.LinkControl.Prm)
         {
