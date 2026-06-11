@@ -1,0 +1,169 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Build Windows portable package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without leading v'
+        required: true
+        default: '1.6.9'
+      publish_release:
+        description: 'Create or update GitHub Release after the package is built'
+        type: boolean
+        required: true
+        default: true
+      prerelease:
+        description: 'Mark the GitHub Release as pre-release'
+        type: boolean
+        required: true
+        default: true
+      draft:
+        description: 'Create the GitHub Release as draft'
+        type: boolean
+        required: true
+        default: false
+      release_notes_file:
+        description: 'Release notes markdown file. Leave empty to auto-use docs/RELEASE_NOTES_vX.Y.Z.md'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve release inputs
+        id: release
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ github.event.inputs.version }}'.Trim()
+            if ($version.StartsWith('v')) { $version = $version.Substring(1) }
+            $publishRelease = '${{ github.event.inputs.publish_release }}'
+            $preRelease = '${{ github.event.inputs.prerelease }}'
+            $draft = '${{ github.event.inputs.draft }}'
+            $notesFile = '${{ github.event.inputs.release_notes_file }}'.Trim()
+          } else {
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+            $publishRelease = 'true'
+            $preRelease = 'true'
+            $draft = 'false'
+            $notesFile = "docs/RELEASE_NOTES_v$version.md"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'Release version cannot be empty.'
+          }
+
+          if ([string]::IsNullOrWhiteSpace($notesFile)) {
+            $notesFile = "docs/RELEASE_NOTES_v$version.md"
+          }
+
+          $tag = "v$version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "publish_release=$publishRelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "prerelease=$preRelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "draft=$draft" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "notes_file=$notesFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          Write-Host "Packaging version : $version"
+          Write-Host "Release tag       : $tag"
+          Write-Host "Publish release   : $publishRelease"
+          Write-Host "Pre-release       : $preRelease"
+          Write-Host "Draft             : $draft"
+          Write-Host "Release notes     : $notesFile"
+
+      - name: Build portable package
+        shell: pwsh
+        run: ./scripts/publish-windows-portable.ps1 -Version '${{ steps.release.outputs.version }}'
+
+      - name: Verify portable package structure
+        shell: pwsh
+        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable.zip"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable
+          path: |
+            artifacts/release/ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable.zip
+            artifacts/release/SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        if: steps.release.outputs.publish_release == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ steps.release.outputs.tag }}'
+          $version = '${{ steps.release.outputs.version }}'
+          $zip = "artifacts/release/ARIEC60870-v$version-win-x64-portable.zip"
+          $sha = "artifacts/release/SHA256SUMS.txt"
+          $notes = '${{ steps.release.outputs.notes_file }}'
+          $target = '${{ github.sha }}'
+
+          if (-not (Test-Path $notes)) {
+            $fallback = "docs/RELEASE_NOTES_v$version.md"
+            if (Test-Path $fallback) {
+              $notes = $fallback
+            } else {
+              $generatedNotes = "artifacts/release/RELEASE_NOTES_GENERATED.md"
+              $generatedLines = @(
+                "# ARIEC60870 v$version",
+                "",
+                "This release provides a Windows portable package for IEC 60870-5-103 master testing and relay communication evidence review.",
+                "",
+                "## Release assets",
+                "",
+                '```text',
+                "ARIEC60870-v$version-win-x64-portable.zip",
+                "SHA256SUMS.txt",
+                '```',
+                "",
+                "## How to try it",
+                "",
+                "1. Download the Windows portable ZIP from this release.",
+                "2. Extract the package to a local folder.",
+                "3. Run ``Start-ARIEC60870.bat``.",
+                "4. Configure COM port, baudrate, parity, link address, common address, timeout, GI option, and optional mapping profile.",
+                "5. Start the session and review Operator Evidence, Value Viewer, Relay Event Log, Frame Trace, and Diagnostics.",
+                "6. Export evidence after the test session when needed.",
+                "",
+                "## Notes for evaluation",
+                "",
+                "Use this build for IEC-103 relay communication checks, bench testing, troubleshooting, and evidence review. Validate it with the target relay and approved project mapping profile before relying on exported evidence for formal FAT/SAT records."
+              )
+              $generatedLines | Set-Content -Path $generatedNotes -Encoding UTF8
+              $notes = $generatedNotes
+            }
+          }
+
+          $title = "ARIEC60870 $tag"
+          $releaseFlags = @()
+          if ('${{ steps.release.outputs.prerelease }}' -eq 'true') { $releaseFlags += '--prerelease' }
+          if ('${{ steps.release.outputs.draft }}' -eq 'true') { $releaseFlags += '--draft' }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Creating GitHub Release $tag from workflow commit $target"
+            gh release create $tag $zip $sha --title $title --notes-file $notes --target $target @releaseFlags
+          } else {
+            Write-Host "GitHub Release $tag already exists. Uploading assets with --clobber."
+            gh release upload $tag $zip $sha --clobber
+          }

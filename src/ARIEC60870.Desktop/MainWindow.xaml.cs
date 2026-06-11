@@ -1,0 +1,3229 @@
+// Copyright 2026 Ari Sulistiono
+// SPDX-License-Identifier: Apache-2.0
+
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.IO.Ports;
+using System.Text;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using ARIEC60870.Core.Mapping;
+using ARIEC60870.Core.Model;
+using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Master;
+using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Reporting;
+using ARIEC60870.Master.Transport;
+using Microsoft.Win32;
+
+namespace ARIEC60870.Desktop;
+
+public partial class MainWindow : Window
+{
+    private CancellationTokenSource? _sessionCancellation;
+    private Iec103MasterRunResult? _lastResult;
+    private int _txCount;
+    private int _rxCount;
+    private int _giCount;
+    private int _class1Count;
+    private int _class2Count;
+    private int _noDataCount;
+    private int _dpiCount;
+    private long _visibleEvidenceDropped;
+    private long _visibleRelayEventsDropped;
+    private long _visibleLogLinesDropped;
+    private long _visibleDiagnosticsDropped;
+    private Iec103SignalMappingProfile _mappingProfile = Iec103SignalMappingProfile.Empty;
+    private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
+    private IProtocolControlCommandSession? _activeControlSession;
+    private bool _commandDockExpanded = true;
+    private readonly List<RelayEventRow> _allRelayEventRows = new();
+    private IByteTransport? _activeTransport;
+    private bool _stopRequested;
+    private string _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
+    private EvidenceRow? _selectedFrameRow;
+    private string? _pinnedProtocolMapKey;
+    private bool _statusHistoryExpanded = true;
+    private bool _isApplyingSavedSetup;
+    private bool _savedSetupPreferencesLoaded;
+    private bool _defaultIoaSeedSettingsApplied;
+
+    private const int MaxVisibleEvidenceRows = 520;
+    private const int MaxVisibleRelayEventRows = 420;
+    private const int MaxVisibleFindingRows = 260;
+    private const int MaxVisibleDiagnosticRows = 280;
+    private const int MaxVisibleSignalListRows = 360;
+    private const int MaxSessionLogLines = 280;
+    private const int MaxUiFlushPerTick = 42;
+
+    private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
+    private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
+    private readonly Queue<string> _sessionLogLines = new();
+    private readonly DispatcherTimer _uiFlushTimer;
+    private readonly DispatcherTimer _ledDecayTimer;
+    private readonly DispatcherTimer _valueHighlightTimer;
+    private readonly Dictionary<FrameworkElement, DateTime> _ledPulseTimes = new();
+    private readonly Dictionary<string, DateTime> _valueHighlightExpiryByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _lastDisplayedValueByKey = new(StringComparer.OrdinalIgnoreCase);
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        DataContext = this;
+        _uiFlushTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(75)
+        };
+        _uiFlushTimer.Tick += (_, _) => FlushUiQueues();
+        _uiFlushTimer.Start();
+        _ledDecayTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(90)
+        };
+        _ledDecayTimer.Tick += (_, _) => DecayLedPulses();
+        _ledDecayTimer.Start();
+        _valueHighlightTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _valueHighlightTimer.Tick += (_, _) => ResetExpiredValueHighlights();
+        _valueHighlightTimer.Start();
+        RefreshPorts();
+        LoadSetupPreferences();
+        LoadDefaultIoaSeedProfile();
+        ApplyProtocolUxProfile(GetSelectedProtocolMode());
+        AppendSessionLog("ARIEC60870 Protocol Lab initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
+        AppendSessionLog("Output model: Operator/Engineer views first, raw hex remains available in Frame Trace for protocol transparency.");
+        Loaded += (_, _) =>
+        {
+            MainTabControl.SelectedIndex = 0;
+            ApplyProtocolUxProfile(GetSelectedProtocolMode());
+            UpdateSegmentedNav(false);
+            ApplyCommandDockLayout();
+            UpdateCommandDockActionButtons();
+            UpdateConnectToggleVisual(false);
+            AutoFillCommandTargetFromProfile();
+        };
+        SizeChanged += (_, _) => UpdateSegmentedNav(false);
+        Closing += (_, _) => SaveSetupPreferencesFromUi(silent: true);
+    }
+
+    public ObservableCollection<EvidenceRow> EvidenceRows { get; } = new();
+    public ObservableCollection<EvidenceRow> FrameTraceRows { get; } = new();
+    public ObservableCollection<FindingRow> FindingRows { get; } = new();
+    public ObservableCollection<ValueRow> ValueRows { get; } = new();
+    public ObservableCollection<RelayEventRow> RelayEventRows { get; } = new();
+    public ObservableCollection<IoaMappingRow> IoaProfileRows { get; } = new();
+    public ObservableCollection<AssessmentRow> AssessmentRows { get; } = new();
+    public ObservableCollection<DiagnosticRow> DiagnosticRows { get; } = new();
+    public ObservableCollection<ProtocolMapLine> SelectedProtocolMapLines { get; } = new();
+    public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
+    public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
+
+    private void RefreshPorts_Click(object sender, RoutedEventArgs e) => RefreshPorts();
+
+    private void OpenSetup_Click(object sender, RoutedEventArgs e)
+    {
+        SetupOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void CloseSetup_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSetupPreferencesFromUi(silent: true);
+        SetupOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void RefreshPorts()
+    {
+        var previous = PortComboBox.SelectedItem as string;
+        PortComboBox.Items.Clear();
+
+        var ports = SerialPort.GetPortNames()
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (ports.Length == 0)
+        {
+            PortComboBox.Items.Add("COM1");
+        }
+        else
+        {
+            foreach (var port in ports)
+            {
+                PortComboBox.Items.Add(port);
+            }
+        }
+
+        PortComboBox.SelectedItem = !string.IsNullOrWhiteSpace(previous) && PortComboBox.Items.Contains(previous)
+            ? previous
+            : PortComboBox.Items[0];
+    }
+
+
+
+    private static string SetupPreferencesPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ARIEC60870",
+        "setup-preferences.json");
+
+    private static string BundledPlnPusertifSeedPath => Path.Combine(
+        AppContext.BaseDirectory,
+        "profiles",
+        "PLN_Pusertif_IEC101_default_seed.json");
+
+    private static string SourceTreePlnPusertifSeedPath => Path.Combine(
+        AppContext.BaseDirectory,
+        "..", "..", "..", "..",
+        "profiles",
+        "PLN_Pusertif_IEC101_default_seed.json");
+
+    private void LoadDefaultIoaSeedProfile()
+    {
+        if (_ioaProfile.HasPoints)
+        {
+            return;
+        }
+
+        var candidates = new[]
+        {
+            BundledPlnPusertifSeedPath,
+            Path.GetFullPath(SourceTreePlnPusertifSeedPath)
+        };
+
+        foreach (var path in candidates)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(path);
+                if (GetSelectedProtocolMode() != Iec60870ProtocolMode.Iec103 && string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
+                {
+                    MappingProfilePathBox.Text = path;
+                }
+                MappingProfileStatusText.Text = $"Default IOA seed available: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points). Copy/edit JSON for project-specific IOA database.";
+                RefreshIoaProfileRows();
+                if (GetSelectedProtocolMode() != Iec60870ProtocolMode.Iec103)
+                {
+                    ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: !_savedSetupPreferencesLoaded);
+                }
+                AppendSessionLog($"Default IOA seed profile loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points).");
+                return;
+            }
+            catch (Exception ex)
+            {
+                AddUiDiagnostic("Warning", "Mapping", "IEC10X-IOA-SEED-LOAD", "Default IOA seed could not be loaded", ex.Message, "The app will continue with raw IOA labels. Check profiles/PLN_Pusertif_IEC101_default_seed.json.", ex);
+            }
+        }
+    }
+
+
+    private void RefreshIoaProfileRows()
+    {
+        IoaProfileRows.Clear();
+        var ordered = _ioaProfile.Points
+            .OrderBy(x => x.Group, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Ioa)
+            .ThenBy(x => x.TypeId ?? 0)
+            .ToList();
+
+        foreach (var point in ordered.Take(MaxVisibleSignalListRows))
+        {
+            IoaProfileRows.Add(new IoaMappingRow(point, ordered));
+        }
+
+        if (ordered.Count > 0)
+        {
+            var suffix = ordered.Count > IoaProfileRows.Count
+                ? $" Showing first {IoaProfileRows.Count} rows for fast workspace rendering; use Edit Signal List for the full database."
+                : string.Empty;
+            AppendSessionLog($"IOA signal list loaded: {ordered.Count} points from {_ioaProfile.ProfileName}.{suffix}");
+        }
+    }
+
+
+    private void ApplyIoaProfileDefaultsToUi(Iec10xPointMappingProfile profile, bool onlyWhenUiLooksDefault)
+    {
+        var defaults = profile.DefaultSettings;
+        if (defaults is null)
+        {
+            return;
+        }
+
+        var uiLooksUntouched = string.IsNullOrWhiteSpace(CommonAddressBox.Text) || CommonAddressBox.Text.Trim() == "1";
+        if (onlyWhenUiLooksDefault && !uiLooksUntouched)
+        {
+            return;
+        }
+
+        if (defaults.BaudRate.HasValue)
+        {
+            SetEditableComboText(BaudComboBox, defaults.BaudRate.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (!string.IsNullOrWhiteSpace(defaults.SerialMode))
+        {
+            SelectComboContent(SerialModeComboBox, defaults.SerialMode);
+        }
+        if (defaults.LinkAddress.HasValue)
+        {
+            LinkAddressBox.Text = defaults.LinkAddress.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (defaults.CommonAddress.HasValue)
+        {
+            CommonAddressBox.Text = defaults.CommonAddress.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            CommandCaBox.Text = CommonAddressBox.Text;
+        }
+        if (defaults.LinkAddressSize.HasValue)
+        {
+            SelectComboContent(LinkAddressSizeComboBox, Math.Clamp(defaults.LinkAddressSize.Value, 0, 2).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (defaults.CauseOfTransmissionSize.HasValue)
+        {
+            SelectComboContent(CotSizeComboBox, Math.Clamp(defaults.CauseOfTransmissionSize.Value, 1, 2).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (defaults.CommonAddressSize.HasValue)
+        {
+            SelectComboContent(CaSizeComboBox, Math.Clamp(defaults.CommonAddressSize.Value, 1, 2).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (defaults.InformationObjectAddressSize.HasValue)
+        {
+            SelectComboContent(IoaSizeComboBox, Math.Clamp(defaults.InformationObjectAddressSize.Value, 1, 3).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (!string.IsNullOrWhiteSpace(defaults.TransmissionMode))
+        {
+            SelectComboContent(TransmissionModeComboBox, defaults.TransmissionMode);
+        }
+        if (!string.IsNullOrWhiteSpace(defaults.TcpHost))
+        {
+            TcpHostBox.Text = defaults.TcpHost;
+        }
+        if (defaults.TcpPort.HasValue)
+        {
+            TcpPortBox.Text = defaults.TcpPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        _defaultIoaSeedSettingsApplied = true;
+        AppendSessionLog($"IOA profile defaults applied: CA={CommonAddressBox.Text}, COT size={CotSizeComboBox.Text}, CA size={CaSizeComboBox.Text}, IOA size={IoaSizeComboBox.Text}, serial={BaudComboBox.Text} {SerialModeComboBox.Text}.");
+    }
+
+    private void LoadSetupPreferences()
+    {
+        try
+        {
+            var path = SetupPreferencesPath;
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var prefs = JsonSerializer.Deserialize<SetupPreferences>(File.ReadAllText(path, Encoding.UTF8));
+            if (prefs is null)
+            {
+                return;
+            }
+
+            _savedSetupPreferencesLoaded = true;
+            _isApplyingSavedSetup = true;
+            SelectProtocolMode(prefs.ProtocolMode);
+            SelectComboContent(TransportModeComboBox, prefs.UseSimulatedSlave ? "Built-in demo simulation" : "Real device / server");
+
+            if (!string.IsNullOrWhiteSpace(prefs.PortName))
+            {
+                EnsureComboItem(PortComboBox, prefs.PortName);
+                PortComboBox.SelectedItem = prefs.PortName;
+            }
+
+            SetEditableComboText(BaudComboBox, prefs.BaudRate.ToString());
+            SelectComboContent(SerialModeComboBox, string.IsNullOrWhiteSpace(prefs.SerialMode) ? "8E1" : prefs.SerialMode);
+            TcpHostBox.Text = string.IsNullOrWhiteSpace(prefs.TcpHost) ? "127.0.0.1" : prefs.TcpHost;
+            TcpPortBox.Text = prefs.TcpPort <= 0 ? "2404" : prefs.TcpPort.ToString();
+            LinkAddressBox.Text = prefs.LinkAddress.ToString();
+            CommonAddressBox.Text = prefs.CommonAddress.ToString();
+            CommandCaBox.Text = prefs.CommonAddress.ToString();
+            SelectComboContent(LinkAddressSizeComboBox, Math.Clamp(prefs.LinkAddressSize, 0, 2).ToString());
+            SelectComboContent(CotSizeComboBox, Math.Clamp(prefs.CauseOfTransmissionSize, 1, 2).ToString());
+            SelectComboContent(CaSizeComboBox, Math.Clamp(prefs.CommonAddressSize, 1, 2).ToString());
+            SelectComboContent(IoaSizeComboBox, Math.Clamp(prefs.InformationObjectAddressSize, 1, 3).ToString());
+            SelectComboContent(TransmissionModeComboBox, prefs.TransmissionMode?.StartsWith("Balanced", StringComparison.OrdinalIgnoreCase) == true ? "Unbalanced" : "Unbalanced");
+
+            Class2IntervalBox.Text = prefs.Class2PollIntervalMs > 0 ? prefs.Class2PollIntervalMs.ToString() : "500";
+            MaxDrainBox.Text = prefs.MaxClass1DrainFrames > 0 ? prefs.MaxClass1DrainFrames.ToString() : "64";
+            Iec104T0Box.Text = prefs.Iec104T0TimeoutMs > 0 ? prefs.Iec104T0TimeoutMs.ToString() : "30000";
+            Iec104T1Box.Text = prefs.Iec104T1AckTimeoutMs > 0 ? prefs.Iec104T1AckTimeoutMs.ToString() : "15000";
+            Iec104T2Box.Text = prefs.Iec104T2AckDelayMs > 0 ? prefs.Iec104T2AckDelayMs.ToString() : "10000";
+            Iec104T3Box.Text = prefs.Iec104T3TestIntervalMs > 0 ? prefs.Iec104T3TestIntervalMs.ToString() : "20000";
+            Iec104KBox.Text = prefs.Iec104KMaxUnacknowledged > 0 ? prefs.Iec104KMaxUnacknowledged.ToString() : "12";
+            Iec104WBox.Text = prefs.Iec104WReceiveWindow > 0 ? prefs.Iec104WReceiveWindow.ToString() : "8";
+            TimeoutBox.Text = prefs.ResponseTimeoutMs > 0 ? prefs.ResponseTimeoutMs.ToString() : "1500";
+            DurationBox.Text = prefs.DurationSeconds >= 0 ? prefs.DurationSeconds.ToString() : "0";
+            ResetRemoteLinkCheckBox.IsChecked = prefs.ResetRemoteLinkOnConnect;
+            ResetFcbCheckBox.IsChecked = prefs.ResetFcbOnConnect;
+            Class2StartupCheckBox.IsChecked = prefs.RequestClass2ImmediatelyAfterStartup;
+            ClockSyncCheckBox.IsChecked = prefs.SendClockSyncOnConnect;
+            GiCheckBox.IsChecked = prefs.SendGeneralInterrogationOnConnect;
+            MappingProfilePathBox.Text = prefs.MappingProfilePath ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(MappingProfilePathBox.Text) && File.Exists(MappingProfilePathBox.Text))
+            {
+                TryLoadMappingProfile(MappingProfilePathBox.Text, showMessage: false);
+            }
+            _commandDockExpanded = prefs.CommandDockExpanded;
+            ApplyCommandDockLayout();
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic("Warning", "Setup", "IEC60870-SETUP-PREF-LOAD", "Saved setup could not be loaded", ex.Message, "The app will continue with default setup. Re-enter the settings once and they will be saved again.", ex);
+        }
+        finally
+        {
+            _isApplyingSavedSetup = false;
+        }
+    }
+
+    private void SaveSetupPreferencesFromUi(bool silent)
+    {
+        if (_isApplyingSavedSetup)
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = BuildSettingsFromUi();
+            var duration = ReadInt(DurationBox, "Session timeout", 0, 86400);
+            SaveSetupPreferences(settings, duration, silent);
+        }
+        catch (Exception ex)
+        {
+            if (!silent)
+            {
+                MessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void SaveSetupPreferences(Iec103MasterSettings settings, int durationSeconds, bool silent)
+    {
+        try
+        {
+            var prefs = new SetupPreferences
+            {
+                ProtocolMode = settings.ProtocolMode.ToString(),
+                UseSimulatedSlave = settings.UseSimulatedSlave,
+                PortName = settings.PortName,
+                BaudRate = settings.BaudRate,
+                SerialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? SerialModeComboBox.Text,
+                TcpHost = settings.TcpHost,
+                TcpPort = settings.TcpPort,
+                LinkAddress = settings.LinkAddress,
+                CommonAddress = settings.CommonAddress,
+                LinkAddressSize = settings.LinkAddressSize,
+                CauseOfTransmissionSize = settings.CauseOfTransmissionSize,
+                CommonAddressSize = settings.CommonAddressSize,
+                InformationObjectAddressSize = settings.InformationObjectAddressSize,
+                TransmissionMode = settings.TransmissionMode,
+                Iec104T0TimeoutMs = settings.Iec104T0TimeoutMs,
+                Iec104T1AckTimeoutMs = settings.Iec104T1AckTimeoutMs,
+                Iec104T2AckDelayMs = settings.Iec104T2AckDelayMs,
+                Iec104T3TestIntervalMs = settings.Iec104T3TestIntervalMs,
+                Iec104KMaxUnacknowledged = settings.Iec104KMaxUnacknowledged,
+                Iec104WReceiveWindow = settings.Iec104WReceiveWindow,
+                ResponseTimeoutMs = settings.ResponseTimeoutMs,
+                Class2PollIntervalMs = settings.Class2PollIntervalMs,
+                MaxClass1DrainFrames = settings.MaxClass1DrainFrames,
+                ResetRemoteLinkOnConnect = settings.ResetRemoteLinkOnConnect,
+                ResetFcbOnConnect = settings.ResetFcbOnConnect,
+                RequestClass2ImmediatelyAfterStartup = settings.RequestClass2ImmediatelyAfterStartup,
+                SendClockSyncOnConnect = settings.SendClockSyncOnConnect,
+                SendGeneralInterrogationOnConnect = settings.SendGeneralInterrogationOnConnect,
+                MappingProfilePath = settings.MappingProfilePath,
+                CommandDockExpanded = _commandDockExpanded,
+                DurationSeconds = durationSeconds,
+                SavedUtc = DateTime.UtcNow
+            };
+
+            var path = SetupPreferencesPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(prefs, new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8);
+            if (!silent)
+            {
+                AppendSessionLog("Setup preferences saved for next launch.");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!silent)
+            {
+                MessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void SelectProtocolMode(string? protocolMode)
+    {
+        var needle = protocolMode?.Contains("104", StringComparison.OrdinalIgnoreCase) == true ? "104"
+            : protocolMode?.Contains("101", StringComparison.OrdinalIgnoreCase) == true ? "101"
+            : "103";
+        for (var i = 0; i < ProtocolModeComboBox.Items.Count; i++)
+        {
+            if ((ProtocolModeComboBox.Items[i] as ComboBoxItem)?.Content?.ToString()?.Contains(needle, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                ProtocolModeComboBox.SelectedIndex = i;
+                return;
+            }
+        }
+    }
+
+    private static void EnsureComboItem(ComboBox comboBox, string value)
+    {
+        foreach (var item in comboBox.Items)
+        {
+            if (string.Equals((item as ComboBoxItem)?.Content?.ToString() ?? item?.ToString(), value, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        comboBox.Items.Add(value);
+    }
+
+    private static void SelectComboContent(ComboBox comboBox, string value)
+    {
+        foreach (var item in comboBox.Items)
+        {
+            var text = (item as ComboBoxItem)?.Content?.ToString() ?? item?.ToString();
+            if (string.Equals(text, value, StringComparison.OrdinalIgnoreCase))
+            {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        if (comboBox.IsEditable)
+        {
+            comboBox.Text = value;
+        }
+    }
+
+    private static void SetEditableComboText(ComboBox comboBox, string value)
+    {
+        SelectComboContent(comboBox, value);
+        if (comboBox.IsEditable)
+        {
+            comboBox.Text = value;
+        }
+    }
+
+    private sealed class SetupPreferences
+    {
+        public string ProtocolMode { get; set; } = nameof(Iec60870ProtocolMode.Iec103);
+        public bool UseSimulatedSlave { get; set; }
+        public string PortName { get; set; } = "COM1";
+        public int BaudRate { get; set; } = 9600;
+        public string SerialMode { get; set; } = "8E1";
+        public string TcpHost { get; set; } = "127.0.0.1";
+        public int TcpPort { get; set; } = 2404;
+        public int LinkAddress { get; set; } = 1;
+        public int CommonAddress { get; set; } = 1;
+        public int LinkAddressSize { get; set; } = 1;
+        public int CauseOfTransmissionSize { get; set; } = 2;
+        public int CommonAddressSize { get; set; } = 2;
+        public int InformationObjectAddressSize { get; set; } = 3;
+        public string TransmissionMode { get; set; } = "Unbalanced";
+        public int Iec104T0TimeoutMs { get; set; } = 30000;
+        public int Iec104T1AckTimeoutMs { get; set; } = 15000;
+        public int Iec104T2AckDelayMs { get; set; } = 10000;
+        public int Iec104T3TestIntervalMs { get; set; } = 20000;
+        public int Iec104KMaxUnacknowledged { get; set; } = 12;
+        public int Iec104WReceiveWindow { get; set; } = 8;
+        public int ResponseTimeoutMs { get; set; } = 1500;
+        public int Class2PollIntervalMs { get; set; } = 500;
+        public int MaxClass1DrainFrames { get; set; } = 64;
+        public bool ResetRemoteLinkOnConnect { get; set; }
+        public bool ResetFcbOnConnect { get; set; } = true;
+        public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
+        public bool SendClockSyncOnConnect { get; set; }
+        public bool SendGeneralInterrogationOnConnect { get; set; } = true;
+        public string MappingProfilePath { get; set; } = string.Empty;
+        public bool CommandDockExpanded { get; set; } = true;
+        public int DurationSeconds { get; set; }
+        public DateTime SavedUtc { get; set; }
+    }
+
+
+
+    private void ApplyCommandDockLayout()
+    {
+        if (CommandDockPanel is null || CommandDockColumn is null)
+        {
+            return;
+        }
+
+        CommandDockColumn.Width = _commandDockExpanded ? new GridLength(320) : new GridLength(42);
+        CommandDockPanel.Visibility = _commandDockExpanded ? Visibility.Visible : Visibility.Collapsed;
+        CommandDockMiniButton.Visibility = _commandDockExpanded ? Visibility.Collapsed : Visibility.Visible;
+
+        if (CommandDockToggleIcon is not null)
+        {
+            CommandDockToggleIcon.Data = (Geometry)FindResource(_commandDockExpanded ? "LucideCircleChevronRight" : "LucideCircleChevronLeft");
+        }
+    }
+
+    private void ToggleCommandDock_Click(object sender, RoutedEventArgs e)
+    {
+        _commandDockExpanded = !_commandDockExpanded;
+        ApplyCommandDockLayout();
+        SaveSetupPreferencesFromUi(silent: true);
+    }
+
+    private void CommandDock_Gi_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.GeneralInterrogation, OperatorNote = "Command dock GI" });
+
+    private void CommandDock_ClockSync_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.ClockSync, OperatorNote = "Command dock clock sync" });
+
+    private void CommandDock_Read_Click(object sender, RoutedEventArgs e)
+    {
+        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
+        {
+            Kind = Iec60870ControlCommandKind.Read,
+            CommonAddress = ReadInt(CommandCaBox, "Command CA", 0, 0xFFFF),
+            InformationObjectAddress = ReadInt(CommandIoaBox, "Command IOA", 0, 0xFFFFFF),
+            OperatorNote = "Command dock read"
+        });
+    }
+
+    private void CommandTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateCommandDockActionButtons();
+        AutoFillCommandTargetFromProfile();
+    }
+
+    private void UpdateCommandDockActionButtons()
+    {
+        if (CommandSelectOpenButton is null || CommandOperateOpenButton is null)
+        {
+            return;
+        }
+
+        var kind = ResolveCommandKindFromCombo();
+        var isSetpoint = kind == Iec60870ControlCommandKind.SetpointNormalizedCommand;
+        CommandSetpointLabel.Visibility = isSetpoint ? Visibility.Visible : Visibility.Hidden;
+        CommandSetpointBox.Visibility = isSetpoint ? Visibility.Visible : Visibility.Hidden;
+        CommandSelectCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
+        CommandOperateCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
+
+        if (kind == Iec60870ControlCommandKind.RegulatingStepCommand)
+        {
+            CommandSelectOpenButton.Content = "Select Lower";
+            CommandOperateOpenButton.Content = "Operate Lower";
+            CommandSelectCloseButton.Content = "Select Raise";
+            CommandOperateCloseButton.Content = "Operate Raise";
+            return;
+        }
+
+        if (isSetpoint)
+        {
+            CommandSelectOpenButton.Content = "Select Setpoint";
+            CommandOperateOpenButton.Content = "Operate Setpoint";
+            return;
+        }
+
+        CommandSelectOpenButton.Content = "Select Open";
+        CommandOperateOpenButton.Content = "Operate Open";
+        CommandSelectCloseButton.Content = "Select Close";
+        CommandOperateCloseButton.Content = "Operate Close";
+    }
+
+    private void AutoFillCommandTargetFromProfile()
+    {
+        if (_isApplyingSavedSetup || _ioaProfile.Points.Count == 0 || CommandIoaBox is null)
+        {
+            return;
+        }
+
+        var kind = ResolveCommandKindFromCombo();
+        var typeId = kind switch
+        {
+            Iec60870ControlCommandKind.SingleCommand => 45,
+            Iec60870ControlCommandKind.DoubleCommand => 46,
+            Iec60870ControlCommandKind.RegulatingStepCommand => 47,
+            Iec60870ControlCommandKind.SetpointNormalizedCommand => 48,
+            _ => 0
+        };
+
+        if (typeId == 0)
+        {
+            return;
+        }
+
+        var commandPoint = _ioaProfile.Points.FirstOrDefault(x => x.TypeId == typeId)
+            ?? _ioaProfile.Points.FirstOrDefault(x => x.CommandPolicy.Contains("Command", StringComparison.OrdinalIgnoreCase));
+        if (commandPoint is null)
+        {
+            return;
+        }
+
+        CommandIoaBox.Text = commandPoint.Ioa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (commandPoint.Ca.HasValue)
+        {
+            CommandCaBox.Text = commandPoint.Ca.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    private void CommandDock_Action_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+        {
+            return;
+        }
+
+        var tag = button.Tag?.ToString() ?? string.Empty;
+        var select = tag.StartsWith("select", StringComparison.OrdinalIgnoreCase);
+        var leftAction = tag.EndsWith("left", StringComparison.OrdinalIgnoreCase);
+        var kind = ResolveCommandKindFromCombo();
+        var value = BuildCommandValue(kind, leftAction);
+
+        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
+        {
+            Kind = kind,
+            CommonAddress = ReadInt(CommandCaBox, "Command CA", 0, 0xFFFF),
+            InformationObjectAddress = ReadInt(CommandIoaBox, "Command IOA", 0, 0xFFFFFF),
+            Value = value,
+            NumericValue = ParseLeadingDouble(CommandSetpointBox.Text, 0),
+            Qualifier = ReadInt(CommandQualifierBox, "Command qualifier", 0, 31),
+            SelectBeforeOperate = select,
+            OperatorNote = select ? "Command dock SELECT" : "Command dock OPERATE"
+        });
+    }
+
+    private Iec60870ControlCommandKind ResolveCommandKindFromCombo()
+    {
+        var typeText = (CommandTypeComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Double";
+        if (typeText.Contains("Setpoint", StringComparison.OrdinalIgnoreCase)) return Iec60870ControlCommandKind.SetpointNormalizedCommand;
+        if (typeText.Contains("Regulating", StringComparison.OrdinalIgnoreCase)) return Iec60870ControlCommandKind.RegulatingStepCommand;
+        if (typeText.Contains("Double", StringComparison.OrdinalIgnoreCase)) return Iec60870ControlCommandKind.DoubleCommand;
+        return Iec60870ControlCommandKind.SingleCommand;
+    }
+
+    private static int BuildCommandValue(Iec60870ControlCommandKind kind, bool leftAction)
+    {
+        return kind switch
+        {
+            Iec60870ControlCommandKind.SingleCommand => leftAction ? 0 : 1,       // OFF/Open, ON/Close
+            Iec60870ControlCommandKind.DoubleCommand => leftAction ? 1 : 2,       // DCS=1 Open/Off, DCS=2 Close/On
+            Iec60870ControlCommandKind.RegulatingStepCommand => leftAction ? 1 : 2, // RCS=1 Lower, RCS=2 Raise
+            _ => 0
+        };
+    }
+
+    private static double ParseLeadingDouble(string text, double fallback)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
+
+        var token = text.Trim().Split(' ', '/', '\t', '\r', '\n').FirstOrDefault() ?? string.Empty;
+        return double.TryParse(token, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value
+            : fallback;
+    }
+
+    private void IssuePriorityRuntimeCommand(Iec60870ControlCommandRequest request)
+    {
+        if (_activeControlSession is null || !_activeControlSession.SupportsRuntimeControlCommands)
+        {
+            CommandDockStatusText.Text = "No active IEC-101/104 runtime session. Connect first before issuing a command.";
+            AppendSessionLog("Command dock refused: no active runtime control session.");
+            return;
+        }
+
+        if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
+        {
+            CommandDockStatusText.Text = "IEC-103 control command dock is not enabled. Use IEC-101/104 command ASDUs only in this build.";
+            AppendSessionLog("Command dock refused: IEC-103 command workflow is not enabled in this build.");
+            return;
+        }
+
+        _activeControlSession.QueueControlCommand(request);
+        CommandDockStatusText.Text = "Issued priority command: " + request.Summary;
+        AppendSessionLog("Command dock issued: " + request.Summary);
+    }
+
+    private void ConnectToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sessionCancellation is null)
+        {
+            Start_Click(sender, e);
+        }
+        else
+        {
+            Stop_Click(sender, e);
+        }
+    }
+
+    private void UpdateConnectToggleVisual(bool isRunning)
+    {
+        if (StartButton is null)
+        {
+            return;
+        }
+
+        if (ConnectToggleCaption is not null)
+        {
+            ConnectToggleCaption.Text = isRunning ? "Disconnect" : "Connect";
+        }
+
+        if (ConnectIconOn is not null)
+        {
+            ConnectIconOn.Visibility = isRunning ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        if (ConnectIconOff is not null)
+        {
+            ConnectIconOff.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        StartButton.Background = (Brush)new BrushConverter().ConvertFromString("#F4F8FF")!;
+        StartButton.BorderBrush = Brushes.Transparent;
+        StartButton.Foreground = (Brush)new BrushConverter().ConvertFromString(isRunning ? "#B91C1C" : "#166534")!;
+        StartButton.ToolTip = isRunning ? "Disconnect and close transport" : "Connect and monitor continuously";
+    }
+
+    private async void Start_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sessionCancellation != null)
+        {
+            return;
+        }
+
+        Iec103MasterSettings settings;
+        int durationSeconds;
+        try
+        {
+            settings = BuildSettingsFromUi();
+            durationSeconds = ReadInt(DurationBox, "Session timeout", 0, 86400);
+            SaveSetupPreferences(settings, durationSeconds, silent: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Invalid settings", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        ClearSessionView(clearLog: false);
+        _stopRequested = false;
+        SetRunUiState(isRunning: true);
+        _lastResult = null;
+        _sessionCancellation = new CancellationTokenSource();
+        SessionSubtitleText.Text = settings.SerialSummary;
+        UpdateStableHeader("Monitoring", settings.UseSimulatedSlave
+            ? "Demo mode active. Monitoring continuously until Stop."
+            : (settings.ProtocolMode == Iec60870ProtocolMode.Iec104
+                ? "TCP client session active. Monitoring continuously until Stop."
+                : "Serial master session active. Monitoring continuously until Stop."));
+        AppendSessionLog("Starting master session: " + settings.SerialSummary);
+        if (settings.ProtocolMode != Iec60870ProtocolMode.Iec104)
+        {
+            var estimatedClass2CycleMs = EstimatePracticalSerialCycleMs(settings);
+            AppendSessionLog($"Class 2 scan feasibility: configured={settings.Class2PollIntervalMs} ms, estimated physical minimum≈{estimatedClass2CycleMs} ms at {settings.BaudRate} bps.");
+            if (settings.BaudRate <= 1200)
+            {
+                AppendSessionLog("Low-baud serial timing guard active: timeout/poll/backoff widened for 1200 bps field channels; 100 ms polling cannot be treated as a guaranteed measurement refresh at this speed.");
+            }
+        }
+
+        AppendSessionLog("Target mode: " + (settings.UseSimulatedSlave ? settings.TargetProfile + " simulation" : settings.TargetProfile));
+        AppendSessionLog(settings.ProtocolMode == Iec60870ProtocolMode.Iec104
+            ? "IEC-104 profile: STARTDT, optional clock sync/GI, I/S/U frame evidence, and TESTFR health check."
+            : "Polling profile: Class 2 normal cycle; Class 1 only when ACD=1 or bounded GI follow-up.");
+        AppendSessionLog(settings.ProtocolMode == Iec60870ProtocolMode.Iec103
+            ? (_mappingProfile.HasSignals ? $"Mapping profile loaded: {_mappingProfile.ProfileName} ({_mappingProfile.Signals.Count} signals)." : "No mapping profile loaded. Value/Event views will show raw FUN/INF names.")
+            : (_ioaProfile.HasPoints ? $"IOA mapping profile loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points)." : "IEC-101/104 uses raw IOA labels. Load or edit an IOA mapping profile for project names."));
+
+        try
+        {
+            await using var transport = CreateTransport(settings);
+            _activeTransport = transport;
+            var session = CreateSession(settings, transport);
+            _activeControlSession = session as IProtocolControlCommandSession;
+            session.EvidenceReceived += OnEvidenceReceived;
+            session.FindingRaised += OnFindingRaised;
+
+            var result = durationSeconds <= 0
+                ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
+                : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
+            _lastResult = result;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                ApplyFinalResult(result);
+                AppendSessionLog("Monitor session completed: " + result.CompletionReason);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateStableHeader("Stopped", "Session stopped by user.");
+                AppendSessionLog("Session stopped by user.");
+            });
+        }
+        catch (Exception ex) when (_stopRequested || _sessionCancellation?.IsCancellationRequested == true)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateStableHeader("Stopped", "Session stopped and transport was closed safely.");
+                AppendSessionLog("Session stopped while transport was closing: " + ex.Message);
+                AddUiDiagnostic("Warning", "Desktop", "IEC103-DESKTOP-STOP-CLOSE", "Session stopped while transport was closing", ex.Message, "Usually safe during Stop/Force Close. If repeated, check USB/serial driver stability.", ex);
+            });
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateStableHeader("Faulted", ex.Message);
+                AppendSessionLog("Fault captured in Diagnostics: " + ex.Message);
+                AddUiDiagnostic("Error", "Desktop", "IEC103-DESKTOP-SESSION-FAULT", "Master session fault", ex.Message, "Select this diagnostic row and copy detail if escalation/debugging is needed.", ex);
+            });
+        }
+        finally
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                _activeControlSession = null;
+                _activeTransport = null;
+                _stopRequested = false;
+                _sessionCancellation?.Dispose();
+                _sessionCancellation = null;
+                SetRunUiState(isRunning: false);
+            });
+        }
+    }
+
+    private async void Stop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sessionCancellation is null)
+        {
+            SetRunUiState(isRunning: false);
+            return;
+        }
+
+        _stopRequested = true;
+        _sessionCancellation.Cancel();
+        StopButton.IsEnabled = true;
+        StopButton.ToolTip = "Force close transport";
+        UpdateStableHeader("Stopping", "Closing active transport safely.");
+        AppendSessionLog("Stop requested by user. Active transport close requested.");
+
+        await TryCloseActiveTransportAsync("Stop request");
+    }
+
+    private void SignalList_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabControl.SelectedIndex = 4;
+    }
+
+    private void Clear_Click(object sender, RoutedEventArgs e) => ClearSessionView(clearLog: true);
+
+    private void ExportMarkdown_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastResult == null)
+        {
+            MessageBox.Show(this, "No completed session result is available yet.", "Export evidence", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export ARIEC60870 Evidence Report",
+            Filter = "Markdown report (*.md)|*.md|All files (*.*)|*.*",
+            FileName = "ARIEC60870-master-evidence.md",
+            AddExtension = true,
+            DefaultExt = ".md"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var markdown = new MasterMarkdownReportWriter().Write(_lastResult, maxEvents: 1000);
+        File.WriteAllText(dialog.FileName, markdown, Encoding.UTF8);
+        AppendSessionLog("Evidence report exported: " + dialog.FileName);
+        MessageBox.Show(this, "Evidence report exported successfully.", "Export evidence", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private Iec103MasterSettings BuildSettingsFromUi()
+    {
+        var port = (PortComboBox.SelectedItem as string)?.Trim();
+
+        var settings = Iec103MasterSettings.CreateDefault();
+        settings.UseSimulatedSlave = IsDemoModeSelected();
+        settings.ProtocolMode = GetSelectedProtocolMode();
+        if (settings.ProtocolMode != Iec60870ProtocolMode.Iec104 && string.IsNullOrWhiteSpace(port))
+        {
+            throw new InvalidOperationException("COM port is required for IEC-101/103 serial mode.");
+        }
+        settings.TargetProfile = settings.ProtocolMode switch
+        {
+            Iec60870ProtocolMode.Iec101 => settings.UseSimulatedSlave ? "IEC-101 demo outstation" : "IEC-101 RTU/outstation",
+            Iec60870ProtocolMode.Iec104 => settings.UseSimulatedSlave ? "IEC-104 demo server" : "IEC-104 server",
+            _ => settings.UseSimulatedSlave ? "generic relay demo slave" : "IEC-103 protection relay"
+        };
+        settings.PortName = port ?? string.Empty;
+        settings.BaudRate = ReadComboInt(BaudComboBox, "Baudrate");
+        if (settings.BaudRate < 300 || settings.BaudRate > 921600)
+        {
+            throw new InvalidOperationException("Baudrate must be between 300 and 921600 bps.");
+        }
+
+        settings.TcpHost = TcpHostBox.Text.Trim();
+        settings.TcpPort = ReadInt(TcpPortBox, "IEC-104 TCP Port", 1, 65535);
+
+        if (settings.ProtocolMode == Iec60870ProtocolMode.Iec103)
+        {
+            settings.LinkAddressSize = 1;
+            settings.CauseOfTransmissionSize = 1;
+            settings.CommonAddressSize = 1;
+            settings.InformationObjectAddressSize = 1;
+            settings.LinkAddress = ReadInt(LinkAddressBox, "IEC-103 Link Address", 0, 255);
+            settings.CommonAddress = ReadInt(CommonAddressBox, "IEC-103 Common Address", 0, 255);
+        }
+        else
+        {
+            settings.LinkAddressSize = settings.ProtocolMode == Iec60870ProtocolMode.Iec101 ? ReadComboInt(LinkAddressSizeComboBox, "Link address size") : 1;
+            settings.CauseOfTransmissionSize = ReadComboInt(CotSizeComboBox, "Cause of transmission size");
+            settings.CommonAddressSize = ReadComboInt(CaSizeComboBox, "Common address size");
+            settings.InformationObjectAddressSize = ReadComboInt(IoaSizeComboBox, "Information object address size");
+            settings.TransmissionMode = (TransmissionModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Unbalanced";
+
+            if (settings.ProtocolMode == Iec60870ProtocolMode.Iec101 && settings.TransmissionMode.StartsWith("Balanced", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("IEC-101 Balanced mode is not active in this build. Use Unbalanced for master polling, or treat Balanced as a roadmap item until the balanced link-layer engine is implemented.");
+            }
+
+            if (settings.ProtocolMode == Iec60870ProtocolMode.Iec101 && settings.LinkAddressSize == 0)
+            {
+                throw new InvalidOperationException("IEC-101 link address size 0 is a valid profile case only for specific balanced/monitor links. This build implements unbalanced master polling, so use 1 or 2 octets for field validation.");
+            }
+
+            var linkMax = settings.LinkAddressSize == 0 ? 0 : settings.LinkAddressSize == 1 ? 255 : 65535;
+            var caMax = settings.CommonAddressSize == 1 ? 255 : 65535;
+            settings.LinkAddress = settings.ProtocolMode == Iec60870ProtocolMode.Iec101 ? ReadInt(LinkAddressBox, "IEC-101 Link Address", 0, linkMax) : 0;
+            settings.CommonAddress = ReadInt(CommonAddressBox, "Common Address", 0, caMax);
+        }
+
+        settings.Iec104T0TimeoutMs = ReadInt(Iec104T0Box, "IEC-104 t0", 1000, 120000);
+        settings.Iec104T1AckTimeoutMs = ReadInt(Iec104T1Box, "IEC-104 t1", 1000, 120000);
+        settings.Iec104T2AckDelayMs = ReadInt(Iec104T2Box, "IEC-104 t2", 1000, 120000);
+        settings.Iec104T3TestIntervalMs = ReadInt(Iec104T3Box, "IEC-104 t3", 1000, 300000);
+        settings.Iec104KMaxUnacknowledged = ReadInt(Iec104KBox, "IEC-104 k", 1, 32767);
+        settings.Iec104WReceiveWindow = ReadInt(Iec104WBox, "IEC-104 w", 1, 32767);
+        settings.ResponseTimeoutMs = ReadInt(TimeoutBox, "Timeout", 100, 60000);
+        settings.Class2PollIntervalMs = ReadInt(Class2IntervalBox, "Class 2 interval", 50, 60000);
+        settings.MaxClass1DrainFrames = ReadInt(MaxDrainBox, "Max Class 1 drain", 1, 512);
+        settings.ResetRemoteLinkOnConnect = ResetRemoteLinkCheckBox.IsChecked == true;
+        settings.ResetFcbOnConnect = ResetFcbCheckBox.IsChecked == true;
+        settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
+        settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
+        settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
+        settings.MappingProfilePath = MappingProfilePathBox.Text.Trim();
+        ApplyLowBaudSerialTimingGuard(settings);
+
+        var serialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
+        settings.DataBits = 8;
+        settings.StopBits = StopBits.One;
+        settings.Parity = serialMode switch
+        {
+            "8N1" => Parity.None,
+            "8O1" => Parity.Odd,
+            _ => Parity.Even
+        };
+
+        return settings;
+    }
+
+    private static int EstimatePracticalSerialCycleMs(Iec103MasterSettings settings)
+    {
+        var bitsPerByte = 1 + settings.DataBits + (settings.Parity == Parity.None ? 0 : 1) + (settings.StopBits == StopBits.Two ? 2 : 1);
+        var requestBytes = 4 + Math.Max(0, settings.LinkAddressSize);
+        var typicalResponseBytes = 16 + Math.Max(0, settings.LinkAddressSize) + settings.CommonAddressSize + settings.CauseOfTransmissionSize + settings.InformationObjectAddressSize + 12;
+        var baud = Math.Max(300, settings.BaudRate);
+        var wireMs = (int)Math.Ceiling((requestBytes + typicalResponseBytes) * bitsPerByte * 1000.0 / baud);
+        var turnaroundMs = baud <= 1200 ? 220 : baud <= 2400 ? 140 : 70;
+        return Math.Max(50, wireMs + turnaroundMs + settings.Class1DrainDelayMs);
+    }
+
+    private static void ApplyLowBaudSerialTimingGuard(Iec103MasterSettings settings)
+    {
+        if (settings.ProtocolMode == Iec60870ProtocolMode.Iec104 || settings.BaudRate > 1200)
+        {
+            return;
+        }
+
+        // Low-speed IEC-101/103 channels are common in legacy utility links. A large ASDU,
+        // modem/RS-485 turnaround time, or Class 1 drain cycle can exceed aggressive bench
+        // timing. Guard the session so 1200 bps does not fail simply because the analyzer
+        // was tuned for 9600/19200 bps lab links.
+        settings.ResponseTimeoutMs = Math.Max(settings.ResponseTimeoutMs, 5000);
+        settings.Class2PollIntervalMs = Math.Max(settings.Class2PollIntervalMs, 1000);
+        settings.BusyBackoffMs = Math.Max(settings.BusyBackoffMs, 500);
+        settings.TimeoutRecoveryBackoffMs = Math.Max(settings.TimeoutRecoveryBackoffMs, 500);
+    }
+
+    private async Task TryCloseActiveTransportAsync(string reason)
+    {
+        var transport = _activeTransport;
+        if (transport is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            await Dispatcher.InvokeAsync(() => AppendSessionLog($"Transport closed: {reason}."));
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                AppendSessionLog($"Transport close warning: {ex.Message}");
+                AddUiDiagnostic("Warning", "Transport", "IEC103-TRANSPORT-CLOSE", "Transport close warning", ex.Message, "Stop/Force Close requested. If COM port remains locked, unplug/replug the USB converter or restart the app.", ex);
+            });
+        }
+    }
+
+    private IByteTransport CreateTransport(Iec103MasterSettings settings)
+    {
+        return settings.ProtocolMode switch
+        {
+            Iec60870ProtocolMode.Iec104 => settings.UseSimulatedSlave
+                ? new SimulatedIec104ServerTransport(settings)
+                : new TcpClientByteTransport(settings),
+            Iec60870ProtocolMode.Iec101 => settings.UseSimulatedSlave
+                ? new SimulatedIec101Transport(settings)
+                : new SerialByteTransport(settings),
+            _ => settings.UseSimulatedSlave
+                ? new SimulatedRelayTransport(settings)
+                : new SerialByteTransport(settings)
+        };
+    }
+
+    private IProtocolMasterSession CreateSession(Iec103MasterSettings settings, IByteTransport transport)
+    {
+        return settings.ProtocolMode switch
+        {
+            Iec60870ProtocolMode.Iec104 => new Iec104ClientSession(settings, transport),
+            Iec60870ProtocolMode.Iec101 => new Iec101MasterSession(settings, transport),
+            _ => new Iec103MasterSession(settings, transport, _mappingProfile)
+        };
+    }
+
+
+    private void ProtocolModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        ApplyProtocolUxProfile(GetSelectedProtocolMode());
+    }
+
+    private void ApplyProtocolUxProfile(Iec60870ProtocolMode mode)
+    {
+        var is103 = mode == Iec60870ProtocolMode.Iec103;
+        var is101 = mode == Iec60870ProtocolMode.Iec101;
+        var is104 = mode == Iec60870ProtocolMode.Iec104;
+        var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+        var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
+        var funInfVisibility = is103 ? Visibility.Visible : Visibility.Collapsed;
+        var ioaVisibility = is103 ? Visibility.Collapsed : Visibility.Visible;
+        var apciVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
+        var classVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+
+        ProductTitleText.Text = "ARIEC60870 Protocol Lab";
+        ApplyProtocolLogo(mode);
+        ClassPollLabelText.Text = is104 ? "GI/I/S " : "GI/C1/C2 ";
+        EventChipLabelText.Text = is104 ? "ASDU " : "EVENT ";
+        CommandDockStatusText.Text = is103
+            ? "IEC-103 selected. Command Dock is active for IEC-101/104 control ASDUs only in this build."
+            : "Ready. Connect first, then queue GI, read, clock sync, or safe test commands.";
+
+        SetupTitleText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "IEC-101 telecontrol serial setup",
+            Iec60870ProtocolMode.Iec104 => "IEC-104 telecontrol TCP/IP setup",
+            _ => "IEC-103 protection relay setup"
+        };
+        SetupSubtitleText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
+            Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
+            _ => "Serial protection interface: link address, Class 1/Class 2 policy, FUN/INF mapping."
+        };
+        ProtocolSetupBadgeText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "IEC-101 · FT1.2 serial telecontrol",
+            Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP telecontrol",
+            _ => "IEC-103 · FT1.2 serial protection"
+        };
+        ProtocolSetupDescriptionText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
+            Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
+            _ => "Use this profile for protection IED IEC-103 tests. Main addressing is FUN/INF; Class 1 carries events, Class 2 carries background data."
+        };
+        SerialConnectionTitleText.Text = is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
+        PollingPolicyTitleText.Text = is101 ? "IEC-101 CLASS POLLING" : "IEC-103 CLASS POLLING";
+        Class2IntervalLabelText.Text = is101 ? "Class 2 scan interval (ms)" : "Class 2 interval (ms)";
+        MaxDrainLabelText.Text = is101 ? "Max Class 1 event drain" : "Max Class 1 drain";
+        LinkAddressLabelText.Text = is101 ? "Link Address" : "Link Address";
+        CommonAddressLabelText.Text = is104 ? "Common Address (CA)" : is101 ? "Common Address (CA)" : "Common Address";
+        if (string.IsNullOrWhiteSpace(CommandCaBox.Text)) CommandCaBox.Text = string.IsNullOrWhiteSpace(CommonAddressBox.Text) ? "1" : CommonAddressBox.Text;
+        Iec10xProfileTitleText.Text = is104 ? "IEC-104 INTEROPERABILITY PROFILE" : "IEC-101 INTEROPERABILITY PROFILE";
+        if (is103)
+        {
+            LinkAddressSizeComboBox.SelectedIndex = 1;
+            CotSizeComboBox.SelectedIndex = 0;
+            CaSizeComboBox.SelectedIndex = 0;
+            IoaSizeComboBox.SelectedIndex = 0;
+        }
+        else
+        {
+            if (CotSizeComboBox.SelectedIndex < 0) CotSizeComboBox.SelectedIndex = 1;
+            if (CaSizeComboBox.SelectedIndex < 0) CaSizeComboBox.SelectedIndex = 1;
+            if (IoaSizeComboBox.SelectedIndex < 0) IoaSizeComboBox.SelectedIndex = 2;
+        }
+        MappingProfileTitleText.Text = is103 ? "IEC-103 FUN/INF MAPPING PROFILE" : "IEC-101/104 IOA POINT PROFILE";
+        if (!is103)
+        {
+            if (_ioaProfile.HasPoints && string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
+            {
+                var candidate = File.Exists(BundledPlnPusertifSeedPath) ? BundledPlnPusertifSeedPath : Path.GetFullPath(SourceTreePlnPusertifSeedPath);
+                if (File.Exists(candidate)) MappingProfilePathBox.Text = candidate;
+            }
+            if (_ioaProfile.HasPoints && !_defaultIoaSeedSettingsApplied)
+            {
+                ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: !_savedSetupPreferencesLoaded);
+            }
+            var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} Pusertif-style test scenarios" : string.Empty;
+            MappingProfileStatusText.Text = _ioaProfile.HasPoints
+                ? $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText}). User-editable JSON; start from PLN/Pusertif seed then adapt globally."
+                : "No IOA profile loaded. Raw IOA, Type ID, COT and CA will be shown.";
+        }
+        else if (string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
+        {
+            MappingProfileStatusText.Text = "No mapping profile loaded. Raw FUN/INF will be shown.";
+        }
+
+        SerialConnectionPanel.Visibility = serialVisibility;
+        TcpConnectionPanel.Visibility = tcpVisibility;
+        SerialPollingPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+        Iec10xProfilePanel.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
+        LinkAddressSizePanel.Visibility = is101 ? Visibility.Visible : Visibility.Collapsed;
+        TransmissionModeComboBox.IsEnabled = is101;
+        Iec104RuntimePanel.Visibility = tcpVisibility;
+        Iec103OptionsPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+        LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+        MappingProfilePanel.Visibility = Visibility.Visible;
+
+        // Operator Evidence is a human-readable summary view. Keep protocol-heavy columns in Frame Trace and the selected-row inspector.
+        SetColumnVisibility(EvidenceClassColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceApciColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceTypeColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceCotColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceCaColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceIoaColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceFunInfColumn, Visibility.Collapsed);
+        SetColumnVisibility(EvidenceQualityColumn, Visibility.Collapsed);
+        EvidenceSignalColumn.Header = is103 ? "Signal" : "Signal";
+
+        SetColumnVisibility(FrameClassColumn, classVisibility);
+        SetColumnVisibility(FrameAcdColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
+        SetColumnVisibility(FrameDfcColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
+        SetColumnVisibility(FrameApciColumn, apciVisibility);
+        SetColumnVisibility(FrameNsColumn, apciVisibility);
+        SetColumnVisibility(FrameNrColumn, apciVisibility);
+        SetColumnVisibility(FrameTypeColumn, Visibility.Visible);
+        SetColumnVisibility(FrameCotColumn, Visibility.Visible);
+        SetColumnVisibility(FrameCaColumn, ioaVisibility);
+        SetColumnVisibility(FrameIoaColumn, ioaVisibility);
+        SetColumnVisibility(FrameFunInfColumn, funInfVisibility);
+
+        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Frame Trace.
+        SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueTypeIdColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueQualityColumn, Visibility.Collapsed);
+
+        SetColumnVisibility(EventCaColumn, Visibility.Collapsed);
+        SetColumnVisibility(EventIoaColumn, Visibility.Collapsed);
+        SetColumnVisibility(EventFunInfColumn, Visibility.Collapsed);
+        SetColumnVisibility(EventTypeIdColumn, Visibility.Collapsed);
+        SetColumnVisibility(EventQualityColumn, Visibility.Collapsed);
+
+        RawFrameGroupingHintText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "grouped by IEC-101 FT1.2 + ASDU fields",
+            Iec60870ProtocolMode.Iec104 => "grouped by IEC-104 APCI/APDU fields",
+            _ => "grouped by IEC-103 FT1.2 + FUN/INF fields"
+        };
+
+        SessionSubtitleText.Text = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
+            Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",
+            _ => "IEC-103 selected: serial protection relay, ACD/DFC, Class 1/Class 2, FUN/INF views."
+        };
+    }
+
+    private static void SetColumnVisibility(DataGridColumn column, Visibility visibility)
+    {
+        column.Visibility = visibility;
+    }
+
+    private void ApplyProtocolLogo(Iec60870ProtocolMode mode)
+    {
+        var iconFile = mode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "iec101-icon.png",
+            Iec60870ProtocolMode.Iec104 => "iec104-icon.png",
+            _ => "iec103-icon.png"
+        };
+
+        try
+        {
+            var source = new BitmapImage(new Uri($"pack://application:,,,/Assets/Icons/{iconFile}", UriKind.Absolute));
+            ProtocolLogoImage.Source = source;
+            Icon = source;
+        }
+        catch
+        {
+            // Keep the default app icon if a resource is unavailable in a developer build.
+        }
+    }
+
+    private Iec60870ProtocolMode GetSelectedProtocolMode()
+    {
+        var protocol = (ProtocolModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty;
+        if (protocol.Contains("104", StringComparison.OrdinalIgnoreCase)) return Iec60870ProtocolMode.Iec104;
+        if (protocol.Contains("101", StringComparison.OrdinalIgnoreCase)) return Iec60870ProtocolMode.Iec101;
+        return Iec60870ProtocolMode.Iec103;
+    }
+
+    private bool IsDemoModeSelected()
+    {
+        var mode = (TransportModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty;
+        return mode.Contains("demo", StringComparison.OrdinalIgnoreCase) || mode.Contains("simulated", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ReadComboInt(ComboBox comboBox, string label)
+    {
+        var value = (comboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = comboBox.Text;
+        }
+
+        if (!int.TryParse(value?.Trim(), out var number))
+        {
+            throw new InvalidOperationException(label + " is invalid.");
+        }
+
+        return number;
+    }
+
+    private static int ReadInt(TextBox textBox, string label, int min, int max)
+    {
+        if (!int.TryParse(textBox.Text.Trim(), out var number))
+        {
+            throw new InvalidOperationException(label + " must be a number.");
+        }
+
+        if (number < min || number > max)
+        {
+            throw new InvalidOperationException($"{label} must be between {min} and {max}.");
+        }
+
+        return number;
+    }
+
+    private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
+    {
+        // Do not render one WPF row per protocol event immediately. High-volume polling can
+        // produce thousands of frames; the UI consumes this queue in timed batches.
+        _pendingEvidence.Enqueue(item);
+    }
+
+    private void OnFindingRaised(object? sender, Iec103MasterFinding finding)
+    {
+        _pendingFindings.Enqueue(finding);
+    }
+
+    private void FlushUiQueues()
+    {
+        var processed = 0;
+        while (processed < MaxUiFlushPerTick && _pendingEvidence.TryDequeue(out var item))
+        {
+            ApplyEvidenceToUi(item);
+            processed++;
+        }
+
+        var findingProcessed = 0;
+        while (findingProcessed < 50 && _pendingFindings.TryDequeue(out var finding))
+        {
+            ApplyFindingToUi(finding);
+            findingProcessed++;
+        }
+
+        UpdateBufferStatus();
+    }
+
+    private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
+    {
+        var row = new EvidenceRow(item, ResolveIoaPoint(item));
+
+        if (ShouldShowInOperatorEvidence(item, row))
+        {
+            EvidenceRows.Add(row);
+            while (EvidenceRows.Count > MaxVisibleEvidenceRows)
+            {
+                EvidenceRows.RemoveAt(0);
+                _visibleEvidenceDropped++;
+            }
+        }
+
+        if (ShouldShowInFrameTrace(row))
+        {
+            FrameTraceRows.Add(row);
+            while (FrameTraceRows.Count > MaxVisibleEvidenceRows)
+            {
+                FrameTraceRows.RemoveAt(0);
+                _visibleEvidenceDropped++;
+            }
+        }
+
+        UpdateLiveCounters(item);
+        UpdateValueAndEventViews(item);
+        if (IsDiagnosticEvidence(item))
+        {
+            PulseLed(DiagLed);
+            AddDiagnosticRow(new DiagnosticRow(item));
+            UpdateStableHeader("Attention", ChooseOperatorStatus(item));
+        }
+
+        // Do not push every protocol state into the top session card. High-volume
+        // polling alternates Class 2/Class 1 states quickly and makes Auto-sized WPF
+        // layouts appear to flicker. The header shows stable session phase only;
+        // detailed per-frame state belongs in Operator Evidence / Frame Trace.
+
+        if (item.Category == "Error" || item.Category == "Warning" || item.Category == "RX Warning" || IsImportantSessionNote(item))
+        {
+            AppendSessionLog($"#{item.SequenceNumber} {item.State}: {item.Summary} - {item.Detail}");
+        }
+    }
+
+    private static bool ShouldShowInFrameTrace(EvidenceRow row)
+    {
+        return row.RawHex != "-" &&
+               (row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) ||
+                row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ShouldShowInOperatorEvidence(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        if (IsDiagnosticEvidence(item) || item.IsRelayValue || item.IsRelayEdgeEvent)
+        {
+            return true;
+        }
+
+        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning);
+        if (text.Contains("General Interrogation", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("GI ", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Clock", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Reset", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("ACD=1", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("event-drain", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("DFC", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Suppress repetitive normal Class 2 request/response noise from the operator view.
+        return false;
+    }
+
+    private static bool IsImportantSessionNote(Iec103MasterEvidenceEvent item)
+    {
+        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage);
+        return text.Contains("General Interrogation", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("GI ", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("Fault", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("Assessment", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ApplyFindingToUi(Iec103MasterFinding finding)
+    {
+        FindingRows.Add(new FindingRow(finding));
+        while (FindingRows.Count > MaxVisibleFindingRows)
+        {
+            FindingRows.RemoveAt(0);
+        }
+
+        FindingCountText.Text = FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        PulseLed(DiagLed);
+        AddDiagnosticRow(new DiagnosticRow(finding));
+        AppendSessionLog($"Finding [{finding.Severity}] {finding.Id}: {finding.Title}");
+    }
+
+    private static string ChooseOperatorStatus(Iec103MasterEvidenceEvent item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.OperatorMessage))
+        {
+            return string.IsNullOrWhiteSpace(item.OperatorAction)
+                ? item.OperatorMessage
+                : item.OperatorMessage + " " + item.OperatorAction;
+        }
+
+        return string.IsNullOrWhiteSpace(item.Detail) ? item.Summary : item.Detail;
+    }
+
+    private static bool IsGeneralInterrogationActivity(Iec103MasterEvidenceEvent item)
+    {
+        if (item.CauseOfTransmission is >= 20 and <= 36)
+        {
+            return true;
+        }
+
+        var text = string.Join(" ",
+            item.State.ToString(),
+            item.Summary,
+            item.Detail,
+            item.OperatorMessage,
+            item.ProtocolMeaning,
+            item.Cot ?? string.Empty,
+            item.AsduType ?? string.Empty,
+            item.TypeName ?? string.Empty);
+
+        return text.Contains("General Interrogation", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("Interrogation", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("GI ", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("GI-", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("GI_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void UpdateLiveCounters(Iec103MasterEvidenceEvent item)
+    {
+        if (IsGeneralInterrogationActivity(item))
+        {
+            _giCount++;
+            PulseLed(GiLed);
+        }
+
+        if (item.Direction == FrameDirection.MasterToSlave)
+        {
+            _txCount++;
+            PulseLed(TxLed);
+        }
+        else if (item.Direction == FrameDirection.SlaveToMaster)
+        {
+            _rxCount++;
+            PulseLed(RxLed);
+        }
+
+        if (item.ProtocolMode == Iec60870ProtocolMode.Iec104)
+        {
+            if (string.Equals(item.DataClass, "I", StringComparison.OrdinalIgnoreCase))
+            {
+                _class1Count++;
+                PulseLed(Class1Led);
+            }
+            else if (string.Equals(item.DataClass, "S", StringComparison.OrdinalIgnoreCase))
+            {
+                _class2Count++;
+                PulseLed(Class2Led);
+            }
+        }
+        else
+        {
+            if (string.Equals(item.DataClass, "Class 1", StringComparison.OrdinalIgnoreCase) && item.Direction == FrameDirection.MasterToSlave)
+            {
+                _class1Count++;
+                PulseLed(Class1Led);
+            }
+
+            if (string.Equals(item.DataClass, "Class 2", StringComparison.OrdinalIgnoreCase) && item.Direction == FrameDirection.MasterToSlave)
+            {
+                _class2Count++;
+                PulseLed(Class2Led);
+            }
+        }
+
+        if (item.Summary.Contains("NO DATA", StringComparison.OrdinalIgnoreCase) || item.Detail.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
+        {
+            _noDataCount++;
+        }
+
+        if (item.Frame?.Asdu?.TypeId == 1 || item.Frame?.Asdu?.TypeId == 2 || item.IsRelayValue)
+        {
+            _dpiCount++;
+            PulseLed(EventLed);
+        }
+
+        TxRxText.Text = $"{_txCount} / {_rxCount}";
+        ClassPollText.Text = $"{_giCount} / {_class1Count} / {_class2Count}";
+        NoDataText.Text = _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private void PulseLed(FrameworkElement led)
+    {
+        if (led == null)
+        {
+            return;
+        }
+
+        led.Opacity = 1.0;
+        _ledPulseTimes[led] = DateTime.UtcNow;
+    }
+
+    private void DecayLedPulses()
+    {
+        if (_ledPulseTimes.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var pair in _ledPulseTimes.ToArray())
+        {
+            if ((now - pair.Value).TotalMilliseconds >= 180)
+            {
+                pair.Key.Opacity = 0.28;
+                _ledPulseTimes.Remove(pair.Key);
+            }
+        }
+    }
+
+    private void ApplyFinalResult(Iec103MasterRunResult result)
+    {
+        FlushUiQueues();
+        TxRxText.Text = $"{result.Counters.TxFrames} / {result.Counters.RxFrames}";
+        ClassPollText.Text = $"{result.Counters.GiCommands + result.Counters.GiEndResponses} / {result.Counters.Class1Requests} / {result.Counters.Class2Requests}";
+        NoDataText.Text = result.Counters.NoDataResponses.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        DpiText.Text = result.Counters.DpiEvents.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        FindingCountText.Text = result.Findings.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        UpdateStableHeader(result.CompletedNormally ? "Completed" : "Faulted",
+            $"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100). {result.CompletionReason}");
+        ExportMarkdownButton.IsEnabled = true;
+
+        AssessmentRows.Clear();
+        foreach (var item in result.Assessment.Items)
+        {
+            AssessmentRows.Add(new AssessmentRow(item));
+        }
+        AppendSessionLog($"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100) - {result.Assessment.Summary}");
+
+        if (result.ValuePoints.Count > 0)
+        {
+            ValueRows.Clear();
+            foreach (var value in result.ValuePoints.Select(x => new ValueRow(x)).OrderBy(GetValueRowSortRank).ThenBy(x => x.IoaSortKey).ThenBy(x => x.TypeSortKey).ThenBy(x => x.Signal, StringComparer.OrdinalIgnoreCase))
+            {
+                ValueRows.Add(value);
+            }
+        }
+
+        if (result.EventLog.Count > 0)
+        {
+            _allRelayEventRows.Clear();
+            foreach (var ev in result.EventLog)
+            {
+                _allRelayEventRows.Add(new RelayEventRow(ev));
+            }
+            ApplyRelayEventFilter();
+        }
+
+        foreach (var finding in result.Findings)
+        {
+            if (!FindingRows.Any(x => x.Id == finding.Id && x.Title == finding.Title))
+            {
+                FindingRows.Add(new FindingRow(finding));
+            }
+        }
+    }
+
+    private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if ((sender as DataGrid)?.SelectedItem is not EvidenceRow row)
+        {
+            _selectedFrameRow = null;
+            SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
+            SelectedRawText.Text = "-";
+            _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
+            SelectedLineSummaryText.Text = _selectedFrameExplanation;
+            SelectedLineDirectionText.Text = "Select a frame";
+            SelectedLineSummaryText.Text = "The selected IEC 60870 frame will be decoded into transport/link layer, ASDU/APCI fields, address, value/time, and integrity groups.";
+            SelectedProtocolMapLines.Clear();
+            SelectedHexSegments.Clear();
+            UpdateFrameInterpreterTone(null);
+            return;
+        }
+
+        _selectedFrameRow = row;
+        _pinnedProtocolMapKey = null;
+        if (PinProtocolMapCheckBox != null)
+        {
+            PinProtocolMapCheckBox.IsChecked = false;
+        }
+
+        var explanation = BuildCompactFrameExplanation(row);
+        SelectedDetailText.Text = explanation + Environment.NewLine + Environment.NewLine + "Raw: " + row.RawHex;
+        SelectedRawText.Text = row.RawHex;
+        _selectedFrameExplanation = explanation;
+        SelectedLineSummaryText.Text = "Hover or click a protocol group. The panel stays stable; linked raw/meaning groups are highlighted without rewriting the inspector.";
+        SelectedLineDirectionText.Text = BuildLineMonitorTitle(row);
+        SelectedLineSummaryText.Text = BuildLineMonitorSummary(row);
+        UpdateFrameInterpreterTone(row);
+        RebuildProtocolMap(row);
+    }
+
+    private void UpdateFrameInterpreterTone(EvidenceRow? row)
+    {
+        if (FrameInterpreterPanel is null)
+        {
+            return;
+        }
+
+        var tone = row?.TrafficTone ?? string.Empty;
+        var background = tone switch
+        {
+            "Tx" => Color.FromRgb(245, 250, 255),
+            "Rx" => Color.FromRgb(244, 255, 249),
+            "Error" => Color.FromRgb(255, 245, 245),
+            _ => Color.FromRgb(248, 251, 255)
+        };
+        var border = tone switch
+        {
+            "Tx" => Color.FromRgb(191, 219, 254),
+            "Rx" => Color.FromRgb(187, 247, 208),
+            "Error" => Color.FromRgb(254, 202, 202),
+            _ => Color.FromRgb(226, 232, 240)
+        };
+
+        FrameInterpreterPanel.Background = new SolidColorBrush(background);
+        FrameInterpreterPanel.BorderBrush = new SolidColorBrush(border);
+    }
+
+    private static string BuildCompactFrameExplanation(EvidenceRow row)
+    {
+        var parts = new List<string>();
+        parts.Add(row.ReadableMeaning);
+
+        if (!string.IsNullOrWhiteSpace(row.SignalOrAddress) && row.SignalOrAddress != "-")
+        {
+            parts.Add($"Address: {row.SignalOrAddress}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.SemanticState))
+        {
+            parts.Add($"Value: {row.SemanticState}.");
+        }
+
+        parts.Add(row.ProtocolMode switch
+        {
+            "104" => $"Protocol: IEC-104 {row.Direction}, APCI={row.ApciFormat}, NS={row.SendSequence}, NR={row.ReceiveSequence}, Type ID={row.TypeIdName}, COT={row.CotDisplay}, CA={row.CommonAddress}, IOA={row.IoAddress}.",
+            "101" => $"Protocol: IEC-101 {row.Direction} {row.DataClass}, Link={row.LinkAddress}, Type ID={row.TypeIdName}, COT={row.CotDisplay}, CA={row.CommonAddress}, IOA={row.IoAddress}, ACD={row.Acd}, DFC={row.Dfc}.",
+            _ => $"Protocol: IEC-103 {row.Direction} {row.DataClass}, ASDU={row.AsduType}, COT={row.Cot}, FUN/INF={row.FunInf}, ACD={row.Acd}, DFC={row.Dfc}."
+        });
+
+        if (!string.IsNullOrWhiteSpace(row.PollingReason) && row.PollingReason != "-")
+        {
+            parts.Add($"Why it happened: {row.PollingReason}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.OperatorAction))
+        {
+            parts.Add($"Recommended action: {row.OperatorAction}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.RelayTime) && row.RelayTime != "-")
+        {
+            parts.Add($"Relay time: {row.RelayTime}.");
+        }
+
+        return string.Join(Environment.NewLine, parts.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string BuildLineMonitorTitle(EvidenceRow row)
+    {
+        var arrow = row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase)
+            ? "TX → Master to relay"
+            : row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase)
+                ? "RX ← Relay to master"
+                : row.Direction;
+        var cls = row.DataClass == "-" ? "Link" : row.DataClass;
+        var service = row.ProtocolMode == "104"
+            ? row.ProtocolService
+            : row.AsduType == "-" ? row.Summary : row.AsduType;
+        return $"{arrow} · {cls} · {service}";
+    }
+
+    private static string BuildLineMonitorSummary(EvidenceRow row)
+    {
+        var parts = new List<string> { row.ReadableMeaning };
+        if (!string.IsNullOrWhiteSpace(row.ProtocolAddress) && row.ProtocolAddress != "-") parts.Add(row.ProtocolAddress);
+        if (!string.IsNullOrWhiteSpace(row.RelayTime) && row.RelayTime != "-") parts.Add("relay time " + row.RelayTime);
+        return string.Join(" · ", parts.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private void RebuildProtocolMap(EvidenceRow row)
+    {
+        SelectedProtocolMapLines.Clear();
+        SelectedHexSegments.Clear();
+
+        foreach (var line in BuildProtocolMapLines(row))
+        {
+            SelectedProtocolMapLines.Add(line);
+        }
+
+        foreach (var segment in BuildHexSegments(row))
+        {
+            SelectedHexSegments.Add(segment);
+        }
+    }
+
+    private static IEnumerable<ProtocolMapLine> BuildProtocolMapLines(EvidenceRow row)
+    {
+        var bytes = SplitHexBytes(row.RawHex);
+        var directionMeaning = row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase)
+            ? "Master-to-relay frame. This is a tester action, not a relay event."
+            : row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase)
+                ? "Relay-to-master frame. This is relay evidence returned to the tester."
+                : "Session note or diagnostic entry.";
+
+        yield return new ProtocolMapLine("direction", "Direction", directionMeaning, row.Direction);
+
+        if (bytes.Length == 0)
+        {
+            yield return new ProtocolMapLine("summary", "No raw frame", $"This row is a state/diagnostic note, not a physical {row.ProtocolName} frame.", "-");
+            yield break;
+        }
+
+        if (row.ProtocolMode == "104")
+        {
+            yield return new ProtocolMapLine("envelope", "APDU envelope", "IEC-104 APDU starts with 0x68 and a length byte. It is TCP stream framing, not FT1.2 serial framing.", string.Join(" ", bytes.Take(Math.Min(2, bytes.Length))));
+            if (bytes.Length >= 6)
+            {
+                yield return new ProtocolMapLine("control", "APCI control", $"Format={row.ApciFormat}, N(S)={row.SendSequence}, N(R)={row.ReceiveSequence}, U={row.UFormatName}. I/S/U format tells whether this is payload transfer, acknowledgement, or connection control.", string.Join(" ", bytes.Skip(2).Take(4)));
+            }
+            if (row.ApciFormat == "I" && bytes.Length > 6)
+            {
+                yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 6)))));
+                yield return new ProtocolMapLine("object", "CA / IOA", BuildSignalAddressMeaning(row), row.ProtocolAddress);
+                if (!string.IsNullOrWhiteSpace(row.SemanticState))
+                {
+                    yield return new ProtocolMapLine("payload", "Information element", BuildPayloadMeaning(row), row.SemanticState);
+                }
+            }
+            yield break;
+        }
+
+        if (row.ProtocolMode == "101" && bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
+        {
+            yield return new ProtocolMapLine("envelope", "FT1.2 variable frame", "IEC-101 serial variable-length frame. The repeated length block and checksum protect the serial telegram.", string.Join(" ", bytes.Take(4)));
+            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), string.Join(" ", bytes.Skip(4).Take(2)));
+            yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 8)))));
+            yield return new ProtocolMapLine("object", "Information object address", BuildSignalAddressMeaning(row), row.ProtocolAddress);
+            if (!string.IsNullOrWhiteSpace(row.SemanticState))
+            {
+                yield return new ProtocolMapLine("payload", "Information element", BuildPayloadMeaning(row), row.SemanticState);
+            }
+            yield return new ProtocolMapLine("check", "Integrity", "Checksum and end byte close the FT1.2 frame. Keep this as audit evidence when discussing serial quality.", string.Join(" ", bytes.Skip(Math.Max(0, bytes.Length - 2)).Take(2)));
+            yield break;
+        }
+
+        if (bytes[0].Equals("E5", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return new ProtocolMapLine("envelope", "Single char ACK", "IEC FT1.2 single-character acknowledgement. The relay accepted the previous link/action frame.", "E5");
+            yield break;
+        }
+
+
+        if (bytes[0].Equals("10", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 5)
+        {
+            yield return new ProtocolMapLine("envelope", "FT1.2 fixed frame", $"Short {row.ProtocolName} link frame. Used for reset, Class 1/Class 2 request, ACK, or NO DATA response.", string.Join(" ", bytes.Take(1)));
+            yield return new ProtocolMapLine("control", "Control field", BuildControlMeaning(row), bytes.ElementAtOrDefault(1) ?? "-");
+            yield return new ProtocolMapLine("address", "Link address", "Slave/link address on the serial IEC-60870 link.", bytes.ElementAtOrDefault(2) ?? "-");
+            yield return new ProtocolMapLine("check", "Integrity", "Checksum and stop byte. This proves what was actually transmitted on the wire.", string.Join(" ", bytes.Skip(3).Take(2)));
+            yield break;
+        }
+
+        if (bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
+        {
+            yield return new ProtocolMapLine("envelope", "FT1.2 variable frame", $"Variable {row.ProtocolName} frame carrying an ASDU. The length bytes define the payload size and must match.", string.Join(" ", bytes.Take(4)));
+            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), string.Join(" ", bytes.Skip(4).Take(2)));
+            yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(4, Math.Max(0, bytes.Length - 8)))));
+
+            if (bytes.Length > 11)
+            {
+                yield return new ProtocolMapLine("object", "FUN / INF", BuildSignalAddressMeaning(row), string.Join(" ", bytes.Skip(10).Take(2)));
+            }
+
+            var payloadEnd = Math.Max(12, bytes.Length - 2);
+            if (payloadEnd > 12)
+            {
+                yield return new ProtocolMapLine("payload", "Information element", BuildPayloadMeaning(row), string.Join(" ", bytes.Skip(12).Take(payloadEnd - 12)));
+            }
+
+            yield return new ProtocolMapLine("check", "Integrity", "Checksum and end byte close the frame. Keep this as audit evidence when discussing interoperability.", string.Join(" ", bytes.Skip(Math.Max(0, bytes.Length - 2)).Take(2)));
+            yield break;
+        }
+
+        yield return new ProtocolMapLine("raw", $"Raw {row.ProtocolName} bytes", "The analyzer preserved this frame as raw evidence, but it could not classify it into the expected protocol structure.", string.Join(" ", bytes));
+    }
+
+    private static string BuildControlMeaning(EvidenceRow row)
+    {
+        if (row.Direction == "TX")
+        {
+            return row.DataClass.Contains("Class 1", StringComparison.OrdinalIgnoreCase)
+                ? "Master asks for pending Class 1 event data. This should be done only during ACD=1 event drain or bounded GI follow-up."
+                : row.DataClass.Contains("Class 2", StringComparison.OrdinalIgnoreCase)
+                    ? "Master performs normal Class 2 background polling."
+                    : string.IsNullOrWhiteSpace(row.ReadableMeaning) ? "Master link/control action." : row.ReadableMeaning;
+        }
+
+        if (row.Direction == "RX")
+        {
+            if (row.Acd == "1")
+            {
+                return "Relay response indicates ACD=1, meaning Class 1 data is pending and the master may drain event data.";
+            }
+
+            if (row.ProtocolMeaning.Contains("FC=9", StringComparison.OrdinalIgnoreCase) || row.ReadableMeaning.Contains("ACK", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Relay acknowledges the link/application command.";
+            }
+
+            return string.IsNullOrWhiteSpace(row.ProtocolMeaning) ? "Relay link response." : row.ProtocolMeaning;
+        }
+
+        return string.IsNullOrWhiteSpace(row.ReadableMeaning) ? "Link-layer control information." : row.ReadableMeaning;
+    }
+
+    private static string BuildAsduHeaderMeaning(EvidenceRow row)
+    {
+        if (row.ProtocolMode is "101" or "104")
+        {
+            if (row.TypeIdName == "-" && row.CotDisplay == "-")
+            {
+                return "No IEC-10x ASDU payload is present in this frame.";
+            }
+
+            return $"Type ID={row.TypeIdName}, VSQ={row.Vsq}, COT={row.CotDisplay}, CA={row.CommonAddress}. These fields define the telecontrol data class, cause, station/common address, and object addressing context.";
+        }
+
+        if (row.AsduType == "-" && row.Cot == "-")
+        {
+            return "No ASDU payload is present in this link frame.";
+        }
+
+        return $"ASDU={row.AsduType}, COT={row.Cot}. This tells the tester what kind of protection information is being transferred and why it was sent.";
+    }
+
+    private static string BuildSignalAddressMeaning(EvidenceRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.SemanticLabel))
+        {
+            return $"Mapped signal: {row.SemanticLabel}. Raw address remains {row.SignalOrAddress}.";
+        }
+
+        if (row.ProtocolMode is "101" or "104")
+        {
+            return row.IoAddress == "-"
+                ? "This ASDU has no decoded IOA."
+                : $"Information object address {row.IoAddress} inside common address {row.CommonAddress}. Add an IOA naming profile later to show a readable signal name.";
+        }
+
+        return row.FunInf == "-"
+            ? "This ASDU has no decoded FUN/INF signal address."
+            : $"Unmapped IEC-103 signal address {row.SignalOrAddress}. Add it to the user mapping profile to show a readable signal name.";
+    }
+
+    private static string BuildPayloadMeaning(EvidenceRow row)
+    {
+        var state = string.IsNullOrWhiteSpace(row.SemanticState) ? "state/value" : row.SemanticState;
+        var time = string.IsNullOrWhiteSpace(row.RelayTime) || row.RelayTime == "-" ? "No field timestamp decoded." : $"Field timestamp: {row.RelayTime}.";
+        var typeText = row.ProtocolMode is "101" or "104" ? row.TypeIdName : row.AsduType;
+
+        if (typeText.Contains("Measur", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Measurement payload. Decoded value/state: {state}. Quality: {row.Quality}. {time}";
+        }
+
+        if (typeText.Contains("DPI", StringComparison.OrdinalIgnoreCase) ||
+            typeText.Contains("SPI", StringComparison.OrdinalIgnoreCase) ||
+            typeText.Contains("single", StringComparison.OrdinalIgnoreCase) ||
+            typeText.Contains("double", StringComparison.OrdinalIgnoreCase) ||
+            typeText.Contains("time-tagged", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Status/event payload. Decoded state: {state}. Quality: {row.Quality}. {time}";
+        }
+
+        return $"Information element payload. Decoded state/value: {state}. Quality: {row.Quality}. {time}";
+    }
+
+    private static string[] SplitHexBytes(string rawHex)
+    {
+        return rawHex
+            .Split(new[] { ' ', '|', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x) && x != "-")
+            .ToArray();
+    }
+
+    private static IEnumerable<HexSegment> BuildHexSegments(EvidenceRow row)
+    {
+        var bytes = SplitHexBytes(row.RawHex);
+
+        if (bytes.Length == 0)
+        {
+            yield break;
+        }
+
+        if (row.ProtocolMode == "104")
+        {
+            yield return new HexSegment("envelope", string.Join(" ", bytes.Take(Math.Min(2, bytes.Length))), "IEC-104 APDU", "0x68 start byte and APDU length for TCP stream framing.");
+            if (bytes.Length >= 6)
+            {
+                yield return new HexSegment("control", string.Join(" ", bytes.Skip(2).Take(4)), "APCI control", $"Format={row.ApciFormat}, N(S)={row.SendSequence}, N(R)={row.ReceiveSequence}, U={row.UFormatName}.");
+            }
+            if (bytes.Length > 6)
+            {
+                yield return new HexSegment("asdu", string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 6)))), "ASDU header", BuildAsduHeaderMeaning(row));
+                yield return new HexSegment("object", row.ProtocolAddress, "CA / IOA", BuildSignalAddressMeaning(row));
+                if (!string.IsNullOrWhiteSpace(row.SemanticState))
+                {
+                    yield return new HexSegment("payload", row.SemanticState, "Value / quality", BuildPayloadMeaning(row));
+                }
+            }
+            yield break;
+        }
+
+        if (row.ProtocolMode == "101" && bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
+        {
+            yield return new HexSegment("envelope", string.Join(" ", bytes.Take(4)), "FT1.2 variable frame", "IEC-101 variable-length serial frame envelope.");
+            yield return new HexSegment("control", string.Join(" ", bytes.Skip(4).Take(2)), "Control + link", BuildControlMeaning(row));
+            yield return new HexSegment("asdu", string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 8)))), "ASDU header", BuildAsduHeaderMeaning(row));
+            yield return new HexSegment("object", row.ProtocolAddress, "Information object address", BuildSignalAddressMeaning(row));
+            if (!string.IsNullOrWhiteSpace(row.SemanticState))
+            {
+                yield return new HexSegment("payload", row.SemanticState, "Value / quality", BuildPayloadMeaning(row));
+            }
+            yield return new HexSegment("check", string.Join(" ", bytes.Skip(Math.Max(0, bytes.Length - 2)).Take(2)), "Integrity", "Checksum and end byte.");
+            yield break;
+        }
+
+        if (bytes[0].Equals("10", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 5)
+        {
+            yield return new HexSegment("envelope", bytes[0], "FT1.2 fixed frame", "Fixed-length link frame envelope.");
+            yield return new HexSegment("control", bytes[1], "Control", BuildControlMeaning(row));
+            yield return new HexSegment("address", bytes[2], "Link address", "Relay/slave link address.");
+            yield return new HexSegment("check", string.Join(" ", bytes.Skip(3).Take(2)), "Integrity", "Checksum and end byte.");
+            yield break;
+        }
+
+        if (bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
+        {
+            yield return new HexSegment("envelope", string.Join(" ", bytes.Take(4)), "FT1.2 variable frame", "Variable frame start and length block.");
+            yield return new HexSegment("control", string.Join(" ", bytes.Skip(4).Take(2)), "Control + link", BuildControlMeaning(row));
+            yield return new HexSegment("asdu", string.Join(" ", bytes.Skip(6).Take(Math.Min(4, Math.Max(0, bytes.Length - 8)))), "ASDU header", BuildAsduHeaderMeaning(row));
+
+            if (bytes.Length > 11)
+            {
+                yield return new HexSegment("object", string.Join(" ", bytes.Skip(10).Take(2)), "Signal address", BuildSignalAddressMeaning(row));
+            }
+
+            var payloadEnd = Math.Max(12, bytes.Length - 2);
+            if (payloadEnd > 12)
+            {
+                yield return new HexSegment("payload", string.Join(" ", bytes.Skip(12).Take(payloadEnd - 12)), "State / value / relay time", BuildPayloadMeaning(row));
+            }
+
+            yield return new HexSegment("check", string.Join(" ", bytes.Skip(Math.Max(0, bytes.Length - 2)).Take(2)), "Integrity", "Checksum and end byte.");
+            yield break;
+        }
+
+        yield return new HexSegment("raw", string.Join(" ", bytes), "Raw frame", "Frame bytes are preserved as evidence. This frame is not recognized by the high-level mapper.");
+    }
+
+    private void HexSegment_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_pinnedProtocolMapKey != null && PinProtocolMapCheckBox?.IsChecked == true)
+        {
+            return;
+        }
+
+        if ((sender as FrameworkElement)?.DataContext is HexSegment segment)
+        {
+            SetActiveProtocolMap(segment.Key);
+        }
+    }
+
+    private void HexSegment_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_pinnedProtocolMapKey != null && PinProtocolMapCheckBox?.IsChecked == true)
+        {
+            return;
+        }
+
+        ClearActiveProtocolMap();
+    }
+
+    private void HexSegment_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is HexSegment segment)
+        {
+            _pinnedProtocolMapKey = segment.Key;
+            if (PinProtocolMapCheckBox != null)
+            {
+                PinProtocolMapCheckBox.IsChecked = true;
+            }
+            SetActiveProtocolMap(segment.Key);
+        }
+    }
+
+    private void ProtocolMapLine_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_pinnedProtocolMapKey != null && PinProtocolMapCheckBox?.IsChecked == true)
+        {
+            return;
+        }
+
+        if ((sender as FrameworkElement)?.DataContext is ProtocolMapLine line)
+        {
+            SetActiveProtocolMap(line.Key);
+        }
+    }
+
+    private void ProtocolMapLine_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_pinnedProtocolMapKey != null && PinProtocolMapCheckBox?.IsChecked == true)
+        {
+            return;
+        }
+
+        ClearActiveProtocolMap();
+    }
+
+    private void ProtocolMapLine_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is ProtocolMapLine line)
+        {
+            _pinnedProtocolMapKey = line.Key;
+            if (PinProtocolMapCheckBox != null)
+            {
+                PinProtocolMapCheckBox.IsChecked = true;
+            }
+            SetActiveProtocolMap(line.Key);
+        }
+    }
+
+    private void ClearProtocolMapHighlight_Click(object sender, RoutedEventArgs e)
+    {
+        _pinnedProtocolMapKey = null;
+        if (PinProtocolMapCheckBox != null)
+        {
+            PinProtocolMapCheckBox.IsChecked = false;
+        }
+        ClearActiveProtocolMap();
+    }
+
+    private void CopySelectedRawFrame_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedFrameRow is null || string.IsNullOrWhiteSpace(_selectedFrameRow.RawHex) || _selectedFrameRow.RawHex == "-")
+        {
+            return;
+        }
+
+        Clipboard.SetText(_selectedFrameRow.RawHex);
+        AppendSessionLog($"Copied raw frame #{_selectedFrameRow.Sequence} to clipboard.");
+    }
+
+    private void CopySelectedFrameDecode_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedFrameRow is null)
+        {
+            return;
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"Frame #{_selectedFrameRow.Sequence} {BuildLineMonitorTitle(_selectedFrameRow)}");
+        builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
+        builder.AppendLine();
+        builder.AppendLine("Raw: " + _selectedFrameRow.RawHex);
+        Clipboard.SetText(builder.ToString());
+        AppendSessionLog($"Copied decoded frame #{_selectedFrameRow.Sequence} to clipboard.");
+    }
+
+    private void SetActiveProtocolMap(string key)
+    {
+        foreach (var line in SelectedProtocolMapLines)
+        {
+            line.IsActive = string.Equals(line.Key, key, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var segment in SelectedHexSegments)
+        {
+            segment.IsActive = string.Equals(segment.Key, key, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private void ClearActiveProtocolMap()
+    {
+        foreach (var line in SelectedProtocolMapLines)
+        {
+            line.IsActive = false;
+        }
+
+        foreach (var segment in SelectedHexSegments)
+        {
+            segment.IsActive = false;
+        }
+    }
+
+
+    private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, MainTabControl))
+        {
+            return;
+        }
+
+        ExportDataButton.IsEnabled = GetCurrentTabDataGrid() is not null;
+        UpdateSegmentedNav(false);
+    }
+
+    private void SegmentedNav_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is null)
+        {
+            return;
+        }
+
+        if (int.TryParse(button.Tag.ToString(), out var index) && index >= 0 && index < MainTabControl.Items.Count)
+        {
+            MainTabControl.SelectedIndex = index;
+        }
+    }
+
+    private Button[] GetSegmentedNavButtons()
+    {
+        return new[]
+        {
+            NavOperatorButton,
+            NavFrameButton,
+            NavValueButton,
+            NavEventButton,
+            NavSignalListButton,
+            NavAssessmentButton,
+            NavFindingsButton,
+            NavDiagnosticsButton,
+            NavNotesButton
+        };
+    }
+
+    private void UpdateSegmentedNav(bool animated)
+    {
+        if (!IsLoaded || MainTabControl is null)
+        {
+            return;
+        }
+
+        if (SegmentSlider is not null)
+        {
+            SegmentSlider.BeginAnimation(WidthProperty, null);
+            SegmentSlider.Visibility = Visibility.Collapsed;
+        }
+
+        var buttons = GetSegmentedNavButtons();
+        var index = Math.Clamp(MainTabControl.SelectedIndex, 0, buttons.Length - 1);
+        var inactiveBrush = (Brush)FindResource("Ink600Brush");
+        var activeForegroundBrush = (Brush)FindResource("Ink900Brush");
+        var activeBackgroundBrush = (Brush)FindResource("AccentSoftBrush");
+        var activeBorderBrush = (Brush)FindResource("AccentBrush");
+        var transparentBrush = Brushes.Transparent;
+
+        for (var i = 0; i < buttons.Length; i++)
+        {
+            var isActive = i == index;
+            buttons[i].Background = isActive ? activeBackgroundBrush : transparentBrush;
+            buttons[i].BorderBrush = isActive ? activeBorderBrush : transparentBrush;
+            buttons[i].Foreground = isActive ? activeForegroundBrush : inactiveBrush;
+            buttons[i].FontWeight = isActive ? FontWeights.Medium : FontWeights.Normal;
+        }
+    }
+
+
+    private void ExportData_Click(object sender, RoutedEventArgs e)
+    {
+        var grid = GetCurrentTabDataGrid();
+        if (grid is null)
+        {
+            MessageBox.Show(this, "The selected tab does not contain exportable grid data.", "Export Data", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var tabName = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? "data";
+        var safeName = string.Concat(tabName.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')).Trim('-');
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export selected tab data",
+            Filter = "Tab-separated text (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = $"ARIEC60870-{safeName}.txt",
+            AddExtension = true,
+            DefaultExt = ".txt"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        File.WriteAllText(dialog.FileName, BuildTabSeparatedText(grid), Encoding.UTF8);
+        AppendSessionLog($"Data exported from {tabName}: {dialog.FileName}");
+    }
+
+    private DataGrid? GetCurrentTabDataGrid()
+    {
+        var header = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? string.Empty;
+        return header switch
+        {
+            "Operator Evidence" => EvidenceGrid,
+            "Frame Trace" => FrameTraceGrid,
+            "Value Viewer" => ValueGrid,
+            "Event Log" => RelayEventGrid,
+            "Signal List" => SignalListGrid,
+            "AutoTest Assessment" => AssessmentGrid,
+            "Findings" => FindingsGrid,
+            "Diagnostics" => DiagnosticsGrid,
+            _ => null
+        };
+    }
+
+    private static string BuildTabSeparatedText(DataGrid grid)
+    {
+        var visibleColumns = grid.Columns
+            .Where(c => c.Visibility == Visibility.Visible)
+            .OrderBy(c => c.DisplayIndex)
+            .ToArray();
+
+        var builder = new StringBuilder();
+        builder.AppendLine(string.Join("\t", visibleColumns.Select(c => EscapeTabValue(c.Header?.ToString() ?? string.Empty))));
+
+        foreach (var item in grid.ItemsSource?.Cast<object>() ?? Enumerable.Empty<object>())
+        {
+            var values = visibleColumns.Select(column => EscapeTabValue(ReadGridColumnValue(column, item)));
+            builder.AppendLine(string.Join("\t", values));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string ReadGridColumnValue(DataGridColumn column, object item)
+    {
+        if (column is DataGridTextColumn textColumn && textColumn.Binding is Binding binding && binding.Path is not null)
+        {
+            var path = binding.Path.Path;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                var value = item.GetType().GetProperty(path)?.GetValue(item);
+                return value?.ToString() ?? string.Empty;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string EscapeTabValue(string value)
+    {
+        return (value ?? string.Empty)
+            .Replace("\r", " ", StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal)
+            .Replace("\t", " ", StringComparison.Ordinal)
+            .Trim();
+    }
+
+    private void DataGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+        {
+            return;
+        }
+
+        var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!row.IsSelected)
+        {
+            grid.SelectedItems.Clear();
+            row.IsSelected = true;
+        }
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T target)
+            {
+                return target;
+            }
+
+            child = VisualTreeHelper.GetParent(child);
+        }
+
+        return null;
+    }
+
+    private void BrowseMapping_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103 ? "Open IEC-103 FUN/INF Mapping Profile" : "Open IEC-101/104 IOA Point Profile",
+            Filter = "ARIEC60870 mapping profile (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        TryLoadMappingProfile(dialog.FileName, showMessage: true);
+        SaveSetupPreferencesFromUi(silent: true);
+    }
+
+    private void TryLoadMappingProfile(string fileName, bool showMessage)
+    {
+        try
+        {
+            if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
+            {
+                _mappingProfile = Iec103SignalMappingProfile.LoadFromFile(fileName);
+                MappingProfilePathBox.Text = fileName;
+                MappingProfileStatusText.Text = $"Loaded: {_mappingProfile.ProfileName} ({_mappingProfile.Signals.Count} signals)";
+                AppendSessionLog("IEC-103 mapping profile loaded: " + _mappingProfile.ProfileName);
+            }
+            else
+            {
+                _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(fileName);
+                MappingProfilePathBox.Text = fileName;
+                ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
+                var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
+                MappingProfileStatusText.Text = $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
+                RefreshIoaProfileRows();
+                AppendSessionLog("IEC-101/104 IOA profile loaded: " + _ioaProfile.ProfileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic("Warning", "Mapping", "IEC60870-MAPPING-LOAD", "Mapping profile could not be loaded", ex.Message, "Check JSON syntax and schema. IEC-103 uses FUN/INF schema; IEC-101/104 uses ariec10x-ioa-profile-v1.", ex);
+            if (showMessage)
+            {
+                MessageBox.Show(this, ex.Message, "Mapping profile error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void ClearMapping_Click(object sender, RoutedEventArgs e)
+    {
+        _mappingProfile = Iec103SignalMappingProfile.Empty;
+        _ioaProfile = Iec10xPointMappingProfile.Empty;
+        MappingProfilePathBox.Text = string.Empty;
+        RefreshIoaProfileRows();
+        MappingProfileStatusText.Text = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103
+            ? "No mapping profile loaded. Raw FUN/INF will be shown."
+            : "No IOA profile loaded. Raw IOA labels will be shown.";
+        AppendSessionLog("Mapping profile cleared.");
+        SaveSetupPreferencesFromUi(silent: true);
+    }
+
+    private void EditSignalList_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
+        {
+            MessageBox.Show(this,
+                "Signal List Editor is for IEC-101/104 IOA mapping profiles. IEC-103 uses FUN/INF mapping and will get a dedicated editor later.",
+                "Signal List Editor",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty, MappingProfilePathBox.Text)
+        {
+            Owner = this
+        };
+
+        if (editor.ShowDialog() == true)
+        {
+            _ioaProfile = editor.Profile;
+            MappingProfilePathBox.Text = editor.SavedProfilePath;
+            ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
+            var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
+            MappingProfileStatusText.Text = $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
+            RefreshIoaProfileRows();
+            AppendSessionLog("IEC-101/104 IOA profile edited and applied: " + _ioaProfile.ProfileName);
+            SaveSetupPreferencesFromUi(silent: true);
+        }
+    }
+
+
+    private Iec10xPointMappingEntry? ResolveIoaPoint(Iec103MasterEvidenceEvent item)
+    {
+        return item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            ? _ioaProfile.Resolve(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId)
+            : null;
+    }
+
+    private static string ExtractSimpleStateToken(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        var equals = trimmed.IndexOf('=');
+        if (equals >= 0 && equals < trimmed.Length - 1)
+        {
+            var right = trimmed[(equals + 1)..].Trim();
+            var comma = right.IndexOf(',');
+            return comma > 0 ? right[..comma].Trim() : right;
+        }
+
+        var comma2 = trimmed.IndexOf(',');
+        return comma2 > 0 ? trimmed[..comma2].Trim() : trimmed;
+    }
+
+    private void UpdateValueAndEventViews(Iec103MasterEvidenceEvent item)
+    {
+        var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
+        var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
+        var ioaPoint = ResolveIoaPoint(item);
+        var key = BuildValueKey(item);
+        _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
+
+        var fallbackSignal = BuildFallbackSignalName(item);
+        var displayValue = !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
+            ? item.SignalDisplayValue
+            : !string.IsNullOrWhiteSpace(item.ObjectSummary)
+                ? item.ObjectSummary
+                : item.SignalRawValue;
+        if (ioaPoint is not null)
+        {
+            displayValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(displayValue));
+        }
+
+        var previousValue = previousValueBeforeUpdate;
+        if (string.IsNullOrWhiteSpace(previousValue) && !string.IsNullOrWhiteSpace(item.PreviousSignalValue))
+        {
+            previousValue = item.PreviousSignalValue;
+        }
+        if (ioaPoint is not null && !string.IsNullOrWhiteSpace(previousValue))
+        {
+            previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
+        }
+
+        var hasMeaningfulChange = HasKnownStateTransition(previousValue, displayValue);
+        var keepValueHighlight = _valueHighlightExpiryByKey.TryGetValue(key, out var highlightUntil) && highlightUntil > DateTime.UtcNow;
+
+        if (shouldShowValue)
+        {
+            var valueRow = new ValueRow(new Iec103ValuePoint
+            {
+                Key = key,
+                IsMapped = item.IsMappedSignal || ioaPoint is not null,
+                SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
+                SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
+                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                FunctionType = item.FunctionType,
+                InformationNumber = item.InformationNumber,
+                RawValue = string.IsNullOrWhiteSpace(item.SignalRawValue) ? item.ObjectSummary : item.SignalRawValue,
+                DisplayValue = displayValue,
+                Source = item.Cot ?? string.Empty,
+                CauseOfTransmission = item.Cot ?? string.Empty,
+                AsduType = item.AsduType ?? string.Empty,
+                RelayTimeText = string.IsNullOrWhiteSpace(item.RelayTimestampText) ? "no timestamp" : item.RelayTimestampText,
+                RelayTimeInvalid = item.RelayTimestampInvalid,
+                ArrivalTimeUtc = item.TimestampUtc,
+                RawHex = item.RawHex,
+                ProtocolMode = item.ProtocolMode,
+                CommonAddress = item.CommonAddressNumber,
+                InformationObjectAddress = item.InformationObjectAddress,
+                TypeId = item.TypeId,
+                QualityText = ExtractQualityTextFromEvidence(item)
+            })
+            {
+                IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
+            };
+
+            UpsertValueRowStable(valueRow);
+            if (hasMeaningfulChange)
+            {
+                MarkValueRowRecentlyChanged(key);
+            }
+
+            if (!string.IsNullOrWhiteSpace(displayValue))
+            {
+                _lastDisplayedValueByKey[key] = displayValue;
+            }
+
+            while (ValueRows.Count > 2000)
+            {
+                var removed = ValueRows[^1];
+                ValueRows.RemoveAt(ValueRows.Count - 1);
+                _valueHighlightExpiryByKey.Remove(removed.Key);
+                _lastDisplayedValueByKey.Remove(removed.Key);
+            }
+        }
+
+        if (shouldShowEdgeEvent)
+        {
+            var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                                  && IsIec10xDigitalType(item.TypeId);
+            if (isIec10xDigital && !hasMeaningfulChange)
+            {
+                // Event Log is a change journal, not a value mirror. Ignore OFF->OFF,
+                // ON->ON, and first-observed states with no trustworthy before value.
+                return;
+            }
+
+            var relayEventRow = new RelayEventRow(new Iec103RelayEventLogEntry
+            {
+                EvidenceSequenceNumber = item.SequenceNumber,
+                RelayTimeText = string.IsNullOrWhiteSpace(item.RelayTimestampText) ? "no timestamp" : item.RelayTimestampText,
+                RelayTimeInvalid = item.RelayTimestampInvalid,
+                ArrivalTimeUtc = item.TimestampUtc,
+                IsMapped = item.IsMappedSignal || ioaPoint is not null,
+                SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
+                SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
+                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                FunctionType = item.FunctionType,
+                InformationNumber = item.InformationNumber,
+                PreviousValue = string.IsNullOrWhiteSpace(previousValue) ? string.Empty : previousValue,
+                NewValue = displayValue,
+                EdgeReason = string.IsNullOrWhiteSpace(item.EdgeReason) ? (item.Cot ?? string.Empty) : item.EdgeReason,
+                CauseOfTransmission = item.Cot ?? string.Empty,
+                AsduType = item.AsduType ?? string.Empty,
+                RawHex = item.RawHex,
+                ProtocolMode = item.ProtocolMode,
+                CommonAddress = item.CommonAddressNumber,
+                InformationObjectAddress = item.InformationObjectAddress,
+                TypeId = item.TypeId,
+                QualityText = ExtractQualityTextFromEvidence(item)
+            });
+
+            _allRelayEventRows.Insert(0, relayEventRow);
+            while (_allRelayEventRows.Count > MaxVisibleRelayEventRows)
+            {
+                _allRelayEventRows.RemoveAt(_allRelayEventRows.Count - 1);
+                _visibleRelayEventsDropped++;
+            }
+            ApplyRelayEventFilter();
+        }
+    }
+
+    private static bool IsIec10xDigitalType(int? typeId)
+        => typeId is 1 or 2 or 3 or 4 or 30 or 31;
+
+    private static bool HasKnownStateTransition(string? previousValue, string? newValue)
+    {
+        var before = NormalizeStateForComparison(previousValue);
+        var after = NormalizeStateForComparison(newValue);
+        if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
+        {
+            return false;
+        }
+
+        return !string.Equals(before, after, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeStateForComparison(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var token = ExtractSimpleStateToken(value).Trim();
+        if (token.Length == 0 || token == "-" || token.Equals("no timestamp", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        var upper = token.ToUpperInvariant();
+        if (upper.StartsWith("SP=", StringComparison.Ordinal) || upper.StartsWith("DP=", StringComparison.Ordinal))
+        {
+            upper = upper[3..].Trim();
+        }
+
+        if (upper is "0" or "FALSE") return "0";
+        if (upper is "1" or "TRUE") return "1";
+        if (upper is "2") return "2";
+        if (upper is "3") return "3";
+        if (upper.Contains("INVALID OPEN", StringComparison.Ordinal)) return "INVALID_OPEN";
+        if (upper.Contains("INVALID CLOSE", StringComparison.Ordinal)) return "INVALID_CLOSE";
+        if (upper.Contains("OPEN", StringComparison.Ordinal)) return "OPEN";
+        if (upper.Contains("CLOSE", StringComparison.Ordinal) || upper.Contains("CLOSED", StringComparison.Ordinal)) return "CLOSED";
+        if (upper.Contains("OFF", StringComparison.Ordinal) || upper.Contains("NORMAL", StringComparison.Ordinal)) return "OFF";
+        if (upper.Contains("ON", StringComparison.Ordinal) || upper.Contains("ACTIVE", StringComparison.Ordinal)) return "ON";
+        return upper;
+    }
+
+    private void MarkValueRowRecentlyChanged(string key)
+    {
+        var until = DateTime.UtcNow.AddSeconds(5);
+        _valueHighlightExpiryByKey[key] = until;
+        foreach (var row in ValueRows)
+        {
+            if (string.Equals(row.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                row.IsRecentlyChanged = true;
+                break;
+            }
+        }
+    }
+
+    private void ResetExpiredValueHighlights()
+    {
+        if (_valueHighlightExpiryByKey.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var expired = _valueHighlightExpiryByKey
+            .Where(x => x.Value <= now)
+            .Select(x => x.Key)
+            .ToArray();
+        if (expired.Length == 0)
+        {
+            return;
+        }
+
+        foreach (var key in expired)
+        {
+            _valueHighlightExpiryByKey.Remove(key);
+            foreach (var row in ValueRows)
+            {
+                if (string.Equals(row.Key, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    row.IsRecentlyChanged = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    private static bool IsIec10xProcessValue(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return false;
+        }
+
+        if (!item.TypeId.HasValue || !item.InformationObjectAddress.HasValue)
+        {
+            return false;
+        }
+
+        return item.TypeId.Value is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37;
+    }
+
+    private static bool IsIec10xDigitalEdgeEvent(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return false;
+        }
+
+        if (!item.TypeId.HasValue || !item.CauseOfTransmission.HasValue || !item.InformationObjectAddress.HasValue)
+        {
+            return false;
+        }
+
+        var isEventCause = item.CauseOfTransmission.Value is 3 or 11 or 12;
+        return IsIec10xDigitalType(item.TypeId) && isEventCause;
+    }
+
+    private static string BuildValueKey(Iec103MasterEvidenceEvent item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.SignalKey))
+        {
+            return item.SignalKey;
+        }
+
+        if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
+        {
+            var ca = item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
+            var ioa = item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
+            return $"{item.ProtocolMode}:CA{ca}:IOA{ioa}";
+        }
+
+        return $"FUN{(item.FunctionType ?? 0):000}:INF{(item.InformationNumber ?? 0):000}";
+    }
+
+    private static string BuildFallbackSignalName(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
+        {
+            return item.InformationObjectAddress.HasValue
+                ? $"IOA {item.InformationObjectAddress.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+                : "Unaddressed IEC-10x object";
+        }
+
+        return $"FUN {item.FunctionType} / INF {item.InformationNumber}";
+    }
+
+    private static string BuildFallbackSignalGroup(Iec103MasterEvidenceEvent item)
+    {
+        return item.ProtocolMode switch
+        {
+            Iec60870ProtocolMode.Iec101 => "IEC-101",
+            Iec60870ProtocolMode.Iec104 => "IEC-104",
+            _ => "Unmapped"
+        };
+    }
+
+
+    private void EventLogFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ApplyRelayEventFilter();
+    }
+
+    private void ApplyRelayEventFilter()
+    {
+        if (RelayEventRows is null)
+        {
+            return;
+        }
+
+        var filter = (EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+        RelayEventRows.Clear();
+
+        foreach (var row in _allRelayEventRows)
+        {
+            if (ShouldIncludeRelayEvent(row, filter))
+            {
+                RelayEventRows.Add(row);
+            }
+        }
+    }
+
+    private static bool ShouldIncludeRelayEvent(RelayEventRow row, string filter)
+    {
+        if (filter.Equals("Digital status", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsDigitalEvent(row);
+        }
+
+        if (filter.Equals("Analog", StringComparison.OrdinalIgnoreCase))
+        {
+            return IsAnalogEvent(row);
+        }
+
+        return true;
+    }
+
+    private static bool IsDigitalEvent(RelayEventRow row)
+    {
+        var text = string.Join(" ", row.Type, row.Cot, row.Signal, row.NewValue, row.Reason);
+        return text.Contains("DPI", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("SPI", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("status", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("trip", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("pickup", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("ON", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("OFF", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAnalogEvent(RelayEventRow row)
+    {
+        var text = string.Join(" ", row.Type, row.Cot, row.Signal, row.NewValue, row.Reason);
+        return text.Contains("Measur", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("Analog", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("current", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("voltage", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("Measurands", StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    private void UpsertValueRowStable(ValueRow row)
+    {
+        for (var i = 0; i < ValueRows.Count; i++)
+        {
+            if (string.Equals(ValueRows[i].Key, row.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                ValueRows.RemoveAt(i);
+                break;
+            }
+        }
+
+        var insertAt = ValueRows.Count;
+        for (var i = 0; i < ValueRows.Count; i++)
+        {
+            var current = ValueRows[i];
+            var compare = CompareValueRowsForOperatorGrouping(current, row);
+            if (compare > 0)
+            {
+                insertAt = i;
+                break;
+            }
+        }
+
+        ValueRows.Insert(insertAt, row);
+    }
+
+    private static int CompareValueRowsForOperatorGrouping(ValueRow left, ValueRow right)
+    {
+        var rank = GetValueRowSortRank(left).CompareTo(GetValueRowSortRank(right));
+        if (rank != 0) return rank;
+
+        var ioa = left.IoaSortKey.CompareTo(right.IoaSortKey);
+        if (ioa != 0) return ioa;
+
+        var type = left.TypeSortKey.CompareTo(right.TypeSortKey);
+        if (type != 0) return type;
+
+        return string.Compare(left.Signal, right.Signal, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetValueRowSortRank(ValueRow row)
+    {
+        var text = string.Join(" ", row.Type, row.Cot, row.Signal, row.Group, row.TypeId);
+        if (row.TypeId is "1" or "2" or "3" or "4" or "30" or "31" ||
+            text.Contains("DPI", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("SPI", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("single-point", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("double-point", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("status", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("trip", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("fault", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("local remote", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0; // digital/protection status first
+        }
+
+        if (row.TypeId is "9" or "10" or "11" or "12" or "13" or "14" or "21" or "34" or "35" or "36" ||
+            text.Contains("measur", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("analog", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("current", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("voltage", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("power", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1; // analog/measurand after digital
+        }
+
+        return 2;
+    }
+
+
+    private static string ExtractQualityTextFromEvidence(Iec103MasterEvidenceEvent item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.QualityText))
+        {
+            return item.QualityText;
+        }
+
+        var text = string.Join(" ", item.SignalDisplayValue, item.SignalRawValue, item.ObjectSummary);
+        var marker = "QDS=0x";
+        var index = text.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (index < 0 || text.Length < index + marker.Length + 2)
+        {
+            return string.Empty;
+        }
+
+        return text.Substring(index, marker.Length + 2);
+    }
+
+    private static bool IsDiagnosticEvidence(Iec103MasterEvidenceEvent item)
+    {
+        return !string.IsNullOrWhiteSpace(item.ExceptionType)
+               || item.Category.Contains("Error", StringComparison.OrdinalIgnoreCase)
+               || item.Category.Contains("Warning", StringComparison.OrdinalIgnoreCase)
+               || item.Category.Contains("Fault", StringComparison.OrdinalIgnoreCase)
+               || item.Category.Contains("Diagnostic", StringComparison.OrdinalIgnoreCase)
+               || item.Summary.Contains("timeout", StringComparison.OrdinalIgnoreCase)
+               || item.Detail.Contains("exception", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void AddUiDiagnostic(string severity, string source, string code, string message, string detail, string recommendation, Exception? exception = null)
+    {
+        AddDiagnosticRow(new DiagnosticRow(severity, source, code, message, detail, recommendation, exception));
+        UpdateBufferStatus();
+    }
+
+    private void AddDiagnosticRow(DiagnosticRow row)
+    {
+        DiagnosticRows.Add(row);
+        while (DiagnosticRows.Count > MaxVisibleDiagnosticRows)
+        {
+            DiagnosticRows.RemoveAt(0);
+            _visibleDiagnosticsDropped++;
+        }
+    }
+
+    private void DiagnosticsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if ((sender as DataGrid)?.SelectedItem is not DiagnosticRow row)
+        {
+            DiagnosticDetailBox.Text = "Select a diagnostic row to view complete detail.";
+            return;
+        }
+
+        DiagnosticDetailBox.Text = row.ToClipboardText();
+    }
+
+    private void CopySelectedDiagnostic_Click(object sender, RoutedEventArgs e)
+    {
+        if (DiagnosticsGrid.SelectedItem is DiagnosticRow row)
+        {
+            Clipboard.SetText(row.ToClipboardText());
+            AppendSessionLog("Diagnostic row copied to clipboard.");
+        }
+    }
+
+    private void CopyDiagnosticDetail_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(DiagnosticDetailBox.Text))
+        {
+            Clipboard.SetText(DiagnosticDetailBox.Text);
+            AppendSessionLog("Diagnostic detail copied to clipboard.");
+        }
+    }
+
+    private void UpdateStableHeader(string state, string detail)
+    {
+        StateText.Text = state;
+        CompletionText.Text = "History below";
+        StatusHistorySummaryText.Text = CompactSessionDetail(detail);
+        StatusHistorySummaryText.ToolTip = string.IsNullOrWhiteSpace(detail) ? "-" : detail;
+    }
+
+    private static string CompactSessionDetail(string detail)
+    {
+        if (string.IsNullOrWhiteSpace(detail))
+        {
+            return "-";
+        }
+
+        var text = detail.Replace("Assessment:", "Assess:", StringComparison.OrdinalIgnoreCase)
+            .Replace("Stopped by cancellation or requested duration.", "Stopped/duration reached.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Stopped by cancellation.", "Stopped by user.", StringComparison.OrdinalIgnoreCase);
+
+        const int max = 74;
+        return text.Length <= max ? text : text[..max] + "…";
+    }
+
+    private void SetRunUiState(bool isRunning)
+    {
+        StartButton.IsEnabled = true;
+        if (StopButton is not null)
+        {
+            StopButton.IsEnabled = false;
+            StopButton.Visibility = Visibility.Collapsed;
+        }
+        UpdateConnectToggleVisual(isRunning);
+        SetupButton.IsEnabled = !isRunning;
+        SetupOverlay.Visibility = isRunning ? Visibility.Collapsed : SetupOverlay.Visibility;
+        ExportMarkdownButton.IsEnabled = !isRunning && _lastResult != null;
+        ProtocolModeComboBox.IsEnabled = !isRunning;
+        TransportModeComboBox.IsEnabled = !isRunning;
+        TcpHostBox.IsEnabled = !isRunning;
+        TcpPortBox.IsEnabled = !isRunning;
+        PortComboBox.IsEnabled = !isRunning;
+        BaudComboBox.IsEnabled = !isRunning;
+        SerialModeComboBox.IsEnabled = !isRunning;
+        LinkAddressBox.IsEnabled = !isRunning;
+        CommonAddressBox.IsEnabled = !isRunning;
+        LinkAddressSizeComboBox.IsEnabled = !isRunning;
+        TransmissionModeComboBox.IsEnabled = !isRunning;
+        CotSizeComboBox.IsEnabled = !isRunning;
+        CaSizeComboBox.IsEnabled = !isRunning;
+        IoaSizeComboBox.IsEnabled = !isRunning;
+        Iec104T0Box.IsEnabled = !isRunning;
+        Iec104T1Box.IsEnabled = !isRunning;
+        Iec104T2Box.IsEnabled = !isRunning;
+        Iec104T3Box.IsEnabled = !isRunning;
+        Iec104KBox.IsEnabled = !isRunning;
+        Iec104WBox.IsEnabled = !isRunning;
+        DurationBox.IsEnabled = !isRunning;
+        TimeoutBox.IsEnabled = !isRunning;
+        Class2IntervalBox.IsEnabled = !isRunning;
+        MaxDrainBox.IsEnabled = !isRunning;
+        ResetRemoteLinkCheckBox.IsEnabled = !isRunning;
+        ResetFcbCheckBox.IsEnabled = !isRunning;
+        ClockSyncCheckBox.IsEnabled = !isRunning;
+        GiCheckBox.IsEnabled = !isRunning;
+        Class2StartupCheckBox.IsEnabled = !isRunning;
+        MappingProfilePathBox.IsEnabled = !isRunning;
+        BrowseMappingButton.IsEnabled = !isRunning;
+        ClearMappingButton.IsEnabled = !isRunning;
+    }
+
+    private void ClearSessionView(bool clearLog)
+    {
+        EvidenceRows.Clear();
+        FrameTraceRows.Clear();
+        FindingRows.Clear();
+        ValueRows.Clear();
+        RelayEventRows.Clear();
+        _allRelayEventRows.Clear();
+        _lastDisplayedValueByKey.Clear();
+        _valueHighlightExpiryByKey.Clear();
+        AssessmentRows.Clear();
+        DiagnosticRows.Clear();
+        while (_pendingEvidence.TryDequeue(out _)) { }
+        while (_pendingFindings.TryDequeue(out _)) { }
+        _visibleEvidenceDropped = 0;
+        _visibleRelayEventsDropped = 0;
+        _visibleLogLinesDropped = 0;
+        _visibleDiagnosticsDropped = 0;
+        _txCount = 0;
+        _rxCount = 0;
+        _giCount = 0;
+        _class1Count = 0;
+        _class2Count = 0;
+        _noDataCount = 0;
+        _dpiCount = 0;
+        TxLed.Opacity = 0.28;
+        RxLed.Opacity = 0.28;
+        GiLed.Opacity = 0.28;
+        Class1Led.Opacity = 0.28;
+        Class2Led.Opacity = 0.28;
+        EventLed.Opacity = 0.28;
+        DiagLed.Opacity = 0.28;
+        TxRxText.Text = "0 / 0";
+        ClassPollText.Text = "0 / 0 / 0";
+        NoDataText.Text = "0";
+        DpiText.Text = "0";
+        FindingCountText.Text = "0";
+        SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
+        SelectedRawText.Text = "-";
+        _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
+        SelectedLineSummaryText.Text = _selectedFrameExplanation;
+        SelectedProtocolMapLines.Clear();
+        SelectedHexSegments.Clear();
+        StatusHistorySummaryText.Text = "Visible session rows cleared.";
+        UpdateBufferStatus();
+        if (clearLog)
+        {
+            _sessionLogLines.Clear();
+            SessionLogBox.Clear();
+            StatusHistoryRows.Clear();
+            AppendSessionLog("Session view cleared.");
+        }
+    }
+
+    private void AppendSessionLog(string message)
+    {
+        _sessionLogLines.Enqueue($"{DateTime.Now:HH:mm:ss}  {message}");
+        while (_sessionLogLines.Count > MaxSessionLogLines)
+        {
+            _sessionLogLines.Dequeue();
+            _visibleLogLinesDropped++;
+        }
+
+        SessionLogBox.Text = string.Join(Environment.NewLine, _sessionLogLines);
+        if (SessionLogBox.Text.Length > 0)
+        {
+            SessionLogBox.AppendText(Environment.NewLine);
+        }
+        SessionLogBox.ScrollToEnd();
+        AddStatusHistoryRow(message);
+        UpdateBufferStatus();
+    }
+
+    private void AddStatusHistoryRow(string message)
+    {
+        StatusHistoryRows.Insert(0, new StatusHistoryRow(DateTime.Now.ToString("HH:mm:ss"), ClassifyStatusMessage(message), message));
+        while (StatusHistoryRows.Count > 160)
+        {
+            StatusHistoryRows.RemoveAt(StatusHistoryRows.Count - 1);
+        }
+
+        StatusHistorySummaryText.Text = CompactSessionDetail(message);
+        StatusHistorySummaryText.ToolTip = message;
+    }
+
+    private static string ClassifyStatusMessage(string message)
+    {
+        if (message.Contains("fault", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("warning", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Attention";
+        }
+
+        if (message.Contains("stopped", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("disconnect", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Stopped";
+        }
+
+        if (message.Contains("starting", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("monitor", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("transport", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Runtime";
+        }
+
+        return "Info";
+    }
+
+    private void ToggleStatusHistory_Click(object sender, RoutedEventArgs e)
+    {
+        _statusHistoryExpanded = !_statusHistoryExpanded;
+        StatusHistoryPanel.Height = _statusHistoryExpanded ? double.NaN : 52;
+        StatusHistoryGapRow.Height = _statusHistoryExpanded ? new GridLength(8) : new GridLength(0);
+        StatusHistoryContentRow.Height = _statusHistoryExpanded ? new GridLength(118) : new GridLength(0);
+        StatusHistoryGrid.Visibility = _statusHistoryExpanded ? Visibility.Visible : Visibility.Collapsed;
+        StatusHistoryToggleText.Text = _statusHistoryExpanded ? "Hide" : "Show";
+        StatusHistoryToggleIcon.Data = (Geometry)FindResource(_statusHistoryExpanded ? "LucideCircleChevronDown" : "LucideCircleChevronUp");
+    }
+
+    private void UpdateBufferStatus()
+    {
+        if (BufferStatusText == null)
+        {
+            return;
+        }
+
+        BufferStatusText.Text =
+            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleEvidenceRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}";
+    }
+
+}
+
+public sealed record StatusHistoryRow(string Time, string Status, string Detail);

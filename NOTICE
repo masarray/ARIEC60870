@@ -1,0 +1,13 @@
+ARIEC60870
+Copyright 2026 Ari Sulistiono
+
+ARIEC60870 is an Apache-2.0 clean-room IEC 60870-5-103 active master tester and analyzer.
+
+This repository does not include source code from commercial, GPL, or unclear-license IEC 60870 protocol stacks.
+
+Third-party notices included with this distribution:
+
+- Lucide Icons / Lucide-style outline icon geometry references are used in the WPF command rail. Lucide Icons are distributed under the ISC License.
+- System.IO.Ports is used for serial COM-port I/O. System.IO.Ports is distributed by Microsoft under the MIT License.
+
+This NOTICE file is provided for attribution and does not modify the Apache License, Version 2.0.

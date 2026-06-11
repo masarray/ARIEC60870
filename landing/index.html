@@ -1,0 +1,594 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARIEC60870 | Free IEC 60870-5-103 Master Tester & Relay Analyzer</title>
+    <meta name="description" content="Free open-source Windows IEC 60870-5-103 master tester and analyzer for protection relay FAT/SAT evidence, event logs, mapping profiles, and raw frame trace." />
+    <meta name="keywords" content="ARIEC60870, IEC 60870-5-103, IEC-103, IEC103 master tester, protection relay tester, SCADA protocol analyzer, relay FAT, relay SAT, substation automation, FT1.2 frame trace, relay event log, WPF desktop tool" />
+    <meta name="author" content="MasArray" />
+    <meta name="creator" content="MasArray" />
+    <meta name="publisher" content="MasArray" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <meta name="application-name" content="ARIEC60870" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="canonical" href="https://masarray.github.io/ARIEC60870/" />
+    <link rel="icon" href="assets/brand/ariec60870-icon.png" />
+    <link rel="apple-touch-icon" href="assets/brand/ariec60870-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:url" content="https://masarray.github.io/ARIEC60870/" />
+    <meta property="og:title" content="ARIEC60870 Free IEC 60870-5-103 Master Tester" />
+    <meta property="og:description" content="Free open-source IEC-103 relay testing with readable operator evidence, relay timestamped event logs, user mapping profiles, and raw frame trace transparency." />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta property="og:image:secure_url" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta property="og:image:width" content="1800" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="ARIEC60870 Windows desktop line monitor cockpit screenshot" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ARIEC60870 Free IEC-103 Master Tester" />
+    <meta name="twitter:description" content="Free open-source Windows IEC-103 relay testing tool for FAT/SAT evidence, event logs, mapping profiles, and raw frame trace review." />
+    <meta name="twitter:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta name="twitter:image:alt" content="ARIEC60870 Windows desktop line monitor cockpit screenshot" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+    <script type="application/ld+json">
+{
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ARIEC60870",
+        "alternateName": [
+                "IEC 60870-5-103 Active Master Tester",
+                "IEC-103 Master Tester"
+        ],
+        "description": "Free open-source Windows IEC 60870-5-103 master tester and analyzer for protection relay FAT/SAT evidence, event logs, mapping profiles, and raw frame trace.",
+        "url": "https://masarray.github.io/ARIEC60870/",
+        "codeRepository": "https://github.com/masarray/ARIEC60870",
+        "downloadUrl": "https://github.com/masarray/ARIEC60870/releases/latest",
+        "operatingSystem": "Windows",
+        "applicationCategory": "DeveloperApplication",
+        "softwareVersion": "1.3.0",
+        "isAccessibleForFree": true,
+        "isFamilyFriendly": true,
+        "license": "https://github.com/masarray/ARIEC60870/blob/main/LICENSE",
+        "author": {
+                "@type": "Organization",
+                "name": "MasArray",
+                "url": "https://github.com/masarray"
+        },
+        "publisher": {
+                "@type": "Organization",
+                "name": "MasArray",
+                "url": "https://github.com/masarray"
+        },
+        "audience": {
+                "@type": "Audience",
+                "audienceType": "Protection, SCADA, commissioning, panel FAT, and substation automation engineers"
+        },
+        "about": [
+                {
+                        "@type": "Thing",
+                        "name": "IEC 60870-5-103 relay communication"
+                },
+                {
+                        "@type": "Thing",
+                        "name": "Protection relay testing"
+                },
+                {
+                        "@type": "Thing",
+                        "name": "SCADA protocol diagnostics"
+                },
+                {
+                        "@type": "Thing",
+                        "name": "FAT and SAT evidence"
+                }
+        ],
+        "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD",
+                "url": "https://github.com/masarray/ARIEC60870/releases/latest"
+        },
+        "featureList": [
+                "IEC 60870-5-103 active master testing",
+                "Controlled Class 1 and Class 2 polling behavior",
+                "Relay timestamped event log",
+                "Operator evidence grid",
+                "Raw TX/RX frame trace",
+                "User-owned JSON signal mapping profiles",
+                "Markdown and JSON evidence export",
+                "Windows portable release package",
+                "Free and open-source Apache-2.0 software",
+                "Sanitized IEC-103 test vectors for release validation"
+        ],
+        "screenshot": [
+                "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp",
+                "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-01.webp",
+                "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-05.webp"
+        ],
+        "keywords": [
+                "IEC 60870-5-103 tester",
+                "IEC-103 master tester",
+                "IEC103 relay analyzer",
+                "protection relay FAT",
+                "SCADA protocol analyzer",
+                "FT1.2 frame trace",
+                "relay event log",
+                "substation automation testing"
+        ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+                {
+                        "@type": "Question",
+                        "name": "Is ARIEC60870 free?",
+                        "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "Yes. ARIEC60870 is free and open source under Apache-2.0, with no license key, account requirement, or subscription for trying the release package."
+                        }
+                },
+                {
+                        "@type": "Question",
+                        "name": "What is ARIEC60870 used for?",
+                        "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "ARIEC60870 is used to run IEC 60870-5-103 active master test sessions against one protection relay, then review decoded values, relay events, diagnostics, and raw TX/RX frame evidence."
+                        }
+                },
+                {
+                        "@type": "Question",
+                        "name": "Does ARIEC60870 need a vendor-specific relay database?",
+                        "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "No. The application decodes protocol fields and can use user-owned JSON mapping profiles so project signal names match the approved relay list."
+                        }
+                },
+                {
+                        "@type": "Question",
+                        "name": "Can ARIEC60870 export evidence for FAT or SAT review?",
+                        "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "Yes. The tool keeps operator-readable evidence, relay event logs, diagnostics, frame trace data, and report output that can be reviewed after a test session."
+                        }
+                }
+        ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+                {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "MasArray",
+                        "item": "https://github.com/masarray"
+                },
+                {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "ARIEC60870",
+                        "item": "https://masarray.github.io/ARIEC60870/"
+                }
+        ]
+}
+    </script>
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="ARIEC60870 home">
+        <img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" />
+        <span>
+          <strong>ARIEC60870</strong>
+          <small>IEC-103 active master tester</small>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#why">Why try it</a>
+        <a href="#value">Value</a>
+        <a href="#screens">Screens</a>
+        <a href="#polling">Polling</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#how-to-use">How to use</a>
+        <a href="#release">Download</a>
+        <a href="#benefits">Benefits</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Free & open source &bull; IEC-103 master testing &bull; relay evidence</p>
+          <h1>IEC-103 master testing with readable relay evidence.</h1>
+          <p class="lead">
+            ARIEC60870 is a free, open-source Windows desktop tool for protection relay
+            communication checks. It actively connects to one IEC 60870-5-103 slave,
+            runs a controlled relay test session, decodes relay responses, and keeps
+            raw TX/RX evidence available for engineering review.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              <span>Download free Windows ZIP</span>
+            </a>
+            <a class="button secondary" href="https://github.com/masarray/ARIEC60870">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5a4.4 4.4 0 0 0-1.2-3.1 4.1 4.1 0 0 0-.1-3.1s-1-.3-3.4 1.2a11.5 11.5 0 0 0-6.2 0C6.7 2.5 5.7 2.8 5.7 2.8a4.1 4.1 0 0 0-.1 3.1A4.4 4.4 0 0 0 4.4 9c0 3.5 3 5.5 6 5.5A4.8 4.8 0 0 0 9.4 18v4"/><path d="M9 18c-4.5 2-5-2-7-2"/></svg>
+              <span>Open GitHub</span>
+            </a>
+          </div>
+          <div class="project-badges" aria-label="Project status badges">
+            <a href="https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml" aria-label="Build status">
+              <img src="https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build status" />
+            </a>
+            <a href="https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml" aria-label="GitHub Pages deployment status">
+              <img src="https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=main" alt="Pages deployment status" />
+            </a>
+            <a href="https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml" aria-label="Windows package build status">
+              <img src="https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml/badge.svg" alt="Windows package build status" />
+            </a>
+            <a href="https://github.com/masarray/ARIEC60870/releases" aria-label="Latest release">
+              <img src="https://img.shields.io/github/v/release/masarray/ARIEC60870?include_prereleases&amp;label=release" alt="Latest release" />
+            </a>
+            <a href="https://github.com/masarray/ARIEC60870/blob/main/LICENSE" aria-label="Apache 2.0 license">
+              <img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License: Apache-2.0" />
+            </a>
+          </div>
+          <div class="trust-strip" aria-label="Core product capabilities">
+            <span>Free Apache-2.0</span>
+            <span>No license key</span>
+            <span>Active IEC-103 master</span>
+            <span>Single connection baseline</span>
+            <span>Relay timestamp SOE</span>
+            <span>User mapping profiles</span>
+            <span>Raw frame transparency</span>
+          </div>
+        </div>
+
+        <aside class="hero-panel reveal delay-1 interactive-surface" aria-label="ARIEC60870 application preview">
+          <div class="hero-panel-top">
+            <img class="panel-logo" src="assets/brand/ariec60870-icon.png" width="120" height="120" alt="ARIEC60870 logo" />
+            <span class="live-pill">Master monitoring</span>
+          </div>
+          <button class="screen-frame featured-screen zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-02.webp" data-title="Line Monitor Cockpit">
+            <img src="assets/screenshots/ariec60870-screen-02.webp" width="1800" height="1080" alt="ARIEC60870 line monitor cockpit screenshot" decoding="async" fetchpriority="high" />
+          </button>
+          <div class="metric-row">
+            <div><svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg><span>Class 2</span><strong>Background poll</strong></div>
+            <div><svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v6H4z"/><path d="M4 14h16v6H4z"/><path d="M8 7h.01"/><path d="M8 17h.01"/></svg><span>Class 1</span><strong>ACD drain</strong></div>
+            <div><svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg><span>Reports</span><strong>Evidence ready</strong></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="ticker" aria-label="Workflow highlights">
+        <div class="ticker-track">
+          <span>Reset FCB</span>
+          <span>General Interrogation</span>
+          <span>Bounded Class 1 drain</span>
+          <span>Relay timestamp event log</span>
+          <span>Value Viewer snapshot</span>
+          <span>Frame Trace evidence</span>
+          <span>User mapping import</span>
+          <span>Export selected evidence</span>
+          <span>Reset FCB</span>
+          <span>General Interrogation</span>
+          <span>Bounded Class 1 drain</span>
+          <span>Relay timestamp event log</span>
+          <span>Value Viewer snapshot</span>
+          <span>Frame Trace evidence</span>
+          <span>User mapping import</span>
+          <span>Export selected evidence</span>
+        </div>
+      </section>
+
+      <section class="section why-section" id="why">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Why try it</p>
+          <h2>Free, focused, and transparent enough for serious relay troubleshooting.</h2>
+          <p>
+            ARIEC60870 is made for users who need a practical IEC-103 master tester without
+            license friction. Download the portable package, connect to a relay or simulator,
+            inspect readable evidence, and keep raw protocol detail available for escalation.
+          </p>
+        </div>
+        <div class="proof-grid">
+          <article class="proof-card reveal interactive-surface">
+            <strong>Free and open source</strong>
+            <span>No license key, no account, no subscription. Source code and releases are available under Apache-2.0.</span>
+          </article>
+          <article class="proof-card reveal delay-1 interactive-surface">
+            <strong>Built around real test work</strong>
+            <span>Setup, GI, Class 2 polling, Class 1 event drain, diagnostics, event log, and export are organized around bench/FAT workflow.</span>
+          </article>
+          <article class="proof-card reveal delay-2 interactive-surface">
+            <strong>Evidence first</strong>
+            <span>Readable operator rows help explain what happened. Raw frame visibility is still available when the issue needs protocol-level review.</span>
+          </article>
+          <article class="proof-card reveal delay-3 interactive-surface">
+            <strong>Validation guardrails</strong>
+            <span>Protocol smoke tests, sanitized test vectors, and a validation matrix help users evaluate the package before relying on it.</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section value-section" id="value">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Core value</p>
+          <h2>Built for relay engineers who need proof, not just a byte stream.</h2>
+          <p>
+            The main workflow starts with active master communication and ends with
+            operator-readable evidence. Raw hex remains visible, but the primary
+            screens explain what happened and what action the engineer should take.
+          </p>
+        </div>
+        <div class="value-grid">
+          <article class="value-card reveal interactive-surface">
+            <span class="value-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/><path d="M5 5v14"/></svg></span>
+            <h3>Active master first</h3>
+            <p>Open serial transport, reset link state, run GI, poll Class 2, and drain Class 1 only when the relay advertises pending events.</p>
+          </article>
+          <article class="value-card reveal delay-1 interactive-surface">
+            <span class="value-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 9h8"/><path d="M8 13h5"/><path d="M8 17h7"/></svg></span>
+            <h3>Operator evidence</h3>
+            <p>Readable activity rows, values, event log entries, diagnostics, findings, and session history keep test work understandable.</p>
+          </article>
+          <article class="value-card reveal delay-2 interactive-surface">
+            <span class="value-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><path d="M8 7v10"/><path d="M16 7v10"/></svg></span>
+            <h3>User-owned mapping</h3>
+            <p>Signal names and groups come from mapping files owned by the project. Unmapped points stay visible as raw FUN/INF.</p>
+          </article>
+          <article class="value-card reveal delay-3 interactive-surface">
+            <span class="value-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18"/><path d="M6 12h12"/><path d="M10 17h4"/><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg></span>
+            <h3>Protocol transparency</h3>
+            <p>Frame Trace preserves FT1.2 control, ASDU, COT, FUN, INF, value, timestamp, checksum, and raw frame evidence.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="screens">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Application screens</p>
+          <h2>A calm engineering cockpit for live IEC-103 observation.</h2>
+          <p>
+            Review the main workflow screens: connection setup, live operator evidence,
+            relay values, event logs, diagnostics, and export-ready test records.
+          </p>
+        </div>
+        <div class="screen-grid">
+          <article class="reveal interactive-surface screen-card">
+            <button class="screen-frame zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-01.webp" data-title="Operator Evidence">
+              <img src="assets/screenshots/ariec60870-screen-01.webp" width="1800" height="1080" alt="Operator evidence grid screenshot" loading="lazy" decoding="async" />
+            </button>
+            <h3>Operator Evidence</h3>
+            <p>Meaning-first session rows for startup, GI, polling, event-drain, relay values, warnings, and faults.</p>
+          </article>
+          <article class="reveal delay-1 interactive-surface screen-card">
+            <button class="screen-frame zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-05.webp" data-title="Connection Setup">
+              <img src="assets/screenshots/ariec60870-screen-05.webp" width="1800" height="1080" alt="Connection setup overlay screenshot" loading="lazy" decoding="async" />
+            </button>
+            <h3>Setup Overlay</h3>
+            <p>Connection and polling parameters stay in a focused overlay so the cockpit remains a monitoring surface.</p>
+          </article>
+          <article class="reveal delay-2 interactive-surface screen-card">
+            <button class="screen-frame zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-03.webp" data-title="Value and Event Review">
+              <img src="assets/screenshots/ariec60870-screen-03.webp" width="1800" height="1080" alt="Value and event review screenshot" loading="lazy" decoding="async" />
+            </button>
+            <h3>Value & Event Review</h3>
+            <p>Decoded relay values and timestamped event rows give the user a cleaner review layer than a raw byte stream.</p>
+          </article>
+          <article class="reveal delay-3 interactive-surface screen-card">
+            <button class="screen-frame zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-04.webp" data-title="Protocol Visibility">
+              <img src="assets/screenshots/ariec60870-screen-04.webp" width="1800" height="1080" alt="Protocol visibility screenshot" loading="lazy" decoding="async" />
+            </button>
+            <h3>Protocol Visibility</h3>
+            <p>Frame-level evidence stays available for engineering escalation, checksum review, mapping checks, and troubleshooting notes.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split" id="polling">
+        <div class="reveal">
+          <p class="eyebrow">Polling policy</p>
+          <h2>Controlled master behavior without noisy Class 1 bombardment.</h2>
+          <p>
+            ARIEC60870 treats Class 2 as the normal background cycle. Class 1 is
+            event-drain only: entered after ACD=1 or bounded GI follow-up, stopped
+            when the relay returns no data, clears ACD, reaches GI end, reports DFC
+            busy, hits configured drain limits, or times out safely.
+          </p>
+        </div>
+        <div class="report-list reveal delay-1" aria-label="Polling workflow">
+          <div class="interactive-surface"><strong>Startup</strong><span>Open transport, optional reset remote link, reset FCB, optional clock sync, optional GI.</span></div>
+          <div class="interactive-surface"><strong>Normal loop</strong><span>Poll Class 2 at the configured interval and keep visible UI buffers bounded.</span></div>
+          <div class="interactive-surface"><strong>Event drain</strong><span>Request Class 1 only while pending event evidence is advertised or GI follow-up remains active.</span></div>
+          <div class="interactive-surface"><strong>Shutdown</strong><span>Hold FCB on timeout/invalid response, then close cleanly when the user stops the session.</span></div>
+        </div>
+      </section>
+
+      <section class="section evidence-band" id="evidence">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Evidence model</p>
+          <h2>Readable first, raw evidence always available.</h2>
+          <p>
+            The app separates operator-facing evidence from expert protocol
+            inspection. Event Log time comes from the relay ASDU timestamp when
+            present. PC arrival time is forensic metadata only.
+          </p>
+        </div>
+        <div class="evidence-grid">
+          <div class="evidence-card reveal interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><path d="M8 6v12"/></svg></span>
+            <strong>Value Viewer</strong>
+            <span>Current relay snapshot updated in place, ordered for digital/status/protection points first.</span>
+          </div>
+          <div class="evidence-card reveal delay-1 interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span>
+            <strong>Relay Event Log</strong>
+            <span>SOE-style rows for state change, edge, and spontaneous events using relay timestamp basis.</span>
+          </div>
+          <div class="evidence-card reveal delay-2 interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h16"/><path d="m17 10 3 2-3 2"/></svg></span>
+            <strong>Frame Trace</strong>
+            <span>TX/RX transaction tracking with raw frame and protocol-aware selected-frame interpretation.</span>
+          </div>
+          <div class="evidence-card reveal interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 4.6 3.3 18a1.8 1.8 0 0 0 1.6 2.6h14.2a1.8 1.8 0 0 0 1.6-2.6l-7-13.4a1.9 1.9 0 0 0-3.4 0Z"/></svg></span>
+            <strong>Diagnostics</strong>
+            <span>Recoverable runtime exceptions become selectable diagnostic rows with recommendation detail.</span>
+          </div>
+          <div class="evidence-card reveal delay-1 interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M7 7v13"/><path d="M17 7v13"/><path d="M9 12h6"/><path d="M9 16h4"/></svg></span>
+            <strong>Mapping profiles</strong>
+            <span>User/project JSON profiles provide signal names. Built-in code decodes protocol fields only.</span>
+          </div>
+          <div class="evidence-card reveal delay-2 interactive-surface">
+            <span class="evidence-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+            <strong>Export</strong>
+            <span>Selected evidence grids export as tab-separated text suitable for review and escalation.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section split" id="how-to-use">
+        <div class="reveal">
+          <p class="eyebrow">How to use</p>
+          <h2>Start from setup, then read the evidence layer by layer.</h2>
+          <p>
+            The workflow is designed for engineers at a test bench: download the
+            Windows portable package, configure the serial link, start the master
+            session, check communication health, review decoded values/events, then
+            export evidence when the result is clear.
+          </p>
+        </div>
+        <div class="report-list reveal delay-1" aria-label="Usage workflow">
+          <div class="interactive-surface"><strong>1. Download</strong><span>Get the Windows portable ZIP from GitHub Releases and start the app using Start-ARIEC60870.bat.</span></div>
+          <div class="interactive-surface"><strong>2. Configure</strong><span>Select COM port, baudrate, link address, common address, timeout, GI, and optional mapping profile.</span></div>
+          <div class="interactive-surface"><strong>3. Start & verify</strong><span>Watch Operator Evidence, Value Viewer, Relay Event Log, Frame Trace, and Diagnostics.</span></div>
+          <div class="interactive-surface"><strong>4. Export</strong><span>Export Markdown or selected grid evidence for FAT/SAT records, troubleshooting notes, or handover.</span></div>
+        </div>
+      </section>
+
+      <section class="section split" id="release">
+        <div class="reveal">
+          <p class="eyebrow">Download package</p>
+          <h2>Free portable Windows ZIP for test-bench evaluation.</h2>
+          <p>
+            Download the latest free open-source package from GitHub Releases, extract it,
+            run Start-ARIEC60870.bat, configure the relay serial settings, then start
+            a focused IEC-103 master session. The package includes the desktop app,
+            CLI tools, samples, quick-start notes, troubleshooting notes, and license files.
+          </p>
+        </div>
+        <div class="report-list reveal delay-1" aria-label="Release package contents">
+          <div class="interactive-surface"><strong>Portable ZIP</strong><span>Desktop app and CLI tools are packaged together for Windows users.</span></div>
+          <div class="interactive-surface"><strong>Start script</strong><span>Run Start-ARIEC60870.bat after extracting the release package.</span></div>
+          <div class="interactive-surface"><strong>Checksum</strong><span>SHA256SUMS.txt is provided so downloaded assets can be verified.</span></div>
+          <div class="interactive-surface"><strong>Quick start</strong><span>Step-by-step setup guide for the first relay communication check.</span></div>
+          <div class="interactive-surface"><strong>Test vectors</strong><span>Sanitized IEC-103 frames are included for parser and decoder smoke checks.</span></div>
+          <div class="interactive-surface"><strong>Troubleshooting</strong><span>Practical checks for no response, checksum errors, malformed frames, GI issues, and mapping gaps.</span></div>
+        </div>
+      </section>
+
+      <section class="section compliance" id="benefits">
+        <div class="reveal">
+          <p class="eyebrow">User benefits</p>
+          <h2>Less time reading raw logs, more time proving relay behavior.</h2>
+          <p>
+            ARIEC60870 helps protection and SCADA engineers run repeatable IEC-103
+            checks, explain each transaction, keep the relay timestamp basis visible,
+            and export evidence that can be reviewed after the test session.
+          </p>
+        </div>
+        <div class="notice reveal delay-1">
+          <strong>Practical advantages</strong>
+          <span>Connect to one relay and keep the workflow focused on the active master session.</span>
+          <span>Use operator-readable evidence first, with raw frames still available for escalation.</span>
+          <span>Keep mapping profiles project-owned so signal names match the user's relay list.</span>
+          <span>Export selected evidence grids and Markdown evidence for reports, review, and handover.</span>
+        </div>
+      </section>
+
+      <section class="section faq-section" id="faq">
+        <div class="section-heading reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2>Questions before downloading ARIEC60870.</h2>
+          <p>
+            These answers help new users understand what the tool does, what it does not claim,
+            and how to start a safe IEC-103 relay communication check.
+          </p>
+        </div>
+        <div class="faq-grid">
+          <article class="faq-card reveal interactive-surface">
+            <h3>Is ARIEC60870 free?</h3>
+            <p>Yes. ARIEC60870 is free and open source under Apache-2.0. There is no license key, account requirement, or subscription for trying the release package.</p>
+          </article>
+          <article class="faq-card reveal delay-1 interactive-surface">
+            <h3>What is ARIEC60870 used for?</h3>
+            <p>ARIEC60870 runs an active IEC 60870-5-103 master session against one relay, then shows decoded values, relay events, diagnostics, and raw TX/RX frame evidence.</p>
+          </article>
+          <article class="faq-card reveal delay-1 interactive-surface">
+            <h3>Who should use it?</h3>
+            <p>It is intended for protection, SCADA, commissioning, and panel/FAT engineers who need a focused IEC-103 communication check and evidence trail.</p>
+          </article>
+          <article class="faq-card reveal delay-2 interactive-surface">
+            <h3>Does it require a vendor-specific relay database?</h3>
+            <p>No. ARIEC60870 decodes protocol fields and can load user-owned JSON mapping profiles so displayed signal names follow the project relay list.</p>
+          </article>
+          <article class="faq-card reveal interactive-surface">
+            <h3>Can it export FAT/SAT evidence?</h3>
+            <p>Yes. It provides operator-readable evidence, frame trace transparency, diagnostics, and report output that can be reviewed after the test session.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section download-band" id="download">
+        <div class="download-card reveal interactive-surface">
+          <div>
+            <p class="eyebrow">Windows release</p>
+            <h2>Download free, connect, and start a focused IEC-103 test session.</h2>
+            <p>
+              Use the free open-source Windows portable package for a test bench, then configure the
+              relay connection, run the master session, inspect values and events,
+              and export the evidence your team needs.
+            </p>
+          </div>
+          <div class="download-actions">
+            <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              <span>Download latest release</span>
+            </a>
+            <a class="button secondary" href="https://github.com/masarray/ARIEC60870">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5a4.4 4.4 0 0 0-1.2-3.1 4.1 4.1 0 0 0-.1-3.1s-1-.3-3.4 1.2a11.5 11.5 0 0 0-6.2 0C6.7 2.5 5.7 2.8 5.7 2.8a4.1 4.1 0 0 0-.1 3.1A4.4 4.4 0 0 0 4.4 9c0 3.5 3 5.5 6 5.5A4.8 4.8 0 0 0 9.4 18v4"/><path d="M9 18c-4.5 2-5-2-7-2"/></svg>
+              <span>Open GitHub</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="lightbox" aria-label="Screenshot preview">
+      <button class="lightbox-close" type="button" aria-label="Close preview">Close</button>
+      <figure>
+        <img alt="" />
+        <figcaption></figcaption>
+      </figure>
+    </dialog>
+
+    <footer class="site-footer">
+      <span>ARIEC60870</span>
+      <span>IEC-103 active master testing, relay evidence, and protocol transparency.</span>
+    </footer>
+  </body>
+</html>

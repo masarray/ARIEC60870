@@ -1,0 +1,3 @@
+# Type 8 General Interrogation end
+# Expected: ASDU Type 8, COT GI termination.
+68 09 09 68 08 01 08 01 0A 01 00 00 00 1D 16

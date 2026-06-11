@@ -1,0 +1,27 @@
+{
+  "name": "ARIEC60870 ARIEC60870 Protocol Lab",
+  "short_name": "ARIEC60870",
+  "description": "Free open-source Windows IEC 60870-5-101/103/104 protocol lab for SCADA, RTU, gateway, protection relay FAT/SAT evidence, mapping profiles, command validation, and raw frame trace.",
+  "start_url": "https://masarray.github.io/ARIEC60870/",
+  "scope": "https://masarray.github.io/ARIEC60870/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#0b6f86",
+  "icons": [
+    {
+      "src": "assets/brand/ariec60870-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/brand/ariec60870-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/brand/ariec60870-icon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ARIEC60870.Master</AssemblyName>
+    <RootNamespace>ARIEC60870.Master</RootNamespace>
+    <Description>Clean-room IEC 60870-5-101/103/104 active tester engine with protocol-aware evidence reporting.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ARIEC60870.Core\ARIEC60870.Core.csproj" />
+    <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+  </ItemGroup>
+</Project>

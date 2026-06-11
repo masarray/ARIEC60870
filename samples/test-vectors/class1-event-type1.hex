@@ -1,0 +1,3 @@
+# Type 1 time-tagged protection/status message
+# Expected: ASDU Type 1, COT spontaneous, FUN 192, INF 36, DPI 2, relay time 14:34:12.345.
+68 0E 0E 68 08 01 01 01 01 01 C0 24 02 39 30 22 0E 00 8C 16

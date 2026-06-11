@@ -1,0 +1,10 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ARIEC60870.Core</AssemblyName>
+    <RootNamespace>ARIEC60870.Core</RootNamespace>
+    <Description>Clean-room IEC 60870 protocol decoder core for IEC 60870-5-101/103/104 evidence analysis.</Description>
+  </PropertyGroup>
+</Project>

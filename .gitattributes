@@ -1,0 +1,32 @@
+# Normalize text files while keeping binary artifacts safe.
+* text=auto
+
+# Source and docs
+*.cs text diff=csharp
+*.csproj text
+*.sln text
+*.props text
+*.targets text
+*.md text
+*.json text
+*.yml text
+*.yaml text
+*.html text
+*.css text
+*.js text
+*.bat text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.7z binary
+*.rar binary
+*.pcap binary
+*.pcapng binary
+*.msg binary

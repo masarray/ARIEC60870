@@ -1,0 +1,15 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ARIEC60870.Cli</AssemblyName>
+    <RootNamespace>ARIEC60870.Cli</RootNamespace>
+    <Description>Command line analyzer and active master runner for IEC 60870-5-101/103/104 protocol evidence sessions.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ARIEC60870.Core\ARIEC60870.Core.csproj" />
+    <ProjectReference Include="..\ARIEC60870.Master\ARIEC60870.Master.csproj" />
+  </ItemGroup>
+</Project>

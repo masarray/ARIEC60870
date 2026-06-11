@@ -1,0 +1,113 @@
+{
+  "schema": "ariec60870-mapping-profile-v1",
+  "profileName": "Example user IEC-103 mapping - edit before field use",
+  "projectName": "Demo / Training",
+  "deviceName": "Generic IEC-103 Relay Simulator",
+  "createdBy": "User",
+  "linkAddress": 1,
+  "commonAddress": 1,
+  "signals": [
+    {
+      "id": "bay01.pickup.phase-a",
+      "fun": 160,
+      "inf": 1,
+      "type": "DPI",
+      "name": "Protection Pickup Phase A",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.pickup.phase-b",
+      "fun": 160,
+      "inf": 2,
+      "type": "DPI",
+      "name": "Protection Pickup Phase B",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.pickup.phase-v",
+      "fun": 160,
+      "inf": 3,
+      "type": "DPI",
+      "name": "Protection Pickup Phase V/C",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.trip.phase-a",
+      "fun": 161,
+      "inf": 1,
+      "type": "DPI",
+      "name": "Protection Trip Phase A",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.trip.phase-b",
+      "fun": 161,
+      "inf": 2,
+      "type": "DPI",
+      "name": "Protection Trip Phase B",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.trip.phase-v",
+      "fun": 161,
+      "inf": 3,
+      "type": "DPI",
+      "name": "Protection Trip Phase V/C",
+      "group": "Protection",
+      "description": "Example simulator mapping only. Replace with actual relay/project mapping.",
+      "source": "User editable sample",
+      "stateMap": { "0": "Intermediate", "1": "OFF", "2": "ON", "3": "Invalid" }
+    },
+    {
+      "id": "bay01.current.phase-a",
+      "fun": 144,
+      "inf": 1,
+      "type": "MEASURAND_II",
+      "name": "Phase A Current",
+      "group": "Measurements",
+      "description": "Animated current value from simulator. Raw value is centi-ampere for this demo profile.",
+      "source": "User editable sample",
+      "unit": "A",
+      "scale": 0.01
+    },
+    {
+      "id": "bay01.current.phase-b",
+      "fun": 144,
+      "inf": 2,
+      "type": "MEASURAND_II",
+      "name": "Phase B Current",
+      "group": "Measurements",
+      "description": "Animated current value from simulator. Raw value is centi-ampere for this demo profile.",
+      "source": "User editable sample",
+      "unit": "A",
+      "scale": 0.01
+    },
+    {
+      "id": "bay01.current.phase-v",
+      "fun": 144,
+      "inf": 3,
+      "type": "MEASURAND_II",
+      "name": "Phase V/C Current",
+      "group": "Measurements",
+      "description": "Animated current value from simulator. Raw value is centi-ampere for this demo profile.",
+      "source": "User editable sample",
+      "unit": "A",
+      "scale": 0.01
+    }
+  ]
+}

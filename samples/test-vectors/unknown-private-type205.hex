@@ -1,0 +1,3 @@
+# Unknown/private ASDU example
+# Expected: unknown status retained with raw data preserved.
+68 0A 0A 68 08 01 CD 01 01 01 C8 0A AA 55 AA 16

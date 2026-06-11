@@ -1,0 +1,26 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <Version>1.7.1</Version>
+    <AssemblyVersion>1.7.1.0</AssemblyVersion>
+    <FileVersion>1.7.1.0</FileVersion>
+    <InformationalVersion>1.7.1-event-log-smart-change-value-grouping</InformationalVersion>
+    <Authors>Ari Sulistiono</Authors>
+    <Company>Ari Sulistiono</Company>
+    <Product>ARIEC60870 Protocol Lab</Product>
+    <Copyright>Copyright © 2026 Ari Sulistiono</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/masarray/ARIEC60870</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/masarray/ARIEC60870</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+</Project>

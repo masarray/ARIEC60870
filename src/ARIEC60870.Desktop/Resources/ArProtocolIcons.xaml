@@ -1,0 +1,12 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Original ARIEC60870 outline icon set. Stroke-only 24x24 geometries designed for the command rail. -->
+    <Geometry x:Key="ArIconSetup">M5,7 L19,7 M8,7 A2,2 0 1 0 8,11 A2,2 0 1 0 8,7 M5,15 L19,15 M16,15 A2,2 0 1 0 16,19 A2,2 0 1 0 16,15 M5,3 L5,21 M19,3 L19,21</Geometry>
+    <Geometry x:Key="ArIconConnect">M4,5 L20,5 A2,2 0 0 1 22,7 L22,15 A2,2 0 0 1 20,17 L4,17 A2,2 0 0 1 2,15 L2,7 A2,2 0 0 1 4,5 M7,20 L17,20 M12,17 L12,20 M8,12 L12,8 L16,12 M12,8 L12,14 M18,3 C20,3 21,4 22,5</Geometry>
+    <Geometry x:Key="ArIconDisconnect">M4,5 L20,5 A2,2 0 0 1 22,7 L22,15 A2,2 0 0 1 20,17 L4,17 A2,2 0 0 1 2,15 L2,7 A2,2 0 0 1 4,5 M7,20 L17,20 M12,17 L12,20 M8,9 L11,12 M8,14 L11,11 M14,9 L17,12 M14,14 L17,11</Geometry>
+    <Geometry x:Key="ArIconReport">M6,3 L15,3 L20,8 L20,21 L6,21 Z M15,3 L15,8 L20,8 M9,12 L16,12 M9,16 L14,16 M8,7 L11,7</Geometry>
+    <Geometry x:Key="ArIconClear">M7,8 L19,8 M10,8 L10,20 M16,8 L16,20 M9,8 L10,5 L16,5 L17,8 M8,8 L9,22 L17,22 L18,8 M4,4 L8,4 M4,4 L4,8</Geometry>
+    <Geometry x:Key="ArIconDownload">M4,16 L4,20 A2,2 0 0 0 6,22 L18,22 A2,2 0 0 0 20,20 L20,16 M8,11 L12,15 L16,11 M12,15 L12,3 M7,4 L17,4</Geometry>
+    <Geometry x:Key="ArIconChevronUpCircle">M12,22 A10,10 0 1 0 12,2 A10,10 0 1 0 12,22 M7.5,13.5 L12,9.5 L16.5,13.5</Geometry>
+    <Geometry x:Key="ArIconChevronDownCircle">M12,22 A10,10 0 1 0 12,2 A10,10 0 1 0 12,22 M7.5,10.5 L12,14.5 L16.5,10.5</Geometry>
+</ResourceDictionary>

@@ -1,0 +1,136 @@
+# ARIEC60870 repository hygiene
+# Goal: keep GitHub clean. Commit source code, legal/docs, and the static landing page only.
+# Generated binaries, IDE cache, captured field logs, reports, packages, and large artifacts stay local.
+
+# Ignore everything by default, then explicitly allow the repo source set below.
+*
+!*/
+
+# Root essentials
+!/.gitignore
+!/.gitattributes
+!/.editorconfig
+!/LICENSE
+!/NOTICE
+!/README.md
+!/CONTRIBUTING.md
+!/AGENTS.md
+!/THIRD_PARTY_NOTICES.md
+!/SECURITY.md
+!/Directory.Build.props
+!/Directory.Packages.props
+!/ARIEC60870.sln
+!/index.html
+!/404.html
+!/robots.txt
+!/sitemap.xml
+!/.nojekyll
+!/RUN_SAMPLE.bat
+!/ANALYZE_LOG.bat
+!/RUN_MASTER_SAMPLE.bat
+!/RUN_DESKTOP.bat
+!/RUN_DEMO_MASTER.bat
+!/RUN_SLAVE_SIMULATOR.bat
+
+# Source code, scripts, and tests
+!/src/**
+!/scripts/**
+!/tests/**
+
+# Documentation and static landing page
+!/docs/**
+!/landing/**
+!/profiles/**
+!/.github/**
+
+# Sanitized sample/test vectors only. Real field captures must remain local.
+!/samples/**
+
+# Re-ignore generated/build artifacts that may appear inside allowed directories.
+**/bin/**
+**/obj/**
+**/.vs/**
+**/.vscode/**
+**/.idea/**
+**/.sass-cache/**
+**/.parcel-cache/**
+**/.turbo/**
+**/.next/**
+**/.nuxt/**
+**/.vite/**
+**/node_modules/**
+**/dist/**
+**/build/**
+**/out/**
+**/coverage/**
+**/TestResults/**
+
+# .NET / Visual Studio local state
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.pidb
+*.svclog
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+
+# Packages, installers, archives, and generated executables
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.msi
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.appx
+*.msix
+
+# Generated reports and exports
+*.report.md
+*.log.report.md
+*.json.report
+*.html.report
+report-*.md
+report-*.json
+report-*.html
+
+# Field captures / potentially confidential traces
+*.log
+*.trace
+*.cap
+*.pcap
+*.pcapng
+*.har
+*.csv
+*.xlsx
+*.xls
+*.pdf
+*.msg
+
+# Allow only sanitized sample traces committed intentionally.
+!/samples/*.log
+!/samples/*.txt
+!/samples/*.md
+!/samples/*.json
+
+# Secrets and local environment
+.env
+.env.*
+*.secret
+*.secrets
+secrets.*
+appsettings.Development.json
+appsettings.Production.json
+!appsettings.example.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

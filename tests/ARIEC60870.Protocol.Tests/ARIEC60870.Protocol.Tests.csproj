@@ -1,0 +1,15 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ARIEC60870.Protocol.Tests</AssemblyName>
+    <RootNamespace>ARIEC60870.Protocol.Tests</RootNamespace>
+    <Description>Dependency-free IEC 60870-5-101/103/104 protocol smoke tests for CI.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ARIEC60870.Core\ARIEC60870.Core.csproj" />
+    <ProjectReference Include="..\..\src\ARIEC60870.Master\ARIEC60870.Master.csproj" />
+  </ItemGroup>
+</Project>

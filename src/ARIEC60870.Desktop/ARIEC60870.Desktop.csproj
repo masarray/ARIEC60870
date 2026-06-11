@@ -1,0 +1,28 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>ARIEC60870.Desktop</AssemblyName>
+    <RootNamespace>ARIEC60870.Desktop</RootNamespace>
+    <Description>Protocol-aware WPF desktop analyzer for IEC 60870-5-101/103/104 commissioning and evidence capture.</Description>
+    <ApplicationIcon>Assets\Icons\ariec60870-app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ARIEC60870.Core\ARIEC60870.Core.csproj" />
+    <ProjectReference Include="..\ARIEC60870.Master\ARIEC60870.Master.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\Icons\ariec60870-icon.png" />
+    <Resource Include="Assets\Icons\ariec60870-icon-1024.png" />
+    <Resource Include="Assets\Icons\iec101-icon.png" />
+    <Resource Include="Assets\Icons\iec103-icon.png" />
+    <Resource Include="Assets\Icons\iec104-icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\profiles\PLN_Pusertif_IEC101_default_seed.json" Link="profiles\PLN_Pusertif_IEC101_default_seed.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

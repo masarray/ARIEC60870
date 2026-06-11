@@ -1,0 +1,12 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+# Sanitized IEC-103 FT1.2 sample trace for ARIEC60870 offline analyzer.
+# This file is synthetic. It is not captured from a customer, utility, or vendor project.
+12:00:00.000 COM1 -> Reset FCB [10 49 01 4A 16]
+12:00:00.014 COM1 <- ACK [E5]
+12:00:00.520 COM1 -> Request Class 2 [10 7B 01 7C 16]
+12:00:00.536 COM1 <- No data [10 09 01 0A 16]
+12:00:01.020 COM1 -> Request Class 2 [10 7B 01 7C 16]
+12:00:01.037 COM1 <- Access demand indicated [10 29 01 2A 16]
+12:00:01.041 COM1 -> Request Class 1 [10 5A 01 5B 16]
+12:00:01.058 COM1 <- No data after event drain [10 09 01 0A 16]
