@@ -89,6 +89,10 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 _counters.GiCommands++;
                 await SendVariableAndReceiveAsync("IEC-101 general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(_settings), "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
                 await DrainClass1Async("GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+                if (_settings.RequestClass2ImmediatelyAfterStartup)
+                {
+                    await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
 
             while (!cancellationToken.IsCancellationRequested)
@@ -205,6 +209,33 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
 
         return true;
+    }
+
+    private async Task RunPostGiClass2VerificationSweepAsync(CancellationToken cancellationToken)
+    {
+        SetState(
+            Iec103MasterState.NormalClass2Polling,
+            "IEC-101 post-GI Class 2 verification sweep",
+            "GI drain finished. Requesting a short Class 2 sweep so RTUs that expose background values outside the Class 1 queue can still populate the Value Viewer.",
+            dataClass: "Class 2");
+
+        var noDataBefore = _counters.NoDataResponses;
+        for (var i = 0; i < 3 && !cancellationToken.IsCancellationRequested; i++)
+        {
+            _counters.Class2Requests++;
+            await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Post-GI Class 2 verification sweep", cancellationToken).ConfigureAwait(false);
+            _lastClass2PollUtc = DateTime.UtcNow;
+
+            if (_counters.NoDataResponses > noDataBefore)
+            {
+                break;
+            }
+
+            if (_settings.Class1DrainDelayMs > 0)
+            {
+                await Task.Delay(_settings.Class1DrainDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)

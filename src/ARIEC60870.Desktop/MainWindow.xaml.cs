@@ -57,7 +57,8 @@ public partial class MainWindow : Window
     private bool _savedSetupPreferencesLoaded;
     private bool _defaultIoaSeedSettingsApplied;
 
-    private const int MaxVisibleEvidenceRows = 520;
+    private const int MaxVisibleEvidenceRows = 260;
+    private const int MaxVisibleFrameTraceRows = 1200;
     private const int MaxVisibleRelayEventRows = 420;
     private const int MaxVisibleFindingRows = 260;
     private const int MaxVisibleDiagnosticRows = 280;
@@ -74,6 +75,14 @@ public partial class MainWindow : Window
     private readonly Dictionary<FrameworkElement, DateTime> _ledPulseTimes = new();
     private readonly Dictionary<string, DateTime> _valueHighlightExpiryByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _lastDisplayedValueByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _evidenceSummarySignatureByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _evidenceSummaryLastUtcByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<EvidenceRow> _evidenceSummaryStore = new();
+    private readonly List<EvidenceRow> _protocolTraceStore = new();
+    private readonly HashSet<string> _giExpectedValueKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _giReceivedValueKeys = new(StringComparer.OrdinalIgnoreCase);
+    private bool _giCompletenessWatchActive;
+    private bool _giCompletenessReported;
 
     public MainWindow()
     {
@@ -102,7 +111,7 @@ public partial class MainWindow : Window
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
         AppendSessionLog("ARIEC60870 Protocol Lab initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
-        AppendSessionLog("Output model: Operator/Engineer views first, raw hex remains available in Frame Trace for protocol transparency.");
+        AppendSessionLog("Output model: Operator/Engineer views first, raw hex remains available in Protocol Trace for protocol transparency.");
         Loaded += (_, _) =>
         {
             MainTabControl.SelectedIndex = 0;
@@ -247,10 +256,119 @@ public partial class MainWindow : Window
         if (ordered.Count > 0)
         {
             var suffix = ordered.Count > IoaProfileRows.Count
-                ? $" Showing first {IoaProfileRows.Count} rows for fast workspace rendering; use Edit Signal List for the full database."
+                ? $" Showing first {IoaProfileRows.Count} rows in cached preview; use the Signal List popup for the full database."
                 : string.Empty;
             AppendSessionLog($"IOA signal list loaded: {ordered.Count} points from {_ioaProfile.ProfileName}.{suffix}");
         }
+    }
+
+
+
+    private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
+    {
+        _giExpectedValueKeys.Clear();
+        _giReceivedValueKeys.Clear();
+        _giCompletenessReported = false;
+        _giCompletenessWatchActive = protocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            && _ioaProfile.HasPoints;
+
+        if (!_giCompletenessWatchActive)
+        {
+            return;
+        }
+
+        var ordered = _ioaProfile.Points
+            .Where(point => IsMonitorPoint(point))
+            .OrderBy(point => point.Group, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(point => point.Ioa)
+            .ThenBy(point => point.TypeId ?? 0)
+            .ToList();
+
+        foreach (var point in ordered)
+        {
+            var key = BuildIoaValueKey(point.Ioa);
+            _giExpectedValueKeys.Add(key);
+            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
+            {
+                Key = key,
+                IsMapped = true,
+                SignalName = point.Name,
+                SignalGroup = string.IsNullOrWhiteSpace(point.Group) ? "Profile" : point.Group,
+                SignalType = string.IsNullOrWhiteSpace(point.SignalType) ? $"Type {point.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point.SignalType,
+                DisplayValue = "waiting for GI / scan",
+                RawValue = string.Empty,
+                CauseOfTransmission = "profile expected",
+                AsduType = string.IsNullOrWhiteSpace(point.SignalType) ? string.Empty : point.SignalType,
+                RelayTimeText = "not received",
+                ArrivalTimeUtc = DateTime.UtcNow,
+                ProtocolMode = protocolMode,
+                CommonAddress = point.Ca ?? _ioaProfile.CommonAddress,
+                InformationObjectAddress = point.Ioa,
+                TypeId = point.TypeId,
+                QualityText = "not received"
+            }));
+        }
+
+        if (ordered.Count > 0)
+        {
+            AppendSessionLog($"Value Viewer seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing GI values stay visible as 'waiting for GI / scan'.");
+        }
+    }
+
+    private static bool IsMonitorPoint(Iec10xPointMappingEntry point)
+    {
+        if (!string.IsNullOrWhiteSpace(point.CommandPolicy) &&
+            !point.CommandPolicy.Equals("MonitorOnly", StringComparison.OrdinalIgnoreCase) &&
+            !point.CommandPolicy.Equals("Feedback", StringComparison.OrdinalIgnoreCase))
+        {
+            return point.FeedbackIoa.HasValue;
+        }
+
+        return true;
+    }
+
+    private static string BuildIoaValueKey(int ioa)
+        => "IOA:" + ioa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private void MarkGiValueReceived(string key)
+    {
+        if (_giCompletenessWatchActive && _giExpectedValueKeys.Contains(key))
+        {
+            _giReceivedValueKeys.Add(key);
+        }
+    }
+
+    private void ReportGiCompletenessIfReady(Iec103MasterEvidenceEvent item)
+    {
+        if (!_giCompletenessWatchActive || _giCompletenessReported || _giExpectedValueKeys.Count == 0)
+        {
+            return;
+        }
+
+        var text = string.Join(" ", item.Category, item.Summary, item.Detail, item.CauseName, item.ProtocolMeaning, item.OperatorMessage);
+        var actterm = item.CauseOfTransmission == 10 || text.Contains("ACTTERM", StringComparison.OrdinalIgnoreCase) || text.Contains("activation termination", StringComparison.OrdinalIgnoreCase);
+        if (!actterm)
+        {
+            return;
+        }
+
+        _giCompletenessReported = true;
+        var missing = _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray();
+        if (missing.Length == 0)
+        {
+            AppendSessionLog($"GI completeness: PASS. Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points.");
+            return;
+        }
+
+        var sample = string.Join(", ", missing.Take(12).Select(x => x.Replace("IOA:", "IOA ")));
+        AddUiDiagnostic(
+            "Warning",
+            "IEC-101",
+            "IEC101-GI-PROFILE-INCOMPLETE",
+            "GI completed but profile points are still missing in Value Viewer",
+            $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points. Missing sample: {sample}",
+            "Increase Max Class 1 drain, verify ACTCON/ACTTERM sequence, check Class 1/2 polling, CA/IOA/type profile, and confirm whether the RTU actually returns these points during GI.");
+        AppendSessionLog($"GI completeness: WARN. Missing {missing.Length}/{_giExpectedValueKeys.Count} expected profile points. Sample: {sample}");
     }
 
 
@@ -822,6 +940,7 @@ public partial class MainWindow : Window
         }
 
         ClearSessionView(clearLog: false);
+        SeedValueViewerFromIoaProfile(settings.ProtocolMode);
         _stopRequested = false;
         SetRunUiState(isRunning: true);
         _lastResult = null;
@@ -931,7 +1050,7 @@ public partial class MainWindow : Window
 
     private void SignalList_Click(object sender, RoutedEventArgs e)
     {
-        MainTabControl.SelectedIndex = 4;
+        EditSignalList_Click(sender, e);
     }
 
     private void Clear_Click(object sender, RoutedEventArgs e) => ClearSessionView(clearLog: true);
@@ -1240,7 +1359,7 @@ public partial class MainWindow : Window
         LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         MappingProfilePanel.Visibility = Visibility.Visible;
 
-        // Operator Evidence is a human-readable summary view. Keep protocol-heavy columns in Frame Trace and the selected-row inspector.
+        // Evidence Summary is a distilled human-readable proof view. Keep protocol-heavy columns in Protocol Trace and the selected-row inspector.
         SetColumnVisibility(EvidenceClassColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceApciColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceTypeColumn, Visibility.Collapsed);
@@ -1251,19 +1370,10 @@ public partial class MainWindow : Window
         SetColumnVisibility(EvidenceQualityColumn, Visibility.Collapsed);
         EvidenceSignalColumn.Header = is103 ? "Signal" : "Signal";
 
-        SetColumnVisibility(FrameClassColumn, classVisibility);
-        SetColumnVisibility(FrameAcdColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
-        SetColumnVisibility(FrameDfcColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
-        SetColumnVisibility(FrameApciColumn, apciVisibility);
-        SetColumnVisibility(FrameNsColumn, apciVisibility);
-        SetColumnVisibility(FrameNrColumn, apciVisibility);
-        SetColumnVisibility(FrameTypeColumn, Visibility.Visible);
-        SetColumnVisibility(FrameCotColumn, Visibility.Visible);
-        SetColumnVisibility(FrameCaColumn, ioaVisibility);
-        SetColumnVisibility(FrameIoaColumn, ioaVisibility);
-        SetColumnVisibility(FrameFunInfColumn, funInfVisibility);
+        // Protocol Trace is now a lightweight line monitor, not a protocol column grid.
+        // Protocol-specific fields are rendered inside the line text and decoded in the interpreter.
 
-        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Frame Trace.
+        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Protocol Trace.
         SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
@@ -1393,28 +1503,100 @@ public partial class MainWindow : Window
         UpdateBufferStatus();
     }
 
+    private bool IsEvidenceSummaryTabActive()
+        => MainTabControl?.SelectedIndex == 0;
+
+    private bool IsProtocolTraceTabActive()
+        => MainTabControl?.SelectedIndex == 1;
+
+    private static void AddToBoundedStore<T>(List<T> store, T row, int maxRows)
+    {
+        store.Add(row);
+        if (store.Count > maxRows)
+        {
+            var removeCount = store.Count - maxRows;
+            store.RemoveRange(0, removeCount);
+        }
+    }
+
+    private void AddEvidenceSummaryRow(EvidenceRow row)
+    {
+        AddToBoundedStore(_evidenceSummaryStore, row, MaxVisibleEvidenceRows);
+        if (!IsEvidenceSummaryTabActive())
+        {
+            return;
+        }
+
+        EvidenceRows.Add(row);
+        while (EvidenceRows.Count > MaxVisibleEvidenceRows)
+        {
+            EvidenceRows.RemoveAt(0);
+            _visibleEvidenceDropped++;
+        }
+    }
+
+    private void AddProtocolTraceRow(EvidenceRow row)
+    {
+        AddToBoundedStore(_protocolTraceStore, row, MaxVisibleFrameTraceRows);
+        if (!IsProtocolTraceTabActive())
+        {
+            return;
+        }
+
+        FrameTraceRows.Add(row);
+        while (FrameTraceRows.Count > MaxVisibleFrameTraceRows)
+        {
+            FrameTraceRows.RemoveAt(0);
+            _visibleEvidenceDropped++;
+        }
+    }
+
+    private void RefreshActiveTraceSnapshot()
+    {
+        if (IsEvidenceSummaryTabActive())
+        {
+            EvidenceRows.Clear();
+            foreach (var row in _evidenceSummaryStore)
+            {
+                EvidenceRows.Add(row);
+            }
+        }
+        else if (EvidenceRows.Count > 0)
+        {
+            EvidenceRows.Clear();
+        }
+
+        if (IsProtocolTraceTabActive())
+        {
+            FrameTraceRows.Clear();
+            foreach (var row in _protocolTraceStore)
+            {
+                FrameTraceRows.Add(row);
+            }
+        }
+        else if (FrameTraceRows.Count > 0)
+        {
+            FrameTraceRows.Clear();
+        }
+    }
+
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
 
-        if (ShouldShowInOperatorEvidence(item, row))
+        if (ShouldAddToEvidenceSummary(item, row, out var summaryKey, out var summarySignature))
         {
-            EvidenceRows.Add(row);
-            while (EvidenceRows.Count > MaxVisibleEvidenceRows)
+            AddEvidenceSummaryRow(row);
+            if (!string.IsNullOrWhiteSpace(summaryKey))
             {
-                EvidenceRows.RemoveAt(0);
-                _visibleEvidenceDropped++;
+                _evidenceSummarySignatureByKey[summaryKey] = summarySignature;
+                _evidenceSummaryLastUtcByKey[summaryKey] = DateTime.UtcNow;
             }
         }
 
         if (ShouldShowInFrameTrace(row))
         {
-            FrameTraceRows.Add(row);
-            while (FrameTraceRows.Count > MaxVisibleEvidenceRows)
-            {
-                FrameTraceRows.RemoveAt(0);
-                _visibleEvidenceDropped++;
-            }
+            AddProtocolTraceRow(row);
         }
 
         UpdateLiveCounters(item);
@@ -1429,7 +1611,7 @@ public partial class MainWindow : Window
         // Do not push every protocol state into the top session card. High-volume
         // polling alternates Class 2/Class 1 states quickly and makes Auto-sized WPF
         // layouts appear to flicker. The header shows stable session phase only;
-        // detailed per-frame state belongs in Operator Evidence / Frame Trace.
+        // detailed per-frame state belongs in Evidence Summary / Protocol Trace.
 
         if (item.Category == "Error" || item.Category == "Warning" || item.Category == "RX Warning" || IsImportantSessionNote(item))
         {
@@ -1444,28 +1626,130 @@ public partial class MainWindow : Window
                 row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool ShouldShowInOperatorEvidence(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    private bool ShouldAddToEvidenceSummary(Iec103MasterEvidenceEvent item, EvidenceRow row, out string summaryKey, out string summarySignature)
     {
-        if (IsDiagnosticEvidence(item) || item.IsRelayValue || item.IsRelayEdgeEvent)
+        summaryKey = BuildEvidenceSummaryKey(item, row);
+        summarySignature = BuildEvidenceSummarySignature(item, row);
+
+        if (IsDiagnosticEvidence(item))
         {
             return true;
         }
 
-        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning);
-        if (text.Contains("General Interrogation", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("GI ", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("Clock", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("Reset", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("ACD=1", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("event-drain", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("DFC", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
+        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning, item.CauseName, item.QualityText);
+        var isIssue = ContainsAny(combined, "timeout", "failed", "error", "nack", "negative", "invalid", "not topical", "blocked", "DFC=1", "busy", "quality");
+        var isGiMilestone = ContainsAny(combined, "General Interrogation", "ACTCON", "ACTTERM", "interrogation completed", "GI completed", "GI failed", "GI timeout");
+        var isCommandMilestone = ContainsAny(combined, "command", "select", "operate", "activation confirmation", "activation termination", "feedback");
+        var isClockOrResetMilestone = ContainsAny(combined, "clock sync", "time synchronization", "reset remote link", "reset FCB");
+        var isSignalOutcome = item.IsRelayValue || item.IsRelayEdgeEvent || item.IsMappedSignal || item.InformationObjectAddress.HasValue;
+
+        if (!isIssue && !isGiMilestone && !isCommandMilestone && !isClockOrResetMilestone && !isSignalOutcome)
         {
+            return false;
+        }
+
+        // Do not pollute the summary with routine line traffic. Protocol Trace remains the source of truth for these.
+        if (!isIssue && !isCommandMilestone && !isGiMilestone)
+        {
+            var routine = ContainsAny(combined, "Request Class 1", "Request Class 2", "ACK", "Class 2 poll", "background poll", "S-frame", "TESTFR");
+            if (routine && !isSignalOutcome)
+            {
+                return false;
+            }
+        }
+
+        if (item.IsRelayEdgeEvent)
+        {
+            if (!string.IsNullOrWhiteSpace(item.PreviousSignalValue) &&
+                !string.IsNullOrWhiteSpace(item.SignalDisplayValue) &&
+                string.Equals(NormalizeSummaryValue(item.PreviousSignalValue), NormalizeSummaryValue(item.SignalDisplayValue), StringComparison.OrdinalIgnoreCase) &&
+                !isIssue)
+            {
+                return false;
+            }
+
             return true;
         }
 
-        // Suppress repetitive normal Class 2 request/response noise from the operator view.
+        if (isSignalOutcome && !isIssue)
+        {
+            // Show first proof and real value/quality/timestamp changes only. This turns Evidence Summary into
+            // a commissioning proof table instead of a duplicate frame stream.
+            if (!string.IsNullOrWhiteSpace(summaryKey) &&
+                _evidenceSummarySignatureByKey.TryGetValue(summaryKey, out var previousSignature) &&
+                string.Equals(previousSignature, summarySignature, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string BuildEvidenceSummaryKey(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(item.SignalKey))
+        {
+            return $"{item.ProtocolMode}|signal|{item.SignalKey}";
+        }
+
+        if (item.CommonAddressNumber.HasValue || item.InformationObjectAddress.HasValue || item.TypeId.HasValue)
+        {
+            return $"{item.ProtocolMode}|ioa|{item.CommonAddressNumber}|{item.InformationObjectAddress}|{item.TypeId}";
+        }
+
+        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorAction, item.ProtocolMeaning);
+        if (ContainsAny(combined, "General Interrogation", "ACTCON", "ACTTERM", "GI completed"))
+        {
+            return $"{item.ProtocolMode}|gi|{item.State}|{item.CauseOfTransmission}|{item.Category}";
+        }
+
+        if (ContainsAny(combined, "command", "select", "operate", "activation"))
+        {
+            return $"{item.ProtocolMode}|cmd|{item.CommonAddressNumber}|{item.InformationObjectAddress}|{item.TypeId}|{item.CauseOfTransmission}|{item.State}";
+        }
+
+        if (ContainsAny(combined, "timeout", "failed", "error", "nack", "negative"))
+        {
+            return $"{item.ProtocolMode}|issue|{item.State}|{item.Category}|{item.Summary}";
+        }
+
+        return string.Empty;
+    }
+
+    private static string BuildEvidenceSummarySignature(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        return string.Join("|",
+            NormalizeSummaryValue(item.SignalDisplayValue),
+            NormalizeSummaryValue(item.SignalRawValue),
+            NormalizeSummaryValue(item.QualityText),
+            item.RelayTimestampInvalid ? "time-invalid" : "time-ok",
+            item.CauseOfTransmission?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-",
+            NormalizeSummaryValue(item.CauseName),
+            NormalizeSummaryValue(item.Category),
+            NormalizeSummaryValue(item.OperatorAction));
+    }
+
+    private static string NormalizeSummaryValue(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
+    }
+
+    private static bool ContainsAny(string text, params string[] tokens)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        foreach (var token in tokens)
+        {
+            if (text.Contains(token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -1671,7 +1955,14 @@ public partial class MainWindow : Window
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if ((sender as DataGrid)?.SelectedItem is not EvidenceRow row)
+        var selectedItem = sender switch
+        {
+            DataGrid grid => grid.SelectedItem,
+            ListBox listBox => listBox.SelectedItem,
+            _ => null
+        };
+
+        if (selectedItem is not EvidenceRow row)
         {
             _selectedFrameRow = null;
             SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
@@ -2216,6 +2507,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        RefreshActiveTraceSnapshot();
         ExportDataButton.IsEnabled = GetCurrentTabDataGrid() is not null;
         UpdateSegmentedNav(false);
     }
@@ -2241,7 +2533,6 @@ public partial class MainWindow : Window
             NavFrameButton,
             NavValueButton,
             NavEventButton,
-            NavSignalListButton,
             NavAssessmentButton,
             NavFindingsButton,
             NavDiagnosticsButton,
@@ -2315,11 +2606,9 @@ public partial class MainWindow : Window
         var header = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? string.Empty;
         return header switch
         {
-            "Operator Evidence" => EvidenceGrid,
-            "Frame Trace" => FrameTraceGrid,
+            "Evidence Summary" => EvidenceGrid,
             "Value Viewer" => ValueGrid,
             "Event Log" => RelayEventGrid,
-            "Signal List" => SignalListGrid,
             "AutoTest Assessment" => AssessmentGrid,
             "Findings" => FindingsGrid,
             "Diagnostics" => DiagnosticsGrid,
@@ -2533,6 +2822,11 @@ public partial class MainWindow : Window
         var ioaPoint = ResolveIoaPoint(item);
         var key = BuildValueKey(item);
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
+        if (shouldShowValue)
+        {
+            MarkGiValueReceived(key);
+        }
+        ReportGiCompletenessIfReady(item);
 
         var fallbackSignal = BuildFallbackSignalName(item);
         var displayValue = !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
@@ -2786,9 +3080,9 @@ public partial class MainWindow : Window
 
         if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
         {
-            var ca = item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
-            var ioa = item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
-            return $"{item.ProtocolMode}:CA{ca}:IOA{ioa}";
+            return item.InformationObjectAddress.HasValue
+                ? BuildIoaValueKey(item.InformationObjectAddress.Value)
+                : $"{item.ProtocolMode}:IOA-";
         }
 
         return $"FUN{(item.FunctionType ?? 0):000}:INF{(item.InformationNumber ?? 0):000}";
@@ -3096,12 +3390,20 @@ public partial class MainWindow : Window
     {
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
+        _evidenceSummaryStore.Clear();
+        _protocolTraceStore.Clear();
         FindingRows.Clear();
         ValueRows.Clear();
         RelayEventRows.Clear();
         _allRelayEventRows.Clear();
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
+        _evidenceSummarySignatureByKey.Clear();
+        _evidenceSummaryLastUtcByKey.Clear();
+        _giExpectedValueKeys.Clear();
+        _giReceivedValueKeys.Clear();
+        _giCompletenessWatchActive = false;
+        _giCompletenessReported = false;
         AssessmentRows.Clear();
         DiagnosticRows.Clear();
         while (_pendingEvidence.TryDequeue(out _)) { }

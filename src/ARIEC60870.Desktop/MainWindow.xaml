@@ -65,7 +65,7 @@
                         <TextBlock Text="Clear" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="SignalListButton" Style="{StaticResource RailIconButton}" Click="SignalList_Click" ToolTip="Open IOA signal list and command-feedback binding database">
+                <Button x:Name="SignalListButton" Style="{StaticResource RailIconButton}" Click="SignalList_Click" ToolTip="Open IOA signal list editor popup">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
                         <TextBlock Text="Signals" Style="{StaticResource RailButtonCaption}" />
@@ -179,15 +179,14 @@
                                     <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
                                 </Border>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="NavOperatorButton" Content="Operator Evidence" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavFrameButton" Content="Frame Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavFrameButton" Content="Protocol Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavValueButton" Content="Value Viewer" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavSignalListButton" Content="Signal List" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavAssessmentButton" Content="AutoTest" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavAssessmentButton" Content="AutoTest" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -201,7 +200,7 @@
                     </Grid>
 
                     <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="0" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
-                    <TabItem Header="Operator Evidence">
+                    <TabItem Header="Evidence Summary">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
@@ -210,9 +209,9 @@
                             </Grid.RowDefinitions>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
-                                    <!-- Operator Evidence is intentionally slim. Technical fields remain available in the selected-row inspector and Frame Trace. -->
+                                    <!-- Evidence Summary is intentionally distilled. Full telegram detail remains available in Protocol Trace and the interpreter. -->
                                     <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
-                                    <DataGridTemplateColumn Header="Dir" Width="48"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Direction}" Style="{StaticResource TrafficDirectionText}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Dir" Width="48"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path=Direction, Mode=OneWay}" Style="{StaticResource TrafficDirectionText}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Service" Binding="{Binding ProtocolService}" Width="1.0*" MinWidth="132" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding ProtocolAddress}" Width="1.0*" MinWidth="124" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn x:Name="EvidenceSignalColumn" Header="Signal" Binding="{Binding SignalOrAddress}" Width="1.35*" MinWidth="180" ElementStyle="{StaticResource GridCellText}" />
@@ -254,7 +253,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Frame Trace">
+                    <TabItem Header="Protocol Trace">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.9*" MinWidth="760" />
@@ -269,29 +268,51 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
-                                    <TextBlock Text="TX/RX transaction trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Transaction trace. Select a frame to inspect the decoded hex content on the right." />
+                                    <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right." />
                                     <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" HorizontalAlignment="Right" DockPanel.Dock="Right" />
                                 </DockPanel>
-                                <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="FrameTraceGrid" Grid.Row="2" ItemsSource="{Binding FrameTraceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" MinRowHeight="34">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="70" Visibility="Collapsed" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTemplateColumn Header="Dir" Width="46"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Direction}" Style="{StaticResource TrafficDirectionText}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                                        <DataGridTextColumn x:Name="FrameClassColumn" Header="Class" Binding="{Binding DataClass}" Width="58" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameAcdColumn" Header="ACD" Binding="{Binding Acd}" Width="42" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameDfcColumn" Header="DFC" Binding="{Binding Dfc}" Width="42" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameApciColumn" Header="APCI" Binding="{Binding ApciFormat}" Width="58" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameNsColumn" Header="NS" Binding="{Binding SendSequence}" Width="46" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameNrColumn" Header="NR" Binding="{Binding ReceiveSequence}" Width="46" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameTypeColumn" Header="Type ID" Binding="{Binding TypeIdName}" Width="0.9*" MinWidth="116" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameCotColumn" Header="COT" Binding="{Binding CotDisplay}" Width="0.8*" MinWidth="100" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="44" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameIoaColumn" Header="IOA" Binding="{Binding IoAddress}" Width="64" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn x:Name="FrameFunInfColumn" Header="FUN/INF" Binding="{Binding FunInf}" Width="74" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn Header="Frame" Binding="{Binding RawHex}" Width="1.05*" MinWidth="180" ElementStyle="{StaticResource GridCellWrapCodeText}" />
-                                        <DataGridTextColumn x:Name="FrameServiceColumn" Header="Service" Binding="{Binding ProtocolService}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellWrapText}" />
-                                        <DataGridTextColumn Header="Meaning" Binding="{Binding ReadableMeaning}" Width="2.0*" MinWidth="250" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                    </DataGrid.Columns>
-                                </DataGrid>
+                                <ListBox x:Name="FrameTraceGrid"
+                                         Grid.Row="2"
+                                         ItemsSource="{Binding FrameTraceRows}"
+                                         Style="{StaticResource ProtocolTraceListBox}"
+                                         ItemContainerStyle="{StaticResource ProtocolTraceLineItem}"
+                                         SelectionChanged="EvidenceGrid_SelectionChanged"
+                                         FontFamily="Sometype Mono, Cascadia Mono, Consolas">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0"
+                                                           Text="{Binding ProtocolTraceTitle, Mode=OneWay}"
+                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="11.6"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding ProtocolTraceMeaning, Mode=OneWay}"
+                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="10.6"
+                                                           Foreground="{StaticResource Ink700Brush}"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="0,2,0,0" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding ProtocolTraceRaw, Mode=OneWay}"
+                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="10.4"
+                                                           Foreground="{StaticResource Ink500Brush}"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="0,2,0,0" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </Grid>
 
                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="{StaticResource Panel75Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="10">
@@ -474,45 +495,6 @@
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventQualityColumn" Header="Quality / flags" Binding="{Binding Quality}" Width="160" Visibility="Collapsed" />
                                     <DataGridTextColumn Header="Mapped" Binding="{Binding Mapped}" Width="74" Visibility="Collapsed" />
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
-                    </TabItem>
-                    <TabItem Header="Signal List">
-                        <Grid Margin="14">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="10" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="Signal database" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" ToolTip="Editable mapping source for Value Viewer, Event Log, and Command Dock" />
-                                        <TextBlock Text="Editable IOA mapping and command feedback database." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" ToolTip="Default PLN/PUSERTIF seed remains editable. Command rows can bind to feedback/status IOA for readable Value Viewer, Event Log, and Command Dock." />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="14,0,0,0">
-                                        <Button Content="Edit Signal List" Style="{StaticResource SecondaryButton}" Padding="14,8" Click="EditSignalList_Click" ToolTip="Open editable IOA mapping database editor" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="SignalListGrid" Grid.Row="2" ItemsSource="{Binding IoaProfileRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="CA" Binding="{Binding Ca}" Width="60" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="IOA" Binding="{Binding Ioa}" Width="92" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Signal name" Binding="{Binding Name}" Width="2.1*" MinWidth="260" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.1*" MinWidth="150" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="1*" MinWidth="120" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Class" Binding="{Binding Class}" Width="62" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="62" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Command policy" Binding="{Binding CommandPolicy}" Width="1*" MinWidth="130" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Binding" Binding="{Binding Binding}" Width="1.8*" MinWidth="230" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Mnemonic" Binding="{Binding Mnemonic}" Width="90" Visibility="Collapsed" />
-                                    <DataGridTextColumn Header="Bay" Binding="{Binding BayType}" Width="120" Visibility="Collapsed" />
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
