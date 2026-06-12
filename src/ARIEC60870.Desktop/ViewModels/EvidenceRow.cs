@@ -138,6 +138,84 @@ public sealed partial class EvidenceRow
     public string ProtocolTraceMeta { get; }
 
 
+
+    public EvidenceRow(CaptureFrameSnapshot capture)
+    {
+        Source = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = capture.Sequence,
+            TimestampUtc = DateTime.UtcNow,
+            Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category,
+            DataClass = capture.DataClass,
+            Summary = capture.ProtocolTraceTitle,
+            Detail = capture.Detail,
+            OperatorMessage = capture.ProtocolTraceMeaning,
+            ProtocolMeaning = capture.Meaning,
+            RawHex = capture.RawHex,
+            ProtocolMode = capture.ProtocolMode switch
+            {
+                "101" or "IEC-101" => Iec60870ProtocolMode.Iec101,
+                "104" or "IEC-104" => Iec60870ProtocolMode.Iec104,
+                _ => Iec60870ProtocolMode.Iec103
+            }
+        };
+
+        Sequence = capture.Sequence;
+        Time = string.IsNullOrWhiteSpace(capture.Time) ? "-" : capture.Time;
+        Direction = string.IsNullOrWhiteSpace(capture.Direction) ? "STATE" : capture.Direction;
+        TrafficTone = string.Equals(Direction, "TX", StringComparison.OrdinalIgnoreCase) ? "Tx" : string.Equals(Direction, "RX", StringComparison.OrdinalIgnoreCase) ? "Rx" : "Status";
+        State = string.IsNullOrWhiteSpace(capture.State) ? "OfflineCapture" : capture.State;
+        ProtocolMode = string.IsNullOrWhiteSpace(capture.ProtocolMode) ? "-" : capture.ProtocolMode;
+        ProtocolName = string.IsNullOrWhiteSpace(capture.ProtocolName) ? "ARIEC capture" : capture.ProtocolName;
+        DataClass = string.IsNullOrWhiteSpace(capture.DataClass) ? "-" : capture.DataClass;
+        ResponseTime = string.IsNullOrWhiteSpace(capture.ResponseTime) ? "-" : capture.ResponseTime;
+        Summary = string.IsNullOrWhiteSpace(capture.ProtocolTraceTitle) ? "Offline capture frame" : capture.ProtocolTraceTitle;
+        Detail = capture.Detail;
+        OperatorMessage = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeaning) ? capture.Meaning : capture.ProtocolTraceMeaning;
+        ProtocolMeaning = string.IsNullOrWhiteSpace(capture.Meaning) ? capture.ProtocolTraceMeaning : capture.Meaning;
+        OperatorAction = "Offline capture review";
+        RawHex = string.IsNullOrWhiteSpace(capture.RawHex) ? "-" : capture.RawHex;
+        PollingReason = "offline-capture";
+        Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category;
+        Acd = string.IsNullOrWhiteSpace(capture.Acd) ? "-" : capture.Acd;
+        Dfc = string.IsNullOrWhiteSpace(capture.Dfc) ? "-" : capture.Dfc;
+        AsduType = string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
+        TypeId = string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
+        TypeIdName = TypeId == "-" ? AsduType : $"{TypeId} · {AsduType}";
+        Vsq = "-";
+        CotCode = string.IsNullOrWhiteSpace(capture.CotCode) ? "-" : capture.CotCode;
+        Cot = string.IsNullOrWhiteSpace(capture.Cot) ? "-" : capture.Cot;
+        CotDisplay = CotCode == "-" ? Cot : $"{CotCode} · {Cot}";
+        LinkAddress = string.IsNullOrWhiteSpace(capture.LinkAddress) ? "-" : capture.LinkAddress;
+        CommonAddress = string.IsNullOrWhiteSpace(capture.CommonAddress) ? "-" : capture.CommonAddress;
+        IoAddress = string.IsNullOrWhiteSpace(capture.Ioa) ? "-" : capture.Ioa;
+        ApciFormat = "-";
+        SendSequence = "-";
+        ReceiveSequence = "-";
+        UFormatName = "-";
+        ObjectCount = "-";
+        SequenceMode = "-";
+        Quality = string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality;
+        Fun = "-";
+        Inf = "-";
+        FunInf = "-";
+        SemanticLabel = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
+        SemanticCategory = "Offline Capture";
+        SemanticState = string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
+        ProfileName = "ARIEC capture";
+        RelayTime = string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
+        Edge = "-";
+        Mapped = "-";
+        SignalOrAddress = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
+        ProtocolAddress = string.IsNullOrWhiteSpace(capture.Address) ? "-" : capture.Address;
+        ProtocolService = string.IsNullOrWhiteSpace(capture.Service) ? "-" : capture.Service;
+        ReadableMeaning = string.IsNullOrWhiteSpace(capture.Meaning) ? capture.ProtocolTraceMeaning : capture.Meaning;
+        ProtocolTraceTitle = string.IsNullOrWhiteSpace(capture.ProtocolTraceTitle) ? $"{Direction} {ProtocolService} | {ProtocolAddress}" : capture.ProtocolTraceTitle;
+        ProtocolTraceMeaning = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeaning) ? ReadableMeaning : capture.ProtocolTraceMeaning;
+        ProtocolTraceRaw = string.IsNullOrWhiteSpace(capture.ProtocolTraceRaw) ? (RawHex == "-" ? "RAW -" : "RAW " + RawHex) : capture.ProtocolTraceRaw;
+        ProtocolTraceMeta = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeta) ? $"#{Sequence}  {Time}  {ProtocolName}" : capture.ProtocolTraceMeta;
+    }
+
     private string BuildProtocolTraceTitle()
     {
         var direction = string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;

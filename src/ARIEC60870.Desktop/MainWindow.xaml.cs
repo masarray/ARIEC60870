@@ -58,6 +58,7 @@ public partial class MainWindow : Window
     private bool _isApplyingSavedSetup;
     private bool _savedSetupPreferencesLoaded;
     private bool _defaultIoaSeedSettingsApplied;
+    private bool _isProtocolTraceDragSelecting;
 
     private const int MaxVisibleEvidenceRows = 260;
     private const int MaxVisibleFrameTraceRows = 1200;
@@ -4343,6 +4344,182 @@ public partial class MainWindow : Window
     }
 
 
+
+
+
+    private void FrameTraceGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (item?.DataContext is not EvidenceRow row)
+        {
+            return;
+        }
+
+        _isProtocolTraceDragSelecting = true;
+        listBox.CaptureMouse();
+
+        var additive = (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0;
+        if (!additive)
+        {
+            listBox.SelectedItems.Clear();
+        }
+
+        if (!listBox.SelectedItems.Contains(row))
+        {
+            listBox.SelectedItems.Add(row);
+        }
+
+        listBox.SelectedItem = row;
+        item.Focus();
+        e.Handled = true;
+    }
+
+    private void FrameTraceGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (item?.DataContext is not EvidenceRow row)
+        {
+            return;
+        }
+
+        if (!listBox.SelectedItems.Contains(row))
+        {
+            listBox.SelectedItems.Add(row);
+        }
+
+        listBox.SelectedItem = row;
+        e.Handled = true;
+    }
+
+    private void FrameTraceGrid_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _isProtocolTraceDragSelecting = false;
+
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        if (listBox.IsMouseCaptured)
+        {
+            listBox.ReleaseMouseCapture();
+        }
+    }
+
+    private void OpenCapture_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Open ARIEC capture",
+            Filter = "ARIEC capture (*.ariec;*.zip)|*.ariec;*.zip|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var rows = ReadCaptureRows(dialog.FileName);
+            if (rows.Count == 0)
+            {
+                MessageBox.Show(this,
+                    "The capture file does not contain frame rows.",
+                    "Open capture",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            ClearSessionView(clearLog: false);
+            _protocolTraceStore.Clear();
+            foreach (var row in rows)
+            {
+                _protocolTraceStore.Add(row);
+            }
+
+            FrameTraceRows.ReplaceRange(rows);
+            MainTabControl.SelectedIndex = 1;
+            UpdateSegmentedNav(false);
+            UpdateStableHeader("Offline Capture Review", $"{rows.Count} Protocol Trace rows loaded from {Path.GetFileName(dialog.FileName)}.");
+            AddUiDiagnostic(
+                "Info",
+                "Capture",
+                "ARIEC-CAPTURE-OPENED",
+                "ARIEC capture opened for offline review",
+                $"Loaded {rows.Count} Protocol Trace rows from {dialog.FileName}.",
+                "Use Protocol Trace selection, frame interpreter, export data, or save another selected capture block.");
+            AppendSessionLog($"Offline capture opened: {rows.Count} rows <- {dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic(
+                "Error",
+                "Capture",
+                "ARIEC-CAPTURE-OPEN-FAILED",
+                "Failed to open ARIEC capture",
+                ex.Message,
+                "Verify the file is a valid .ariec ZIP capture containing frames.jsonl.",
+                ex);
+            MessageBox.Show(this,
+                "Failed to open capture: " + ex.Message,
+                "Open capture",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private IReadOnlyList<EvidenceRow> ReadCaptureRows(string fileName)
+    {
+        using var archive = ZipFile.OpenRead(fileName);
+        var framesText = ReadZipTextEntry(archive, "frames.jsonl");
+        if (string.IsNullOrWhiteSpace(framesText))
+        {
+            throw new InvalidOperationException("Capture file does not contain frames.jsonl.");
+        }
+
+        var rows = new List<EvidenceRow>();
+        foreach (var line in framesText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var snapshot = JsonSerializer.Deserialize<CaptureFrameSnapshot>(line);
+            if (snapshot is not null)
+            {
+                rows.Add(new EvidenceRow(snapshot));
+            }
+        }
+
+        return rows.OrderBy(row => row.Sequence).ToArray();
+    }
+
+    private static string ReadZipTextEntry(ZipArchive archive, string entryName)
+    {
+        var entry = archive.GetEntry(entryName);
+        if (entry is null)
+        {
+            return string.Empty;
+        }
+
+        using var stream = entry.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
 
     private void SaveSelectedCapture_Click(object sender, RoutedEventArgs e)
     {

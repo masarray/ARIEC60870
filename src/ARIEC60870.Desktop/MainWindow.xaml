@@ -59,6 +59,18 @@
                         <TextBlock Text="Export" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="OpenCaptureButton" Style="{StaticResource RailIconButton}" Click="OpenCapture_Click" ToolTip="Open .ariec capture for offline review">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
+                        <TextBlock Text="Open Cap" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="SaveCaptureRailButton" Style="{StaticResource RailIconButton}" Click="SaveSelectedCapture_Click" ToolTip="Save selected Protocol Trace rows as .ariec capture">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideDownload}" />
+                        <TextBlock Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </Button>
                 <Button x:Name="ClearButton" Style="{StaticResource RailIconButton}" Click="Clear_Click" ToolTip="Clear visible session rows">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideTrash2}" />
@@ -179,8 +191,8 @@
                                     <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
                                 </Border>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavFrameButton" Content="Protocol Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
+                                    <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavValueButton" Content="Value Viewer" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                     <Button x:Name="NavAssessmentButton" Content="AutoTest" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
@@ -209,7 +221,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="0" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
+                    <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="1" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
                     <TabItem Header="Evidence Summary">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
@@ -279,15 +291,7 @@
                                 </Grid.RowDefinitions>
                                 <DockPanel>
                                     <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                                        <Button x:Name="SaveSelectedCaptureButton" Style="{StaticResource SecondaryButton}" Height="30" Padding="10,4" Click="SaveSelectedCapture_Click" ToolTip="Save selected Protocol Trace rows as a portable .ariec capture file">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideDownload}" />
-                                                <TextBlock Text="Save Capture" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="Medium" />
-                                            </StackPanel>
-                                        </Button>
-                                        <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" Margin="10,0,0,0" />
-                                    </StackPanel>
+                                    <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content. Save/Open capture actions are on the left rail." Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" HorizontalAlignment="Right" DockPanel.Dock="Right" />
                                 </DockPanel>
                                 <ListBox x:Name="FrameTraceGrid"
                                          Grid.Row="2"
@@ -296,6 +300,9 @@
                                          ItemContainerStyle="{StaticResource ProtocolTraceLineItem}"
                                          SelectionChanged="EvidenceGrid_SelectionChanged"
                                          SelectionMode="Extended"
+                                         PreviewMouseLeftButtonDown="FrameTraceGrid_PreviewMouseLeftButtonDown"
+                                         PreviewMouseMove="FrameTraceGrid_PreviewMouseMove"
+                                         PreviewMouseLeftButtonUp="FrameTraceGrid_PreviewMouseLeftButtonUp"
                                          FontFamily="Sometype Mono, Cascadia Mono, Consolas">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
@@ -745,13 +752,13 @@
                             </StackPanel>
                         </Grid>
 
-                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
+                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,6" Margin="0,0,0,8" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Event Log.">
                             <StackPanel>
-                                <TextBlock Text="Command preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,6" />
-                                <TextBlock x:Name="CommandPreviewTitleText" Text="No command signal selected. Manual CA/IOA entry is still allowed." FontWeight="Medium" TextWrapping="Wrap" />
-                                <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                                <TextBlock x:Name="CommandPreviewFeedbackText" Text="Feedback IOA: not mapped" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE for SBO behaviour. Verify feedback in Value Viewer/Event Log." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock Text="Command preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,3" />
+                                <TextBlock x:Name="CommandPreviewTitleText" Text="No command signal selected" FontWeight="Medium" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                <TextBlock x:Name="CommandPreviewFeedbackText" Text="Feedback IOA: not mapped" Style="{StaticResource SubtleText}" Visibility="Collapsed" />
+                                <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE. Verify feedback in Value Viewer/Event Log." Style="{StaticResource SubtleText}" Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
 
