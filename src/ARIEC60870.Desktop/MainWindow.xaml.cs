@@ -66,7 +66,10 @@ public partial class MainWindow : Window
     private const int MaxVisibleSignalListRows = 360;
     private const int MaxSessionLogLines = 280;
     private const int MaxUiFlushPerTick = 42;
+    private const int MaxUiFlushBurstPerTick = 220;
     private const int MaxPendingEvidenceBacklog = 5000;
+    private const int UiFlushSlowWarningMs = 120;
+    private const int UiQueuePressureWarningDepth = 2500;
 
     private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
     private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
@@ -101,7 +104,10 @@ public partial class MainWindow : Window
     private int _lastEvidenceProcessed;
     private int _lastFindingProcessed;
     private int _lastVisibleBatchRows;
+    private int _lastFlushBudget = MaxUiFlushPerTick;
     private DateTime _lastBackpressureLogUtc = DateTime.MinValue;
+    private DateTime _lastDispatcherPressureDiagnosticUtc = DateTime.MinValue;
+    private DateTime _lastDispatcherSlowDiagnosticUtc = DateTime.MinValue;
     private readonly HashSet<string> _giExpectedValueKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _giReceivedValueKeys = new(StringComparer.OrdinalIgnoreCase);
     private bool _giCompletenessWatchActive;
@@ -2390,6 +2396,72 @@ public partial class MainWindow : Window
         AppendSessionLog($"UI backpressure active: dropped {_backpressureDroppedEvents} routine low-value trace events. Protected: diagnostics, digital/process values, mapped values, GI, command and ACTCON/ACTTERM.");
     }
 
+
+    private int GetAdaptiveFlushBudget(int queued)
+    {
+        if (queued >= MaxPendingEvidenceBacklog)
+        {
+            return MaxUiFlushBurstPerTick;
+        }
+
+        if (queued >= 3000)
+        {
+            return Math.Min(MaxUiFlushBurstPerTick, 160);
+        }
+
+        if (queued >= 1500)
+        {
+            return Math.Min(MaxUiFlushBurstPerTick, 96);
+        }
+
+        if (queued >= 600)
+        {
+            return Math.Min(MaxUiFlushBurstPerTick, 64);
+        }
+
+        return MaxUiFlushPerTick;
+    }
+
+    private bool ShouldApplyBackpressure(int queued)
+    {
+        var threshold = _lastUiFlushMs >= UiFlushSlowWarningMs
+            ? MaxPendingEvidenceBacklog / 2
+            : MaxPendingEvidenceBacklog;
+
+        return queued > threshold;
+    }
+
+    private void EvaluateDispatcherHealthTelemetry(int queuedBeforeFlush)
+    {
+        var now = DateTime.UtcNow;
+
+        if (queuedBeforeFlush >= UiQueuePressureWarningDepth &&
+            (now - _lastDispatcherPressureDiagnosticUtc).TotalSeconds >= 30)
+        {
+            _lastDispatcherPressureDiagnosticUtc = now;
+            AddUiDiagnostic(
+                "Info",
+                "UI Dispatcher",
+                "ARIEC-UI-QUEUE-PRESSURE",
+                "UI dispatcher queue pressure detected",
+                $"Pending evidence queue reached {queuedBeforeFlush} items. Adaptive budget={_lastFlushBudget}, last flush={_lastUiFlushMs} ms, max flush={_maxUiFlushMs} ms, dropped low-value={_backpressureDroppedEvents}.",
+                "This is normally survivable. If it persists, reduce trace verbosity, keep Protocol Trace tab inactive during long tests, or increase polling interval for low-baud serial links.");
+        }
+
+        if (_lastUiFlushMs >= UiFlushSlowWarningMs &&
+            (now - _lastDispatcherSlowDiagnosticUtc).TotalSeconds >= 30)
+        {
+            _lastDispatcherSlowDiagnosticUtc = now;
+            AddUiDiagnostic(
+                "Warning",
+                "UI Dispatcher",
+                "ARIEC-UI-SLOW-FLUSH",
+                "UI flush cycle is slow",
+                $"Last UI flush took {_lastUiFlushMs} ms. Queue={_pendingEvidence.Count}, processed={_lastEvidenceProcessed}, visible batch rows={_lastVisibleBatchRows}.",
+                "The protocol engine continues to protect important evidence. For smoother UI, avoid leaving high-volume Protocol Trace visible during long IEC-101/104 polling sessions.");
+        }
+    }
+
     private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
     {
         // Do not render one WPF row per protocol event immediately. High-volume polling can
@@ -2397,7 +2469,7 @@ public partial class MainWindow : Window
         var depth = _pendingEvidence.Count;
         TrackPendingEvidenceDepth(depth);
 
-        if (depth > MaxPendingEvidenceBacklog && IsLowValueBackpressureCandidate(item))
+        if (ShouldApplyBackpressure(depth) && IsLowValueBackpressureCandidate(item))
         {
             System.Threading.Interlocked.Increment(ref _backpressureDroppedEvents);
             System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 1);
@@ -2416,9 +2488,13 @@ public partial class MainWindow : Window
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var processed = 0;
-        TrackPendingEvidenceDepth(_pendingEvidence.Count);
+        var queuedBeforeFlush = _pendingEvidence.Count;
+        TrackPendingEvidenceDepth(queuedBeforeFlush);
 
-        while (processed < MaxUiFlushPerTick && _pendingEvidence.TryDequeue(out var item))
+        var flushBudget = GetAdaptiveFlushBudget(queuedBeforeFlush);
+        _lastFlushBudget = flushBudget;
+
+        while (processed < flushBudget && _pendingEvidence.TryDequeue(out var item))
         {
             ApplyEvidenceToUi(item);
             processed++;
@@ -2444,6 +2520,7 @@ public partial class MainWindow : Window
         _maxUiFlushMs = Math.Max(_maxUiFlushMs, _lastUiFlushMs);
         _uiFlushTicks++;
 
+        EvaluateDispatcherHealthTelemetry(queuedBeforeFlush);
         UpdateBufferStatus();
     }
 
@@ -4522,7 +4599,10 @@ public partial class MainWindow : Window
         _lastEvidenceProcessed = 0;
         _lastFindingProcessed = 0;
         _lastVisibleBatchRows = 0;
+        _lastFlushBudget = MaxUiFlushPerTick;
         _lastBackpressureLogUtc = DateTime.MinValue;
+        _lastDispatcherPressureDiagnosticUtc = DateTime.MinValue;
+        _lastDispatcherSlowDiagnosticUtc = DateTime.MinValue;
         FindingRows.Clear();
         ValueRows.Clear();
         RelayEventRows.Clear();
@@ -4658,7 +4738,7 @@ public partial class MainWindow : Window
         }
 
         BufferStatusText.Text =
-            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, dropped {_backpressureDroppedEvents}, flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents}, flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
 
 }
