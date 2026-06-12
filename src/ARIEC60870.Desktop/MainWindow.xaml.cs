@@ -93,6 +93,14 @@ public partial class MainWindow : Window
     private bool _valueRowsDirty;
     private bool _relayEventRowsDirty;
     private long _backpressureDroppedEvents;
+    private int _backpressureNoticePending;
+    private long _maxPendingEvidenceDepth;
+    private long _uiFlushTicks;
+    private long _lastUiFlushMs;
+    private long _maxUiFlushMs;
+    private int _lastEvidenceProcessed;
+    private int _lastFindingProcessed;
+    private int _lastVisibleBatchRows;
     private DateTime _lastBackpressureLogUtc = DateTime.MinValue;
     private readonly HashSet<string> _giExpectedValueKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _giReceivedValueKeys = new(StringComparer.OrdinalIgnoreCase);
@@ -2339,6 +2347,8 @@ public partial class MainWindow : Window
             item.IsRelayEdgeEvent ||
             item.IsRelayValue ||
             item.IsMappedSignal ||
+            IsIec10xProcessValue(item) ||
+            IsIec10xDigitalType(item.TypeId) ||
             IsGeneralInterrogationActivity(item) ||
             item.CauseOfTransmission is 6 or 7 or 10 ||
             item.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
@@ -2350,19 +2360,47 @@ public partial class MainWindow : Window
         return ContainsAny(text, "Request Class 1", "Request Class 2", "ACK", "S-frame", "TESTFR", "Class 2 poll", "background poll", "no data");
     }
 
+    private void TrackPendingEvidenceDepth(int depth)
+    {
+        long current;
+        while (depth > (current = System.Threading.Interlocked.Read(ref _maxPendingEvidenceDepth)))
+        {
+            if (System.Threading.Interlocked.CompareExchange(ref _maxPendingEvidenceDepth, depth, current) == current)
+            {
+                break;
+            }
+        }
+    }
+
+    private void EmitBackpressureNoticeIfNeeded()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 0) != 1)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastBackpressureLogUtc).TotalSeconds < 20)
+        {
+            System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 1);
+            return;
+        }
+
+        _lastBackpressureLogUtc = now;
+        AppendSessionLog($"UI backpressure active: dropped {_backpressureDroppedEvents} routine low-value trace events. Protected: diagnostics, digital/process values, mapped values, GI, command and ACTCON/ACTTERM.");
+    }
+
     private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
     {
         // Do not render one WPF row per protocol event immediately. High-volume polling can
         // produce thousands of frames; the UI consumes this queue in timed batches.
-        if (_pendingEvidence.Count > MaxPendingEvidenceBacklog && IsLowValueBackpressureCandidate(item))
+        var depth = _pendingEvidence.Count;
+        TrackPendingEvidenceDepth(depth);
+
+        if (depth > MaxPendingEvidenceBacklog && IsLowValueBackpressureCandidate(item))
         {
-            _backpressureDroppedEvents++;
-            var now = DateTime.UtcNow;
-            if ((now - _lastBackpressureLogUtc).TotalSeconds > 20)
-            {
-                _lastBackpressureLogUtc = now;
-                AppendSessionLog($"UI backpressure active: dropped {_backpressureDroppedEvents} routine low-value trace events while preserving diagnostics, digital changes, GI, command and mapped values.");
-            }
+            System.Threading.Interlocked.Increment(ref _backpressureDroppedEvents);
+            System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 1);
             return;
         }
 
@@ -2376,7 +2414,10 @@ public partial class MainWindow : Window
 
     private void FlushUiQueues()
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var processed = 0;
+        TrackPendingEvidenceDepth(_pendingEvidence.Count);
+
         while (processed < MaxUiFlushPerTick && _pendingEvidence.TryDequeue(out var item))
         {
             ApplyEvidenceToUi(item);
@@ -2394,6 +2435,15 @@ public partial class MainWindow : Window
         EvaluateScanHealthWindow();
         EvaluateCommandLedgerTimeouts();
         FlushVisibleUiBatches();
+        EmitBackpressureNoticeIfNeeded();
+
+        stopwatch.Stop();
+        _lastEvidenceProcessed = processed;
+        _lastFindingProcessed = findingProcessed;
+        _lastUiFlushMs = stopwatch.ElapsedMilliseconds;
+        _maxUiFlushMs = Math.Max(_maxUiFlushMs, _lastUiFlushMs);
+        _uiFlushTicks++;
+
         UpdateBufferStatus();
     }
 
@@ -2423,6 +2473,11 @@ public partial class MainWindow : Window
 
     private void FlushVisibleUiBatches()
     {
+        var batchRows = _pendingEvidenceSummaryUiRows.Count
+                        + _pendingProtocolTraceUiRows.Count
+                        + _pendingFindingUiRows.Count
+                        + _pendingDiagnosticUiRows.Count;
+
         if (_pendingEvidenceSummaryUiRows.Count > 0)
         {
             EvidenceRows.AddRange(_pendingEvidenceSummaryUiRows);
@@ -2440,12 +2495,14 @@ public partial class MainWindow : Window
         if (_valueRowsDirty)
         {
             ValueRows.ReplaceRange(GetSortedValueRowsSnapshot());
+            batchRows += ValueRows.Count;
             _valueRowsDirty = false;
         }
 
         if (_relayEventRowsDirty)
         {
             ApplyRelayEventFilter();
+            batchRows += RelayEventRows.Count;
             _relayEventRowsDirty = false;
         }
 
@@ -2461,6 +2518,8 @@ public partial class MainWindow : Window
             DiagnosticRows.ReplaceRange(_diagnosticStore.Snapshot());
             _pendingDiagnosticUiRows.Clear();
         }
+
+        _lastVisibleBatchRows = batchRows;
     }
 
     private void RefreshActiveTraceSnapshot()
@@ -4455,6 +4514,15 @@ public partial class MainWindow : Window
         _valueRowsDirty = false;
         _relayEventRowsDirty = false;
         _backpressureDroppedEvents = 0;
+        _backpressureNoticePending = 0;
+        _maxPendingEvidenceDepth = 0;
+        _uiFlushTicks = 0;
+        _lastUiFlushMs = 0;
+        _maxUiFlushMs = 0;
+        _lastEvidenceProcessed = 0;
+        _lastFindingProcessed = 0;
+        _lastVisibleBatchRows = 0;
+        _lastBackpressureLogUtc = DateTime.MinValue;
         FindingRows.Clear();
         ValueRows.Clear();
         RelayEventRows.Clear();
@@ -4590,7 +4658,7 @@ public partial class MainWindow : Window
         }
 
         BufferStatusText.Text =
-            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, dropped {_backpressureDroppedEvents}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, dropped {_backpressureDroppedEvents}, flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
 
 }
