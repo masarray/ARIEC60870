@@ -191,12 +191,22 @@
                             </Grid>
                         </Border>
 
-                        <Button x:Name="ExportDataButton" Grid.Column="1" Style="{StaticResource SecondaryButton}" Width="148" Height="34" Padding="12,6" HorizontalAlignment="Right" VerticalAlignment="Center" Click="ExportData_Click" ToolTip="Export selected tab grid as tab-separated .txt">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideDownload}" />
-                                <TextBlock Text="Export Data" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="Medium" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Protocol Trace retention mode. Proof protects important evidence and compresses routine raw trace; Full stores all TX/RX rows until ring buffer limit.">
+                                <TextBlock Text="Trace" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="TraceVerbosityComboBox" Width="118" Height="34" SelectedIndex="1" SelectionChanged="TraceVerbosityComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="Proof" />
+                                    <ComboBoxItem Content="Balanced" />
+                                    <ComboBoxItem Content="Full" />
+                                </ComboBox>
                             </StackPanel>
-                        </Button>
+                            <Button x:Name="ExportDataButton" Style="{StaticResource SecondaryButton}" Width="148" Height="34" Padding="12,6" Click="ExportData_Click" ToolTip="Export selected tab grid as tab-separated .txt">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideDownload}" />
+                                    <TextBlock Text="Export Data" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="Medium" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
                     <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="0" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">

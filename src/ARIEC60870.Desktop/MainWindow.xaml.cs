@@ -96,7 +96,15 @@ public partial class MainWindow : Window
     private bool _valueRowsDirty;
     private bool _relayEventRowsDirty;
     private long _backpressureDroppedEvents;
+    private long _backpressureDroppedAckNoData;
+    private long _backpressureDroppedBackgroundPoll;
+    private long _backpressureDroppedTestFrames;
+    private long _backpressureDroppedOtherLowValue;
+    private long _traceVerbositySuppressedRows;
+    private long _traceVerbositySuppressedRoutine;
+    private long _traceVerbositySuppressedSupervisory;
     private int _backpressureNoticePending;
+    private long _lastDropSummaryMarkerTotal;
     private long _maxPendingEvidenceDepth;
     private long _uiFlushTicks;
     private long _lastUiFlushMs;
@@ -2347,7 +2355,7 @@ public partial class MainWindow : Window
     }
 
 
-    private static bool IsLowValueBackpressureCandidate(Iec103MasterEvidenceEvent item)
+    private static string ClassifyLowValueBackpressureBucket(Iec103MasterEvidenceEvent item)
     {
         if (IsDiagnosticEvidence(item) ||
             item.IsRelayEdgeEvent ||
@@ -2359,11 +2367,57 @@ public partial class MainWindow : Window
             item.CauseOfTransmission is 6 or 7 or 10 ||
             item.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
         {
-            return false;
+            return string.Empty;
         }
 
         var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.ProtocolMeaning, item.DataClass);
-        return ContainsAny(text, "Request Class 1", "Request Class 2", "ACK", "S-frame", "TESTFR", "Class 2 poll", "background poll", "no data");
+        if (ContainsAny(text, "ACK", "NACK", "single-character ACK", "single-character NACK", "no data", "NO DATA"))
+        {
+            return "ack/no-data";
+        }
+
+        if (ContainsAny(text, "Request Class 1", "Request Class 2", "Class 2 poll", "background poll"))
+        {
+            return "background-poll";
+        }
+
+        if (ContainsAny(text, "TESTFR", "S-frame", "STARTDT", "STOPDT"))
+        {
+            return "test/supervisory";
+        }
+
+        return ContainsAny(text, "poll", "routine", "idle", "keepalive")
+            ? "other-low-value"
+            : string.Empty;
+    }
+
+    private bool TryDropLowValueForBackpressure(Iec103MasterEvidenceEvent item)
+    {
+        var bucket = ClassifyLowValueBackpressureBucket(item);
+        if (string.IsNullOrWhiteSpace(bucket))
+        {
+            return false;
+        }
+
+        System.Threading.Interlocked.Increment(ref _backpressureDroppedEvents);
+        switch (bucket)
+        {
+            case "ack/no-data":
+                System.Threading.Interlocked.Increment(ref _backpressureDroppedAckNoData);
+                break;
+            case "background-poll":
+                System.Threading.Interlocked.Increment(ref _backpressureDroppedBackgroundPoll);
+                break;
+            case "test/supervisory":
+                System.Threading.Interlocked.Increment(ref _backpressureDroppedTestFrames);
+                break;
+            default:
+                System.Threading.Interlocked.Increment(ref _backpressureDroppedOtherLowValue);
+                break;
+        }
+
+        System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 1);
+        return true;
     }
 
     private void TrackPendingEvidenceDepth(int depth)
@@ -2393,7 +2447,23 @@ public partial class MainWindow : Window
         }
 
         _lastBackpressureLogUtc = now;
-        AppendSessionLog($"UI backpressure active: dropped {_backpressureDroppedEvents} routine low-value trace events. Protected: diagnostics, digital/process values, mapped values, GI, command and ACTCON/ACTTERM.");
+        var total = System.Threading.Interlocked.Read(ref _backpressureDroppedEvents);
+        var ack = System.Threading.Interlocked.Read(ref _backpressureDroppedAckNoData);
+        var poll = System.Threading.Interlocked.Read(ref _backpressureDroppedBackgroundPoll);
+        var test = System.Threading.Interlocked.Read(ref _backpressureDroppedTestFrames);
+        var other = System.Threading.Interlocked.Read(ref _backpressureDroppedOtherLowValue);
+        var delta = total - _lastDropSummaryMarkerTotal;
+        _lastDropSummaryMarkerTotal = total;
+
+        AppendSessionLog($"UI backpressure active: dropped {total} routine low-value trace events (new {delta}; ack/no-data {ack}, poll {poll}, test/supervisory {test}, other {other}). Protected: diagnostics, digital/process values, mapped values, GI, command and ACTCON/ACTTERM.");
+
+        AddUiDiagnostic(
+            "Info",
+            "UI Dispatcher",
+            "ARIEC-UI-DROP-SUMMARY",
+            "Low-value trace compression summary",
+            $"Dropped routine low-value trace rows total={total}, new={delta}, ack/no-data={ack}, background-poll={poll}, test/supervisory={test}, other={other}.",
+            "This is a UI pressure protection marker, not protocol data loss. Critical evidence remains protected by the priority router.");
     }
 
 
@@ -2444,7 +2514,7 @@ public partial class MainWindow : Window
                 "UI Dispatcher",
                 "ARIEC-UI-QUEUE-PRESSURE",
                 "UI dispatcher queue pressure detected",
-                $"Pending evidence queue reached {queuedBeforeFlush} items. Adaptive budget={_lastFlushBudget}, last flush={_lastUiFlushMs} ms, max flush={_maxUiFlushMs} ms, dropped low-value={_backpressureDroppedEvents}.",
+                $"Pending evidence queue reached {queuedBeforeFlush} items. Adaptive budget={_lastFlushBudget}, last flush={_lastUiFlushMs} ms, max flush={_maxUiFlushMs} ms, dropped low-value={_backpressureDroppedEvents} (ack/no-data={_backpressureDroppedAckNoData}, poll={_backpressureDroppedBackgroundPoll}, test={_backpressureDroppedTestFrames}, other={_backpressureDroppedOtherLowValue}).",
                 "This is normally survivable. If it persists, reduce trace verbosity, keep Protocol Trace tab inactive during long tests, or increase polling interval for low-baud serial links.");
         }
 
@@ -2469,10 +2539,8 @@ public partial class MainWindow : Window
         var depth = _pendingEvidence.Count;
         TrackPendingEvidenceDepth(depth);
 
-        if (ShouldApplyBackpressure(depth) && IsLowValueBackpressureCandidate(item))
+        if (ShouldApplyBackpressure(depth) && TryDropLowValueForBackpressure(item))
         {
-            System.Threading.Interlocked.Increment(ref _backpressureDroppedEvents);
-            System.Threading.Interlocked.Exchange(ref _backpressureNoticePending, 1);
             return;
         }
 
@@ -2623,6 +2691,129 @@ public partial class MainWindow : Window
         _pendingProtocolTraceUiRows.Clear();
     }
 
+
+    private enum TraceVerbosityMode
+    {
+        Proof,
+        Balanced,
+        Full
+    }
+
+    private TraceVerbosityMode GetTraceVerbosityMode()
+    {
+        var text = (TraceVerbosityComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                   ?? TraceVerbosityComboBox?.Text
+                   ?? "Balanced";
+
+        if (text.Contains("Full", StringComparison.OrdinalIgnoreCase))
+        {
+            return TraceVerbosityMode.Full;
+        }
+
+        if (text.Contains("Proof", StringComparison.OrdinalIgnoreCase))
+        {
+            return TraceVerbosityMode.Proof;
+        }
+
+        return TraceVerbosityMode.Balanced;
+    }
+
+    private void TraceVerbosityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (BufferStatusText is not null)
+        {
+            UpdateBufferStatus();
+        }
+
+        if (IsLoaded && SessionLogBox is not null)
+        {
+            AppendSessionLog($"Protocol Trace mode: {GetTraceVerbosityMode()}. Critical evidence remains protected; routine trace retention follows selected mode.");
+        }
+    }
+
+    private bool ShouldShowInFrameTrace(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        if (row.RawHex == "-" ||
+            (!row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) &&
+             !row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var mode = GetTraceVerbosityMode();
+        if (mode == TraceVerbosityMode.Full)
+        {
+            return true;
+        }
+
+        if (IsProtectedTraceEvidence(item, row))
+        {
+            return true;
+        }
+
+        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning, item.DataClass, row.ReadableMeaning);
+        var routinePoll = ContainsAny(combined, "Request Class 1", "Request Class 2", "Class 2 poll", "background poll", "no data", "ACK", "single-character ACK");
+        var supervisory = ContainsAny(combined, "TESTFR", "S-frame", "STARTDT", "STOPDT");
+
+        if (mode == TraceVerbosityMode.Proof)
+        {
+            if (routinePoll || supervisory)
+            {
+                CountTraceVerbositySuppression(routinePoll ? "routine" : "supervisory");
+                return false;
+            }
+        }
+
+        if (mode == TraceVerbosityMode.Balanced)
+        {
+            if (supervisory)
+            {
+                CountTraceVerbositySuppression("supervisory");
+                return false;
+            }
+
+            if (routinePoll && !IsProtocolTraceTabActive())
+            {
+                CountTraceVerbositySuppression("routine");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsProtectedTraceEvidence(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        if (IsDiagnosticEvidence(item) ||
+            item.IsRelayValue ||
+            item.IsRelayEdgeEvent ||
+            item.IsMappedSignal ||
+            IsIec10xProcessValue(item) ||
+            IsIec10xDigitalType(item.TypeId) ||
+            IsGeneralInterrogationActivity(item) ||
+            item.CauseOfTransmission is 6 or 7 or 10 ||
+            item.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
+        {
+            return true;
+        }
+
+        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.ProtocolMeaning, row.ReadableMeaning);
+        return ContainsAny(text, "timeout", "failed", "error", "nack", "negative", "invalid", "busy", "DFC=1", "quality", "ACTCON", "ACTTERM", "command", "operate", "select");
+    }
+
+    private void CountTraceVerbositySuppression(string bucket)
+    {
+        _traceVerbositySuppressedRows++;
+        if (bucket.Equals("supervisory", StringComparison.OrdinalIgnoreCase))
+        {
+            _traceVerbositySuppressedSupervisory++;
+        }
+        else
+        {
+            _traceVerbositySuppressedRoutine++;
+        }
+    }
+
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
@@ -2637,7 +2828,7 @@ public partial class MainWindow : Window
             }
         }
 
-        if (ShouldShowInFrameTrace(row))
+        if (ShouldShowInFrameTrace(item, row))
         {
             AddProtocolTraceRow(row);
         }
@@ -2663,13 +2854,6 @@ public partial class MainWindow : Window
         {
             AppendSessionLog($"#{item.SequenceNumber} {item.State}: {item.Summary} - {item.Detail}");
         }
-    }
-
-    private static bool ShouldShowInFrameTrace(EvidenceRow row)
-    {
-        return row.RawHex != "-" &&
-               (row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) ||
-                row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
     }
 
     private bool ShouldAddToEvidenceSummary(Iec103MasterEvidenceEvent item, EvidenceRow row, out string summaryKey, out string summarySignature)
@@ -4591,7 +4775,15 @@ public partial class MainWindow : Window
         _valueRowsDirty = false;
         _relayEventRowsDirty = false;
         _backpressureDroppedEvents = 0;
+        _backpressureDroppedAckNoData = 0;
+        _backpressureDroppedBackgroundPoll = 0;
+        _backpressureDroppedTestFrames = 0;
+        _backpressureDroppedOtherLowValue = 0;
         _backpressureNoticePending = 0;
+        _lastDropSummaryMarkerTotal = 0;
+        _traceVerbositySuppressedRows = 0;
+        _traceVerbositySuppressedRoutine = 0;
+        _traceVerbositySuppressedSupervisory = 0;
         _maxPendingEvidenceDepth = 0;
         _uiFlushTicks = 0;
         _lastUiFlushMs = 0;
@@ -4657,7 +4849,7 @@ public partial class MainWindow : Window
         if (clearLog)
         {
             _sessionLogLines.Clear();
-            SessionLogBox.Clear();
+            SessionLogBox?.Clear();
             StatusHistoryRows.Clear();
             AppendSessionLog("Session view cleared.");
         }
@@ -4672,26 +4864,45 @@ public partial class MainWindow : Window
             _visibleLogLinesDropped++;
         }
 
-        SessionLogBox.Text = string.Join(Environment.NewLine, _sessionLogLines);
-        if (SessionLogBox.Text.Length > 0)
+        if (SessionLogBox is not null)
         {
-            SessionLogBox.AppendText(Environment.NewLine);
+            SessionLogBox.Text = string.Join(Environment.NewLine, _sessionLogLines);
+            if (SessionLogBox.Text.Length > 0)
+            {
+                SessionLogBox.AppendText(Environment.NewLine);
+            }
+            SessionLogBox.ScrollToEnd();
         }
-        SessionLogBox.ScrollToEnd();
-        AddStatusHistoryRow(message);
-        UpdateBufferStatus();
+
+        if (StatusHistoryRows is not null && StatusHistorySummaryText is not null)
+        {
+            AddStatusHistoryRow(message);
+        }
+
+        if (BufferStatusText is not null)
+        {
+            UpdateBufferStatus();
+        }
     }
 
     private void AddStatusHistoryRow(string message)
     {
+        if (StatusHistoryRows is null)
+        {
+            return;
+        }
+
         StatusHistoryRows.Insert(0, new StatusHistoryRow(DateTime.Now.ToString("HH:mm:ss"), ClassifyStatusMessage(message), message));
         while (StatusHistoryRows.Count > 160)
         {
             StatusHistoryRows.RemoveAt(StatusHistoryRows.Count - 1);
         }
 
-        StatusHistorySummaryText.Text = CompactSessionDetail(message);
-        StatusHistorySummaryText.ToolTip = message;
+        if (StatusHistorySummaryText is not null)
+        {
+            StatusHistorySummaryText.Text = CompactSessionDetail(message);
+            StatusHistorySummaryText.ToolTip = message;
+        }
     }
 
     private static string ClassifyStatusMessage(string message)
@@ -4738,7 +4949,7 @@ public partial class MainWindow : Window
         }
 
         BufferStatusText.Text =
-            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents}, flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+            $"Buffer: trace {GetTraceVerbosityMode()}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
 
 }
