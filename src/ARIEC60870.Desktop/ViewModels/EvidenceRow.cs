@@ -74,6 +74,10 @@ public sealed partial class EvidenceRow
         ProtocolAddress = BuildProtocolAddress();
         ProtocolService = BuildProtocolService();
         ReadableMeaning = BuildReadableMeaning(item);
+        ProtocolTraceTitle = BuildProtocolTraceTitle();
+        ProtocolTraceMeaning = BuildProtocolTraceMeaning();
+        ProtocolTraceRaw = BuildProtocolTraceRaw();
+        ProtocolTraceMeta = $"#{Sequence}  {Time}  {ProtocolName}";
         TrafficTone = ResolveTrafficTone();
     }
 
@@ -128,6 +132,68 @@ public sealed partial class EvidenceRow
     public string ProtocolAddress { get; }
     public string ProtocolService { get; }
     public string ReadableMeaning { get; }
+    public string ProtocolTraceTitle { get; }
+    public string ProtocolTraceMeaning { get; }
+    public string ProtocolTraceRaw { get; }
+    public string ProtocolTraceMeta { get; }
+
+
+    private string BuildProtocolTraceTitle()
+    {
+        var direction = string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;
+        var service = CleanTracePart(ProtocolService);
+        var address = CleanTracePart(ProtocolAddress);
+        var signal = CleanTracePart(SignalOrAddress);
+        var value = CleanTracePart(SemanticState);
+        var quality = CleanTracePart(Quality);
+        var time = CleanTracePart(RelayTime);
+
+        var tail = signal == "-" ? string.Empty : $"  |  {signal}";
+        if (value != "-")
+        {
+            tail += $" = {value}";
+        }
+
+        if (quality != "-" && !quality.Equals("Good", StringComparison.OrdinalIgnoreCase))
+        {
+            tail += $"  [{quality}]";
+        }
+
+        if (time != "-")
+        {
+            tail += $"  @{time}";
+        }
+
+        return $"{direction}  {service}  |  {address}{tail}";
+    }
+
+    private string BuildProtocolTraceMeaning()
+    {
+        var meaning = CleanTracePart(ReadableMeaning);
+        if (meaning == "-")
+        {
+            meaning = CleanTracePart(ProtocolMeaning);
+        }
+
+        if (meaning == "-")
+        {
+            meaning = CleanTracePart(Summary);
+        }
+
+        return meaning;
+    }
+
+    private string BuildProtocolTraceRaw()
+    {
+        var raw = CleanTracePart(RawHex);
+        return raw == "-" ? "RAW -" : "RAW " + raw;
+    }
+
+    private static string CleanTracePart(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value.ReplaceLineEndings(" ").Trim();
+    }
+
 
     private string ResolveTrafficTone()
     {

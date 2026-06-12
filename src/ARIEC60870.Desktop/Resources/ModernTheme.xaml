@@ -3,6 +3,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:input="clr-namespace:System.Windows.Input;assembly=PresentationCore">
+    <FontFamily x:Key="TraceMonoFont">Sometype Mono, Cascadia Mono, Consolas</FontFamily>
     <!-- mature engineering software identity: calm engineering surface, blue accent, soft cards, crisp data grids. -->
     <Color x:Key="Ink900">#111827</Color>
     <Color x:Key="Ink800">#1F2937</Color>
@@ -556,18 +557,24 @@
     </Style>
 
     <Style x:Key="GridCellText" TargetType="TextBlock">
-        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="TextTrimming" Value="None" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="LineHeight" Value="15" />
     </Style>
 
     <Style x:Key="GridCellMeaningText" TargetType="TextBlock" BasedOn="{StaticResource GridCellText}">
         <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="TextTrimming" Value="None" />
     </Style>
 
     <Style x:Key="GridCellCodeText" TargetType="TextBlock" BasedOn="{StaticResource GridCellText}">
         <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
         <Setter Property="FontSize" Value="10.8" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="TextTrimming" Value="None" />
     </Style>
 
     <Style x:Key="GridCellWrapText" TargetType="TextBlock">
@@ -582,6 +589,12 @@
     <Style x:Key="GridCellWrapCodeText" TargetType="TextBlock" BasedOn="{StaticResource GridCellWrapText}">
         <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
         <Setter Property="FontSize" Value="10.6" />
+    </Style>
+
+    <Style x:Key="TraceMonoCellText" TargetType="TextBlock" BasedOn="{StaticResource GridCellText}">
+        <Setter Property="FontFamily" Value="Sometype Mono, Cascadia Mono, Consolas" />
+        <Setter Property="FontSize" Value="11.1" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
 
 
@@ -692,6 +705,67 @@
     </Style>
 
 
+    <Style x:Key="ProtocolTraceListBox" TargetType="ListBox">
+        <Setter Property="Background" Value="#F8FBFF" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True" />
+    </Style>
+
+    <Style x:Key="ProtocolTraceLineItem" TargetType="ListBoxItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,5" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Ink800Brush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="LineChrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="10,8">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="LineChrome" Property="Background" Value="#EEF6FF" />
+                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#D8E5F8" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#2563EB" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF3FF" />
+                        </Trigger>
+                        <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">
+                            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#F5FAFF" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding TrafficTone}" Value="Rx">
+                            <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#F4FFF9" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding TrafficTone}" Value="Error">
+                            <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#FFF5F5" />
+                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#FECACA" />
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
     <Style x:Key="TrafficDataGridRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">
@@ -766,9 +840,9 @@
     <Style x:Key="HexChipBorder" TargetType="Border">
         <Setter Property="Background" Value="#F5F8FF" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="7,4" />
         <Setter Property="Margin" Value="0,0,6,6" />
         <Setter Property="Cursor" Value="Hand" />
         <Style.Triggers>
@@ -787,9 +861,9 @@
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="6,5" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,6" />
         <Setter Property="Margin" Value="0,0,0,6" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

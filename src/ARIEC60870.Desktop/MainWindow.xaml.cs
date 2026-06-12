@@ -46,7 +46,7 @@ public partial class MainWindow : Window
     private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
     private IProtocolControlCommandSession? _activeControlSession;
     private bool _commandDockExpanded = true;
-    private readonly List<RelayEventRow> _allRelayEventRows = new();
+    private readonly BoundedRingBuffer<RelayEventRow> _relayEventStore = new(MaxVisibleRelayEventRows);
     private IByteTransport? _activeTransport;
     private bool _stopRequested;
     private string _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
@@ -57,13 +57,16 @@ public partial class MainWindow : Window
     private bool _savedSetupPreferencesLoaded;
     private bool _defaultIoaSeedSettingsApplied;
 
-    private const int MaxVisibleEvidenceRows = 520;
+    private const int MaxVisibleEvidenceRows = 260;
+    private const int MaxVisibleFrameTraceRows = 1200;
     private const int MaxVisibleRelayEventRows = 420;
     private const int MaxVisibleFindingRows = 260;
     private const int MaxVisibleDiagnosticRows = 280;
+    private const int MaxVisibleValueRows = 2200;
     private const int MaxVisibleSignalListRows = 360;
     private const int MaxSessionLogLines = 280;
     private const int MaxUiFlushPerTick = 42;
+    private const int MaxPendingEvidenceBacklog = 5000;
 
     private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
     private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
@@ -74,6 +77,57 @@ public partial class MainWindow : Window
     private readonly Dictionary<FrameworkElement, DateTime> _ledPulseTimes = new();
     private readonly Dictionary<string, DateTime> _valueHighlightExpiryByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _lastDisplayedValueByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _evidenceSummarySignatureByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _evidenceSummaryLastUtcByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, double> _evidenceSummaryLastAnalogValueByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _evidenceSummaryLastAnalogUtcByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedRingBuffer<EvidenceRow> _evidenceSummaryStore = new(MaxVisibleEvidenceRows);
+    private readonly BoundedRingBuffer<EvidenceRow> _protocolTraceStore = new(MaxVisibleFrameTraceRows);
+    private readonly List<EvidenceRow> _pendingEvidenceSummaryUiRows = new();
+    private readonly List<EvidenceRow> _pendingProtocolTraceUiRows = new();
+    private readonly List<FindingRow> _pendingFindingUiRows = new();
+    private readonly List<DiagnosticRow> _pendingDiagnosticUiRows = new();
+    private readonly BoundedRingBuffer<FindingRow> _findingStore = new(MaxVisibleFindingRows);
+    private readonly BoundedRingBuffer<DiagnosticRow> _diagnosticStore = new(MaxVisibleDiagnosticRows);
+    private readonly Dictionary<string, ValueRow> _valueRowsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private bool _valueRowsDirty;
+    private bool _relayEventRowsDirty;
+    private long _backpressureDroppedEvents;
+    private DateTime _lastBackpressureLogUtc = DateTime.MinValue;
+    private readonly HashSet<string> _giExpectedValueKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _giReceivedValueKeys = new(StringComparer.OrdinalIgnoreCase);
+    private bool _giCompletenessWatchActive;
+    private bool _giCompletenessReported;
+    private bool _giClass2CollectionWindowActive;
+    private DateTime _giClass2CollectionUntilUtc = DateTime.MinValue;
+    private int? _firstObservedRuntimeCa;
+    private bool _runtimeCaMismatchReported;
+    private DateTime _scanHealthSessionStartedUtc = DateTime.MinValue;
+    private DateTime _scanHealthLastClass1RxUtc = DateTime.MinValue;
+    private DateTime _scanHealthLastClass2RxUtc = DateTime.MinValue;
+    private DateTime _scanHealthLastProcessRxUtc = DateTime.MinValue;
+    private DateTime _scanHealthLastDigitalRxUtc = DateTime.MinValue;
+    private DateTime _scanHealthAcdSinceUtc = DateTime.MinValue;
+    private readonly Dictionary<string, DateTime> _scanHealthLastDiagnosticUtcByCode = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CommandLedgerEntry> _commandLedgerByKey = new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed class CommandLedgerEntry
+    {
+        public string Key { get; init; } = string.Empty;
+        public int? CommonAddress { get; init; }
+        public int CommandIoa { get; init; }
+        public int? CommandTypeId { get; init; }
+        public int? FeedbackIoa { get; init; }
+        public string Summary { get; init; } = string.Empty;
+        public string Stage { get; set; } = "issued";
+        public DateTime StartedUtc { get; init; } = DateTime.UtcNow;
+        public DateTime LastUpdateUtc { get; set; } = DateTime.UtcNow;
+        public bool ActConSeen { get; set; }
+        public bool ActTermSeen { get; set; }
+        public bool FeedbackSeen { get; set; }
+        public bool NegativeSeen { get; set; }
+        public bool TimeoutReported { get; set; }
+    }
 
     public MainWindow()
     {
@@ -102,7 +156,7 @@ public partial class MainWindow : Window
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
         AppendSessionLog("ARIEC60870 Protocol Lab initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
-        AppendSessionLog("Output model: Operator/Engineer views first, raw hex remains available in Frame Trace for protocol transparency.");
+        AppendSessionLog("Output model: Value Viewer stays live; Evidence Summary is de-noised proof; raw hex remains available in Protocol Trace for protocol transparency.");
         Loaded += (_, _) =>
         {
             MainTabControl.SelectedIndex = 0;
@@ -111,20 +165,22 @@ public partial class MainWindow : Window
             ApplyCommandDockLayout();
             UpdateCommandDockActionButtons();
             UpdateConnectToggleVisual(false);
+            RefreshCommandSignalOptions();
             AutoFillCommandTargetFromProfile();
         };
         SizeChanged += (_, _) => UpdateSegmentedNav(false);
         Closing += (_, _) => SaveSetupPreferencesFromUi(silent: true);
     }
 
-    public ObservableCollection<EvidenceRow> EvidenceRows { get; } = new();
-    public ObservableCollection<EvidenceRow> FrameTraceRows { get; } = new();
-    public ObservableCollection<FindingRow> FindingRows { get; } = new();
-    public ObservableCollection<ValueRow> ValueRows { get; } = new();
-    public ObservableCollection<RelayEventRow> RelayEventRows { get; } = new();
+    public ObservableRangeCollection<EvidenceRow> EvidenceRows { get; } = new();
+    public ObservableRangeCollection<EvidenceRow> FrameTraceRows { get; } = new();
+    public ObservableRangeCollection<FindingRow> FindingRows { get; } = new();
+    public ObservableRangeCollection<ValueRow> ValueRows { get; } = new();
+    public ObservableRangeCollection<RelayEventRow> RelayEventRows { get; } = new();
     public ObservableCollection<IoaMappingRow> IoaProfileRows { get; } = new();
+    public ObservableCollection<CommandSignalOption> CommandSignalOptions { get; } = new();
     public ObservableCollection<AssessmentRow> AssessmentRows { get; } = new();
-    public ObservableCollection<DiagnosticRow> DiagnosticRows { get; } = new();
+    public ObservableRangeCollection<DiagnosticRow> DiagnosticRows { get; } = new();
     public ObservableCollection<ProtocolMapLine> SelectedProtocolMapLines { get; } = new();
     public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
     public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
@@ -247,12 +303,668 @@ public partial class MainWindow : Window
         if (ordered.Count > 0)
         {
             var suffix = ordered.Count > IoaProfileRows.Count
-                ? $" Showing first {IoaProfileRows.Count} rows for fast workspace rendering; use Edit Signal List for the full database."
+                ? $" Showing first {IoaProfileRows.Count} rows in cached preview; use the Signal List popup for the full database."
                 : string.Empty;
             AppendSessionLog($"IOA signal list loaded: {ordered.Count} points from {_ioaProfile.ProfileName}.{suffix}");
         }
+
+        RefreshCommandSignalOptions();
     }
 
+
+
+
+
+    private void ResetRuntimeHealthStores()
+    {
+        _scanHealthSessionStartedUtc = DateTime.MinValue;
+        _scanHealthLastClass1RxUtc = DateTime.MinValue;
+        _scanHealthLastClass2RxUtc = DateTime.MinValue;
+        _scanHealthLastProcessRxUtc = DateTime.MinValue;
+        _scanHealthLastDigitalRxUtc = DateTime.MinValue;
+        _scanHealthAcdSinceUtc = DateTime.MinValue;
+        _scanHealthLastDiagnosticUtcByCode.Clear();
+        _commandLedgerByKey.Clear();
+    }
+
+    private void ObserveScanHealth(Iec103MasterEvidenceEvent item)
+    {
+        if (_scanHealthSessionStartedUtc == DateTime.MinValue)
+        {
+            _scanHealthSessionStartedUtc = DateTime.UtcNow;
+        }
+
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var isRx = item.Direction == FrameDirection.SlaveToMaster;
+        if (isRx && item.DataClass.Contains("Class 1", StringComparison.OrdinalIgnoreCase))
+        {
+            _scanHealthLastClass1RxUtc = now;
+        }
+
+        if (isRx && item.DataClass.Contains("Class 2", StringComparison.OrdinalIgnoreCase))
+        {
+            _scanHealthLastClass2RxUtc = now;
+        }
+
+        if (isRx && (item.IsRelayValue || item.InformationObjectAddress.HasValue))
+        {
+            _scanHealthLastProcessRxUtc = now;
+            if (IsIec10xDigitalType(item.TypeId))
+            {
+                _scanHealthLastDigitalRxUtc = now;
+            }
+        }
+
+        if (item.Acd == true)
+        {
+            if (_scanHealthAcdSinceUtc == DateTime.MinValue)
+            {
+                _scanHealthAcdSinceUtc = now;
+            }
+        }
+        else if (item.Acd == false)
+        {
+            _scanHealthAcdSinceUtc = DateTime.MinValue;
+        }
+
+        if (item.Dfc == true)
+        {
+            AddRateLimitedDiagnostic(
+                "IEC101-SCAN-DFC-BUSY",
+                "Warning",
+                "IEC-101",
+                "Outstation busy / DFC=1 observed",
+                "The controlled station reported DFC=1. Continue polling with backoff; do not interpret missing values as GI failure while the station is busy.",
+                "Check RTU load, serial baudrate, class polling interval, and whether the master is over-polling a slow channel.",
+                TimeSpan.FromSeconds(20));
+        }
+
+        if (item.ResponseTimeMs.HasValue && item.ResponseTimeMs.Value > 2500)
+        {
+            AddRateLimitedDiagnostic(
+                "IEC101-SCAN-SLOW-RESPONSE",
+                "Warning",
+                "IEC-101",
+                "Slow serial response observed",
+                $"Response time {item.ResponseTimeMs.Value} ms is high for a polling scan. This can make GI/Class 2 observation look incomplete even when the RTU is only slow.",
+                "Increase response timeout and Class 2 poll interval for low-baud links; avoid interpreting 1200 bps channels like Ethernet.",
+                TimeSpan.FromSeconds(30));
+        }
+    }
+
+    private void EvaluateScanHealthWindow()
+    {
+        if (_sessionCancellation is null || _scanHealthSessionStartedUtc == DateTime.MinValue)
+        {
+            return;
+        }
+
+        var mode = GetSelectedProtocolMode();
+        if (mode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var sessionAge = now - _scanHealthSessionStartedUtc;
+        if (sessionAge.TotalSeconds < 20)
+        {
+            return;
+        }
+
+        if (_scanHealthLastProcessRxUtc != DateTime.MinValue &&
+            (now - _scanHealthLastProcessRxUtc).TotalSeconds > 30)
+        {
+            AddRateLimitedDiagnostic(
+                "IEC10X-SCAN-PROCESS-STARVATION",
+                "Warning",
+                mode.ToString(),
+                "No process value received recently",
+                $"No process IOA update has been received for {(now - _scanHealthLastProcessRxUtc).TotalSeconds:0}s while the session is still running.",
+                "Check link health, class polling, ASDU CA, and whether the RTU only sends data on GI/group interrogation or cyclic scan.",
+                TimeSpan.FromSeconds(45));
+        }
+
+        if (_scanHealthLastClass2RxUtc != DateTime.MinValue &&
+            (now - _scanHealthLastClass2RxUtc).TotalSeconds > 25)
+        {
+            AddRateLimitedDiagnostic(
+                "IEC101-CLASS2-STARVATION",
+                "Warning",
+                "IEC-101",
+                "Class 2/background scan appears stale",
+                $"No Class 2 RX has been observed for {(now - _scanHealthLastClass2RxUtc).TotalSeconds:0}s.",
+                "Verify class 2 request cadence, RTU response timeout, serial baudrate, and DFC/busy state.",
+                TimeSpan.FromSeconds(45));
+        }
+
+        if (_scanHealthAcdSinceUtc != DateTime.MinValue &&
+            (now - _scanHealthAcdSinceUtc).TotalSeconds > 15)
+        {
+            AddRateLimitedDiagnostic(
+                "IEC101-ACD-STUCK-HIGH",
+                "Warning",
+                "IEC-101",
+                "ACD remains high for a long period",
+                $"ACD has been high for {(now - _scanHealthAcdSinceUtc).TotalSeconds:0}s. The outstation says Class 1 data is pending, but the pending condition is not clearing quickly.",
+                "Drain Class 1 with bounded loops. If it stays high, check event queue load, link errors, or RTU class assignment.",
+                TimeSpan.FromSeconds(30));
+        }
+    }
+
+    private void AddRateLimitedDiagnostic(string code, string severity, string source, string message, string detail, string recommendation, TimeSpan interval)
+    {
+        var now = DateTime.UtcNow;
+        if (_scanHealthLastDiagnosticUtcByCode.TryGetValue(code, out var last) && (now - last) < interval)
+        {
+            return;
+        }
+
+        _scanHealthLastDiagnosticUtcByCode[code] = now;
+        AddUiDiagnostic(severity, source, code, message, detail, recommendation);
+        AppendSessionLog($"{code}: {message}");
+    }
+
+    private void ObserveCommandBehaviour(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return;
+        }
+
+        if (item.Direction == FrameDirection.MasterToSlave && IsIec10xCommandType(item.TypeId) && item.InformationObjectAddress.HasValue)
+        {
+            RegisterPendingCommand(item);
+            return;
+        }
+
+        if (item.Direction != FrameDirection.SlaveToMaster)
+        {
+            return;
+        }
+
+        if (IsIec10xCommandType(item.TypeId) && item.InformationObjectAddress.HasValue)
+        {
+            ObserveCommandAsduResponse(item);
+            return;
+        }
+
+        if (item.IsRelayValue || item.InformationObjectAddress.HasValue)
+        {
+            ObserveCommandFeedback(item);
+        }
+    }
+
+    private void RegisterPendingCommand(Iec103MasterEvidenceEvent item)
+    {
+        var key = BuildCommandLedgerKey(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId);
+        if (string.IsNullOrWhiteSpace(key) || !item.InformationObjectAddress.HasValue)
+        {
+            return;
+        }
+
+        var feedbackIoa = ResolveFeedbackIoaForCommand(item);
+        _commandLedgerByKey[key] = new CommandLedgerEntry
+        {
+            Key = key,
+            CommonAddress = item.CommonAddressNumber,
+            CommandIoa = item.InformationObjectAddress.Value,
+            CommandTypeId = item.TypeId,
+            FeedbackIoa = feedbackIoa,
+            Summary = string.IsNullOrWhiteSpace(item.Summary) ? $"Command IOA {item.InformationObjectAddress.Value}" : item.Summary,
+            Stage = "TX command",
+            StartedUtc = DateTime.UtcNow,
+            LastUpdateUtc = DateTime.UtcNow
+        };
+
+        AddRateLimitedDiagnostic(
+            "IEC10X-COMMAND-TX",
+            "Info",
+            item.ProtocolMode.ToString(),
+            "Command issued and ledger started",
+            $"{item.Summary}. Feedback IOA={(feedbackIoa.HasValue ? feedbackIoa.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "not mapped")}.",
+            "The validator will look for ACTCON/ACTTERM and feedback process value within the command window.",
+            TimeSpan.FromSeconds(1));
+    }
+
+    private void ObserveCommandAsduResponse(Iec103MasterEvidenceEvent item)
+    {
+        var key = BuildCommandLedgerKey(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId);
+        if (string.IsNullOrWhiteSpace(key) || !_commandLedgerByKey.TryGetValue(key, out var ledger))
+        {
+            return;
+        }
+
+        ledger.LastUpdateUtc = DateTime.UtcNow;
+        var text = string.Join(" ", item.CauseName, item.Summary, item.Detail, item.OperatorMessage, item.ProtocolMeaning);
+        if (text.Contains("NEG", StringComparison.OrdinalIgnoreCase) || text.Contains("negative", StringComparison.OrdinalIgnoreCase))
+        {
+            ledger.NegativeSeen = true;
+            _commandLedgerByKey.Remove(key);
+            AddUiDiagnostic(
+                "Warning",
+                item.ProtocolMode.ToString(),
+                "IEC10X-COMMAND-NEGATIVE-CONFIRMATION",
+                "Command negatively confirmed",
+                $"{ledger.Summary} was negatively confirmed by the outstation. COT={item.CauseName}.",
+                "Check SBO state, command qualifier, command IOA/type, interlock condition, CA, and whether operate was sent after select timeout.");
+            AppendSessionLog($"Command validator: negative confirmation for {ledger.Summary}.");
+            return;
+        }
+
+        if (item.CauseOfTransmission == 7 || text.Contains("ACTCON", StringComparison.OrdinalIgnoreCase) || text.Contains("activation confirmation", StringComparison.OrdinalIgnoreCase))
+        {
+            ledger.ActConSeen = true;
+            ledger.Stage = "ACTCON";
+            AddRateLimitedDiagnostic(
+                "IEC10X-COMMAND-ACTCON",
+                "Info",
+                item.ProtocolMode.ToString(),
+                "Command activation confirmed",
+                $"{ledger.Summary} received activation confirmation.",
+                "Continue watching for ACTTERM and feedback IOA.",
+                TimeSpan.FromSeconds(1));
+        }
+
+        if (item.CauseOfTransmission == 10 || text.Contains("ACTTERM", StringComparison.OrdinalIgnoreCase) || text.Contains("activation termination", StringComparison.OrdinalIgnoreCase))
+        {
+            ledger.ActTermSeen = true;
+            ledger.Stage = "ACTTERM";
+            AddRateLimitedDiagnostic(
+                "IEC10X-COMMAND-ACTTERM",
+                "Info",
+                item.ProtocolMode.ToString(),
+                "Command activation terminated",
+                $"{ledger.Summary} received activation termination.",
+                "Command execution path is complete; feedback IOA remains the final process proof when mapped.",
+                TimeSpan.FromSeconds(1));
+
+            if (!ledger.FeedbackIoa.HasValue)
+            {
+                _commandLedgerByKey.Remove(key);
+            }
+        }
+    }
+
+    private void ObserveCommandFeedback(Iec103MasterEvidenceEvent item)
+    {
+        if (!item.InformationObjectAddress.HasValue)
+        {
+            return;
+        }
+
+        var feedbackIoa = item.InformationObjectAddress.Value;
+        foreach (var ledger in _commandLedgerByKey.Values.ToArray())
+        {
+            if (ledger.FeedbackIoa != feedbackIoa)
+            {
+                continue;
+            }
+
+            ledger.FeedbackSeen = true;
+            ledger.LastUpdateUtc = DateTime.UtcNow;
+            _commandLedgerByKey.Remove(ledger.Key);
+            AddUiDiagnostic(
+                "Info",
+                item.ProtocolMode.ToString(),
+                "IEC10X-COMMAND-FEEDBACK-PROVEN",
+                "Command feedback proven by process value",
+                $"{ledger.Summary} feedback IOA {feedbackIoa} updated to '{item.SignalDisplayValue}'. ACTCON={ledger.ActConSeen}, ACTTERM={ledger.ActTermSeen}.",
+                "This is the strongest command evidence: command path plus real process feedback.");
+            AppendSessionLog($"Command validator: feedback proven for {ledger.Summary} via IOA {feedbackIoa}.");
+            break;
+        }
+    }
+
+    private void EvaluateCommandLedgerTimeouts()
+    {
+        if (_commandLedgerByKey.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var ledger in _commandLedgerByKey.Values.ToArray())
+        {
+            if (ledger.TimeoutReported || (now - ledger.StartedUtc).TotalSeconds < 8)
+            {
+                continue;
+            }
+
+            ledger.TimeoutReported = true;
+            _commandLedgerByKey.Remove(ledger.Key);
+            AddUiDiagnostic(
+                "Warning",
+                "IEC-101/104",
+                "IEC10X-COMMAND-VERDICT-TIMEOUT",
+                "Command verdict timed out",
+                $"{ledger.Summary} did not receive complete command proof within 8 seconds. ACTCON={ledger.ActConSeen}, ACTTERM={ledger.ActTermSeen}, feedback={ledger.FeedbackSeen}.",
+                "Check command mapping, feedback IOA, select/operate sequence, interlock, CA, and RTU command timeout settings.");
+            AppendSessionLog($"Command validator: timeout for {ledger.Summary}.");
+        }
+    }
+
+    private static string BuildCommandLedgerKey(int? commonAddress, int? ioa, int? typeId)
+    {
+        if (!ioa.HasValue)
+        {
+            return string.Empty;
+        }
+
+        return $"CA{(commonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*")}|IOA{ioa.Value}|T{(typeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*")}";
+    }
+
+    private int? ResolveFeedbackIoaForCommand(Iec103MasterEvidenceEvent item)
+    {
+        if (!item.InformationObjectAddress.HasValue)
+        {
+            return null;
+        }
+
+        var point = _ioaProfile.Points.FirstOrDefault(x =>
+            x.Ioa == item.InformationObjectAddress.Value &&
+            (!x.TypeId.HasValue || !item.TypeId.HasValue || x.TypeId.Value == item.TypeId.Value) &&
+            (!x.Ca.HasValue || !item.CommonAddressNumber.HasValue || x.Ca.Value == item.CommonAddressNumber.Value));
+
+        return point?.FeedbackIoa;
+    }
+
+    private static bool IsIec10xCommandType(int? typeId)
+        => typeId is 45 or 46 or 47 or 48 or 49 or 50 or 51;
+
+    private void ReportRuntimeCommonAddressMismatch(Iec103MasterEvidenceEvent item)
+    {
+        if (_runtimeCaMismatchReported || item.ProtocolMode != Iec60870ProtocolMode.Iec101 || !item.CommonAddressNumber.HasValue)
+        {
+            return;
+        }
+
+        var observedCa = item.CommonAddressNumber.Value;
+        if (observedCa <= 0)
+        {
+            return;
+        }
+
+        _firstObservedRuntimeCa ??= observedCa;
+        if (!int.TryParse(CommonAddressBox.Text, out var configuredCa) || configuredCa == observedCa)
+        {
+            return;
+        }
+
+        // Wait until an actual process value, not a command echo/noise, to avoid false warnings.
+        if (!item.IsRelayValue && item.TypeId is not (1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36))
+        {
+            return;
+        }
+
+        _runtimeCaMismatchReported = true;
+        AddUiDiagnostic(
+            "Warning",
+            "IEC-101",
+            "IEC101-RUNTIME-CA-MISMATCH",
+            "Runtime ASDU common address differs from setup/profile",
+            $"Live process data is arriving with CA={observedCa}, but setup/profile uses CA={configuredCa}. Station GI sent to the wrong CA can be negatively confirmed and may prevent SPS/DPS snapshots from arriving.",
+            "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Value Viewer still maps values by IOA where possible.");
+        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA.");
+    }
+
+    private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
+    {
+        _giExpectedValueKeys.Clear();
+        _giReceivedValueKeys.Clear();
+        _giClass2CollectionWindowActive = false;
+        _giClass2CollectionUntilUtc = DateTime.MinValue;
+        _firstObservedRuntimeCa = null;
+        _runtimeCaMismatchReported = false;
+        _giCompletenessReported = false;
+        _giCompletenessWatchActive = protocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            && _ioaProfile.HasPoints;
+
+        if (!_giCompletenessWatchActive)
+        {
+            return;
+        }
+
+        var ordered = _ioaProfile.Points
+            .Where(point => IsMonitorPoint(point))
+            .OrderBy(point => point.Group, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(point => point.Ioa)
+            .ThenBy(point => point.TypeId ?? 0)
+            .ToList();
+
+        foreach (var point in ordered)
+        {
+            var key = BuildIoaValueKey(point.Ioa);
+            _giExpectedValueKeys.Add(key);
+            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
+            {
+                Key = key,
+                IsMapped = true,
+                SignalName = point.Name,
+                SignalGroup = string.IsNullOrWhiteSpace(point.Group) ? "Profile" : point.Group,
+                SignalType = string.IsNullOrWhiteSpace(point.SignalType) ? $"Type {point.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point.SignalType,
+                DisplayValue = "waiting for GI / scan",
+                RawValue = string.Empty,
+                CauseOfTransmission = "profile expected",
+                AsduType = string.IsNullOrWhiteSpace(point.SignalType) ? string.Empty : point.SignalType,
+                RelayTimeText = "not received",
+                ArrivalTimeUtc = DateTime.UtcNow,
+                ProtocolMode = protocolMode,
+                CommonAddress = point.Ca ?? _ioaProfile.CommonAddress,
+                InformationObjectAddress = point.Ioa,
+                TypeId = point.TypeId,
+                QualityText = "not received"
+            }));
+        }
+
+        if (ordered.Count > 0)
+        {
+            AppendSessionLog($"Value Viewer seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing GI values stay visible as 'waiting for GI / scan'.");
+        }
+    }
+
+    private static bool IsMonitorPoint(Iec10xPointMappingEntry point)
+    {
+        return !IsCommandPoint(point);
+    }
+
+    private static bool IsCommandPoint(Iec10xPointMappingEntry point)
+    {
+        if (point.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
+        {
+            return true;
+        }
+
+        var policy = point.CommandPolicy ?? string.Empty;
+        return policy.Contains("Command", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("RemoteOnly", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Control", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Setpoint", StringComparison.OrdinalIgnoreCase)
+               || policy.Contains("Regulating", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildIoaValueKey(int ioa)
+        => "IOA:" + ioa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private void MarkGiValueReceived(string key)
+    {
+        if (_giCompletenessWatchActive && _giExpectedValueKeys.Contains(key))
+        {
+            _giReceivedValueKeys.Add(key);
+        }
+    }
+
+    private void ReportGiCompletenessIfReady(Iec103MasterEvidenceEvent item)
+    {
+        if (!_giCompletenessWatchActive || _giCompletenessReported || _giExpectedValueKeys.Count == 0)
+        {
+            return;
+        }
+
+        if (TryFinishGiCompletenessIfComplete())
+        {
+            return;
+        }
+
+        var text = string.Join(" ", item.Category, item.Summary, item.Detail, item.CauseName, item.ProtocolMeaning, item.OperatorMessage);
+        var isGiNegativeConfirmation =
+            item.TypeId == 100 &&
+            (item.CauseName.Contains("NEG", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("negative", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("NEG activation", StringComparison.OrdinalIgnoreCase));
+
+        if (isGiNegativeConfirmation)
+        {
+            AddUiDiagnostic(
+                "Warning",
+                "IEC-101",
+                "IEC101-GI-NEGATIVE-CONFIRMATION",
+                "GI negative confirmation observed; value scan continues",
+                "The outstation negatively confirmed C_IC_NA_1. This is recorded as protocol evidence, but it does not overwrite seeded IOA rows. Values are still collected from subsequent Class 1/Class 2/background frames.",
+                "Check GI qualifier/CA/profile if GI is required by the test case. For live monitoring, treat actual received IOA frames as the source of truth.");
+            AppendSessionLog("GI note: NEGATIVE CONFIRMATION observed. Keeping Value Viewer neutral; continuing scan.");
+            StartGiClass2CollectionWindow("GI negative confirmation; continue scan-tolerant Class 1/Class 2 collection");
+            return;
+        }
+
+        var isActTerm = item.TypeId == 100 &&
+                        (item.CauseOfTransmission == 10 ||
+                         text.Contains("ACTTERM", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("activation termination", StringComparison.OrdinalIgnoreCase));
+
+        var class1NoData = item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                           item.DataClass.Equals("Class 1", StringComparison.OrdinalIgnoreCase) &&
+                           text.Contains("NO DATA", StringComparison.OrdinalIgnoreCase);
+
+        if ((isActTerm || class1NoData) && !_giClass2CollectionWindowActive)
+        {
+            StartGiClass2CollectionWindow(isActTerm ? "ACTTERM observed" : "Class 1 returned NO DATA");
+        }
+    }
+
+    private void EvaluateGiCollectionWindow()
+    {
+        if (!_giCompletenessWatchActive || _giCompletenessReported)
+        {
+            return;
+        }
+
+        if (TryFinishGiCompletenessIfComplete())
+        {
+            return;
+        }
+
+        if (!_giClass2CollectionWindowActive || DateTime.UtcNow < _giClass2CollectionUntilUtc)
+        {
+            return;
+        }
+
+        _giClass2CollectionWindowActive = false;
+        _giCompletenessReported = true;
+        var missing = _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray();
+        var sample = string.Join(", ", missing.Take(12).Select(x => x.Replace("IOA:", "IOA ")));
+        AddUiDiagnostic(
+            "Warning",
+            "IEC-101",
+            "IEC101-SCAN-PROFILE-PENDING",
+            "Profile points still pending after GI/group/Class 2 observation window",
+            $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points during the GI/group/Class 2 observation window. Pending sample: {sample}",
+            "This is a non-destructive scan note. Value Viewer rows stay in waiting state until actual Class 1/Class 2 frames arrive. Verify RTU profile only if the test case requires every IOA to be returned in this window.");
+        AppendSessionLog($"Scan observation note: pending {missing.Length}/{_giExpectedValueKeys.Count} profile points after GI/group/Class 2 window. Sample: {sample}");
+    }
+
+    private bool TryFinishGiCompletenessIfComplete()
+    {
+        if (_giExpectedValueKeys.Count == 0)
+        {
+            return false;
+        }
+
+        var missing = _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).Any();
+        if (missing)
+        {
+            return false;
+        }
+
+        _giCompletenessReported = true;
+        _giClass2CollectionWindowActive = false;
+        AppendSessionLog($"GI/Class 2 completeness: PASS. Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points.");
+        return true;
+    }
+
+    private void StartGiClass2CollectionWindow(string reason)
+    {
+        var window = CalculateGiClass2CollectionWindow();
+        _giClass2CollectionWindowActive = true;
+        _giClass2CollectionUntilUtc = DateTime.UtcNow.Add(window);
+
+        var isNegativeFallback = reason.Contains("negative", StringComparison.OrdinalIgnoreCase);
+
+        AddUiDiagnostic(
+            "Info",
+            "IEC-101",
+            "IEC101-GI-CLASS2-COLLECTION",
+            isNegativeFallback ? "GI negative confirmation observed; continuing normal scan" : "GI moved to Class 2/background collection window",
+            $"{reason}. Value Viewer placeholders are kept neutral; only actual Class 1/Class 2 frames are allowed to update IOA values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting a non-destructive completeness note.",
+            "SCADA master behaviour: GI is a collection trigger, not a reason to mark profile IOAs as failed. Continue bounded Class 1 drain and Class 2/background polling; do not mass-read or overwrite placeholders.");
+        AppendSessionLog($"GI/Class2 collection: {reason}; neutral background collection window ≈{Math.Ceiling(window.TotalSeconds):0}s.");
+    }
+
+    private TimeSpan CalculateGiClass2CollectionWindow()
+    {
+        var intervalMs = int.TryParse(Class2IntervalBox.Text, out var configured) ? Math.Max(configured, 500) : 1000;
+        var estimatedSeconds = Math.Ceiling(Math.Max(20, _giExpectedValueKeys.Count * intervalMs / 1000.0 * 2.5));
+        return TimeSpan.FromSeconds(Math.Clamp((int)estimatedSeconds, 20, 120));
+    }
+
+    private void MarkMissingProfileRows(string displayValue, string cot, string quality)
+    {
+        foreach (var key in _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray())
+        {
+            var ioa = ParseIoaFromValueKey(key);
+            if (ioa < 0)
+            {
+                continue;
+            }
+
+            var point = _ioaProfile.Points.FirstOrDefault(x => x.Ioa == ioa);
+            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
+            {
+                Key = key,
+                IsMapped = true,
+                SignalName = point?.Name ?? $"IOA {ioa}",
+                SignalGroup = string.IsNullOrWhiteSpace(point?.Group) ? "Profile" : point!.Group,
+                SignalType = string.IsNullOrWhiteSpace(point?.SignalType) ? $"Type {point?.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point!.SignalType,
+                DisplayValue = displayValue,
+                RawValue = string.Empty,
+                CauseOfTransmission = cot,
+                AsduType = string.IsNullOrWhiteSpace(point?.SignalType) ? string.Empty : point!.SignalType,
+                RelayTimeText = "not received",
+                ArrivalTimeUtc = DateTime.UtcNow,
+                ProtocolMode = GetSelectedProtocolMode(),
+                CommonAddress = point?.Ca ?? _ioaProfile.CommonAddress,
+                InformationObjectAddress = ioa,
+                TypeId = point?.TypeId,
+                QualityText = quality
+            }));
+        }
+    }
+
+    private static int ParseIoaFromValueKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return -1;
+        }
+
+        var normalized = key.StartsWith("IOA:", StringComparison.OrdinalIgnoreCase) ? key[4..] : key;
+        return int.TryParse(normalized, out var ioa) ? ioa : -1;
+    }
 
     private void ApplyIoaProfileDefaultsToUi(Iec10xPointMappingProfile profile, bool onlyWhenUiLooksDefault)
     {
@@ -551,7 +1263,7 @@ public partial class MainWindow : Window
         public int Class2PollIntervalMs { get; set; } = 500;
         public int MaxClass1DrainFrames { get; set; } = 64;
         public bool ResetRemoteLinkOnConnect { get; set; }
-        public bool ResetFcbOnConnect { get; set; } = true;
+        public bool ResetFcbOnConnect { get; set; } = false;
         public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
         public bool SendClockSyncOnConnect { get; set; }
         public bool SendGeneralInterrogationOnConnect { get; set; } = true;
@@ -587,25 +1299,35 @@ public partial class MainWindow : Window
         SaveSetupPreferencesFromUi(silent: true);
     }
 
-    private void CommandDock_Gi_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.GeneralInterrogation, OperatorNote = "Command dock GI" });
+    private void CommandDock_Gi_Click(object sender, RoutedEventArgs e)
+    {
+        SeedValueViewerFromIoaProfile(GetSelectedProtocolMode());
+        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.GeneralInterrogation, OperatorNote = "Command dock GI" });
+    }
 
     private void CommandDock_ClockSync_Click(object sender, RoutedEventArgs e) => IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest { Kind = Iec60870ControlCommandKind.ClockSync, OperatorNote = "Command dock clock sync" });
 
     private void CommandDock_Read_Click(object sender, RoutedEventArgs e)
     {
-        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
+        var request = new Iec60870ControlCommandRequest
         {
             Kind = Iec60870ControlCommandKind.Read,
             CommonAddress = ReadInt(CommandCaBox, "Command CA", 0, 0xFFFF),
             InformationObjectAddress = ReadInt(CommandIoaBox, "Command IOA", 0, 0xFFFFFF),
             OperatorNote = "Command dock read"
-        });
+        };
+
+        if (ValidateCommandTargetBeforeIssue(request, isCommandAction: false))
+        {
+            IssuePriorityRuntimeCommand(request);
+        }
     }
 
     private void CommandTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateCommandDockActionButtons();
-        AutoFillCommandTargetFromProfile();
+        AutoFillCommandTargetFromProfile(preferCurrentSelection: true);
+        UpdateCommandPreview(CommandSignalComboBox?.SelectedItem as CommandSignalOption);
     }
 
     private void UpdateCommandDockActionButtons()
@@ -644,9 +1366,255 @@ public partial class MainWindow : Window
         CommandOperateCloseButton.Content = "Operate Close";
     }
 
-    private void AutoFillCommandTargetFromProfile()
+
+    private void RefreshCommandSignalOptions()
+    {
+        if (CommandSignalOptions is null)
+        {
+            return;
+        }
+
+        var previousIoa = CommandSignalComboBox?.SelectedItem is CommandSignalOption selected
+            ? selected.InformationObjectAddress
+            : (int?)null;
+
+        CommandSignalOptions.Clear();
+        foreach (var point in _ioaProfile.Points
+                     .Where(IsCommandPoint)
+                     .OrderBy(x => x.Group, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(x => x.Ioa))
+        {
+            var typeName = point.TypeId switch
+            {
+                45 => "Single C_SC_NA_1",
+                46 => "Double C_DC_NA_1",
+                47 => "Regulating C_RC_NA_1",
+                48 => "Setpoint C_SE_NA_1",
+                49 => "Setpoint scaled C_SE_NB_1",
+                50 => "Setpoint float C_SE_NC_1",
+                51 => "Bitstring C_BO_NA_1",
+                _ => string.IsNullOrWhiteSpace(point.CommandPolicy) ? "Command" : point.CommandPolicy
+            };
+
+            var ca = point.Ca?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*";
+            var feedbackPoint = point.FeedbackIoa.HasValue
+                ? _ioaProfile.Points.FirstOrDefault(x => x.Ioa == point.FeedbackIoa.Value)
+                : null;
+            var fb = point.FeedbackIoa.HasValue ? $" · FB IOA {point.FeedbackIoa.Value}" : string.Empty;
+            var range = point.EngineeringMin.HasValue || point.EngineeringMax.HasValue
+                ? $" · range {point.EngineeringMin?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) ?? "-"}..{point.EngineeringMax?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) ?? "-"} {point.Unit}".TrimEnd()
+                : string.Empty;
+
+            CommandSignalOptions.Add(new CommandSignalOption
+            {
+                Name = string.IsNullOrWhiteSpace(point.Name) ? $"IOA {point.Ioa}" : point.Name,
+                Detail = $"{typeName} · CA {ca} · IOA {point.Ioa}{fb}{range}",
+                SearchText = $"{point.Name} {point.Group} IOA {point.Ioa} CA {ca} {typeName} {point.CommandPolicy} {point.Mnemonic}",
+                CommonAddress = point.Ca,
+                InformationObjectAddress = point.Ioa,
+                TypeId = point.TypeId,
+                FeedbackIoa = point.FeedbackIoa,
+                FeedbackName = feedbackPoint?.Name ?? string.Empty,
+                CommandPolicy = point.CommandPolicy,
+                EngineeringMin = point.EngineeringMin,
+                EngineeringMax = point.EngineeringMax,
+                Unit = point.Unit
+            });
+        }
+
+        if (CommandSignalComboBox is not null)
+        {
+            CommandSignalComboBox.SelectedItem = previousIoa.HasValue
+                ? CommandSignalOptions.FirstOrDefault(x => x.InformationObjectAddress == previousIoa.Value)
+                : null;
+        }
+    }
+
+    private void CommandSignalComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isApplyingSavedSetup || CommandSignalComboBox?.SelectedItem is not CommandSignalOption option)
+        {
+            return;
+        }
+
+        ApplyCommandSignalOption(option);
+    }
+
+    private void ApplyCommandSignalOption(CommandSignalOption option)
+    {
+        if (CommandCaBox is null || CommandIoaBox is null)
+        {
+            return;
+        }
+
+        if (option.CommonAddress.HasValue)
+        {
+            CommandCaBox.Text = option.CommonAddress.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        else if (!int.TryParse(CommandCaBox.Text, out _))
+        {
+            CommandCaBox.Text = (_ioaProfile.CommonAddress ?? 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        CommandIoaBox.Text = option.InformationObjectAddress.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        SelectCommandTypeByTypeId(option.TypeId);
+
+        if (option.TypeId is 48 or 49 or 50 && option.EngineeringMin.HasValue && option.EngineeringMax.HasValue)
+        {
+            var mid = (option.EngineeringMin.Value + option.EngineeringMax.Value) / 2.0;
+            CommandSetpointBox.Text = mid.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        UpdateCommandPreview(option);
+        CommandDockStatusText.Text = $"Target selected: {option.Name}";
+        AppendSessionLog($"Command target selected: {option.Name} ({option.Detail}).");
+    }
+
+    private void SelectCommandTypeByTypeId(int? typeId)
+    {
+        if (CommandTypeComboBox is null || !typeId.HasValue)
+        {
+            return;
+        }
+
+        var targetIndex = typeId.Value switch
+        {
+            45 => 0,
+            46 => 1,
+            47 => 2,
+            48 or 49 or 50 => 3,
+            _ => -1
+        };
+
+        if (targetIndex >= 0 && CommandTypeComboBox.SelectedIndex != targetIndex)
+        {
+            CommandTypeComboBox.SelectedIndex = targetIndex;
+        }
+
+        UpdateCommandDockActionButtons();
+    }
+
+
+    private void UpdateCommandPreview(CommandSignalOption? option = null)
+    {
+        if (CommandPreviewTitleText is null)
+        {
+            return;
+        }
+
+        if (option is null)
+        {
+            var caText = CommandCaBox?.Text ?? "-";
+            var ioaText = CommandIoaBox?.Text ?? "-";
+            var kind = ResolveCommandKindFromCombo();
+            CommandPreviewTitleText.Text = "Manual command target";
+            CommandPreviewAddressText.Text = $"{kind} · CA {caText} · IOA {ioaText}";
+            CommandPreviewFeedbackText.Text = "Feedback IOA: not mapped from database";
+            CommandPreviewSafetyText.Text = "Manual target is allowed, but the validator cannot prove feedback unless the Signal List maps command feedback.";
+            return;
+        }
+
+        var kindText = option.TypeId switch
+        {
+            45 => "Single command",
+            46 => "Double command",
+            47 => "Regulating step",
+            48 => "Setpoint normalized",
+            49 => "Setpoint scaled",
+            50 => "Setpoint float",
+            51 => "Bitstring command",
+            _ => "Command"
+        };
+
+        var ca = option.CommonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? (CommandCaBox?.Text ?? "*");
+        CommandPreviewTitleText.Text = option.Name;
+        CommandPreviewAddressText.Text = $"{kindText} · CA {ca} · IOA {option.InformationObjectAddress} · policy {option.CommandPolicy}";
+        CommandPreviewFeedbackText.Text = option.FeedbackIoa.HasValue
+            ? $"Feedback IOA {option.FeedbackIoa.Value}: {(string.IsNullOrWhiteSpace(option.FeedbackName) ? "mapped process point" : option.FeedbackName)}"
+            : "Feedback IOA: not mapped";
+        CommandPreviewSafetyText.Text = option.FeedbackIoa.HasValue
+            ? "Validator will look for ACTCON, ACTTERM and mapped feedback value."
+            : "Validator can check ACTCON/ACTTERM, but feedback proof needs FeedbackIoa in Signal List.";
+    }
+
+    private bool ValidateCommandTargetBeforeIssue(Iec60870ControlCommandRequest request, bool isCommandAction)
+    {
+        if (request.Kind is Iec60870ControlCommandKind.GeneralInterrogation or Iec60870ControlCommandKind.ClockSync or Iec60870ControlCommandKind.Read)
+        {
+            return true;
+        }
+
+        var selected = CommandSignalComboBox?.SelectedItem as CommandSignalOption;
+        if (selected is null)
+        {
+            AddUiDiagnostic(
+                "Info",
+                "Command",
+                "IEC10X-COMMAND-MANUAL-TARGET",
+                "Manual command target is being used",
+                $"Command will be sent to CA={request.CommonAddress}, IOA={request.InformationObjectAddress}. No command signal was selected from the database.",
+                "Manual IOA is allowed, but selecting a command signal gives feedback mapping and stronger command verdicts.");
+            return true;
+        }
+
+        if (selected.InformationObjectAddress != request.InformationObjectAddress)
+        {
+            AddUiDiagnostic(
+                "Warning",
+                "Command",
+                "IEC10X-COMMAND-TARGET-MISMATCH",
+                "Selected command signal and IOA field do not match",
+                $"Selected '{selected.Name}' is IOA {selected.InformationObjectAddress}, but IOA box contains {request.InformationObjectAddress}.",
+                "Either re-select the command signal or clear the dropdown if you intentionally want manual IOA.");
+            CommandDockStatusText.Text = "Command blocked: selected signal and IOA field mismatch.";
+            return false;
+        }
+
+        if (selected.CommonAddress.HasValue && request.CommonAddress.HasValue && selected.CommonAddress.Value != request.CommonAddress.Value)
+        {
+            AddUiDiagnostic(
+                "Warning",
+                "Command",
+                "IEC10X-COMMAND-CA-MISMATCH",
+                "Selected command signal and CA field do not match",
+                $"Selected '{selected.Name}' uses CA {selected.CommonAddress.Value}, but CA box contains {request.CommonAddress.Value}.",
+                "Use the database CA or intentionally clear the selection for manual target testing.");
+            CommandDockStatusText.Text = "Command blocked: selected signal and CA field mismatch.";
+            return false;
+        }
+
+        if (isCommandAction && !selected.FeedbackIoa.HasValue)
+        {
+            AddUiDiagnostic(
+                "Info",
+                "Command",
+                "IEC10X-COMMAND-NO-FEEDBACK-MAP",
+                "Selected command has no feedback IOA mapping",
+                $"'{selected.Name}' can be commanded, but the Signal List does not define FeedbackIoa.",
+                "Command validator will still check ACTCON/ACTTERM, but cannot prove physical feedback until FeedbackIoa is mapped.");
+        }
+
+        return true;
+    }
+
+    private void AutoFillCommandTargetFromProfile(bool preferCurrentSelection = false)
     {
         if (_isApplyingSavedSetup || _ioaProfile.Points.Count == 0 || CommandIoaBox is null)
+        {
+            return;
+        }
+
+        if (preferCurrentSelection && CommandSignalComboBox?.SelectedItem is CommandSignalOption selected)
+        {
+            ApplyCommandSignalOption(selected);
+            return;
+        }
+
+        // Do not keep overwriting manual IOA entry. Auto-fill only when the box is empty
+        // or still at the old starter value.
+        var hasManualIoa = int.TryParse(CommandIoaBox.Text, out var currentIoa) && currentIoa > 0 && currentIoa != 101;
+        if (hasManualIoa)
         {
             return;
         }
@@ -666,18 +1634,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var commandPoint = _ioaProfile.Points.FirstOrDefault(x => x.TypeId == typeId)
-            ?? _ioaProfile.Points.FirstOrDefault(x => x.CommandPolicy.Contains("Command", StringComparison.OrdinalIgnoreCase));
-        if (commandPoint is null)
+        var option = CommandSignalOptions.FirstOrDefault(x => x.TypeId == typeId)
+            ?? CommandSignalOptions.FirstOrDefault();
+
+        if (option is null)
         {
             return;
         }
 
-        CommandIoaBox.Text = commandPoint.Ioa.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (commandPoint.Ca.HasValue)
+        if (CommandSignalComboBox is not null)
         {
-            CommandCaBox.Text = commandPoint.Ca.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            CommandSignalComboBox.SelectedItem = option;
         }
+
+        ApplyCommandSignalOption(option);
     }
 
     private void CommandDock_Action_Click(object sender, RoutedEventArgs e)
@@ -693,7 +1663,7 @@ public partial class MainWindow : Window
         var kind = ResolveCommandKindFromCombo();
         var value = BuildCommandValue(kind, leftAction);
 
-        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
+        var request = new Iec60870ControlCommandRequest
         {
             Kind = kind,
             CommonAddress = ReadInt(CommandCaBox, "Command CA", 0, 0xFFFF),
@@ -703,7 +1673,12 @@ public partial class MainWindow : Window
             Qualifier = ReadInt(CommandQualifierBox, "Command qualifier", 0, 31),
             SelectBeforeOperate = select,
             OperatorNote = select ? "Command dock SELECT" : "Command dock OPERATE"
-        });
+        };
+
+        if (ValidateCommandTargetBeforeIssue(request, isCommandAction: true))
+        {
+            IssuePriorityRuntimeCommand(request);
+        }
     }
 
     private Iec60870ControlCommandKind ResolveCommandKindFromCombo()
@@ -756,8 +1731,9 @@ public partial class MainWindow : Window
         }
 
         _activeControlSession.QueueControlCommand(request);
-        CommandDockStatusText.Text = "Issued priority command: " + request.Summary;
-        AppendSessionLog("Command dock issued: " + request.Summary);
+        var selectedName = CommandSignalComboBox?.SelectedItem is CommandSignalOption option ? $" · {option.Name}" : string.Empty;
+        CommandDockStatusText.Text = "Issued priority command: " + request.Summary + selectedName;
+        AppendSessionLog("Command dock issued: " + request.Summary + selectedName);
     }
 
     private void ConnectToggle_Click(object sender, RoutedEventArgs e)
@@ -822,6 +1798,7 @@ public partial class MainWindow : Window
         }
 
         ClearSessionView(clearLog: false);
+        SeedValueViewerFromIoaProfile(settings.ProtocolMode);
         _stopRequested = false;
         SetRunUiState(isRunning: true);
         _lastResult = null;
@@ -931,7 +1908,7 @@ public partial class MainWindow : Window
 
     private void SignalList_Click(object sender, RoutedEventArgs e)
     {
-        MainTabControl.SelectedIndex = 4;
+        EditSignalList_Click(sender, e);
     }
 
     private void Clear_Click(object sender, RoutedEventArgs e) => ClearSessionView(clearLog: true);
@@ -1034,7 +2011,9 @@ public partial class MainWindow : Window
         settings.Class2PollIntervalMs = ReadInt(Class2IntervalBox, "Class 2 interval", 50, 60000);
         settings.MaxClass1DrainFrames = ReadInt(MaxDrainBox, "Max Class 1 drain", 1, 512);
         settings.ResetRemoteLinkOnConnect = ResetRemoteLinkCheckBox.IsChecked == true;
-        settings.ResetFcbOnConnect = ResetFcbCheckBox.IsChecked == true;
+        settings.ResetFcbOnConnect = settings.ProtocolMode == Iec60870ProtocolMode.Iec101
+            ? false
+            : ResetFcbCheckBox.IsChecked == true;
         settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
         settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
         settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
@@ -1240,7 +2219,7 @@ public partial class MainWindow : Window
         LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         MappingProfilePanel.Visibility = Visibility.Visible;
 
-        // Operator Evidence is a human-readable summary view. Keep protocol-heavy columns in Frame Trace and the selected-row inspector.
+        // Evidence Summary is a distilled human-readable proof view. Keep protocol-heavy columns in Protocol Trace and the selected-row inspector.
         SetColumnVisibility(EvidenceClassColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceApciColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceTypeColumn, Visibility.Collapsed);
@@ -1251,19 +2230,10 @@ public partial class MainWindow : Window
         SetColumnVisibility(EvidenceQualityColumn, Visibility.Collapsed);
         EvidenceSignalColumn.Header = is103 ? "Signal" : "Signal";
 
-        SetColumnVisibility(FrameClassColumn, classVisibility);
-        SetColumnVisibility(FrameAcdColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
-        SetColumnVisibility(FrameDfcColumn, is104 ? Visibility.Collapsed : Visibility.Visible);
-        SetColumnVisibility(FrameApciColumn, apciVisibility);
-        SetColumnVisibility(FrameNsColumn, apciVisibility);
-        SetColumnVisibility(FrameNrColumn, apciVisibility);
-        SetColumnVisibility(FrameTypeColumn, Visibility.Visible);
-        SetColumnVisibility(FrameCotColumn, Visibility.Visible);
-        SetColumnVisibility(FrameCaColumn, ioaVisibility);
-        SetColumnVisibility(FrameIoaColumn, ioaVisibility);
-        SetColumnVisibility(FrameFunInfColumn, funInfVisibility);
+        // Protocol Trace is now a lightweight line monitor, not a protocol column grid.
+        // Protocol-specific fields are rendered inside the line text and decoded in the interpreter.
 
-        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Frame Trace.
+        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Protocol Trace.
         SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
@@ -1362,10 +2332,40 @@ public partial class MainWindow : Window
         return number;
     }
 
+
+    private static bool IsLowValueBackpressureCandidate(Iec103MasterEvidenceEvent item)
+    {
+        if (IsDiagnosticEvidence(item) ||
+            item.IsRelayEdgeEvent ||
+            item.IsRelayValue ||
+            item.IsMappedSignal ||
+            IsGeneralInterrogationActivity(item) ||
+            item.CauseOfTransmission is 6 or 7 or 10 ||
+            item.TypeId is 45 or 46 or 47 or 48 or 49 or 50 or 51)
+        {
+            return false;
+        }
+
+        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.ProtocolMeaning, item.DataClass);
+        return ContainsAny(text, "Request Class 1", "Request Class 2", "ACK", "S-frame", "TESTFR", "Class 2 poll", "background poll", "no data");
+    }
+
     private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
     {
         // Do not render one WPF row per protocol event immediately. High-volume polling can
         // produce thousands of frames; the UI consumes this queue in timed batches.
+        if (_pendingEvidence.Count > MaxPendingEvidenceBacklog && IsLowValueBackpressureCandidate(item))
+        {
+            _backpressureDroppedEvents++;
+            var now = DateTime.UtcNow;
+            if ((now - _lastBackpressureLogUtc).TotalSeconds > 20)
+            {
+                _lastBackpressureLogUtc = now;
+                AppendSessionLog($"UI backpressure active: dropped {_backpressureDroppedEvents} routine low-value trace events while preserving diagnostics, digital changes, GI, command and mapped values.");
+            }
+            return;
+        }
+
         _pendingEvidence.Enqueue(item);
     }
 
@@ -1390,34 +2390,126 @@ public partial class MainWindow : Window
             findingProcessed++;
         }
 
+        EvaluateGiCollectionWindow();
+        EvaluateScanHealthWindow();
+        EvaluateCommandLedgerTimeouts();
+        FlushVisibleUiBatches();
         UpdateBufferStatus();
+    }
+
+    private bool IsEvidenceSummaryTabActive()
+        => MainTabControl?.SelectedIndex == 0;
+
+    private bool IsProtocolTraceTabActive()
+        => MainTabControl?.SelectedIndex == 1;
+
+    private void AddEvidenceSummaryRow(EvidenceRow row)
+    {
+        _evidenceSummaryStore.Add(row);
+        if (IsEvidenceSummaryTabActive())
+        {
+            _pendingEvidenceSummaryUiRows.Add(row);
+        }
+    }
+
+    private void AddProtocolTraceRow(EvidenceRow row)
+    {
+        _protocolTraceStore.Add(row);
+        if (IsProtocolTraceTabActive())
+        {
+            _pendingProtocolTraceUiRows.Add(row);
+        }
+    }
+
+    private void FlushVisibleUiBatches()
+    {
+        if (_pendingEvidenceSummaryUiRows.Count > 0)
+        {
+            EvidenceRows.AddRange(_pendingEvidenceSummaryUiRows);
+            _pendingEvidenceSummaryUiRows.Clear();
+            _visibleEvidenceDropped += EvidenceRows.TrimStart(MaxVisibleEvidenceRows);
+        }
+
+        if (_pendingProtocolTraceUiRows.Count > 0)
+        {
+            FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+            _pendingProtocolTraceUiRows.Clear();
+            _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+        }
+
+        if (_valueRowsDirty)
+        {
+            ValueRows.ReplaceRange(GetSortedValueRowsSnapshot());
+            _valueRowsDirty = false;
+        }
+
+        if (_relayEventRowsDirty)
+        {
+            ApplyRelayEventFilter();
+            _relayEventRowsDirty = false;
+        }
+
+        if (_pendingFindingUiRows.Count > 0)
+        {
+            FindingRows.ReplaceRange(_findingStore.Snapshot());
+            _pendingFindingUiRows.Clear();
+            FindingCountText.Text = FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (_pendingDiagnosticUiRows.Count > 0)
+        {
+            DiagnosticRows.ReplaceRange(_diagnosticStore.Snapshot());
+            _pendingDiagnosticUiRows.Clear();
+        }
+    }
+
+    private void RefreshActiveTraceSnapshot()
+    {
+        if (IsEvidenceSummaryTabActive())
+        {
+            EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
+        }
+        else if (EvidenceRows.Count > 0)
+        {
+            EvidenceRows.Clear();
+        }
+
+        if (IsProtocolTraceTabActive())
+        {
+            FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+        }
+        else if (FrameTraceRows.Count > 0)
+        {
+            FrameTraceRows.Clear();
+        }
+
+        _pendingEvidenceSummaryUiRows.Clear();
+        _pendingProtocolTraceUiRows.Clear();
     }
 
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
 
-        if (ShouldShowInOperatorEvidence(item, row))
+        if (ShouldAddToEvidenceSummary(item, row, out var summaryKey, out var summarySignature))
         {
-            EvidenceRows.Add(row);
-            while (EvidenceRows.Count > MaxVisibleEvidenceRows)
+            AddEvidenceSummaryRow(row);
+            if (!string.IsNullOrWhiteSpace(summaryKey))
             {
-                EvidenceRows.RemoveAt(0);
-                _visibleEvidenceDropped++;
+                _evidenceSummarySignatureByKey[summaryKey] = summarySignature;
+                _evidenceSummaryLastUtcByKey[summaryKey] = DateTime.UtcNow;
             }
         }
 
         if (ShouldShowInFrameTrace(row))
         {
-            FrameTraceRows.Add(row);
-            while (FrameTraceRows.Count > MaxVisibleEvidenceRows)
-            {
-                FrameTraceRows.RemoveAt(0);
-                _visibleEvidenceDropped++;
-            }
+            AddProtocolTraceRow(row);
         }
 
         UpdateLiveCounters(item);
+        ObserveScanHealth(item);
+        ObserveCommandBehaviour(item);
+        ReportRuntimeCommonAddressMismatch(item);
         UpdateValueAndEventViews(item);
         if (IsDiagnosticEvidence(item))
         {
@@ -1429,7 +2521,7 @@ public partial class MainWindow : Window
         // Do not push every protocol state into the top session card. High-volume
         // polling alternates Class 2/Class 1 states quickly and makes Auto-sized WPF
         // layouts appear to flicker. The header shows stable session phase only;
-        // detailed per-frame state belongs in Operator Evidence / Frame Trace.
+        // detailed per-frame state belongs in Evidence Summary / Protocol Trace.
 
         if (item.Category == "Error" || item.Category == "Warning" || item.Category == "RX Warning" || IsImportantSessionNote(item))
         {
@@ -1444,28 +2536,208 @@ public partial class MainWindow : Window
                 row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool ShouldShowInOperatorEvidence(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    private bool ShouldAddToEvidenceSummary(Iec103MasterEvidenceEvent item, EvidenceRow row, out string summaryKey, out string summarySignature)
     {
-        if (IsDiagnosticEvidence(item) || item.IsRelayValue || item.IsRelayEdgeEvent)
+        summaryKey = BuildEvidenceSummaryKey(item, row);
+        summarySignature = BuildEvidenceSummarySignature(item, row);
+
+        if (IsDiagnosticEvidence(item))
         {
             return true;
         }
 
-        var text = string.Join(" ", item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning);
-        if (text.Contains("General Interrogation", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("GI ", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("Clock", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("Reset", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("ACD=1", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("event-drain", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("DFC", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
+        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning, item.CauseName, item.QualityText);
+        var startupLinkNack = item.ProtocolMode == Iec60870ProtocolMode.Iec101
+                              && item.DataClass.Equals("Link", StringComparison.OrdinalIgnoreCase)
+                              && ContainsAny(combined, "NACK", "single-character NACK")
+                              && ContainsAny(combined, "Startup", "Reset FCB", "Reset remote link", "synchronization");
+        if (startupLinkNack)
+        {
+            return false;
+        }
+
+        var isIssue = ContainsAny(combined, "timeout", "failed", "error", "nack", "negative", "invalid", "not topical", "blocked", "DFC=1", "busy", "quality");
+        var isGiMilestone = ContainsAny(combined, "General Interrogation", "ACTCON", "ACTTERM", "interrogation completed", "GI completed", "GI failed", "GI timeout");
+        var isCommandMilestone = ContainsAny(combined, "command", "select", "operate", "activation confirmation", "activation termination", "feedback");
+        var isClockOrResetMilestone = ContainsAny(combined, "clock sync", "time synchronization", "reset remote link", "reset FCB");
+        var isSignalOutcome = item.IsRelayValue || item.IsRelayEdgeEvent || item.IsMappedSignal || item.InformationObjectAddress.HasValue;
+
+        if (!isIssue && !isGiMilestone && !isCommandMilestone && !isClockOrResetMilestone && !isSignalOutcome)
+        {
+            return false;
+        }
+
+        // Do not pollute the summary with routine line traffic. Protocol Trace remains the source of truth for these.
+        if (!isIssue && !isCommandMilestone && !isGiMilestone)
+        {
+            var routine = ContainsAny(combined, "Request Class 1", "Request Class 2", "ACK", "Class 2 poll", "background poll", "S-frame", "TESTFR");
+            if (routine && !isSignalOutcome)
+            {
+                return false;
+            }
+        }
+
+        if (item.IsRelayEdgeEvent)
+        {
+            if (!string.IsNullOrWhiteSpace(item.PreviousSignalValue) &&
+                !string.IsNullOrWhiteSpace(item.SignalDisplayValue) &&
+                string.Equals(NormalizeSummaryValue(item.PreviousSignalValue), NormalizeSummaryValue(item.SignalDisplayValue), StringComparison.OrdinalIgnoreCase) &&
+                !isIssue)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (isSignalOutcome && !isIssue)
+        {
+            // Analog measurement scan is high-volume. Value Viewer must stay live, but Evidence Summary
+            // should be proof-grade: first proof, quality/timestamp issue, significant drift, or slow heartbeat.
+            if (IsAnalogMeasurementType(item.TypeId) && !string.IsNullOrWhiteSpace(summaryKey))
+            {
+                return ShouldShowAnalogMeasurementProof(item, summaryKey);
+            }
+
+            // Digital/SP/DP and command feedback must remain event-grade. Suppress exact duplicates only.
+            if (!string.IsNullOrWhiteSpace(summaryKey) &&
+                _evidenceSummarySignatureByKey.TryGetValue(summaryKey, out var previousSignature) &&
+                string.Equals(previousSignature, summarySignature, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string BuildEvidenceSummaryKey(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(item.SignalKey))
+        {
+            return $"{item.ProtocolMode}|signal|{item.SignalKey}";
+        }
+
+        if (item.CommonAddressNumber.HasValue || item.InformationObjectAddress.HasValue || item.TypeId.HasValue)
+        {
+            return $"{item.ProtocolMode}|ioa|{item.CommonAddressNumber}|{item.InformationObjectAddress}|{item.TypeId}";
+        }
+
+        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorAction, item.ProtocolMeaning);
+        if (ContainsAny(combined, "General Interrogation", "ACTCON", "ACTTERM", "GI completed"))
+        {
+            return $"{item.ProtocolMode}|gi|{item.State}|{item.CauseOfTransmission}|{item.Category}";
+        }
+
+        if (ContainsAny(combined, "command", "select", "operate", "activation"))
+        {
+            return $"{item.ProtocolMode}|cmd|{item.CommonAddressNumber}|{item.InformationObjectAddress}|{item.TypeId}|{item.CauseOfTransmission}|{item.State}";
+        }
+
+        if (ContainsAny(combined, "timeout", "failed", "error", "nack", "negative"))
+        {
+            return $"{item.ProtocolMode}|issue|{item.State}|{item.Category}|{item.Summary}";
+        }
+
+        return string.Empty;
+    }
+
+    private static string BuildEvidenceSummarySignature(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        return string.Join("|",
+            NormalizeSummaryValue(item.SignalDisplayValue),
+            NormalizeSummaryValue(item.SignalRawValue),
+            NormalizeSummaryValue(item.QualityText),
+            item.RelayTimestampInvalid ? "time-invalid" : "time-ok",
+            item.CauseOfTransmission?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-",
+            NormalizeSummaryValue(item.CauseName),
+            NormalizeSummaryValue(item.Category),
+            NormalizeSummaryValue(item.OperatorAction));
+    }
+
+    private static string NormalizeSummaryValue(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
+    }
+
+
+    private bool ShouldShowAnalogMeasurementProof(Iec103MasterEvidenceEvent item, string summaryKey)
+    {
+        var numeric = TryExtractFirstNumeric(item.SignalDisplayValue);
+        if (!numeric.HasValue)
+        {
+            numeric = TryExtractFirstNumeric(item.ObjectSummary);
+        }
+
+        if (!numeric.HasValue)
         {
             return true;
         }
 
-        // Suppress repetitive normal Class 2 request/response noise from the operator view.
+        var now = DateTime.UtcNow;
+        if (!_evidenceSummaryLastAnalogValueByKey.TryGetValue(summaryKey, out var previous))
+        {
+            _evidenceSummaryLastAnalogValueByKey[summaryKey] = numeric.Value;
+            _evidenceSummaryLastAnalogUtcByKey[summaryKey] = now;
+            return true;
+        }
+
+        var delta = Math.Abs(numeric.Value - previous);
+        var threshold = Math.Max(Math.Abs(previous) * 0.02, 0.2);
+        var heartbeatDue = !_evidenceSummaryLastAnalogUtcByKey.TryGetValue(summaryKey, out var lastUtc)
+                           || (now - lastUtc).TotalSeconds >= 120;
+
+        if (delta >= threshold || heartbeatDue)
+        {
+            _evidenceSummaryLastAnalogValueByKey[summaryKey] = numeric.Value;
+            _evidenceSummaryLastAnalogUtcByKey[summaryKey] = now;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsAnalogMeasurementType(int? typeId)
+        => typeId is 9 or 10 or 11 or 12 or 13 or 14 or 34 or 35 or 36;
+
+    private static double? TryExtractFirstNumeric(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(value, @"[-+]?\d+(?:[.,]\d+)?");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var normalized = match.Value.Replace(',', '.');
+        return double.TryParse(
+            normalized,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var result)
+            ? result
+            : null;
+    }
+
+    private static bool ContainsAny(string text, params string[] tokens)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        foreach (var token in tokens)
+        {
+            if (text.Contains(token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -1481,13 +2753,10 @@ public partial class MainWindow : Window
 
     private void ApplyFindingToUi(Iec103MasterFinding finding)
     {
-        FindingRows.Add(new FindingRow(finding));
-        while (FindingRows.Count > MaxVisibleFindingRows)
-        {
-            FindingRows.RemoveAt(0);
-        }
-
-        FindingCountText.Text = FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var row = new FindingRow(finding);
+        _findingStore.Add(row);
+        _pendingFindingUiRows.Add(row);
+        FindingCountText.Text = Math.Min(MaxVisibleFindingRows, FindingRows.Count + _pendingFindingUiRows.Count).ToString(System.Globalization.CultureInfo.InvariantCulture);
         PulseLed(DiagLed);
         AddDiagnosticRow(new DiagnosticRow(finding));
         AppendSessionLog($"Finding [{finding.Severity}] {finding.Id}: {finding.Title}");
@@ -1643,35 +2912,50 @@ public partial class MainWindow : Window
 
         if (result.ValuePoints.Count > 0)
         {
-            ValueRows.Clear();
-            foreach (var value in result.ValuePoints.Select(x => new ValueRow(x)).OrderBy(GetValueRowSortRank).ThenBy(x => x.IoaSortKey).ThenBy(x => x.TypeSortKey).ThenBy(x => x.Signal, StringComparer.OrdinalIgnoreCase))
+            _valueRowsByKey.Clear();
+            foreach (var row in result.ValuePoints.Select(x => new ValueRow(x)))
             {
-                ValueRows.Add(value);
+                _valueRowsByKey[row.Key] = row;
             }
+
+            ValueRows.ReplaceRange(GetSortedValueRowsSnapshot());
+            _valueRowsDirty = false;
         }
 
         if (result.EventLog.Count > 0)
         {
-            _allRelayEventRows.Clear();
-            foreach (var ev in result.EventLog)
+            _relayEventStore.Clear();
+            foreach (var ev in result.EventLog.Select(x => new RelayEventRow(x)))
             {
-                _allRelayEventRows.Add(new RelayEventRow(ev));
+                _relayEventStore.Add(ev);
             }
+
             ApplyRelayEventFilter();
+            _relayEventRowsDirty = false;
         }
 
         foreach (var finding in result.Findings)
         {
             if (!FindingRows.Any(x => x.Id == finding.Id && x.Title == finding.Title))
             {
-                FindingRows.Add(new FindingRow(finding));
+                var row = new FindingRow(finding);
+                _findingStore.Add(row);
+                _pendingFindingUiRows.Add(row);
             }
         }
+        FlushVisibleUiBatches();
     }
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if ((sender as DataGrid)?.SelectedItem is not EvidenceRow row)
+        var selectedItem = sender switch
+        {
+            DataGrid grid => grid.SelectedItem,
+            ListBox listBox => listBox.SelectedItem,
+            _ => null
+        };
+
+        if (selectedItem is not EvidenceRow row)
         {
             _selectedFrameRow = null;
             SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
@@ -1683,6 +2967,10 @@ public partial class MainWindow : Window
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();
             UpdateFrameInterpreterTone(null);
+            if (ActiveProtocolMapText is not null)
+            {
+                ActiveProtocolMapText.Text = "linked highlight";
+            }
             return;
         }
 
@@ -1702,7 +2990,48 @@ public partial class MainWindow : Window
         SelectedLineSummaryText.Text = BuildLineMonitorSummary(row);
         UpdateFrameInterpreterTone(row);
         RebuildProtocolMap(row);
+        ActivateDefaultProtocolMapGroup(row);
     }
+
+
+    private void ActivateDefaultProtocolMapGroup(EvidenceRow row)
+    {
+        if (PinProtocolMapCheckBox?.IsChecked == true && !string.IsNullOrWhiteSpace(_pinnedProtocolMapKey))
+        {
+            SetActiveProtocolMap(_pinnedProtocolMapKey);
+            return;
+        }
+
+        var key = row.ProtocolMode switch
+        {
+            "104" when row.ApciFormat == "I" && row.IoAddress != "-" => "object",
+            "104" => "apci",
+            "101" when row.IoAddress != "-" => "object",
+            "101" when row.TypeId != "-" => "asdu",
+            "103" when row.FunInf != "-" => "asdu",
+            _ => "raw"
+        };
+
+        SetActiveProtocolMap(key);
+    }
+
+    private static string DescribeProtocolMapKey(string key)
+    {
+        return key.ToLowerInvariant() switch
+        {
+            "apci" => "APCI selected",
+            "ft12" => "FT1.2 selected",
+            "control" => "link control selected",
+            "asdu" => "ASDU header selected",
+            "object" => "object address selected",
+            "payload" => "payload selected",
+            "value" => "value selected",
+            "check" => "integrity selected",
+            "raw" => "raw frame selected",
+            _ => key + " selected"
+        };
+    }
+
 
     private void UpdateFrameInterpreterTone(EvidenceRow? row)
     {
@@ -2184,14 +3513,23 @@ public partial class MainWindow : Window
 
     private void SetActiveProtocolMap(string key)
     {
+        var matched = false;
+
         foreach (var line in SelectedProtocolMapLines)
         {
             line.IsActive = string.Equals(line.Key, key, StringComparison.OrdinalIgnoreCase);
+            matched |= line.IsActive;
         }
 
         foreach (var segment in SelectedHexSegments)
         {
             segment.IsActive = string.Equals(segment.Key, key, StringComparison.OrdinalIgnoreCase);
+            matched |= segment.IsActive;
+        }
+
+        if (ActiveProtocolMapText is not null)
+        {
+            ActiveProtocolMapText.Text = matched ? DescribeProtocolMapKey(key) : "linked highlight";
         }
     }
 
@@ -2206,6 +3544,11 @@ public partial class MainWindow : Window
         {
             segment.IsActive = false;
         }
+
+        if (ActiveProtocolMapText is not null)
+        {
+            ActiveProtocolMapText.Text = "linked highlight";
+        }
     }
 
 
@@ -2216,6 +3559,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        RefreshActiveTraceSnapshot();
         ExportDataButton.IsEnabled = GetCurrentTabDataGrid() is not null;
         UpdateSegmentedNav(false);
     }
@@ -2241,7 +3585,6 @@ public partial class MainWindow : Window
             NavFrameButton,
             NavValueButton,
             NavEventButton,
-            NavSignalListButton,
             NavAssessmentButton,
             NavFindingsButton,
             NavDiagnosticsButton,
@@ -2315,11 +3658,9 @@ public partial class MainWindow : Window
         var header = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? string.Empty;
         return header switch
         {
-            "Operator Evidence" => EvidenceGrid,
-            "Frame Trace" => FrameTraceGrid,
+            "Evidence Summary" => EvidenceGrid,
             "Value Viewer" => ValueGrid,
             "Event Log" => RelayEventGrid,
-            "Signal List" => SignalListGrid,
             "AutoTest Assessment" => AssessmentGrid,
             "Findings" => FindingsGrid,
             "Diagnostics" => DiagnosticsGrid,
@@ -2533,6 +3874,11 @@ public partial class MainWindow : Window
         var ioaPoint = ResolveIoaPoint(item);
         var key = BuildValueKey(item);
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
+        if (shouldShowValue)
+        {
+            MarkGiValueReceived(key);
+        }
+        ReportGiCompletenessIfReady(item);
 
         var fallbackSignal = BuildFallbackSignalName(item);
         var displayValue = !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
@@ -2598,14 +3944,6 @@ public partial class MainWindow : Window
             {
                 _lastDisplayedValueByKey[key] = displayValue;
             }
-
-            while (ValueRows.Count > 2000)
-            {
-                var removed = ValueRows[^1];
-                ValueRows.RemoveAt(ValueRows.Count - 1);
-                _valueHighlightExpiryByKey.Remove(removed.Key);
-                _lastDisplayedValueByKey.Remove(removed.Key);
-            }
         }
 
         if (shouldShowEdgeEvent)
@@ -2644,13 +3982,8 @@ public partial class MainWindow : Window
                 QualityText = ExtractQualityTextFromEvidence(item)
             });
 
-            _allRelayEventRows.Insert(0, relayEventRow);
-            while (_allRelayEventRows.Count > MaxVisibleRelayEventRows)
-            {
-                _allRelayEventRows.RemoveAt(_allRelayEventRows.Count - 1);
-                _visibleRelayEventsDropped++;
-            }
-            ApplyRelayEventFilter();
+            _relayEventStore.Add(relayEventRow);
+            _relayEventRowsDirty = true;
         }
     }
 
@@ -2705,6 +4038,12 @@ public partial class MainWindow : Window
     {
         var until = DateTime.UtcNow.AddSeconds(5);
         _valueHighlightExpiryByKey[key] = until;
+        if (_valueRowsByKey.TryGetValue(key, out var storedRow))
+        {
+            storedRow.IsRecentlyChanged = true;
+            _valueRowsDirty = true;
+        }
+
         foreach (var row in ValueRows)
         {
             if (string.Equals(row.Key, key, StringComparison.OrdinalIgnoreCase))
@@ -2735,6 +4074,12 @@ public partial class MainWindow : Window
         foreach (var key in expired)
         {
             _valueHighlightExpiryByKey.Remove(key);
+            if (_valueRowsByKey.TryGetValue(key, out var storedRow))
+            {
+                storedRow.IsRecentlyChanged = false;
+                _valueRowsDirty = true;
+            }
+
             foreach (var row in ValueRows)
             {
                 if (string.Equals(row.Key, key, StringComparison.OrdinalIgnoreCase))
@@ -2786,9 +4131,9 @@ public partial class MainWindow : Window
 
         if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
         {
-            var ca = item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
-            var ioa = item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
-            return $"{item.ProtocolMode}:CA{ca}:IOA{ioa}";
+            return item.InformationObjectAddress.HasValue
+                ? BuildIoaValueKey(item.InformationObjectAddress.Value)
+                : $"{item.ProtocolMode}:IOA-";
         }
 
         return $"FUN{(item.FunctionType ?? 0):000}:INF{(item.InformationNumber ?? 0):000}";
@@ -2830,15 +4175,14 @@ public partial class MainWindow : Window
         }
 
         var filter = (EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
-        RelayEventRows.Clear();
+        var rows = _relayEventStore
+            .Snapshot()
+            .Reverse()
+            .Where(row => ShouldIncludeRelayEvent(row, filter))
+            .Take(MaxVisibleRelayEventRows)
+            .ToArray();
 
-        foreach (var row in _allRelayEventRows)
-        {
-            if (ShouldIncludeRelayEvent(row, filter))
-            {
-                RelayEventRows.Add(row);
-            }
-        }
+        RelayEventRows.ReplaceRange(rows);
     }
 
     private static bool ShouldIncludeRelayEvent(RelayEventRow row, string filter)
@@ -2881,29 +4225,35 @@ public partial class MainWindow : Window
 
     private void UpsertValueRowStable(ValueRow row)
     {
-        for (var i = 0; i < ValueRows.Count; i++)
+        _valueRowsByKey[row.Key] = row;
+        _valueRowsDirty = true;
+
+        if (_valueRowsByKey.Count > MaxVisibleValueRows + 200)
         {
-            if (string.Equals(ValueRows[i].Key, row.Key, StringComparison.OrdinalIgnoreCase))
+            foreach (var stale in _valueRowsByKey.Values
+                         .OrderBy(GetValueRowSortRank)
+                         .ThenBy(x => x.IoaSortKey)
+                         .ThenBy(x => x.TypeSortKey)
+                         .ThenBy(x => x.Signal, StringComparer.OrdinalIgnoreCase)
+                         .Skip(MaxVisibleValueRows)
+                         .Select(x => x.Key)
+                         .ToArray())
             {
-                ValueRows.RemoveAt(i);
-                break;
+                _valueRowsByKey.Remove(stale);
+                _valueHighlightExpiryByKey.Remove(stale);
+                _lastDisplayedValueByKey.Remove(stale);
             }
         }
-
-        var insertAt = ValueRows.Count;
-        for (var i = 0; i < ValueRows.Count; i++)
-        {
-            var current = ValueRows[i];
-            var compare = CompareValueRowsForOperatorGrouping(current, row);
-            if (compare > 0)
-            {
-                insertAt = i;
-                break;
-            }
-        }
-
-        ValueRows.Insert(insertAt, row);
     }
+
+    private IReadOnlyList<ValueRow> GetSortedValueRowsSnapshot()
+        => _valueRowsByKey.Values
+            .OrderBy(GetValueRowSortRank)
+            .ThenBy(x => x.IoaSortKey)
+            .ThenBy(x => x.TypeSortKey)
+            .ThenBy(x => x.Signal, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxVisibleValueRows)
+            .ToArray();
 
     private static int CompareValueRowsForOperatorGrouping(ValueRow left, ValueRow right)
     {
@@ -2986,12 +4336,8 @@ public partial class MainWindow : Window
 
     private void AddDiagnosticRow(DiagnosticRow row)
     {
-        DiagnosticRows.Add(row);
-        while (DiagnosticRows.Count > MaxVisibleDiagnosticRows)
-        {
-            DiagnosticRows.RemoveAt(0);
-            _visibleDiagnosticsDropped++;
-        }
+        _diagnosticStore.Add(row);
+        _pendingDiagnosticUiRows.Add(row);
     }
 
     private void DiagnosticsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -3096,12 +4442,35 @@ public partial class MainWindow : Window
     {
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
+        _evidenceSummaryStore.Clear();
+        _protocolTraceStore.Clear();
+        _pendingEvidenceSummaryUiRows.Clear();
+        _pendingProtocolTraceUiRows.Clear();
+        _pendingFindingUiRows.Clear();
+        _pendingDiagnosticUiRows.Clear();
+        _findingStore.Clear();
+        _diagnosticStore.Clear();
+        _relayEventStore.Clear();
+        _valueRowsByKey.Clear();
+        _valueRowsDirty = false;
+        _relayEventRowsDirty = false;
+        _backpressureDroppedEvents = 0;
         FindingRows.Clear();
         ValueRows.Clear();
         RelayEventRows.Clear();
-        _allRelayEventRows.Clear();
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
+        _evidenceSummarySignatureByKey.Clear();
+        _evidenceSummaryLastUtcByKey.Clear();
+        _evidenceSummaryLastAnalogValueByKey.Clear();
+        _evidenceSummaryLastAnalogUtcByKey.Clear();
+        _giExpectedValueKeys.Clear();
+        _giReceivedValueKeys.Clear();
+        _giCompletenessWatchActive = false;
+        _giCompletenessReported = false;
+        _firstObservedRuntimeCa = null;
+        _runtimeCaMismatchReported = false;
+        ResetRuntimeHealthStores();
         AssessmentRows.Clear();
         DiagnosticRows.Clear();
         while (_pendingEvidence.TryDequeue(out _)) { }
@@ -3221,7 +4590,7 @@ public partial class MainWindow : Window
         }
 
         BufferStatusText.Text =
-            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleEvidenceRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}";
+            $"Buffer: operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, dropped {_backpressureDroppedEvents}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
 
 }

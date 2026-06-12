@@ -51,7 +51,7 @@ public sealed class Iec103MasterSettings
     public int TimeoutRecoveryBackoffMs { get; set; } = 250;
 
     public bool ResetRemoteLinkOnConnect { get; set; } = false;
-    public bool ResetFcbOnConnect { get; set; } = true;
+    public bool ResetFcbOnConnect { get; set; } = false;
     public bool SendGeneralInterrogationOnConnect { get; set; } = true;
     public bool SendClockSyncOnConnect { get; set; } = false;
     public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
