@@ -130,6 +130,21 @@ public partial class MainWindow : Window
     private DateTime _scanHealthLastProcessRxUtc = DateTime.MinValue;
     private DateTime _scanHealthLastDigitalRxUtc = DateTime.MinValue;
     private DateTime _scanHealthAcdSinceUtc = DateTime.MinValue;
+    private DateTime _proofFirstGiUtc = DateTime.MinValue;
+    private DateTime _proofFirstProcessValueUtc = DateTime.MinValue;
+    private DateTime _proofFirstDigitalUtc = DateTime.MinValue;
+    private DateTime _proofFirstAnalogUtc = DateTime.MinValue;
+    private DateTime _proofFirstCommandUtc = DateTime.MinValue;
+    private DateTime _proofFirstCommandFeedbackUtc = DateTime.MinValue;
+    private int _proofObservedCa = -1;
+    private bool _proofGiObserved;
+    private bool _proofGiCompleted;
+    private bool _proofGiNegative;
+    private bool _proofDigitalObserved;
+    private bool _proofAnalogObserved;
+    private bool _proofCommandObserved;
+    private bool _proofCommandFeedbackObserved;
+    private readonly HashSet<string> _protocolProofMarkers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _scanHealthLastDiagnosticUtcByCode = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CommandLedgerEntry> _commandLedgerByKey = new(StringComparer.OrdinalIgnoreCase);
 
@@ -345,8 +360,28 @@ public partial class MainWindow : Window
         _scanHealthLastProcessRxUtc = DateTime.MinValue;
         _scanHealthLastDigitalRxUtc = DateTime.MinValue;
         _scanHealthAcdSinceUtc = DateTime.MinValue;
+        ResetProtocolProofState();
         _scanHealthLastDiagnosticUtcByCode.Clear();
         _commandLedgerByKey.Clear();
+    }
+
+    private void ResetProtocolProofState()
+    {
+        _proofFirstGiUtc = DateTime.MinValue;
+        _proofFirstProcessValueUtc = DateTime.MinValue;
+        _proofFirstDigitalUtc = DateTime.MinValue;
+        _proofFirstAnalogUtc = DateTime.MinValue;
+        _proofFirstCommandUtc = DateTime.MinValue;
+        _proofFirstCommandFeedbackUtc = DateTime.MinValue;
+        _proofObservedCa = -1;
+        _proofGiObserved = false;
+        _proofGiCompleted = false;
+        _proofGiNegative = false;
+        _proofDigitalObserved = false;
+        _proofAnalogObserved = false;
+        _proofCommandObserved = false;
+        _proofCommandFeedbackObserved = false;
+        _protocolProofMarkers.Clear();
     }
 
     private void ObserveScanHealth(Iec103MasterEvidenceEvent item)
@@ -492,6 +527,158 @@ public partial class MainWindow : Window
         AppendSessionLog($"{code}: {message}");
     }
 
+
+    private void ObserveProtocolProof(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (item.CommonAddressNumber.HasValue && item.CommonAddressNumber.Value > 0 && _proofObservedCa < 0)
+        {
+            _proofObservedCa = item.CommonAddressNumber.Value;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-CA-OBSERVED",
+                "ASDU common address observed",
+                $"First observed runtime ASDU CA={_proofObservedCa}. This separates link address from ASDU common address for IEC-101/104 proof.",
+                "Use observed CA to validate GI/command addressing.");
+        }
+
+        var combined = string.Join(" ", item.State, item.Summary, item.Detail, item.OperatorMessage, item.ProtocolMeaning, item.CauseName, item.Cot, item.AsduType, item.TypeName);
+
+        if (!_proofGiObserved && IsGeneralInterrogationActivity(item))
+        {
+            _proofGiObserved = true;
+            _proofFirstGiUtc = now;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-GI-SEEN",
+                "General Interrogation activity observed",
+                $"GI activity detected from {item.Direction} frame. COT={item.Cot ?? "-"}, CA={item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, IOA={item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}",
+                "GI proof is stronger when followed by process values or ACTTERM.");
+        }
+
+        if (!_proofGiCompleted && ContainsAny(combined, "ACTTERM", "activation termination", "interrogation completed", "GI completed"))
+        {
+            _proofGiCompleted = true;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-GI-COMPLETE",
+                "General Interrogation completion observed",
+                $"GI completion marker observed. COT={item.Cot ?? "-"}, Type={item.AsduType ?? item.TypeName ?? "-"}",
+                "Compare expected vs received IOA list for completeness.");
+        }
+
+        if (!_proofGiNegative && ContainsAny(combined, "negative", "negative confirmation", "GI failed"))
+        {
+            _proofGiNegative = true;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-GI-NEGATIVE",
+                "General Interrogation negative confirmation observed",
+                $"Negative confirmation observed around GI/control flow. CA={item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}",
+                "Check ASDU CA, QOI, COT size, CA size, and whether the RTU accepts station/group GI.");
+        }
+
+        if (!_proofDigitalObserved && item.Direction == FrameDirection.SlaveToMaster && (item.IsRelayValue || item.InformationObjectAddress.HasValue) && IsIec10xDigitalType(item.TypeId))
+        {
+            _proofDigitalObserved = true;
+            _proofFirstDigitalUtc = now;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-DIGITAL-DATA",
+                "Digital process data observed",
+                $"First digital process value observed: TypeID={item.TypeId}, CA={item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, IOA={item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, value={item.SignalDisplayValue ?? item.ObjectSummary ?? "-"}",
+                "This proves SP/DP status path is alive.");
+        }
+
+        if (!_proofAnalogObserved && item.Direction == FrameDirection.SlaveToMaster && (item.IsRelayValue || item.InformationObjectAddress.HasValue) && IsAnalogMeasurementType(item.TypeId))
+        {
+            _proofAnalogObserved = true;
+            _proofFirstAnalogUtc = now;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-ANALOG-DATA",
+                "Analog/process measurement observed",
+                $"First analog measurement observed: TypeID={item.TypeId}, CA={item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, IOA={item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, value={item.SignalDisplayValue ?? item.ObjectSummary ?? "-"}",
+                "This proves measurement path is alive.");
+        }
+
+        if (!_proofCommandObserved && item.Direction == FrameDirection.MasterToSlave && IsIec10xCommandType(item.TypeId))
+        {
+            _proofCommandObserved = true;
+            _proofFirstCommandUtc = now;
+            EmitProtocolProofMarker(
+                "ARIEC-PROOF-COMMAND-TX",
+                "Command ASDU transmitted",
+                $"Command TX observed: TypeID={item.TypeId}, CA={item.CommonAddressNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}, IOA={item.InformationObjectAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}",
+                "Command verdict requires ACTCON/ACTTERM and preferably mapped feedback IOA.");
+        }
+    }
+
+    private void EmitProtocolProofMarker(string code, string message, string detail, string recommendation)
+    {
+        if (!_protocolProofMarkers.Add(code))
+        {
+            return;
+        }
+
+        AddUiDiagnostic("Info", "Protocol Proof", code, message, detail, recommendation);
+        AppendSessionLog($"{code}: {message}");
+    }
+
+    private void EmitSessionProofVerdict(string reason)
+    {
+        var mode = GetSelectedProtocolMode();
+        if (mode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return;
+        }
+
+        var expected = _giExpectedValueKeys.Count;
+        var received = _giReceivedValueKeys.Count;
+        var completeness = expected > 0 ? (received * 100.0 / expected) : 0.0;
+        var traceMode = GetTraceVerbosityMode();
+        var criticalProofs = new List<string>();
+        var risks = new List<string>();
+
+        if (_proofObservedCa > 0) criticalProofs.Add($"CA observed={_proofObservedCa}");
+        else risks.Add("No ASDU CA observed");
+
+        if (_proofGiObserved) criticalProofs.Add("GI activity observed");
+        else risks.Add("No GI activity observed");
+
+        if (_proofGiCompleted) criticalProofs.Add("GI completion observed");
+        if (_proofGiNegative) risks.Add("GI/control negative confirmation observed");
+
+        if (_proofDigitalObserved) criticalProofs.Add("Digital SP/DP data observed");
+        else risks.Add("No digital SP/DP data observed yet");
+
+        if (_proofAnalogObserved) criticalProofs.Add("Analog measurement data observed");
+        if (_proofCommandObserved) criticalProofs.Add("Command TX observed");
+        if (_proofCommandFeedbackObserved) criticalProofs.Add("Command feedback observed");
+
+        if (_backpressureDroppedEvents > 0 || _traceVerbositySuppressedRows > 0)
+        {
+            criticalProofs.Add($"Retention declared: traceMode={traceMode}, traceSkip={_traceVerbositySuppressedRows}, lowValueDropped={_backpressureDroppedEvents}");
+        }
+
+        if (_maxUiFlushMs >= UiFlushSlowWarningMs)
+        {
+            risks.Add($"UI slow flush observed max={_maxUiFlushMs}ms");
+        }
+
+        var severity = risks.Count == 0 || (_proofDigitalObserved && (_proofGiObserved || _proofAnalogObserved))
+            ? "Info"
+            : "Warning";
+
+        var verdict = severity == "Info" ? "Protocol proof acceptable" : "Protocol proof has open risks";
+        AddUiDiagnostic(
+            severity,
+            "Protocol Proof",
+            "ARIEC-PROOF-SESSION-VERDICT",
+            verdict,
+            $"{reason}. Proofs: {(criticalProofs.Count == 0 ? "-" : string.Join("; ", criticalProofs))}. GI completeness={received}/{expected} ({completeness:0.0}%). Risks: {(risks.Count == 0 ? "-" : string.Join("; ", risks))}.",
+            "Use this verdict as the top-level commissioning proof summary, then inspect Evidence Summary, Value Viewer, Event Log, Diagnostics, and export retention policy for detail.");
+    }
+
     private void ObserveCommandBehaviour(Iec103MasterEvidenceEvent item)
     {
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
@@ -630,6 +817,8 @@ public partial class MainWindow : Window
 
             ledger.FeedbackSeen = true;
             ledger.LastUpdateUtc = DateTime.UtcNow;
+            _proofCommandFeedbackObserved = true;
+            _proofFirstCommandFeedbackUtc = DateTime.UtcNow;
             _commandLedgerByKey.Remove(ledger.Key);
             AddUiDiagnostic(
                 "Info",
@@ -1935,6 +2124,68 @@ public partial class MainWindow : Window
 
     private void Clear_Click(object sender, RoutedEventArgs e) => ClearSessionView(clearLog: true);
 
+
+    private string AppendEvidenceRetentionPolicy(string markdown)
+    {
+        var builder = new StringBuilder(markdown ?? string.Empty);
+        if (builder.Length > 0 && !builder.ToString().EndsWith(Environment.NewLine, StringComparison.Ordinal))
+        {
+            builder.AppendLine();
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("## Evidence Retention / UI Store Policy");
+        builder.AppendLine();
+        foreach (var line in BuildEvidenceRetentionPolicyLines())
+        {
+            builder.AppendLine("- " + line);
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("> This section is generated by the UI runtime. It describes evidence retention, trace suppression, low-value compression, and dispatcher pressure at export time.");
+        return builder.ToString();
+    }
+
+    private string BuildTextEvidenceRetentionHeader(string exportName)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("# ARIEC60870 export integrity marker");
+        builder.AppendLine("# Export: " + exportName);
+        foreach (var line in BuildEvidenceRetentionPolicyLines())
+        {
+            builder.AppendLine("# " + line);
+        }
+        builder.AppendLine("#");
+        return builder.ToString();
+    }
+
+    private IEnumerable<string> BuildEvidenceRetentionPolicyLines()
+    {
+        yield return $"Protocol Trace mode: {GetTraceVerbosityMode()}";
+        yield return $"Trace ring visible/stored: {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}";
+        yield return $"Evidence Summary ring visible/stored: {EvidenceRows.Count}/{MaxVisibleEvidenceRows}";
+        yield return $"Value store visible/keyed limit: {ValueRows.Count}/{MaxVisibleValueRows}";
+        yield return $"Event Log ring visible/stored: {RelayEventRows.Count}/{MaxVisibleRelayEventRows}";
+        yield return $"Diagnostics ring visible/stored: {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}";
+        yield return $"Trace verbosity suppressed rows: total={_traceVerbositySuppressedRows}, routine={_traceVerbositySuppressedRoutine}, supervisory={_traceVerbositySuppressedSupervisory}";
+        yield return $"Backpressure low-value compression: total={_backpressureDroppedEvents}, ack/no-data={_backpressureDroppedAckNoData}, background-poll={_backpressureDroppedBackgroundPoll}, test/supervisory={_backpressureDroppedTestFrames}, other={_backpressureDroppedOtherLowValue}";
+        yield return $"Dispatcher queue: current={_pendingEvidence.Count}, maxObserved={_maxPendingEvidenceDepth}, adaptiveBudget={_lastFlushBudget}";
+        yield return $"Dispatcher flush: last={_lastUiFlushMs} ms, max={_maxUiFlushMs} ms, ticks={_uiFlushTicks}, lastProcessed={_lastEvidenceProcessed}+{_lastFindingProcessed}, lastVisibleBatchRows={_lastVisibleBatchRows}";
+        yield return $"Protocol proof state: CA={(_proofObservedCa > 0 ? _proofObservedCa.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")}, GI={_proofGiObserved}, GIComplete={_proofGiCompleted}, GINegative={_proofGiNegative}, Digital={_proofDigitalObserved}, Analog={_proofAnalogObserved}, Command={_proofCommandObserved}, CommandFeedback={_proofCommandFeedbackObserved}";
+        yield return "Protected evidence policy: diagnostics/warnings/errors, mapped values, process values, digital values, GI activity, command ASDUs, ACTCON and ACTTERM are protected from low-value trace compression.";
+    }
+
+    private void AddEvidenceRetentionExportMarker(string exportTarget)
+    {
+        AddUiDiagnostic(
+            "Info",
+            "Evidence",
+            "ARIEC-EVIDENCE-RETENTION-POLICY",
+            "Evidence export includes retention policy marker",
+            $"{exportTarget} captured TraceMode={GetTraceVerbosityMode()}, traceSkip={_traceVerbositySuppressedRows}, lowValueDropped={_backpressureDroppedEvents}, qMax={_maxPendingEvidenceDepth}, maxFlush={_maxUiFlushMs} ms.",
+            "Use this marker when reviewing FAT/SAT evidence so compressed routine trace rows are not mistaken for missing protocol evidence.");
+    }
+
     private void ExportMarkdown_Click(object sender, RoutedEventArgs e)
     {
         if (_lastResult == null)
@@ -1958,8 +2209,10 @@ public partial class MainWindow : Window
         }
 
         var markdown = new MasterMarkdownReportWriter().Write(_lastResult, maxEvents: 1000);
+        markdown = AppendEvidenceRetentionPolicy(markdown);
         File.WriteAllText(dialog.FileName, markdown, Encoding.UTF8);
-        AppendSessionLog("Evidence report exported: " + dialog.FileName);
+        AddEvidenceRetentionExportMarker("Markdown evidence report");
+        AppendSessionLog("Evidence report exported with retention policy marker: " + dialog.FileName);
         MessageBox.Show(this, "Evidence report exported successfully.", "Export evidence", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -2835,6 +3088,7 @@ public partial class MainWindow : Window
 
         UpdateLiveCounters(item);
         ObserveScanHealth(item);
+        ObserveProtocolProof(item);
         ObserveCommandBehaviour(item);
         ReportRuntimeCommonAddressMismatch(item);
         UpdateValueAndEventViews(item);
@@ -3264,6 +3518,7 @@ public partial class MainWindow : Window
             }
         }
         FlushVisibleUiBatches();
+        EmitSessionProofVerdict("Completed session result applied");
     }
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -3969,8 +4224,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        File.WriteAllText(dialog.FileName, BuildTabSeparatedText(grid), Encoding.UTF8);
-        AppendSessionLog($"Data exported from {tabName}: {dialog.FileName}");
+        var exportText = BuildTextEvidenceRetentionHeader(tabName) + BuildTabSeparatedText(grid);
+        File.WriteAllText(dialog.FileName, exportText, Encoding.UTF8);
+        AddEvidenceRetentionExportMarker($"Tab export: {tabName}");
+        AppendSessionLog($"Data exported from {tabName} with retention policy marker: {dialog.FileName}");
     }
 
     private DataGrid? GetCurrentTabDataGrid()
