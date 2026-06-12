@@ -278,8 +278,16 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
-                                    <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right." />
-                                    <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" HorizontalAlignment="Right" DockPanel.Dock="Right" />
+                                    <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
+                                        <Button x:Name="SaveSelectedCaptureButton" Style="{StaticResource SecondaryButton}" Height="30" Padding="10,4" Click="SaveSelectedCapture_Click" ToolTip="Save selected Protocol Trace rows as a portable .ariec capture file">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideDownload}" />
+                                                <TextBlock Text="Save Capture" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="Medium" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content" Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                    </StackPanel>
                                 </DockPanel>
                                 <ListBox x:Name="FrameTraceGrid"
                                          Grid.Row="2"
@@ -287,6 +295,7 @@
                                          Style="{StaticResource ProtocolTraceListBox}"
                                          ItemContainerStyle="{StaticResource ProtocolTraceLineItem}"
                                          SelectionChanged="EvidenceGrid_SelectionChanged"
+                                         SelectionMode="Extended"
                                          FontFamily="Sometype Mono, Cascadia Mono, Consolas">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>

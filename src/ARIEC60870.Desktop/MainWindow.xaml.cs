@@ -5,7 +5,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.IO.Compression;
 using System.IO.Ports;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -145,6 +147,18 @@ public partial class MainWindow : Window
     private bool _proofCommandObserved;
     private bool _proofCommandFeedbackObserved;
     private readonly HashSet<string> _protocolProofMarkers = new(StringComparer.OrdinalIgnoreCase);
+    private int _lastMonitorExpectedCount;
+    private int _lastMonitorReceivedCount;
+    private int _lastDigitalExpectedCount;
+    private int _lastDigitalReceivedCount;
+    private int _lastAnalogExpectedCount;
+    private int _lastAnalogReceivedCount;
+    private int _lastOtherExpectedCount;
+    private int _lastOtherReceivedCount;
+    private int _lastCommandExpectedCount;
+    private int _lastFeedbackMappedCommandCount;
+    private int _lastMissingMonitorCount;
+    private string _lastMissingMonitorPreview = "-";
     private readonly Dictionary<string, DateTime> _scanHealthLastDiagnosticUtcByCode = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CommandLedgerEntry> _commandLedgerByKey = new(StringComparer.OrdinalIgnoreCase);
 
@@ -381,6 +395,18 @@ public partial class MainWindow : Window
         _proofAnalogObserved = false;
         _proofCommandObserved = false;
         _proofCommandFeedbackObserved = false;
+        _lastMonitorExpectedCount = 0;
+        _lastMonitorReceivedCount = 0;
+        _lastDigitalExpectedCount = 0;
+        _lastDigitalReceivedCount = 0;
+        _lastAnalogExpectedCount = 0;
+        _lastAnalogReceivedCount = 0;
+        _lastOtherExpectedCount = 0;
+        _lastOtherReceivedCount = 0;
+        _lastCommandExpectedCount = 0;
+        _lastFeedbackMappedCommandCount = 0;
+        _lastMissingMonitorCount = 0;
+        _lastMissingMonitorPreview = "-";
         _protocolProofMarkers.Clear();
     }
 
@@ -622,6 +648,121 @@ public partial class MainWindow : Window
 
         AddUiDiagnostic("Info", "Protocol Proof", code, message, detail, recommendation);
         AppendSessionLog($"{code}: {message}");
+    }
+
+
+    private void EmitGiCoverageMatrixVerdict(string reason)
+    {
+        if (_ioaProfile.Points.Count == 0)
+        {
+            AddUiDiagnostic(
+                "Info",
+                "Protocol Proof",
+                "ARIEC-PROOF-MAPPING-COVERAGE",
+                "No IOA database loaded",
+                $"{reason}. No Signal List / IOA database is available, so expected-vs-observed coverage cannot be calculated.",
+                "Load the IOA database / Signal List to enable GI completeness matrix and command feedback mapping proof.");
+            return;
+        }
+
+        var monitorPoints = _ioaProfile.Points
+            .Where(IsMonitorPoint)
+            .GroupBy(x => BuildIoaValueKey(x.Ioa), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToArray();
+
+        var commandPoints = _ioaProfile.Points
+            .Where(IsCommandPoint)
+            .ToArray();
+
+        var receivedKeys = new HashSet<string>(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase);
+        if (receivedKeys.Count == 0 && _valueRowsByKey.Count > 0)
+        {
+            foreach (var key in _valueRowsByKey.Keys)
+            {
+                receivedKeys.Add(key);
+            }
+        }
+
+        var missing = monitorPoints
+            .Where(point => !receivedKeys.Contains(BuildIoaValueKey(point.Ioa)))
+            .ToArray();
+
+        var digitalExpected = monitorPoints.Count(point => IsIec10xDigitalType(point.TypeId));
+        var digitalReceived = monitorPoints.Count(point => IsIec10xDigitalType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+        var analogExpected = monitorPoints.Count(point => IsAnalogMeasurementType(point.TypeId));
+        var analogReceived = monitorPoints.Count(point => IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+        var otherExpected = Math.Max(0, monitorPoints.Length - digitalExpected - analogExpected);
+        var otherReceived = monitorPoints.Count(point => !IsIec10xDigitalType(point.TypeId) && !IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+
+        _lastMonitorExpectedCount = monitorPoints.Length;
+        _lastMonitorReceivedCount = Math.Max(0, monitorPoints.Length - missing.Length);
+        _lastDigitalExpectedCount = digitalExpected;
+        _lastDigitalReceivedCount = digitalReceived;
+        _lastAnalogExpectedCount = analogExpected;
+        _lastAnalogReceivedCount = analogReceived;
+        _lastOtherExpectedCount = otherExpected;
+        _lastOtherReceivedCount = otherReceived;
+        _lastCommandExpectedCount = commandPoints.Length;
+        _lastFeedbackMappedCommandCount = commandPoints.Count(point => point.FeedbackIoa.HasValue);
+        _lastMissingMonitorCount = missing.Length;
+        _lastMissingMonitorPreview = missing.Length == 0
+            ? "-"
+            : string.Join("; ", missing.Take(12).Select(FormatIoaPointForProof));
+
+        var percent = monitorPoints.Length > 0
+            ? (_lastMonitorReceivedCount * 100.0 / monitorPoints.Length)
+            : 0.0;
+
+        AddUiDiagnostic(
+            missing.Length == 0 ? "Info" : "Warning",
+            "Protocol Proof",
+            missing.Length == 0 ? "ARIEC-PROOF-GI-COMPLETENESS-PASS" : "ARIEC-PROOF-GI-COMPLETENESS-RISK",
+            missing.Length == 0 ? "GI / scan coverage complete for mapped monitor points" : "GI / scan coverage has missing mapped monitor points",
+            $"{reason}. Monitor coverage={_lastMonitorReceivedCount}/{_lastMonitorExpectedCount} ({percent:0.0}%). Missing={missing.Length}. Missing preview={_lastMissingMonitorPreview}.",
+            missing.Length == 0
+                ? "Mapped monitor points have been observed in the runtime value store."
+                : "Check ASDU CA, GI support, group interrogation support, class assignment, IOA mapping correctness, and whether the RTU only sends some points on change.");
+
+        AddUiDiagnostic(
+            digitalReceived == digitalExpected ? "Info" : "Warning",
+            "Protocol Proof",
+            digitalReceived == digitalExpected ? "ARIEC-PROOF-DIGITAL-COVERAGE-PASS" : "ARIEC-PROOF-DIGITAL-COVERAGE-RISK",
+            "Digital SP/DP coverage proof",
+            $"Digital monitor coverage={digitalReceived}/{digitalExpected}.",
+            digitalReceived == digitalExpected
+                ? "All mapped digital monitor points have been observed."
+                : "Digital points are expected but not all have been observed. Verify GI/group GI and digital class assignment.");
+
+        AddUiDiagnostic(
+            analogExpected == 0 || analogReceived == analogExpected ? "Info" : "Warning",
+            "Protocol Proof",
+            analogExpected == 0 || analogReceived == analogExpected ? "ARIEC-PROOF-ANALOG-COVERAGE-PASS" : "ARIEC-PROOF-ANALOG-COVERAGE-RISK",
+            "Analog measurement coverage proof",
+            $"Analog monitor coverage={analogReceived}/{analogExpected}.",
+            analogExpected == 0
+                ? "No mapped analog monitor points are expected in the current database."
+                : analogReceived == analogExpected
+                    ? "All mapped analog monitor points have been observed."
+                    : "Analog points are expected but not all have been observed. Verify cyclic scan, class 2 polling, and IOA mapping.");
+
+        AddUiDiagnostic(
+            _lastFeedbackMappedCommandCount == _lastCommandExpectedCount ? "Info" : "Warning",
+            "Protocol Proof",
+            _lastFeedbackMappedCommandCount == _lastCommandExpectedCount ? "ARIEC-PROOF-COMMAND-MAPPING-PASS" : "ARIEC-PROOF-COMMAND-MAPPING-RISK",
+            "Command feedback mapping coverage",
+            $"Command points={_lastCommandExpectedCount}, feedback mapped={_lastFeedbackMappedCommandCount}.",
+            _lastFeedbackMappedCommandCount == _lastCommandExpectedCount
+                ? "All command points have feedback IOA mapping."
+                : "Some command points have no feedback IOA. Command validator can check ACTCON/ACTTERM, but physical/process feedback proof will be limited.");
+    }
+
+    private static string FormatIoaPointForProof(Iec10xPointMappingEntry point)
+    {
+        var name = string.IsNullOrWhiteSpace(point.Name) ? $"IOA {point.Ioa}" : point.Name;
+        var type = point.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-";
+        var ca = point.Ca?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*";
+        return $"{name} (CA {ca}, IOA {point.Ioa}, T{type})";
     }
 
     private void EmitSessionProofVerdict(string reason)
@@ -2172,6 +2313,8 @@ public partial class MainWindow : Window
         yield return $"Dispatcher queue: current={_pendingEvidence.Count}, maxObserved={_maxPendingEvidenceDepth}, adaptiveBudget={_lastFlushBudget}";
         yield return $"Dispatcher flush: last={_lastUiFlushMs} ms, max={_maxUiFlushMs} ms, ticks={_uiFlushTicks}, lastProcessed={_lastEvidenceProcessed}+{_lastFindingProcessed}, lastVisibleBatchRows={_lastVisibleBatchRows}";
         yield return $"Protocol proof state: CA={(_proofObservedCa > 0 ? _proofObservedCa.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")}, GI={_proofGiObserved}, GIComplete={_proofGiCompleted}, GINegative={_proofGiNegative}, Digital={_proofDigitalObserved}, Analog={_proofAnalogObserved}, Command={_proofCommandObserved}, CommandFeedback={_proofCommandFeedbackObserved}";
+        yield return $"GI coverage matrix: monitor={_lastMonitorReceivedCount}/{_lastMonitorExpectedCount}, digital={_lastDigitalReceivedCount}/{_lastDigitalExpectedCount}, analog={_lastAnalogReceivedCount}/{_lastAnalogExpectedCount}, other={_lastOtherReceivedCount}/{_lastOtherExpectedCount}, missing={_lastMissingMonitorCount}, missingPreview={_lastMissingMonitorPreview}";
+        yield return $"Command mapping coverage: commands={_lastCommandExpectedCount}, feedbackMapped={_lastFeedbackMappedCommandCount}";
         yield return "Protected evidence policy: diagnostics/warnings/errors, mapped values, process values, digital values, GI activity, command ASDUs, ACTCON and ACTTERM are protected from low-value trace compression.";
     }
 
@@ -3518,6 +3661,7 @@ public partial class MainWindow : Window
             }
         }
         FlushVisibleUiBatches();
+        EmitGiCoverageMatrixVerdict("Completed session result applied");
         EmitSessionProofVerdict("Completed session result applied");
     }
 
@@ -4198,6 +4342,285 @@ public partial class MainWindow : Window
         }
     }
 
+
+
+    private void SaveSelectedCapture_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = GetSelectedProtocolTraceRowsForCapture();
+        if (rows.Count == 0)
+        {
+            MessageBox.Show(this,
+                "Select one or more Protocol Trace rows first. Use Ctrl/Shift selection to save a block as an ARIEC capture.",
+                "Save capture",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save selected Protocol Trace rows as ARIEC capture",
+            Filter = "ARIEC capture (*.ariec)|*.ariec|Zip container (*.zip)|*.zip|All files (*.*)|*.*",
+            FileName = $"ARIEC60870-selected-capture-{DateTime.Now:yyyyMMdd-HHmmss}.ariec",
+            AddExtension = true,
+            DefaultExt = ".ariec"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            WriteSelectedProtocolTraceCapture(dialog.FileName, rows);
+            AddUiDiagnostic(
+                "Info",
+                "Capture",
+                "ARIEC-CAPTURE-SELECTION-SAVED",
+                "Selected Protocol Trace block saved as capture",
+                $"Saved {rows.Count} selected Protocol Trace rows to {dialog.FileName}.",
+                "This selected-block capture is portable evidence and will be supported by offline re-open/review mode in the next capture phase.");
+            AppendSessionLog($"Selected Protocol Trace capture saved: {rows.Count} rows -> {dialog.FileName}");
+            MessageBox.Show(this,
+                $"Selected capture saved successfully.\n\nRows: {rows.Count}\nFile: {dialog.FileName}",
+                "Save capture",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic(
+                "Error",
+                "Capture",
+                "ARIEC-CAPTURE-SELECTION-FAILED",
+                "Failed to save selected Protocol Trace capture",
+                ex.Message,
+                "Check destination write permission and available disk space.",
+                ex);
+            MessageBox.Show(this,
+                "Failed to save capture: " + ex.Message,
+                "Save capture",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private IReadOnlyList<EvidenceRow> GetSelectedProtocolTraceRowsForCapture()
+    {
+        var selected = FrameTraceGrid?.SelectedItems
+            ?.OfType<EvidenceRow>()
+            .OrderBy(row => row.Sequence)
+            .ToArray();
+
+        if (selected is { Length: > 0 })
+        {
+            return selected;
+        }
+
+        if (FrameTraceGrid?.SelectedItem is EvidenceRow single)
+        {
+            return new[] { single };
+        }
+
+        return Array.Empty<EvidenceRow>();
+    }
+
+    private void WriteSelectedProtocolTraceCapture(string fileName, IReadOnlyList<EvidenceRow> rows)
+    {
+        if (rows.Count == 0)
+        {
+            throw new InvalidOperationException("No Protocol Trace rows selected.");
+        }
+
+        var createdUtc = DateTime.UtcNow;
+        var captureId = "ARIEC-" + createdUtc.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture);
+        var framesJsonl = BuildCaptureFramesJsonl(rows);
+        var framesSha256 = ComputeSha256(framesJsonl);
+        var manifest = BuildSelectedCaptureManifest(captureId, createdUtc, rows, framesSha256);
+        var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        var retentionJson = JsonSerializer.Serialize(BuildCaptureRetentionSnapshot(), new JsonSerializerOptions { WriteIndented = true });
+        var reportMarkdown = BuildSelectedCaptureMarkdownReport(manifest, rows, framesSha256);
+
+        var target = Path.GetFullPath(fileName);
+        var parent = Path.GetDirectoryName(target);
+        if (!string.IsNullOrWhiteSpace(parent))
+        {
+            Directory.CreateDirectory(parent);
+        }
+
+        if (File.Exists(target))
+        {
+            File.Delete(target);
+        }
+
+        using var archive = ZipFile.Open(target, ZipArchiveMode.Create);
+        WriteZipTextEntry(archive, "manifest.json", manifestJson);
+        WriteZipTextEntry(archive, "frames.jsonl", framesJsonl);
+        WriteZipTextEntry(archive, "retention.json", retentionJson);
+        WriteZipTextEntry(archive, "report.md", reportMarkdown);
+        WriteZipTextEntry(archive, "hash.txt", $"frames.jsonl sha256 {framesSha256}{Environment.NewLine}");
+    }
+
+    private CaptureManifest BuildSelectedCaptureManifest(string captureId, DateTime createdUtc, IReadOnlyList<EvidenceRow> rows, string framesSha256)
+    {
+        var first = rows.First();
+        var last = rows.Last();
+        return new CaptureManifest
+        {
+            Format = "ARIEC_CAPTURE_V1",
+            CaptureId = captureId,
+            CaptureKind = "SelectedProtocolTraceBlock",
+            CreatedUtc = createdUtc,
+            Application = "ARIEC60870 Protocol Lab",
+            ProtocolMode = GetSelectedProtocolMode().ToString(),
+            TraceVerbosityMode = GetTraceVerbosityMode().ToString(),
+            RowCount = rows.Count,
+            FirstSequence = first.Sequence,
+            LastSequence = last.Sequence,
+            FirstTimestampText = first.Time,
+            LastTimestampText = last.Time,
+            FramesSha256 = framesSha256,
+            SourceSession = new CaptureSessionSnapshot
+            {
+                TxCount = _txCount,
+                RxCount = _rxCount,
+                GiCount = _giCount,
+                Class1Count = _class1Count,
+                Class2Count = _class2Count,
+                NoDataCount = _noDataCount,
+                DpiCount = _dpiCount,
+                ValueRows = ValueRows.Count,
+                EventRows = RelayEventRows.Count,
+                DiagnosticRows = DiagnosticRows.Count,
+                TraceRowsVisible = FrameTraceRows.Count,
+                TraceRowsLimit = MaxVisibleFrameTraceRows,
+                TraceSuppressedRows = _traceVerbositySuppressedRows,
+                BackpressureDroppedRows = _backpressureDroppedEvents,
+                QueueMaxObserved = _maxPendingEvidenceDepth,
+                MaxUiFlushMs = _maxUiFlushMs
+            }
+        };
+    }
+
+    private object BuildCaptureRetentionSnapshot()
+    {
+        return new
+        {
+            policy = "Selected capture is generated from visible Protocol Trace rows. Full lossless background ledger is a separate capture phase.",
+            retention = BuildEvidenceRetentionPolicyLines().ToArray(),
+            trace = new
+            {
+                mode = GetTraceVerbosityMode().ToString(),
+                visible = FrameTraceRows.Count,
+                limit = MaxVisibleFrameTraceRows,
+                suppressed = _traceVerbositySuppressedRows,
+                routineSuppressed = _traceVerbositySuppressedRoutine,
+                supervisorySuppressed = _traceVerbositySuppressedSupervisory
+            },
+            backpressure = new
+            {
+                dropped = _backpressureDroppedEvents,
+                ackNoData = _backpressureDroppedAckNoData,
+                backgroundPoll = _backpressureDroppedBackgroundPoll,
+                testSupervisory = _backpressureDroppedTestFrames,
+                other = _backpressureDroppedOtherLowValue
+            },
+            proof = new
+            {
+                caObserved = _proofObservedCa,
+                giObserved = _proofGiObserved,
+                giCompleted = _proofGiCompleted,
+                giNegative = _proofGiNegative,
+                digitalObserved = _proofDigitalObserved,
+                analogObserved = _proofAnalogObserved,
+                commandObserved = _proofCommandObserved,
+                commandFeedbackObserved = _proofCommandFeedbackObserved,
+                monitorCoverage = $"{_lastMonitorReceivedCount}/{_lastMonitorExpectedCount}",
+                digitalCoverage = $"{_lastDigitalReceivedCount}/{_lastDigitalExpectedCount}",
+                analogCoverage = $"{_lastAnalogReceivedCount}/{_lastAnalogExpectedCount}"
+            }
+        };
+    }
+
+    private static string BuildCaptureFramesJsonl(IReadOnlyList<EvidenceRow> rows)
+    {
+        var builder = new StringBuilder();
+        var options = new JsonSerializerOptions { WriteIndented = false };
+
+        foreach (var row in rows)
+        {
+            var record = CaptureFrameRecord.FromEvidenceRow(row);
+            builder.AppendLine(JsonSerializer.Serialize(record, options));
+        }
+
+        return builder.ToString();
+    }
+
+    private string BuildSelectedCaptureMarkdownReport(CaptureManifest manifest, IReadOnlyList<EvidenceRow> rows, string framesSha256)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("# ARIEC60870 Selected Protocol Trace Capture");
+        builder.AppendLine();
+        builder.AppendLine($"- Capture ID: `{manifest.CaptureId}`");
+        builder.AppendLine($"- Format: `{manifest.Format}`");
+        builder.AppendLine($"- Kind: `{manifest.CaptureKind}`");
+        builder.AppendLine($"- Created UTC: `{manifest.CreatedUtc:O}`");
+        builder.AppendLine($"- Protocol mode: `{manifest.ProtocolMode}`");
+        builder.AppendLine($"- Trace mode: `{manifest.TraceVerbosityMode}`");
+        builder.AppendLine($"- Rows: `{manifest.RowCount}`");
+        builder.AppendLine($"- Sequence range: `{manifest.FirstSequence}` → `{manifest.LastSequence}`");
+        builder.AppendLine($"- frames.jsonl SHA256: `{framesSha256}`");
+        builder.AppendLine();
+        builder.AppendLine("## Evidence Retention / Capture Integrity");
+        builder.AppendLine();
+        foreach (var line in BuildEvidenceRetentionPolicyLines())
+        {
+            builder.AppendLine("- " + line);
+        }
+        builder.AppendLine();
+        builder.AppendLine("## Selected Line Monitor Rows");
+        builder.AppendLine();
+        builder.AppendLine("| # | Time | Dir | Service | Address | Meaning | Raw |");
+        builder.AppendLine("|---:|---|---|---|---|---|---|");
+
+        foreach (var row in rows)
+        {
+            builder.Append("| ")
+                .Append(row.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.Time)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.Direction)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.ProtocolService)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.ProtocolAddress)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.ProtocolTraceMeaning)).Append(" | ")
+                .Append(EscapeMarkdownTable(row.RawHex)).AppendLine(" |");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("> Selected-block capture is portable evidence. Offline re-open/review mode will consume `manifest.json` and `frames.jsonl` in the next capture phase.");
+        return builder.ToString();
+    }
+
+    private static string EscapeMarkdownTable(string value)
+        => (value ?? string.Empty)
+            .Replace("|", "\\|", StringComparison.Ordinal)
+            .Replace("\r", " ", StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal)
+            .Trim();
+
+    private static void WriteZipTextEntry(ZipArchive archive, string entryName, string content)
+    {
+        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+        using var stream = entry.Open();
+        using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content ?? string.Empty);
+    }
+
+    private static string ComputeSha256(string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content ?? string.Empty);
+        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    }
 
     private void ExportData_Click(object sender, RoutedEventArgs e)
     {
@@ -5208,6 +5631,116 @@ public partial class MainWindow : Window
         BufferStatusText.Text =
             $"Buffer: trace {GetTraceVerbosityMode()}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
+
+    private sealed class CaptureManifest
+    {
+        public string Format { get; set; } = string.Empty;
+        public string CaptureId { get; set; } = string.Empty;
+        public string CaptureKind { get; set; } = string.Empty;
+        public DateTime CreatedUtc { get; set; }
+        public string Application { get; set; } = string.Empty;
+        public string ProtocolMode { get; set; } = string.Empty;
+        public string TraceVerbosityMode { get; set; } = string.Empty;
+        public int RowCount { get; set; }
+        public long FirstSequence { get; set; }
+        public long LastSequence { get; set; }
+        public string FirstTimestampText { get; set; } = string.Empty;
+        public string LastTimestampText { get; set; } = string.Empty;
+        public string FramesSha256 { get; set; } = string.Empty;
+        public CaptureSessionSnapshot SourceSession { get; set; } = new();
+    }
+
+    private sealed class CaptureSessionSnapshot
+    {
+        public int TxCount { get; set; }
+        public int RxCount { get; set; }
+        public int GiCount { get; set; }
+        public int Class1Count { get; set; }
+        public int Class2Count { get; set; }
+        public int NoDataCount { get; set; }
+        public int DpiCount { get; set; }
+        public int ValueRows { get; set; }
+        public int EventRows { get; set; }
+        public int DiagnosticRows { get; set; }
+        public int TraceRowsVisible { get; set; }
+        public int TraceRowsLimit { get; set; }
+        public long TraceSuppressedRows { get; set; }
+        public long BackpressureDroppedRows { get; set; }
+        public long QueueMaxObserved { get; set; }
+        public long MaxUiFlushMs { get; set; }
+    }
+
+    private sealed class CaptureFrameRecord
+    {
+        public long Sequence { get; set; }
+        public string Time { get; set; } = string.Empty;
+        public string Direction { get; set; } = string.Empty;
+        public string ProtocolName { get; set; } = string.Empty;
+        public string ProtocolMode { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string DataClass { get; set; } = string.Empty;
+        public string Service { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string SignalOrAddress { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public string Quality { get; set; } = string.Empty;
+        public string AsduType { get; set; } = string.Empty;
+        public string TypeId { get; set; } = string.Empty;
+        public string Cot { get; set; } = string.Empty;
+        public string CotCode { get; set; } = string.Empty;
+        public string LinkAddress { get; set; } = string.Empty;
+        public string CommonAddress { get; set; } = string.Empty;
+        public string Ioa { get; set; } = string.Empty;
+        public string Acd { get; set; } = string.Empty;
+        public string Dfc { get; set; } = string.Empty;
+        public string RelayTime { get; set; } = string.Empty;
+        public string ResponseTime { get; set; } = string.Empty;
+        public string Meaning { get; set; } = string.Empty;
+        public string Detail { get; set; } = string.Empty;
+        public string RawHex { get; set; } = string.Empty;
+        public string ProtocolTraceTitle { get; set; } = string.Empty;
+        public string ProtocolTraceMeaning { get; set; } = string.Empty;
+        public string ProtocolTraceRaw { get; set; } = string.Empty;
+        public string ProtocolTraceMeta { get; set; } = string.Empty;
+
+        public static CaptureFrameRecord FromEvidenceRow(EvidenceRow row)
+            => new()
+            {
+                Sequence = row.Sequence,
+                Time = row.Time,
+                Direction = row.Direction,
+                ProtocolName = row.ProtocolName,
+                ProtocolMode = row.ProtocolMode,
+                State = row.State,
+                Category = row.Category,
+                DataClass = row.DataClass,
+                Service = row.ProtocolService,
+                Address = row.ProtocolAddress,
+                SignalOrAddress = row.SignalOrAddress,
+                Value = row.SemanticState,
+                Quality = row.Quality,
+                AsduType = row.AsduType,
+                TypeId = row.TypeId,
+                Cot = row.Cot,
+                CotCode = row.CotCode,
+                LinkAddress = row.LinkAddress,
+                CommonAddress = row.CommonAddress,
+                Ioa = row.IoAddress,
+                Acd = row.Acd,
+                Dfc = row.Dfc,
+                RelayTime = row.RelayTime,
+                ResponseTime = row.ResponseTime,
+                Meaning = row.ReadableMeaning,
+                Detail = row.Detail,
+                RawHex = row.RawHex,
+                ProtocolTraceTitle = row.ProtocolTraceTitle,
+                ProtocolTraceMeaning = row.ProtocolTraceMeaning,
+                ProtocolTraceRaw = row.ProtocolTraceRaw,
+                ProtocolTraceMeta = row.ProtocolTraceMeta
+            };
+    }
+
 
 }
 
