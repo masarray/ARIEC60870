@@ -82,6 +82,11 @@ public partial class MainWindow : Window
     private const int MaxPendingEvidenceBacklog = 5000;
     private const int UiFlushSlowWarningMs = 120;
     private const int UiQueuePressureWarningDepth = 2500;
+    private const int TriggerPreCaptureRows = 32;
+    private const int TriggerPostCaptureRows = 24;
+    private const int MaxConcurrentTriggerCaptures = 4;
+    private const int MaxTriggerPreBufferRows = 80;
+
 
     private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
     private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
@@ -104,6 +109,13 @@ public partial class MainWindow : Window
     private readonly List<DiagnosticRow> _pendingDiagnosticUiRows = new();
     private readonly BoundedRingBuffer<FindingRow> _findingStore = new(MaxVisibleFindingRows);
     private readonly BoundedRingBuffer<DiagnosticRow> _diagnosticStore = new(MaxVisibleDiagnosticRows);
+    private readonly Queue<EvidenceRow> _triggerPreCaptureBuffer = new();
+    private readonly List<ProtocolTriggerCapture> _activeProtocolTriggerCaptures = new();
+    private readonly Dictionary<string, DateTime> _lastProtocolTriggerUtcByKey = new(StringComparer.OrdinalIgnoreCase);
+    private int _protocolTriggerCaptureSequence;
+    private long _protocolTriggerStartedCount;
+    private long _protocolTriggerCompletedCount;
+
     private readonly Dictionary<string, ValueRow> _valueRowsByKey = new(StringComparer.OrdinalIgnoreCase);
     private bool _valueRowsDirty;
     private bool _relayEventRowsDirty;
@@ -223,6 +235,7 @@ public partial class MainWindow : Window
             MainTabControl.SelectedIndex = 1;
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
             UpdateSegmentedNav(false);
+            UpdateAutoScrollLatestRailVisual();
             ApplyCommandDockLayout();
             UpdateCommandDockActionButtons();
             UpdateConnectToggleVisual(false);
@@ -245,6 +258,7 @@ public partial class MainWindow : Window
     public ObservableCollection<ProtocolMapLine> SelectedProtocolMapLines { get; } = new();
     public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
     public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
+    public ObservableCollection<TriggerCaptureRow> TriggerCaptureRows { get; } = new();
 
     private void RefreshPorts_Click(object sender, RoutedEventArgs e) => RefreshPorts();
 
@@ -1651,10 +1665,25 @@ public partial class MainWindow : Window
         if (CommandDockToggleIcon is not null)
         {
             CommandDockToggleIcon.Data = (Geometry)FindResource(_commandDockExpanded ? "LucideCircleChevronRight" : "LucideCircleChevronLeft");
+            CommandDockToggleIcon.Stroke = (Brush)FindResource("Ink500Brush");
+        }
+
+        if (CommandDockMiniIcon is not null)
+        {
+            CommandDockMiniIcon.Stroke = (Brush)FindResource("Ink500Brush");
         }
     }
 
     private void ToggleCommandDock_Click(object sender, RoutedEventArgs e)
+        => ToggleCommandDockPanel();
+
+    private void CommandDockHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        ToggleCommandDockPanel();
+        e.Handled = true;
+    }
+
+    private void ToggleCommandDockPanel()
     {
         _commandDockExpanded = !_commandDockExpanded;
         ApplyCommandDockLayout();
@@ -2339,21 +2368,97 @@ public partial class MainWindow : Window
             "Use this marker when reviewing FAT/SAT evidence so compressed routine trace rows are not mistaken for missing protocol evidence.");
     }
 
-    private void ExportMarkdown_Click(object sender, RoutedEventArgs e)
+
+
+    private bool IsReportPreviewTabActive()
+        => MainTabControl?.SelectedIndex == 6;
+
+    private void RefreshReportPreview_Click(object sender, RoutedEventArgs e)
     {
-        if (_lastResult == null)
+        RefreshReportPreview();
+    }
+
+    private void RefreshReportPreview()
+    {
+        if (ReportPreviewBrowser is null)
         {
-            MessageBox.Show(this, "No completed session result is available yet.", "Export evidence", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
+        var html = BuildCurrentReportPreviewHtml();
+        ReportPreviewBrowser.NavigateToString(html);
+    }
+
+    private IReadOnlyList<EvidenceRow> GetCurrentReportRows(out string sourceWorkspace)
+    {
+        var selectedRows = GetSelectedRowsForUnifiedEvidenceCapture(out sourceWorkspace);
+        if (selectedRows.Count > 0)
+        {
+            return selectedRows;
+        }
+
+        var protocolRows = _protocolTraceStore.Snapshot();
+        if (protocolRows.Count > 0)
+        {
+            sourceWorkspace = "ProtocolTrace";
+            return protocolRows;
+        }
+
+        if (EvidenceRows.Count > 0)
+        {
+            sourceWorkspace = "EvidenceSummary";
+            return EvidenceRows.ToArray();
+        }
+
+        sourceWorkspace = "CurrentEvidenceBuffer";
+        return Array.Empty<EvidenceRow>();
+    }
+
+    private string BuildCurrentReportPreviewHtml()
+    {
+        var rows = GetCurrentReportRows(out var sourceWorkspace);
+        var created = DateTime.Now;
+        if (rows.Count == 0)
+        {
+            return BuildEmptyReportPreviewHtml(created);
+        }
+
+        return BuildPlnEvidenceHtmlReport("ARIEC-REPORT-PREVIEW", created, rows, sourceWorkspace);
+    }
+
+    private string BuildEmptyReportPreviewHtml(DateTime createdLocal)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\" />");
+        builder.AppendLine("<title>ARIEC Report Preview</title>");
+        builder.AppendLine(BuildReportCss());
+        builder.AppendLine("</head><body><main class=\"page\">");
+        builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ARIEC60870 Protocol Lab</div><h1>Report Preview</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
+        builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Protocol Trace / Evidence Summary.</li><li>Return here and click Refresh.</li><li>Click Export HTML / PDF, open the HTML in browser, then print to PDF.</li></ul></section>");
+        builder.AppendLine("<section class=\"card\"><h2>Generated</h2><p>" + EscapeHtml(createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)) + "</p></section>");
+        builder.AppendLine("</main></body></html>");
+        return builder.ToString();
+    }
+
+    private void ExportMarkdown_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = GetCurrentReportRows(out var sourceWorkspace);
+
+        if (rows.Count == 0)
+        {
+            MessageBox.Show(this, "No evidence rows are available yet. Run or open a capture first.", "Export report", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var created = DateTime.Now;
+        var reportId = "ARIEC-REPORT-" + created.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
         var dialog = new SaveFileDialog
         {
-            Title = "Export ARIEC60870 Evidence Report",
-            Filter = "Markdown report (*.md)|*.md|All files (*.*)|*.*",
-            FileName = "ARIEC60870-master-evidence.md",
+            Title = "Export PLN-style evidence report",
+            Filter = "HTML report (*.html)|*.html|All files (*.*)|*.*",
+            FileName = $"{reportId}.html",
             AddExtension = true,
-            DefaultExt = ".md"
+            DefaultExt = ".html"
         };
 
         if (dialog.ShowDialog(this) != true)
@@ -2361,13 +2466,231 @@ public partial class MainWindow : Window
             return;
         }
 
-        var markdown = new MasterMarkdownReportWriter().Write(_lastResult, maxEvents: 1000);
-        markdown = AppendEvidenceRetentionPolicy(markdown);
-        File.WriteAllText(dialog.FileName, markdown, Encoding.UTF8);
-        AddEvidenceRetentionExportMarker("Markdown evidence report");
-        AppendSessionLog("Evidence report exported with retention policy marker: " + dialog.FileName);
-        MessageBox.Show(this, "Evidence report exported successfully.", "Export evidence", MessageBoxButton.OK, MessageBoxImage.Information);
+        var html = BuildPlnEvidenceHtmlReport(reportId, created, rows, sourceWorkspace);
+        File.WriteAllText(dialog.FileName, html, Encoding.UTF8);
+        AddEvidenceRetentionExportMarker("PLN-style HTML evidence report");
+        AppendSessionLog("PLN-style HTML evidence report exported: " + dialog.FileName);
+        MessageBox.Show(this, "HTML evidence report exported successfully. Open it in a browser and print to PDF when needed.", "Export report", MessageBoxButton.OK, MessageBoxImage.Information);
     }
+
+    private string BuildPlnEvidenceHtmlReport(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
+    {
+        var orderedRows = rows.OrderBy(row => row.Sequence).ToArray();
+        var first = orderedRows.First();
+        var last = orderedRows.Last();
+        var protocolMode = GetSelectedProtocolMode().ToString();
+        var setupLines = BuildReportCommunicationSetupLines();
+        var giRows = orderedRows.Where(IsGiEvidenceRow).Take(80).ToArray();
+        var commandRows = orderedRows.Where(IsCommandEvidenceRow).Take(80).ToArray();
+        var soeRows = orderedRows.Where(IsSoeOrEventEvidenceRow).Take(120).ToArray();
+        var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(180).ToArray();
+        var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
+        var verdict = BuildReportVerdict(orderedRows);
+
+        var html = new StringBuilder();
+        html.AppendLine("<!doctype html>");
+        html.AppendLine("<html lang=\"en\">");
+        html.AppendLine("<head>");
+        html.AppendLine("<meta charset=\"utf-8\" />");
+        html.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
+        html.AppendLine("<title>" + EscapeHtml(reportId) + "</title>");
+        html.AppendLine(BuildReportCss());
+        html.AppendLine("</head>");
+        html.AppendLine("<body>");
+        html.AppendLine("<main class=\"page\">");
+        html.AppendLine("<section class=\"hero\">");
+        html.AppendLine("<div>");
+        html.AppendLine("<div class=\"eyebrow\">ARIEC60870 Protocol Lab</div>");
+        html.AppendLine("<h1>IEC 60870 Evidence Report</h1>");
+        html.AppendLine("<p>PLN-style communication test evidence generated from the current ARIEC evidence buffer. This file is standalone and can be opened without ARIEC.</p>");
+        html.AppendLine("</div>");
+        html.AppendLine("<div class=\"verdict " + EscapeHtml(verdict.CssClass) + "\">");
+        html.AppendLine("<span>Verdict</span><strong>" + EscapeHtml(verdict.Status) + "</strong>");
+        html.AppendLine("</div>");
+        html.AppendLine("</section>");
+
+        html.AppendLine("<section class=\"grid two\">");
+        html.AppendLine(BuildInfoCard("Report", new[]
+        {
+            ("Report ID", reportId),
+            ("Created", createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)),
+            ("Source", sourceWorkspace),
+            ("Protocol", protocolMode),
+            ("Rows", orderedRows.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("Sequence", $"{first.Sequence} → {last.Sequence}"),
+            ("frames SHA256", framesSha256)
+        }));
+        html.AppendLine(BuildInfoCard("Session Counters", new[]
+        {
+            ("TX / RX", $"{_txCount} / {_rxCount}"),
+            ("GI", _giCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
+            ("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("DPI/Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("Findings", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        }));
+        html.AppendLine("</section>");
+
+        html.AppendLine("<section class=\"card\">");
+        html.AppendLine("<h2>Communication Setup</h2>");
+        html.AppendLine("<div class=\"kvlist\">");
+        foreach (var line in setupLines)
+        {
+            html.AppendLine("<div><span>" + EscapeHtml(line.Key) + "</span><strong>" + EscapeHtml(line.Value) + "</strong></div>");
+        }
+        html.AppendLine("</div>");
+        html.AppendLine("</section>");
+
+        html.AppendLine("<section class=\"card\">");
+        html.AppendLine("<h2>Summary Verdict</h2>");
+        html.AppendLine("<p class=\"lead\">" + EscapeHtml(verdict.Summary) + "</p>");
+        html.AppendLine("</section>");
+
+        html.AppendLine(BuildEvidenceTable("GI Evidence", "General interrogation milestones and related protocol rows.", giRows));
+        html.AppendLine(BuildEvidenceTable("Command Evidence", "Select/operate, ACTCON/ACTTERM, command feedback and related rows.", commandRows));
+        html.AppendLine(BuildEvidenceTable("SOE / Event Evidence", "Spontaneous, digital/event, timestamp and quality-related rows.", soeRows));
+        html.AppendLine(BuildEvidenceTable("Important Protocol Evidence", "Warnings, errors, quality issue, NACK/negative, timeout, mapped signals and selected important rows.", importantRows.Length > 0 ? importantRows : orderedRows.Take(120).ToArray()));
+
+        html.AppendLine("<section class=\"card appendix\">");
+        html.AppendLine("<h2>Report Notes</h2>");
+        html.AppendLine("<ul>");
+        html.AppendLine("<li>This report is generated from ARIEC evidence rows and does not require the ARIEC application to be opened.</li>");
+        html.AppendLine("<li>Use browser print to save as PDF for FAT/SAT or PLN/Pusertif evidence attachment.</li>");
+        html.AppendLine("<li>For full replayable evidence, keep the accompanying .ariec capture file.</li>");
+        html.AppendLine("</ul>");
+        html.AppendLine("</section>");
+
+        html.AppendLine("</main>");
+        html.AppendLine("</body>");
+        html.AppendLine("</html>");
+        return html.ToString();
+    }
+
+    private IEnumerable<KeyValuePair<string, string>> BuildReportCommunicationSetupLines()
+    {
+        yield return new("Protocol", GetSelectedProtocolMode().ToString());
+        yield return new("Transport", (TransportModeComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "-");
+        yield return new("Serial port", PortComboBox?.SelectedItem?.ToString() ?? "-");
+        yield return new("Baud", (BaudComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "-");
+        yield return new("IEC104 host/port", $"{TcpHostBox?.Text}:{TcpPortBox?.Text}");
+        yield return new("Link address", LinkAddressBox?.Text ?? "-");
+        yield return new("Common address", CommonAddressBox?.Text ?? "-");
+        yield return new("COT / CA / IOA size", $"{(CotSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(CaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(IoaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content}");
+        yield return new("T0/T1/T2/T3", $"{Iec104T0Box?.Text}/{Iec104T1Box?.Text}/{Iec104T2Box?.Text}/{Iec104T3Box?.Text}");
+        yield return new("K/W", $"{Iec104KBox?.Text}/{Iec104WBox?.Text}");
+        yield return new("Mapping profile", string.IsNullOrWhiteSpace(MappingProfilePathBox?.Text) ? "-" : MappingProfilePathBox.Text);
+    }
+
+    private static string BuildReportCss()
+        => """
+<style>
+:root{--ink:#111827;--muted:#64748b;--line:#dbe5f2;--panel:#f8fbff;--accent:#2563eb;--good:#16a34a;--warn:#d97706;--bad:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:#eaf1fb;color:var(--ink);font-family:Aptos,Segoe UI,Arial,sans-serif;font-size:13px;line-height:1.45}.page{max-width:1180px;margin:28px auto;padding:0 22px 36px}.hero{display:flex;justify-content:space-between;gap:24px;align-items:stretch;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:white;border-radius:24px;padding:30px 34px;box-shadow:0 24px 60px rgba(15,23,42,.24)}.hero h1{margin:4px 0 8px;font-size:32px;letter-spacing:-.04em}.hero p{margin:0;color:#dbeafe;max-width:720px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#bfdbfe;font-weight:700}.verdict{min-width:180px;border-radius:20px;padding:18px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);display:flex;flex-direction:column;justify-content:center;text-align:center}.verdict span{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#dbeafe}.verdict strong{font-size:28px;letter-spacing:-.03em}.verdict.pass strong{color:#86efac}.verdict.attention strong{color:#fde68a}.verdict.fail strong{color:#fecaca}.grid{display:grid;gap:16px;margin-top:16px}.grid.two{grid-template-columns:1fr 1fr}.card{background:white;border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 12px 32px rgba(15,23,42,.08)}.card h2{margin:0 0 12px;font-size:18px;letter-spacing:-.02em}.lead{font-size:14px;color:#334155;margin:0}.kvlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}.kvlist div{border-bottom:1px solid #eef3f8;padding-bottom:8px}.kvlist span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}.kvlist strong{display:block;margin-top:3px;font-weight:600;word-break:break-word}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 10px;border-bottom:1px solid #edf2f7;vertical-align:top;text-align:left}th{position:sticky;top:0;background:#f8fbff;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#475569}td.mono{font-family:'Cascadia Mono','Consolas',monospace;font-size:12px}.muted{color:var(--muted)}.chip{display:inline-block;border-radius:999px;padding:3px 8px;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:11px}.empty{color:var(--muted);font-style:italic}.appendix ul{margin:0;padding-left:18px}@media print{body{background:white}.page{max-width:none;margin:0;padding:0}.hero,.card{box-shadow:none}.hero{border-radius:0}.card{break-inside:avoid}.tablewrap{overflow:visible}th{position:static}}
+</style>
+""";
+
+    private static string BuildInfoCard(string title, IEnumerable<(string Key, string Value)> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("<section class=\"card\">");
+        builder.AppendLine("<h2>" + EscapeHtml(title) + "</h2>");
+        builder.AppendLine("<div class=\"kvlist\">");
+        foreach (var row in rows)
+        {
+            builder.AppendLine("<div><span>" + EscapeHtml(row.Key) + "</span><strong>" + EscapeHtml(row.Value) + "</strong></div>");
+        }
+        builder.AppendLine("</div>");
+        builder.AppendLine("</section>");
+        return builder.ToString();
+    }
+
+    private static string BuildEvidenceTable(string title, string description, IReadOnlyList<EvidenceRow> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("<section class=\"card\">");
+        builder.AppendLine("<h2>" + EscapeHtml(title) + "</h2>");
+        builder.AppendLine("<p class=\"muted\">" + EscapeHtml(description) + "</p>");
+        if (rows.Count == 0)
+        {
+            builder.AppendLine("<p class=\"empty\">No matching evidence rows in this capture/report scope.</p>");
+        }
+        else
+        {
+            builder.AppendLine("<div class=\"tablewrap\"><table>");
+            builder.AppendLine("<thead><tr><th>#</th><th>Time</th><th>Dir</th><th>Service</th><th>CA/IOA</th><th>Type/COT</th><th>Quality</th><th>Meaning</th><th>Raw</th></tr></thead><tbody>");
+            foreach (var row in rows)
+            {
+                builder.AppendLine("<tr>" +
+                    "<td class=\"mono\">" + EscapeHtml(row.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture)) + "</td>" +
+                    "<td class=\"mono\">" + EscapeHtml(row.Time) + "</td>" +
+                    "<td><span class=\"chip\">" + EscapeHtml(row.Direction) + "</span></td>" +
+                    "<td>" + EscapeHtml(row.ProtocolService) + "</td>" +
+                    "<td class=\"mono\">" + EscapeHtml(row.CommonAddress + " / " + row.IoAddress) + "</td>" +
+                    "<td>" + EscapeHtml(row.TypeId + " / " + row.CotDisplay) + "</td>" +
+                    "<td>" + EscapeHtml(row.Quality) + "</td>" +
+                    "<td>" + EscapeHtml(row.ProtocolTraceMeaning) + "</td>" +
+                    "<td class=\"mono\">" + EscapeHtml(row.RawHex) + "</td>" +
+                    "</tr>");
+            }
+            builder.AppendLine("</tbody></table></div>");
+        }
+
+        builder.AppendLine("</section>");
+        return builder.ToString();
+    }
+
+    private static bool IsGiEvidenceRow(EvidenceRow row)
+    {
+        var text = BuildReportSearchText(row);
+        return ContainsAny(text, "general interrogation", "interrogation", "GI ", "ACTCON", "ACTTERM");
+    }
+
+    private static bool IsCommandEvidenceRow(EvidenceRow row)
+    {
+        var text = BuildReportSearchText(row);
+        return ContainsAny(text, "command", "select", "operate", "activation confirmation", "activation termination", "feedback", "C_SC", "C_DC", "C_SE");
+    }
+
+    private static bool IsSoeOrEventEvidenceRow(EvidenceRow row)
+    {
+        var text = BuildReportSearchText(row);
+        return row.Mapped.Equals("Yes", StringComparison.OrdinalIgnoreCase)
+               || ContainsAny(text, "spontaneous", "event", "digital", "single-point", "double-point", "timestamp", "soe");
+    }
+
+    private static bool IsReportImportantEvidenceRow(EvidenceRow row)
+    {
+        var text = BuildReportSearchText(row);
+        return ContainsAny(text, "warning", "error", "negative", "nack", "timeout", "quality", "invalid", "not topical", "command", "interrogation", "spontaneous")
+               || row.Mapped.Equals("Yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildReportSearchText(EvidenceRow row)
+        => string.Join(" ", row.Category, row.State, row.ProtocolService, row.ProtocolTraceTitle, row.ProtocolTraceMeaning, row.Detail, row.CotDisplay, row.Quality, row.RawHex, row.SignalOrAddress, row.SemanticState);
+
+    private static (string Status, string Summary, string CssClass) BuildReportVerdict(IReadOnlyList<EvidenceRow> rows)
+    {
+        var combined = string.Join(" ", rows.Select(BuildReportSearchText));
+        if (ContainsAny(combined, "error", "timeout", "failed", "negative", "nack"))
+        {
+            return ("ATTENTION", "The evidence set contains protocol errors, timeout, negative confirmation, or NACK symptoms. Review the highlighted sections before accepting the test result.", "attention");
+        }
+
+        if (rows.Any(IsGiEvidenceRow) && rows.Any(IsSoeOrEventEvidenceRow))
+        {
+            return ("PASS", "GI and event evidence are present in the selected report scope. Review the point coverage and timestamp sections for final acceptance.", "pass");
+        }
+
+        return ("ATTENTION", "Evidence exists but is not sufficient for a full automatic pass verdict. Complete GI, event/SOE, and command feedback evidence may still be required.", "attention");
+    }
+
+    private static string EscapeHtml(string? value)
+        => (value ?? string.Empty)
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("'", "&#39;", StringComparison.Ordinal);
 
     private Iec103MasterSettings BuildSettingsFromUi()
     {
@@ -3006,6 +3329,210 @@ public partial class MainWindow : Window
 
 
 
+
+    private bool IsFollowLiveEnabled()
+        => AutoScrollLatestToggleButton is null || AutoScrollLatestToggleButton.IsChecked == true;
+
+    private void EnterLineMonitorHoldForUserSelection()
+    {
+        if (AutoScrollLatestToggleButton?.IsChecked == true)
+        {
+            AutoScrollLatestToggleButton.IsChecked = false;
+        }
+
+        _protocolTraceViewDirtyWhileFrozen = true;
+        _evidenceSummaryViewDirtyWhileFrozen = true;
+        UpdateLineMonitorStatus();
+    }
+
+
+    private bool IsLineMonitorHoldRequested()
+        => !IsFollowLiveEnabled();
+
+    private long GetActiveWorkspacePendingRows()
+    {
+        if (IsEvidenceSummaryTabActive())
+        {
+            return _evidenceSummaryRowsDeferredWhileFrozen;
+        }
+
+        if (IsProtocolTraceTabActive())
+        {
+            return _protocolTraceRowsDeferredWhileFrozen;
+        }
+
+        return _evidenceSummaryRowsDeferredWhileFrozen + _protocolTraceRowsDeferredWhileFrozen;
+    }
+
+    private int GetActiveWorkspaceSelectedRows()
+    {
+        if (IsEvidenceSummaryTabActive())
+        {
+            return EvidenceSummaryList?.SelectedItems.Count ?? 0;
+        }
+
+        if (IsProtocolTraceTabActive())
+        {
+            return FrameTraceGrid?.SelectedItems.Count ?? 0;
+        }
+
+        return 0;
+    }
+
+    private void UpdateLineMonitorStatus()
+    {
+        UpdateAutoScrollLatestRailVisual();
+    }
+
+    private void UpdateAutoScrollLatestRailVisual()
+    {
+        if (AutoScrollLatestToggleButton is null)
+        {
+            return;
+        }
+
+        var enabledForWorkspace = IsEvidenceSummaryTabActive() || IsProtocolTraceTabActive();
+        AutoScrollLatestToggleButton.IsEnabled = enabledForWorkspace;
+
+        var isOn = enabledForWorkspace && IsFollowLiveEnabled();
+        if (AutoScrollOnIcon is not null)
+        {
+            AutoScrollOnIcon.Visibility = isOn ? Visibility.Visible : Visibility.Collapsed;
+            AutoScrollOnIcon.Stroke = (Brush)FindResource(isOn ? "AccentBrush" : "Ink500Brush");
+        }
+
+        if (AutoScrollOffIcon is not null)
+        {
+            AutoScrollOffIcon.Visibility = isOn ? Visibility.Collapsed : Visibility.Visible;
+            AutoScrollOffIcon.Stroke = enabledForWorkspace ? (Brush)FindResource("Ink500Brush") : (Brush)FindResource("Ink500Brush");
+        }
+
+        if (AutoScrollCaption is not null)
+        {
+            AutoScrollCaption.Text = isOn ? "Auto" : "Hold";
+            AutoScrollCaption.Foreground = enabledForWorkspace
+                ? (Brush)FindResource(isOn ? "AccentBrush" : "Ink600Brush")
+                : (Brush)FindResource("Ink500Brush");
+        }
+    }
+
+    private void AutoScrollLatestToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        if (IsFollowLiveEnabled())
+        {
+            ResumeLiveViews(clearSelection: true, followLive: true);
+        }
+        else
+        {
+            _protocolTraceViewDirtyWhileFrozen = true;
+            _evidenceSummaryViewDirtyWhileFrozen = true;
+            UpdateLineMonitorStatus();
+        }
+    }
+
+    private void ResumeLiveViews(bool clearSelection, bool followLive)
+    {
+        if (AutoScrollLatestToggleButton is not null)
+        {
+            AutoScrollLatestToggleButton.IsChecked = followLive;
+        }
+
+        if (clearSelection)
+        {
+            FrameTraceGrid?.SelectedItems.Clear();
+                EvidenceSummaryList?.SelectedItems.Clear();
+            _protocolTraceSelectionAnchorIndex = -1;
+            _evidenceSummarySelectionAnchorIndex = -1;
+            _isProtocolTraceDragSelecting = false;
+            _isProtocolTraceSelectionBatching = false;
+            _isEvidenceSummaryDragSelecting = false;
+            _pendingProtocolTraceSelectionInspectorRefresh = false;
+        }
+
+        ApplyEvidenceSummarySnapshotNow();
+        ApplyProtocolTraceSnapshotNow();
+        ScrollActiveWorkspaceToLatest();
+        ApplySelectedEvidenceRowToInspector(null);
+        UpdateLineMonitorStatus();
+        UpdateBufferStatus();
+    }
+
+    private void JumpActiveWorkspaceToLatest()
+    {
+        if (IsEvidenceSummaryTabActive())
+        {
+            ApplyEvidenceSummarySnapshotNow();
+        }
+        else if (IsProtocolTraceTabActive())
+        {
+            ApplyProtocolTraceSnapshotNow();
+        }
+        else
+        {
+            ApplyEvidenceSummarySnapshotNow();
+            ApplyProtocolTraceSnapshotNow();
+        }
+
+        ScrollActiveWorkspaceToLatest();
+        UpdateLineMonitorStatus();
+        UpdateBufferStatus();
+    }
+
+    private void ApplyEvidenceSummarySnapshotNow()
+    {
+        EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
+        _pendingEvidenceSummaryUiRows.Clear();
+        _evidenceSummaryViewDirtyWhileFrozen = false;
+        _evidenceSummaryRowsDeferredWhileFrozen = 0;
+    }
+
+    private void ApplyProtocolTraceSnapshotNow()
+    {
+        FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+        _pendingProtocolTraceUiRows.Clear();
+        _protocolTraceViewDirtyWhileFrozen = false;
+        _protocolTraceRowsDeferredWhileFrozen = 0;
+    }
+
+
+    private void ScrollLatestEvidenceSummaryIfAutoScroll()
+    {
+        if (!IsFollowLiveEnabled() || !IsEvidenceSummaryTabActive() || EvidenceRows.Count == 0)
+        {
+            return;
+        }
+
+        EvidenceSummaryList?.ScrollIntoView(EvidenceRows[EvidenceRows.Count - 1]);
+    }
+
+    private void ScrollLatestProtocolTraceIfAutoScroll()
+    {
+        if (!IsFollowLiveEnabled() || !IsProtocolTraceTabActive() || FrameTraceRows.Count == 0)
+        {
+            return;
+        }
+
+        FrameTraceGrid?.ScrollIntoView(FrameTraceRows[FrameTraceRows.Count - 1]);
+    }
+
+    private void ScrollActiveWorkspaceToLatest()
+    {
+        if (IsEvidenceSummaryTabActive() && EvidenceRows.Count > 0)
+        {
+            EvidenceSummaryList?.ScrollIntoView(EvidenceRows[EvidenceRows.Count - 1]);
+        }
+
+        if (IsProtocolTraceTabActive() && FrameTraceRows.Count > 0)
+        {
+            FrameTraceGrid?.ScrollIntoView(FrameTraceRows[FrameTraceRows.Count - 1]);
+        }
+    }
+
     private bool IsEvidenceSummaryViewFrozen()
     {
         if (!IsEvidenceSummaryTabActive() || EvidenceSummaryList is null)
@@ -3013,7 +3540,8 @@ public partial class MainWindow : Window
             return false;
         }
 
-        return _isEvidenceSummaryDragSelecting
+        return IsLineMonitorHoldRequested()
+               || _isEvidenceSummaryDragSelecting
                || EvidenceSummaryList.SelectedItems.Count > 0
                || EvidenceSummaryList.ContextMenu?.IsOpen == true;
     }
@@ -3035,22 +3563,24 @@ public partial class MainWindow : Window
         _isEvidenceSummaryDragSelecting = false;
         EvidenceSummaryList?.SelectedItems.Clear();
         _evidenceSummarySelectionAnchorIndex = -1;
-        _evidenceSummaryViewDirtyWhileFrozen = true;
-        ApplyDeferredEvidenceSummarySnapshotIfNeeded();
+        ApplyEvidenceSummarySnapshotNow();
         ApplySelectedEvidenceRowToInspector(null);
+        ScrollActiveWorkspaceToLatest();
+        UpdateLineMonitorStatus();
     }
 
     private bool IsProtocolTraceViewFrozen()
     {
-        if (!IsProtocolTraceTabActive() || FrameTraceGrid is null)
+        if (!IsProtocolTraceTabActive())
         {
             return false;
         }
 
-        return _isProtocolTraceDragSelecting
+        return IsLineMonitorHoldRequested()
+               || _isProtocolTraceDragSelecting
                || _isProtocolTraceSelectionBatching
-               || FrameTraceGrid.SelectedItems.Count > 0
-               || FrameTraceGrid.ContextMenu?.IsOpen == true;
+               || (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0
+               || FrameTraceGrid?.ContextMenu?.IsOpen == true;
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
@@ -3072,9 +3602,10 @@ public partial class MainWindow : Window
         _pendingProtocolTraceSelectionInspectorRefresh = false;
         FrameTraceGrid?.SelectedItems.Clear();
         _protocolTraceSelectionAnchorIndex = -1;
-        _protocolTraceViewDirtyWhileFrozen = true;
-        ApplyDeferredProtocolTraceSnapshotIfNeeded();
+        ApplyProtocolTraceSnapshotNow();
         ApplySelectedEvidenceRowToInspector(null);
+        ScrollActiveWorkspaceToLatest();
+        UpdateLineMonitorStatus();
     }
 
     private void AddEvidenceSummaryRow(EvidenceRow row)
@@ -3116,6 +3647,7 @@ public partial class MainWindow : Window
                 EvidenceRows.AddRange(_pendingEvidenceSummaryUiRows);
                 _pendingEvidenceSummaryUiRows.Clear();
                 _visibleEvidenceDropped += EvidenceRows.TrimStart(MaxVisibleEvidenceRows);
+                ScrollLatestEvidenceSummaryIfAutoScroll();
             }
         }
         else
@@ -3137,6 +3669,7 @@ public partial class MainWindow : Window
                 FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
                 _pendingProtocolTraceUiRows.Clear();
                 _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+                ScrollLatestProtocolTraceIfAutoScroll();
             }
         }
         else
@@ -3172,6 +3705,7 @@ public partial class MainWindow : Window
         }
 
         _lastVisibleBatchRows = batchRows;
+        UpdateLineMonitorStatus();
     }
 
     private void RefreshActiveTraceSnapshot()
@@ -3196,6 +3730,7 @@ public partial class MainWindow : Window
 
         _pendingEvidenceSummaryUiRows.Clear();
         _pendingProtocolTraceUiRows.Clear();
+        UpdateLineMonitorStatus();
     }
 
 
@@ -3208,34 +3743,9 @@ public partial class MainWindow : Window
 
     private TraceVerbosityMode GetTraceVerbosityMode()
     {
-        var text = (TraceVerbosityComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString()
-                   ?? TraceVerbosityComboBox?.Text
-                   ?? "Balanced";
-
-        if (text.Contains("Full", StringComparison.OrdinalIgnoreCase))
-        {
-            return TraceVerbosityMode.Full;
-        }
-
-        if (text.Contains("Proof", StringComparison.OrdinalIgnoreCase))
-        {
-            return TraceVerbosityMode.Proof;
-        }
-
+        // The public-preview UX hides trace verbosity from the central toolbar to reduce visual noise.
+        // Balanced remains the safe default until the advanced settings surface is reintroduced.
         return TraceVerbosityMode.Balanced;
-    }
-
-    private void TraceVerbosityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (BufferStatusText is not null)
-        {
-            UpdateBufferStatus();
-        }
-
-        if (IsLoaded && SessionLogBox is not null)
-        {
-            AppendSessionLog($"Protocol Trace mode: {GetTraceVerbosityMode()}. Critical evidence remains protected; routine trace retention follows selected mode.");
-        }
     }
 
     private bool ShouldShowInFrameTrace(Iec103MasterEvidenceEvent item, EvidenceRow row)
@@ -3324,6 +3834,7 @@ public partial class MainWindow : Window
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
+        ObserveIecProtocolTriggerWatch(item, row);
 
         if (ShouldAddToEvidenceSummary(item, row, out var summaryKey, out var summarySignature))
         {
@@ -3362,6 +3873,459 @@ public partial class MainWindow : Window
         {
             AppendSessionLog($"#{item.SequenceNumber} {item.State}: {item.Summary} - {item.Detail}");
         }
+    }
+
+
+    private void ObserveIecProtocolTriggerWatch(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        CompleteActiveProtocolTriggerWindows(row);
+
+        if (IsSmartCaptureRuleEnabled())
+        {
+            var trigger = DetectUserDefinedIecCaptureRuleMatch(item, row);
+            if (trigger is not null && ShouldStartProtocolTrigger(trigger, row))
+            {
+                StartProtocolTriggerCapture(trigger, row);
+            }
+        }
+
+        AddTriggerPreCaptureRow(row);
+    }
+
+    private void CompleteActiveProtocolTriggerWindows(EvidenceRow row)
+    {
+        if (_activeProtocolTriggerCaptures.Count == 0)
+        {
+            return;
+        }
+
+        for (var i = _activeProtocolTriggerCaptures.Count - 1; i >= 0; i--)
+        {
+            var capture = _activeProtocolTriggerCaptures[i];
+            capture.Rows.Add(row);
+            capture.PostRowsRemaining--;
+
+            if (capture.PostRowsRemaining <= 0)
+            {
+                FinishProtocolTriggerCapture(capture);
+                _activeProtocolTriggerCaptures.RemoveAt(i);
+            }
+        }
+    }
+
+    private void AddTriggerPreCaptureRow(EvidenceRow row)
+    {
+        _triggerPreCaptureBuffer.Enqueue(row);
+        while (_triggerPreCaptureBuffer.Count > MaxTriggerPreBufferRows)
+        {
+            _triggerPreCaptureBuffer.Dequeue();
+        }
+    }
+
+    private bool ShouldStartProtocolTrigger(ProtocolTriggerCandidate trigger, EvidenceRow row)
+    {
+        var key = $"{trigger.Code}|{row.ProtocolMode}|CA={row.CommonAddress}|IOA={row.IoAddress}|TYPE={row.TypeId}|COT={row.CotCode}";
+        var now = DateTime.UtcNow;
+
+        if (_lastProtocolTriggerUtcByKey.TryGetValue(key, out var lastUtc) && (now - lastUtc).TotalSeconds < 5)
+        {
+            return false;
+        }
+
+        _lastProtocolTriggerUtcByKey[key] = now;
+        return true;
+    }
+
+    private void StartProtocolTriggerCapture(ProtocolTriggerCandidate trigger, EvidenceRow triggerRow)
+    {
+        var maxCaptures = ReadSmartCaptureInt(SmartCaptureMaxCapturesBox, 20, 1, 500);
+        if (_protocolTriggerCompletedCount >= maxCaptures)
+        {
+            SmartCaptureRuleStatusText.Text = $"Capture rule reached max captures ({maxCaptures}). Disable or increase Max cap to continue.";
+            return;
+        }
+
+        if (_activeProtocolTriggerCaptures.Count >= MaxConcurrentTriggerCaptures)
+        {
+            AddUiDiagnostic(
+                "Warning",
+                "CaptureRule",
+                "ARIEC-RULE-CAPTURE-SKIPPED",
+                "IEC capture rule skipped because too many capture windows are already open",
+                $"{trigger.Code}: {trigger.Title}",
+                "Reduce rule rate, wait for active windows to complete, or narrow the rule condition.");
+            return;
+        }
+
+        var preRows = ReadSmartCaptureInt(SmartCapturePreRowsBox, TriggerPreCaptureRows, 0, MaxTriggerPreBufferRows);
+        var postRows = ReadSmartCaptureInt(SmartCapturePostRowsBox, TriggerPostCaptureRows, 0, 250);
+
+        var rows = _triggerPreCaptureBuffer
+            .Reverse()
+            .Take(preRows)
+            .Reverse()
+            .ToList();
+
+        rows.Add(triggerRow);
+
+        var sequence = System.Threading.Interlocked.Increment(ref _protocolTriggerCaptureSequence);
+        var capture = new ProtocolTriggerCapture(
+            $"RULE-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{sequence:000}",
+            trigger,
+            triggerRow,
+            rows,
+            postRows);
+
+        _activeProtocolTriggerCaptures.Add(capture);
+        _protocolTriggerStartedCount++;
+
+        SmartCaptureRuleStatusText.Text = $"Recording rule match: {trigger.Code}, row #{triggerRow.Sequence}, pre {Math.Max(0, rows.Count - 1)}, post {postRows}.";
+
+        AddUiDiagnostic(
+            trigger.Severity,
+            "CaptureRule",
+            "ARIEC-RULE-CAPTURE-STARTED",
+            trigger.Title,
+            $"{trigger.Detail}{Environment.NewLine}Trigger row #{triggerRow.Sequence}. Pre rows: {Math.Max(0, rows.Count - 1)}. Post rows target: {postRows}.",
+            "ARIEC is collecting pre/post evidence because the user-enabled capture rule matched.");
+    }
+
+    private void FinishProtocolTriggerCapture(ProtocolTriggerCapture capture)
+    {
+        try
+        {
+            var folder = GetProtocolTriggerCaptureFolder();
+            Directory.CreateDirectory(folder);
+
+            var safeCode = string.Concat(capture.Trigger.Code.Select(ch => char.IsLetterOrDigit(ch) || ch == '-' ? ch : '-'));
+            var fileName = Path.Combine(folder, $"{capture.CaptureId}-{safeCode}.ariec");
+
+            WriteSelectedEvidenceCapture(fileName, capture.Rows, $"ProtocolTrigger-{capture.Trigger.Code}");
+            _protocolTriggerCompletedCount++;
+            AddTriggerCaptureDashboardRow(capture, fileName);
+
+            AddUiDiagnostic(
+                capture.Trigger.Severity,
+                "Trigger",
+                "ARIEC-IEC-TRIGGER-CAPTURE-SAVED",
+                "IEC trigger pre/post capture saved",
+                $"{capture.Trigger.Title}{Environment.NewLine}Rows: {capture.Rows.Count}. File: {fileName}",
+                "Open the .ariec file from the trigger evidence folder to review the exact pre/post window around the IEC event.");
+            AppendSessionLog($"IEC trigger capture saved: {capture.Trigger.Code}, rows={capture.Rows.Count}, file={fileName}");
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic(
+                "Error",
+                "Trigger",
+                "ARIEC-IEC-TRIGGER-CAPTURE-FAILED",
+                "IEC trigger capture could not be saved",
+                ex.Message,
+                "Check local app data write permission and available disk space.",
+                ex);
+        }
+    }
+
+
+    private void AddTriggerCaptureDashboardRow(ProtocolTriggerCapture capture, string fileName)
+    {
+        var row = new TriggerCaptureRow(
+            capture.CaptureId,
+            DateTime.UtcNow.ToLocalTime().ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
+            capture.Trigger.Severity,
+            capture.Trigger.Code,
+            capture.Trigger.Title,
+            capture.Trigger.Detail,
+            capture.Rows.Count,
+            capture.TriggerRow.Sequence,
+            fileName);
+
+        TriggerCaptureRows.Insert(0, row);
+        while (TriggerCaptureRows.Count > 240)
+        {
+            TriggerCaptureRows.RemoveAt(TriggerCaptureRows.Count - 1);
+        }
+    }
+
+    private void TriggerCaptureGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (TriggerCaptureGrid.SelectedItem is not TriggerCaptureRow row)
+        {
+            TriggerCaptureDetailBox.Text = "Select a trigger capture row to view complete detail.";
+            return;
+        }
+
+        TriggerCaptureDetailBox.Text = row.ToDetailText();
+    }
+
+    private void CopySelectedTriggerCapturePath_Click(object sender, RoutedEventArgs e)
+    {
+        if (TriggerCaptureGrid.SelectedItem is not TriggerCaptureRow row || string.IsNullOrWhiteSpace(row.FilePath))
+        {
+            MessageBox.Show(this, "Select a trigger capture row first.", "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        Clipboard.SetText(row.FilePath);
+        AppendSessionLog("Trigger capture path copied to clipboard.");
+    }
+
+    private void OpenTriggerCaptureFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folder = GetProtocolTriggerCaptureFolder();
+            Directory.CreateDirectory(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = folder,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic(
+                "Error",
+                "Trigger",
+                "ARIEC-TRIGGER-FOLDER-OPEN-FAILED",
+                "Trigger capture folder could not be opened",
+                ex.Message,
+                "Open the local app data ARIEC60870 trigger-captures folder manually.",
+                ex);
+            MessageBox.Show(this, "Failed to open trigger capture folder: " + ex.Message, "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static string GetProtocolTriggerCaptureFolder()
+        => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ARIEC60870",
+            "trigger-captures");
+
+
+    private ProtocolTriggerCandidate? DetectUserDefinedIecCaptureRuleMatch(Iec103MasterEvidenceEvent item, EvidenceRow row)
+    {
+        var preset = GetComboBoxText(SmartCapturePresetComboBox, "Any Matching Rule");
+        var direction = GetComboBoxText(SmartCaptureDirectionComboBox, "Any");
+
+        if (!direction.Equals("Any", StringComparison.OrdinalIgnoreCase) &&
+            !row.Direction.Equals(direction, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!FieldMatches(SmartCaptureCaBox?.Text, row.CommonAddress))
+        {
+            return null;
+        }
+
+        if (!FieldMatches(SmartCaptureIoaBox?.Text, row.IoAddress))
+        {
+            return null;
+        }
+
+        if (!FieldMatches(SmartCaptureTypeIdBox?.Text, row.TypeId))
+        {
+            return null;
+        }
+
+        if (!FieldMatches(SmartCaptureCotBox?.Text, row.CotCode, row.Cot, row.CotDisplay))
+        {
+            return null;
+        }
+
+        var combined = BuildCaptureRuleSearchText(item, row);
+        if (!FieldContains(SmartCaptureTextBox?.Text, combined))
+        {
+            return null;
+        }
+
+        if (!FieldContains(SmartCaptureRawHexBox?.Text, row.RawHex, row.ProtocolTraceRaw))
+        {
+            return null;
+        }
+
+        if (!SmartCapturePresetMatches(preset, item, row, combined))
+        {
+            return null;
+        }
+
+        var code = "USER-RULE-" + MakeSafeTriggerCode(preset);
+        var title = preset.Equals("Any Matching Rule", StringComparison.OrdinalIgnoreCase)
+            ? "User-defined IEC capture rule matched"
+            : $"User-defined IEC capture rule matched: {preset}";
+
+        var severity = preset switch
+        {
+            "Negative / NACK" => "Warning",
+            "Quality Issue" => "Warning",
+            "Timeout / Error" => "Error",
+            "ACD / DFC" => "Warning",
+            _ => "Info"
+        };
+
+        return new ProtocolTriggerCandidate(
+            code,
+            title,
+            CompactTriggerDetail(row, combined),
+            severity);
+    }
+
+    private bool IsSmartCaptureRuleEnabled()
+        => SmartCaptureRuleEnabledCheckBox?.IsChecked == true;
+
+    private void ApplySmartCaptureRule_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateSmartCaptureRuleStatus();
+    }
+
+    private void DisableSmartCaptureRule_Click(object sender, RoutedEventArgs e)
+    {
+        if (SmartCaptureRuleEnabledCheckBox is not null)
+        {
+            SmartCaptureRuleEnabledCheckBox.IsChecked = false;
+        }
+
+        _activeProtocolTriggerCaptures.Clear();
+        UpdateSmartCaptureRuleStatus();
+    }
+
+    private void UpdateSmartCaptureRuleStatus()
+    {
+        if (SmartCaptureRuleStatusText is null)
+        {
+            return;
+        }
+
+        if (!IsSmartCaptureRuleEnabled())
+        {
+            SmartCaptureRuleStatusText.Text = "Capture rule OFF. No automatic recording.";
+            return;
+        }
+
+        var preset = GetComboBoxText(SmartCapturePresetComboBox, "Any Matching Rule");
+        var direction = GetComboBoxText(SmartCaptureDirectionComboBox, "Any");
+        var pre = ReadSmartCaptureInt(SmartCapturePreRowsBox, TriggerPreCaptureRows, 0, MaxTriggerPreBufferRows);
+        var post = ReadSmartCaptureInt(SmartCapturePostRowsBox, TriggerPostCaptureRows, 0, 250);
+        var max = ReadSmartCaptureInt(SmartCaptureMaxCapturesBox, 20, 1, 500);
+        SmartCaptureRuleStatusText.Text = $"Capture rule ON: {preset}, dir {direction}, pre {pre}, post {post}, max {max}.";
+    }
+
+    private static string GetComboBoxText(ComboBox? comboBox, string fallback)
+    {
+        if (comboBox?.SelectedItem is ComboBoxItem item && item.Content is not null)
+        {
+            return item.Content.ToString() ?? fallback;
+        }
+
+        return fallback;
+    }
+
+    private static bool SmartCapturePresetMatches(string preset, Iec103MasterEvidenceEvent item, EvidenceRow row, string combined)
+    {
+        if (preset.Equals("Any Matching Rule", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return preset switch
+        {
+            "Negative / NACK" => ContainsAny(combined, "negative", "nack", "not topical", "blocked", "invalid activation", "ACTCON negative"),
+            "GI Milestone" => ContainsAny(combined, "general interrogation", "interrogation", "GI ", "ACTCON", "ACTTERM"),
+            "Command Lifecycle" => ContainsAny(combined, "command", "select", "operate", "activation confirmation", "activation termination", "feedback", "C_SC", "C_DC", "C_SE"),
+            "Digital / Event" => item.IsRelayEdgeEvent || ContainsAny(combined, "spontaneous", "digital", "single-point", "double-point", "M_SP", "M_DP", "event"),
+            "Quality Issue" => ContainsAny(combined, "invalid", "not topical", "substituted", "blocked", "overflow", "bad quality", "quality issue"),
+            "Timeout / Error" => ContainsAny(combined, "timeout", "no response", "failed", "error", "communication error"),
+            "ACD / DFC" => item.Acd == true || item.Dfc == true || ContainsAny(combined, "ACD=1", "DFC=1", "access demand", "data flow control", "busy"),
+            _ => true
+        };
+    }
+
+    private static string BuildCaptureRuleSearchText(Iec103MasterEvidenceEvent item, EvidenceRow row)
+        => string.Join(" ",
+            item.ProtocolMode,
+            item.Category,
+            item.State,
+            item.Summary,
+            item.Detail,
+            item.OperatorMessage,
+            item.OperatorAction,
+            item.ProtocolMeaning,
+            item.CauseName,
+            item.Cot,
+            item.QualityText,
+            row.Direction,
+            row.ProtocolName,
+            row.ProtocolService,
+            row.ProtocolAddress,
+            row.CommonAddress,
+            row.IoAddress,
+            row.TypeId,
+            row.TypeIdName,
+            row.CotCode,
+            row.Cot,
+            row.CotDisplay,
+            row.Quality,
+            row.ProtocolTraceTitle,
+            row.ProtocolTraceMeaning,
+            row.Detail,
+            row.RawHex,
+            row.ProtocolTraceRaw,
+            row.SemanticLabel,
+            row.SemanticState);
+
+    private static bool FieldMatches(string? expected, params string[] actuals)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        var needle = expected.Trim();
+        return actuals.Any(actual => string.Equals((actual ?? string.Empty).Trim(), needle, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool FieldContains(string? expected, params string[] actuals)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            return true;
+        }
+
+        var needle = expected.Trim();
+        return actuals.Any(actual => (actual ?? string.Empty).Contains(needle, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int ReadSmartCaptureInt(TextBox? textBox, int fallback, int min, int max)
+    {
+        if (textBox is null || !int.TryParse(textBox.Text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value))
+        {
+            return fallback;
+        }
+
+        return Math.Clamp(value, min, max);
+    }
+
+    private static string MakeSafeTriggerCode(string value)
+    {
+        var safe = new string((value ?? string.Empty)
+            .Select(ch => char.IsLetterOrDigit(ch) ? char.ToUpperInvariant(ch) : '-')
+            .ToArray());
+
+        safe = safe.Trim('-');
+        return string.IsNullOrWhiteSpace(safe) ? "CUSTOM" : safe;
+    }
+
+    private static string CompactTriggerDetail(EvidenceRow row, string combined)
+    {
+        var detail = $"{row.ProtocolTraceTitle} | {row.ProtocolTraceMeaning}";
+        if (!string.IsNullOrWhiteSpace(row.RawHex) && row.RawHex != "-")
+        {
+            detail += $" | RAW {row.RawHex}";
+        }
+
+        const int max = 420;
+        return detail.Length <= max ? detail : detail[..max] + "…";
     }
 
     private bool ShouldAddToEvidenceSummary(Iec103MasterEvidenceEvent item, EvidenceRow row, out string summaryKey, out string summarySignature)
@@ -4401,7 +5365,11 @@ public partial class MainWindow : Window
         }
 
         RefreshActiveTraceSnapshot();
-        ExportDataButton.IsEnabled = GetCurrentTabDataGrid() is not null;
+        if (IsReportPreviewTabActive())
+        {
+            RefreshReportPreview();
+        }
+        UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
     }
 
@@ -4426,10 +5394,11 @@ public partial class MainWindow : Window
             NavFrameButton,
             NavValueButton,
             NavEventButton,
-            NavAssessmentButton,
             NavFindingsButton,
             NavDiagnosticsButton,
-            NavNotesButton
+            NavReportButton,
+            NavNotesButton,
+            NavTriggersButton
         };
     }
 
@@ -4485,10 +5454,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        EnterLineMonitorHoldForUserSelection();
         BeginProtocolTraceSelectionBatch();
         ApplyProtocolTraceSelectionGesture(listBox, index, Keyboard.Modifiers);
         _isProtocolTraceDragSelecting = true;
         FocusProtocolTraceContainer(listBox, index);
+        UpdateLineMonitorStatus();
         e.Handled = true;
     }
 
@@ -4568,6 +5539,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        EnterLineMonitorHoldForUserSelection();
         var row = FrameTraceRows[index];
         if (!listBox.SelectedItems.Contains(row))
         {
@@ -4834,6 +5806,7 @@ public partial class MainWindow : Window
     }
 
 
+
     private void EvidenceSummaryList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ListBox listBox)
@@ -4847,9 +5820,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        EnterLineMonitorHoldForUserSelection();
         ApplyEvidenceSummarySelectionGesture(listBox, index, Keyboard.Modifiers);
         _isEvidenceSummaryDragSelecting = true;
         FocusEvidenceSummaryContainer(listBox, index);
+        UpdateLineMonitorStatus();
         e.Handled = true;
     }
 
@@ -4920,6 +5895,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        EnterLineMonitorHoldForUserSelection();
         var row = EvidenceRows[index];
         if (!listBox.SelectedItems.Contains(row))
         {
@@ -5501,6 +6477,14 @@ public partial class MainWindow : Window
                 held = IsEvidenceSummaryViewFrozen(),
                 deferred = _evidenceSummaryRowsDeferredWhileFrozen
             },
+            triggers = new
+            {
+                started = _protocolTriggerStartedCount,
+                completed = _protocolTriggerCompletedCount,
+                active = _activeProtocolTriggerCaptures.Count,
+                preRows = TriggerPreCaptureRows,
+                postRows = TriggerPostCaptureRows
+            },
             backpressure = new
             {
                 dropped = _backpressureDroppedEvents,
@@ -5655,7 +6639,7 @@ public partial class MainWindow : Window
 
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "No Protocol Trace rows are available to export.", "Export Protocol Trace", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "No Protocol Trace / Messages rows are available to export.", "Export Protocol Trace", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -5721,7 +6705,6 @@ public partial class MainWindow : Window
             "Evidence Summary" => EvidenceGrid,
             "Value Viewer" => ValueGrid,
             "Event Log" => RelayEventGrid,
-            "AutoTest Assessment" => AssessmentGrid,
             "Findings" => FindingsGrid,
             "Diagnostics" => DiagnosticsGrid,
             _ => null
@@ -6463,7 +7446,7 @@ public partial class MainWindow : Window
         UpdateConnectToggleVisual(isRunning);
         SetupButton.IsEnabled = !isRunning;
         SetupOverlay.Visibility = isRunning ? Visibility.Collapsed : SetupOverlay.Visibility;
-        ExportMarkdownButton.IsEnabled = !isRunning && _lastResult != null;
+        ExportMarkdownButton.IsEnabled = true;
         ProtocolModeComboBox.IsEnabled = !isRunning;
         TransportModeComboBox.IsEnabled = !isRunning;
         TcpHostBox.IsEnabled = !isRunning;
@@ -6535,6 +7518,11 @@ public partial class MainWindow : Window
         _lastBackpressureLogUtc = DateTime.MinValue;
         _lastDispatcherPressureDiagnosticUtc = DateTime.MinValue;
         _lastDispatcherSlowDiagnosticUtc = DateTime.MinValue;
+        _triggerPreCaptureBuffer.Clear();
+        _activeProtocolTriggerCaptures.Clear();
+        _lastProtocolTriggerUtcByKey.Clear();
+        _protocolTriggerStartedCount = 0;
+        _protocolTriggerCompletedCount = 0;
         FindingRows.Clear();
         ValueRows.Clear();
         RelayEventRows.Clear();
@@ -6553,6 +7541,11 @@ public partial class MainWindow : Window
         ResetRuntimeHealthStores();
         AssessmentRows.Clear();
         DiagnosticRows.Clear();
+        TriggerCaptureRows.Clear();
+        if (TriggerCaptureDetailBox is not null)
+        {
+            TriggerCaptureDetailBox.Text = "Automatic IEC trigger captures will appear here. Select a capture row to view detail.";
+        }
         while (_pendingEvidence.TryDequeue(out _)) { }
         while (_pendingFindings.TryDequeue(out _)) { }
         _visibleEvidenceDropped = 0;
@@ -6671,14 +7664,51 @@ public partial class MainWindow : Window
     }
 
     private void ToggleStatusHistory_Click(object sender, RoutedEventArgs e)
+        => ToggleStatusHistoryPanel();
+
+    private void StatusHistoryHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        ToggleStatusHistoryPanel();
+        e.Handled = true;
+    }
+
+    private void ToggleStatusHistoryPanel()
     {
         _statusHistoryExpanded = !_statusHistoryExpanded;
         StatusHistoryPanel.Height = _statusHistoryExpanded ? double.NaN : 52;
         StatusHistoryGapRow.Height = _statusHistoryExpanded ? new GridLength(8) : new GridLength(0);
         StatusHistoryContentRow.Height = _statusHistoryExpanded ? new GridLength(118) : new GridLength(0);
         StatusHistoryGrid.Visibility = _statusHistoryExpanded ? Visibility.Visible : Visibility.Collapsed;
-        StatusHistoryToggleText.Text = _statusHistoryExpanded ? "Hide" : "Show";
         StatusHistoryToggleIcon.Data = (Geometry)FindResource(_statusHistoryExpanded ? "LucideCircleChevronDown" : "LucideCircleChevronUp");
+        StatusHistoryToggleIcon.Stroke = (Brush)FindResource("Ink500Brush");
+    }
+
+    private void PanelHeader_MouseEnter(object sender, MouseEventArgs e)
+    {
+        SetPanelHeaderIconHover(sender, isHovering: true);
+    }
+
+    private void PanelHeader_MouseLeave(object sender, MouseEventArgs e)
+    {
+        SetPanelHeaderIconHover(sender, isHovering: false);
+    }
+
+    private void SetPanelHeaderIconHover(object sender, bool isHovering)
+    {
+        var brush = (Brush)FindResource(isHovering ? "AccentBrush" : "Ink500Brush");
+
+        if (ReferenceEquals(sender, CommandDockHeader) && CommandDockToggleIcon is not null)
+        {
+            CommandDockToggleIcon.Stroke = brush;
+        }
+        else if (ReferenceEquals(sender, CommandDockMiniButton) && CommandDockMiniIcon is not null)
+        {
+            CommandDockMiniIcon.Stroke = brush;
+        }
+        else if (ReferenceEquals(sender, StatusHistoryHeader) && StatusHistoryToggleIcon is not null)
+        {
+            StatusHistoryToggleIcon.Stroke = brush;
+        }
     }
 
     private void UpdateBufferStatus()
@@ -6692,6 +7722,38 @@ public partial class MainWindow : Window
         var evidenceHold = IsEvidenceSummaryViewFrozen() ? $", evidenceHold {_evidenceSummaryRowsDeferredWhileFrozen}" : string.Empty;
         BufferStatusText.Text =
             $"Buffer: trace {GetTraceVerbosityMode()}{traceHold}{evidenceHold}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+    }
+
+
+    private sealed record ProtocolTriggerCandidate(
+        string Code,
+        string Title,
+        string Detail,
+        string Severity);
+
+    private sealed class ProtocolTriggerCapture
+    {
+        public ProtocolTriggerCapture(
+            string captureId,
+            ProtocolTriggerCandidate trigger,
+            EvidenceRow triggerRow,
+            List<EvidenceRow> rows,
+            int postRowsRemaining)
+        {
+            CaptureId = captureId;
+            Trigger = trigger;
+            TriggerRow = triggerRow;
+            Rows = rows;
+            PostRowsRemaining = postRowsRemaining;
+            StartedUtc = DateTime.UtcNow;
+        }
+
+        public string CaptureId { get; }
+        public ProtocolTriggerCandidate Trigger { get; }
+        public EvidenceRow TriggerRow { get; }
+        public List<EvidenceRow> Rows { get; }
+        public int PostRowsRemaining { get; set; }
+        public DateTime StartedUtc { get; }
     }
 
     private sealed class CaptureManifest
@@ -6808,3 +7870,30 @@ public partial class MainWindow : Window
 }
 
 public sealed record StatusHistoryRow(string Time, string Status, string Detail);
+
+public sealed record TriggerCaptureRow(
+    string CaptureId,
+    string CompletedLocalTime,
+    string Severity,
+    string Code,
+    string Title,
+    string Detail,
+    int RowCount,
+    long TriggerRow,
+    string FilePath)
+{
+    public string ToDetailText()
+        => $"""
+Capture ID: {CaptureId}
+Completed: {CompletedLocalTime}
+Severity: {Severity}
+Trigger: {Code}
+Title: {Title}
+Rows: {RowCount}
+Trigger row: #{TriggerRow}
+File: {FilePath}
+
+Detail:
+{Detail}
+""";
+}

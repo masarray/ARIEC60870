@@ -53,10 +53,10 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="StopButton" Style="{StaticResource RailDangerIconButton}" Click="Stop_Click" IsEnabled="False" ToolTip="Disconnect and close transport" Visibility="Collapsed" Height="0" Margin="0" />
-                <Button x:Name="ExportMarkdownButton" Style="{StaticResource RailIconButton}" Click="ExportMarkdown_Click" IsEnabled="False" ToolTip="Export evidence report">
+                <Button x:Name="ExportMarkdownButton" Style="{StaticResource RailIconButton}" Click="ExportMarkdown_Click" ToolTip="Export standalone HTML evidence report / print to PDF">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
-                        <TextBlock Text="Export" Style="{StaticResource RailButtonCaption}" />
+                        <TextBlock Text="Report" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="OpenCaptureButton" Style="{StaticResource RailIconButton}" Click="OpenCapture_Click" ToolTip="Open .ariec capture for offline review">
@@ -77,6 +77,65 @@
                         <TextBlock Text="Trace TXT" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
+                <ToggleButton x:Name="AutoScrollLatestToggleButton"
+                              Width="76"
+                              Height="64"
+                              Margin="0,0,0,8"
+                              IsChecked="True"
+                              IsEnabled="False"
+                              Checked="AutoScrollLatestToggle_Changed"
+                              Unchecked="AutoScrollLatestToggle_Changed"
+                              ToolTip="Auto scroll latest">
+                    <ToggleButton.Style>
+                        <Style TargetType="{x:Type ToggleButton}">
+                            <Setter Property="Background" Value="#FFFFFF" />
+                            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="ToggleRoot"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="18"
+                                                Padding="8"
+                                                Effect="{StaticResource SoftShadow}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="ToggleRoot" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                                <Setter TargetName="ToggleRoot" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="ToggleRoot" Property="Opacity" Value="0.38" />
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ToggleRoot" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ToggleButton.Style>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid Width="20" Height="20" HorizontalAlignment="Center">
+                            <Path x:Name="AutoScrollOnIcon"
+                                  Style="{StaticResource RailIconPath}"
+                                  Data="{StaticResource LucideCircleChevronDown}"
+                                  Stroke="#2563EB" />
+                            <Path x:Name="AutoScrollOffIcon"
+                                  Style="{StaticResource RailIconPath}"
+                                  Data="{StaticResource LucideCircleChevronRight}"
+                                  Stroke="#94A3B8"
+                                  Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock x:Name="AutoScrollCaption" Text="Auto" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </ToggleButton>
                 <Button x:Name="ClearButton" Style="{StaticResource RailIconButton}" Click="Clear_Click" ToolTip="Clear visible session rows">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideTrash2}" />
@@ -178,53 +237,40 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Margin="12,12,18,8">
+                    <Grid Grid.Row="0" Margin="12,12,18,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <Border x:Name="SegmentedNavRoot" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="22" Padding="4" HorizontalAlignment="Left" Effect="{StaticResource SoftShadow}">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#FFFFFF" Offset="0" />
-                                    <GradientStop Color="#F5F8FF" Offset="1" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <Grid>
-                                <Border x:Name="SegmentSlider" Height="34" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
-                                    <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
-                                    <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
-                                </Border>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="NavFrameButton" Content="Protocol Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavValueButton" Content="Value Viewer" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavAssessmentButton" Content="AutoTest" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
-                                    <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTip="Workspace navigation">
+                            <Border x:Name="SegmentedNavRoot" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="22" Padding="4" HorizontalAlignment="Left" Effect="{StaticResource SoftShadow}">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FFFFFF" Offset="0" />
+                                        <GradientStop Color="#F5F8FF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Grid>
+                                    <Border x:Name="SegmentSlider" Height="34" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
+                                        <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
+                                        <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="NavFrameButton" Content="Protocol Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavValueButton" Content="Value Viewer" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavReportButton" Content="Report Preview" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </ScrollViewer>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Protocol Trace retention mode. Proof protects important evidence and compresses routine raw trace; Full stores all TX/RX rows until ring buffer limit.">
-                                <TextBlock Text="Trace" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                <ComboBox x:Name="TraceVerbosityComboBox" Width="118" Height="34" SelectedIndex="1" SelectionChanged="TraceVerbosityComboBox_SelectionChanged">
-                                    <ComboBoxItem Content="Proof" />
-                                    <ComboBoxItem Content="Balanced" />
-                                    <ComboBoxItem Content="Full" />
-                                </ComboBox>
-                            </StackPanel>
-                            <Button x:Name="ExportDataButton" Style="{StaticResource SecondaryButton}" Width="148" Height="34" Padding="12,6" Click="ExportData_Click" ToolTip="Export selected tab grid as tab-separated .txt">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideDownload}" />
-                                    <TextBlock Text="Export Data" Margin="7,0,0,0" VerticalAlignment="Center" FontWeight="Medium" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
                     </Grid>
 
                     <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="1" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
@@ -625,6 +671,7 @@
                         </Grid>
                     </TabItem>
 
+                    
                     <TabItem Header="Value Viewer">
                         <Grid Margin="14">
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
@@ -687,26 +734,6 @@
                             </DataGrid>
                         </Grid>
                     </TabItem>
-                    <TabItem Header="AutoTest Assessment">
-                        <Grid Margin="14">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="10" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="FAT/SAT checklist summary" Style="{StaticResource SubtleText}" TextWrapping="Wrap" ToolTip="AutoTest converts session evidence into a checklist covering communication activity, GI, polling policy, timing, values, mapping coverage, event timestamps, and findings." />
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="AssessmentGrid" Grid.Row="2" ItemsSource="{Binding AssessmentRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Area" Binding="{Binding Area}" Width="120" />
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="82" />
-                                    <DataGridTextColumn Header="Check" Binding="{Binding Title}" Width="1.2*" MinWidth="200" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                    <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="2*" MinWidth="280" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                    <DataGridTextColumn Header="Recommendation" Binding="{Binding Recommendation}" Width="1.5*" MinWidth="240" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
-                    </TabItem>
-
                     <TabItem Header="Findings">
                         <Grid Margin="14">
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="FindingsGrid" ItemsSource="{Binding FindingRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
@@ -757,6 +784,41 @@
                         </Grid>
                     </TabItem>
 
+                    <TabItem Header="Report Preview">
+                        <Grid Margin="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
+                                <DockPanel LastChildFill="True">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="Report Preview" FontWeight="Medium" FontSize="16" />
+                                        <TextBlock Text="Preview the standalone PLN-style HTML evidence report before export. Use Export HTML / Print PDF, then print from browser to PDF." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource SecondaryButton}" Width="126" Height="34" Padding="10,6" Click="RefreshReportPreview_Click" ToolTip="Refresh report preview from current evidence">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" />
+                                                <TextBlock Text="Refresh" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource PrimaryButton}" Width="170" Height="34" Padding="10,6" Margin="8,0,0,0" Click="ExportMarkdown_Click" ToolTip="Export standalone HTML report. Open in browser and print to PDF.">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" Stroke="#FFFFFF" />
+                                                <TextBlock Text="Export HTML / PDF" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True">
+                                <WebBrowser x:Name="ReportPreviewBrowser" />
+                            </Border>
+                        </Grid>
+                    </TabItem>
+
                     <TabItem Header="Session Notes">
                         <Grid Margin="18">
                             <Grid.RowDefinitions>
@@ -773,7 +835,164 @@
                             <TextBox x:Name="SessionLogBox" Grid.Row="2" Height="Auto" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="12" />
                         </Grid>
                     </TabItem>
-                    </TabControl>
+
+                    <TabItem Header="Smart Capture Rules">
+                        <Grid Margin="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="112" />
+                            </Grid.RowDefinitions>
+
+                            <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Smart IEC Capture Rules" FontWeight="Medium" FontSize="16" />
+                                        <TextBlock Text="Capture is OFF until the engineer enables a rule. Rules record pre/post .ariec evidence only when the configured IEC condition matches." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource SecondaryButton}" Width="128" Height="34" Padding="10,6" Click="CopySelectedTriggerCapturePath_Click" ToolTip="Copy selected capture file path">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCopy}" />
+                                                <TextBlock Text="Copy Path" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource SecondaryButton}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="OpenTriggerCaptureFolder_Click" ToolTip="Open capture folder">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" />
+                                                <TextBlock Text="Open Folder" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="360" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel>
+                                            <CheckBox x:Name="SmartCaptureRuleEnabledCheckBox" Content="Enable capture rule" FontWeight="SemiBold" Margin="0,0,0,12" Click="ApplySmartCaptureRule_Click" />
+                                            <TextBlock Text="Preset" Style="{StaticResource EyebrowText}" />
+                                            <ComboBox x:Name="SmartCapturePresetComboBox" Height="32" Margin="0,4,0,10" SelectedIndex="0">
+                                                <ComboBoxItem Content="Any Matching Rule" />
+                                                <ComboBoxItem Content="Negative / NACK" />
+                                                <ComboBoxItem Content="GI Milestone" />
+                                                <ComboBoxItem Content="Command Lifecycle" />
+                                                <ComboBoxItem Content="Digital / Event" />
+                                                <ComboBoxItem Content="Quality Issue" />
+                                                <ComboBoxItem Content="Timeout / Error" />
+                                                <ComboBoxItem Content="ACD / DFC" />
+                                            </ComboBox>
+
+                                            <TextBlock Text="Direction" Style="{StaticResource EyebrowText}" />
+                                            <ComboBox x:Name="SmartCaptureDirectionComboBox" Height="32" Margin="0,4,0,10" SelectedIndex="0">
+                                                <ComboBoxItem Content="Any" />
+                                                <ComboBoxItem Content="TX" />
+                                                <ComboBoxItem Content="RX" />
+                                                <ComboBoxItem Content="STATE" />
+                                            </ComboBox>
+
+                                            <UniformGrid Columns="2" Margin="0,0,0,10">
+                                                <StackPanel Margin="0,0,6,0">
+                                                    <TextBlock Text="CA" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCaptureCaBox" Height="30" Margin="0,4,0,0" ToolTip="Optional common address match" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,0,0">
+                                                    <TextBlock Text="IOA" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCaptureIoaBox" Height="30" Margin="0,4,0,0" ToolTip="Optional IOA match" />
+                                                </StackPanel>
+                                                <StackPanel Margin="0,8,6,0">
+                                                    <TextBlock Text="Type ID" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCaptureTypeIdBox" Height="30" Margin="0,4,0,0" ToolTip="Optional Type ID match" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,8,0,0">
+                                                    <TextBlock Text="COT" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCaptureCotBox" Height="30" Margin="0,4,0,0" ToolTip="Optional COT code or text match" />
+                                                </StackPanel>
+                                            </UniformGrid>
+
+                                            <TextBlock Text="Decoded text contains" Style="{StaticResource EyebrowText}" />
+                                            <TextBox x:Name="SmartCaptureTextBox" Height="30" Margin="0,4,0,10" ToolTip="Optional match across decoded fields" />
+
+                                            <TextBlock Text="Raw hex contains" Style="{StaticResource EyebrowText}" />
+                                            <TextBox x:Name="SmartCaptureRawHexBox" Height="30" Margin="0,4,0,10" ToolTip="Optional raw hex fragment match" />
+
+                                            <UniformGrid Columns="3" Margin="0,0,0,12">
+                                                <StackPanel Margin="0,0,6,0">
+                                                    <TextBlock Text="Pre rows" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCapturePreRowsBox" Text="32" Height="30" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,6,0">
+                                                    <TextBlock Text="Post rows" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCapturePostRowsBox" Text="24" Height="30" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Margin="6,0,0,0">
+                                                    <TextBlock Text="Max cap" Style="{StaticResource EyebrowText}" />
+                                                    <TextBox x:Name="SmartCaptureMaxCapturesBox" Text="20" Height="30" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </UniformGrid>
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource PrimaryButton}" Width="86" Height="32" Padding="10,6" Click="ApplySmartCaptureRule_Click">
+                                                    <TextBlock Text="Apply" />
+                                                </Button>
+                                                <Button Style="{StaticResource SecondaryButton}" Width="86" Height="32" Padding="10,6" Margin="8,0,0,0" Click="DisableSmartCaptureRule_Click">
+                                                    <TextBlock Text="Disable" />
+                                                </Button>
+                                            </StackPanel>
+
+                                            <TextBlock x:Name="SmartCaptureRuleStatusText" Text="Capture rule OFF. No automatic recording." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,12,0,0" />
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <DataGrid x:Name="TriggerCaptureGrid"
+                                          Grid.Column="2"
+                                          ItemsSource="{Binding TriggerCaptureRows}"
+                                          IsReadOnly="True"
+                                          AutoGenerateColumns="False"
+                                          SelectionChanged="TriggerCaptureGrid_SelectionChanged"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto"
+                                          EnableRowVirtualization="True"
+                                          EnableColumnVirtualization="True"
+                                          VirtualizingPanel.IsVirtualizing="True"
+                                          VirtualizingPanel.VirtualizationMode="Recycling">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Time" Binding="{Binding CompletedLocalTime}" Width="112" />
+                                        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="84" />
+                                        <DataGridTextColumn Header="Rule / Trigger" Binding="{Binding Code}" Width="170" />
+                                        <DataGridTextColumn Header="Rows" Binding="{Binding RowCount}" Width="70" />
+                                        <DataGridTextColumn Header="Trigger row" Binding="{Binding TriggerRow}" Width="90" />
+                                        <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="1.4*" MinWidth="220" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
+                                        <DataGridTextColumn Header="File" Binding="{Binding FilePath}" Width="2*" MinWidth="320" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+
+                            <TextBox x:Name="TriggerCaptureDetailBox"
+                                     Grid.Row="4"
+                                     Text="No capture rule evidence yet. Enable a rule, run the IEC session, then matching traffic will create .ariec pre/post evidence."
+                                     IsReadOnly="True"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Auto"
+                                     FontSize="12" />
+                        </Grid>
+                    </TabItem>
+</TabControl>
                 </Grid>
             </Border>
         <Border x:Name="CommandDockPanel" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="12" Margin="12,0,0,0" Effect="{StaticResource SoftShadow}">
@@ -789,7 +1008,28 @@
                     <RowDefinition Height="10" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Button x:Name="CommandDockToggleButton" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="10,7" HorizontalContentAlignment="Stretch" ToolTip="Expand or collapse command panel">
+                <Border x:Name="CommandDockHeader"
+                        Grid.Row="0"
+                        Padding="10,7"
+                        CornerRadius="14"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="Click panel header to expand or collapse command panel"
+                        MouseLeftButtonUp="CommandDockHeader_MouseLeftButtonUp"
+                        MouseEnter="PanelHeader_MouseEnter"
+                        MouseLeave="PanelHeader_MouseLeave">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Background" Value="#F8FAFC" />
+                            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -799,9 +1039,9 @@
                             <TextBlock Text="Command" Style="{StaticResource EyebrowText}" />
                             <TextBlock x:Name="CommandDockStatusText" Text="Ready. Connect first." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                         </StackPanel>
-                        <Path x:Name="CommandDockToggleIcon" Grid.Column="1" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronRight}" Width="24" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" />
+                        <Path x:Name="CommandDockToggleIcon" Grid.Column="1" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronRight}" Stroke="#94A3B8" Width="24" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </Grid>
-                </Button>
+                </Border>
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10" ToolTip="Runtime command panel for GI, clock sync, read, and command select/operate actions.">
@@ -898,9 +1138,37 @@
             </Grid>
         </Border>
 
-        <Button x:Name="CommandDockMiniButton" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Width="42" Height="42" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,0,0" Visibility="Collapsed" Style="{StaticResource SecondaryButton}" Click="ToggleCommandDock_Click" Padding="0" MinWidth="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="Show command dock">
-            <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronLeft}" Width="24" Height="24" />
-        </Button>
+        <Border x:Name="CommandDockMiniButton"
+                Grid.Row="0"
+                Grid.RowSpan="3"
+                Grid.Column="1"
+                Width="42"
+                Height="42"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,8,0,0"
+                Visibility="Collapsed"
+                CornerRadius="14"
+                BorderThickness="1"
+                Cursor="Hand"
+                ToolTip="Click panel handle to show command dock"
+                MouseLeftButtonUp="CommandDockHeader_MouseLeftButtonUp"
+                MouseEnter="PanelHeader_MouseEnter"
+                MouseLeave="PanelHeader_MouseLeave">
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Background" Value="#FFFFFF" />
+                    <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Path x:Name="CommandDockMiniIcon" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronLeft}" Stroke="#94A3B8" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
 
         </Grid>
 
@@ -918,25 +1186,43 @@
                     <RowDefinition x:Name="StatusHistoryGapRow" Height="8" />
                     <RowDefinition x:Name="StatusHistoryContentRow" Height="118" />
                 </Grid.RowDefinitions>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Border Width="9" Height="9" CornerRadius="5" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium" ToolTip="Session history and diagnostics" Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
-                        <TextBlock x:Name="StatusHistorySummaryText" Text="No active session" Style="{StaticResource SubtleText}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                    <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Width="98" Height="32" Padding="8,4" Click="ToggleStatusHistory_Click" ToolTip="Collapse or expand status history">
-                        <StackPanel Orientation="Horizontal">
-                            <Path x:Name="StatusHistoryToggleIcon" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronDown}" />
-                            <TextBlock x:Name="StatusHistoryToggleText" Text="Hide" Margin="6,0,0,0" VerticalAlignment="Center" />
+                <Border x:Name="StatusHistoryHeader"
+                        Grid.Row="0"
+                        Padding="8,6"
+                        CornerRadius="13"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        ToolTip="Click panel header to expand or collapse status history"
+                        MouseLeftButtonUp="StatusHistoryHeader_MouseLeftButtonUp"
+                        MouseEnter="PanelHeader_MouseEnter"
+                        MouseLeave="PanelHeader_MouseLeave">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderBrush" Value="Transparent" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="9" Height="9" CornerRadius="5" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium" ToolTip="Session history and diagnostics" Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
+                            <TextBlock x:Name="StatusHistorySummaryText" Text="No active session" Style="{StaticResource SubtleText}" FontSize="12" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-                    </Button>
-                </Grid>
+                        <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronDown}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
                 <DataGrid x:Name="StatusHistoryGrid" Grid.Row="2" ItemsSource="{Binding StatusHistoryRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
