@@ -59,6 +59,15 @@ public partial class MainWindow : Window
     private bool _savedSetupPreferencesLoaded;
     private bool _defaultIoaSeedSettingsApplied;
     private bool _isProtocolTraceDragSelecting;
+    private int _protocolTraceSelectionAnchorIndex = -1;
+    private bool _isProtocolTraceSelectionBatching;
+    private bool _pendingProtocolTraceSelectionInspectorRefresh;
+    private bool _protocolTraceViewDirtyWhileFrozen;
+    private long _protocolTraceRowsDeferredWhileFrozen;
+    private bool _isEvidenceSummaryDragSelecting;
+    private int _evidenceSummarySelectionAnchorIndex = -1;
+    private bool _evidenceSummaryViewDirtyWhileFrozen;
+    private long _evidenceSummaryRowsDeferredWhileFrozen;
 
     private const int MaxVisibleEvidenceRows = 260;
     private const int MaxVisibleFrameTraceRows = 1200;
@@ -211,7 +220,7 @@ public partial class MainWindow : Window
         AppendSessionLog("Output model: Value Viewer stays live; Evidence Summary is de-noised proof; raw hex remains available in Protocol Trace for protocol transparency.");
         Loaded += (_, _) =>
         {
-            MainTabControl.SelectedIndex = 0;
+            MainTabControl.SelectedIndex = 1;
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
             UpdateSegmentedNav(false);
             ApplyCommandDockLayout();
@@ -2995,6 +3004,79 @@ public partial class MainWindow : Window
     private bool IsProtocolTraceTabActive()
         => MainTabControl?.SelectedIndex == 1;
 
+
+
+    private bool IsEvidenceSummaryViewFrozen()
+    {
+        if (!IsEvidenceSummaryTabActive() || EvidenceSummaryList is null)
+        {
+            return false;
+        }
+
+        return _isEvidenceSummaryDragSelecting
+               || EvidenceSummaryList.SelectedItems.Count > 0
+               || EvidenceSummaryList.ContextMenu?.IsOpen == true;
+    }
+
+    private void ApplyDeferredEvidenceSummarySnapshotIfNeeded()
+    {
+        if (!_evidenceSummaryViewDirtyWhileFrozen || !IsEvidenceSummaryTabActive() || IsEvidenceSummaryViewFrozen())
+        {
+            return;
+        }
+
+        EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
+        _evidenceSummaryViewDirtyWhileFrozen = false;
+        _evidenceSummaryRowsDeferredWhileFrozen = 0;
+    }
+
+    private void ResumeEvidenceSummaryLiveView()
+    {
+        _isEvidenceSummaryDragSelecting = false;
+        EvidenceSummaryList?.SelectedItems.Clear();
+        _evidenceSummarySelectionAnchorIndex = -1;
+        _evidenceSummaryViewDirtyWhileFrozen = true;
+        ApplyDeferredEvidenceSummarySnapshotIfNeeded();
+        ApplySelectedEvidenceRowToInspector(null);
+    }
+
+    private bool IsProtocolTraceViewFrozen()
+    {
+        if (!IsProtocolTraceTabActive() || FrameTraceGrid is null)
+        {
+            return false;
+        }
+
+        return _isProtocolTraceDragSelecting
+               || _isProtocolTraceSelectionBatching
+               || FrameTraceGrid.SelectedItems.Count > 0
+               || FrameTraceGrid.ContextMenu?.IsOpen == true;
+    }
+
+    private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
+    {
+        if (!_protocolTraceViewDirtyWhileFrozen || !IsProtocolTraceTabActive() || IsProtocolTraceViewFrozen())
+        {
+            return;
+        }
+
+        FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+        _protocolTraceViewDirtyWhileFrozen = false;
+        _protocolTraceRowsDeferredWhileFrozen = 0;
+    }
+
+    private void ResumeProtocolTraceLiveView()
+    {
+        _isProtocolTraceDragSelecting = false;
+        _isProtocolTraceSelectionBatching = false;
+        _pendingProtocolTraceSelectionInspectorRefresh = false;
+        FrameTraceGrid?.SelectedItems.Clear();
+        _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceViewDirtyWhileFrozen = true;
+        ApplyDeferredProtocolTraceSnapshotIfNeeded();
+        ApplySelectedEvidenceRowToInspector(null);
+    }
+
     private void AddEvidenceSummaryRow(EvidenceRow row)
     {
         _evidenceSummaryStore.Add(row);
@@ -3022,16 +3104,44 @@ public partial class MainWindow : Window
 
         if (_pendingEvidenceSummaryUiRows.Count > 0)
         {
-            EvidenceRows.AddRange(_pendingEvidenceSummaryUiRows);
-            _pendingEvidenceSummaryUiRows.Clear();
-            _visibleEvidenceDropped += EvidenceRows.TrimStart(MaxVisibleEvidenceRows);
+            if (IsEvidenceSummaryViewFrozen())
+            {
+                _evidenceSummaryViewDirtyWhileFrozen = true;
+                _evidenceSummaryRowsDeferredWhileFrozen += _pendingEvidenceSummaryUiRows.Count;
+                _pendingEvidenceSummaryUiRows.Clear();
+            }
+            else
+            {
+                ApplyDeferredEvidenceSummarySnapshotIfNeeded();
+                EvidenceRows.AddRange(_pendingEvidenceSummaryUiRows);
+                _pendingEvidenceSummaryUiRows.Clear();
+                _visibleEvidenceDropped += EvidenceRows.TrimStart(MaxVisibleEvidenceRows);
+            }
+        }
+        else
+        {
+            ApplyDeferredEvidenceSummarySnapshotIfNeeded();
         }
 
         if (_pendingProtocolTraceUiRows.Count > 0)
         {
-            FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
-            _pendingProtocolTraceUiRows.Clear();
-            _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+            if (IsProtocolTraceViewFrozen())
+            {
+                _protocolTraceViewDirtyWhileFrozen = true;
+                _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                _pendingProtocolTraceUiRows.Clear();
+            }
+            else
+            {
+                ApplyDeferredProtocolTraceSnapshotIfNeeded();
+                FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+                _pendingProtocolTraceUiRows.Clear();
+                _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+            }
+        }
+        else
+        {
+            ApplyDeferredProtocolTraceSnapshotIfNeeded();
         }
 
         if (_valueRowsDirty)
@@ -3668,13 +3778,24 @@ public partial class MainWindow : Window
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_isProtocolTraceSelectionBatching && ReferenceEquals(sender, FrameTraceGrid))
+        {
+            _pendingProtocolTraceSelectionInspectorRefresh = true;
+            return;
+        }
+
         var selectedItem = sender switch
         {
             DataGrid grid => grid.SelectedItem,
-            ListBox listBox => listBox.SelectedItem,
+            ListBox listBox => listBox.SelectedItem ?? listBox.SelectedItems.OfType<EvidenceRow>().OrderBy(row => row.Sequence).LastOrDefault(),
             _ => null
         };
 
+        ApplySelectedEvidenceRowToInspector(selectedItem);
+    }
+
+    private void ApplySelectedEvidenceRowToInspector(object? selectedItem)
+    {
         if (selectedItem is not EvidenceRow row)
         {
             _selectedFrameRow = null;
@@ -4347,6 +4468,10 @@ public partial class MainWindow : Window
 
 
 
+
+
+
+
     private void FrameTraceGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ListBox listBox)
@@ -4354,28 +4479,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (item?.DataContext is not EvidenceRow row)
+        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= FrameTraceRows.Count)
         {
             return;
         }
 
+        BeginProtocolTraceSelectionBatch();
+        ApplyProtocolTraceSelectionGesture(listBox, index, Keyboard.Modifiers);
         _isProtocolTraceDragSelecting = true;
-        listBox.CaptureMouse();
-
-        var additive = (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0;
-        if (!additive)
-        {
-            listBox.SelectedItems.Clear();
-        }
-
-        if (!listBox.SelectedItems.Contains(row))
-        {
-            listBox.SelectedItems.Add(row);
-        }
-
-        listBox.SelectedItem = row;
-        item.Focus();
+        FocusProtocolTraceContainer(listBox, index);
         e.Handled = true;
     }
 
@@ -4391,18 +4504,40 @@ public partial class MainWindow : Window
             return;
         }
 
-        var item = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (item?.DataContext is not EvidenceRow row)
+        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= FrameTraceRows.Count)
         {
             return;
         }
 
-        if (!listBox.SelectedItems.Contains(row))
+        ExtendProtocolTraceSelectionToIndex(listBox, index);
+        e.Handled = true;
+    }
+
+    private void FrameTraceLineItem_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed)
         {
-            listBox.SelectedItems.Add(row);
+            return;
         }
 
-        listBox.SelectedItem = row;
+        if (sender is not ListBoxItem item || item.DataContext is not EvidenceRow row)
+        {
+            return;
+        }
+
+        if (ItemsControl.ItemsControlFromItemContainer(item) is not ListBox listBox)
+        {
+            return;
+        }
+
+        var index = FrameTraceRows.IndexOf(row);
+        if (index < 0)
+        {
+            return;
+        }
+
+        ExtendProtocolTraceSelectionToIndex(listBox, index);
         e.Handled = true;
     }
 
@@ -4410,14 +4545,618 @@ public partial class MainWindow : Window
     {
         _isProtocolTraceDragSelecting = false;
 
+        if (sender is ListBox listBox)
+        {
+            EndProtocolTraceSelectionBatch(listBox);
+        }
+        else
+        {
+            EndProtocolTraceSelectionBatch(FrameTraceGrid);
+        }
+    }
+
+    private void FrameTraceGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
         if (sender is not ListBox listBox)
         {
             return;
         }
 
-        if (listBox.IsMouseCaptured)
+        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= FrameTraceRows.Count)
         {
-            listBox.ReleaseMouseCapture();
+            return;
+        }
+
+        var row = FrameTraceRows[index];
+        if (!listBox.SelectedItems.Contains(row))
+        {
+            listBox.SelectedItems.Clear();
+            listBox.SelectedItems.Add(row);
+            _protocolTraceSelectionAnchorIndex = index;
+        }
+
+        FocusProtocolTraceContainer(listBox, index);
+    }
+
+    private void BeginProtocolTraceSelectionBatch()
+    {
+        _isProtocolTraceSelectionBatching = true;
+        _pendingProtocolTraceSelectionInspectorRefresh = false;
+    }
+
+    private void EndProtocolTraceSelectionBatch(ListBox? listBox)
+    {
+        _isProtocolTraceSelectionBatching = false;
+
+        if (!_pendingProtocolTraceSelectionInspectorRefresh)
+        {
+            return;
+        }
+
+        _pendingProtocolTraceSelectionInspectorRefresh = false;
+        var row = listBox?.SelectedItems
+            .OfType<EvidenceRow>()
+            .OrderBy(item => item.Sequence)
+            .LastOrDefault();
+
+        ApplySelectedEvidenceRowToInspector(row);
+    }
+
+    private void ApplyProtocolTraceSelectionGesture(ListBox listBox, int index, ModifierKeys modifiers)
+    {
+        var row = FrameTraceRows[index];
+        var shift = (modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+        var ctrl = (modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+        if (shift)
+        {
+            var anchor = GetProtocolTraceSelectionAnchorIndex(listBox, index);
+            SelectProtocolTraceRange(listBox, anchor, index, additive: ctrl);
+            return;
+        }
+
+        if (ctrl)
+        {
+            if (listBox.SelectedItems.Contains(row))
+            {
+                listBox.SelectedItems.Remove(row);
+            }
+            else
+            {
+                listBox.SelectedItems.Add(row);
+            }
+
+            _protocolTraceSelectionAnchorIndex = index;
+            return;
+        }
+
+        listBox.SelectedItems.Clear();
+        listBox.SelectedItems.Add(row);
+        _protocolTraceSelectionAnchorIndex = index;
+    }
+
+    private void ExtendProtocolTraceSelectionToIndex(ListBox listBox, int index)
+    {
+        if (index < 0 || index >= FrameTraceRows.Count)
+        {
+            return;
+        }
+
+        if (_protocolTraceSelectionAnchorIndex < 0 || _protocolTraceSelectionAnchorIndex >= FrameTraceRows.Count)
+        {
+            _protocolTraceSelectionAnchorIndex = index;
+        }
+
+        SelectProtocolTraceRange(listBox, _protocolTraceSelectionAnchorIndex, index, additive: false);
+        FocusProtocolTraceContainer(listBox, index);
+    }
+
+    private void SelectAllVisibleTraceRows_Click(object sender, RoutedEventArgs e)
+    {
+        FrameTraceGrid.SelectedItems.Clear();
+
+        foreach (var row in FrameTraceRows)
+        {
+            FrameTraceGrid.SelectedItems.Add(row);
+        }
+
+        _protocolTraceSelectionAnchorIndex = FrameTraceRows.Count > 0 ? 0 : -1;
+        ApplySelectedEvidenceRowToInspector(FrameTraceRows.LastOrDefault());
+    }
+
+    private void ClearProtocolTraceSelection_Click(object sender, RoutedEventArgs e)
+    {
+        ResumeProtocolTraceLiveView();
+    }
+
+    private void ResumeProtocolTraceLiveView_Click(object sender, RoutedEventArgs e)
+    {
+        ResumeProtocolTraceLiveView();
+    }
+
+    private int GetProtocolTraceSelectionAnchorIndex(ListBox listBox, int fallbackIndex)
+    {
+        if (_protocolTraceSelectionAnchorIndex >= 0 && _protocolTraceSelectionAnchorIndex < FrameTraceRows.Count)
+        {
+            return _protocolTraceSelectionAnchorIndex;
+        }
+
+        if (listBox.SelectedItems.Count > 0)
+        {
+            var selectedIndex = listBox.SelectedItems
+                .OfType<EvidenceRow>()
+                .Select(row => FrameTraceRows.IndexOf(row))
+                .Where(index => index >= 0)
+                .OrderBy(index => index)
+                .FirstOrDefault(-1);
+
+            if (selectedIndex >= 0)
+            {
+                _protocolTraceSelectionAnchorIndex = selectedIndex;
+                return selectedIndex;
+            }
+        }
+
+        _protocolTraceSelectionAnchorIndex = fallbackIndex;
+        return fallbackIndex;
+    }
+
+    private int GetProtocolTraceIndexFromInput(ListBox listBox, DependencyObject? originalSource, Point point)
+    {
+        var sourceItem = originalSource is null
+            ? null
+            : ItemsControl.ContainerFromElement(listBox, originalSource) as ListBoxItem;
+
+        if (sourceItem?.DataContext is EvidenceRow sourceRow)
+        {
+            var index = FrameTraceRows.IndexOf(sourceRow);
+            if (index >= 0)
+            {
+                return index;
+            }
+        }
+
+        return GetProtocolTraceIndexFromPoint(listBox, point);
+    }
+
+    private int GetProtocolTraceIndexFromPoint(ListBox listBox, Point point)
+    {
+        if (FrameTraceRows.Count == 0)
+        {
+            return -1;
+        }
+
+        var directHit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
+        var directItem = ItemsControl.ContainerFromElement(listBox, directHit) as ListBoxItem
+                         ?? FindVisualParent<ListBoxItem>(directHit);
+        if (directItem?.DataContext is EvidenceRow directRow)
+        {
+            var directIndex = FrameTraceRows.IndexOf(directRow);
+            if (directIndex >= 0)
+            {
+                return directIndex;
+            }
+        }
+
+        var bestIndex = -1;
+        var bestDistance = double.MaxValue;
+        var firstVisibleIndex = -1;
+        var lastVisibleIndex = -1;
+        var firstTop = double.MaxValue;
+        var lastBottom = double.MinValue;
+
+        for (var i = 0; i < FrameTraceRows.Count; i++)
+        {
+            if (listBox.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container || !container.IsVisible)
+            {
+                continue;
+            }
+
+            var top = container.TransformToAncestor(listBox).Transform(new Point(0, 0)).Y;
+            var height = Math.Max(1.0, container.ActualHeight);
+            var bottom = top + height;
+
+            if (firstVisibleIndex < 0 || top < firstTop)
+            {
+                firstVisibleIndex = i;
+                firstTop = top;
+            }
+
+            if (lastVisibleIndex < 0 || bottom > lastBottom)
+            {
+                lastVisibleIndex = i;
+                lastBottom = bottom;
+            }
+
+            if (point.Y >= top && point.Y <= bottom)
+            {
+                return i;
+            }
+
+            var distance = Math.Abs(point.Y - (top + height / 2.0));
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+
+        if (firstVisibleIndex >= 0 && point.Y < firstTop)
+        {
+            return firstVisibleIndex;
+        }
+
+        if (lastVisibleIndex >= 0 && point.Y > lastBottom)
+        {
+            return lastVisibleIndex;
+        }
+
+        return bestIndex;
+    }
+
+    private void SelectProtocolTraceRange(ListBox listBox, int firstIndex, int lastIndex, bool additive)
+    {
+        if (FrameTraceRows.Count == 0)
+        {
+            return;
+        }
+
+        if (!additive)
+        {
+            listBox.SelectedItems.Clear();
+        }
+
+        var start = Math.Clamp(Math.Min(firstIndex, lastIndex), 0, FrameTraceRows.Count - 1);
+        var end = Math.Clamp(Math.Max(firstIndex, lastIndex), 0, FrameTraceRows.Count - 1);
+
+        for (var i = start; i <= end; i++)
+        {
+            var row = FrameTraceRows[i];
+            if (!listBox.SelectedItems.Contains(row))
+            {
+                listBox.SelectedItems.Add(row);
+            }
+        }
+    }
+
+    private void FocusProtocolTraceContainer(ListBox listBox, int index)
+    {
+        if (index < 0 || index >= FrameTraceRows.Count)
+        {
+            return;
+        }
+
+        if (listBox.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item)
+        {
+            item.Focus();
+        }
+    }
+
+
+    private void EvidenceSummaryList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var index = GetEvidenceSummaryIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= EvidenceRows.Count)
+        {
+            return;
+        }
+
+        ApplyEvidenceSummarySelectionGesture(listBox, index, Keyboard.Modifiers);
+        _isEvidenceSummaryDragSelecting = true;
+        FocusEvidenceSummaryContainer(listBox, index);
+        e.Handled = true;
+    }
+
+    private void EvidenceSummaryList_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isEvidenceSummaryDragSelecting || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var index = GetEvidenceSummaryIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= EvidenceRows.Count)
+        {
+            return;
+        }
+
+        ExtendEvidenceSummarySelectionToIndex(listBox, index);
+        e.Handled = true;
+    }
+
+    private void EvidenceSummaryLineItem_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_isEvidenceSummaryDragSelecting || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        if (sender is not ListBoxItem item || item.DataContext is not EvidenceRow row)
+        {
+            return;
+        }
+
+        if (ItemsControl.ItemsControlFromItemContainer(item) is not ListBox listBox)
+        {
+            return;
+        }
+
+        var index = EvidenceRows.IndexOf(row);
+        if (index < 0)
+        {
+            return;
+        }
+
+        ExtendEvidenceSummarySelectionToIndex(listBox, index);
+        e.Handled = true;
+    }
+
+    private void EvidenceSummaryList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _isEvidenceSummaryDragSelecting = false;
+    }
+
+    private void EvidenceSummaryList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        var index = GetEvidenceSummaryIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        if (index < 0 || index >= EvidenceRows.Count)
+        {
+            return;
+        }
+
+        var row = EvidenceRows[index];
+        if (!listBox.SelectedItems.Contains(row))
+        {
+            listBox.SelectedItems.Clear();
+            listBox.SelectedItems.Add(row);
+            _evidenceSummarySelectionAnchorIndex = index;
+        }
+
+        FocusEvidenceSummaryContainer(listBox, index);
+    }
+
+    private void ApplyEvidenceSummarySelectionGesture(ListBox listBox, int index, ModifierKeys modifiers)
+    {
+        var row = EvidenceRows[index];
+        var shift = (modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+        var ctrl = (modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+
+        if (shift)
+        {
+            var anchor = GetEvidenceSummarySelectionAnchorIndex(listBox, index);
+            SelectEvidenceSummaryRange(listBox, anchor, index, additive: ctrl);
+            return;
+        }
+
+        if (ctrl)
+        {
+            if (listBox.SelectedItems.Contains(row))
+            {
+                listBox.SelectedItems.Remove(row);
+            }
+            else
+            {
+                listBox.SelectedItems.Add(row);
+            }
+
+            _evidenceSummarySelectionAnchorIndex = index;
+            return;
+        }
+
+        listBox.SelectedItems.Clear();
+        listBox.SelectedItems.Add(row);
+        _evidenceSummarySelectionAnchorIndex = index;
+    }
+
+    private void ExtendEvidenceSummarySelectionToIndex(ListBox listBox, int index)
+    {
+        if (index < 0 || index >= EvidenceRows.Count)
+        {
+            return;
+        }
+
+        if (_evidenceSummarySelectionAnchorIndex < 0 || _evidenceSummarySelectionAnchorIndex >= EvidenceRows.Count)
+        {
+            _evidenceSummarySelectionAnchorIndex = index;
+        }
+
+        SelectEvidenceSummaryRange(listBox, _evidenceSummarySelectionAnchorIndex, index, additive: false);
+        FocusEvidenceSummaryContainer(listBox, index);
+    }
+
+    private void SelectAllEvidenceSummaryRows_Click(object sender, RoutedEventArgs e)
+    {
+        EvidenceSummaryList.SelectedItems.Clear();
+
+        foreach (var row in EvidenceRows)
+        {
+            EvidenceSummaryList.SelectedItems.Add(row);
+        }
+
+        _evidenceSummarySelectionAnchorIndex = EvidenceRows.Count > 0 ? 0 : -1;
+    }
+
+    private void ClearEvidenceSummarySelection_Click(object sender, RoutedEventArgs e)
+    {
+        ResumeEvidenceSummaryLiveView();
+    }
+
+    private void ResumeEvidenceSummaryLiveView_Click(object sender, RoutedEventArgs e)
+    {
+        ResumeEvidenceSummaryLiveView();
+    }
+
+    private int GetEvidenceSummarySelectionAnchorIndex(ListBox listBox, int fallbackIndex)
+    {
+        if (_evidenceSummarySelectionAnchorIndex >= 0 && _evidenceSummarySelectionAnchorIndex < EvidenceRows.Count)
+        {
+            return _evidenceSummarySelectionAnchorIndex;
+        }
+
+        if (listBox.SelectedItems.Count > 0)
+        {
+            var selectedIndex = listBox.SelectedItems
+                .OfType<EvidenceRow>()
+                .Select(row => EvidenceRows.IndexOf(row))
+                .Where(index => index >= 0)
+                .OrderBy(index => index)
+                .FirstOrDefault(-1);
+
+            if (selectedIndex >= 0)
+            {
+                _evidenceSummarySelectionAnchorIndex = selectedIndex;
+                return selectedIndex;
+            }
+        }
+
+        _evidenceSummarySelectionAnchorIndex = fallbackIndex;
+        return fallbackIndex;
+    }
+
+    private int GetEvidenceSummaryIndexFromInput(ListBox listBox, DependencyObject? originalSource, Point point)
+    {
+        var sourceItem = originalSource is null
+            ? null
+            : ItemsControl.ContainerFromElement(listBox, originalSource) as ListBoxItem;
+
+        if (sourceItem?.DataContext is EvidenceRow sourceRow)
+        {
+            var index = EvidenceRows.IndexOf(sourceRow);
+            if (index >= 0)
+            {
+                return index;
+            }
+        }
+
+        return GetEvidenceSummaryIndexFromPoint(listBox, point);
+    }
+
+    private int GetEvidenceSummaryIndexFromPoint(ListBox listBox, Point point)
+    {
+        if (EvidenceRows.Count == 0)
+        {
+            return -1;
+        }
+
+        var directHit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
+        var directItem = ItemsControl.ContainerFromElement(listBox, directHit) as ListBoxItem
+                         ?? FindVisualParent<ListBoxItem>(directHit);
+        if (directItem?.DataContext is EvidenceRow directRow)
+        {
+            var directIndex = EvidenceRows.IndexOf(directRow);
+            if (directIndex >= 0)
+            {
+                return directIndex;
+            }
+        }
+
+        var bestIndex = -1;
+        var bestDistance = double.MaxValue;
+        var firstVisibleIndex = -1;
+        var lastVisibleIndex = -1;
+        var firstTop = double.MaxValue;
+        var lastBottom = double.MinValue;
+
+        for (var i = 0; i < EvidenceRows.Count; i++)
+        {
+            if (listBox.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container || !container.IsVisible)
+            {
+                continue;
+            }
+
+            var top = container.TransformToAncestor(listBox).Transform(new Point(0, 0)).Y;
+            var height = Math.Max(1.0, container.ActualHeight);
+            var bottom = top + height;
+
+            if (firstVisibleIndex < 0 || top < firstTop)
+            {
+                firstVisibleIndex = i;
+                firstTop = top;
+            }
+
+            if (lastVisibleIndex < 0 || bottom > lastBottom)
+            {
+                lastVisibleIndex = i;
+                lastBottom = bottom;
+            }
+
+            if (point.Y >= top && point.Y <= bottom)
+            {
+                return i;
+            }
+
+            var distance = Math.Abs(point.Y - (top + height / 2.0));
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+
+        if (firstVisibleIndex >= 0 && point.Y < firstTop)
+        {
+            return firstVisibleIndex;
+        }
+
+        if (lastVisibleIndex >= 0 && point.Y > lastBottom)
+        {
+            return lastVisibleIndex;
+        }
+
+        return bestIndex;
+    }
+
+    private void SelectEvidenceSummaryRange(ListBox listBox, int firstIndex, int lastIndex, bool additive)
+    {
+        if (EvidenceRows.Count == 0)
+        {
+            return;
+        }
+
+        if (!additive)
+        {
+            listBox.SelectedItems.Clear();
+        }
+
+        var start = Math.Clamp(Math.Min(firstIndex, lastIndex), 0, EvidenceRows.Count - 1);
+        var end = Math.Clamp(Math.Max(firstIndex, lastIndex), 0, EvidenceRows.Count - 1);
+
+        for (var i = start; i <= end; i++)
+        {
+            var row = EvidenceRows[i];
+            if (!listBox.SelectedItems.Contains(row))
+            {
+                listBox.SelectedItems.Add(row);
+            }
+        }
+    }
+
+    private void FocusEvidenceSummaryContainer(ListBox listBox, int index)
+    {
+        if (index < 0 || index >= EvidenceRows.Count)
+        {
+            return;
+        }
+
+        if (listBox.ItemContainerGenerator.ContainerFromIndex(index) is ListBoxItem item)
+        {
+            item.Focus();
         }
     }
 
@@ -4450,22 +5189,25 @@ public partial class MainWindow : Window
 
             ClearSessionView(clearLog: false);
             _protocolTraceStore.Clear();
+            _evidenceSummaryStore.Clear();
             foreach (var row in rows)
             {
                 _protocolTraceStore.Add(row);
+                _evidenceSummaryStore.Add(row);
             }
 
             FrameTraceRows.ReplaceRange(rows);
+            EvidenceRows.ReplaceRange(rows);
             MainTabControl.SelectedIndex = 1;
             UpdateSegmentedNav(false);
-            UpdateStableHeader("Offline Capture Review", $"{rows.Count} Protocol Trace rows loaded from {Path.GetFileName(dialog.FileName)}.");
+            UpdateStableHeader("Offline Capture Review", $"{rows.Count} unified evidence rows loaded from {Path.GetFileName(dialog.FileName)}.");
             AddUiDiagnostic(
                 "Info",
                 "Capture",
                 "ARIEC-CAPTURE-OPENED",
                 "ARIEC capture opened for offline review",
-                $"Loaded {rows.Count} Protocol Trace rows from {dialog.FileName}.",
-                "Use Protocol Trace selection, frame interpreter, export data, or save another selected capture block.");
+                $"Loaded {rows.Count} unified evidence rows from {dialog.FileName}. Protocol Trace and Evidence Summary are rebuilt from the same frames.jsonl truth.",
+                "Use Protocol Trace or Evidence Summary selection, frame interpreter, export data, or save another selected capture block.");
             AppendSessionLog($"Offline capture opened: {rows.Count} rows <- {dialog.FileName}");
         }
         catch (Exception ex)
@@ -4521,14 +5263,15 @@ public partial class MainWindow : Window
         return reader.ReadToEnd();
     }
 
+
     private void SaveSelectedCapture_Click(object sender, RoutedEventArgs e)
     {
-        var rows = GetSelectedProtocolTraceRowsForCapture();
+        var rows = GetSelectedRowsForUnifiedEvidenceCapture(out var sourceWorkspace);
         if (rows.Count == 0)
         {
             MessageBox.Show(this,
-                "Select one or more Protocol Trace rows first. Use Ctrl/Shift selection to save a block as an ARIEC capture.",
-                "Save capture",
+                "Select one or more rows in Protocol Trace or Evidence Summary first, then export the selected rows as an ARIEC capture file.",
+                "Export selected capture",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -4536,9 +5279,9 @@ public partial class MainWindow : Window
 
         var dialog = new SaveFileDialog
         {
-            Title = "Save selected Protocol Trace rows as ARIEC capture",
+            Title = $"Export selected {sourceWorkspace} rows as ARIEC capture",
             Filter = "ARIEC capture (*.ariec)|*.ariec|Zip container (*.zip)|*.zip|All files (*.*)|*.*",
-            FileName = $"ARIEC60870-selected-capture-{DateTime.Now:yyyyMMdd-HHmmss}.ariec",
+            FileName = $"ARIEC60870-{sourceWorkspace}-evidence-{DateTime.Now:yyyyMMdd-HHmmss}.ariec",
             AddExtension = true,
             DefaultExt = ".ariec"
         };
@@ -4550,18 +5293,18 @@ public partial class MainWindow : Window
 
         try
         {
-            WriteSelectedProtocolTraceCapture(dialog.FileName, rows);
+            WriteSelectedEvidenceCapture(dialog.FileName, rows, sourceWorkspace);
             AddUiDiagnostic(
                 "Info",
                 "Capture",
                 "ARIEC-CAPTURE-SELECTION-SAVED",
-                "Selected Protocol Trace block saved as capture",
-                $"Saved {rows.Count} selected Protocol Trace rows to {dialog.FileName}.",
-                "This selected-block capture is portable evidence and will be supported by offline re-open/review mode in the next capture phase.");
-            AppendSessionLog($"Selected Protocol Trace capture saved: {rows.Count} rows -> {dialog.FileName}");
+                "Selected evidence rows saved as capture",
+                $"Saved {rows.Count} selected {sourceWorkspace} rows to {dialog.FileName}.",
+                "The capture file is a single source of truth. Opening it rebuilds Protocol Trace and Evidence Summary from the same frames.jsonl ledger.");
+            AppendSessionLog($"Selected evidence capture saved: {sourceWorkspace}, {rows.Count} rows -> {dialog.FileName}");
             MessageBox.Show(this,
-                $"Selected capture saved successfully.\n\nRows: {rows.Count}\nFile: {dialog.FileName}",
-                "Save capture",
+                $"Selected evidence capture saved successfully.\n\nSource: {sourceWorkspace}\nRows: {rows.Count}\nFile: {dialog.FileName}",
+                "Export selected capture",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
@@ -4571,16 +5314,47 @@ public partial class MainWindow : Window
                 "Error",
                 "Capture",
                 "ARIEC-CAPTURE-SELECTION-FAILED",
-                "Failed to save selected Protocol Trace capture",
+                "Failed to save selected evidence capture",
                 ex.Message,
                 "Check destination write permission and available disk space.",
                 ex);
             MessageBox.Show(this,
                 "Failed to save capture: " + ex.Message,
-                "Save capture",
+                "Export selected capture",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private IReadOnlyList<EvidenceRow> GetSelectedRowsForUnifiedEvidenceCapture(out string sourceWorkspace)
+    {
+        sourceWorkspace = IsEvidenceSummaryTabActive() ? "EvidenceSummary" : "ProtocolTrace";
+
+        if (IsEvidenceSummaryTabActive())
+        {
+            var evidenceRows = GetSelectedEvidenceSummaryRowsForCapture();
+            if (evidenceRows.Count > 0)
+            {
+                sourceWorkspace = "EvidenceSummary";
+                return evidenceRows;
+            }
+        }
+
+        var traceRows = GetSelectedProtocolTraceRowsForCapture();
+        if (traceRows.Count > 0)
+        {
+            sourceWorkspace = "ProtocolTrace";
+            return traceRows;
+        }
+
+        var fallbackEvidenceRows = GetSelectedEvidenceSummaryRowsForCapture();
+        if (fallbackEvidenceRows.Count > 0)
+        {
+            sourceWorkspace = "EvidenceSummary";
+            return fallbackEvidenceRows;
+        }
+
+        return Array.Empty<EvidenceRow>();
     }
 
     private IReadOnlyList<EvidenceRow> GetSelectedProtocolTraceRowsForCapture()
@@ -4603,20 +5377,43 @@ public partial class MainWindow : Window
         return Array.Empty<EvidenceRow>();
     }
 
+    private IReadOnlyList<EvidenceRow> GetSelectedEvidenceSummaryRowsForCapture()
+    {
+        var selected = EvidenceSummaryList?.SelectedItems
+            ?.OfType<EvidenceRow>()
+            .OrderBy(row => row.Sequence)
+            .ToArray();
+
+        if (selected is { Length: > 0 })
+        {
+            return selected;
+        }
+
+        if (EvidenceSummaryList?.SelectedItem is EvidenceRow single)
+        {
+            return new[] { single };
+        }
+
+        return Array.Empty<EvidenceRow>();
+    }
+
     private void WriteSelectedProtocolTraceCapture(string fileName, IReadOnlyList<EvidenceRow> rows)
+        => WriteSelectedEvidenceCapture(fileName, rows, "ProtocolTrace");
+
+    private void WriteSelectedEvidenceCapture(string fileName, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
     {
         if (rows.Count == 0)
         {
-            throw new InvalidOperationException("No Protocol Trace rows selected.");
+            throw new InvalidOperationException("No evidence rows selected.");
         }
 
         var createdUtc = DateTime.UtcNow;
         var captureId = "ARIEC-" + createdUtc.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture);
         var framesJsonl = BuildCaptureFramesJsonl(rows);
         var framesSha256 = ComputeSha256(framesJsonl);
-        var manifest = BuildSelectedCaptureManifest(captureId, createdUtc, rows, framesSha256);
+        var manifest = BuildSelectedCaptureManifest(captureId, createdUtc, rows, framesSha256, sourceWorkspace);
         var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
-        var retentionJson = JsonSerializer.Serialize(BuildCaptureRetentionSnapshot(), new JsonSerializerOptions { WriteIndented = true });
+        var retentionJson = JsonSerializer.Serialize(BuildCaptureRetentionSnapshot(sourceWorkspace), new JsonSerializerOptions { WriteIndented = true });
         var reportMarkdown = BuildSelectedCaptureMarkdownReport(manifest, rows, framesSha256);
 
         var target = Path.GetFullPath(fileName);
@@ -4639,7 +5436,7 @@ public partial class MainWindow : Window
         WriteZipTextEntry(archive, "hash.txt", $"frames.jsonl sha256 {framesSha256}{Environment.NewLine}");
     }
 
-    private CaptureManifest BuildSelectedCaptureManifest(string captureId, DateTime createdUtc, IReadOnlyList<EvidenceRow> rows, string framesSha256)
+    private CaptureManifest BuildSelectedCaptureManifest(string captureId, DateTime createdUtc, IReadOnlyList<EvidenceRow> rows, string framesSha256, string sourceWorkspace)
     {
         var first = rows.First();
         var last = rows.Last();
@@ -4647,7 +5444,8 @@ public partial class MainWindow : Window
         {
             Format = "ARIEC_CAPTURE_V1",
             CaptureId = captureId,
-            CaptureKind = "SelectedProtocolTraceBlock",
+            CaptureKind = $"Selected{sourceWorkspace}Rows",
+            SourceWorkspace = sourceWorkspace,
             CreatedUtc = createdUtc,
             Application = "ARIEC60870 Protocol Lab",
             ProtocolMode = GetSelectedProtocolMode().ToString(),
@@ -4680,11 +5478,12 @@ public partial class MainWindow : Window
         };
     }
 
-    private object BuildCaptureRetentionSnapshot()
+    private object BuildCaptureRetentionSnapshot(string sourceWorkspace)
     {
         return new
         {
-            policy = "Selected capture is generated from visible Protocol Trace rows. Full lossless background ledger is a separate capture phase.",
+            sourceWorkspace,
+            policy = "Selected capture is generated from unified evidence rows. frames.jsonl is the single source of truth and is used to rebuild Protocol Trace and Evidence Summary on open.",
             retention = BuildEvidenceRetentionPolicyLines().ToArray(),
             trace = new
             {
@@ -4694,6 +5493,13 @@ public partial class MainWindow : Window
                 suppressed = _traceVerbositySuppressedRows,
                 routineSuppressed = _traceVerbositySuppressedRoutine,
                 supervisorySuppressed = _traceVerbositySuppressedSupervisory
+            },
+            evidenceSummary = new
+            {
+                visible = EvidenceRows.Count,
+                limit = MaxVisibleEvidenceRows,
+                held = IsEvidenceSummaryViewFrozen(),
+                deferred = _evidenceSummaryRowsDeferredWhileFrozen
             },
             backpressure = new
             {
@@ -4737,11 +5543,12 @@ public partial class MainWindow : Window
     private string BuildSelectedCaptureMarkdownReport(CaptureManifest manifest, IReadOnlyList<EvidenceRow> rows, string framesSha256)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# ARIEC60870 Selected Protocol Trace Capture");
+        builder.AppendLine("# ARIEC60870 Selected Evidence Capture");
         builder.AppendLine();
         builder.AppendLine($"- Capture ID: `{manifest.CaptureId}`");
         builder.AppendLine($"- Format: `{manifest.Format}`");
         builder.AppendLine($"- Kind: `{manifest.CaptureKind}`");
+        builder.AppendLine($"- Source workspace: `{manifest.SourceWorkspace}`");
         builder.AppendLine($"- Created UTC: `{manifest.CreatedUtc:O}`");
         builder.AppendLine($"- Protocol mode: `{manifest.ProtocolMode}`");
         builder.AppendLine($"- Trace mode: `{manifest.TraceVerbosityMode}`");
@@ -4756,7 +5563,7 @@ public partial class MainWindow : Window
             builder.AppendLine("- " + line);
         }
         builder.AppendLine();
-        builder.AppendLine("## Selected Line Monitor Rows");
+        builder.AppendLine("## Selected Evidence Rows");
         builder.AppendLine();
         builder.AppendLine("| # | Time | Dir | Service | Address | Meaning | Raw |");
         builder.AppendLine("|---:|---|---|---|---|---|---|");
@@ -4774,7 +5581,7 @@ public partial class MainWindow : Window
         }
 
         builder.AppendLine();
-        builder.AppendLine("> Selected-block capture is portable evidence. Offline re-open/review mode will consume `manifest.json` and `frames.jsonl` in the next capture phase.");
+        builder.AppendLine("> This capture uses `frames.jsonl` as the single evidence ledger. Opening the capture rebuilds Protocol Trace and Evidence Summary from the same data.");
         return builder.ToString();
     }
 
@@ -4801,6 +5608,13 @@ public partial class MainWindow : Window
 
     private void ExportData_Click(object sender, RoutedEventArgs e)
     {
+        var tabName = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? "data";
+        if (tabName.Equals("Protocol Trace", StringComparison.OrdinalIgnoreCase))
+        {
+            ExportProtocolTraceRows(tabName);
+            return;
+        }
+
         var grid = GetCurrentTabDataGrid();
         if (grid is null)
         {
@@ -4808,7 +5622,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        var tabName = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? "data";
         var safeName = string.Concat(tabName.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')).Trim('-');
         var dialog = new SaveFileDialog
         {
@@ -4828,6 +5641,76 @@ public partial class MainWindow : Window
         File.WriteAllText(dialog.FileName, exportText, Encoding.UTF8);
         AddEvidenceRetentionExportMarker($"Tab export: {tabName}");
         AppendSessionLog($"Data exported from {tabName} with retention policy marker: {dialog.FileName}");
+    }
+
+    private void ExportSelectedTrace_Click(object sender, RoutedEventArgs e)
+        => ExportProtocolTraceRows("Protocol Trace");
+
+    private void ExportProtocolTraceRows(string tabName)
+    {
+        var selected = GetSelectedProtocolTraceRowsForCapture();
+        var rows = selected.Count > 0
+            ? selected
+            : FrameTraceRows.ToArray();
+
+        if (rows.Count == 0)
+        {
+            MessageBox.Show(this, "No Protocol Trace rows are available to export.", "Export Protocol Trace", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var mode = selected.Count > 0 ? "selected" : "visible";
+        var dialog = new SaveFileDialog
+        {
+            Title = selected.Count > 0 ? "Export selected Protocol Trace rows" : "Export visible Protocol Trace rows",
+            Filter = "Tab-separated text (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = $"ARIEC60870-Protocol-Trace-{mode}-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            AddExtension = true,
+            DefaultExt = ".txt"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        var exportText = BuildTextEvidenceRetentionHeader($"{tabName} / {mode}") + BuildProtocolTraceTabSeparatedText(rows);
+        File.WriteAllText(dialog.FileName, exportText, Encoding.UTF8);
+        AddUiDiagnostic(
+            "Info",
+            "Capture",
+            "ARIEC-TRACE-TXT-EXPORTED",
+            "Protocol Trace rows exported",
+            $"Exported {rows.Count} {mode} Protocol Trace rows to {dialog.FileName}.",
+            "Use .ariec capture for re-openable evidence and .txt export for lightweight report appendix.");
+        AppendSessionLog($"Protocol Trace exported: {rows.Count} {mode} rows -> {dialog.FileName}");
+    }
+
+    private static string BuildProtocolTraceTabSeparatedText(IReadOnlyList<EvidenceRow> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Sequence\tTime\tDirection\tProtocol\tService\tAddress\tTypeID\tCOT\tCA\tIOA\tQuality\tMeaning\tRawHex");
+
+        foreach (var row in rows.OrderBy(x => x.Sequence))
+        {
+            builder
+                .Append(EscapeTabValue(row.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture))).Append('\t')
+                .Append(EscapeTabValue(row.Time)).Append('\t')
+                .Append(EscapeTabValue(row.Direction)).Append('\t')
+                .Append(EscapeTabValue(row.ProtocolName)).Append('\t')
+                .Append(EscapeTabValue(row.ProtocolService)).Append('\t')
+                .Append(EscapeTabValue(row.ProtocolAddress)).Append('\t')
+                .Append(EscapeTabValue(row.TypeId)).Append('\t')
+                .Append(EscapeTabValue(row.CotDisplay)).Append('\t')
+                .Append(EscapeTabValue(row.CommonAddress)).Append('\t')
+                .Append(EscapeTabValue(row.IoAddress)).Append('\t')
+                .Append(EscapeTabValue(row.Quality)).Append('\t')
+                .Append(EscapeTabValue(row.ProtocolTraceMeaning)).Append('\t')
+                .Append(EscapeTabValue(row.RawHex))
+                .AppendLine();
+        }
+
+        return builder.ToString();
     }
 
     private DataGrid? GetCurrentTabDataGrid()
@@ -5805,8 +6688,10 @@ public partial class MainWindow : Window
             return;
         }
 
+        var traceHold = IsProtocolTraceViewFrozen() ? $", traceHold {_protocolTraceRowsDeferredWhileFrozen}" : string.Empty;
+        var evidenceHold = IsEvidenceSummaryViewFrozen() ? $", evidenceHold {_evidenceSummaryRowsDeferredWhileFrozen}" : string.Empty;
         BufferStatusText.Text =
-            $"Buffer: trace {GetTraceVerbosityMode()}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+            $"Buffer: trace {GetTraceVerbosityMode()}{traceHold}{evidenceHold}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
     }
 
     private sealed class CaptureManifest
@@ -5814,6 +6699,7 @@ public partial class MainWindow : Window
         public string Format { get; set; } = string.Empty;
         public string CaptureId { get; set; } = string.Empty;
         public string CaptureKind { get; set; } = string.Empty;
+        public string SourceWorkspace { get; set; } = string.Empty;
         public DateTime CreatedUtc { get; set; }
         public string Application { get; set; } = string.Empty;
         public string ProtocolMode { get; set; } = string.Empty;

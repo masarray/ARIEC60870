@@ -71,6 +71,12 @@
                         <TextBlock Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Protocol Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
+                        <TextBlock Text="Trace TXT" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </Button>
                 <Button x:Name="ClearButton" Style="{StaticResource RailIconButton}" Click="Clear_Click" ToolTip="Clear visible session rows">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideTrash2}" />
@@ -226,10 +232,113 @@
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
-                                <RowDefinition Height="12" />
-                                <RowDefinition Height="156" />
+                                <RowDefinition Height="0" />
+                                <RowDefinition Height="0" />
                             </Grid.RowDefinitions>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <ListBox x:Name="EvidenceSummaryList"
+                                     ItemsSource="{Binding EvidenceRows}"
+                                     Style="{StaticResource ProtocolTraceListBox}"
+                                     SelectionChanged="EvidenceGrid_SelectionChanged"
+                                     SelectionMode="Extended"
+                                     PreviewMouseLeftButtonDown="EvidenceSummaryList_PreviewMouseLeftButtonDown"
+                                     PreviewMouseMove="EvidenceSummaryList_PreviewMouseMove"
+                                     PreviewMouseLeftButtonUp="EvidenceSummaryList_PreviewMouseLeftButtonUp"
+                                     PreviewMouseRightButtonDown="EvidenceSummaryList_PreviewMouseRightButtonDown"
+                                     FontFamily="Sometype Mono, Cascadia Mono, Consolas">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceLineItem}">
+                                        <EventSetter Event="MouseEnter" Handler="EvidenceSummaryLineItem_MouseEnter" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Export Selected Capture File..." Click="SaveSelectedCapture_Click" />
+                                        <MenuItem Header="Export Selected Evidence Text..." Click="ExportSelectedTrace_Click" />
+                                        <Separator />
+                                        <MenuItem Header="Select All Visible Evidence Rows" Click="SelectAllEvidenceSummaryRows_Click" />
+                                        <MenuItem Header="Clear Selection / Resume Live Evidence" Click="ClearEvidenceSummarySelection_Click" />
+                                        <MenuItem Header="Resume Live Evidence" Click="ResumeEvidenceSummaryLiveView_Click" />
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding ProtocolTraceTitle, Mode=OneWay}"
+                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="11.8"
+                                                           FontWeight="SemiBold"
+                                                           LineHeight="15"
+                                                           TextWrapping="Wrap"
+                                                           TextTrimming="None" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding ProtocolTraceMeta, Mode=OneWay}"
+                                                           FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="9.8"
+                                                           Foreground="{StaticResource Ink500Brush}"
+                                                           Margin="12,1,0,0"
+                                                           VerticalAlignment="Top"
+                                                           TextWrapping="NoWrap"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="160" />
+                                            </Grid>
+
+                                            <TextBlock Grid.Row="1"
+                                                       Text="{Binding ProtocolTraceMeaning, Mode=OneWay}"
+                                                       FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                       FontSize="10.8"
+                                                       LineHeight="14.6"
+                                                       Foreground="{StaticResource Ink700Brush}"
+                                                       TextWrapping="Wrap"
+                                                       TextTrimming="None"
+                                                       Margin="0,4,0,0" />
+
+                                            <Border Grid.Row="2"
+                                                    Background="#F8FAFC"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="7"
+                                                    Padding="7,5"
+                                                    Margin="0,6,0,0">
+                                                <TextBlock FontFamily="Sometype Mono, Cascadia Mono, Consolas"
+                                                           FontSize="10.45"
+                                                           LineHeight="14.1"
+                                                           Foreground="{StaticResource Ink600Brush}"
+                                                           TextWrapping="Wrap"
+                                                           TextTrimming="None">
+                                                    <Run Text="Signal " />
+                                                    <Run Text="{Binding SignalOrAddress, Mode=OneWay}" />
+                                                    <Run Text="  ·  Value " />
+                                                    <Run Text="{Binding SemanticState, Mode=OneWay}" />
+                                                    <Run Text="  ·  Quality " />
+                                                    <Run Text="{Binding Quality, Mode=OneWay}" />
+                                                    <Run Text="  ·  Type " />
+                                                    <Run Text="{Binding TypeIdName, Mode=OneWay}" />
+                                                    <Run Text="  ·  COT " />
+                                                    <Run Text="{Binding CotDisplay, Mode=OneWay}" />
+                                                    <Run Text="  ·  CA " />
+                                                    <Run Text="{Binding CommonAddress, Mode=OneWay}" />
+                                                    <Run Text="  ·  IOA " />
+                                                    <Run Text="{Binding IoAddress, Mode=OneWay}" />
+                                                    <Run Text="  ·  Time " />
+                                                    <Run Text="{Binding RelayTime, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <DataGrid Visibility="Collapsed" IsHitTestVisible="False" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
                                     <!-- Evidence Summary is intentionally distilled. Full telegram detail remains available in Protocol Trace and the interpreter. -->
                                     <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
@@ -255,7 +364,7 @@
                                     <DataGridTextColumn Header="Action" Binding="{Binding OperatorAction}" Width="170" Visibility="Collapsed" />
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <Border Grid.Row="2" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12">
+                            <Border Grid.Row="2" Visibility="Collapsed" Height="0" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -297,13 +406,28 @@
                                          Grid.Row="2"
                                          ItemsSource="{Binding FrameTraceRows}"
                                          Style="{StaticResource ProtocolTraceListBox}"
-                                         ItemContainerStyle="{StaticResource ProtocolTraceLineItem}"
                                          SelectionChanged="EvidenceGrid_SelectionChanged"
                                          SelectionMode="Extended"
                                          PreviewMouseLeftButtonDown="FrameTraceGrid_PreviewMouseLeftButtonDown"
                                          PreviewMouseMove="FrameTraceGrid_PreviewMouseMove"
                                          PreviewMouseLeftButtonUp="FrameTraceGrid_PreviewMouseLeftButtonUp"
+                                         PreviewMouseRightButtonDown="FrameTraceGrid_PreviewMouseRightButtonDown"
                                          FontFamily="Sometype Mono, Cascadia Mono, Consolas">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceLineItem}">
+                                            <EventSetter Event="MouseEnter" Handler="FrameTraceLineItem_MouseEnter" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Export Selected Capture File..." Click="SaveSelectedCapture_Click" />
+                                            <MenuItem Header="Export Selected Trace Text..." Click="ExportSelectedTrace_Click" />
+                                            <Separator />
+                                            <MenuItem Header="Select All Visible Trace Rows" Click="SelectAllVisibleTraceRows_Click" />
+                                            <MenuItem Header="Clear Selection / Resume Live Trace" Click="ClearProtocolTraceSelection_Click" />
+                                            <MenuItem Header="Resume Live Trace" Click="ResumeProtocolTraceLiveView_Click" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid>

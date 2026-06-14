@@ -1,67 +1,310 @@
-# ARIEC60870 Planned Improvements
+# ARIEC60870 Product Roadmap
 
-ARIEC60870 is focused on IEC 60870-5-103 active master testing, relay communication troubleshooting, and reviewable protocol evidence. The roadmap below describes the user-visible improvements planned for future releases.
+ARIEC60870 is being shaped as a focused IEC 60870 evidence analyzer for relay, RTU, gateway, FAT, SAT, and field troubleshooting workflows.
 
-## 1. Easier release packages
+The near-term goal is not to claim a universal protocol test-set replacement. The near-term goal is to deliver a public-ready IEC 60870 tool that is easy to open, easy to read, easy to capture evidence from, and credible enough to demonstrate in front of protection, automation, vendor, and commissioning engineers.
 
-Planned outcome: users can download a Windows portable ZIP, verify the checksum, run the desktop app, and follow the quick-start guide without opening the source project.
+## Product direction
 
-Current status:
+ARIEC60870 is built around one practical field problem:
 
-- Windows portable package workflow is available.
-- SHA256 checksum file is generated with release assets.
-- Quick Start and Troubleshooting guides are included.
-- GitHub Pages landing page links to releases and documentation.
+> Engineers need a clear, reviewable, and portable way to prove what happened on an IEC 60870 communication session.
 
-## 2. Stronger validation evidence
+The product direction is therefore evidence-first:
 
-Planned outcome: users can see which simulator, bench, and relay scenarios were checked for each release.
+- readable protocol trace,
+- operator-readable evidence summary,
+- value/event/diagnostic workspaces,
+- unified `.ariec` capture files,
+- offline capture review,
+- exportable evidence,
+- guided test workflow for repeated FAT/SAT work.
 
-Current status:
+## Positioning
 
-- Public validation matrix is available for simulator, bench, and sanitized relay tests.
-- Sanitized IEC-103 frame test vectors are available in `samples/test-vectors/`.
-- ASDU decoder smoke tests cover Type 1 event, Type 5 identification, Type 8 GI end, Type 9 measurand, and private/unknown ASDU transparency.
-- FCB retry checks cover timeout and invalid checksum recovery.
+ARIEC60870 should be presented as:
 
-Planned next items:
+- an IEC 60870 protocol evidence analyzer,
+- a commissioning and troubleshooting assistant,
+- a lightweight FAT/SAT evidence capture tool,
+- a protocol trace reader with IEC 101/103/104 awareness.
 
-- Add more known-good relay captures when they can be sanitized safely.
-- Add relay busy / DFC validation cases.
-- Add long-duration Class 2 polling validation notes.
-- Add clearer notes for baudrate, parity, link address, GI, Class 1, Class 2, and measurand behavior.
+ARIEC60870 should not yet be presented as:
 
-## 3. Better operator workflow
+- a complete universal protocol test set,
+- a full replacement for mature commercial protocol suites,
+- a certified conformance test tool,
+- a complete RTU/slave simulator suite.
 
-Planned outcome: first-time users can complete a relay communication check with less protocol guesswork.
+This keeps the public message honest while still making the product valuable.
 
-Planned items:
+## Current maturity snapshot
 
-- Save/load connection profiles.
-- Recent profiles for frequently used relay settings.
-- Serial health diagnostics: RX/TX activity, timeout rate, checksum error rate, malformed frame rate, and likely wrong-address symptoms.
-- Guided test checklist: connect, reset link, GI, Class 2 polling, Class 1 event observation, evidence export.
-- More actionable troubleshooting messages.
+| Area | Current maturity | Public-readiness note |
+|---|---:|---|
+| IEC 60870-5-101/104 master workflow | Medium | usable for guided connection, GI, polling, values, and command workflow proof |
+| IEC 60870-5-103 analyzer workflow | Medium | usable as protection relay communication analyzer |
+| Protocol Trace | Medium | core workspace; selection, hold/resume, readability, and export must be polished before public demo |
+| Evidence Summary | Medium | readable card view with unified evidence capture; still needs final stability polish |
+| Value Viewer | Medium | useful for current values; needs filtering and point database maturity |
+| Event Log | Medium | useful; needs clearer event grouping and export workflow |
+| Command Dock | Medium | useful; needs safer operator workflow and clearer lifecycle evidence |
+| `.ariec` capture package | Medium-high | already important; must become the central evidence artifact |
+| Offline capture review | Medium | should rebuild all relevant workspaces from one source of truth |
+| PDF evidence report | Low | required for public impact; planned next |
+| Trigger / pre-post capture | Low | required for professional troubleshooting |
+| Task Mode / guided test plan | Low-medium | should come after line monitor and evidence package are stable |
+| RTU/slave simulation | Low | future phase, not required for first public show |
 
-## 4. FAT/SAT evidence package
+## Public-show strategy
 
-Planned outcome: users can export a cleaner evidence package for review and handover.
+The first public version should be intentionally narrow and polished.
 
-Planned items:
+The strongest public story is:
 
-- Formatted PDF report.
-- Session metadata, app version, COM settings, relay address, duration, counters, warnings, and raw evidence appendix.
-- Pass/fail style assessment summary without replacing formal project acceptance procedures.
-- Export package containing Markdown, JSON, PDF, and sanitized raw trace.
+> Open an IEC 60870 session, watch the communication in a readable protocol trace, select important evidence rows, export a portable capture file, reopen that capture, and generate a clean evidence package.
 
-## 5. Analyzer maturity
+The first public demo should show:
 
-Planned outcome: ARIEC60870 becomes more useful for repeated analysis and long-duration troubleshooting.
+1. connect to IEC 101/104/103 source or demo/session replay,
+2. receive GI/value/event/command evidence,
+3. read Protocol Trace without the workspace jumping,
+4. read Evidence Summary without table clutter,
+5. select multiple evidence rows from Protocol Trace or Evidence Summary,
+6. export selected `.ariec` evidence capture,
+7. reopen `.ariec` and show the same data reflected across workspaces,
+8. export a readable evidence report.
 
-Planned items:
+## Release gates
 
-- Capture replay mode.
-- Compare-two-sessions workflow.
-- Stronger long-duration evidence retention.
-- Better event/value filtering.
-- Cleaner desktop architecture for future UI-heavy features.
+### Gate A — Internal demo build
+
+This build is suitable for controlled demonstrations and screen recordings.
+
+Required:
+
+- Protocol Trace is default workspace.
+- Protocol Trace has stable viewport behavior.
+- Evidence Summary is readable without a bottom inspector.
+- Multi-select works in Protocol Trace and Evidence Summary.
+- Right-click export works from both workspaces.
+- `.ariec` capture opens and rebuilds Protocol Trace and Evidence Summary.
+- No obvious visual jumping while user is reading or selecting.
+- Portable Windows ZIP runs without opening the source project.
+
+### Gate B — Public preview build
+
+This build is suitable for GitHub public release and LinkedIn/product demo.
+
+Required:
+
+- Follow Live / Reading Hold / Jump Latest workflow is explicit and easy to understand.
+- Pending-frame counter is visible when live rendering is held.
+- Export selected capture file is reliable.
+- Export selected evidence text is reliable.
+- Basic PDF evidence export is available.
+- README and Quick Start explain the evidence workflow in user language.
+- Screenshots show the mature product workflow, not internal debug views.
+- Known limitations are documented honestly.
+
+### Gate C — Field-ready evidence build
+
+This build is suitable for repeated FAT/SAT and troubleshooting use.
+
+Required:
+
+- Evidence PDF has project/session metadata, selected evidence rows, raw appendix, and hash.
+- `.ariec` capture has manifest, frames ledger, hash, report, and retention notes.
+- Event trigger engine supports selected IOA/COT/TypeID/command feedback conditions.
+- Pre/post capture windows are available.
+- Command lifecycle evidence is clearer: select, execute, ACTCON, ACTTERM, feedback IOA, timeout.
+- GI completeness and IOA coverage matrix are report-ready.
+- Session save/resume is available for multi-day FAT/SAT work.
+
+## Near-term roadmap
+
+### v3.5.0 — Professional Line Monitor UX
+
+Goal: make Protocol Trace and Evidence Summary stable, readable, and selection-friendly.
+
+Planned:
+
+- Follow Live toggle.
+- Reading Hold state.
+- Jump Latest action.
+- Pending new-frame counter.
+- Stable viewport during active communication.
+- No visual movement while rows are selected.
+- Resume Live action from toolbar and context menu.
+- Better selected-row status: selected count, source workspace, export actions.
+- Keep incoming data in stores while visual rendering is held.
+- Apply the same hold/resume model to Protocol Trace and Evidence Summary.
+
+Exit criteria:
+
+- User can read rows during active communication without the workspace moving.
+- User can select evidence rows with click, Shift, Ctrl, drag, and right-click.
+- Selection is not lost when new data arrives.
+- Export capture from selection works from both workspaces.
+
+### v3.6.0 — Evidence Package Export
+
+Goal: make exported evidence usable without reopening ARIEC.
+
+Planned:
+
+- Export selected evidence as PDF.
+- Include project/session metadata.
+- Include selected rows as clean formatted evidence cards.
+- Include protocol metadata: Type ID, COT, CA, IOA, quality, timestamp, direction, raw hex.
+- Include capture SHA256 and manifest summary.
+- Include optional Markdown/text appendix.
+- Add context menu item: `Export Selected Evidence PDF...`.
+
+Exit criteria:
+
+- User can right-click selected rows and produce a clean PDF evidence report.
+- PDF is readable by non-ARIEC users.
+- PDF includes enough metadata to support review and handover.
+
+### v3.7.0 — Capture Replay and Review Mode
+
+Goal: make `.ariec` capture a first-class review artifact.
+
+Planned:
+
+- Open `.ariec` in offline review mode.
+- Rebuild Protocol Trace, Evidence Summary, and related diagnostic views from one `frames.jsonl` ledger.
+- Show capture manifest in a readable panel.
+- Verify hash on open.
+- Show capture source workspace and row count.
+- Allow re-export from opened capture.
+
+Exit criteria:
+
+- Capture file behaves like a portable evidence session.
+- Reopening a capture is predictable and visually clear.
+
+### v3.8.0 — Event Trigger and Pre/Post Capture
+
+Goal: capture important events automatically without forcing full automatic testing.
+
+Planned:
+
+- Trigger rules for CA, IOA, Type ID, COT, quality, command confirmation, command termination, command feedback, timeout, and CA mismatch.
+- Pre-trigger and post-trigger frame windows.
+- Triggered capture marker in Evidence Summary.
+- Export trigger result as `.ariec` and PDF.
+- User-configurable trigger presets.
+
+Exit criteria:
+
+- User can capture “what happened before and after” important protocol events.
+- Field troubleshooting becomes faster and more forensic.
+
+### v3.9.0 — Task Mode Lite
+
+Goal: guide repeated IEC 101/103/104 actions without pretending every FAT/SAT item can be fully automated.
+
+Planned task cards:
+
+- Connect and link reset.
+- General Interrogation.
+- Class 1 / Class 2 observation.
+- Read selected IOA.
+- Clock synchronization.
+- Digital command lifecycle.
+- Analog setpoint lifecycle.
+- SOE observation.
+- Link disconnect/reconnect observation.
+
+Design principle:
+
+- The app guides and captures evidence.
+- The engineer/vendor still controls physical conditions, RTU settings, simulator settings, and official capture timing.
+
+Exit criteria:
+
+- User can run a guided task and export task evidence.
+- Failed attempts and successful official captures can be separated.
+
+### v4.0.0 — Public Evidence Workflow Release
+
+Goal: public product release focused on IEC 60870 evidence workflow.
+
+Planned:
+
+- polished landing page screenshots,
+- release ZIP and checksum,
+- quick-start guide,
+- sample capture files,
+- sample evidence PDF,
+- clear limitations,
+- public demo script,
+- issue templates for protocol captures and field feedback.
+
+Exit criteria:
+
+- A new user can download, run, open a sample, understand the workflow, and export evidence within minutes.
+
+## Later roadmap
+
+### IEC 60870 point database maturity
+
+Planned:
+
+- import/export point list,
+- IOA naming and grouping,
+- raw/scaled value conversion,
+- quality visualization,
+- point mapping validation,
+- command feedback mapping.
+
+### RTU/slave simulation foundation
+
+Planned:
+
+- simple IEC 101/104 outstation profile,
+- point model,
+- GI response,
+- Class 1/2 response,
+- digital/analog state changes,
+- basic command response.
+
+### Advanced comparison workflow
+
+Planned:
+
+- compare two sessions,
+- compare before/after vendor setting changes,
+- identify changed CA/IOA/COT/TypeID behavior,
+- export difference report.
+
+## Product principles
+
+1. Evidence first.
+   Every major action should be reviewable, exportable, and reproducible.
+
+2. Stable reading over flashy live movement.
+   Live data is useful, but the user must be able to read and select evidence without fighting the UI.
+
+3. Single source of truth.
+   `.ariec` captures should use one ledger and reflect consistently across workspaces.
+
+4. Guided, not fake-automatic.
+   FAT/SAT often requires vendor setting changes and multi-day retries. ARIEC should guide the workflow and bind evidence, not pretend every item can run automatically.
+
+5. Public claims must stay honest.
+   The product should be shown as a focused IEC 60870 evidence analyzer until simulator, task mode, trigger engine, and report workflow become mature.
+
+## Immediate priority
+
+The immediate public-show priority is:
+
+```text
+v3.5.0 Professional Line Monitor UX
+v3.6.0 Evidence PDF Export
+v3.7.0 Capture Replay and Review Mode
+```
+
+These three milestones make ARIEC60870 demonstrable as a serious product before expanding into heavier simulation or automated task workflows.
