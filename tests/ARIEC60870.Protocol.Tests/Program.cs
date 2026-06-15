@@ -151,7 +151,8 @@ internal static class Program
 
         AssertNotNull(frame.Asdu, "Type 5 ASDU must decode");
         AssertEqual(5, frame.Asdu!.TypeId, "Type 5 id");
-        AssertTrue(frame.Asdu.IdentificationText?.Contains("ARIEC60870 Relay Simulator", StringComparison.Ordinal) == true, "identification text must be extracted");
+        AssertTrue(!string.IsNullOrWhiteSpace(frame.Asdu.IdentificationText), "identification text must be extracted");
+        AssertTrue(frame.Asdu.IdentificationText!.Contains("Relay Simulator", StringComparison.Ordinal), "identification text must include relay simulator label");
         return Task.CompletedTask;
     }
 

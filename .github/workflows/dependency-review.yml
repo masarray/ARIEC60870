@@ -16,7 +16,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Dependency Review
+        if: ${{ vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+
+      - name: Dependency Review is waiting for repository enablement
+        if: ${{ vars.ENABLE_DEPENDENCY_REVIEW != 'true' }}
+        shell: bash
+        run: |
+          echo "::notice title=Dependency Review not enforced::Dependency Review requires GitHub Dependency Graph support. Enable Dependency Graph in repository settings, then set repository variable ENABLE_DEPENDENCY_REVIEW=true to enforce this gate."
+          echo "Dependency Review skipped because ENABLE_DEPENDENCY_REVIEW is not set to true."

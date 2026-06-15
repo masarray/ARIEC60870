@@ -109,6 +109,20 @@ public sealed class RepositoryHygieneTests
         Assert.DoesNotContain("commit-message:\n      prefix: \"deps(actions)\"", dependabot);
     }
 
+
+    [Fact]
+    public void DependencyReviewWorkflowDoesNotFailWhenDependencyGraphIsNotEnabledYet()
+    {
+        var root = FindRepositoryRoot();
+        var dependencyReview = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/dependency-review.yml")));
+
+        Assert.Contains("uses: actions/dependency-review-action@v4", dependencyReview);
+        Assert.Contains("if: ${{ vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}", dependencyReview);
+        Assert.Contains("Dependency Review is waiting for repository enablement", dependencyReview);
+        Assert.Contains("ENABLE_DEPENDENCY_REVIEW=true", dependencyReview);
+        Assert.Contains("Dependency Graph", dependencyReview);
+    }
+
     [Fact]
     public void OpenSsfScorecardWorkflowFollowsPublishingRestrictions()
     {
@@ -119,7 +133,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("security-events: write", scorecard);
         Assert.Contains("id-token: write", scorecard);
         Assert.Contains("publish_results: true", scorecard);
-        Assert.Contains("ossf/scorecard-action@v2.4.0", scorecard);
+        Assert.Contains("ossf/scorecard-action@v2.4.3", scorecard);
         Assert.DoesNotContain("branch_protection_rule", scorecard);
         Assert.DoesNotContain("workflow_dispatch", scorecard);
         Assert.DoesNotContain("permissions:\n  contents: read\n  security-events: write\n  id-token: write", scorecard);
