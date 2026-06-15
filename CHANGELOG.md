@@ -3,6 +3,18 @@
 
 ## [3.6.6] - Unreleased
 
+### Fixed
+- Corrected the IEC-103 private/vendor ASDU regression test so it matches the decoder contract for type 205 while still verifying unknown ASDU transparency.
+
+### Changed
+- Reworked the Report workspace copy to remove HTML-print workflow language and export a professional PDF report directly.
+- Added a QuestPDF-based evidence report engine with executive summary, session counters, communication setup, acceptance notes, and evidence tables.
+- Documented QuestPDF as a third-party PDF generation dependency in `THIRD_PARTY_NOTICES.md`.
+- Simplified the public GitHub Pages site to a single canonical `site/` source.
+- Removed stale `landing/` and `docs/index.html` mirrors to prevent duplicate SEO metadata.
+- Moved README screenshots to canonical `site/assets` paths.
+- Added `seo-manifest.json`, `llms.txt`, `humans.txt`, explicit favicon/touch icons, and repository tests that verify sitemap/canonical coverage.
+
 ### Added
 - Phase C test credibility upgrade with first-class xUnit regression suites for Core, Master, Reporting, Desktop capture contracts, and Repository hygiene.
 - CI coverage collection and `.trx` result artifacts for every xUnit suite.
@@ -47,29 +59,26 @@ All notable public changes for ARIEC60870 are summarized here. Detailed legacy r
 
 The left rail action is now clearly labeled `Report` instead of a generic `Export`, and it is available even before a completed run. If no evidence exists, ARIEC shows a useful message.
 
-### Report Preview workspace
+### Report workspace
 
-A new `Report Preview` tab has been added.
+The report tab provides a dedicated place to review the evidence scope before exporting a professional report. Phase 3.6.6 replaces the previous HTML-print workflow with direct PDF export.
 
 It includes:
 
 - `Refresh`
-- `Export HTML / PDF`
-- embedded HTML preview browser
-
-The preview uses the same standalone report generator as export.
+- `Export PDF`
+- embedded report-content preview
 
 ## Report workflow
 
 1. Run a session or open a `.ariec` capture.
-2. Open `Report Preview`.
+2. Open `Report`.
 3. Click `Refresh`.
-4. Click `Export HTML / PDF`.
-5. Open the generated HTML in a browser and print/save as PDF.
+4. Click `Export PDF`.
+5. Attach the generated PDF to FAT/SAT, troubleshooting, or handover records.
 
 ## Preserved
 
-- utility-style standalone HTML report.
 - Smart Capture Rules.
 - Protocol Trace default workspace.
 - Unified `.ariec` capture.

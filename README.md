@@ -12,7 +12,7 @@
 
 The application runs a controlled master/client session, decodes protocol responses, shows readable engineering evidence, and keeps raw TX/RX frame detail available when deeper review is needed. It is designed for protection, SCADA, RTU, gateway, panel FAT, site acceptance, and substation automation teams.
 
-No license key. No subscription. No account required. Released under the **Apache-2.0** license.
+No account required. The core application is released under the **Apache-2.0** license; the optional PDF generator uses the QuestPDF Community License as documented in `THIRD_PARTY_NOTICES.md`.
 
 ## Project status
 
@@ -25,7 +25,7 @@ No license key. No subscription. No account required. Released under the **Apach
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="docs/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 protocol evidence analyzer line monitor cockpit" width="92%">
+    <img src="site/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 protocol evidence analyzer line monitor cockpit" width="92%">
   </a>
 </p>
 
@@ -65,18 +65,18 @@ First run:
 4. Select IEC-103 serial, IEC-101 serial, or IEC-104 TCP/IP.
 5. Configure COM/TCP endpoint, address, timeout, GI option, and protocol interoperability profile.
 6. Click **Start**.
-7. Review **Operator Evidence**, **Value Viewer**, **Event Log**, **Frame Trace**, **Diagnostics**, and **Report Preview**.
+7. Review **Operator Evidence**, **Value Viewer**, **Event Log**, **Frame Trace**, **Diagnostics**, and **Report**.
 8. Export evidence after the test session.
 
 ## Screenshots
 
 | Operator evidence | Setup overlay |
 |---|---|
-| <img src="docs/assets/screenshots/ariec60870-screen-01.webp" alt="ARIEC60870 operator evidence grid" width="100%"> | <img src="docs/assets/screenshots/ariec60870-screen-05.webp" alt="ARIEC60870 setup overlay" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-screen-01.webp" alt="ARIEC60870 operator evidence grid" width="100%"> | <img src="site/assets/screenshots/ariec60870-screen-05.webp" alt="ARIEC60870 setup overlay" width="100%"> |
 
 | Value and event review | Protocol visibility |
 |---|---|
-| <img src="docs/assets/screenshots/ariec60870-screen-03.webp" alt="ARIEC60870 value and event review" width="100%"> | <img src="docs/assets/screenshots/ariec60870-screen-04.webp" alt="ARIEC60870 protocol visibility screen" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-screen-03.webp" alt="ARIEC60870 value and event review" width="100%"> | <img src="site/assets/screenshots/ariec60870-screen-04.webp" alt="ARIEC60870 protocol visibility screen" width="100%"> |
 
 ## Core capabilities
 
@@ -87,9 +87,9 @@ First run:
 - ACD/DFC visibility for IEC-101/103 serial links.
 - Type ID, VSQ, COT, CA, IOA, quality, timestamp, and value decoding for common IEC-101/104 ASDUs.
 - FUN/INF/DPI/value/timestamp evidence for IEC-103 relay communication.
-- Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, Findings, and Report Preview workspaces.
+- Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, Findings, and Report workspaces.
 - User-owned JSON mapping profiles for readable project signal names.
-- Standalone HTML evidence report suitable for browser print/save-as-PDF.
+- Professional PDF evidence report generated directly from the Report workspace using QuestPDF.
 - CLI support for IEC-103 master runs, offline trace analysis, and deterministic simulator checks.
 - Sanitized protocol smoke tests and test vectors.
 

@@ -1188,7 +1188,7 @@ public partial class MainWindow
         FindingCountText.Text = result.Findings.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
         UpdateStableHeader(result.CompletedNormally ? "Completed" : "Faulted",
             $"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100). {result.CompletionReason}");
-        ExportMarkdownButton.IsEnabled = true;
+        ExportReportButton.IsEnabled = true;
 
         AssessmentRows.Clear();
         foreach (var item in result.Assessment.Items)

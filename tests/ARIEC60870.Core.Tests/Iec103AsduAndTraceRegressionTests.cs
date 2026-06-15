@@ -26,12 +26,26 @@ public sealed class Iec103AsduAndTraceRegressionTests
     }
 
     [Fact]
-    public void UnknownPrivateAsduIsTransparentRatherThanDiscarded()
+    public void PrivateVendorAsduIsTransparentRatherThanDiscarded()
     {
         var asduBytes = new byte[] { 0xCD, 0x01, 0x01, 0x01, 0xC8, 0x0A, 0xAA, 0x55 };
         var asdu = new AsduDecoder().Decode(asduBytes);
 
         Assert.Equal(205, asdu.TypeId);
+        Assert.Equal(DecodeStatus.Unknown, asdu.Status);
+        Assert.Equal("Private/vendor-specific ASDU", asdu.TypeName);
+        Assert.Contains("vendor/private", asdu.EngineeringMeaning ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(new byte[] { 0xAA, 0x55 }, asdu.DataBytes);
+        Assert.NotEmpty(asdu.Notes);
+    }
+
+    [Fact]
+    public void UnregisteredAsduTypeKeepsUnknownTypeNameAndPayload()
+    {
+        var asduBytes = new byte[] { 0xEE, 0x01, 0x01, 0x01, 0xC8, 0x0A, 0xAA, 0x55 };
+        var asdu = new AsduDecoder().Decode(asduBytes);
+
+        Assert.Equal(238, asdu.TypeId);
         Assert.Equal(DecodeStatus.Unknown, asdu.Status);
         Assert.Contains("Unknown", asdu.TypeName, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(new byte[] { 0xAA, 0x55 }, asdu.DataBytes);

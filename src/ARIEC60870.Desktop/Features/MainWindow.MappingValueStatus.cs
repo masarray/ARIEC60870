@@ -688,7 +688,7 @@ public partial class MainWindow
         UpdateConnectToggleVisual(isRunning);
         SetupButton.IsEnabled = !isRunning;
         SetupOverlay.Visibility = isRunning ? Visibility.Collapsed : SetupOverlay.Visibility;
-        ExportMarkdownButton.IsEnabled = true;
+        ExportReportButton.IsEnabled = true;
         ProtocolModeComboBox.IsEnabled = !isRunning;
         TransportModeComboBox.IsEnabled = !isRunning;
         TcpHostBox.IsEnabled = !isRunning;

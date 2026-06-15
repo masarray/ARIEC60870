@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
@@ -50,6 +51,9 @@ public sealed class RepositoryHygieneTests
             "site/sitemap.xml",
             "site/robots.txt",
             "site/site.webmanifest",
+            "site/seo-manifest.json",
+            "site/llms.txt",
+            "site/humans.txt",
             ".github/PULL_REQUEST_TEMPLATE.md",
             ".github/dependabot.yml",
             ".github/workflows/release-package.yml",
@@ -136,6 +140,89 @@ public sealed class RepositoryHygieneTests
         Assert.False(Directory.Exists(root.File("landing/screenshot")), "landing/screenshot should not be committed.");
     }
 
+    [Fact]
+    public void PublicSiteHasSingleCanonicalSourceOfTruth()
+    {
+        var root = FindRepositoryRoot();
+        var forbiddenMirrors = new[]
+        {
+            "landing/index.html",
+            "landing/styles.css",
+            "landing/script.js",
+            "landing/sitemap.xml",
+            "landing/robots.txt",
+            "docs/index.html",
+            "docs/styles.css",
+            "docs/script.js",
+            "docs/sitemap.xml",
+            "docs/robots.txt",
+            "docs/site.webmanifest",
+            "docs/.nojekyll"
+        };
+
+        foreach (var mirror in forbiddenMirrors)
+        {
+            Assert.False(File.Exists(root.File(mirror)), $"Duplicate public site mirror should not be committed: {mirror}");
+        }
+
+        var pagesWorkflow = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/pages.yml")));
+        Assert.Contains("name: Deploy GitHub Pages site", pagesWorkflow);
+        Assert.Contains("path: site", pagesWorkflow);
+        Assert.DoesNotContain("path: landing", pagesWorkflow);
+        Assert.DoesNotContain("path: docs", pagesWorkflow);
+    }
+
+    [Fact]
+    public void SeoManifestSitemapAndHtmlCanonicalUrlsStayAligned()
+    {
+        var root = FindRepositoryRoot();
+        using var manifestDocument = JsonDocument.Parse(File.ReadAllText(root.File("site/seo-manifest.json")));
+        var manifest = manifestDocument.RootElement;
+        var sitemap = File.ReadAllText(root.File("site/sitemap.xml"));
+
+        Assert.Equal("site/", manifest.GetProperty("sourceOfTruth").GetString());
+        Assert.Equal("https://masarray.github.io/ARIEC60870/", manifest.GetProperty("canonicalBaseUrl").GetString());
+
+        foreach (var page in manifest.GetProperty("pages").EnumerateArray())
+        {
+            var path = page.GetProperty("path").GetString();
+            var canonical = page.GetProperty("canonical").GetString();
+            var title = page.GetProperty("title").GetString();
+            var description = page.GetProperty("description").GetString();
+
+            Assert.False(string.IsNullOrWhiteSpace(path));
+            Assert.False(string.IsNullOrWhiteSpace(canonical));
+            Assert.False(string.IsNullOrWhiteSpace(title));
+            Assert.False(string.IsNullOrWhiteSpace(description));
+
+            var htmlPath = root.File($"site/{path}");
+            Assert.True(File.Exists(htmlPath), $"SEO manifest page is missing: {path}");
+
+            var html = File.ReadAllText(htmlPath);
+            Assert.Contains($"<link rel=\"canonical\" href=\"{canonical}\"", html);
+            Assert.Contains("property=\"og:title\"", html);
+            Assert.Contains("property=\"og:description\"", html);
+            Assert.Contains(canonical!, sitemap);
+        }
+    }
+
+    [Fact]
+    public void SiteProvidesExplicitIconsAndMachineReadableDiscoveryFiles()
+    {
+        var root = FindRepositoryRoot();
+        var manifest = File.ReadAllText(root.File("site/site.webmanifest"));
+        var robots = File.ReadAllText(root.File("site/robots.txt"));
+        var llms = File.ReadAllText(root.File("site/llms.txt"));
+
+        Assert.True(File.Exists(root.File("site/assets/brand/favicon.ico")));
+        Assert.True(File.Exists(root.File("site/assets/brand/ariec60870-icon-180.png")));
+        Assert.True(File.Exists(root.File("site/assets/brand/ariec60870-icon-192.png")));
+        Assert.True(File.Exists(root.File("site/assets/brand/ariec60870-icon-512.png")));
+        Assert.Contains("ariec60870-icon-192.png", manifest);
+        Assert.Contains("Sitemap: https://masarray.github.io/ARIEC60870/sitemap.xml", robots);
+        Assert.Contains("IEC 60870-5-101", llms);
+        Assert.Contains("IEC 60870-5-104", llms);
+    }
 
     [Fact]
     public void DesktopCodeBehindIsSplitIntoFeatureOwnedPartials()
@@ -213,6 +300,48 @@ public sealed class RepositoryHygieneTests
         Assert.True(File.Exists(Path.Combine(desktop, "ViewModels", "TriggerCaptureRow.cs")));
         Assert.DoesNotContain("public sealed record StatusHistoryRow", shell);
         Assert.DoesNotContain("public sealed record TriggerCaptureRow", shell);
+    }
+
+
+    [Fact]
+    public void ReportWorkspaceExportsPdfDirectlyWithoutHtmlPrintWorkflowLanguage()
+    {
+        var root = FindRepositoryRoot();
+        var activeFiles = Directory
+            .EnumerateFiles(root.FullName, "*.*", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}docs{Path.DirectorySeparatorChar}archive{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var file in activeFiles)
+        {
+            var text = File.ReadAllText(file);
+            Assert.DoesNotContain("Export HTML" + " / PDF", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("standalone" + " HTML", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("print" + " to PDF", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("browser" + " print", text, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var xaml = File.ReadAllText(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        Assert.Contains("Export PDF", xaml, StringComparison.Ordinal);
+        Assert.Contains("ExportPdf_Click", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ExportMarkdown_Click", xaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void QuestPdfDependencyIsDeclaredAndDocumented()
+    {
+        var root = FindRepositoryRoot();
+        var desktopProject = File.ReadAllText(root.File("src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj"));
+        var notices = File.ReadAllText(root.File("THIRD_PARTY_NOTICES.md"));
+        var service = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Reporting/EvidencePdfReportService.cs"));
+
+        Assert.Contains("PackageReference Include=\"QuestPDF\"", desktopProject, StringComparison.Ordinal);
+        Assert.Contains("QuestPDF Community License", notices, StringComparison.Ordinal);
+        Assert.Contains("LicenseType.Community", service, StringComparison.Ordinal);
     }
 
     private static string NormalizeNewlines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);

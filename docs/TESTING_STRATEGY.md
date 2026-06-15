@@ -54,3 +54,8 @@ High-priority regression areas are:
 - report privacy and Markdown table escaping;
 - `.ariec` capture row JSON compatibility;
 - repository release workflow and architecture guardrails.
+
+
+## Report PDF regression
+
+`ARIEC60870.Desktop.Tests` includes a QuestPDF PDF evidence report smoke test. It verifies that the desktop report engine can generate a real `%PDF` file from sanitized evidence rows, preventing regressions back to HTML-print report export.

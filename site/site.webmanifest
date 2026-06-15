@@ -8,7 +8,28 @@
   "background_color": "#f6f8fb",
   "theme_color": "#0b6f86",
   "icons": [
-    { "src": "assets/brand/ariec60870-icon.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "assets/brand/ariec60870-icon-64.png", "sizes": "64x64", "type": "image/png" }
+    {
+      "src": "assets/brand/ariec60870-icon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/brand/ariec60870-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/brand/ariec60870-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/brand/ariec60870-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }

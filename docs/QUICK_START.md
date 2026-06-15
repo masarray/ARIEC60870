@@ -50,7 +50,7 @@ Click **Start** and watch these areas:
 - **Value Viewer** — latest decoded values.
 - **Event Log** — decoded state changes and event records.
 - **Diagnostics / Findings** — communication and protocol issues.
-- **Report Preview** — standalone HTML evidence report preview and export.
+- **Report** — professional evidence report preview and direct PDF export.
 
 ## 5. First acceptance checks
 
@@ -67,7 +67,7 @@ A healthy first check normally shows:
 
 ## 6. Export evidence
 
-Use **Report Preview** or selected evidence export after the test. Review the report before sharing it outside the project team.
+Use **Report** or selected evidence export after the test. Export the professional PDF report after reviewing the evidence scope.
 
 Exported evidence may contain project names, communication settings, mapping labels, and raw protocol frames. Sanitize those details before public issue reports or external sharing.
 

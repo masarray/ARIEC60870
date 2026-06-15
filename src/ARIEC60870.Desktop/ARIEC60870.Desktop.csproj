@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ARIEC60870.Core\ARIEC60870.Core.csproj" />
     <ProjectReference Include="..\ARIEC60870.Master\ARIEC60870.Master.csproj" />
+    <PackageReference Include="QuestPDF" Version="2026.6.0" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\Icons\ariec60870-icon.png" />

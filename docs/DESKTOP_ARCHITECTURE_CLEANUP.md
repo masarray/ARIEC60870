@@ -20,7 +20,7 @@ src/ARIEC60870.Desktop/
     MainWindow.WorkspaceSelection.cs    # trace/evidence list selection, freeze/resume live view behavior
     MainWindow.CaptureFiles.cs          # .ariec archive open/save and capture manifest models
     MainWindow.TriggerCapture.cs        # user-defined smart capture rules and trigger evidence window
-    MainWindow.Reporting.cs             # report preview and HTML evidence report generation
+    MainWindow.Reporting.cs             # report workspace orchestration and PDF export wiring
     MainWindow.Export.cs                # TSV/data-grid export helpers
   Services/
     LocalWorkspacePaths.cs              # local app-data path ownership
@@ -76,7 +76,7 @@ Current extracted service:
 The remaining cleanup path should move from partial code-behind to testable services:
 
 1. `CaptureArchiveService` for `.ariec` read/write, manifest validation, and frame hashing.
-2. `EvidenceHtmlReportBuilder` for report HTML generation.
+2. `EvidencePdfReportService` for QuestPDF-based professional PDF generation.
 3. `SetupPreferencesStore` for JSON persistence and version-safe migration.
 4. `ProtocolProofViewModel` for GI/command proof state.
 5. `LiveEvidenceWorkspaceViewModel` for trace/evidence freeze, selection, and follow-live behavior.

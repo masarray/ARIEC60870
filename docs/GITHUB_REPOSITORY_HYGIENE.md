@@ -33,4 +33,4 @@ If a new source folder is added, update `.gitignore` intentionally instead of by
 
 ## Public site source
 
-Use `site/` as the source of truth for GitHub Pages. The `landing/` folder is a legacy mirror only. New SEO metadata, sitemap entries, screenshots, FAQ content, and download wording should be changed in `site/` first.
+Use `site/` as the single source of truth for GitHub Pages. Do not maintain duplicate `landing/` or `docs/index.html` mirrors. New SEO metadata, sitemap entries, screenshots, FAQ content, download wording, `llms.txt`, and manifest changes belong in `site/` first.

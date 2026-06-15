@@ -21,6 +21,7 @@ using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Desktop.Reporting;
 using ARIEC60870.Master;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Reporting;
@@ -156,23 +157,23 @@ public partial class MainWindow
     {
         var builder = new StringBuilder();
         builder.AppendLine("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\" />");
-        builder.AppendLine("<title>ARIEC Report Preview</title>");
+        builder.AppendLine("<title>ARIEC Report Workspace</title>");
         builder.AppendLine(BuildReportCss());
         builder.AppendLine("</head><body><main class=\"page\">");
-        builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ARIEC60870 Protocol Lab</div><h1>Report Preview</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
-        builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Protocol Trace / Evidence Summary.</li><li>Return here and click Refresh.</li><li>Click Export HTML / PDF, open the HTML in browser, then print to PDF.</li></ul></section>");
+        builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ARIEC60870 Protocol Lab</div><h1>Report Workspace</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
+        builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Protocol Trace / Evidence Summary.</li><li>Return here and click Refresh.</li><li>Click Export PDF to create the professional evidence report.</li></ul></section>");
         builder.AppendLine("<section class=\"card\"><h2>Generated</h2><p>" + EscapeHtml(createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)) + "</p></section>");
         builder.AppendLine("</main></body></html>");
         return builder.ToString();
     }
 
-    private void ExportMarkdown_Click(object sender, RoutedEventArgs e)
+    private void ExportPdf_Click(object sender, RoutedEventArgs e)
     {
         var rows = GetCurrentReportRows(out var sourceWorkspace);
 
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "No evidence rows are available yet. Run or open a capture first.", "Export report", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "No evidence rows are available yet. Run or open a capture first.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -180,11 +181,11 @@ public partial class MainWindow
         var reportId = "ARIEC-REPORT-" + created.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
         var dialog = new SaveFileDialog
         {
-            Title = "Export protocol evidence report",
-            Filter = "HTML report (*.html)|*.html|All files (*.*)|*.*",
-            FileName = $"{reportId}.html",
+            Title = "Export professional PDF evidence report",
+            Filter = "PDF report (*.pdf)|*.pdf|All files (*.*)|*.*",
+            FileName = $"{reportId}.pdf",
             AddExtension = true,
-            DefaultExt = ".html"
+            DefaultExt = ".pdf"
         };
 
         if (dialog.ShowDialog(this) != true)
@@ -192,11 +193,70 @@ public partial class MainWindow
             return;
         }
 
-        var html = BuildEvidenceHtmlReport(reportId, created, rows, sourceWorkspace);
-        File.WriteAllText(dialog.FileName, html, Encoding.UTF8);
-        AddEvidenceRetentionExportMarker("protocol HTML evidence report");
-        AppendSessionLog("protocol HTML evidence report exported: " + dialog.FileName);
-        MessageBox.Show(this, "HTML evidence report exported successfully. Open it in a browser and print to PDF when needed.", "Export report", MessageBoxButton.OK, MessageBoxImage.Information);
+        try
+        {
+            var model = BuildEvidencePdfReportModel(reportId, created, rows, sourceWorkspace);
+            EvidencePdfReportService.Save(dialog.FileName, model);
+            AddEvidenceRetentionExportMarker("protocol PDF evidence report");
+            AppendSessionLog("protocol PDF evidence report exported: " + dialog.FileName);
+            MessageBox.Show(this, "PDF evidence report exported successfully.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic("Error", "Report", "ARIEC-PDF-EXPORT-FAILED", "PDF report export failed", ex.Message, "Check the output path and verify QuestPDF licensing eligibility for your organization.");
+            MessageBox.Show(this, "PDF export failed: " + ex.Message, "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private EvidencePdfReportModel BuildEvidencePdfReportModel(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
+    {
+        var orderedRows = rows.OrderBy(row => row.Sequence).ToArray();
+        var first = orderedRows.First();
+        var last = orderedRows.Last();
+        var protocolMode = GetSelectedProtocolMode().ToString();
+        var giRows = orderedRows.Where(IsGiEvidenceRow).Take(80).ToArray();
+        var commandRows = orderedRows.Where(IsCommandEvidenceRow).Take(80).ToArray();
+        var soeRows = orderedRows.Where(IsSoeOrEventEvidenceRow).Take(120).ToArray();
+        var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(180).ToArray();
+        var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
+        var verdict = BuildReportVerdict(orderedRows);
+
+        return new EvidencePdfReportModel(
+            reportId,
+            createdLocal,
+            sourceWorkspace,
+            protocolMode,
+            verdict.Status,
+            verdict.Summary,
+            verdict.CssClass,
+            new[]
+            {
+                new KeyValuePair<string, string>("Report ID", reportId),
+                new KeyValuePair<string, string>("Created", createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("Source", sourceWorkspace),
+                new KeyValuePair<string, string>("Protocol", protocolMode),
+                new KeyValuePair<string, string>("Rows", orderedRows.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("Sequence", $"{first.Sequence} → {last.Sequence}"),
+                new KeyValuePair<string, string>("Frames SHA256", framesSha256)
+            },
+            new[]
+            {
+                new KeyValuePair<string, string>("TX / RX", $"{_txCount} / {_rxCount}"),
+                new KeyValuePair<string, string>("GI", _giCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
+                new KeyValuePair<string, string>("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("DPI/Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("Findings", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            },
+            BuildReportCommunicationSetupLines().ToArray(),
+            giRows,
+            commandRows,
+            soeRows,
+            importantRows.Length > 0 ? importantRows : orderedRows.Take(120).ToArray(),
+            orderedRows.Length,
+            first.Sequence,
+            last.Sequence,
+            framesSha256);
     }
 
     private string BuildEvidenceHtmlReport(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
@@ -228,7 +288,7 @@ public partial class MainWindow
         html.AppendLine("<div>");
         html.AppendLine("<div class=\"eyebrow\">ARIEC60870 Protocol Lab</div>");
         html.AppendLine("<h1>IEC 60870 Evidence Report</h1>");
-        html.AppendLine("<p>Protocol communication test evidence generated from the current ARIEC evidence buffer. This file is standalone and can be opened without ARIEC.</p>");
+        html.AppendLine("<p>Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.</p>");
         html.AppendLine("</div>");
         html.AppendLine("<div class=\"verdict " + EscapeHtml(verdict.CssClass) + "\">");
         html.AppendLine("<span>Verdict</span><strong>" + EscapeHtml(verdict.Status) + "</strong>");
@@ -280,9 +340,8 @@ public partial class MainWindow
         html.AppendLine("<section class=\"card appendix\">");
         html.AppendLine("<h2>Report Notes</h2>");
         html.AppendLine("<ul>");
-        html.AppendLine("<li>This report is generated from ARIEC evidence rows and does not require the ARIEC application to be opened.</li>");
-        html.AppendLine("<li>Use browser print to save as PDF for FAT/SAT evidence attachment.</li>");
-        html.AppendLine("<li>For full replayable evidence, keep the accompanying .ariec capture file.</li>");
+        html.AppendLine("<li>Review this summary against the approved project FAT/SAT procedure and signal mapping.</li>");
+        html.AppendLine("<li>Keep the accompanying .ariec capture file when replayable frame evidence is required.</li>");
         html.AppendLine("</ul>");
         html.AppendLine("</section>");
 
@@ -310,8 +369,8 @@ public partial class MainWindow
     private static string BuildReportCss()
         => """
 <style>
-:root{--ink:#111827;--muted:#64748b;--line:#dbe5f2;--panel:#f8fbff;--accent:#2563eb;--good:#16a34a;--warn:#d97706;--bad:#dc2626}
-*{box-sizing:border-box}body{margin:0;background:#eaf1fb;color:var(--ink);font-family:Aptos,Segoe UI,Arial,sans-serif;font-size:13px;line-height:1.45}.page{max-width:1180px;margin:28px auto;padding:0 22px 36px}.hero{display:flex;justify-content:space-between;gap:24px;align-items:stretch;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:white;border-radius:24px;padding:30px 34px;box-shadow:0 24px 60px rgba(15,23,42,.24)}.hero h1{margin:4px 0 8px;font-size:32px;letter-spacing:-.04em}.hero p{margin:0;color:#dbeafe;max-width:720px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#bfdbfe;font-weight:700}.verdict{min-width:180px;border-radius:20px;padding:18px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);display:flex;flex-direction:column;justify-content:center;text-align:center}.verdict span{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#dbeafe}.verdict strong{font-size:28px;letter-spacing:-.03em}.verdict.pass strong{color:#86efac}.verdict.attention strong{color:#fde68a}.verdict.fail strong{color:#fecaca}.grid{display:grid;gap:16px;margin-top:16px}.grid.two{grid-template-columns:1fr 1fr}.card{background:white;border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 12px 32px rgba(15,23,42,.08)}.card h2{margin:0 0 12px;font-size:18px;letter-spacing:-.02em}.lead{font-size:14px;color:#334155;margin:0}.kvlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}.kvlist div{border-bottom:1px solid #eef3f8;padding-bottom:8px}.kvlist span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}.kvlist strong{display:block;margin-top:3px;font-weight:600;word-break:break-word}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 10px;border-bottom:1px solid #edf2f7;vertical-align:top;text-align:left}th{position:sticky;top:0;background:#f8fbff;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#475569}td.mono{font-family:'Cascadia Mono','Consolas',monospace;font-size:12px}.muted{color:var(--muted)}.chip{display:inline-block;border-radius:999px;padding:3px 8px;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:11px}.empty{color:var(--muted);font-style:italic}.appendix ul{margin:0;padding-left:18px}@media print{body{background:white}.page{max-width:none;margin:0;padding:0}.hero,.card{box-shadow:none}.hero{border-radius:0}.card{break-inside:avoid}.tablewrap{overflow:visible}th{position:static}}
+:root{--ink:#111827;--muted:#64748b;--line:#dbe5f2;--panel:#f8fbff;--accent:#2563eb;--good:#15803d;--warn:#b45309;--bad:#b91c1c}
+*{box-sizing:border-box}body{margin:0;background:#f3f7fc;color:var(--ink);font-family:Aptos,Segoe UI,Arial,sans-serif;font-size:12px;line-height:1.45}.page{max-width:1080px;margin:22px auto;padding:0 20px 32px}.hero{display:flex;justify-content:space-between;gap:18px;align-items:center;background:linear-gradient(135deg,#ffffff,#f7fbff);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:20px;padding:20px 22px;box-shadow:0 16px 40px rgba(15,23,42,.08)}.hero h1{margin:3px 0 6px;font-size:25px;letter-spacing:-.035em;font-weight:650}.hero p{margin:0;color:#475569;max-width:720px}.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#2563eb;font-weight:700}.verdict{min-width:144px;border-radius:16px;padding:12px;background:#f8fbff;border:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;text-align:center}.verdict span{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:700}.verdict strong{font-size:22px;letter-spacing:-.03em}.verdict.pass strong{color:var(--good)}.verdict.attention strong{color:var(--warn)}.verdict.fail strong{color:var(--bad)}.grid{display:grid;gap:14px;margin-top:14px}.grid.two{grid-template-columns:1fr 1fr}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:14px;box-shadow:0 10px 28px rgba(15,23,42,.06)}.card h2{margin:0 0 10px;font-size:15px;letter-spacing:-.02em;font-weight:650}.lead{font-size:13px;color:#334155;margin:0}.kvlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}.kvlist div{border-bottom:1px solid #eef3f8;padding-bottom:7px}.kvlist span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}.kvlist strong{display:block;margin-top:2px;font-weight:600;word-break:break-word}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:white}th,td{padding:8px 9px;border-bottom:1px solid #edf2f7;vertical-align:top;text-align:left}th{position:sticky;top:0;background:#f8fbff;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#475569}td.mono{font-family:'Cascadia Mono','Consolas',monospace;font-size:11px}.muted{color:var(--muted)}.chip{display:inline-block;border-radius:999px;padding:2px 7px;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:10px}.empty{color:var(--muted);font-style:italic}.appendix ul{margin:0;padding-left:18px}@media print{body{background:white}.page{max-width:none;margin:0;padding:0}.hero,.card{box-shadow:none}.hero{border-radius:0}.card{break-inside:avoid}.tablewrap{overflow:visible}th{position:static}}
 </style>
 """;
 

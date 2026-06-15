@@ -10,7 +10,7 @@ ARIEC60870/
     ARIEC60870.Core/           # Pure protocol models, FT1.2 parser, control decode, ASDU decode
     ARIEC60870.Master/         # Active master state machine, polling policy, transport orchestration
     ARIEC60870.Mapping/        # Future optional split: mapping profile schema, validation, lookup
-    ARIEC60870.Reports/        # Future optional split: Markdown/HTML/PDF/evidence bundle
+    ARIEC60870.Reports/        # Future optional split: PDF/report/evidence bundle services
     ARIEC60870.Desktop/        # WPF cockpit only; no protocol ownership
       Features/                # Feature-bounded MainWindow partials during WPF cleanup
       Services/                # WPF-safe services such as local path ownership
@@ -42,8 +42,7 @@ ARIEC60870/
     CLEAN_ROOM_POLICY.md
     RELEASE_NOTES_*.md
 
-  site/                      # Canonical static GitHub Pages site
-  landing/                   # Legacy landing mirror only
+  site/                      # Canonical static GitHub Pages site; no hand-edited landing/docs mirror
   .github/workflows/         # CI, security, release, and GitHub Pages workflows
   AGENTS.md
   README.md
@@ -128,7 +127,7 @@ Owns:
 - session summary
 - evidence export
 - report sections
-- markdown/html/pdf generation
+- PDF/report generation
 
 Must not own:
 

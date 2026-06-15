@@ -28,6 +28,7 @@ jobs:
             CONTRIBUTING.md SECURITY.md SUPPORT.md CODE_OF_CONDUCT.md
             docs/QUICK_START.md docs/TROUBLESHOOTING.md docs/VALIDATION_MATRIX.md
             site/index.html site/sitemap.xml site/robots.txt site/site.webmanifest
+            site/seo-manifest.json site/llms.txt site/humans.txt
             .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml
           )
           for file in "${required[@]}"; do
@@ -57,3 +58,40 @@ jobs:
             exit 1
           fi
           find site/assets -type f -size +750k -print -quit | grep -q . && { echo "Large site asset found; compress before commit."; exit 1; } || true
+
+      - name: Check canonical site ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden=(
+            landing/index.html landing/styles.css landing/script.js landing/sitemap.xml landing/robots.txt
+            docs/index.html docs/styles.css docs/script.js docs/sitemap.xml docs/robots.txt docs/site.webmanifest docs/.nojekyll
+          )
+          for file in "${forbidden[@]}"; do
+            if [ -e "$file" ]; then
+              echo "Duplicate public site mirror is not allowed: $file"
+              exit 1
+            fi
+          done
+
+      - name: Check sitemap and canonical coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path('site/seo-manifest.json').read_text(encoding='utf-8'))
+          sitemap = Path('site/sitemap.xml').read_text(encoding='utf-8')
+          for page in manifest['pages']:
+              html_path = Path('site') / page['path']
+              html = html_path.read_text(encoding='utf-8')
+              canonical = page['canonical']
+              if f'<link rel="canonical" href="{canonical}"' not in html:
+                  raise SystemExit(f'Missing canonical in {html_path}: {canonical}')
+              if canonical not in sitemap:
+                  raise SystemExit(f'Sitemap missing canonical URL: {canonical}')
+              if 'og:title' not in html or 'og:description' not in html:
+                  raise SystemExit(f'Missing Open Graph metadata: {html_path}')
+          PY

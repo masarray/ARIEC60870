@@ -2,7 +2,7 @@
 
 This directory is the canonical source for the public GitHub Pages landing site.
 
-The Pages workflow publishes this folder directly, so product/SEO changes should be made here first. Historical mirrors under `landing/` or `docs/` are retained only for compatibility with older links and repository browsing.
+The Pages workflow publishes this folder directly, so product/SEO changes are made here. Historical `landing/` and `docs/index.html` mirrors are intentionally removed to prevent stale metadata and duplicate maintenance.
 
 ## Local preview
 

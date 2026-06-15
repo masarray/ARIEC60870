@@ -43,12 +43,22 @@
 # Documentation and static landing page
 !/docs/**
 !/site/**
-!/landing/**
 !/profiles/**
 !/.github/**
 
 # Sanitized sample/test vectors only. Real field captures must remain local.
 !/samples/**
+
+# Public site mirrors are intentionally not committed. Use site/ only.
+landing/**
+docs/index.html
+docs/styles.css
+docs/script.js
+docs/robots.txt
+docs/sitemap.xml
+docs/site.webmanifest
+docs/.nojekyll
+docs/assets/**
 
 # Re-ignore generated/build artifacts that may appear inside allowed directories.
 **/screenshot/**

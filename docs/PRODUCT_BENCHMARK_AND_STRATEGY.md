@@ -80,7 +80,7 @@ ARIEC60870 v1.0 should provide:
 8. Value Viewer: latest state/value snapshot.
 9. Relay Event Log: relay-timestamped edge/state-change events.
 10. Findings: polling, timeout, checksum, GI, mapping, and timing warnings.
-11. Evidence report: Markdown/HTML/JSON first, PDF later.
+11. Evidence report: professional PDF first, with JSON/.ariec capture retained for replayable evidence.
 
 ## Not v1.0
 

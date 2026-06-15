@@ -1,14 +1,12 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
-name: Deploy landing page
+name: Deploy GitHub Pages site
 
 on:
   push:
     branches: [ main, master ]
     paths:
       - 'site/**'
-      - 'README.md'
-      - '.nojekyll'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -30,6 +28,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate canonical site files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f site/index.html
+          test -f site/sitemap.xml
+          test -f site/robots.txt
+          test -f site/site.webmanifest
+          test -f site/seo-manifest.json
+          test -f site/llms.txt
+          test -f site/humans.txt
+          if [ -f landing/index.html ] || [ -f docs/index.html ]; then
+            echo "Only site/ may contain the public GitHub Pages HTML source."
+            exit 1
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

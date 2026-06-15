@@ -42,3 +42,8 @@ dotnet test tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj
 ```
 
 On GitHub Actions, the CI workflow publishes `protocol-smoke-tests.log`, `.trx` test result files, and coverage collector output under the `ARIEC60870-test-results` artifact.
+
+
+## Desktop PDF report test
+
+`ARIEC60870.Desktop.Tests` verifies direct PDF evidence report generation through the QuestPDF-backed report service.

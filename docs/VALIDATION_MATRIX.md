@@ -51,3 +51,6 @@ A stable release is expected to have:
 - Class 1 drain behavior verified with at least one event source;
 - timeout/checksum/malformed recovery reviewed;
 - exported evidence reviewed for privacy and clarity.
+
+
+| Report PDF generation | `ARIEC60870.Desktop.Tests` | Verifies direct QuestPDF PDF output and guards against HTML-print report regressions. |

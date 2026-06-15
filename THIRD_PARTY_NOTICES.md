@@ -8,6 +8,17 @@ ARIEC60870 is released under Apache-2.0. This file records third-party runtime/f
 
 ARIEC60870 targets .NET 8. The desktop application uses WPF on Windows.
 
+
+### QuestPDF
+
+- Usage: professional PDF evidence report generation in `ARIEC60870.Desktop`
+- Package: `QuestPDF`
+- Version used by this project: `2026.6.0`
+- License: QuestPDF Community License / commercial license depending on user eligibility
+- Project website: https://www.questpdf.com/
+
+QuestPDF is used only for local PDF document generation. ARIEC60870 remains Apache-2.0 for project-owned source code, but QuestPDF usage is governed by QuestPDF's own license terms. Users and redistributors should verify their eligibility under the QuestPDF license or obtain an appropriate commercial license when required.
+
 ### System.IO.Ports
 
 - Usage: serial COM-port I/O in `ARIEC60870.Master`

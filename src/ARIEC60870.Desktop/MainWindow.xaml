@@ -53,7 +53,7 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="StopButton" Style="{StaticResource RailDangerIconButton}" Click="Stop_Click" IsEnabled="False" ToolTip="Disconnect and close transport" Visibility="Collapsed" Height="0" Margin="0" />
-                <Button x:Name="ExportMarkdownButton" Style="{StaticResource RailIconButton}" Click="ExportMarkdown_Click" ToolTip="Export standalone HTML evidence report / print to PDF">
+                <Button x:Name="ExportReportButton" Style="{StaticResource RailIconButton}" Click="ExportPdf_Click" ToolTip="Export professional PDF evidence report">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
                         <TextBlock Text="Report" Style="{StaticResource RailButtonCaption}" />
@@ -263,7 +263,7 @@
                                         <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavReportButton" Content="Report Preview" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" />
                                     </StackPanel>
@@ -784,7 +784,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Report Preview">
+                    <TabItem Header="Report">
                         <Grid Margin="18">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -794,8 +794,8 @@
                             <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
                                 <DockPanel LastChildFill="True">
                                     <StackPanel DockPanel.Dock="Left">
-                                        <TextBlock Text="Report Preview" FontWeight="Medium" FontSize="16" />
-                                        <TextBlock Text="Preview the standalone protocol HTML evidence report before export. Use Export HTML / Print PDF, then print from browser to PDF." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                        <TextBlock Text="Report Workspace" FontWeight="Medium" FontSize="16" />
+                                        <TextBlock Text="Preview the professional evidence report content, then export a clean PDF for FAT/SAT or troubleshooting records." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     </StackPanel>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <Button Style="{StaticResource SecondaryButton}" Width="126" Height="34" Padding="10,6" Click="RefreshReportPreview_Click" ToolTip="Refresh report preview from current evidence">
@@ -804,10 +804,10 @@
                                                 <TextBlock Text="Refresh" Margin="7,0,0,0" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Style="{StaticResource PrimaryButton}" Width="170" Height="34" Padding="10,6" Margin="8,0,0,0" Click="ExportMarkdown_Click" ToolTip="Export standalone HTML report. Open in browser and print to PDF.">
+                                        <Button Style="{StaticResource PrimaryButton}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="ExportPdf_Click" ToolTip="Export a professional PDF evidence report.">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" Stroke="#FFFFFF" />
-                                                <TextBlock Text="Export HTML / PDF" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                                <TextBlock Text="Export PDF" Margin="7,0,0,0" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
