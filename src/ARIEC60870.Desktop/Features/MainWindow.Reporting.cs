@@ -203,7 +203,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            AddUiDiagnostic("Error", "Report", "ARIEC-PDF-EXPORT-FAILED", "PDF report export failed", ex.Message, "Check the output path and verify QuestPDF licensing eligibility for your organization.");
+            AddUiDiagnostic("Error", "Report", "ARIEC-PDF-EXPORT-FAILED", "PDF report export failed", ex.Message, "Check the output path, file permissions, and whether the target PDF file is already open.");
             MessageBox.Show(this, "PDF export failed: " + ex.Message, "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

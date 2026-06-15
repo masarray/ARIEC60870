@@ -12,7 +12,7 @@
 
 The application runs a controlled master/client session, decodes protocol responses, shows readable engineering evidence, and keeps raw TX/RX frame detail available when deeper review is needed. It is designed for protection, SCADA, RTU, gateway, panel FAT, site acceptance, and substation automation teams.
 
-No account required. The core application is released under the **Apache-2.0** license; the optional PDF generator uses the QuestPDF Community License as documented in `THIRD_PARTY_NOTICES.md`.
+No account required. The application source and built-in PDF report engine are released under the **Apache-2.0** license with no third-party PDF generation package dependency.
 
 ## Project status
 
@@ -89,7 +89,8 @@ First run:
 - FUN/INF/DPI/value/timestamp evidence for IEC-103 relay communication.
 - Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, Findings, and Report workspaces.
 - User-owned JSON mapping profiles for readable project signal names.
-- Professional PDF evidence report generated directly from the Report workspace using QuestPDF.
+- Professional PDF evidence report generated directly from the Report workspace by the built-in native PDF engine.
+- Native PDF engine documented in [`docs/NATIVE_PDF_ENGINE.md`](docs/NATIVE_PDF_ENGINE.md).
 - CLI support for IEC-103 master runs, offline trace analysis, and deterministic simulator checks.
 - Sanitized protocol smoke tests and test vectors.
 

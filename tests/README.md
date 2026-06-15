@@ -46,4 +46,4 @@ On GitHub Actions, the CI workflow publishes `protocol-smoke-tests.log`, `.trx` 
 
 ## Desktop PDF report test
 
-`ARIEC60870.Desktop.Tests` verifies direct PDF evidence report generation through the QuestPDF-backed report service.
+`ARIEC60870.Desktop.Tests` verifies direct PDF evidence report generation through the built-in native PDF report service.

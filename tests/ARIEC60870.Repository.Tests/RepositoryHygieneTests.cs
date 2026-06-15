@@ -332,16 +332,21 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
-    public void QuestPdfDependencyIsDeclaredAndDocumented()
+    public void PdfEngineIsNativeAndDependencyFree()
     {
         var root = FindRepositoryRoot();
         var desktopProject = File.ReadAllText(root.File("src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj"));
         var notices = File.ReadAllText(root.File("THIRD_PARTY_NOTICES.md"));
         var service = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Reporting/EvidencePdfReportService.cs"));
 
-        Assert.Contains("PackageReference Include=\"QuestPDF\"", desktopProject, StringComparison.Ordinal);
-        Assert.Contains("QuestPDF Community License", notices, StringComparison.Ordinal);
-        Assert.Contains("LicenseType.Community", service, StringComparison.Ordinal);
+        var forbiddenPdfPackage = new string(new[] { 'Q', 'u', 'e', 's', 't', 'P', 'D', 'F' });
+        Assert.DoesNotContain("PackageReference Include=\"" + forbiddenPdfPackage + "\"", desktopProject, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(forbiddenPdfPackage, notices, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(forbiddenPdfPackage, service, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("LicenseType.Community", service, StringComparison.Ordinal);
+        Assert.Contains("NativePdfDocument", service, StringComparison.Ordinal);
+        Assert.Contains("xref", service, StringComparison.Ordinal);
+        Assert.Contains("built-in native PDF engine", notices, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeNewlines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);

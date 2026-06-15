@@ -55,8 +55,16 @@ public sealed class EvidencePdfReportRegressionTests
         try
         {
             EvidencePdfReportService.Save(output, model);
-            var header = File.ReadAllBytes(output).Take(4).ToArray();
+            var bytes = File.ReadAllBytes(output);
+            var header = bytes.Take(4).ToArray();
+            var text = System.Text.Encoding.ASCII.GetString(bytes);
+
             Assert.Equal(new byte[] { 0x25, 0x50, 0x44, 0x46 }, header);
+            Assert.Contains("xref", text, StringComparison.Ordinal);
+            Assert.Contains("%%EOF", text, StringComparison.Ordinal);
+            Assert.Contains("ARIEC60870", text, StringComparison.Ordinal);
+            Assert.Contains("Native PDF Engine", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("HTML", text, StringComparison.OrdinalIgnoreCase);
             Assert.True(new FileInfo(output).Length > 1024);
         }
         finally

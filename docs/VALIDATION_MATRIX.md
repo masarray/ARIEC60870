@@ -53,4 +53,4 @@ A stable release is expected to have:
 - exported evidence reviewed for privacy and clarity.
 
 
-| Report PDF generation | `ARIEC60870.Desktop.Tests` | Verifies direct QuestPDF PDF output and guards against HTML-print report regressions. |
+| Report PDF generation | `ARIEC60870.Desktop.Tests` | Verifies direct native PDF output and guards against HTML-print report regressions. |

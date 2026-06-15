@@ -76,7 +76,7 @@ Current extracted service:
 The remaining cleanup path should move from partial code-behind to testable services:
 
 1. `CaptureArchiveService` for `.ariec` read/write, manifest validation, and frame hashing.
-2. `EvidencePdfReportService` for QuestPDF-based professional PDF generation.
+2. `EvidencePdfReportService` for built-in dependency-free professional PDF generation.
 3. `SetupPreferencesStore` for JSON persistence and version-safe migration.
 4. `ProtocolProofViewModel` for GI/command proof state.
 5. `LiveEvidenceWorkspaceViewModel` for trace/evidence freeze, selection, and follow-live behavior.

@@ -8,8 +8,8 @@
 
 ### Changed
 - Reworked the Report workspace copy to remove HTML-print workflow language and export a professional PDF report directly.
-- Added a QuestPDF-based evidence report engine with executive summary, session counters, communication setup, acceptance notes, and evidence tables.
-- Documented QuestPDF as a third-party PDF generation dependency in `THIRD_PARTY_NOTICES.md`.
+- Replaced the third-party PDF dependency with a clean-room native PDF evidence report engine using built-in PDF primitives, Type 1 fonts, paged layout, and professional evidence tables.
+- Restored a pure Apache-2.0 dependency story for PDF export by removing the PDF generator package dependency.
 - Simplified the public GitHub Pages site to a single canonical `site/` source.
 - Removed stale `landing/` and `docs/index.html` mirrors to prevent duplicate SEO metadata.
 - Moved README screenshots to canonical `site/assets` paths.

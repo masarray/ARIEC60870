@@ -27,7 +27,6 @@ updates:
           - "System.*"
           - "xunit*"
           - "coverlet*"
-          - "QuestPDF"
     labels:
       - "dependencies"
       - "dotnet"
