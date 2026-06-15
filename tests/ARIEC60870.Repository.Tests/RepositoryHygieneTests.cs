@@ -54,6 +54,12 @@ public sealed class RepositoryHygieneTests
             "site/seo-manifest.json",
             "site/llms.txt",
             "site/humans.txt",
+            "docs/index.html",
+            "docs/sitemap.xml",
+            "docs/robots.txt",
+            "docs/site.webmanifest",
+            "docs/.nojekyll",
+            "docs/.pages-compatibility-mirror",
             ".github/PULL_REQUEST_TEMPLATE.md",
             ".github/dependabot.yml",
             ".github/workflows/release-package.yml",
@@ -141,35 +147,58 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
-    public void PublicSiteHasSingleCanonicalSourceOfTruth()
+    public void PublicSiteKeepsCanonicalSourceAndDocsCompatibilityMirror()
     {
         var root = FindRepositoryRoot();
-        var forbiddenMirrors = new[]
+        var forbiddenLegacySource = new[]
         {
             "landing/index.html",
             "landing/styles.css",
             "landing/script.js",
             "landing/sitemap.xml",
-            "landing/robots.txt",
-            "docs/index.html",
-            "docs/styles.css",
-            "docs/script.js",
-            "docs/sitemap.xml",
-            "docs/robots.txt",
-            "docs/site.webmanifest",
-            "docs/.nojekyll"
+            "landing/robots.txt"
         };
 
-        foreach (var mirror in forbiddenMirrors)
+        foreach (var mirror in forbiddenLegacySource)
         {
-            Assert.False(File.Exists(root.File(mirror)), $"Duplicate public site mirror should not be committed: {mirror}");
+            Assert.False(File.Exists(root.File(mirror)), $"Legacy landing source should not be committed: {mirror}");
         }
+
+        var mirroredRuntimeFiles = new[]
+        {
+            "index.html",
+            "404.html",
+            "styles.css",
+            "script.js",
+            "robots.txt",
+            "sitemap.xml",
+            "site.webmanifest",
+            "seo-manifest.json",
+            "llms.txt",
+            "humans.txt",
+            "download.html",
+            "faq.html",
+            "protocol-coverage.html",
+            "quick-start.html",
+            "troubleshooting.html"
+        };
+
+        Assert.True(File.Exists(root.File("docs/.pages-compatibility-mirror")), "docs/ compatibility mirror marker is missing.");
+        foreach (var file in mirroredRuntimeFiles)
+        {
+            var siteFile = root.File($"site/{file}");
+            var docsFile = root.File($"docs/{file}");
+            Assert.True(File.Exists(siteFile), $"Canonical site file is missing: {siteFile}");
+            Assert.True(File.Exists(docsFile), $"/docs GitHub Pages compatibility file is missing: {docsFile}");
+            Assert.Equal(File.ReadAllText(siteFile), File.ReadAllText(docsFile));
+        }
+
+        Assert.True(Directory.Exists(root.File("docs/assets")), "/docs GitHub Pages compatibility assets are missing.");
 
         var pagesWorkflow = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/pages.yml")));
         Assert.Contains("name: Deploy GitHub Pages site", pagesWorkflow);
         Assert.Contains("path: site", pagesWorkflow);
         Assert.DoesNotContain("path: landing", pagesWorkflow);
-        Assert.DoesNotContain("path: docs", pagesWorkflow);
     }
 
     [Fact]

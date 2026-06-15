@@ -40,10 +40,15 @@ jobs:
           test -f site/seo-manifest.json
           test -f site/llms.txt
           test -f site/humans.txt
-          if [ -f landing/index.html ] || [ -f docs/index.html ]; then
-            echo "Only site/ may contain the public GitHub Pages HTML source."
+          if [ -f landing/index.html ]; then
+            echo "Legacy landing/ source is not allowed. Use site/ as canonical source."
             exit 1
           fi
+          if [ ! -f docs/index.html ] || [ ! -f docs/.pages-compatibility-mirror ]; then
+            echo "docs/ compatibility mirror is required so branch-based GitHub Pages settings do not 404."
+            exit 1
+          fi
+          cmp -s site/index.html docs/index.html || { echo "docs/index.html is out of sync with site/index.html"; exit 1; }
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

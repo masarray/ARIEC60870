@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://masarray.github.io/ARIEC60870/sitemap.xml

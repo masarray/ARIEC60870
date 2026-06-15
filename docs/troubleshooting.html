@@ -1,0 +1,62 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARIEC60870 Troubleshooting | IEC-101 IEC-103 IEC-104 Communication Checks</title>
+    <meta name="description" content="Troubleshooting checklist for IEC-101 serial, IEC-103 relay serial, and IEC-104 TCP communication issues in ARIEC60870." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <meta name="msapplication-TileColor" content="#0b6f86" />
+    <link rel="canonical" href="https://masarray.github.io/ARIEC60870/troubleshooting.html" />
+    <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:title" content="ARIEC60870 Troubleshooting | IEC-101 IEC-103 IEC-104 Communication Checks" />
+    <meta property="og:description" content="Troubleshooting checklist for IEC-101 serial, IEC-103 relay serial, and IEC-104 TCP communication issues in ARIEC60870." />
+    <meta property="og:url" content="https://masarray.github.io/ARIEC60870/troubleshooting.html" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 protocol evidence analyzer screenshot" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="ARIEC60870 home">
+        <img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" />
+        <span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="./">Home</a>
+        <a href="quick-start.html">Quick Start</a>
+        <a href="protocol-coverage.html">Protocols</a>
+        <a href="download.html">Download</a>
+        <a href="troubleshooting.html">Troubleshooting</a>
+        <a href="faq.html">FAQ</a>
+      </nav>
+    </header>
+    <main class="doc-main">
+      <section class="doc-hero reveal">
+        <p class="eyebrow">Troubleshooting</p>
+        <h1>Practical checks for no response, GI gaps, command issues, and frame trace findings.</h1>
+        <p>Use the checklist to separate physical link problems, addressing problems, protocol state problems, and mapping/reporting problems before escalating to vendor or site teams.</p>
+        <div class="doc-link-row">
+          <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a>
+          <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a>
+        </div>
+      </section>
+      <section class="doc-grid">
+        <article class="doc-card interactive-surface"><h3>No response</h3><p>Start with transport and addressing before assuming the protocol decoder is wrong.</p><ul><li>Check COM port, baud rate, parity, stop bits, and RS-485 direction for IEC-101/103.</li><li>Check IP address, port, firewall, and TCP reachability for IEC-104.</li><li>Confirm link/common address matches the device configuration.</li></ul></article><article class="doc-card interactive-surface"><h3>GI does not drain expected data</h3><p>GI can fail because of addressing, device profile, or polling policy mismatch.</p><ul><li>Verify COT and common address in frame trace.</li><li>Watch ACD/DFC and Class 1/Class 2 activity for serial links.</li><li>Compare received Type IDs or FUN/INF against the project mapping profile.</li></ul></article><article class="doc-card interactive-surface"><h3>Values appear without readable names</h3><p>Protocol decode and user naming are separate.</p><ul><li>Load a JSON mapping profile.</li><li>Check IOA or FUN/INF keys.</li><li>Keep project signal naming user-owned and version-controlled.</li></ul></article><article class="doc-card interactive-surface"><h3>Report looks incomplete</h3><p>The report reflects the session evidence currently available.</p><ul><li>Run the session long enough for GI and event drain.</li><li>Check Diagnostics and Findings.</li><li>Use raw Frame Trace when the high-level evidence is not enough.</li></ul></article>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <span>ARIEC60870</span>
+      <span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+# ARIEC60870
+
+ARIEC60870 is a free Apache-2.0 Windows desktop protocol evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 testing.
+
+Canonical site: https://masarray.github.io/ARIEC60870/
+GitHub repository: https://github.com/masarray/ARIEC60870
+Latest release: https://github.com/masarray/ARIEC60870/releases/latest
+License: Apache-2.0
+
+Primary pages:
+- Quick Start: https://masarray.github.io/ARIEC60870/quick-start.html
+- Protocol Coverage: https://masarray.github.io/ARIEC60870/protocol-coverage.html
+- Download: https://masarray.github.io/ARIEC60870/download.html
+- Troubleshooting: https://masarray.github.io/ARIEC60870/troubleshooting.html
+- FAQ: https://masarray.github.io/ARIEC60870/faq.html
+
+Summary:
+The tool runs controlled master/client sessions, decodes IEC 60870 traffic, shows readable engineering evidence, preserves raw TX/RX frame traces, and exports reportable FAT/SAT evidence for commissioning and troubleshooting review.

@@ -33,4 +33,12 @@ If a new source folder is added, update `.gitignore` intentionally instead of by
 
 ## Public site source
 
-Use `site/` as the single source of truth for GitHub Pages. Do not maintain duplicate `landing/` or `docs/index.html` mirrors. New SEO metadata, sitemap entries, screenshots, FAQ content, download wording, `llms.txt`, and manifest changes belong in `site/` first.
+Use `site/` as the canonical source for GitHub Pages. New SEO metadata, sitemap entries, screenshots, FAQ content, download wording, `llms.txt`, and manifest changes belong in `site/` first.
+
+The repository also commits a generated `/docs` compatibility mirror so older GitHub Pages settings using **Deploy from branch → /docs** do not return 404. Do not edit the mirrored HTML/CSS/JS/assets directly. After changing `site/`, run:
+
+```powershell
+./scripts/sync-github-pages-docs-mirror.ps1
+```
+
+The `landing/` source remains forbidden.

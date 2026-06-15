@@ -101,4 +101,6 @@ These cannot be changed from repository files alone. Set them from the GitHub we
 
 ## GitHub Pages source of truth
 
-The canonical landing page source is `site/`. The Pages workflow publishes this folder directly, so SEO changes should be made there only. Keep `title`, `description`, Open Graph metadata, structured data, `sitemap.xml`, `robots.txt`, `llms.txt`, `seo-manifest.json`, and `site.webmanifest` aligned with the current release line. Do not reintroduce hand-maintained `landing/` or `docs/index.html` mirrors.
+The canonical landing page source is `site/`. The Pages workflow publishes this folder directly, so SEO changes should be made there first. Keep `title`, `description`, Open Graph metadata, structured data, `sitemap.xml`, `robots.txt`, `llms.txt`, `seo-manifest.json`, and `site.webmanifest` aligned with the current release line.
+
+A generated `/docs` compatibility mirror is committed only to support repositories that still use **Deploy from branch → /docs**. Refresh it with `./scripts/sync-github-pages-docs-mirror.ps1` after site changes. Do not reintroduce the old `landing/` source.

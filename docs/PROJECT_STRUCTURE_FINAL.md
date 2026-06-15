@@ -42,7 +42,8 @@ ARIEC60870/
     CLEAN_ROOM_POLICY.md
     RELEASE_NOTES_*.md
 
-  site/                      # Canonical static GitHub Pages site; no hand-edited landing/docs mirror
+  site/                      # Canonical static GitHub Pages site source
+  docs/                      # Documentation plus generated /docs Pages compatibility mirror
   .github/workflows/         # CI, security, release, and GitHub Pages workflows
   AGENTS.md
   README.md

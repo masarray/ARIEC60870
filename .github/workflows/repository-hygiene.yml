@@ -29,6 +29,8 @@ jobs:
             docs/QUICK_START.md docs/TROUBLESHOOTING.md docs/VALIDATION_MATRIX.md
             site/index.html site/sitemap.xml site/robots.txt site/site.webmanifest
             site/seo-manifest.json site/llms.txt site/humans.txt
+            docs/index.html docs/sitemap.xml docs/robots.txt docs/site.webmanifest
+            docs/.nojekyll docs/.pages-compatibility-mirror
             .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml
           )
           for file in "${required[@]}"; do
@@ -59,20 +61,31 @@ jobs:
           fi
           find site/assets -type f -size +750k -print -quit | grep -q . && { echo "Large site asset found; compress before commit."; exit 1; } || true
 
-      - name: Check canonical site ownership
+      - name: Check canonical site ownership and /docs compatibility mirror
         shell: bash
         run: |
           set -euo pipefail
           forbidden=(
             landing/index.html landing/styles.css landing/script.js landing/sitemap.xml landing/robots.txt
-            docs/index.html docs/styles.css docs/script.js docs/sitemap.xml docs/robots.txt docs/site.webmanifest docs/.nojekyll
           )
           for file in "${forbidden[@]}"; do
             if [ -e "$file" ]; then
-              echo "Duplicate public site mirror is not allowed: $file"
+              echo "Legacy landing source is not allowed: $file"
               exit 1
             fi
           done
+
+          mirrored=(
+            index.html 404.html styles.css script.js robots.txt sitemap.xml site.webmanifest
+            seo-manifest.json llms.txt humans.txt download.html faq.html protocol-coverage.html
+            quick-start.html troubleshooting.html
+          )
+          for file in "${mirrored[@]}"; do
+            test -f "site/$file" || { echo "Missing canonical site file: site/$file"; exit 1; }
+            test -f "docs/$file" || { echo "Missing /docs GitHub Pages compatibility file: docs/$file"; exit 1; }
+            cmp -s "site/$file" "docs/$file" || { echo "docs/$file is out of sync with site/$file"; exit 1; }
+          done
+          test -d docs/assets || { echo "Missing docs/assets compatibility mirror."; exit 1; }
 
       - name: Check sitemap and canonical coverage
         shell: bash

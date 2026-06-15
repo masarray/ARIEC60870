@@ -10,8 +10,8 @@
 - Reworked the Report workspace copy to remove HTML-print workflow language and export a professional PDF report directly.
 - Replaced the third-party PDF dependency with a clean-room native PDF evidence report engine using built-in PDF primitives, Type 1 fonts, paged layout, and professional evidence tables.
 - Restored a pure Apache-2.0 dependency story for PDF export by removing the PDF generator package dependency.
-- Simplified the public GitHub Pages site to a single canonical `site/` source.
-- Removed stale `landing/` and `docs/index.html` mirrors to prevent duplicate SEO metadata.
+- Kept `site/` as the canonical GitHub Pages source while restoring a generated `/docs` compatibility mirror so existing branch-based Pages settings do not return 404.
+- Removed stale `landing/` source files and added guards to keep the `/docs` mirror synchronized with `site/`.
 - Moved README screenshots to canonical `site/assets` paths.
 - Added `seo-manifest.json`, `llms.txt`, `humans.txt`, explicit favicon/touch icons, and repository tests that verify sitemap/canonical coverage.
 
@@ -26,7 +26,7 @@
 - Repository hygiene xUnit test project for version alignment, required files, README links, workflow permission checks, and site asset hygiene.
 - Lightweight SPDX 2.3 JSON SBOM generation script attached to release packages.
 - Release build provenance attestation for generated ZIP, checksum, and SBOM artifacts.
-- Canonical `site/` source for GitHub Pages deployment.
+- Canonical `site/` source for GitHub Pages deployment plus `/docs` compatibility mirror for legacy branch-based Pages settings.
 
 ### Changed
 - `MainWindow.xaml.cs` is reduced to shell bootstrap responsibilities; large UI workflows now live in `src/ARIEC60870.Desktop/Features/`.
