@@ -52,3 +52,10 @@ Until that variable is set, the workflow posts a notice and exits successfully s
 If Dependabot does not open pull requests, check **Insights → Dependency graph → Dependabot** and confirm that version updates are enabled for the repository. If the Dependency Review workflow says that dependency review is not supported, enable **Settings → Security and analysis → Dependency graph** and set `ENABLE_DEPENDENCY_REVIEW=true`.
 
 If Scorecard fails with `Resource not accessible by integration`, verify that repository Actions permissions allow `GITHUB_TOKEN` to read repository metadata and upload code scanning alerts. For private repositories, the Scorecard job also includes `issues: read`, `pull-requests: read`, and `checks: read` to avoid GraphQL/SAST visibility gaps.
+
+
+## Dependabot major update policy
+
+Dependabot is configured to open routine pull requests only for minor and patch updates. Major version updates for GitHub Actions and NuGet packages are intentionally ignored because they can include runner/runtime or API breaking changes and should be handled as a planned maintenance task.
+
+When GitHub announces a required major migration, create a dedicated maintenance branch, update the actions manually, run the full CI/release/Pages workflow set, then merge after verification.

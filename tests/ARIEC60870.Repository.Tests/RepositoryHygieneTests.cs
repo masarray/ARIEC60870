@@ -106,6 +106,9 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("/tests/ARIEC60870.Repository.Tests", dependabot);
         Assert.Contains("dotnet-test-tooling", dependabot);
         Assert.Contains("github-actions-minor-patch", dependabot);
+        Assert.Contains("version-update:semver-major", dependabot);
+        Assert.DoesNotContain("github-actions-major", dependabot);
+        Assert.DoesNotContain("dotnet-major-updates", dependabot);
         Assert.DoesNotContain("commit-message:\n      prefix: \"deps(actions)\"", dependabot);
     }
 
@@ -116,7 +119,7 @@ public sealed class RepositoryHygieneTests
         var root = FindRepositoryRoot();
         var dependencyReview = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/dependency-review.yml")));
 
-        Assert.Contains("uses: actions/dependency-review-action@v4", dependencyReview);
+        Assert.Matches(@"uses: actions/dependency-review-action@v[0-9]+", dependencyReview);
         Assert.Contains("if: ${{ vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}", dependencyReview);
         Assert.Contains("Dependency Review is waiting for repository enablement", dependencyReview);
         Assert.Contains("ENABLE_DEPENDENCY_REVIEW=true", dependencyReview);
@@ -133,7 +136,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("security-events: write", scorecard);
         Assert.Contains("id-token: write", scorecard);
         Assert.Contains("publish_results: true", scorecard);
-        Assert.Contains("ossf/scorecard-action@v2.4.3", scorecard);
+        Assert.Matches(@"ossf/scorecard-action@v[0-9]+(\.[0-9]+){0,2}", scorecard);
         Assert.DoesNotContain("branch_protection_rule", scorecard);
         Assert.DoesNotContain("workflow_dispatch", scorecard);
         Assert.DoesNotContain("permissions:\n  contents: read\n  security-events: write\n  id-token: write", scorecard);

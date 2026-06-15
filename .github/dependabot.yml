@@ -15,11 +15,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      github-actions-major:
-        patterns:
-          - "*"
+    ignore:
+      - dependency-name: "*"
         update-types:
-          - "major"
+          - "version-update:semver-major"
     labels:
       - "dependencies"
       - "github-actions"
@@ -58,11 +57,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      dotnet-major-updates:
-        patterns:
-          - "*"
+    ignore:
+      - dependency-name: "*"
         update-types:
-          - "major"
+          - "version-update:semver-major"
     labels:
       - "dependencies"
       - "dotnet"
