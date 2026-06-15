@@ -192,6 +192,7 @@ pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5 -SingleFile
 - [Quick Start](docs/QUICK_START.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Desktop Architecture Cleanup](docs/DESKTOP_ARCHITECTURE_CLEANUP.md)
 - [Validation Matrix](docs/VALIDATION_MATRIX.md)
 - [Release Packaging](docs/RELEASE_PACKAGING.md)
 - [Roadmap](docs/ROADMAP.md)

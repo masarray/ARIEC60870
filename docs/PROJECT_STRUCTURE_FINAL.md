@@ -12,6 +12,9 @@ ARIEC60870/
     ARIEC60870.Mapping/        # Future optional split: mapping profile schema, validation, lookup
     ARIEC60870.Reports/        # Future optional split: Markdown/HTML/PDF/evidence bundle
     ARIEC60870.Desktop/        # WPF cockpit only; no protocol ownership
+      Features/                # Feature-bounded MainWindow partials during WPF cleanup
+      Services/                # WPF-safe services such as local path ownership
+      ViewModels/              # Bindable row/view state models
     ARIEC60870.Cli/            # Developer/test harness and batch/offline analysis
 
   tests/
@@ -47,6 +50,13 @@ ARIEC60870/
   NOTICE
   THIRD_PARTY_NOTICES.md
 ```
+
+
+## Current Desktop Cleanup Status
+
+The desktop shell has completed the first architecture cleanup pass. `MainWindow.xaml.cs` is now a small bootstrap file, while report generation, capture archive handling, command dock logic, runtime proof, live evidence routing, frame inspection, workspace selection, setup persistence, and export logic are isolated in `src/ARIEC60870.Desktop/Features/`.
+
+See [`DESKTOP_ARCHITECTURE_CLEANUP.md`](DESKTOP_ARCHITECTURE_CLEANUP.md) for the current boundary and next extraction targets.
 
 ## Responsibility Boundary
 

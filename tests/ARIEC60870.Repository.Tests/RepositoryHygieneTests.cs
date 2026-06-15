@@ -38,6 +38,7 @@ public sealed class RepositoryHygieneTests
             "CODE_OF_CONDUCT.md",
             "docs/QUICK_START.md",
             "docs/TROUBLESHOOTING.md",
+            "docs/DESKTOP_ARCHITECTURE_CLEANUP.md",
             "docs/VALIDATION_MATRIX.md",
             "site/index.html",
             "site/sitemap.xml",
@@ -91,6 +92,85 @@ public sealed class RepositoryHygieneTests
 
         Assert.False(Directory.Exists(root.File("site/screenshot")), "site/screenshot should not be committed.");
         Assert.False(Directory.Exists(root.File("landing/screenshot")), "landing/screenshot should not be committed.");
+    }
+
+
+    [Fact]
+    public void DesktopCodeBehindIsSplitIntoFeatureOwnedPartials()
+    {
+        var root = FindRepositoryRoot();
+        var desktop = root.File("src/ARIEC60870.Desktop");
+        var shell = Path.Combine(desktop, "MainWindow.xaml.cs");
+        var features = Path.Combine(desktop, "Features");
+
+        Assert.True(File.Exists(shell), "MainWindow shell file is missing.");
+        Assert.True(Directory.Exists(features), "Desktop feature partial folder is missing.");
+
+        var expectedFeatureFiles = new[]
+        {
+            "MainWindow.CommandDock.cs",
+            "MainWindow.SetupPreferences.cs",
+            "MainWindow.Session.cs",
+            "MainWindow.RuntimeProof.cs",
+            "MainWindow.LiveEvidencePipeline.cs",
+            "MainWindow.FrameInspector.cs",
+            "MainWindow.WorkspaceSelection.cs",
+            "MainWindow.MappingValueStatus.cs",
+            "MainWindow.CaptureFiles.cs",
+            "MainWindow.TriggerCapture.cs",
+            "MainWindow.Reporting.cs",
+            "MainWindow.Export.cs"
+        };
+
+        foreach (var fileName in expectedFeatureFiles)
+        {
+            Assert.True(File.Exists(Path.Combine(features, fileName)), $"Missing desktop feature partial: {fileName}");
+        }
+
+        var shellLineCount = File.ReadLines(shell).Count();
+        Assert.InRange(shellLineCount, 1, 1200);
+
+        foreach (var featureFile in Directory.EnumerateFiles(features, "MainWindow.*.cs"))
+        {
+            var lineCount = File.ReadLines(featureFile).Count();
+            Assert.InRange(lineCount, 40, 1600);
+        }
+    }
+
+    [Fact]
+    public void DesktopLocalRuntimePathsAreCentralized()
+    {
+        var root = FindRepositoryRoot();
+        var desktop = root.File("src/ARIEC60870.Desktop");
+        var pathService = Path.Combine(desktop, "Services", "LocalWorkspacePaths.cs");
+        var mainWindowFiles = Directory
+            .EnumerateFiles(desktop, "MainWindow*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.EndsWith("LocalWorkspacePaths.cs", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.True(File.Exists(pathService), "Local workspace path service is missing.");
+        Assert.Contains("SetupPreferencesFile", File.ReadAllText(pathService));
+        Assert.Contains("TriggerCaptureFolder", File.ReadAllText(pathService));
+
+        foreach (var file in mainWindowFiles)
+        {
+            var content = File.ReadAllText(file);
+            Assert.DoesNotContain("SpecialFolder.LocalApplicationData", content);
+            Assert.DoesNotContain("setup-preferences.json", content);
+        }
+    }
+
+    [Fact]
+    public void DesktopPublicRowsLiveInViewModelsInsteadOfMainWindowShell()
+    {
+        var root = FindRepositoryRoot();
+        var desktop = root.File("src/ARIEC60870.Desktop");
+        var shell = File.ReadAllText(Path.Combine(desktop, "MainWindow.xaml.cs"));
+
+        Assert.True(File.Exists(Path.Combine(desktop, "ViewModels", "StatusHistoryRow.cs")));
+        Assert.True(File.Exists(Path.Combine(desktop, "ViewModels", "TriggerCaptureRow.cs")));
+        Assert.DoesNotContain("public sealed record StatusHistoryRow", shell);
+        Assert.DoesNotContain("public sealed record TriggerCaptureRow", shell);
     }
 
     private static DirectoryInfo FindRepositoryRoot()

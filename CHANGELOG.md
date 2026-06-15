@@ -4,6 +4,9 @@
 ## [3.6.6] - Unreleased
 
 ### Added
+- Desktop architecture cleanup documentation and repository guardrail tests for WPF code-behind ownership.
+- Feature-owned `MainWindow` partial files for command dock, setup preferences, session control, runtime proof, live evidence routing, frame inspection, workspace selection, capture files, trigger capture, reporting, and export.
+- `LocalWorkspacePaths` service to centralize ARIEC60870 local app-data path ownership.
 - OpenSSF Scorecard workflow for public security posture visibility.
 - Repository hygiene xUnit test project for version alignment, required files, README links, workflow permission checks, and site asset hygiene.
 - Lightweight SPDX 2.3 JSON SBOM generation script attached to release packages.
@@ -11,6 +14,8 @@
 - Canonical `site/` source for GitHub Pages deployment.
 
 ### Changed
+- `MainWindow.xaml.cs` is reduced to shell bootstrap responsibilities; large UI workflows now live in `src/ARIEC60870.Desktop/Features/`.
+- `StatusHistoryRow` and `TriggerCaptureRow` moved from the shell file into `ViewModels/` as bindable row models.
 - Release workflow now separates read-only build/package permissions from GitHub Release publishing permissions.
 - CodeQL now uses `security-extended` and `security-and-quality` queries.
 - Dependabot updates are grouped for GitHub Actions and .NET/NuGet packages.
