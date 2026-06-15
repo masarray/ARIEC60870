@@ -4,31 +4,68 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+      time: "04:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 3
     groups:
-      github-actions:
+      github-actions-minor-patch:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      github-actions-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
     labels:
       - "dependencies"
       - "github-actions"
     commit-message:
-      prefix: "deps(actions)"
+      prefix: "deps"
+      include: "scope"
 
   - package-ecosystem: "nuget"
-    directory: "/"
+    directories:
+      - "/src/ARIEC60870.Master"
+      - "/tests/ARIEC60870.Core.Tests"
+      - "/tests/ARIEC60870.Master.Tests"
+      - "/tests/ARIEC60870.Reporting.Tests"
+      - "/tests/ARIEC60870.Desktop.Tests"
+      - "/tests/ARIEC60870.Repository.Tests"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+      time: "04:30"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 3
     groups:
-      dotnet-runtime-and-test-packages:
+      dotnet-test-tooling:
         patterns:
-          - "Microsoft.*"
+          - "Microsoft.NET.Test.Sdk"
+          - "xunit"
+          - "xunit.runner.visualstudio"
+          - "coverlet.collector"
+        update-types:
+          - "minor"
+          - "patch"
+      dotnet-runtime-packages:
+        patterns:
           - "System.*"
-          - "xunit*"
-          - "coverlet*"
+          - "Microsoft.*"
+        update-types:
+          - "minor"
+          - "patch"
+      dotnet-major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
     labels:
       - "dependencies"
       - "dotnet"
     commit-message:
-      prefix: "deps(nuget)"
+      prefix: "deps"
+      include: "scope"

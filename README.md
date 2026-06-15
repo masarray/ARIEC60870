@@ -3,7 +3,7 @@
 [![Build](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Package](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml)
-[![OpenSSF Scorecard](https://github.com/masarray/ARIEC60870/actions/workflows/scorecard.yml/badge.svg?branch=main)](https://github.com/masarray/ARIEC60870/actions/workflows/scorecard.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/masarray/ARIEC60870/badge)](https://scorecard.dev/viewer/?uri=github.com/masarray/ARIEC60870)
 [![Release](https://img.shields.io/github/v/release/masarray/ARIEC60870?include_prereleases&label=release)](https://github.com/masarray/ARIEC60870/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download)
@@ -226,3 +226,6 @@ Contributions are welcome when they preserve the clean-room Apache-2.0 boundary.
 ## License
 
 ARIEC60870 is free and open source under the **Apache License, Version 2.0**. See [LICENSE](LICENSE), [NOTICE](NOTICE), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+
+See [GitHub security automation](docs/GITHUB_SECURITY_AUTOMATION.md) for Dependabot and OpenSSF Scorecard configuration.

@@ -42,6 +42,7 @@ public sealed class RepositoryHygieneTests
             "docs/DESKTOP_ARCHITECTURE_CLEANUP.md",
             "docs/VALIDATION_MATRIX.md",
             "docs/TESTING_STRATEGY.md",
+            "docs/GITHUB_SECURITY_AUTOMATION.md",
             "tests/README.md",
             "tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj",
             "tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj",
@@ -87,6 +88,41 @@ public sealed class RepositoryHygieneTests
         {
             Assert.True(File.Exists(root.File(link)), $"README link points to a missing file: {link}");
         }
+    }
+
+
+
+    [Fact]
+    public void DependabotConfigurationScansActualNugetManifestDirectories()
+    {
+        var root = FindRepositoryRoot();
+        var dependabot = NormalizeNewlines(File.ReadAllText(root.File(".github/dependabot.yml")));
+
+        Assert.Contains("package-ecosystem: \"github-actions\"", dependabot);
+        Assert.Contains("package-ecosystem: \"nuget\"", dependabot);
+        Assert.Contains("directories:", dependabot);
+        Assert.Contains("/src/ARIEC60870.Master", dependabot);
+        Assert.Contains("/tests/ARIEC60870.Core.Tests", dependabot);
+        Assert.Contains("/tests/ARIEC60870.Repository.Tests", dependabot);
+        Assert.Contains("dotnet-test-tooling", dependabot);
+        Assert.Contains("github-actions-minor-patch", dependabot);
+        Assert.DoesNotContain("commit-message:\n      prefix: \"deps(actions)\"", dependabot);
+    }
+
+    [Fact]
+    public void OpenSsfScorecardWorkflowFollowsPublishingRestrictions()
+    {
+        var root = FindRepositoryRoot();
+        var scorecard = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/scorecard.yml")));
+
+        Assert.Contains("permissions:\n  contents: read", scorecard);
+        Assert.Contains("security-events: write", scorecard);
+        Assert.Contains("id-token: write", scorecard);
+        Assert.Contains("publish_results: true", scorecard);
+        Assert.Contains("ossf/scorecard-action@v2.4.0", scorecard);
+        Assert.DoesNotContain("branch_protection_rule", scorecard);
+        Assert.DoesNotContain("workflow_dispatch", scorecard);
+        Assert.DoesNotContain("permissions:\n  contents: read\n  security-events: write\n  id-token: write", scorecard);
     }
 
     [Fact]

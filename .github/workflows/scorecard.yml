@@ -3,21 +3,25 @@
 name: OpenSSF Scorecard
 
 on:
-  branch_protection_rule:
   push:
     branches: [ main, master ]
   schedule:
     - cron: '30 3 * * 1'
-  workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
-  id-token: write
 
 jobs:
   scorecard:
+    name: Analyze repository security posture
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      checks: read
+      security-events: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
