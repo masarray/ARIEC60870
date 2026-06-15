@@ -4,6 +4,9 @@
 ## [3.6.6] - Unreleased
 
 ### Added
+- Phase C test credibility upgrade with first-class xUnit regression suites for Core, Master, Reporting, Desktop capture contracts, and Repository hygiene.
+- CI coverage collection and `.trx` result artifacts for every xUnit suite.
+- `docs/TESTING_STRATEGY.md` and `tests/README.md` to make the validation model clear for contributors and users.
 - Desktop architecture cleanup documentation and repository guardrail tests for WPF code-behind ownership.
 - Feature-owned `MainWindow` partial files for command dock, setup preferences, session control, runtime proof, live evidence routing, frame inspection, workspace selection, capture files, trigger capture, reporting, and export.
 - `LocalWorkspacePaths` service to centralize ARIEC60870 local app-data path ownership.
@@ -19,7 +22,7 @@
 - Release workflow now separates read-only build/package permissions from GitHub Release publishing permissions.
 - CodeQL now uses `security-extended` and `security-and-quality` queries.
 - Dependabot updates are grouped for GitHub Actions and .NET/NuGet packages.
-- CI uploads protocol smoke-test and repository test result artifacts.
+- CI uploads protocol smoke-test log, xUnit `.trx` files, and XPlat Code Coverage collector output.
 - Raw screenshot folder was removed from the public landing site tree.
 
 All notable public changes for ARIEC60870 are summarized here. Detailed legacy release notes are archived under `docs/archive/release-notes/`.

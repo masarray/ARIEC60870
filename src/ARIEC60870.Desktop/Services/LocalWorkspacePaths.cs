@@ -1,7 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System;
 using System.IO;
 
 namespace ARIEC60870.Desktop.Services;

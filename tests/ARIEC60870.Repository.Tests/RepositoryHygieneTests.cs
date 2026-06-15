@@ -40,6 +40,12 @@ public sealed class RepositoryHygieneTests
             "docs/TROUBLESHOOTING.md",
             "docs/DESKTOP_ARCHITECTURE_CLEANUP.md",
             "docs/VALIDATION_MATRIX.md",
+            "docs/TESTING_STRATEGY.md",
+            "tests/README.md",
+            "tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj",
+            "tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj",
+            "tests/ARIEC60870.Reporting.Tests/ARIEC60870.Reporting.Tests.csproj",
+            "tests/ARIEC60870.Desktop.Tests/ARIEC60870.Desktop.Tests.csproj",
             "site/index.html",
             "site/sitemap.xml",
             "site/robots.txt",
@@ -77,12 +83,48 @@ public sealed class RepositoryHygieneTests
     public void ReleaseWorkflowUsesLeastPrivilegeTopLevelPermissions()
     {
         var root = FindRepositoryRoot();
-        var releaseWorkflow = File.ReadAllText(root.File(".github/workflows/release-package.yml"));
+        var releaseWorkflow = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/release-package.yml")));
 
         Assert.Contains("permissions:\n  contents: read", releaseWorkflow);
         Assert.Contains("contents: write", releaseWorkflow);
         Assert.Contains("attestations: write", releaseWorkflow);
         Assert.Contains("Generate SPDX dependency SBOM", releaseWorkflow);
+    }
+
+    [Fact]
+    public void CiPublishesTrxCoverageAndSmokeArtifacts()
+    {
+        var root = FindRepositoryRoot();
+        var ciWorkflow = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/ci.yml")));
+
+        Assert.Contains("protocol-smoke-tests.log", ciWorkflow);
+        Assert.Contains("--logger", ciWorkflow);
+        Assert.Contains("XPlat Code Coverage", ciWorkflow);
+        Assert.Contains("ARIEC60870.Core.Tests", ciWorkflow);
+        Assert.Contains("ARIEC60870.Master.Tests", ciWorkflow);
+        Assert.Contains("ARIEC60870.Reporting.Tests", ciWorkflow);
+        Assert.Contains("ARIEC60870.Desktop.Tests", ciWorkflow);
+    }
+
+    [Fact]
+    public void SolutionIncludesAllFirstClassTestProjects()
+    {
+        var root = FindRepositoryRoot();
+        var solution = File.ReadAllText(root.File("ARIEC60870.sln"));
+        var expected = new[]
+        {
+            @"tests\ARIEC60870.Protocol.Tests\ARIEC60870.Protocol.Tests.csproj",
+            @"tests\ARIEC60870.Repository.Tests\ARIEC60870.Repository.Tests.csproj",
+            @"tests\ARIEC60870.Core.Tests\ARIEC60870.Core.Tests.csproj",
+            @"tests\ARIEC60870.Master.Tests\ARIEC60870.Master.Tests.csproj",
+            @"tests\ARIEC60870.Reporting.Tests\ARIEC60870.Reporting.Tests.csproj",
+            @"tests\ARIEC60870.Desktop.Tests\ARIEC60870.Desktop.Tests.csproj"
+        };
+
+        foreach (var path in expected)
+        {
+            Assert.Contains(path, solution);
+        }
     }
 
     [Fact]
@@ -172,6 +214,8 @@ public sealed class RepositoryHygieneTests
         Assert.DoesNotContain("public sealed record StatusHistoryRow", shell);
         Assert.DoesNotContain("public sealed record TriggerCaptureRow", shell);
     }
+
+    private static string NormalizeNewlines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 
     private static DirectoryInfo FindRepositoryRoot()
     {

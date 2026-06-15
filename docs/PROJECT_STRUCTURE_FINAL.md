@@ -19,10 +19,11 @@ ARIEC60870/
 
   tests/
     ARIEC60870.Protocol.Tests/        # Dependency-free protocol smoke tests
+    ARIEC60870.Core.Tests/            # FT1.2, IEC-103 ASDU, trace analyzer regression tests
+    ARIEC60870.Master.Tests/          # IEC-101/104 ASDU/APDU, command, assessment tests
+    ARIEC60870.Reporting.Tests/       # Markdown evidence, privacy, escaping, row-limit tests
+    ARIEC60870.Desktop.Tests/         # .ariec capture ViewModel contract tests
     ARIEC60870.Repository.Tests/      # Public release hygiene and metadata tests
-    ARIEC60870.Core.Tests/            # Future deeper parser/model tests
-    ARIEC60870.Master.Tests/          # Future state-machine and polling tests
-    ARIEC60870.Mapping.Tests/         # Future mapping schema tests
     ARIEC60870.TestVectors/           # Future sanitized vector fixtures
 
   samples/
@@ -57,6 +58,10 @@ ARIEC60870/
 The desktop shell has completed the first architecture cleanup pass. `MainWindow.xaml.cs` is now a small bootstrap file, while report generation, capture archive handling, command dock logic, runtime proof, live evidence routing, frame inspection, workspace selection, setup persistence, and export logic are isolated in `src/ARIEC60870.Desktop/Features/`.
 
 See [`DESKTOP_ARCHITECTURE_CLEANUP.md`](DESKTOP_ARCHITECTURE_CLEANUP.md) for the current boundary and next extraction targets.
+
+## Current Test Credibility Status
+
+Phase C adds first-class xUnit regression suites beside the dependency-free protocol smoke test runner. The CI workflow now publishes protocol smoke logs, `.trx` result files, and coverage collector output. See [`TESTING_STRATEGY.md`](TESTING_STRATEGY.md) and [`../tests/README.md`](../tests/README.md) for the current test boundaries.
 
 ## Responsibility Boundary
 

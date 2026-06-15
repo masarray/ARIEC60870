@@ -8,6 +8,7 @@ This document records simulator, bench, and relay checks for ARIEC60870 releases
 |---|---|---|
 | Build on Windows | Pending | GitHub Actions or local build result. |
 | Protocol smoke tests | Available | Run `dotnet run --project tests/ARIEC60870.Protocol.Tests`. |
+| xUnit regression suites | Available | Core, Master, Reporting, Desktop, and Repository test projects publish `.trx` and coverage output in CI. |
 | Portable package created | Pending | Windows portable ZIP generated. |
 | Portable package opened | Pending | Desktop app starts from extracted ZIP. |
 | CLI help opened | Pending | CLI tools open from extracted ZIP. |
@@ -22,6 +23,7 @@ For public repositories, use sanitized device names when project, customer, or v
 | Test ID | Device / Simulator | Connection | Baud / Parity | Link / CA | Reset Link | GI | Class 2 | Class 1 / ACD | Time Sync | Mapping | Evidence Export | Result | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | VAL-001 | Protocol test vectors | Local/offline | N/A | 1 / 1 | N/A | N/A | N/A | N/A | N/A | Example | N/A | Available | Run `dotnet run --project tests/ARIEC60870.Protocol.Tests`. |
+| VAL-001B | xUnit regression suite | Local/CI | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A | TRX + coverage | Available | Run `dotnet test` for Core, Master, Reporting, Desktop, and Repository test projects. |
 | VAL-002 | Built-in simulator | Local/simulated | N/A | 1 / 1 | N/A | Pass | Pass | Pass | N/A | Example | Pass | Pending | Run for package smoke check. |
 | VAL-003 | IEC-103 relay A | RS-485 | 9600 / Even | 1 / 1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Sanitized bench or field test. |
 | VAL-004 | IEC-103 relay B | RS-485 | 19200 / Even | 1 / 1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Sanitized bench or field test. |
@@ -33,6 +35,7 @@ A public beta package is expected to have:
 
 - source build result available;
 - protocol smoke test result available;
+- xUnit regression test result and coverage artifact available;
 - portable package generated;
 - desktop app opened from the portable package;
 - simulator mode evidence generated;

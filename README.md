@@ -173,10 +173,15 @@ Run desktop:
 dotnet run --project src/ARIEC60870.Desktop
 ```
 
-Run protocol smoke tests and repository hygiene tests:
+Run protocol smoke tests and xUnit regression suites:
 
 ```bash
 dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release
+
+dotnet test tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj --configuration Release
+dotnet test tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj --configuration Release
+dotnet test tests/ARIEC60870.Reporting.Tests/ARIEC60870.Reporting.Tests.csproj --configuration Release
+dotnet test tests/ARIEC60870.Desktop.Tests/ARIEC60870.Desktop.Tests.csproj --configuration Release
 dotnet test tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj --configuration Release
 ```
 
@@ -194,9 +199,11 @@ pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5 -SingleFile
 - [Architecture](docs/ARCHITECTURE.md)
 - [Desktop Architecture Cleanup](docs/DESKTOP_ARCHITECTURE_CLEANUP.md)
 - [Validation Matrix](docs/VALIDATION_MATRIX.md)
+- [Testing Strategy](docs/TESTING_STRATEGY.md)
 - [Release Packaging](docs/RELEASE_PACKAGING.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Changelog](CHANGELOG.md)
+- [Test Suite](tests/README.md)
 - [Test Vectors](samples/test-vectors/README.md)
 
 ## Product boundary
