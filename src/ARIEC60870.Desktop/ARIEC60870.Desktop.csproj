@@ -23,6 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\profiles\PLN_Pusertif_IEC101_default_seed.json" Link="profiles\PLN_Pusertif_IEC101_default_seed.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\profiles\utility_fat_iec10x_default_profile.json" Link="profiles\utility_fat_iec10x_default_profile.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

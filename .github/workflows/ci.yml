@@ -4,9 +4,9 @@ name: Build and protocol smoke tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -31,4 +31,18 @@ jobs:
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore
 
       - name: Run dependency-free protocol smoke tests
-        run: dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
+          dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build 2>&1 | Tee-Object -FilePath artifacts/test-results/protocol-smoke-tests.log
+
+      - name: Run repository hygiene unit tests
+        run: dotnet test tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=repository-tests.trx" --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-test-results
+          path: artifacts/test-results
+          if-no-files-found: warn

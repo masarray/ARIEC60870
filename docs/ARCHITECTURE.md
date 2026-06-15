@@ -33,7 +33,7 @@ This keeps the analyzer from feeling like an IEC-103 application with 101/104 bo
 
 ## Reference Learning From IEC101MasterTester
 
-The uploaded IEC101MasterTester project shows a useful product pattern:
+The IEC101MasterTester reference implementation shows a useful product pattern:
 
 - one master service owns the active protocol communication
 - UI/analyzer layers observe callbacks/evidence

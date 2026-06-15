@@ -1,0 +1,17 @@
+# This file documents the recommended public GitHub repository metadata.
+# GitHub topics/description are configured in the repository settings, not by this file.
+description: "Free Apache-2.0 Windows IEC 60870-5-101 / 103 / 104 protocol evidence analyzer for FAT/SAT, commissioning, SCADA, RTU, and protection relay testing."
+homepage: "https://masarray.github.io/ARIEC60870/"
+topics:
+  - iec60870
+  - iec60870-5-101
+  - iec60870-5-103
+  - iec60870-5-104
+  - scada
+  - substation-automation
+  - protection-relay
+  - protocol-analyzer
+  - rtu
+  - fat-sat
+  - wpf
+  - dotnet

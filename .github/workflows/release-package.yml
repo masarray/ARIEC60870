@@ -1,16 +1,16 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
-name: Build Windows portable package
+name: Build Windows release packages
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version without leading v'
-        required: true
-        default: '1.6.9'
+        description: 'Release version without leading v. Leave empty to read Directory.Build.props.'
+        required: false
+        default: ''
       publish_release:
-        description: 'Create or update GitHub Release after the package is built'
+        description: 'Create or update GitHub Release after packages are built'
         type: boolean
         required: true
         default: true
@@ -24,8 +24,13 @@ on:
         type: boolean
         required: true
         default: false
+      build_singlefile:
+        description: 'Also build single-file executable package'
+        type: boolean
+        required: true
+        default: true
       release_notes_file:
-        description: 'Release notes markdown file. Leave empty to auto-use docs/RELEASE_NOTES_vX.Y.Z.md'
+        description: 'Release notes markdown file. Leave empty to use CHANGELOG.md or archived release notes.'
         required: false
         default: ''
   push:
@@ -33,11 +38,92 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  resolve:
+    name: Resolve release configuration
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      publish_release: ${{ steps.release.outputs.publish_release }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+      draft: ${{ steps.release.outputs.draft }}
+      build_singlefile: ${{ steps.release.outputs.build_singlefile }}
+      notes_file: ${{ steps.release.outputs.notes_file }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release inputs
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_version=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('Directory.Build.props').findtext('.//Version') or '')")
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            version="${{ inputs.version }}"
+            version="${version#v}"
+            if [[ -z "$version" ]]; then version="$repo_version"; fi
+            publish_release="${{ inputs.publish_release }}"
+            prerelease="${{ inputs.prerelease }}"
+            draft="${{ inputs.draft }}"
+            build_singlefile="${{ inputs.build_singlefile }}"
+            notes_file="${{ inputs.release_notes_file }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+            publish_release="true"
+            prerelease="true"
+            draft="false"
+            build_singlefile="true"
+            notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
+          fi
+
+          if [[ -z "$version" ]]; then
+            echo "Release version cannot be empty." >&2
+            exit 1
+          fi
+
+          if [[ -z "$notes_file" ]]; then
+            archive_notes="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
+            if [[ -f "$archive_notes" ]]; then notes_file="$archive_notes"; else notes_file="CHANGELOG.md"; fi
+          fi
+
+          tag="v${version}"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "publish_release=$publish_release"
+            echo "prerelease=$prerelease"
+            echo "draft=$draft"
+            echo "build_singlefile=$build_singlefile"
+            echo "notes_file=$notes_file"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Release configuration"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Version | $version |"
+            echo "| Tag | $tag |"
+            echo "| Publish release | $publish_release |"
+            echo "| Pre-release | $prerelease |"
+            echo "| Draft | $draft |"
+            echo "| Single-file package | $build_singlefile |"
+            echo "| Release notes | $notes_file |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   package:
+    name: Build, verify, SBOM, and attest packages
+    needs: resolve
     runs-on: windows-latest
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,123 +133,113 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Resolve release inputs
-        id: release
-        shell: pwsh
-        run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $version = '${{ github.event.inputs.version }}'.Trim()
-            if ($version.StartsWith('v')) { $version = $version.Substring(1) }
-            $publishRelease = '${{ github.event.inputs.publish_release }}'
-            $preRelease = '${{ github.event.inputs.prerelease }}'
-            $draft = '${{ github.event.inputs.draft }}'
-            $notesFile = '${{ github.event.inputs.release_notes_file }}'.Trim()
-          } else {
-            $version = '${{ github.ref_name }}'.TrimStart('v')
-            $publishRelease = 'true'
-            $preRelease = 'true'
-            $draft = 'false'
-            $notesFile = "docs/RELEASE_NOTES_v$version.md"
-          }
-
-          if ([string]::IsNullOrWhiteSpace($version)) {
-            throw 'Release version cannot be empty.'
-          }
-
-          if ([string]::IsNullOrWhiteSpace($notesFile)) {
-            $notesFile = "docs/RELEASE_NOTES_v$version.md"
-          }
-
-          $tag = "v$version"
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "publish_release=$publishRelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "prerelease=$preRelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "draft=$draft" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "notes_file=$notesFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-          Write-Host "Packaging version : $version"
-          Write-Host "Release tag       : $tag"
-          Write-Host "Publish release   : $publishRelease"
-          Write-Host "Pre-release       : $preRelease"
-          Write-Host "Draft             : $draft"
-          Write-Host "Release notes     : $notesFile"
-
       - name: Build portable package
         shell: pwsh
-        run: ./scripts/publish-windows-portable.ps1 -Version '${{ steps.release.outputs.version }}'
+        run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}'
 
       - name: Verify portable package structure
         shell: pwsh
-        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable.zip"
+        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-portable.zip"
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+      - name: Build single-file package
+        if: needs.resolve.outputs.build_singlefile == 'true'
+        shell: pwsh
+        run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}' -SingleFile -SkipTests
+
+      - name: Verify single-file package structure
+        if: needs.resolve.outputs.build_singlefile == 'true'
+        shell: pwsh
+        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-singlefile.zip"
+
+      - name: Generate SPDX dependency SBOM
+        shell: pwsh
+        run: ./scripts/generate-sbom-lite.ps1 -Version '${{ needs.resolve.outputs.version }}' -OutputPath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json"
+
+      - name: Refresh release checksums
+        shell: pwsh
+        run: |
+          $ReleaseRoot = Resolve-Path artifacts/release
+          $files = Get-ChildItem $ReleaseRoot -File | Where-Object { $_.Extension -in '.zip', '.json' } | Sort-Object Name
+          $lines = foreach ($file in $files) {
+            $hash = Get-FileHash -Algorithm SHA256 $file.FullName
+            "{0}  {1}" -f $hash.Hash.ToLowerInvariant(), $file.Name
+          }
+          $lines | Set-Content -Path (Join-Path $ReleaseRoot 'SHA256SUMS.txt') -Encoding ASCII
+
+      - name: Summarize release assets
+        shell: pwsh
+        run: |
+          $ReleaseRoot = Resolve-Path artifacts/release
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Release assets'
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY '| Asset | Size | SHA256 |'
+          Add-Content $env:GITHUB_STEP_SUMMARY '|---|---:|---|'
+          foreach ($file in (Get-ChildItem $ReleaseRoot -File | Sort-Object Name)) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash.ToLowerInvariant()
+            $size = '{0:N1} MB' -f ($file.Length / 1MB)
+            Add-Content $env:GITHUB_STEP_SUMMARY "| $($file.Name) | $size | ``$hash`` |"
+          }
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v2
         with:
-          name: ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable
-          path: |
-            artifacts/release/ARIEC60870-v${{ steps.release.outputs.version }}-win-x64-portable.zip
+          subject-path: |
+            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-*.zip
+            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
             artifacts/release/SHA256SUMS.txt
 
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
+          path: artifacts/release/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [ resolve, package ]
+    if: needs.resolve.outputs.publish_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
+          path: artifacts/release
+
       - name: Create or update GitHub Release
-        if: steps.release.outputs.publish_release == 'true'
-        shell: pwsh
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = '${{ steps.release.outputs.tag }}'
-          $version = '${{ steps.release.outputs.version }}'
-          $zip = "artifacts/release/ARIEC60870-v$version-win-x64-portable.zip"
-          $sha = "artifacts/release/SHA256SUMS.txt"
-          $notes = '${{ steps.release.outputs.notes_file }}'
-          $target = '${{ github.sha }}'
+          set -euo pipefail
+          tag='${{ needs.resolve.outputs.tag }}'
+          version='${{ needs.resolve.outputs.version }}'
+          notes='${{ needs.resolve.outputs.notes_file }}'
+          title="ARIEC60870 $tag"
 
-          if (-not (Test-Path $notes)) {
-            $fallback = "docs/RELEASE_NOTES_v$version.md"
-            if (Test-Path $fallback) {
-              $notes = $fallback
-            } else {
-              $generatedNotes = "artifacts/release/RELEASE_NOTES_GENERATED.md"
-              $generatedLines = @(
-                "# ARIEC60870 v$version",
-                "",
-                "This release provides a Windows portable package for IEC 60870-5-103 master testing and relay communication evidence review.",
-                "",
-                "## Release assets",
-                "",
-                '```text',
-                "ARIEC60870-v$version-win-x64-portable.zip",
-                "SHA256SUMS.txt",
-                '```',
-                "",
-                "## How to try it",
-                "",
-                "1. Download the Windows portable ZIP from this release.",
-                "2. Extract the package to a local folder.",
-                "3. Run ``Start-ARIEC60870.bat``.",
-                "4. Configure COM port, baudrate, parity, link address, common address, timeout, GI option, and optional mapping profile.",
-                "5. Start the session and review Operator Evidence, Value Viewer, Relay Event Log, Frame Trace, and Diagnostics.",
-                "6. Export evidence after the test session when needed.",
-                "",
-                "## Notes for evaluation",
-                "",
-                "Use this build for IEC-103 relay communication checks, bench testing, troubleshooting, and evidence review. Validate it with the target relay and approved project mapping profile before relying on exported evidence for formal FAT/SAT records."
-              )
-              $generatedLines | Set-Content -Path $generatedNotes -Encoding UTF8
-              $notes = $generatedNotes
-            }
-          }
+          if [[ ! -f "$notes" ]]; then notes='CHANGELOG.md'; fi
 
-          $title = "ARIEC60870 $tag"
-          $releaseFlags = @()
-          if ('${{ steps.release.outputs.prerelease }}' -eq 'true') { $releaseFlags += '--prerelease' }
-          if ('${{ steps.release.outputs.draft }}' -eq 'true') { $releaseFlags += '--draft' }
+          flags=()
+          if [[ '${{ needs.resolve.outputs.prerelease }}' == 'true' ]]; then flags+=(--prerelease); fi
+          if [[ '${{ needs.resolve.outputs.draft }}' == 'true' ]]; then flags+=(--draft); fi
 
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Creating GitHub Release $tag from workflow commit $target"
-            gh release create $tag $zip $sha --title $title --notes-file $notes --target $target @releaseFlags
-          } else {
-            Write-Host "GitHub Release $tag already exists. Uploading assets with --clobber."
-            gh release upload $tag $zip $sha --clobber
-          }
+          mapfile -t assets < <(find artifacts/release -maxdepth 1 -type f | sort)
+          if [[ ${#assets[@]} -eq 0 ]]; then
+            echo 'No release assets found.' >&2
+            exit 1
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "$title" --notes-file "$notes"
+            gh release upload "$tag" "${assets[@]}" --clobber
+          else
+            gh release create "$tag" "${assets[@]}" --title "$title" --notes-file "$notes" --target "$GITHUB_SHA" "${flags[@]}"
+          fi
+
+          echo "Published release $tag with ${#assets[@]} assets." >> "$GITHUB_STEP_SUMMARY"

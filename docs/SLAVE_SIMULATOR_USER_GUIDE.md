@@ -6,7 +6,7 @@ This guide describes the planned WPF slave/server simulator for ARIEC60870 Proto
 
 1. Open **ARIEC60870 Slave Simulator**.
 2. Choose protocol: IEC-101, IEC-103, or IEC-104.
-3. Load the default PLN PUSERTIF profile seed or a project-specific database.
+3. Load the default example profile seed or a project-specific database.
 4. Start the slave/server communication endpoint.
 5. Open **ARIEC60870 Master Analyzer**.
 6. Connect the master to the simulator.

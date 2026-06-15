@@ -1,0 +1,36 @@
+name: Protocol coverage gap
+description: Request or clarify IEC 60870 behavior that is missing, incomplete, or incorrectly interpreted.
+title: "[Protocol]: "
+labels: [protocol, needs-triage]
+body:
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol
+      options:
+        - IEC 60870-5-101
+        - IEC 60870-5-103
+        - IEC 60870-5-104
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: Coverage gap
+      description: Describe the missing or incorrect behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized frame evidence or reference behavior
+      description: Include sanitized frames, Type ID/COT/CA/IOA/FUN/INF details, or a minimal sample when possible.
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected interpretation
+      description: What should ARIEC60870 display or export?
+    validations:
+      required: true

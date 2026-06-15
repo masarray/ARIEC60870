@@ -847,7 +847,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "Measured Class 2 refresh cycle is slower than expected",
                 $"Configured={_settings.Class2PollIntervalMs} ms; last measured Class 2 response cycle={_lastMeasuredClass2CycleMs} ms; estimated minimum≈{estimatedMinimumCycle} ms.",
                 "Telemetering/background scan may look stale even while the link is responsive. This often indicates low baudrate, large ASDU payload, Class 1/event drain pressure, or outstation scan throttling.",
-                "Inspect ACD/Class 1 pressure, response sizes, baudrate, and the outstation interoperability profile. The v1.7.2 scheduler yields Class 1 drain to Class 2 when due to reduce starvation.");
+                "Inspect ACD/Class 1 pressure, response sizes, baudrate, and the outstation interoperability profile. The scheduler yields Class 1 drain to Class 2 when due to reduce starvation.");
         }
     }
 

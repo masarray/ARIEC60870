@@ -14,6 +14,9 @@
 !/NOTICE
 !/README.md
 !/CONTRIBUTING.md
+!/CHANGELOG.md
+!/CODE_OF_CONDUCT.md
+!/SUPPORT.md
 !/AGENTS.md
 !/THIRD_PARTY_NOTICES.md
 !/SECURITY.md
@@ -39,6 +42,7 @@
 
 # Documentation and static landing page
 !/docs/**
+!/site/**
 !/landing/**
 !/profiles/**
 !/.github/**
@@ -47,6 +51,7 @@
 !/samples/**
 
 # Re-ignore generated/build artifacts that may appear inside allowed directories.
+**/screenshot/**
 **/bin/**
 **/obj/**
 **/.vs/**

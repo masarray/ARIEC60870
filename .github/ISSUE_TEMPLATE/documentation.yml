@@ -1,0 +1,18 @@
+name: Documentation or SEO issue
+description: Improve README, docs, landing page, SEO metadata, or release guidance.
+title: "[Docs]: "
+labels: [documentation, needs-triage]
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Page or file
+      placeholder: "README.md, docs/QUICK_START.md, site/index.html, site/download.html, release workflow..."
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What should be improved?
+    validations:
+      required: true

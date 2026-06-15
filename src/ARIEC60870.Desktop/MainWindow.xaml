@@ -795,7 +795,7 @@
                                 <DockPanel LastChildFill="True">
                                     <StackPanel DockPanel.Dock="Left">
                                         <TextBlock Text="Report Preview" FontWeight="Medium" FontSize="16" />
-                                        <TextBlock Text="Preview the standalone PLN-style HTML evidence report before export. Use Export HTML / Print PDF, then print from browser to PDF." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                        <TextBlock Text="Preview the standalone protocol HTML evidence report before export. Use Export HTML / Print PDF, then print from browser to PDF." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     </StackPanel>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <Button Style="{StaticResource SecondaryButton}" Width="126" Height="34" Padding="10,6" Click="RefreshReportPreview_Click" ToolTip="Refresh report preview from current evidence">
@@ -1101,7 +1101,7 @@
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock x:Name="CommandSetpointLabel" Text="Setpoint" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the PLN profile range to interpret engineering value." />
+                                <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the utility profile range to interpret engineering value." />
                             </StackPanel>
                         </Grid>
                         <Grid Margin="0,0,0,10">
@@ -1352,7 +1352,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel x:Name="LinkAddressSizePanel" Grid.Column="0">
                                         <TextBlock x:Name="LinkAddressSizeLabelText" Text="Link length" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" ToolTip="IEC-101 FT1.2 link address size. 0 octet is supported only for profiles that explicitly use no link address; most PLN/RTU links use 1 or 2.">
+                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" ToolTip="IEC-101 FT1.2 link address size. 0 octet is supported only for profiles that explicitly use no link address; most utility/RTU links use 1 or 2.">
                                             <ComboBoxItem Content="0" />
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />

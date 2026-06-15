@@ -22,7 +22,7 @@ ARIEC60870 product direction:
 ARIEC60870 Protocol Lab
 ├─ Master Analyzer / Client Tester
 ├─ Slave Simulator / Controlled Station Server
-├─ PLN PUSERTIF profile seed
+├─ example profile seed
 └─ Forensic evidence and behaviour validation
 ```
 
@@ -45,4 +45,4 @@ When the user changes a value, the simulator should update timestamp/quality, qu
 
 ## Database editor
 
-The simulator must include a database editor for add/delete/edit/import/export of IOA mapping profiles. The default seed should be the PLN PUSERTIF form-based profile, while users can edit or replace the database for global projects.
+The simulator must include a database editor for add/delete/edit/import/export of IOA mapping profiles. The default seed should be the sanitized example profile, while users can edit or replace the database for global projects.

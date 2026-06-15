@@ -1,7 +1,7 @@
 ARIEC60870
 Copyright 2026 Ari Sulistiono
 
-ARIEC60870 is an Apache-2.0 clean-room IEC 60870-5-103 active master tester and analyzer.
+ARIEC60870 is an Apache-2.0 clean-room IEC 60870-5-101 / 103 / 104 protocol evidence analyzer and tester.
 
 This repository does not include source code from commercial, GPL, or unclear-license IEC 60870 protocol stacks.
 

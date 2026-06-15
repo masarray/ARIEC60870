@@ -15,10 +15,12 @@ ARIEC60870/
     ARIEC60870.Cli/            # Developer/test harness and batch/offline analysis
 
   tests/
-    ARIEC60870.Core.Tests/
-    ARIEC60870.Master.Tests/
-    ARIEC60870.Mapping.Tests/
-    ARIEC60870.TestVectors/
+    ARIEC60870.Protocol.Tests/        # Dependency-free protocol smoke tests
+    ARIEC60870.Repository.Tests/      # Public release hygiene and metadata tests
+    ARIEC60870.Core.Tests/            # Future deeper parser/model tests
+    ARIEC60870.Master.Tests/          # Future state-machine and polling tests
+    ARIEC60870.Mapping.Tests/         # Future mapping schema tests
+    ARIEC60870.TestVectors/           # Future sanitized vector fixtures
 
   samples/
     traces/                  # Sanitized sample traces only
@@ -36,8 +38,9 @@ ARIEC60870/
     CLEAN_ROOM_POLICY.md
     RELEASE_NOTES_*.md
 
-  landing/                   # Static GitHub Pages site
-  .github/workflows/         # CI and GitHub Pages workflows
+  site/                      # Canonical static GitHub Pages site
+  landing/                   # Legacy landing mirror only
+  .github/workflows/         # CI, security, release, and GitHub Pages workflows
   AGENTS.md
   README.md
   LICENSE

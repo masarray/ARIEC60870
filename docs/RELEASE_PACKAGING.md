@@ -1,54 +1,59 @@
-# ARIEC60870 Release Assets
+# ARIEC60870 Release Packaging
 
-This document explains the release assets available for users and the packaging automation available for contributors.
+This document explains the release assets available for users and the automation available for maintainers.
 
 ## Assets users should download
 
-For normal use, download the Windows portable ZIP from GitHub Releases:
+GitHub Releases can contain two Windows packages:
 
 ```text
 ARIEC60870-vX.Y.Z-win-x64-portable.zip
+ARIEC60870-vX.Y.Z-win-x64-singlefile.zip
 SHA256SUMS.txt
 ```
 
-The portable ZIP contains the desktop app, CLI tools, sample files, documentation, and license files. It is intended for users who want to try ARIEC60870 without opening Visual Studio.
+Use the **portable** package for the most conservative Windows desktop experience. Use the **singlefile** package when a smaller executable layout is preferred.
 
-## How to run the portable package
+## How to run
 
-1. Download the ZIP from GitHub Releases.
+1. Download a ZIP from GitHub Releases.
 2. Extract it to a local folder.
 3. Run `Start-ARIEC60870.bat`.
-4. Configure the relay communication settings in **Setup**.
-5. Start the session and review the evidence screens.
+4. Select IEC-101, IEC-103, or IEC-104 in **Setup**.
+5. Configure COM/TCP endpoint, address profile, timeout, GI, and optional mapping profile.
+6. Start the session and review the evidence workspaces.
 
 ## Verifying the download
 
-`SHA256SUMS.txt` is included with each package build so the downloaded ZIP can be verified against its checksum.
+`SHA256SUMS.txt` is included with each package build so downloaded assets can be verified against their checksum.
 
-## Building a package locally
+## Building packages locally
 
 From repository root:
 
 ```powershell
-pwsh ./scripts/publish-windows-portable.ps1 -Version 1.3.0
+pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5
+pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5 -SingleFile
 ```
 
 Expected output:
 
 ```text
-artifacts/release/ARIEC60870-v1.3.0-win-x64-portable.zip
+artifacts/release/ARIEC60870-v3.6.5-win-x64-portable.zip
+artifacts/release/ARIEC60870-v3.6.5-win-x64-singlefile.zip
 artifacts/release/SHA256SUMS.txt
 ```
 
 Verify package structure:
 
 ```powershell
-pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ARIEC60870-v1.3.0-win-x64-portable.zip
+pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ARIEC60870-v3.6.5-win-x64-portable.zip
+pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ARIEC60870-v3.6.5-win-x64-singlefile.zip
 ```
 
 ## GitHub Actions package flow
 
-The repository includes this workflow:
+The repository includes:
 
 ```text
 .github/workflows/release-package.yml
@@ -57,35 +62,51 @@ The repository includes this workflow:
 Manual release run:
 
 1. Open **Actions**.
-2. Select **Build Windows portable package**.
+2. Select **Build Windows release packages**.
 3. Click **Run workflow**.
-4. Set `version`, for example `1.3.0`.
-5. Keep **Create or update GitHub Release** enabled when the package should appear on the Releases page.
-6. Select pre-release or draft status as needed for the package maturity.
-7. Click **Run workflow**.
-
-The workflow builds the portable ZIP, verifies package structure, uploads a workflow artifact, creates tag `vX.Y.Z` when needed, and publishes these assets to GitHub Releases:
-
-```text
-ARIEC60870-vX.Y.Z-win-x64-portable.zip
-SHA256SUMS.txt
-```
+4. Leave `version` empty to use `Directory.Build.props`, or provide `X.Y.Z`.
+5. Keep **Create or update GitHub Release** enabled when assets should appear on the Releases page.
+6. Keep **Also build single-file executable package** enabled when both ZIP variants are needed.
+7. Select pre-release or draft status as needed.
+8. Run the workflow.
 
 Tag release run is also supported:
 
 ```bash
-git tag v1.3.0
-git push origin v1.3.0
+git tag v3.6.5
+git push origin v3.6.5
 ```
+
+On tag push, the workflow infers the version from the tag, builds the packages, verifies structure, uploads workflow artifacts, and creates or updates the GitHub Release.
 
 ## Package contents checklist
 
-A complete portable package includes:
+A complete package includes:
 
 - desktop app executable and runtime files;
 - command-line tools;
 - `Start-ARIEC60870.bat`;
-- quick-start and troubleshooting documents;
-- samples and mapping profile example;
-- `LICENSE`, `NOTICE`, and third-party notice file;
-- release notes and checksum file.
+- `Open-CLI-Help.bat`;
+- quick-start, troubleshooting, validation, and packaging documents;
+- sample mapping profiles;
+- neutral IEC-101/104 example profile;
+- `README.md`, `CHANGELOG.md`, `LICENSE`, `NOTICE`, and third-party notice file;
+- checksum file in the release artifact set.
+
+
+## Supply-chain release artifacts
+
+The GitHub release workflow produces more than executable ZIP files. A release run should publish:
+
+- `ARIEC60870-vX.Y.Z-win-x64-portable.zip`
+- `ARIEC60870-vX.Y.Z-win-x64-singlefile.zip` when enabled
+- `ARIEC60870-vX.Y.Z-sbom.spdx.json`
+- `SHA256SUMS.txt`
+
+The workflow also requests build provenance attestation for the ZIP, checksum, and SBOM artifacts. This helps release consumers verify that published assets came from the repository workflow rather than from an opaque local machine.
+
+Local SBOM generation:
+
+```powershell
+pwsh ./scripts/generate-sbom-lite.ps1 -Version 3.6.5 -OutputPath artifacts/release/ARIEC60870-v3.6.5-sbom.spdx.json
+```

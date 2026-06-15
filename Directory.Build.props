@@ -8,13 +8,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>1.7.1</Version>
-    <AssemblyVersion>1.7.1.0</AssemblyVersion>
-    <FileVersion>1.7.1.0</FileVersion>
-    <InformationalVersion>1.7.1-event-log-smart-change-value-grouping</InformationalVersion>
+    <Version>3.6.5</Version>
+    <AssemblyVersion>3.6.5.0</AssemblyVersion>
+    <FileVersion>3.6.5.0</FileVersion>
+    <InformationalVersion>3.6.5+public-repo-hardening</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Protocol Lab</Product>
+    <Description>Free Apache-2.0 Windows protocol evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 testing.</Description>
+    <PackageTags>iec60870;iec101;iec103;iec104;scada;substation-automation;protocol-analyzer;protection-relay;fat;sat</PackageTags>
     <Copyright>Copyright © 2026 Ari Sulistiono</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/masarray/ARIEC60870</PackageProjectUrl>

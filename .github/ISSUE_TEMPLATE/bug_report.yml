@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible ARIEC60870 problem with sanitized evidence.
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please remove customer, station, device, IP, and project-identifying data before sharing traces or screenshots.
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol mode
+      options:
+        - IEC 60870-5-101 serial
+        - IEC 60870-5-103 serial
+        - IEC 60870-5-104 TCP/IP
+        - Offline analyzer
+        - Release/package/build
+        - Documentation/landing page
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ARIEC60870 version
+      placeholder: "v3.6.5"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use a minimal sequence that another engineer can repeat.
+      placeholder: |
+        1. Open Setup...
+        2. Select protocol...
+        3. Start session...
+        4. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Add sanitized screenshots, frame snippets, logs, or test vector details.
+    validations:
+      required: false

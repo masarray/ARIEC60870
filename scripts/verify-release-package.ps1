@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 <#
 .SYNOPSIS
-  Performs a lightweight structural check on an ARIEC60870 portable release ZIP.
+  Performs a lightweight structural check on an ARIEC60870 release ZIP.
 #>
 [CmdletBinding()]
 param(
@@ -21,6 +21,8 @@ try {
     $Required = @(
         "Start-ARIEC60870.bat",
         "README-PORTABLE.txt",
+        "README.md",
+        "CHANGELOG.md",
         "LICENSE",
         "NOTICE",
         "THIRD_PARTY_NOTICES.md",
@@ -29,7 +31,8 @@ try {
         "docs/QUICK_START.md",
         "docs/TROUBLESHOOTING.md",
         "docs/VALIDATION_MATRIX.md",
-        "samples/mapping-profiles/example-user-mapping.profile.json"
+        "samples/mapping-profiles/example-user-mapping.profile.json",
+        "profiles/utility_fat_iec10x_default_profile.json"
     )
 
     $Missing = @()

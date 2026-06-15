@@ -2,7 +2,7 @@
 
 ## What was studied
 
-The uploaded `IEC101MasterTester-master.zip` was inspected as a finished product reference.
+The IEC101MasterTester reference implementation was reviewed as a finished product pattern.
 
 Only the **single active connection** pattern is relevant for ARIEC60870.
 

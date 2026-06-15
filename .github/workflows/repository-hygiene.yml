@@ -1,0 +1,59 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Repository hygiene
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required public repo files
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            README.md CHANGELOG.md LICENSE NOTICE THIRD_PARTY_NOTICES.md
+            CONTRIBUTING.md SECURITY.md SUPPORT.md CODE_OF_CONDUCT.md
+            docs/QUICK_START.md docs/TROUBLESHOOTING.md docs/VALIDATION_MATRIX.md
+            site/index.html site/sitemap.xml site/robots.txt site/site.webmanifest
+            .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml
+          )
+          for file in "${required[@]}"; do
+            test -f "$file" || { echo "Missing required file: $file"; exit 1; }
+          done
+
+      - name: Check version alignment and public wording
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content Directory.Build.props
+          $version = $props.Project.PropertyGroup.Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw 'Directory.Build.props Version is empty.' }
+
+          $readme = Get-Content README.md -Raw
+          $site = Get-Content site/index.html -Raw
+          $manifest = Get-Content site/site.webmanifest -Raw
+          if ($site -notmatch [regex]::Escape($version)) { throw "site/index.html does not contain version $version" }
+          if ($manifest -notmatch 'IEC 60870') { throw 'site.webmanifest is not IEC 60870 branded.' }
+          if ($readme -notmatch 'IEC 60870-5-101' -or $readme -notmatch 'IEC 60870-5-104') { throw 'README does not clearly describe 101/104 coverage.' }
+
+      - name: Check site asset hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d landing/screenshot ] || [ -d site/screenshot ]; then
+            echo "Raw screenshot folders should not be committed to public site folders."
+            exit 1
+          fi
+          find site/assets -type f -size +750k -print -quit | grep -q . && { echo "Large site asset found; compress before commit."; exit 1; } || true

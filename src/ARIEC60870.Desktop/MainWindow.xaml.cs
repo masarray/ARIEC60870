@@ -306,16 +306,16 @@ public partial class MainWindow : Window
         "ARIEC60870",
         "setup-preferences.json");
 
-    private static string BundledPlnPusertifSeedPath => Path.Combine(
+    private static string BundledUtilityFatProfilePath => Path.Combine(
         AppContext.BaseDirectory,
         "profiles",
-        "PLN_Pusertif_IEC101_default_seed.json");
+        "utility_fat_iec10x_default_profile.json");
 
-    private static string SourceTreePlnPusertifSeedPath => Path.Combine(
+    private static string SourceTreeUtilityFatProfilePath => Path.Combine(
         AppContext.BaseDirectory,
         "..", "..", "..", "..",
         "profiles",
-        "PLN_Pusertif_IEC101_default_seed.json");
+        "utility_fat_iec10x_default_profile.json");
 
     private void LoadDefaultIoaSeedProfile()
     {
@@ -326,8 +326,8 @@ public partial class MainWindow : Window
 
         var candidates = new[]
         {
-            BundledPlnPusertifSeedPath,
-            Path.GetFullPath(SourceTreePlnPusertifSeedPath)
+            BundledUtilityFatProfilePath,
+            Path.GetFullPath(SourceTreeUtilityFatProfilePath)
         };
 
         foreach (var path in candidates)
@@ -355,7 +355,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                AddUiDiagnostic("Warning", "Mapping", "IEC10X-IOA-SEED-LOAD", "Default IOA seed could not be loaded", ex.Message, "The app will continue with raw IOA labels. Check profiles/PLN_Pusertif_IEC101_default_seed.json.", ex);
+                AddUiDiagnostic("Warning", "Mapping", "IEC10X-IOA-SEED-LOAD", "Default IOA seed could not be loaded", ex.Message, "The app will continue with raw IOA labels. Check profiles/utility_fat_iec10x_default_profile.json.", ex);
             }
         }
     }
@@ -2423,7 +2423,7 @@ public partial class MainWindow : Window
             return BuildEmptyReportPreviewHtml(created);
         }
 
-        return BuildPlnEvidenceHtmlReport("ARIEC-REPORT-PREVIEW", created, rows, sourceWorkspace);
+        return BuildEvidenceHtmlReport("ARIEC-REPORT-PREVIEW", created, rows, sourceWorkspace);
     }
 
     private string BuildEmptyReportPreviewHtml(DateTime createdLocal)
@@ -2454,7 +2454,7 @@ public partial class MainWindow : Window
         var reportId = "ARIEC-REPORT-" + created.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
         var dialog = new SaveFileDialog
         {
-            Title = "Export PLN-style evidence report",
+            Title = "Export protocol evidence report",
             Filter = "HTML report (*.html)|*.html|All files (*.*)|*.*",
             FileName = $"{reportId}.html",
             AddExtension = true,
@@ -2466,14 +2466,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var html = BuildPlnEvidenceHtmlReport(reportId, created, rows, sourceWorkspace);
+        var html = BuildEvidenceHtmlReport(reportId, created, rows, sourceWorkspace);
         File.WriteAllText(dialog.FileName, html, Encoding.UTF8);
-        AddEvidenceRetentionExportMarker("PLN-style HTML evidence report");
-        AppendSessionLog("PLN-style HTML evidence report exported: " + dialog.FileName);
+        AddEvidenceRetentionExportMarker("protocol HTML evidence report");
+        AppendSessionLog("protocol HTML evidence report exported: " + dialog.FileName);
         MessageBox.Show(this, "HTML evidence report exported successfully. Open it in a browser and print to PDF when needed.", "Export report", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private string BuildPlnEvidenceHtmlReport(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
+    private string BuildEvidenceHtmlReport(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
     {
         var orderedRows = rows.OrderBy(row => row.Sequence).ToArray();
         var first = orderedRows.First();
@@ -2502,7 +2502,7 @@ public partial class MainWindow : Window
         html.AppendLine("<div>");
         html.AppendLine("<div class=\"eyebrow\">ARIEC60870 Protocol Lab</div>");
         html.AppendLine("<h1>IEC 60870 Evidence Report</h1>");
-        html.AppendLine("<p>PLN-style communication test evidence generated from the current ARIEC evidence buffer. This file is standalone and can be opened without ARIEC.</p>");
+        html.AppendLine("<p>Protocol communication test evidence generated from the current ARIEC evidence buffer. This file is standalone and can be opened without ARIEC.</p>");
         html.AppendLine("</div>");
         html.AppendLine("<div class=\"verdict " + EscapeHtml(verdict.CssClass) + "\">");
         html.AppendLine("<span>Verdict</span><strong>" + EscapeHtml(verdict.Status) + "</strong>");
@@ -2555,7 +2555,7 @@ public partial class MainWindow : Window
         html.AppendLine("<h2>Report Notes</h2>");
         html.AppendLine("<ul>");
         html.AppendLine("<li>This report is generated from ARIEC evidence rows and does not require the ARIEC application to be opened.</li>");
-        html.AppendLine("<li>Use browser print to save as PDF for FAT/SAT or PLN/Pusertif evidence attachment.</li>");
+        html.AppendLine("<li>Use browser print to save as PDF for FAT/SAT evidence attachment.</li>");
         html.AppendLine("<li>For full replayable evidence, keep the accompanying .ariec capture file.</li>");
         html.AppendLine("</ul>");
         html.AppendLine("</section>");
@@ -2942,16 +2942,16 @@ public partial class MainWindow : Window
         {
             if (_ioaProfile.HasPoints && string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
             {
-                var candidate = File.Exists(BundledPlnPusertifSeedPath) ? BundledPlnPusertifSeedPath : Path.GetFullPath(SourceTreePlnPusertifSeedPath);
+                var candidate = File.Exists(BundledUtilityFatProfilePath) ? BundledUtilityFatProfilePath : Path.GetFullPath(SourceTreeUtilityFatProfilePath);
                 if (File.Exists(candidate)) MappingProfilePathBox.Text = candidate;
             }
             if (_ioaProfile.HasPoints && !_defaultIoaSeedSettingsApplied)
             {
                 ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: !_savedSetupPreferencesLoaded);
             }
-            var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} Pusertif-style test scenarios" : string.Empty;
+            var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} example test scenarios" : string.Empty;
             MappingProfileStatusText.Text = _ioaProfile.HasPoints
-                ? $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText}). User-editable JSON; start from PLN/Pusertif seed then adapt globally."
+                ? $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText}). User-editable JSON; copy the example profile and adapt it for the project."
                 : "No IOA profile loaded. Raw IOA, Type ID, COT and CA will be shown.";
         }
         else if (string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))

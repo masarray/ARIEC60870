@@ -1,6 +1,6 @@
 # GitHub Pages Deployment
 
-ARIEC60870 includes a static landing page under `landing/`.
+ARIEC60870 uses a canonical static site source under `site/`.
 
 Recommended setup:
 
@@ -9,14 +9,18 @@ Recommended setup:
 3. Set **Source** to **GitHub Actions**.
 4. Push to `main` or `master`, or run the **Deploy landing page** workflow manually.
 
-Compatibility options are also included:
+The workflow publishes `site/` directly. This avoids maintaining multiple hand-edited landing copies.
 
-- If Pages is set to **Deploy from branch → root**, the root `index.html` redirects to `landing/`.
-- If Pages is set to **Deploy from branch → docs**, `docs/index.html` serves the same landing page.
+Compatibility files are also included:
+
+- Root `index.html` redirects to `site/` for local repository browsing or legacy branch-based setup.
+- Root `404.html` redirects to `site/` for legacy branch-based setup.
+- Historical `landing/` and `docs/` mirrors are retained only for older repository references.
 
 If the site still shows 404:
 
-- Confirm the selected branch is the branch that contains the files.
-- Confirm the Pages build/deploy action completed successfully.
+- Confirm GitHub Pages source is set to **GitHub Actions**.
+- Confirm the **Deploy landing page** workflow completed successfully.
+- Confirm `site/index.html`, `site/sitemap.xml`, `site/robots.txt`, and `site/site.webmanifest` exist.
 - Wait a few minutes after the first deployment.
-- Open the repository URL without adding `/landing` when using GitHub Actions mode.
+- Open the repository URL without adding `/site` when using GitHub Actions mode.

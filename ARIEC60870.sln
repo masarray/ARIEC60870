@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Desktop", "src\A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Protocol.Tests", "tests\ARIEC60870.Protocol.Tests\ARIEC60870.Protocol.Tests.csproj", "{B1E10306-1030-4C5A-B103-71E103A10306}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Repository.Tests", "tests\ARIEC60870.Repository.Tests\ARIEC60870.Repository.Tests.csproj", "{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

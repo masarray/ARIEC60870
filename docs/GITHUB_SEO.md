@@ -1,13 +1,13 @@
 # GitHub and Landing Page SEO Checklist
 
-ARIEC60870 is primarily discovered through GitHub search, external search engines, and shared landing-page links. This checklist keeps the public repository wording consistent for users who want to download and evaluate the tool.
+ARIEC60870 is discovered through GitHub search, external search engines, shared landing-page links, and direct release links. Keep repository wording clear, user-oriented, and consistent across README, landing page, manifest, Open Graph metadata, release notes, and GitHub About settings.
 
 ## Repository About section
 
 Recommended GitHub repository description:
 
 ```text
-IEC 60870-5-103 active master tester and analyzer for protection relay FAT/SAT evidence, event logs, mapping profiles, and raw frame trace.
+Free Apache-2.0 Windows IEC 60870-5-101 / 103 / 104 protocol evidence analyzer for FAT/SAT, commissioning, SCADA, RTU, and protection relay testing.
 ```
 
 Recommended website URL:
@@ -18,59 +18,87 @@ https://masarray.github.io/ARIEC60870/
 
 ## Recommended GitHub topics
 
-Use focused topics that match how relay, SCADA, and substation engineers search for tools:
+Use focused topics that match how relay, SCADA, RTU, and substation automation engineers search:
 
 ```text
-iec-60870-5-103
+iec60870
+iec60870-5-101
+iec60870-5-103
+iec60870-5-104
+iec101
 iec103
-protection-relay
-relay-testing
+iec104
 scada
+rtu
 substation-automation
-commissioning
-fat-testing
-sat-testing
-serial-communication
+protection-relay
 protocol-analyzer
+fat-sat
+commissioning
 wpf
 dotnet
 windows-desktop
 ```
 
+The same list is documented in `.github/repository-metadata.yml` so maintainers can copy it into GitHub settings.
+
 ## README search coverage
 
-The README should keep these phrases naturally visible in user-facing sections:
+The README should naturally include these phrases in user-facing sections:
 
+- IEC 60870-5-101 tester
 - IEC 60870-5-103 master tester
-- IEC-103 active master
-- protection relay communication check
-- relay FAT/SAT evidence
+- IEC 60870-5-104 client tester
+- IEC 60870 protocol analyzer
 - SCADA protocol analyzer
-- relay event log
+- RTU communication test
+- protection relay testing
+- FAT/SAT evidence
+- commissioning troubleshooting
 - raw frame trace
-- user mapping profile
+- event log
+- user-owned mapping profile
 
-Avoid keyword stuffing. The wording must still read like a product page for engineers who want to download and try the application.
+Avoid keyword stuffing. The wording must read like a product page for engineers who want to understand, download, build, and evaluate the application.
 
 ## Landing-page SEO coverage
 
 The landing page should include:
 
 - canonical URL
-- concise title and meta description
+- concise `<title>` and meta description
 - Open Graph and Twitter preview metadata
 - absolute preview image URL
 - SoftwareApplication structured data
+- FAQPage structured data
+- BreadcrumbList structured data
 - visible FAQ section
 - robots.txt and sitemap.xml
 - clear download CTA to GitHub Releases
+- mobile-friendly layout and readable heading hierarchy
+
+## Release SEO and trust
+
+Each GitHub Release should include:
+
+- versioned asset names
+- checksum file
+- clear package difference between portable and singlefile ZIPs
+- short evaluation notes
+- link to changelog
+- license and clean-room statement when relevant
 
 ## Manual GitHub settings not controlled by source code
 
-These cannot be changed from the repository files alone. Set them from the GitHub web UI:
+These cannot be changed from repository files alone. Set them from the GitHub web UI:
 
 1. Repository description.
 2. Repository website URL.
 3. Repository topics.
 4. Social preview image, if a custom preview is preferred.
 5. GitHub Pages source set to GitHub Actions.
+
+
+## GitHub Pages source of truth
+
+The canonical landing page source is now `site/`. The Pages workflow publishes this folder directly, so SEO changes should be made there first. Keep `title`, `description`, Open Graph metadata, structured data, `sitemap.xml`, `robots.txt`, and `site.webmanifest` aligned with the current release line.

@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace ARIEC60870.Core.Mapping;
 
 /// <summary>
-/// User-editable IEC-101/104 IOA point profile. The bundled PLN/Pusertif seed is only
+/// User-editable IEC-101/104 IOA point profile. The bundled example profile is only
 /// a starting profile; project teams can copy/edit it for any utility, RTU or gateway.
 /// </summary>
 public sealed class Iec10xPointMappingProfile

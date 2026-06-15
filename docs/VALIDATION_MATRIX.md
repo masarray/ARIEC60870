@@ -25,7 +25,7 @@ For public repositories, use sanitized device names when project, customer, or v
 | VAL-002 | Built-in simulator | Local/simulated | N/A | 1 / 1 | N/A | Pass | Pass | Pass | N/A | Example | Pass | Pending | Run for package smoke check. |
 | VAL-003 | IEC-103 relay A | RS-485 | 9600 / Even | 1 / 1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Sanitized bench or field test. |
 | VAL-004 | IEC-103 relay B | RS-485 | 19200 / Even | 1 / 1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Sanitized bench or field test. |
-| VAL-005 | IEC-101 legacy RTU / PLN-style low-rate channel | RS-232/RS-485 | 1200 / Even | Project-specific | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Validate low baudrate timing, timeout, and Class 1/Class 2 polling behaviour. |
+| VAL-005 | IEC-101 legacy RTU / utility-style low-rate channel | RS-232/RS-485 | 1200 / Even | Project-specific | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Validate low baudrate timing, timeout, and Class 1/Class 2 polling behaviour. |
 
 ## Public beta baseline
 
