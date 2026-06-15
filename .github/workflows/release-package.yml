@@ -54,7 +54,7 @@ jobs:
       notes_file: ${{ steps.release.outputs.notes_file }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve release inputs
         id: release
@@ -126,10 +126,10 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -181,7 +181,7 @@ jobs:
           }
 
       - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-*.zip
@@ -189,7 +189,7 @@ jobs:
             artifacts/release/SHA256SUMS.txt
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
           path: artifacts/release/*
@@ -204,10 +204,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
           path: artifacts/release
