@@ -1,16 +1,16 @@
 # ARIEC60870 Evidence Analyzer
 
-[![Build](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
+[![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Package](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/masarray/ARIEC60870/badge)](https://scorecard.dev/viewer/?uri=github.com/masarray/ARIEC60870)
-[![Release](https://img.shields.io/github/v/release/masarray/ARIEC60870?include_prereleases&label=release)](https://github.com/masarray/ARIEC60870/releases)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download-and-run)
 
 **ARIEC60870 Evidence Analyzer** is a free Apache-2.0 Windows desktop application for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 evidence review, FAT/SAT preparation, commissioning checks, and troubleshooting records.
 
 The app helps engineers run a focused communication session, review decoded evidence, inspect protocol details, and export a professional PDF report. It is intended for authorized engineering environments only.
+
+Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest).
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
