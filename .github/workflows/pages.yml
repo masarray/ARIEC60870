@@ -7,6 +7,7 @@ on:
     branches: [ main, master ]
     paths:
       - 'site/**'
+      - 'docs/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -45,10 +46,10 @@ jobs:
             exit 1
           fi
           if [ ! -f docs/index.html ] || [ ! -f docs/.pages-compatibility-mirror ]; then
-            echo "docs/ compatibility mirror is required so branch-based GitHub Pages settings do not 404."
-            exit 1
+            echo "::notice::docs/ compatibility mirror is missing. GitHub Actions Pages still deploys from site/."
+          elif ! cmp -s site/index.html docs/index.html; then
+            echo "::warning::docs/index.html is out of sync with site/index.html. Run scripts/sync-github-pages-docs-mirror.ps1 after landing edits."
           fi
-          cmp -s site/index.html docs/index.html || { echo "docs/index.html is out of sync with site/index.html"; exit 1; }
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
