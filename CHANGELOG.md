@@ -9,6 +9,9 @@
 - Synchronized GitHub security automation documentation with the current Dependabot policy: minor/patch automation, planned maintenance for major updates.
 - Restored rich structured data on the GitHub Pages home page using current native-PDF and evidence-analyzer wording.
 - Changed the manual release workflow pre-release default to `false` for stable public release preparation.
+- Bumped public version metadata to `3.6.6` for the next stable public package.
+- Added a full xUnit regression gate to the release packaging path before the user-facing ZIP is produced.
+- Clarified desktop cleanup documentation so it no longer overstates the current `MainWindow` ownership boundary.
 
 ### Fixed
 - Corrected the IEC-103 private/vendor ASDU regression test so it matches the decoder contract for type 205 while still verifying unknown ASDU transparency.
