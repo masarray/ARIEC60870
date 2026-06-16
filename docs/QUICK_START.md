@@ -75,7 +75,7 @@ A healthy first check normally shows:
 5. Choose the output file name and folder.
 6. Open the generated PDF and review it before sharing.
 
-The PDF is generated directly by ARIEC60870's built-in native PDF engine. No browser print workflow is required.
+The PDF is generated directly by ARIEC60870's built-in native PDF engine. No external PDF conversion workflow is required.
 
 ## 7. Before sharing evidence
 
