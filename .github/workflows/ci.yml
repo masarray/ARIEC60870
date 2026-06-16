@@ -27,8 +27,14 @@ jobs:
       - name: Restore
         run: dotnet restore ARIEC60870.sln
 
-      - name: Build
-        run: dotnet build ARIEC60870.sln --configuration Release --no-restore
+      - name: Build with release warning gate
+        run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
+
+      - name: Check code formatting
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal
 
       - name: Run dependency-free protocol smoke tests
         shell: pwsh
