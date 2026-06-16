@@ -13,7 +13,8 @@ public sealed class ReleasePackagingHygieneTests
         var root = FindRepositoryRoot();
         var workflow = File.ReadAllText(root.File(".github/workflows/release-package.yml"));
 
-        Assert.Contains("Build Windows single-file release", workflow);
+        Assert.Contains("name: Package", workflow);
+        Assert.Contains("Build user single-file EXE package", workflow);
         Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip", workflow);
         Assert.DoesNotContain("win-x64-portable.zip", workflow);
         Assert.DoesNotContain("win-x64-singlefile.zip", workflow);
