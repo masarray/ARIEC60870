@@ -1,18 +1,24 @@
 # ARIEC60870 Protocol Lab — IEC 60870-5-101 / 103 / 104 Evidence Analyzer
 
-[![Build](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
-[![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
+[![Build](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
+[![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Package](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml/badge.svg)](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/masarray/ARIEC60870/badge)](https://scorecard.dev/viewer/?uri=github.com/masarray/ARIEC60870)
 [![Release](https://img.shields.io/github/v/release/masarray/ARIEC60870?include_prereleases&label=release)](https://github.com/masarray/ARIEC60870/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download)
 
-**ARIEC60870 Protocol Lab** is a free, open-source Windows desktop tool for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 communication testing, protocol evidence review, FAT/SAT support, and commissioning troubleshooting.
+**ARIEC60870 Protocol Lab** is a free Apache-2.0 Windows desktop tool for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 communication testing, protocol evidence review, FAT/SAT preparation, and commissioning troubleshooting.
 
-The application runs a controlled master/client session, decodes protocol responses, shows readable engineering evidence, and keeps raw TX/RX frame detail available when deeper review is needed. It is designed for protection, SCADA, RTU, gateway, panel FAT, site acceptance, and substation automation teams.
+It runs a controlled master/client session, decodes protocol responses, presents readable engineering evidence, and keeps raw TX/RX frame detail available for deeper review. The tool is designed for protection, SCADA, RTU, gateway, panel FAT, site acceptance, and substation automation engineers who need a clear evidence trail without hiding the protocol behind a black box.
 
-No account required. The application source and built-in PDF report engine are released under the **Apache-2.0** license with no third-party PDF generation package dependency.
+No account is required. The application source code and built-in native PDF report engine are released under the **Apache-2.0** license with no third-party PDF generation package dependency.
+
+<p align="center">
+  <a href="https://masarray.github.io/ARIEC60870/">
+    <img src="site/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 protocol evidence analyzer line monitor cockpit" width="92%">
+  </a>
+</p>
 
 ## Project status
 
@@ -21,13 +27,6 @@ No account required. The application source and built-in PDF report engine are r
 - Maturity: practical field-testing and commissioning support; active development
 - Release package types: portable multi-file ZIP and optional single-file ZIP
 - Public trust controls: Apache-2.0 licensing, clean-room policy, CodeQL, Dependabot, OpenSSF Scorecard workflow, release checksums, SBOM, and build provenance attestation
-
-
-<p align="center">
-  <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 protocol evidence analyzer line monitor cockpit" width="92%">
-  </a>
-</p>
 
 ## Why engineers use it
 
@@ -38,9 +37,9 @@ ARIEC60870 is built for practical protocol questions that appear during bench te
 - Are Class 1 events requested only when ACD indicates pending data?
 - Are IEC-104 STARTDT, I-format, S-format, U-format, and TESTFR behavior visible?
 - Which Type ID, COT, CA, IOA, FUN, INF, DPI/value, quality flag, and timestamp did the device send?
-- Can the session evidence be exported for FAT/SAT notes, troubleshooting records, or handover?
+- Can the session evidence be exported as a professional PDF report for FAT/SAT notes, troubleshooting records, or handover?
 
-The tool does not hide the protocol behind a black box. It presents readable evidence first, while preserving raw frame transparency for escalation.
+The tool presents readable evidence first, while preserving raw frame transparency for escalation.
 
 ## Download
 
@@ -63,10 +62,10 @@ First run:
 2. Run `Start-ARIEC60870.bat`.
 3. Open **Setup**.
 4. Select IEC-103 serial, IEC-101 serial, or IEC-104 TCP/IP.
-5. Configure COM/TCP endpoint, address, timeout, GI option, and protocol interoperability profile.
+5. Configure the COM/TCP endpoint, address, timeout, GI option, and interoperability profile.
 6. Click **Start**.
 7. Review **Operator Evidence**, **Value Viewer**, **Event Log**, **Frame Trace**, **Diagnostics**, and **Report**.
-8. Export evidence after the test session.
+8. Export a professional PDF evidence report after the test session.
 
 ## Screenshots
 
@@ -89,10 +88,9 @@ First run:
 - FUN/INF/DPI/value/timestamp evidence for IEC-103 relay communication.
 - Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, Findings, and Report workspaces.
 - User-owned JSON mapping profiles for readable project signal names.
-- Professional PDF evidence report generated directly from the Report workspace by the built-in native PDF engine.
-- Native PDF engine documented in [`docs/NATIVE_PDF_ENGINE.md`](docs/NATIVE_PDF_ENGINE.md).
+- Professional PDF evidence report generated directly by the built-in native PDF engine.
 - CLI support for IEC-103 master runs, offline trace analysis, and deterministic simulator checks.
-- Sanitized protocol smoke tests and test vectors.
+- Sanitized protocol smoke tests and xUnit regression suites.
 
 ## Included in the release package
 
@@ -125,7 +123,7 @@ IEC-104
 
 ## User-owned signal mapping
 
-ARIEC60870 decodes protocol fields from the traffic. Readable project signal names come from user-owned JSON mapping profiles. This avoids guessed vendor naming and keeps evidence aligned with the approved project signal list.
+ARIEC60870 decodes protocol fields from traffic. Readable project signal names come from user-owned JSON mapping profiles. This avoids guessed vendor naming and keeps evidence aligned with the approved project signal list.
 
 Example IEC-103 mapping entry:
 
@@ -199,6 +197,7 @@ pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5 -SingleFile
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Desktop Architecture Cleanup](docs/DESKTOP_ARCHITECTURE_CLEANUP.md)
+- [Native PDF Engine](docs/NATIVE_PDF_ENGINE.md)
 - [Validation Matrix](docs/VALIDATION_MATRIX.md)
 - [Testing Strategy](docs/TESTING_STRATEGY.md)
 - [Release Packaging](docs/RELEASE_PACKAGING.md)
@@ -209,9 +208,9 @@ pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5 -SingleFile
 
 ## Product boundary
 
-ARIEC60870 is a single-connection protocol evidence analyzer. It is not a vendor-specific relay database, not a SCADA gateway, not a redundant master station, and not a replacement for formal FAT/SAT procedures.
+ARIEC60870 is a focused single-connection protocol evidence analyzer. It is not a vendor-specific relay database, not a SCADA gateway, not a redundant master station, and not a replacement for formal FAT/SAT procedures.
 
-Validate each release with the target device, project communication settings, and approved project mapping profile before relying on exported evidence for contractual records.
+Validate each release with the target device, project communication settings, and approved mapping profile before relying on exported evidence for contractual records.
 
 ## Security and privacy
 
@@ -226,6 +225,5 @@ Contributions are welcome when they preserve the clean-room Apache-2.0 boundary.
 ## License
 
 ARIEC60870 is free and open source under the **Apache License, Version 2.0**. See [LICENSE](LICENSE), [NOTICE](NOTICE), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
 
 See [GitHub security automation](docs/GITHUB_SECURITY_AUTOMATION.md) for Dependabot and OpenSSF Scorecard configuration.
