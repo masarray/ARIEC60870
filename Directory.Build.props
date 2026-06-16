@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.5</Version>
-    <AssemblyVersion>3.6.5.0</AssemblyVersion>
-    <FileVersion>3.6.5.0</FileVersion>
-    <InformationalVersion>3.6.5+public-repo-hardening</InformationalVersion>
+    <Version>3.6.6</Version>
+    <AssemblyVersion>3.6.6.0</AssemblyVersion>
+    <FileVersion>3.6.6.0</FileVersion>
+    <InformationalVersion>3.6.6+public-polish</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Evidence Analyzer</Product>
