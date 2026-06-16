@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 # ARIEC60870 Evidence Analyzer
-=======
-# ARIEC60870 Protocol Lab
->>>>>>> 4c3c188c310a7f4a4ea8ef5077454aebb16ee9a7
 
 [![Build](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
@@ -12,11 +8,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download-and-run)
 
-<<<<<<< HEAD
 **ARIEC60870 Evidence Analyzer** is a free Apache-2.0 Windows desktop application for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 evidence review, FAT/SAT preparation, commissioning checks, and troubleshooting records.
-=======
-**ARIEC60870 Protocol Lab** is a free Apache-2.0 Windows desktop application for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 lab checks, FAT/SAT preparation, commissioning review, and troubleshooting evidence.
->>>>>>> 4c3c188c310a7f4a4ea8ef5077454aebb16ee9a7
 
 The app helps engineers run a focused communication session, review decoded evidence, inspect protocol details, and export a professional PDF report. It is intended for authorized engineering environments only.
 
