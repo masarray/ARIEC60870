@@ -1,6 +1,6 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
-name: Deploy GitHub Pages site
+name: Pages
 
 on:
   push:
