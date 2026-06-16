@@ -90,8 +90,6 @@ public sealed class RepositoryHygieneTests
         }
     }
 
-
-
     [Fact]
     public void DependabotConfigurationScansActualNugetManifestDirectories()
     {
@@ -111,7 +109,6 @@ public sealed class RepositoryHygieneTests
         Assert.DoesNotContain("dotnet-major-updates", dependabot);
         Assert.DoesNotContain("commit-message:\n      prefix: \"deps(actions)\"", dependabot);
     }
-
 
     [Fact]
     public void DependencyReviewWorkflowDoesNotFailWhenDependencyGraphIsNotEnabledYet()
@@ -249,7 +246,7 @@ public sealed class RepositoryHygieneTests
         Assert.True(Directory.Exists(root.File("docs/assets")), "/docs GitHub Pages compatibility assets are missing.");
 
         var pagesWorkflow = NormalizeNewlines(File.ReadAllText(root.File(".github/workflows/pages.yml")));
-        Assert.Contains("name: Deploy GitHub Pages site", pagesWorkflow);
+        Assert.Contains("name: Pages", pagesWorkflow);
         Assert.Contains("path: site", pagesWorkflow);
         Assert.DoesNotContain("path: landing", pagesWorkflow);
     }
@@ -384,7 +381,6 @@ public sealed class RepositoryHygieneTests
         Assert.DoesNotContain("public sealed record TriggerCaptureRow", shell);
     }
 
-
     [Fact]
     public void ReportWorkspaceExportsPdfDirectlyWithoutHtmlPrintWorkflowLanguage()
     {
@@ -431,7 +427,6 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("built-in native PDF engine", notices, StringComparison.OrdinalIgnoreCase);
     }
 
-
     [Fact]
     public void PublicBrandingAndRoadmapAreCurrent()
     {
@@ -459,6 +454,11 @@ public sealed class RepositoryHygieneTests
 
         var readme = File.ReadAllText(root.File("README.md"));
         Assert.Contains("ARIEC60870 Evidence Analyzer", readme, StringComparison.Ordinal);
+        Assert.Contains("[![CI]", readme, StringComparison.Ordinal);
+        Assert.Contains("[![Pages]", readme, StringComparison.Ordinal);
+        Assert.Contains("[![Package]", readme, StringComparison.Ordinal);
+        Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);
 
         var roadmap = File.ReadAllText(root.File("docs/ROADMAP.md"));
         Assert.Contains("Native PDF evidence report | Implemented baseline", roadmap, StringComparison.Ordinal);
@@ -479,6 +479,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("\"@type\": \"FAQPage\"", site, StringComparison.Ordinal);
         Assert.Contains("\"@type\": \"BreadcrumbList\"", site, StringComparison.Ordinal);
         Assert.Contains("Native PDF evidence report", site, StringComparison.Ordinal);
+        Assert.DoesNotContain("img.shields.io/github/v/release", site, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(site, docsMirror);
     }
 
