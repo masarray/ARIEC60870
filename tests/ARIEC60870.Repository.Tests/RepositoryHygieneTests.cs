@@ -219,6 +219,9 @@ public sealed class RepositoryHygieneTests
         Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", site, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Protocol" + " Lab", readme, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Protocol" + " Lab", site, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Protocol" + " Lab", docsMirror, StringComparison.OrdinalIgnoreCase);
 
         foreach (var file in activeDocs)
         {
@@ -227,7 +230,6 @@ public sealed class RepositoryHygieneTests
             Assert.DoesNotContain("standalone" + " HTML", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("print" + " to PDF", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("browser" + " print", text, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("Protocol" + " Lab", text, StringComparison.OrdinalIgnoreCase);
         }
     }
 
