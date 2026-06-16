@@ -11,6 +11,9 @@
 - Changed the manual release workflow pre-release default to `false` for stable public release preparation.
 - Bumped public version metadata to `3.6.6` for the next stable public package.
 - Added a full xUnit regression gate to the release packaging path before the user-facing ZIP is produced.
+- Added release warning gates to CI, release packaging, and the local packaging script with `TreatWarningsAsErrors=true`.
+- Made `dotnet format --verify-no-changes` visible in CI as an advisory formatting signal without blocking existing release validation.
+- Corrected the README local packaging command so it uses the repository version by default instead of a stale hard-coded version.
 - Clarified desktop cleanup documentation so it no longer overstates the current `MainWindow` ownership boundary.
 
 ### Fixed
@@ -58,43 +61,3 @@ All notable public changes for ARIEC60870 are summarized here. Detailed legacy r
 - Added a neutral global IEC-101/104 sample profile name for public distribution.
 - Added GitHub issue templates, pull request template, support guide, code of conduct, Dependabot, CodeQL, and repository metadata notes.
 - Improved release automation with optional portable and single-file Windows package output.
-- Added SEO-focused landing page metadata, structured data, sitemap, and user-oriented content.
-
-### Latest application release note
-
-
-## Fixed
-
-### Report export is now visible
-
-The left rail action is now clearly labeled `Report` instead of a generic `Export`, and it is available even before a completed run. If no evidence exists, ARIEC shows a useful message.
-
-### Report workspace
-
-The report tab provides a dedicated place to review the evidence scope before exporting a professional report. Phase 3.6.6 replaces the previous legacy conversion workflow with direct PDF export.
-
-It includes:
-
-- `Refresh`
-- `Export PDF`
-- embedded report-content preview
-
-## Report workflow
-
-1. Run a session or open a `.ariec` capture.
-2. Open `Report`.
-3. Click `Refresh`.
-4. Click `Export PDF`.
-5. Attach the generated PDF to FAT/SAT, troubleshooting, or handover records.
-
-## Preserved
-
-- Smart Capture Rules.
-- Protocol Trace default workspace.
-- Unified `.ariec` capture.
-- Left-rail Auto Scroll Latest.
-
-
-## Earlier releases
-
-Historical notes from v0.1 through v3.6.5 are kept in `docs/archive/release-notes/` to preserve engineering history without overloading the public README.
