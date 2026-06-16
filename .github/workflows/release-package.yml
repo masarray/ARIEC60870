@@ -1,6 +1,6 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
-name: Build Windows single-file release
+name: Package
 
 on:
   workflow_dispatch:
