@@ -52,10 +52,11 @@ ARIEC60870/
   THIRD_PARTY_NOTICES.md
 ```
 
-
 ## Current Desktop Cleanup Status
 
-The desktop shell has completed the first architecture cleanup pass. `MainWindow.xaml.cs` is now a small bootstrap file, while report generation, capture archive handling, command dock logic, runtime proof, live evidence routing, frame inspection, workspace selection, setup persistence, and export logic are isolated in `src/ARIEC60870.Desktop/Features/`.
+The desktop shell has completed the first architecture cleanup pass. Large UI workflows are now split into feature-owned partial files under `src/ARIEC60870.Desktop/Features/`, and local path ownership / bindable row models have started moving into `Services/` and `ViewModels/`.
+
+`MainWindow` still owns important session state and UI coordination. The next cleanup target is extracting session state, evidence storage, report workspace state, and setup/profile view models so more workflow behavior can be tested without opening the WPF shell.
 
 See [`DESKTOP_ARCHITECTURE_CLEANUP.md`](DESKTOP_ARCHITECTURE_CLEANUP.md) for the current boundary and next extraction targets.
 
