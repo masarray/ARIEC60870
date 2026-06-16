@@ -5,15 +5,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ARIEC60870 | IEC 60870-5-101 / 103 / 104 Evidence Analyzer</title>
-    <meta name="description" content="Free Apache-2.0 Windows IEC 60870 evidence analyzer for IEC-101, IEC-103, and IEC-104 testing, FAT/SAT review, frame trace, event logs, and commissioning troubleshooting." />
-    <meta name="keywords" content="ARIEC60870, IEC 60870-5-101, IEC 60870-5-103, IEC 60870-5-104, IEC-101 tester, IEC-103 master tester, IEC-104 client tester, SCADA protocol analyzer, protection relay tester, RTU tester, substation automation, FAT SAT evidence, FT1.2 frame trace, APCI APDU analyzer, WPF desktop tool" />
-    <meta name="author" content="MasArray" />
-    <meta name="creator" content="MasArray" />
-    <meta name="publisher" content="MasArray" />
+    <title>ARIEC60870 | Windows IEC 60870 Evidence Analyzer</title>
+    <meta name="description" content="Free Apache-2.0 Windows app for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 evidence review, FAT/SAT notes, troubleshooting, and PDF reports." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
-    <meta name="msapplication-TileColor" content="#0b6f86" />
     <meta name="application-name" content="ARIEC60870" />
     <link rel="canonical" href="https://masarray.github.io/ARIEC60870/" />
     <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
@@ -22,96 +17,17 @@
     <link rel="manifest" href="site.webmanifest" />
     <link rel="preload" as="image" href="assets/screenshots/ariec60870-screen-02.webp" type="image/webp" />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="ARIEC60870" />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/" />
-    <meta property="og:title" content="ARIEC60870 — IEC 60870 Protocol Evidence Analyzer" />
-    <meta property="og:description" content="Open-source Windows analyzer for IEC-101, IEC-103, and IEC-104 testing with readable evidence, raw frame trace, event logs, diagnostics, and professional PDF reporting." />
+    <meta property="og:title" content="ARIEC60870 — Windows IEC 60870 Evidence Analyzer" />
+    <meta property="og:description" content="Download one Windows ZIP, run ARIEC60870.exe, review authorized IEC 60870 evidence, and export a professional PDF report." />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
-    <meta property="og:image:secure_url" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
-    <meta property="og:image:width" content="1800" />
-    <meta property="og:image:height" content="1080" />
-    <meta property="og:image:alt" content="ARIEC60870 Windows desktop protocol evidence analyzer screenshot" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ARIEC60870 IEC 60870 Protocol Evidence Analyzer" />
-    <meta name="twitter:description" content="Free Apache-2.0 Windows IEC-101, IEC-103, and IEC-104 analyzer for FAT/SAT evidence, frame trace, event logs, diagnostics, and professional PDF reporting." />
+    <meta name="twitter:title" content="ARIEC60870 Windows IEC 60870 Evidence Analyzer" />
+    <meta name="twitter:description" content="Single-EXE Windows package for IEC 60870 evidence review and PDF reports." />
     <meta name="twitter:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows desktop protocol evidence analyzer screenshot" />
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "ARIEC60870",
-  "url": "https://masarray.github.io/ARIEC60870/",
-  "inLanguage": "en",
-  "description": "Free Apache-2.0 IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol evidence analyzer for Windows.",
-  "publisher": {
-    "@type": "Organization",
-    "name": "MasArray",
-    "url": "https://github.com/masarray"
-  },
-  "potentialAction": {
-    "@type": "ViewAction",
-    "target": "https://github.com/masarray/ARIEC60870/releases/latest",
-    "name": "Download latest ARIEC60870 release"
-  }
-}
-    </script>
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "ARIEC60870 Protocol Lab",
-  "alternateName": ["ARIEC60870", "IEC 60870 Protocol Analyzer", "IEC-101 Tester", "IEC-103 Master Tester", "IEC-104 Client Tester"],
-  "description": "Free Apache-2.0 Windows protocol evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 testing, FAT/SAT evidence, frame trace, event logs, diagnostics, and professional PDF reporting.",
-  "url": "https://masarray.github.io/ARIEC60870/",
-  "codeRepository": "https://github.com/masarray/ARIEC60870",
-  "downloadUrl": "https://github.com/masarray/ARIEC60870/releases/latest",
-  "operatingSystem": "Windows",
-  "applicationCategory": "DeveloperApplication",
-  "softwareVersion": "3.6.5",
-  "isAccessibleForFree": true,
-  "isFamilyFriendly": true,
-  "license": "https://github.com/masarray/ARIEC60870/blob/master/LICENSE",
-  "author": { "@type": "Organization", "name": "MasArray", "url": "https://github.com/masarray" },
-  "publisher": { "@type": "Organization", "name": "MasArray", "url": "https://github.com/masarray" },
-  "audience": { "@type": "Audience", "audienceType": "Protection, SCADA, RTU, gateway, commissioning, panel FAT, and substation automation engineers" },
-  "featureList": [
-    "IEC 60870-5-103 serial master workflow",
-    "IEC 60870-5-101 serial master workflow",
-    "IEC 60870-5-104 TCP client workflow",
-    "General Interrogation evidence",
-    "ACD and DFC visibility",
-    "APCI and APDU frame trace",
-    "Operator evidence grid",
-    "Value viewer and event log",
-    "User-owned JSON mapping profiles",
-    "Native PDF evidence report",
-    "Windows portable and single-file release packages",
-    "Free Apache-2.0 source code"
-  ],
-  "screenshot": [
-    "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp",
-    "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-01.webp",
-    "https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-05.webp"
-  ],
-  "keywords": ["IEC 60870-5-101 tester", "IEC 60870-5-103 tester", "IEC 60870-5-104 tester", "SCADA protocol analyzer", "protection relay tester", "RTU tester", "FAT SAT evidence", "substation automation testing"]
-}
-    </script>
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    { "@type": "Question", "name": "Is ARIEC60870 free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. ARIEC60870 is free and open source under Apache-2.0, with no license key, account requirement, or subscription for trying the release package." } },
-    { "@type": "Question", "name": "Which IEC 60870 protocols does ARIEC60870 support?", "acceptedAnswer": { "@type": "Answer", "text": "ARIEC60870 provides practical evidence-oriented workflows for IEC 60870-5-101 serial, IEC 60870-5-103 serial protection relay communication, and IEC 60870-5-104 TCP/IP client testing." } },
-    { "@type": "Question", "name": "Can ARIEC60870 export evidence for FAT or SAT review?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Report workspace exports a professional PDF evidence report generated directly by the built-in native PDF engine." } },
-    { "@type": "Question", "name": "Does ARIEC60870 require a vendor-specific relay database?", "acceptedAnswer": { "@type": "Answer", "text": "No. The application decodes protocol fields and can load user-owned JSON mapping profiles so project signal names match the approved signal list." } }
-  ]
-}
-    </script>
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
@@ -122,187 +38,43 @@
       </a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#why">Why</a>
-        <a href="#protocols">Protocols</a>
-        <a href="#evidence">Evidence</a>
+        <a href="#workflow">How to use</a>
         <a href="quick-start.html">Quick Start</a>
         <a href="download.html">Download</a>
         <a href="faq.html">FAQ</a>
       </nav>
     </header>
-
     <main id="top">
       <section class="hero">
         <div class="hero-copy reveal">
-          <p class="eyebrow">Free Apache-2.0 &bull; IEC-101 / IEC-103 / IEC-104 &bull; FAT/SAT evidence</p>
-          <h1>IEC 60870 testing with readable engineering evidence.</h1>
-          <p class="lead">
-            ARIEC60870 is a Windows protocol evidence analyzer for IEC 60870-5-101,
-            IEC 60870-5-103, and IEC 60870-5-104. It runs a controlled master/client
-            session, decodes protocol traffic, preserves raw TX/RX frames, and exports
-            a professional PDF report for commissioning, troubleshooting, FAT, and SAT review.
-          </p>
+          <p class="eyebrow">Free Apache-2.0 &bull; Single EXE Windows ZIP &bull; Native PDF report</p>
+          <h1>IEC 60870 evidence review without confusing release packages.</h1>
+          <p class="lead">ARIEC60870 is a Windows desktop app for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering checks. Download one ZIP, run <strong>ARIEC60870.exe</strong>, review evidence, and export a professional PDF report.</p>
           <div class="hero-actions">
-            <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download free Windows ZIP</span></a>
-            <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub</span></a>
+            <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download Windows ZIP</span></a>
+            <a class="button secondary" href="quick-start.html"><span>Read quick start</span></a>
           </div>
           <div class="project-badges" aria-label="Project status badges">
             <a href="https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml" aria-label="Build status"><img src="https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build status" /></a>
             <a href="https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml" aria-label="GitHub Pages deployment status"><img src="https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master" alt="Pages deployment status" /></a>
             <a href="https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml" aria-label="Windows package build status"><img src="https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml/badge.svg" alt="Windows package build status" /></a>
             <a href="https://github.com/masarray/ARIEC60870/releases" aria-label="Latest release"><img src="https://img.shields.io/github/v/release/masarray/ARIEC60870?include_prereleases&amp;label=release" alt="Latest release" /></a>
-            <a href="https://scorecard.dev/viewer/?uri=github.com/masarray/ARIEC60870" aria-label="OpenSSF Scorecard result"><img src="https://api.scorecard.dev/projects/github.com/masarray/ARIEC60870/badge" alt="OpenSSF Scorecard" /></a>
             <a href="https://github.com/masarray/ARIEC60870/blob/master/LICENSE" aria-label="Apache 2.0 license"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License: Apache-2.0" /></a>
           </div>
-          <div class="trust-strip" aria-label="Core product capabilities">
-            <span>Apache-2.0</span><span>No account</span><span>IEC-101 serial</span><span>IEC-103 relay</span><span>IEC-104 TCP</span><span>Raw frame trace</span><span>Native PDF report</span>
-          </div>
+          <div class="trust-strip" aria-label="Core product capabilities"><span>v3.6.5</span><span>One EXE</span><span>No installer</span><span>IEC-101</span><span>IEC-103</span><span>IEC-104</span><span>PDF report</span></div>
         </div>
-
         <aside class="hero-panel reveal delay-1 interactive-surface" aria-label="ARIEC60870 application preview">
-          <div class="hero-panel-top">
-            <img class="panel-logo" src="assets/brand/ariec60870-icon.png" width="120" height="120" alt="ARIEC60870 logo" />
-            <span class="live-pill">Protocol evidence</span>
-          </div>
-          <button class="screen-frame featured-screen zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-02.webp" data-title="Protocol Evidence Cockpit">
-            <img src="assets/screenshots/ariec60870-screen-02.webp" width="1800" height="1080" alt="ARIEC60870 line monitor cockpit screenshot" decoding="async" fetchpriority="high" />
-          </button>
-          <div class="metric-row">
-            <div><span>GI</span><strong>Startup proof</strong></div>
-            <div><span>Trace</span><strong>TX/RX frames</strong></div>
-            <div><span>Report</span><strong>PDF evidence</strong></div>
-          </div>
+          <div class="hero-panel-top"><img class="panel-logo" src="assets/brand/ariec60870-icon.png" width="120" height="120" alt="ARIEC60870 logo" /><span class="live-pill">Evidence workspace</span></div>
+          <button class="screen-frame featured-screen zoom-trigger" type="button" data-full="assets/screenshots/ariec60870-screen-02.webp" data-title="ARIEC60870 Workspace"><img src="assets/screenshots/ariec60870-screen-02.webp" width="1800" height="1080" alt="ARIEC60870 workspace screenshot" decoding="async" fetchpriority="high" /></button>
+          <div class="metric-row"><div><span>Run</span><strong>ARIEC60870.exe</strong></div><div><span>Review</span><strong>Evidence</strong></div><div><span>Export</span><strong>PDF</strong></div></div>
         </aside>
       </section>
-
-      <section class="ticker" aria-label="Workflow highlights">
-        <div class="ticker-track">
-          <span>IEC-101 FT1.2</span><span>IEC-103 Class 1 drain</span><span>IEC-104 STARTDT</span><span>General Interrogation</span><span>ACD/DFC visibility</span><span>Value Viewer</span><span>Event Log</span><span>Frame Trace</span><span>PDF Report</span>
-          <span>IEC-101 FT1.2</span><span>IEC-103 Class 1 drain</span><span>IEC-104 STARTDT</span><span>General Interrogation</span><span>ACD/DFC visibility</span><span>Value Viewer</span><span>Event Log</span><span>Frame Trace</span><span>PDF Report</span>
-        </div>
-      </section>
-
-      <section class="section why-section" id="why">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Why try it</p>
-          <h2>Focused protocol visibility for serious commissioning work.</h2>
-          <p>ARIEC60870 keeps the workflow narrow, the protocol fields visible, and the output useful for FAT/SAT notes, troubleshooting review, and handover.</p>
-        </div>
-        <div class="proof-grid">
-          <article class="proof-card reveal interactive-surface"><strong>Open and inspectable</strong><span>Free Apache-2.0 source code, sanitized test vectors, CI checks, release checksums, SBOM, and build provenance support safer evaluation.</span></article>
-          <article class="proof-card reveal delay-1 interactive-surface"><strong>Engineering evidence first</strong><span>Operator-readable rows explain what happened while raw frame details stay available for protocol-level escalation.</span></article>
-          <article class="proof-card reveal delay-2 interactive-surface"><strong>Built-in PDF reporting</strong><span>The Report workspace exports professional PDF evidence directly through the native PDF engine.</span></article>
-          <article class="proof-card reveal delay-3 interactive-surface"><strong>Clean product boundary</strong><span>Focused single-endpoint testing and evidence review, not a SCADA gateway or production redundant master station.</span></article>
-        </div>
-      </section>
-
-      <section class="section value-section" id="protocols">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Protocol coverage</p>
-          <h2>Three IEC 60870 workflows, one evidence model.</h2>
-          <p>Each protocol has different field language. The UI separates serial protection, serial telecontrol, and TCP telecontrol so engineers can focus on relevant evidence.</p>
-        </div>
-        <div class="value-grid">
-          <article class="value-card reveal interactive-surface"><h3>IEC-101 serial</h3><p>FT1.2 frames, unbalanced master workflow, link/common address, GI, optional clock sync, Type ID/COT/CA/IOA evidence, and ACD/DFC visibility.</p></article>
-          <article class="value-card reveal delay-1 interactive-surface"><h3>IEC-103 relay</h3><p>Protection relay serial testing with reset link/FCB, Class 1/Class 2 polling, FUN/INF evidence, relay timestamps, and user-owned mapping profiles.</p></article>
-          <article class="value-card reveal delay-2 interactive-surface"><h3>IEC-104 TCP/IP</h3><p>Client workflow with STARTDT/STOPDT/TESTFR visibility, I/S/U frame evidence, sequence counters, ASDU decoding, and reportable findings.</p></article>
-        </div>
-      </section>
-
-      <section class="section screens" id="screens">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Screenshots</p>
-          <h2>Readable cockpit for values, events, trace, diagnostics, and reports.</h2>
-          <p>Use the screenshot preview to inspect the main workspaces before downloading the package.</p>
-        </div>
-        <div class="screen-grid">
-          <button class="screen-card zoom-trigger reveal interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-01.webp" data-title="Operator Evidence"><img src="assets/screenshots/ariec60870-screen-01.webp" width="1800" height="1080" alt="ARIEC60870 operator evidence grid screenshot" loading="lazy" /><strong>Operator Evidence</strong><span>Readable session rows for engineering review.</span></button>
-          <button class="screen-card zoom-trigger reveal delay-1 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-03.webp" data-title="Value and Event Review"><img src="assets/screenshots/ariec60870-screen-03.webp" width="1800" height="1080" alt="ARIEC60870 value and event review screenshot" loading="lazy" /><strong>Values &amp; Events</strong><span>Latest value snapshot and event log basis.</span></button>
-          <button class="screen-card zoom-trigger reveal delay-2 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-04.webp" data-title="Frame Trace"><img src="assets/screenshots/ariec60870-screen-04.webp" width="1800" height="1080" alt="ARIEC60870 protocol frame trace screenshot" loading="lazy" /><strong>Frame Trace</strong><span>TX/RX protocol evidence when deeper review is needed.</span></button>
-          <button class="screen-card zoom-trigger reveal delay-3 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-05.webp" data-title="Setup"><img src="assets/screenshots/ariec60870-screen-05.webp" width="1800" height="1080" alt="ARIEC60870 setup overlay screenshot" loading="lazy" /><strong>Setup</strong><span>Protocol-aware settings for serial and TCP tests.</span></button>
-        </div>
-      </section>
-
-      <section class="section evidence-section" id="evidence">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Evidence model</p>
-          <h2>From live communication to explainable PDF report.</h2>
-          <p>Operator evidence, value snapshots, event logs, diagnostics, and frame trace are kept together so reviewers can move from summary to raw proof.</p>
-        </div>
-        <div class="evidence-grid">
-          <div class="evidence-card reveal interactive-surface"><strong>Operator Evidence</strong><span>Readable high-level event rows for test-session review.</span></div>
-          <div class="evidence-card reveal delay-1 interactive-surface"><strong>Event Log</strong><span>Digital changes, command feedback, and timestamped events.</span></div>
-          <div class="evidence-card reveal delay-2 interactive-surface"><strong>Frame Trace</strong><span>TX/RX frame direction, selected frame interpretation, and raw hex transparency.</span></div>
-          <div class="evidence-card reveal interactive-surface"><strong>Diagnostics</strong><span>Recoverable runtime issues become selectable rows with recommendations.</span></div>
-          <div class="evidence-card reveal delay-1 interactive-surface"><strong>Mapping Profiles</strong><span>User/project JSON profiles provide signal names without embedding a vendor database.</span></div>
-          <div class="evidence-card reveal delay-2 interactive-surface"><strong>PDF Report</strong><span>Professional evidence report generated directly from the Report workspace by the built-in native PDF engine.</span></div>
-        </div>
-      </section>
-
-      <section class="section split" id="workflow">
-        <div class="reveal">
-          <p class="eyebrow">Workflow</p>
-          <h2>Download, connect, run, review, export.</h2>
-          <p>The workflow is designed for a test bench or commissioning desk: configure the endpoint, run the session, inspect evidence from high level to raw frame level, then export the result.</p>
-        </div>
-        <div class="report-list reveal delay-1" aria-label="Usage workflow">
-          <div class="interactive-surface"><strong>1. Download</strong><span>Get the Windows ZIP from GitHub Releases and start the app.</span></div>
-          <div class="interactive-surface"><strong>2. Configure</strong><span>Select protocol mode, endpoint, addressing profile, timeout, GI, and optional mapping.</span></div>
-          <div class="interactive-surface"><strong>3. Start &amp; verify</strong><span>Watch Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, and Findings.</span></div>
-          <div class="interactive-surface"><strong>4. Export PDF</strong><span>Export a professional evidence report for FAT/SAT records, troubleshooting, and handover.</span></div>
-        </div>
-      </section>
-
-      <section class="section split" id="release">
-        <div class="reveal">
-          <p class="eyebrow">Download package</p>
-          <h2>Free Windows packages for test-bench evaluation.</h2>
-          <p>Release automation builds portable and single-file packages, publishes checksums, emits an SPDX dependency SBOM, and requests build provenance attestation.</p>
-        </div>
-        <div class="report-list reveal delay-1" aria-label="Release package contents">
-          <div class="interactive-surface"><strong>Portable ZIP</strong><span>Desktop app, CLI tools, docs, profiles, samples, license files, and start scripts.</span></div>
-          <div class="interactive-surface"><strong>Single-file ZIP</strong><span>Self-contained desktop and CLI executables packaged with docs and examples.</span></div>
-          <div class="interactive-surface"><strong>Checksum</strong><span>SHA256SUMS.txt is generated so downloaded assets can be verified.</span></div>
-          <div class="interactive-surface"><strong>SBOM &amp; provenance</strong><span>Release workflow attaches a lightweight SPDX dependency SBOM and build provenance attestation.</span></div>
-        </div>
-      </section>
-
-      <section class="section faq-section" id="faq">
-        <div class="section-heading reveal">
-          <p class="eyebrow">FAQ</p>
-          <h2>Questions before downloading ARIEC60870.</h2>
-          <p>These answers clarify scope, licensing, operating system, protocol support, and safe use of exported evidence.</p>
-        </div>
-        <div class="faq-grid">
-          <article class="faq-card reveal interactive-surface"><h3>Is ARIEC60870 free?</h3><p>Yes. ARIEC60870 is free and open source under Apache-2.0. There is no license key, account requirement, or subscription for trying the release package.</p></article>
-          <article class="faq-card reveal delay-1 interactive-surface"><h3>Which protocols are covered?</h3><p>The app provides practical workflows for IEC 60870-5-101 serial, IEC 60870-5-103 serial protection relay communication, and IEC 60870-5-104 TCP/IP client testing.</p></article>
-          <article class="faq-card reveal delay-1 interactive-surface"><h3>Who should use it?</h3><p>It is intended for protection, SCADA, RTU, gateway, commissioning, panel FAT, and substation automation engineers who need an evidence trail.</p></article>
-          <article class="faq-card reveal delay-2 interactive-surface"><h3>Can it export FAT/SAT evidence?</h3><p>Yes. The Report workspace exports a professional PDF evidence report generated by the built-in native PDF engine.</p></article>
-        </div>
-      </section>
-
-      <section class="section download-band" id="download">
-        <div class="download-card reveal interactive-surface">
-          <div>
-            <p class="eyebrow">Windows release</p>
-            <h2>Download free, connect, and start a focused IEC 60870 evidence session.</h2>
-            <p>Use the open-source Windows package for a test bench, configure the protocol endpoint, run the session, inspect values and events, then export the evidence your team needs.</p>
-          </div>
-          <div class="download-actions">
-            <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a>
-            <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub</span></a>
-          </div>
-        </div>
-      </section>
+      <section class="section why-section" id="why"><div class="section-heading reveal"><p class="eyebrow">Why try it</p><h2>Made for clear engineering records.</h2><p>The app keeps setup, evidence, diagnostics, and reporting in one focused Windows workspace.</p></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>Simple download</strong><span>One Windows ZIP with one desktop executable.</span></article><article class="proof-card reveal delay-1 interactive-surface"><strong>Readable evidence</strong><span>High-level evidence views with deeper detail available when needed.</span></article><article class="proof-card reveal delay-2 interactive-surface"><strong>PDF output</strong><span>Professional report export from the built-in native PDF engine.</span></article><article class="proof-card reveal delay-3 interactive-surface"><strong>Open source</strong><span>Apache-2.0 source, CI, checksums, SBOM, and provenance workflow.</span></article></div></section>
+      <section class="section split" id="workflow"><div class="reveal"><p class="eyebrow">How to use</p><h2>Download, run, configure, review, export.</h2><p>The first-run path is intentionally short so non-developer users do not need to choose between several launchers.</p></div><div class="report-list reveal delay-1" aria-label="Usage workflow"><div class="interactive-surface"><strong>1. Download</strong><span>Get ARIEC60870-vX.Y.Z-win-x64.zip from GitHub Releases.</span></div><div class="interactive-surface"><strong>2. Run</strong><span>Extract the ZIP and double-click ARIEC60870.exe.</span></div><div class="interactive-surface"><strong>3. Configure</strong><span>Open Setup and enter the approved project/device settings.</span></div><div class="interactive-surface"><strong>4. Review</strong><span>Use Operator Evidence, Value Viewer, Event Log, Frame Trace, Diagnostics, and Report.</span></div><div class="interactive-surface"><strong>5. Export PDF</strong><span>Open Report, refresh the preview, and export the PDF file.</span></div></div></section>
+      <section class="section screens" id="screens"><div class="section-heading reveal"><p class="eyebrow">Screenshots</p><h2>Preview the main Windows workspace.</h2><p>Use the screenshot preview before downloading.</p></div><div class="screen-grid"><button class="screen-card zoom-trigger reveal interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-01.webp" data-title="Operator Evidence"><img src="assets/screenshots/ariec60870-screen-01.webp" width="1800" height="1080" alt="ARIEC60870 operator evidence screenshot" loading="lazy" /><strong>Operator Evidence</strong><span>Readable session rows.</span></button><button class="screen-card zoom-trigger reveal delay-1 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-03.webp" data-title="Values and Events"><img src="assets/screenshots/ariec60870-screen-03.webp" width="1800" height="1080" alt="ARIEC60870 value and event screenshot" loading="lazy" /><strong>Values &amp; Events</strong><span>Latest values and event records.</span></button><button class="screen-card zoom-trigger reveal delay-2 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-04.webp" data-title="Frame Trace"><img src="assets/screenshots/ariec60870-screen-04.webp" width="1800" height="1080" alt="ARIEC60870 frame trace screenshot" loading="lazy" /><strong>Frame Trace</strong><span>Deeper evidence view.</span></button><button class="screen-card zoom-trigger reveal delay-3 interactive-surface" type="button" data-full="assets/screenshots/ariec60870-screen-05.webp" data-title="Setup"><img src="assets/screenshots/ariec60870-screen-05.webp" width="1800" height="1080" alt="ARIEC60870 setup screenshot" loading="lazy" /><strong>Setup</strong><span>Protocol-aware settings.</span></button></div></section>
+      <section class="section download-band" id="download"><div class="download-card reveal interactive-surface"><div><p class="eyebrow">Windows release</p><h2>Download one ZIP and run ARIEC60870.exe.</h2><p>The public release is optimized for normal users: one self-contained desktop executable, documentation, neutral examples, checksums, SBOM, and provenance.</p></div><div class="download-actions"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="quick-start.html"><span>Read quick start</span></a></div></div></section>
     </main>
-
-    <dialog class="lightbox" aria-label="Screenshot preview">
-      <button class="lightbox-close" type="button" aria-label="Close preview">Close</button>
-      <figure><img alt="" /><figcaption></figcaption></figure>
-    </dialog>
-
-    <footer class="site-footer">
-      <span>ARIEC60870</span>
-      <span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span>
-    </footer>
+    <dialog class="lightbox" aria-label="Screenshot preview"><button class="lightbox-close" type="button" aria-label="Close preview">Close</button><figure><img alt="" /><figcaption></figcaption></figure></dialog>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>
