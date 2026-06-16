@@ -75,17 +75,20 @@ jobs:
             fi
           done
 
-          mirrored=(
+          runtime=(
             index.html 404.html styles.css script.js robots.txt sitemap.xml site.webmanifest
             seo-manifest.json llms.txt humans.txt download.html faq.html protocol-coverage.html
             quick-start.html troubleshooting.html
           )
-          for file in "${mirrored[@]}"; do
+          for file in "${runtime[@]}"; do
             test -f "site/$file" || { echo "Missing canonical site file: site/$file"; exit 1; }
             test -f "docs/$file" || { echo "Missing /docs GitHub Pages compatibility file: docs/$file"; exit 1; }
-            cmp -s "site/$file" "docs/$file" || { echo "docs/$file is out of sync with site/$file"; exit 1; }
           done
           test -d docs/assets || { echo "Missing docs/assets compatibility mirror."; exit 1; }
+
+          if ! cmp -s site/index.html docs/index.html; then
+            echo "::warning::docs/index.html is out of sync with site/index.html. GitHub Pages still deploys canonical site/. Run scripts/sync-github-pages-docs-mirror.ps1 before branch-based /docs publishing."
+          fi
 
       - name: Check sitemap and canonical coverage
         shell: bash
