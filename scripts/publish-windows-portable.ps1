@@ -18,7 +18,7 @@
   experiments after CI has already passed.
 
 .EXAMPLE
-  pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.6
+  pwsh ./scripts/publish-windows-portable.ps1
 #>
 [CmdletBinding()]
 param(
@@ -61,7 +61,7 @@ try {
     New-Item -ItemType Directory -Force -Path $StagingRoot, $PublishOut | Out-Null
 
     dotnet restore ARIEC60870.sln
-    dotnet build ARIEC60870.sln --configuration $Configuration --no-restore -p:Version=$Version
+    dotnet build ARIEC60870.sln --configuration $Configuration --no-restore -p:Version=$Version -p:TreatWarningsAsErrors=true
 
     if (-not $SkipTests) {
         Write-Host "Running protocol smoke test..." -ForegroundColor Cyan
@@ -76,6 +76,7 @@ try {
         --runtime $Runtime `
         --self-contained:$SelfContained `
         -p:Version=$Version `
+        -p:TreatWarningsAsErrors=true `
         -p:PublishSingleFile=true `
         -p:EnableCompressionInSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
