@@ -94,7 +94,7 @@ Use **IEC-103 serial** for protection relay communication checks. Select the COM
 5. Choose the output file name and folder.
 6. Review the generated PDF before sharing it.
 
-The PDF is generated directly by the built-in native PDF engine. No browser print workflow is required.
+The PDF is generated directly by the built-in native PDF engine. No external PDF conversion workflow is required.
 
 ## Screenshots
 
