@@ -13,12 +13,16 @@
   instructions, documentation, neutral sample profiles, and license files. It
   intentionally does not create start batch files or multiple executable choices.
 
+  By default the script runs the protocol smoke test and the full xUnit
+  regression suite before publishing. Use -SkipTests only for local packaging
+  experiments after CI has already passed.
+
 .EXAMPLE
-  pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5
+  pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.6
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "3.6.5",
+    [string]$Version = "3.6.6",
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
@@ -31,6 +35,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ArtifactRoot = Join-Path $RepoRoot "artifacts"
 $ReleaseRoot = Join-Path $ArtifactRoot "release"
+$TestResultsRoot = Join-Path $ArtifactRoot "test-results"
 $StagingRoot = Join-Path $ReleaseRoot "ARIEC60870-v$Version-$Runtime"
 $PublishOut = Join-Path $ArtifactRoot "publish-desktop-$Runtime"
 $PackageZip = Join-Path $ReleaseRoot "ARIEC60870-v$Version-$Runtime.zip"
@@ -47,7 +52,7 @@ Write-Host "User package    : single desktop EXE, no start batch files"
 
 Push-Location $RepoRoot
 try {
-    New-Item -ItemType Directory -Force -Path $ReleaseRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $ReleaseRoot, $TestResultsRoot | Out-Null
     foreach ($Path in @($StagingRoot, $PublishOut)) {
         if (Test-Path $Path) { Remove-Item $Path -Recurse -Force }
     }
@@ -59,7 +64,11 @@ try {
     dotnet build ARIEC60870.sln --configuration $Configuration --no-restore -p:Version=$Version
 
     if (-not $SkipTests) {
+        Write-Host "Running protocol smoke test..." -ForegroundColor Cyan
         dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration $Configuration --no-build
+
+        Write-Host "Running full xUnit regression suite..." -ForegroundColor Cyan
+        dotnet test ARIEC60870.sln --configuration $Configuration --no-build --logger "trx;LogFileName=release-package.trx" --results-directory $TestResultsRoot
     }
 
     dotnet publish src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj `
