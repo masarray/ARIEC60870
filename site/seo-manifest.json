@@ -3,14 +3,14 @@
   "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "sourceOfTruth": "site/",
   "version": "3.6.5",
-  "generatedAt": "2026-06-15",
+  "generatedAt": "2026-06-16",
   "publishedBy": ".github/workflows/pages.yml",
   "pages": [
     {
       "path": "index.html",
       "canonical": "https://masarray.github.io/ARIEC60870/",
-      "title": "ARIEC60870 | Free IEC 60870-5-101 / 103 / 104 Protocol Analyzer",
-      "description": "Free Apache-2.0 Windows IEC 60870 protocol analyzer for IEC-101, IEC-103, and IEC-104 testing, FAT/SAT evidence, frame trace, event logs, and commissioning troubleshooting."
+      "title": "ARIEC60870 | IEC 60870-5-101 / 103 / 104 Evidence Analyzer",
+      "description": "Free Apache-2.0 Windows IEC 60870 evidence analyzer for IEC-101, IEC-103, and IEC-104 testing, FAT/SAT review, frame trace, event logs, and commissioning troubleshooting."
     },
     {
       "path": "quick-start.html",
@@ -43,8 +43,8 @@
       "description": "FAQ for ARIEC60870, a free Apache-2.0 Windows analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol testing."
     }
   ],
-  "legacyMirrors": {
-    "landing": "removed",
-    "docsHtmlMirror": "removed"
+  "compatibilityMirrors": {
+    "docsHtmlMirror": "active",
+    "purpose": "Keeps GitHub Pages alive when the repository is configured for Deploy from branch /docs. The site/ folder remains the canonical source."
   }
 }
