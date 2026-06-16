@@ -117,7 +117,7 @@ Start with high-level evidence, then drill down when needed:
 6. Choose the target file name and folder.
 7. Open the PDF and review it before sharing.
 
-The PDF is generated directly by the built-in native PDF engine. No browser print workflow is required.
+The PDF is generated directly by the built-in native PDF engine. No external PDF conversion workflow is required.
 
 ## Before sharing a PDF outside the project team
 
