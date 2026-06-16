@@ -124,9 +124,17 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Run full xUnit regression gate
+        shell: pwsh
+        run: |
+          dotnet restore ARIEC60870.sln
+          dotnet build ARIEC60870.sln --configuration Release --no-restore -p:Version=${{ needs.resolve.outputs.version }}
+          dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build
+          dotnet test ARIEC60870.sln --configuration Release --no-build --logger "trx;LogFileName=release-gate.trx" --results-directory artifacts/test-results
+
       - name: Build user single-file EXE package
         shell: pwsh
-        run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}'
+        run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}' -SkipTests
 
       - name: Verify package structure
         shell: pwsh
@@ -168,6 +176,14 @@ jobs:
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
             artifacts/release/SHA256SUMS.txt
+
+      - name: Upload release test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-release-test-results
+          path: artifacts/test-results/**/*
+          if-no-files-found: warn
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
