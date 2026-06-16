@@ -154,8 +154,10 @@ dotnet test ARIEC60870.sln --configuration Release
 Create the user release package locally:
 
 ```powershell
-pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5
+pwsh ./scripts/publish-windows-portable.ps1
 ```
+
+The local packaging script reads the repository version by default and runs the same release checks unless `-SkipTests` is explicitly used for local experiments.
 
 ## Documentation
 
