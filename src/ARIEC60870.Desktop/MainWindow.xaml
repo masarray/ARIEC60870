@@ -3,7 +3,7 @@
 <Window x:Class="ARIEC60870.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ARIEC60870 Protocol Lab"
+        Title="ARIEC60870 Evidence Analyzer"
         Width="1540" Height="900" MinWidth="1280" MinHeight="760"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"
@@ -170,7 +170,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock x:Name="ProductTitleText" Text="ARIEC60870 Protocol Lab" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
+                            <TextBlock x:Name="ProductTitleText" Text="ARIEC60870 Evidence Analyzer" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
                             <TextBlock x:Name="SessionSubtitleText" Text="Ready. Setup and connect." Style="{StaticResource SubtleText}" FontSize="10.8" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                             <TextBlock x:Name="BufferStatusText" Text="Buffer ready" Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
                         </StackPanel>

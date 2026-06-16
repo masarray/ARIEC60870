@@ -59,7 +59,7 @@ foreach ($project in $projectFiles) {
 }
 
 $rootPackage = [ordered]@{
-    name = 'ARIEC60870 Protocol Lab'
+    name = 'ARIEC60870 Evidence Analyzer'
     SPDXID = 'SPDXRef-Package-ARIEC60870'
     versionInfo = $Version
     downloadLocation = 'https://github.com/masarray/ARIEC60870/releases'

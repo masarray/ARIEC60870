@@ -228,7 +228,7 @@ public partial class MainWindow : Window
         LoadSetupPreferences();
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
-        AppendSessionLog("ARIEC60870 Protocol Lab initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
+        AppendSessionLog("ARIEC60870 Evidence Analyzer initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
         AppendSessionLog("Output model: Value Viewer stays live; Evidence Summary is de-noised proof; raw hex remains available in Protocol Trace for protocol transparency.");
         Loaded += (_, _) =>
         {

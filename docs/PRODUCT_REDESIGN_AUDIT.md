@@ -1,4 +1,4 @@
-# Product Redesign Audit — ARIEC60870 Protocol Lab
+# Product Redesign Audit — ARIEC60870 Evidence Analyzer
 
 This build moves the desktop UX from an IEC-103-first tester to a protocol-aware IEC 60870 analyzer.
 

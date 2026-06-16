@@ -19,7 +19,7 @@ The simulator must reuse the same shared protocol core, profile database, ASDU b
 ARIEC60870 product direction:
 
 ```text
-ARIEC60870 Protocol Lab
+ARIEC60870 Evidence Analyzer
 ├─ Master Analyzer / Client Tester
 ├─ Slave Simulator / Controlled Station Server
 ├─ example profile seed

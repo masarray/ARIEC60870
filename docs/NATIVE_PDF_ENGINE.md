@@ -55,4 +55,4 @@ Future improvements can add font embedding, PDF/A metadata, richer typography, o
 
 ## Regression checks
 
-Tests verify that the report service writes a real `%PDF` file and that repository hygiene tests prevent accidental reintroduction of HTML-print report export wording or third-party PDF generator dependencies.
+Tests verify that the report service writes a real `%PDF` file and that repository hygiene tests prevent accidental reintroduction of legacy conversion report export wording or third-party PDF generator dependencies.

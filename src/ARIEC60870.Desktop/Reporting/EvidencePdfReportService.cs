@@ -119,7 +119,7 @@ public static class EvidencePdfReportService
             var verdictBackground = ResolveVerdictBackground(_model.VerdictTone);
 
             page.Line(Margin, HeaderBottom, PageWidth - Margin, HeaderBottom, Border, 0.8f);
-            page.Text(Margin, 562f, "ARIEC60870 Protocol Lab", PdfFont.Bold, 7.4f, Muted);
+            page.Text(Margin, 562f, "ARIEC60870 Evidence Analyzer", PdfFont.Bold, 7.4f, Muted);
             page.Text(Margin, 541f, "IEC 60870 Evidence Report", PdfFont.Bold, 20.5f, BrandNavy);
             page.Text(Margin, 523f, "Commissioning and FAT/SAT protocol evidence for IEC 60870-5-101 / 103 / 104 communication sessions.", PdfFont.Regular, 7.4f, Muted);
 

@@ -3,11 +3,18 @@
 
 ## [3.6.6] - Unreleased
 
+### Public wording and release readiness
+- Aligned active public branding around **ARIEC60870 Evidence Analyzer** across README, product metadata, app title, docs, SBOM metadata, and report output.
+- Rewrote `docs/ROADMAP.md` so implemented native PDF export is no longer described as planned work.
+- Synchronized GitHub security automation documentation with the current Dependabot policy: minor/patch automation, planned maintenance for major updates.
+- Restored rich structured data on the GitHub Pages home page using current native-PDF and evidence-analyzer wording.
+- Changed the manual release workflow pre-release default to `false` for stable public release preparation.
+
 ### Fixed
 - Corrected the IEC-103 private/vendor ASDU regression test so it matches the decoder contract for type 205 while still verifying unknown ASDU transparency.
 
 ### Changed
-- Reworked the Report workspace copy to remove HTML-print workflow language and export a professional PDF report directly.
+- Reworked the Report workspace copy to remove legacy conversion workflow language and export a professional PDF report directly.
 - Replaced the third-party PDF dependency with a clean-room native PDF evidence report engine using built-in PDF primitives, Type 1 fonts, paged layout, and professional evidence tables.
 - Restored a pure Apache-2.0 dependency story for PDF export by removing the PDF generator package dependency.
 - Kept `site/` as the canonical GitHub Pages source while restoring a generated `/docs` compatibility mirror so existing branch-based Pages settings do not return 404.
@@ -61,7 +68,7 @@ The left rail action is now clearly labeled `Report` instead of a generic `Expor
 
 ### Report workspace
 
-The report tab provides a dedicated place to review the evidence scope before exporting a professional report. Phase 3.6.6 replaces the previous HTML-print workflow with direct PDF export.
+The report tab provides a dedicated place to review the evidence scope before exporting a professional report. Phase 3.6.6 replaces the previous legacy conversion workflow with direct PDF export.
 
 It includes:
 

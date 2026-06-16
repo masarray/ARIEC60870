@@ -14,7 +14,7 @@
     <InformationalVersion>3.6.5+public-repo-hardening</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
-    <Product>ARIEC60870 Protocol Lab</Product>
+    <Product>ARIEC60870 Evidence Analyzer</Product>
     <Description>Free Apache-2.0 Windows protocol evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 testing.</Description>
     <PackageTags>iec60870;iec101;iec103;iec104;scada;substation-automation;protocol-analyzer;protection-relay;fat;sat</PackageTags>
     <Copyright>Copyright © 2026 Ari Sulistiono</Copyright>

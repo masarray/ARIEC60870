@@ -105,7 +105,7 @@ internal static class Program
         var options = MasterOptions.Parse(args);
         var settings = options.ToSettings();
 
-        Console.WriteLine("ARIEC60870 Protocol Lab - IEC 60870 CLI");
+        Console.WriteLine("ARIEC60870 Evidence Analyzer - IEC 60870 CLI");
         Console.WriteLine("=======================================");
         Console.WriteLine("Mode      : Single connection active master");
         Console.WriteLine("Target    : " + (settings.UseSimulatedSlave ? "generic relay demo simulated slave" : "protection relay as IEC-103 slave"));

@@ -1,6 +1,6 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
-name: Build Windows release packages
+name: Build Windows single-file release
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
         required: false
         default: ''
       publish_release:
-        description: 'Create or update GitHub Release after packages are built'
+        description: 'Create or update GitHub Release after the package is built'
         type: boolean
         required: true
         default: true
@@ -18,17 +18,12 @@ on:
         description: 'Mark the GitHub Release as pre-release'
         type: boolean
         required: true
-        default: true
+        default: false
       draft:
         description: 'Create the GitHub Release as draft'
         type: boolean
         required: true
         default: false
-      build_singlefile:
-        description: 'Also build single-file executable package'
-        type: boolean
-        required: true
-        default: true
       release_notes_file:
         description: 'Release notes markdown file. Leave empty to use CHANGELOG.md or archived release notes.'
         required: false
@@ -50,7 +45,6 @@ jobs:
       publish_release: ${{ steps.release.outputs.publish_release }}
       prerelease: ${{ steps.release.outputs.prerelease }}
       draft: ${{ steps.release.outputs.draft }}
-      build_singlefile: ${{ steps.release.outputs.build_singlefile }}
       notes_file: ${{ steps.release.outputs.notes_file }}
     steps:
       - name: Checkout
@@ -70,14 +64,12 @@ jobs:
             publish_release="${{ inputs.publish_release }}"
             prerelease="${{ inputs.prerelease }}"
             draft="${{ inputs.draft }}"
-            build_singlefile="${{ inputs.build_singlefile }}"
             notes_file="${{ inputs.release_notes_file }}"
           else
             version="${GITHUB_REF_NAME#v}"
             publish_release="true"
-            prerelease="true"
+            prerelease="false"
             draft="false"
-            build_singlefile="true"
             notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
           fi
 
@@ -98,7 +90,6 @@ jobs:
             echo "publish_release=$publish_release"
             echo "prerelease=$prerelease"
             echo "draft=$draft"
-            echo "build_singlefile=$build_singlefile"
             echo "notes_file=$notes_file"
           } >> "$GITHUB_OUTPUT"
 
@@ -112,12 +103,12 @@ jobs:
             echo "| Publish release | $publish_release |"
             echo "| Pre-release | $prerelease |"
             echo "| Draft | $draft |"
-            echo "| Single-file package | $build_singlefile |"
+            echo "| User asset | ARIEC60870-v$version-win-x64.zip |"
             echo "| Release notes | $notes_file |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   package:
-    name: Build, verify, SBOM, and attest packages
+    name: Build, verify, SBOM, and attest package
     needs: resolve
     runs-on: windows-latest
     permissions:
@@ -133,23 +124,13 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build portable package
+      - name: Build user single-file EXE package
         shell: pwsh
         run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}'
 
-      - name: Verify portable package structure
+      - name: Verify package structure
         shell: pwsh
-        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-portable.zip"
-
-      - name: Build single-file package
-        if: needs.resolve.outputs.build_singlefile == 'true'
-        shell: pwsh
-        run: ./scripts/publish-windows-portable.ps1 -Version '${{ needs.resolve.outputs.version }}' -SingleFile -SkipTests
-
-      - name: Verify single-file package structure
-        if: needs.resolve.outputs.build_singlefile == 'true'
-        shell: pwsh
-        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-singlefile.zip"
+        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip"
 
       - name: Generate SPDX dependency SBOM
         shell: pwsh
@@ -184,14 +165,14 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64-*.zip
+            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
             artifacts/release/SHA256SUMS.txt
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-release
           path: artifacts/release/*
           if-no-files-found: error
 
@@ -209,7 +190,7 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-packages
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-release
           path: artifacts/release
 
       - name: Create or update GitHub Release

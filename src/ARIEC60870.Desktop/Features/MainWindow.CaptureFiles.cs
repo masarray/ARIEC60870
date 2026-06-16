@@ -318,7 +318,7 @@ public partial class MainWindow
             CaptureKind = $"Selected{sourceWorkspace}Rows",
             SourceWorkspace = sourceWorkspace,
             CreatedUtc = createdUtc,
-            Application = "ARIEC60870 Protocol Lab",
+            Application = "ARIEC60870 Evidence Analyzer",
             ProtocolMode = GetSelectedProtocolMode().ToString(),
             TraceVerbosityMode = GetTraceVerbosityMode().ToString(),
             RowCount = rows.Count,

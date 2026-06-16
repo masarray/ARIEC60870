@@ -1,8 +1,8 @@
-# ARIEC60870 Protocol Lab Architecture
+# ARIEC60870 Evidence Analyzer Architecture
 
 ## Product Role
 
-ARIEC60870 is now positioned as an Apache-2.0 clean-room **ARIEC60870 Protocol Lab** for IEC 60870-5-103, IEC 60870-5-101, and IEC 60870-5-104 evidence sessions.
+ARIEC60870 is now positioned as an Apache-2.0 clean-room **ARIEC60870 Evidence Analyzer** for IEC 60870-5-103, IEC 60870-5-101, and IEC 60870-5-104 evidence sessions.
 
 The primary product role is:
 

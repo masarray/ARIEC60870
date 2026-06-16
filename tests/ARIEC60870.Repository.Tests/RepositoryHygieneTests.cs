@@ -431,6 +431,73 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("built-in native PDF engine", notices, StringComparison.OrdinalIgnoreCase);
     }
 
+
+    [Fact]
+    public void PublicBrandingAndRoadmapAreCurrent()
+    {
+        var root = FindRepositoryRoot();
+        var activeFiles = new[]
+        {
+            "README.md",
+            "Directory.Build.props",
+            "docs/ARCHITECTURE.md",
+            "docs/ROADMAP.md",
+            "docs/GITHUB_SECURITY_AUTOMATION.md",
+            "site/index.html",
+            "site/seo-manifest.json",
+            "scripts/generate-sbom-lite.ps1",
+            "src/ARIEC60870.Desktop/MainWindow.xaml",
+            "src/ARIEC60870.Desktop/Reporting/EvidencePdfReportService.cs"
+        };
+
+        var legacyName = "Protocol" + " Lab";
+        foreach (var file in activeFiles)
+        {
+            var text = File.ReadAllText(root.File(file));
+            Assert.DoesNotContain(legacyName, text, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var readme = File.ReadAllText(root.File("README.md"));
+        Assert.Contains("ARIEC60870 Evidence Analyzer", readme, StringComparison.Ordinal);
+
+        var roadmap = File.ReadAllText(root.File("docs/ROADMAP.md"));
+        Assert.Contains("Native PDF evidence report | Implemented baseline", roadmap, StringComparison.Ordinal);
+        Assert.DoesNotContain("PDF evidence report | Low", roadmap, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("planned next", roadmap, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Basic PDF evidence export is available", roadmap, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PublicSiteKeepsRichStructuredDataForSearchEngines()
+    {
+        var root = FindRepositoryRoot();
+        var site = File.ReadAllText(root.File("site/index.html"));
+        var docsMirror = File.ReadAllText(root.File("docs/index.html"));
+
+        Assert.Contains("application/ld+json", site, StringComparison.Ordinal);
+        Assert.Contains("\"@type\": \"SoftwareApplication\"", site, StringComparison.Ordinal);
+        Assert.Contains("\"@type\": \"FAQPage\"", site, StringComparison.Ordinal);
+        Assert.Contains("\"@type\": \"BreadcrumbList\"", site, StringComparison.Ordinal);
+        Assert.Contains("Native PDF evidence report", site, StringComparison.Ordinal);
+        Assert.Equal(site, docsMirror);
+    }
+
+    [Fact]
+    public void SecurityAutomationDocumentationMatchesDependabotPolicy()
+    {
+        var root = FindRepositoryRoot();
+        var docs = File.ReadAllText(root.File("docs/GITHUB_SECURITY_AUTOMATION.md"));
+        var dependabot = File.ReadAllText(root.File(".github/dependabot.yml"));
+
+        Assert.Contains("github-actions-minor-patch", docs, StringComparison.Ordinal);
+        Assert.Contains("dotnet-test-tooling", docs, StringComparison.Ordinal);
+        Assert.Contains("dotnet-runtime-packages", docs, StringComparison.Ordinal);
+        Assert.Contains("Major updates are intentionally ignored", docs, StringComparison.Ordinal);
+        Assert.Contains("version-update:semver-major", dependabot, StringComparison.Ordinal);
+        Assert.DoesNotContain("github-actions-major", docs, StringComparison.Ordinal);
+        Assert.DoesNotContain("dotnet-major-updates", docs, StringComparison.Ordinal);
+    }
+
     private static string NormalizeNewlines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
 
     private static DirectoryInfo FindRepositoryRoot()

@@ -1,6 +1,6 @@
 # ARIEC60870 Slave Simulator User Guide
 
-This guide describes the planned WPF slave/server simulator for ARIEC60870 Protocol Lab. The simulator is designed to validate the master analyzer without physical RTU, gateway, relay, or IEC-104 server hardware.
+This guide describes the planned WPF slave/server simulator for ARIEC60870 Evidence Analyzer. The simulator is designed to validate the master analyzer without physical RTU, gateway, relay, or IEC-104 server hardware.
 
 ## Intended workflow
 

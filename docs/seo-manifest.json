@@ -3,20 +3,20 @@
   "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "sourceOfTruth": "site/",
   "version": "3.6.5",
-  "generatedAt": "2026-06-15",
+  "generatedAt": "2026-06-16",
   "publishedBy": ".github/workflows/pages.yml",
   "pages": [
     {
       "path": "index.html",
       "canonical": "https://masarray.github.io/ARIEC60870/",
-      "title": "ARIEC60870 | Free IEC 60870-5-101 / 103 / 104 Protocol Analyzer",
-      "description": "Free Apache-2.0 Windows IEC 60870 protocol analyzer for IEC-101, IEC-103, and IEC-104 testing, FAT/SAT evidence, frame trace, event logs, and commissioning troubleshooting."
+      "title": "ARIEC60870 | Windows IEC 60870 Evidence Analyzer",
+      "description": "Free Apache-2.0 Windows app for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 evidence review, FAT/SAT notes, troubleshooting, and PDF reports."
     },
     {
       "path": "quick-start.html",
       "canonical": "https://masarray.github.io/ARIEC60870/quick-start.html",
-      "title": "ARIEC60870 Quick Start | IEC 60870 Protocol Analyzer Setup",
-      "description": "Quick start guide for running ARIEC60870 as an IEC-101, IEC-103, or IEC-104 protocol evidence analyzer on Windows."
+      "title": "ARIEC60870 Quick Start | Download, Connect, Export PDF",
+      "description": "Quick start for ARIEC60870: download the single EXE Windows ZIP, configure approved IEC-101, IEC-103, or IEC-104 settings, review evidence, and export PDF."
     },
     {
       "path": "protocol-coverage.html",
@@ -27,8 +27,8 @@
     {
       "path": "download.html",
       "canonical": "https://masarray.github.io/ARIEC60870/download.html",
-      "title": "Download ARIEC60870 | Free IEC 60870 Protocol Analyzer for Windows",
-      "description": "Download ARIEC60870 Windows release packages for IEC-101, IEC-103, and IEC-104 testing, including portable ZIP, single-file ZIP, checksums, SBOM, and release evidence."
+      "title": "Download ARIEC60870 | Single EXE Windows IEC 60870 Analyzer",
+      "description": "Download ARIEC60870 as a simple Windows ZIP with one self-contained EXE for authorized IEC-101, IEC-103, and IEC-104 evidence testing and PDF reporting."
     },
     {
       "path": "troubleshooting.html",
@@ -39,12 +39,12 @@
     {
       "path": "faq.html",
       "canonical": "https://masarray.github.io/ARIEC60870/faq.html",
-      "title": "ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Protocol Analyzer",
-      "description": "FAQ for ARIEC60870, a free Apache-2.0 Windows analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol testing."
+      "title": "ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer",
+      "description": "FAQ for ARIEC60870, a free Apache-2.0 Windows evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol testing."
     }
   ],
-  "legacyMirrors": {
-    "landing": "removed",
-    "docsHtmlMirror": "removed"
+  "compatibilityMirrors": {
+    "docsHtmlMirror": "active",
+    "purpose": "Keeps GitHub Pages alive when the repository is configured for Deploy from branch /docs. The site/ folder remains the canonical source."
   }
 }

@@ -5,8 +5,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ARIEC60870 Quick Start | IEC 60870 Protocol Analyzer Setup</title>
-    <meta name="description" content="Quick start guide for running ARIEC60870 as an IEC-101, IEC-103, or IEC-104 protocol evidence analyzer on Windows." />
+    <title>ARIEC60870 Quick Start | Download, Connect, Export PDF</title>
+    <meta name="description" content="Quick start for ARIEC60870: download the single EXE Windows ZIP, connect to an authorized IEC-101, IEC-103, or IEC-104 device, review evidence, and export PDF." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <meta name="msapplication-TileColor" content="#0b6f86" />
@@ -16,8 +16,8 @@
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="ARIEC60870 Quick Start | IEC 60870 Protocol Analyzer Setup" />
-    <meta property="og:description" content="Quick start guide for running ARIEC60870 as an IEC-101, IEC-103, or IEC-104 protocol evidence analyzer on Windows." />
+    <meta property="og:title" content="ARIEC60870 Quick Start | Download, Connect, Export PDF" />
+    <meta property="og:description" content="Download the Windows ZIP, run ARIEC60870.exe, configure the authorized endpoint, review evidence, and export a PDF report." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/quick-start.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -43,15 +43,19 @@
     <main class="doc-main">
       <section class="doc-hero reveal">
         <p class="eyebrow">Quick start</p>
-        <h1>Run a focused IEC 60870 evidence session in minutes.</h1>
-        <p>This quick-start page keeps the first run simple: download the Windows release, choose the protocol mode, configure the endpoint, run General Interrogation when needed, then review evidence and export the report.</p>
+        <h1>Download, connect, review evidence, export PDF.</h1>
+        <p>This page keeps the first run simple for authorized lab, FAT/SAT, or troubleshooting work: download the Windows ZIP, run ARIEC60870.exe, configure the endpoint, start the session, then export the report.</p>
         <div class="doc-link-row">
           <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a>
-          <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a>
+          <a class="button secondary" href="https://github.com/masarray/ARIEC60870/blob/master/docs/USER_GUIDE.md"><span>Read full user guide</span></a>
         </div>
       </section>
       <section class="doc-grid">
-        <article class="doc-card interactive-surface"><h3>1. Download and extract</h3><p>Use the release package from GitHub Releases. Start from a local folder, not directly from inside the ZIP.</p><ul><li>Download the portable or single-file Windows ZIP.</li><li>Verify SHA256SUMS.txt when release integrity matters.</li><li>Run Start-ARIEC60870.bat.</li></ul></article><article class="doc-card interactive-surface"><h3>2. Select the protocol workspace</h3><p>Choose the protocol that matches the device under test so the setup screen exposes only relevant fields.</p><ul><li>IEC-101 serial for RTU/gateway serial telecontrol.</li><li>IEC-103 serial for protection relay communication.</li><li>IEC-104 TCP/IP for client/server telecontrol sessions.</li></ul></article><article class="doc-card interactive-surface"><h3>3. Configure addressing and timing</h3><p>Use the approved project communication parameters rather than guessing addresses from labels.</p><ul><li>Set COM port or TCP endpoint.</li><li>Set link address, common address, timeout, and interoperability profile.</li><li>Load a user-owned mapping profile if readable signal names are needed.</li></ul></article><article class="doc-card interactive-surface"><h3>4. Review and export evidence</h3><p>Use the workspace from high-level evidence down to raw frame trace.</p><ul><li>Check Operator Evidence first.</li><li>Open Value Viewer, Event Log, Diagnostics, and Frame Trace.</li><li>Use Report Preview for handover notes or browser save-as-PDF.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>1. Download and open</h3><p>Download <code>ARIEC60870-vX.Y.Z-win-x64.zip</code>, extract it, then double-click <strong>ARIEC60870.exe</strong>.</p><ul><li>Do not run directly from inside the ZIP.</li><li>No installer is required.</li><li>No start batch file is required.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>2. Choose protocol mode</h3><p>Open Setup and choose the mode that matches the authorized test device.</p><ul><li>IEC-101 serial for RTU/gateway serial checks.</li><li>IEC-103 serial for protection relay serial checks.</li><li>IEC-104 TCP/IP for TCP endpoint checks.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>3. Enter approved settings</h3><p>Use the project/device communication sheet. Avoid guessing settings from labels.</p><ul><li>Serial: COM port, baud rate, parity, stop bits, addresses, ASDU profile.</li><li>TCP: server address, port, common address, ASDU profile.</li><li>Load a mapping profile when readable signal names are needed.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>4. Start and review</h3><p>Click Start, then review evidence from high-level rows down to protocol detail.</p><ul><li>Operator Evidence, Value Viewer, Event Log.</li><li>Frame Trace, Diagnostics, Findings.</li><li>Confirm the evidence matches the approved test procedure.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>5. Export PDF</h3><p>Open Report, click Refresh if needed, then click Export PDF.</p><ul><li>The report is generated by the built-in native PDF engine.</li><li>Review the PDF before sharing outside the project team.</li></ul></article>
       </section>
     </main>
     <footer class="site-footer">

@@ -401,7 +401,7 @@ public partial class MainWindow
         var apciVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var classVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
 
-        ProductTitleText.Text = "ARIEC60870 Protocol Lab";
+        ProductTitleText.Text = "ARIEC60870 Evidence Analyzer";
         ApplyProtocolLogo(mode);
         ClassPollLabelText.Text = is104 ? "GI/I/S " : "GI/C1/C2 ";
         EventChipLabelText.Text = is104 ? "ASDU " : "EVENT ";

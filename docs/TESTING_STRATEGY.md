@@ -58,4 +58,4 @@ High-priority regression areas are:
 
 ## Report PDF regression
 
-`ARIEC60870.Desktop.Tests` includes a native PDF evidence report smoke test. It verifies that the desktop report engine can generate a real `%PDF` file from sanitized evidence rows, preventing regressions back to HTML-print report export.
+`ARIEC60870.Desktop.Tests` includes a native PDF evidence report smoke test. It verifies that the desktop report engine can generate a real `%PDF` file from sanitized evidence rows, preventing regressions back to legacy conversion report export.

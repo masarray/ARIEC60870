@@ -1,76 +1,86 @@
 # ARIEC60870 Quick Start
 
-This guide is for a first IEC 60870-5-101 / 103 / 104 communication check using the Windows desktop app.
+This guide is for the first authorized IEC 60870-5-101 / 103 / 104 communication check using the Windows desktop app.
 
-## 1. Prepare the connection
+## 1. Download and open the app
 
-- For IEC-101/103 serial, confirm the communication port, baudrate, parity, stop bit, link address, and common address.
-- For IEC-104 TCP/IP, confirm the server IP address, TCP port, common address, and that the server accepts a client connection.
-- Keep the first test simple: one master/client and one relay, RTU/outstation, gateway, or IEC-104 server.
-- Use sanitized mapping profiles for public testing and project-approved mapping profiles for real FAT/SAT work.
+1. Open the latest release page:
 
-## 2. Start the desktop app
+   <https://github.com/masarray/ARIEC60870/releases/latest>
 
-For a release package, run:
+2. Download the Windows ZIP asset:
 
-```bat
-Start-ARIEC60870.bat
-```
+   ```text
+   ARIEC60870-vX.Y.Z-win-x64.zip
+   ```
 
-For source development:
+3. Extract the ZIP to a local folder.
+4. Double-click:
 
-```bash
-dotnet run --project src/ARIEC60870.Desktop
-```
+   ```text
+   ARIEC60870.exe
+   ```
 
-## 3. Open Setup
+The release package is designed for normal users: one desktop EXE, no start batch file.
 
-Set these values first:
+## 2. Prepare the connection information
 
-| Field | Recommended first value |
+Before starting a session, confirm the approved project/device settings.
+
+| Mode | Information to prepare |
 |---|---|
-| Protocol | IEC-103 serial, IEC-101 serial, or IEC-104 TCP/IP |
-| COM Port | Adapter COM port shown in Windows Device Manager for IEC-101/103 |
-| IEC-104 TCP | Server IP/host and TCP port, normally 2404 |
-| Baudrate | Device configured value. Low-rate IEC-101 channels such as 1200 bps are supported; common bench values include 9600/19200 bps |
-| Parity | Device configured value for serial |
-| Link Address | IEC-101/103 link address |
-| Common Address | Device common address used by the station/project |
-| COT/CA/IOA size | Match the device interoperability profile |
-| Timeout | Start conservative, then tune later |
-| Reset FCB | Enabled for normal IEC-101/103 startup |
-| General Interrogation | Enabled when a startup snapshot is needed |
+| IEC-104 TCP/IP | Server IP/host, TCP port, common address, ASDU size profile, timeout, GI requirement |
+| IEC-101 serial | COM port, baud rate, parity, stop bits, link address, common address, COT/CA/IOA sizes, timeout, GI requirement |
+| IEC-103 serial | COM port, baud rate, parity, stop bits, link address, polling/timing settings, optional mapping profile |
+
+Use a test bench, simulator, or authorized project device. Do not connect to a live system without project approval.
+
+## 3. Configure Setup
+
+1. Open **Setup**.
+2. Choose **IEC-101 serial**, **IEC-103 serial**, or **IEC-104 TCP/IP**.
+3. Enter the approved communication settings.
+4. Load a user-owned mapping profile when readable signal names are required.
+5. Enable **General Interrogation** when a startup snapshot is needed.
+6. Review the settings before pressing **Start**.
 
 ## 4. Start the session
 
-Click **Start** and watch these areas:
+Click **Start** and watch these workspaces:
 
 - **Operator Evidence** — readable session activity.
-- **Frame Trace** — raw TX/RX evidence and protocol field visibility.
 - **Value Viewer** — latest decoded values.
 - **Event Log** — decoded state changes and event records.
+- **Frame Trace** — TX/RX protocol evidence for deeper review.
 - **Diagnostics / Findings** — communication and protocol issues.
-- **Report** — professional evidence report preview and direct PDF export.
+- **Report** — evidence scope and direct PDF export.
 
 ## 5. First acceptance checks
 
 A healthy first check normally shows:
 
-- serial port or TCP socket opens without error;
-- device answers after link reset, STARTDT, or first request;
-- General Interrogation starts and finishes, when enabled;
-- IEC-101/103 Class 2 polling continues at the configured interval;
-- IEC-101/103 Class 1 is requested when event data is pending;
-- IEC-104 I/S/U frame activity is visible after STARTDT;
-- timeout/checksum/malformed counters stay low or zero;
-- decoded values/events match the approved mapping profile or remain visible as raw protocol addresses when unmapped.
+- the serial port or TCP connection opens without error;
+- the device responds after startup communication begins;
+- General Interrogation starts and finishes when enabled;
+- expected values or events appear in the viewer/log;
+- diagnostics do not show persistent timeout, checksum, addressing, or profile mismatch problems;
+- unmapped points are still visible using their protocol identifiers.
 
-## 6. Export evidence
+## 6. Export the PDF report
 
-Use **Report** or selected evidence export after the test. Export the professional PDF report after reviewing the evidence scope.
+1. Open **Report**.
+2. Click **Refresh** if the preview needs updating.
+3. Review the evidence scope.
+4. Click **Export PDF**.
+5. Choose the output file name and folder.
+6. Open the generated PDF and review it before sharing.
 
-Exported evidence may contain project names, communication settings, mapping labels, and raw protocol frames. Sanitize those details before public issue reports or external sharing.
+The PDF is generated directly by ARIEC60870's built-in native PDF engine. No external PDF conversion workflow is required.
 
-## 7. Scope reminder
+## 7. Before sharing evidence
 
-ARIEC60870 is an evidence analyzer/tester. It does not replace the approved project FAT/SAT procedure, relay manual, gateway interoperability list, or contractual acceptance criteria.
+Exported evidence may contain project names, communication settings, mapping labels, and protocol details. Sanitize those details before public issue reports or external sharing.
+
+## 8. Scope reminder
+
+ARIEC60870 is an evidence analyzer/tester for authorized engineering use. It does not replace the approved project FAT/SAT procedure, relay manual, gateway interoperability list, or contractual acceptance criteria.
