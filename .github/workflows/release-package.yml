@@ -128,7 +128,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet restore ARIEC60870.sln
-          dotnet build ARIEC60870.sln --configuration Release --no-restore -p:Version=${{ needs.resolve.outputs.version }}
+          dotnet build ARIEC60870.sln --configuration Release --no-restore -p:Version=${{ needs.resolve.outputs.version }} -p:TreatWarningsAsErrors=true
           dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build
           dotnet test ARIEC60870.sln --configuration Release --no-build --logger "trx;LogFileName=release-gate.trx" --results-directory artifacts/test-results
 
