@@ -7,6 +7,7 @@
 - Aligned active public branding around **ARIEC60870 Evidence Analyzer** across README, product metadata, app title, docs, SBOM metadata, and report output.
 - Rewrote `docs/ROADMAP.md` so implemented native PDF export is no longer described as planned work.
 - Synchronized GitHub security automation documentation with the current Dependabot policy: minor/patch automation, planned maintenance for major updates.
+- Expanded the GitHub Pages site from a minimal landing page into an SEO-oriented marketing and user guide site covering product purpose, features, supported protocols, download flow, use cases, licensing, commercial-use notes, FAQ, and troubleshooting.
 - Restored rich structured data on the GitHub Pages home page using current native-PDF and evidence-analyzer wording.
 - Changed the manual release workflow pre-release default to `false` for stable public release preparation.
 - Bumped public version metadata to `3.6.6` for the next stable public package.
