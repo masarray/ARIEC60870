@@ -110,8 +110,24 @@ public partial class MainWindow
 
         var kind = ResolveCommandKindFromCombo();
         var isSetpoint = kind == Iec60870ControlCommandKind.SetpointNormalizedCommand;
-        CommandSetpointLabel.Visibility = isSetpoint ? Visibility.Visible : Visibility.Hidden;
-        CommandSetpointBox.Visibility = isSetpoint ? Visibility.Visible : Visibility.Hidden;
+        if (CommandSetpointPanel is not null)
+        {
+            CommandSetpointPanel.Visibility = isSetpoint ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (CommandSetpointLabel is not null)
+        {
+            CommandSetpointLabel.Text = "Setpoint value";
+        }
+        if (CommandQualifierHelpText is not null)
+        {
+            CommandQualifierHelpText.Text = kind == Iec60870ControlCommandKind.DoubleCommand
+                ? "0 = default double command"
+                : kind == Iec60870ControlCommandKind.SingleCommand
+                    ? "0 = default single command"
+                    : kind == Iec60870ControlCommandKind.RegulatingStepCommand
+                        ? "0 = default step command"
+                        : "0 = default qualifier";
+        }
         CommandSelectCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
         CommandOperateCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
 

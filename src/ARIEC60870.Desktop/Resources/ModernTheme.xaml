@@ -1066,18 +1066,18 @@
     </Style>
 
     <Style x:Key="VerticalScrollBarThumb" TargetType="Thumb">
-        <Setter Property="Height" Value="150" />
-        <Setter Property="MinHeight" Value="150" />
-        <Setter Property="MinWidth" Value="12" />
+        <Setter Property="Height" Value="48" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinWidth" Value="9" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Grid MinHeight="150" Height="150">
-                        <Border x:Name="ThumbBorder" Width="10" HorizontalAlignment="Center" Background="#94A3B8" CornerRadius="5" Opacity="0.96" />
+                    <Grid MinHeight="36" Height="48">
+                        <Border x:Name="ThumbBorder" Width="8" HorizontalAlignment="Center" Background="#94A3B8" CornerRadius="4" Opacity="0.96" />
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Width" Value="12" /><Setter TargetName="ThumbBorder" Property="Background" Value="#64748B" /></Trigger>
-                        <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Width" Value="12" /><Setter TargetName="ThumbBorder" Property="Background" Value="#475569" /></Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Width" Value="9" /><Setter TargetName="ThumbBorder" Property="Background" Value="#64748B" /></Trigger>
+                        <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Width" Value="9" /><Setter TargetName="ThumbBorder" Property="Background" Value="#475569" /></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -1085,18 +1085,18 @@
     </Style>
 
     <Style x:Key="HorizontalScrollBarThumb" TargetType="Thumb">
-        <Setter Property="Width" Value="150" />
-        <Setter Property="MinWidth" Value="150" />
-        <Setter Property="MinHeight" Value="12" />
+        <Setter Property="Width" Value="48" />
+        <Setter Property="MinWidth" Value="36" />
+        <Setter Property="MinHeight" Value="9" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Grid MinWidth="150" Width="150">
-                        <Border x:Name="ThumbBorder" Height="10" VerticalAlignment="Center" Background="#94A3B8" CornerRadius="5" Opacity="0.96" />
+                    <Grid MinWidth="36" Width="48">
+                        <Border x:Name="ThumbBorder" Height="8" VerticalAlignment="Center" Background="#94A3B8" CornerRadius="4" Opacity="0.96" />
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Height" Value="12" /><Setter TargetName="ThumbBorder" Property="Background" Value="#64748B" /></Trigger>
-                        <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Height" Value="12" /><Setter TargetName="ThumbBorder" Property="Background" Value="#475569" /></Trigger>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Height" Value="9" /><Setter TargetName="ThumbBorder" Property="Background" Value="#64748B" /></Trigger>
+                        <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Height" Value="9" /><Setter TargetName="ThumbBorder" Property="Background" Value="#475569" /></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -1104,12 +1104,12 @@
     </Style>
 
     <Style TargetType="ScrollBar">
-        <Setter Property="Width" Value="14" />
+        <Setter Property="Width" Value="10" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Grid Width="14" Background="Transparent">
+                    <Grid Width="10" Background="Transparent">
                         <Track x:Name="PART_Track" IsDirectionReversed="True" ViewportSize="NaN">
                             <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource InvisibleScrollBarButton}" Command="ScrollBar.PageUpCommand" /></Track.DecreaseRepeatButton>
                             <Track.Thumb><Thumb Style="{StaticResource VerticalScrollBarThumb}" /></Track.Thumb>
@@ -1121,12 +1121,12 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
-                <Setter Property="Height" Value="14" />
+                <Setter Property="Height" Value="10" />
                 <Setter Property="Width" Value="Auto" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ScrollBar">
-                            <Grid Height="14" Background="Transparent">
+                            <Grid Height="10" Background="Transparent">
                                 <Track x:Name="PART_Track" ViewportSize="NaN">
                                     <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource InvisibleScrollBarButton}" Command="ScrollBar.PageLeftCommand" /></Track.DecreaseRepeatButton>
                                     <Track.Thumb><Thumb Style="{StaticResource HorizontalScrollBarThumb}" /></Track.Thumb>

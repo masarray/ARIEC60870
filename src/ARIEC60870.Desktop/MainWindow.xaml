@@ -61,8 +61,8 @@
                 </Button>
                 <Button x:Name="OpenCaptureButton" Style="{StaticResource RailIconButton}" Click="OpenCapture_Click" ToolTip="Open .ariec capture for offline review">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
-                        <TextBlock Text="Open Cap" Style="{StaticResource RailButtonCaption}" />
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFolderOpenDot}" />
+                        <TextBlock Text="Open Pcap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="SaveCaptureRailButton" Style="{StaticResource RailIconButton}" Click="SaveSelectedCapture_Click" ToolTip="Save selected Trace rows as .ariec capture">
@@ -73,7 +73,7 @@
                 </Button>
                 <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileTypeCorner}" />
                         <TextBlock Text="Trace TXT" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
@@ -125,11 +125,11 @@
                         <Grid Width="20" Height="20" HorizontalAlignment="Center">
                             <Path x:Name="AutoScrollOnIcon"
                                   Style="{StaticResource RailIconPath}"
-                                  Data="{StaticResource LucideCircleChevronDown}"
+                                  Data="{StaticResource LucideMouse}"
                                   Stroke="#2563EB" />
                             <Path x:Name="AutoScrollOffIcon"
                                   Style="{StaticResource RailIconPath}"
-                                  Data="{StaticResource LucideCircleChevronRight}"
+                                  Data="{StaticResource LucideMouseOff}"
                                   Stroke="#94A3B8"
                                   Visibility="Collapsed" />
                         </Grid>
@@ -144,7 +144,7 @@
                 </Button>
                 <Button x:Name="SignalListButton" Style="{StaticResource RailIconButton}" Click="SignalList_Click" ToolTip="Open IOA signal list editor popup">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileSliders}" />
                         <TextBlock Text="Signals" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
@@ -154,7 +154,7 @@
         <Grid Grid.Row="0" Grid.Column="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition x:Name="CommandDockColumn" Width="320" />
+                <ColumnDefinition x:Name="CommandDockColumn" Width="304" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -175,54 +175,58 @@
                             <TextBlock x:Name="BufferStatusText" Text="Buffer ready" Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                            <Border Style="{StaticResource InstrumentChip}" Margin="0,0,6,0" Width="168">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="TxLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource AccentBrush}" Opacity="0.28" />
-                                    <TextBlock x:Name="RxLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource GoodBrush}" Opacity="0.28" Margin="0,0,4,0" />
-                                    <TextBlock Text="TX/RX " Style="{StaticResource ChipLabelText}" />
-                                    <TextBlock x:Name="TxRxText" Text="0 / 0" Style="{StaticResource ChipValueText}" />
+                            <Border Style="{StaticResource InstrumentChip}" Height="48" Padding="14,0" MinWidth="662">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="TxLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="TX" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="RxLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource GoodBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="RX" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="GiLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource GoodBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="GI" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="Class1Led" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource WarnBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="C1" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="Class2Led" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="C2" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="NO DATA" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="NoDataText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="EventLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource BadBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="EventChipLabelText" Text="EVENT" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="DpiText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock x:Name="DiagLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource BadBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="ISSUES" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="FindingCountText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxRxText" Text="0 / 0" Visibility="Collapsed" />
+                                    <TextBlock x:Name="ClassPollText" Text="0 / 0 / 0" Visibility="Collapsed" />
+                                    <TextBlock x:Name="ClassPollLabelText" Text="GI/C1/C2" Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource InstrumentChip}" Margin="0,0,6,0" Width="194">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="GiLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource GoodBrush}" Opacity="0.28" />
-                                    <TextBlock x:Name="Class1Led" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource WarnBrush}" Opacity="0.28" />
-                                    <TextBlock x:Name="Class2Led" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource AccentBrush}" Opacity="0.28" Margin="0,0,4,0" />
-                                    <TextBlock x:Name="ClassPollLabelText" Text="GI/C1/C2 " Style="{StaticResource ChipLabelText}" />
-                                    <TextBlock x:Name="ClassPollText" Text="0 / 0 / 0" Style="{StaticResource ChipValueText}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource InstrumentChip}" Margin="0,0,6,0" Width="112">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="NO DATA " Style="{StaticResource ChipLabelText}" />
-                                    <TextBlock x:Name="NoDataText" Text="0" Style="{StaticResource ChipValueText}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource InstrumentChip}" Margin="0,0,6,0" Width="122">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="EventLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource BadBrush}" Opacity="0.28" />
-                                    <TextBlock x:Name="EventChipLabelText" Text="EVENT " Style="{StaticResource ChipLabelText}" />
-                                    <TextBlock x:Name="DpiText" Text="0" Style="{StaticResource ChipValueText}" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource InstrumentChip}" Margin="0,0,8,0" Width="106">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="DiagLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource BadBrush}" Opacity="0.28" />
-                                    <TextBlock Text="ISSUES " Style="{StaticResource ChipLabelText}" />
-                                    <TextBlock x:Name="FindingCountText" Text="0" Style="{StaticResource ChipValueText}" />
-                                </StackPanel>
-                            </Border>
-                            <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="10,5" Width="132" Height="48" ClipToBounds="True" Effect="{StaticResource SoftShadow}">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#FFFFFF" Offset="0" />
-                                        <GradientStop Color="#F2F7FF" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
+                            <Border Visibility="Collapsed">
                                 <StackPanel>
-                                    <TextBlock Text="SESSION" Style="{StaticResource EyebrowText}" FontSize="9.8" />
-                                    <TextBlock x:Name="StateText" Text="Idle" FontSize="12.4" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock x:Name="CompletionText" Text="History below" Style="{StaticResource SubtleText}" FontSize="10.2" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                                    <TextBlock x:Name="StateText" Text="Idle" />
+                                    <TextBlock x:Name="CompletionText" Text="History below" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -814,7 +818,7 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
-                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True">
+                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Scrollable HTML preview of the final PDF content.">
                                 <WebBrowser x:Name="ReportPreviewBrowser" />
                             </Border>
                         </Grid>
@@ -1134,102 +1138,102 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Command" Style="{StaticResource EyebrowText}" />
-                            <TextBlock x:Name="CommandDockStatusText" Text="Ready. Connect first." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                            <TextBlock Text="Tap to collapse or expand the command dock." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                         </StackPanel>
                         <Path x:Name="CommandDockToggleIcon" Grid.Column="1" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronRight}" Stroke="#94A3B8" Width="24" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10" ToolTip="Runtime command panel for GI, clock sync, read, and command select/operate actions.">
-                            <TextBlock Text="Runtime command panel" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" />
+                        <Border Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10,9" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="Runtime command" Style="{StaticResource EyebrowText}" />
+                                <TextBlock x:Name="CommandDockStatusText" Text="Ready. Connect first." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
                         </Border>
 
-                        <TextBlock Text="Quick" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" ToolTip="Immediate runtime actions" />
                         <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="34" Margin="0,0,6,8" Click="CommandDock_Gi_Click" ToolTip="Issue C_IC_NA_1 General Interrogation." />
-                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="34" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" ToolTip="Issue C_CS_NA_1 clock synchronization." />
-                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="34" Margin="0,0,6,0" Click="CommandDock_Read_Click" ToolTip="Issue C_RD_NA_1 read command." />
-                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="34" Margin="6,0,0,0" Click="Clear_Click" />
+                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" ToolTip="Issue C_IC_NA_1 General Interrogation." />
+                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" ToolTip="Issue C_CS_NA_1 clock synchronization." />
+                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" ToolTip="Issue C_RD_NA_1 read command." />
+                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" />
                         </UniformGrid>
 
-                        <TextBlock Text="Target" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" ToolTip="Choose a command signal from the IOA database or enter CA/IOA manually." />
-                        <StackPanel Margin="0,0,0,10">
-                            <TextBlock Text="Command signal" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                            <ComboBox x:Name="CommandSignalComboBox"
-                                      ItemsSource="{Binding CommandSignalOptions}"
-                                      SelectionChanged="CommandSignalComboBox_SelectionChanged"
-                                      IsEditable="True"
-                                      IsTextSearchEnabled="True"
-                                      TextSearch.TextPath="SearchText"
-                                      MaxDropDownHeight="320"
-                                      ToolTip="Pick a command signal from the loaded Signal List. Selecting it fills command type, CA, IOA and setpoint hint. Manual CA/IOA entry remains available.">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="2,4">
-                                            <TextBlock Text="{Binding Name}" FontWeight="Medium" TextWrapping="Wrap" />
-                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource SubtleText}" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </StackPanel>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="CA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <TextBox x:Name="CommandCaBox" Text="1" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="IOA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <TextBox x:Name="CommandIoaBox" Text="101" />
-                            </StackPanel>
-                        </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Command" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged">
-                                    <ComboBoxItem Content="Single C_SC_NA_1" />
-                                    <ComboBoxItem Content="Double C_DC_NA_1" />
-                                    <ComboBoxItem Content="Regulating C_RC_NA_1" />
-                                    <ComboBoxItem Content="Setpoint Normalized C_SE_NA_1" />
-                                </ComboBox>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock x:Name="CommandSetpointLabel" Text="Setpoint" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the utility profile range to interpret engineering value." />
-                            </StackPanel>
-                        </Grid>
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Qualifier" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                <TextBox x:Name="CommandQualifierBox" Text="0" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Mode" Style="{StaticResource SubtleText}" Margin="0,0,0,4" ToolTip="Use SELECT then OPERATE to verify slave behaviour" />
-                                <TextBlock Text="Select → Operate" Style="{StaticResource SubtleText}" TextWrapping="Wrap" ToolTip="Issue SELECT and OPERATE separately to test slave behaviour." />
-                            </StackPanel>
-                        </Grid>
-
-                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,6" Margin="0,0,0,8" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Events.">
+                        <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="Command preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,3" />
+                                <TextBlock Text="Target" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
+                                <ComboBox x:Name="CommandSignalComboBox"
+                                          ItemsSource="{Binding CommandSignalOptions}"
+                                          SelectionChanged="CommandSignalComboBox_SelectionChanged"
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="True"
+                                          TextSearch.TextPath="SearchText"
+                                          MaxDropDownHeight="320"
+                                          Margin="0,0,0,10"
+                                          ToolTip="Pick a command signal from the loaded Signal List. Selecting it fills command type, CA, IOA and setpoint hint. Manual CA/IOA entry remains available.">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="2,4">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Medium" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource SubtleText}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="CA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <TextBox x:Name="CommandCaBox" Text="1" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="IOA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <TextBox x:Name="CommandIoaBox" Text="101" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Command type" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged">
+                                            <ComboBoxItem Content="Single C_SC_NA_1" />
+                                            <ComboBoxItem Content="Double C_DC_NA_1" />
+                                            <ComboBoxItem Content="Regulating C_RC_NA_1" />
+                                            <ComboBoxItem Content="Setpoint Normalized C_SE_NA_1" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Qualifier (QOC)" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <TextBox x:Name="CommandQualifierBox" Text="0" ToolTip="Command qualifier. 0 = default. Use project-specific values only when required by the remote device." />
+                                        <TextBlock x:Name="CommandQualifierHelpText" Text="0 = default" Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel x:Name="CommandSetpointPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                                    <TextBlock x:Name="CommandSetpointLabel" Text="Setpoint value" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                    <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the utility profile range to interpret engineering value." />
+                                    <TextBlock Text="Only used for setpoint commands." Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,4,0,0" />
+                                </StackPanel>
+                                <TextBlock Text="Select → Operate only. Route follows the active IEC-101 / IEC-104 link." Style="{StaticResource SubtleText}" Margin="0,0,0,2" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,7" Margin="0,0,0,10" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Events.">
+                            <StackPanel>
+                                <TextBlock Text="Preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,3" />
                                 <TextBlock x:Name="CommandPreviewTitleText" Text="No command signal selected" FontWeight="Medium" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                                <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 <TextBlock x:Name="CommandPreviewFeedbackText" Text="Feedback IOA: not mapped" Style="{StaticResource SubtleText}" Visibility="Collapsed" />
                                 <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE. Verify feedback in Values/Events." Style="{StaticResource SubtleText}" Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
 
-                        <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,10">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="38" MinWidth="126" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="38" MinWidth="126" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="38" MinWidth="126" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="38" MinWidth="126" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
+                        <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
                         </UniformGrid>
-                        <TextBlock Text="Safe test only" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,8,0,0" ToolTip="Command actions are issued with priority into the active IEC-101/104 runtime loop. Confirm IOA, CA, command policy, SBO/select-operate rule, and safe test boundary first." />
+                        <TextBlock Text="Use only safe test targets. Verify feedback from Values or Events after operate." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
