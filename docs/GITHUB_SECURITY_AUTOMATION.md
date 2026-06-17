@@ -37,7 +37,7 @@ When GitHub announces a required major migration:
 - supported `push` and `schedule` triggers are used;
 - SARIF is uploaded to GitHub code scanning.
 
-The README badge uses the Scorecard API badge so it reflects the published Scorecard result rather than only the workflow run status.
+The README keeps a low-noise status badge set. Scorecard results remain available through the Scorecard workflow and GitHub code scanning output rather than a remote API badge.
 
 ## Dependency Review Action
 

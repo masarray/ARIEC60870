@@ -44,3 +44,36 @@ Check these items in order:
 4. Confirm `site/index.html`, `site/sitemap.xml`, `site/robots.txt`, and `site/site.webmanifest` exist.
 5. Wait a few minutes after the first deployment.
 6. Open the repository URL without adding `/site` when using GitHub Actions mode.
+
+## Asset rules for brand icons and screenshots
+
+Keep public assets stable. The landing page, README, Open Graph image, Twitter card image, web manifest, and `/docs` fallback must not point to ad-hoc export names or deleted files.
+
+Canonical image locations:
+
+```text
+site/assets/brand/                 public website icons
+site/assets/screenshots/           public website screenshots
+docs/assets/                       generated mirror copied from site/assets/
+src/ARIEC60870.Desktop/Assets/     desktop application icons
+```
+
+Canonical screenshot names should describe the screen, not the export order:
+
+```text
+ariec60870-evidence-workspace.webp
+ariec60870-value-viewer.webp
+ariec60870-event-log.webp
+ariec60870-diagnostics.webp
+ariec60870-report-workspace.webp
+ariec60870-iec104-setup.webp
+```
+
+When replacing screenshots or brand icons:
+
+1. Update the files under `site/assets/` first.
+2. Keep `site/index.html`, all Open Graph image references, `site/site.webmanifest`, and `README.md` pointed to existing files.
+3. Run `./scripts/sync-github-pages-docs-mirror.ps1` so the `/docs` fallback receives the same files.
+4. Run repository hygiene tests before release.
+
+The repository tests include a local asset reference check to catch broken `href`, `src`, `data-full`, README image, and web manifest icon paths before GitHub Pages publishes a broken landing page.

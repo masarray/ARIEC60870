@@ -5,8 +5,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ARIEC60870 Protocol Coverage | IEC-101 IEC-103 IEC-104 Analyzer</title>
-    <meta name="description" content="Practical protocol coverage for ARIEC60870: IEC 60870-5-101 FT1.2, IEC 60870-5-103 relay serial workflow, and IEC 60870-5-104 TCP client evidence." />
+    <title>ARIEC60870 Protocol Coverage | IEC-101 IEC-103 IEC-104 Evidence Analyzer</title>
+    <meta name="description" content="Protocol coverage for ARIEC60870 Evidence Analyzer: IEC 60870-5-101 serial FT1.2, IEC 60870-5-103 relay serial workflow, and IEC 60870-5-104 TCP/IP client evidence." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <meta name="msapplication-TileColor" content="#0b6f86" />
@@ -16,47 +16,38 @@
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="ARIEC60870 Protocol Coverage | IEC-101 IEC-103 IEC-104 Analyzer" />
-    <meta property="og:description" content="Practical protocol coverage for ARIEC60870: IEC 60870-5-101 FT1.2, IEC 60870-5-103 relay serial workflow, and IEC 60870-5-104 TCP client evidence." />
+    <meta property="og:title" content="ARIEC60870 Protocol Coverage | IEC-101 IEC-103 IEC-104" />
+    <meta property="og:description" content="Understand the IEC-101, IEC-103, and IEC-104 workflows supported by ARIEC60870 Evidence Analyzer." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/protocol-coverage.html" />
-    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 protocol evidence analyzer screenshot" />
+    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 evidence analyzer screenshot" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home">
-        <img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" />
-        <span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span>
-      </a>
-      <nav class="nav-links" aria-label="Main navigation">
-        <a href="./">Home</a>
-        <a href="quick-start.html">Quick Start</a>
-        <a href="protocol-coverage.html">Protocols</a>
-        <a href="download.html">Download</a>
-        <a href="troubleshooting.html">Troubleshooting</a>
-        <a href="faq.html">FAQ</a>
-      </nav>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocols</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></nav>
     </header>
     <main class="doc-main">
       <section class="doc-hero reveal">
         <p class="eyebrow">Protocol coverage</p>
         <h1>IEC-101, IEC-103, and IEC-104 workflows with one evidence model.</h1>
-        <p>ARIEC60870 is designed as a single-endpoint evidence analyzer. It focuses on visibility, repeatable testing, and readable output rather than replacing a full SCADA master station.</p>
-        <div class="doc-link-row">
-          <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a>
-          <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a>
-        </div>
+        <p>ARIEC60870 is not a black-box tester. It keeps practical protocol evidence visible so engineers can explain startup behavior, General Interrogation, values, events, frame trace findings, and report output.</p>
+        <div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="quick-start.html"><span>Start with quick start</span></a></div>
       </section>
       <section class="doc-grid">
-        <article class="doc-card interactive-surface"><h3>IEC 60870-5-101</h3><p>Serial telecontrol workflow with FT1.2 frame transparency and practical master-side evidence.</p><ul><li>Fixed and variable FT1.2 frame visibility.</li><li>General Interrogation and optional clock sync.</li><li>Type ID, COT, CA, IOA, value, quality, and timestamp evidence.</li></ul></article><article class="doc-card interactive-surface"><h3>IEC 60870-5-103</h3><p>Protection relay serial workflow for Class 1/Class 2 polling and relay event review.</p><ul><li>Reset link and FCB handling.</li><li>ACD/DFC visibility and controlled event drain.</li><li>FUN, INF, DPI, measurand, relay timestamp, and mapping profile support.</li></ul></article><article class="doc-card interactive-surface"><h3>IEC 60870-5-104</h3><p>TCP client workflow for APCI/APDU visibility and session-level troubleshooting.</p><ul><li>STARTDT, STOPDT, TESTFR, I/S/U frame visibility.</li><li>Sequence counter evidence.</li><li>Common ASDU decode and reportable findings.</li></ul></article><article class="doc-card interactive-surface"><h3>Product boundary</h3><p>The app is intentionally focused and transparent.</p><ul><li>One active endpoint/session at a time.</li><li>Not a vendor-specific relay database.</li><li>Not a redundant production master station or formal FAT/SAT replacement.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>IEC 60870-5-101 serial</h3><p>Use IEC-101 mode for authorized serial RTU or gateway checks.</p><ul><li>FT1.2 fixed and variable frame visibility.</li><li>Master-side startup and General Interrogation evidence.</li><li>Type ID, COT, common address, IOA, value, quality, and timestamp review.</li><li>Serial setup with COM port, baud rate, parity, stop bits, link address, and ASDU profile.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>IEC 60870-5-103 relay serial</h3><p>Use IEC-103 mode for protection relay serial communication checks.</p><ul><li>Reset link and FCB handling visibility.</li><li>Class 1/Class 2 polling evidence.</li><li>ACD/DFC visibility and event drain review.</li><li>FUN, INF, DPI, measurand, relay timestamp, and user-owned mapping profile support.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>IEC 60870-5-104 TCP/IP</h3><p>Use IEC-104 mode for authorized TCP endpoint checks.</p><ul><li>STARTDT, STOPDT, TESTFR, I/S/U frame visibility.</li><li>Sequence counter evidence for session review.</li><li>Common ASDU decode for values, events, and command-related evidence.</li><li>Server IP, TCP port, common address, and ASDU profile configuration.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>One evidence model</h3><p>Different protocol transports are shown through a consistent evidence workflow.</p><ul><li>Operator Evidence for summary-level review.</li><li>Value Viewer and Event Log for data/event behavior.</li><li>Frame Trace and Diagnostics for deeper analysis.</li><li>Native PDF evidence report for review and handover.</li></ul></article>
+      </section>
+      <section class="section split">
+        <div><p class="eyebrow">What this means in practice</p><h2>Protocol support is evidence-oriented, not a claim to replace every tool.</h2><p>The product is deliberately focused on single endpoint testing and evidence review. It is not a production SCADA master, not a gateway, and not a redundant communication system.</p></div>
+        <div class="report-list"><div class="interactive-surface"><strong>Supported focus</strong><span>Startup communication, General Interrogation behavior, received values, events, diagnostics, raw frame visibility, user mapping, and PDF reports.</span></div><div class="interactive-surface"><strong>Not the scope</strong><span>Production control center operation, multi-master redundancy, gateway service, vendor-specific database replacement, or certification authority for formal acceptance.</span></div><div class="interactive-surface"><strong>Best use</strong><span>Use ARIEC60870 as a transparent engineering evidence tool beside the approved FAT/SAT or troubleshooting procedure.</span></div></div>
       </section>
     </main>
-    <footer class="site-footer">
-      <span>ARIEC60870</span>
-      <span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span>
-    </footer>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

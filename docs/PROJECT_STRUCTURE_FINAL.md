@@ -21,7 +21,7 @@ ARIEC60870/
     ARIEC60870.Protocol.Tests/        # Dependency-free protocol smoke tests
     ARIEC60870.Core.Tests/            # FT1.2, IEC-103 ASDU, trace analyzer regression tests
     ARIEC60870.Master.Tests/          # IEC-101/104 ASDU/APDU, command, assessment tests
-    ARIEC60870.Reporting.Tests/       # Markdown evidence, privacy, escaping, row-limit tests
+    ARIEC60870.Reporting.Tests/       # PDF/report evidence, privacy, escaping, row-limit tests
     ARIEC60870.Desktop.Tests/         # .ariec capture ViewModel contract tests
     ARIEC60870.Repository.Tests/      # Public release hygiene and metadata tests
     ARIEC60870.TestVectors/           # Future sanitized vector fixtures

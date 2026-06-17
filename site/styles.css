@@ -217,11 +217,11 @@ p { color: var(--muted); }
 .hero-panel::before { content: ""; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(18,168,196,0.18), rgba(255,255,255,0.5)); }
 .hero-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
 .panel-logo { width: 84px; max-width: 30%; height: auto; border-radius: 20px; filter: drop-shadow(0 16px 24px rgba(15, 34, 52, 0.10)); }
-.screen-frame { appearance: none; position: relative; display: block; width: 100%; aspect-ratio: 16 / 9.2; overflow: hidden; border: 1px solid var(--hairline); border-radius: 20px; background: #fff; box-shadow: 0 18px 52px rgba(15, 34, 52, 0.14); cursor: zoom-in; line-height: 0; padding: 0; text-align: left; }
+.screen-frame { appearance: none; position: relative; display: block; width: 100%; aspect-ratio: 5 / 3; overflow: hidden; border: 1px solid var(--hairline); border-radius: 20px; background: #fff; box-shadow: 0 18px 52px rgba(15, 34, 52, 0.14); cursor: zoom-in; line-height: 0; padding: 0; text-align: left; }
 .screen-frame::after { content: "Click to enlarge"; position: absolute; right: 12px; top: 12px; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.44); border-radius: 999px; background: rgba(7, 24, 39, 0.66); color: #fff; font-size: 11px; font-weight: 500; line-height: 1; opacity: 0; padding: 8px 10px; transform: translateY(-6px); transition: opacity 260ms var(--ease), transform 260ms var(--ease); }
 .screen-frame:hover::after { opacity: 1; transform: translateY(0); }
-.screen-frame img { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; transition: transform 760ms var(--spring), filter 420ms var(--ease); }
-.screen-frame:hover img { transform: scale(1.025); filter: saturate(1.04) contrast(1.015); }
+.screen-frame img { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; transition: transform 760ms var(--spring), filter 420ms var(--ease); }
+.screen-frame:hover img { transform: scale(1.012); filter: saturate(1.04) contrast(1.015); }
 .metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .metric-row div { min-height: 76px; border: 1px solid rgba(220, 231, 238, 0.94); border-radius: 17px; padding: 13px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 12px 28px rgba(15, 34, 52, 0.045); }
 .metric-row span,

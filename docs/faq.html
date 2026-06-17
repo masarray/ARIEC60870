@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer</title>
-    <meta name="description" content="FAQ for ARIEC60870, a free Apache-2.0 Windows evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol testing." />
+    <meta name="description" content="FAQ for ARIEC60870 Evidence Analyzer: free Apache-2.0 licensing, commercial use, supported IEC 60870 protocols, PDF reports, Windows download, and product boundaries." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <meta name="msapplication-TileColor" content="#0b6f86" />
@@ -17,46 +17,39 @@
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
     <meta property="og:title" content="ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer" />
-    <meta property="og:description" content="FAQ for ARIEC60870, a free Apache-2.0 Windows evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 protocol testing." />
+    <meta property="og:description" content="Answers about ARIEC60870 licensing, commercial use, protocols, download, evidence review, and PDF reports." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/faq.html" />
-    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-screen-02.webp" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 protocol evidence analyzer screenshot" />
+    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 evidence analyzer screenshot" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home">
-        <img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" />
-        <span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span>
-      </a>
-      <nav class="nav-links" aria-label="Main navigation">
-        <a href="./">Home</a>
-        <a href="quick-start.html">Quick Start</a>
-        <a href="protocol-coverage.html">Protocols</a>
-        <a href="download.html">Download</a>
-        <a href="troubleshooting.html">Troubleshooting</a>
-        <a href="faq.html">FAQ</a>
-      </nav>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocols</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></nav>
     </header>
     <main class="doc-main">
       <section class="doc-hero reveal">
         <p class="eyebrow">FAQ</p>
         <h1>Questions before using ARIEC60870.</h1>
-        <p>These answers clarify scope, licensing, operating system, protocol support, and safe use of exported evidence.</p>
-        <div class="doc-link-row">
-          <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a>
-          <a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a>
-        </div>
+        <p>These answers clarify the product scope, license, commercial use, operating system, supported protocols, mapping approach, and report output.</p>
+        <div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a></div>
       </section>
-      <section class="doc-grid">
-        <article class="doc-card interactive-surface"><h3>Is ARIEC60870 free?</h3><p>Yes. ARIEC60870 is free and open source under Apache-2.0.</p><ul><li>No license key.</li><li>No subscription.</li><li>No account requirement for trying the release package.</li></ul></article><article class="doc-card interactive-surface"><h3>Does it support IEC-101, IEC-103, and IEC-104?</h3><p>Yes, with practical evidence-oriented workflows for those IEC 60870 protocols.</p><ul><li>IEC-101 serial telecontrol.</li><li>IEC-103 serial protection relay communication.</li><li>IEC-104 TCP/IP client testing.</li></ul></article><article class="doc-card interactive-surface"><h3>Is it a full SCADA master?</h3><p>No. It is a focused test and evidence analyzer.</p><ul><li>One endpoint/session at a time.</li><li>Designed for FAT/SAT, commissioning, protocol visibility, and troubleshooting.</li><li>Not a production redundant master station.</li></ul></article><article class="doc-card interactive-surface"><h3>How are signal names handled?</h3><p>Decoded protocol fields come from traffic. Friendly names come from user-owned JSON mapping profiles.</p><ul><li>No vendor database is embedded.</li><li>Mapping profiles should match approved project signal lists.</li><li>Raw frame evidence remains available.</li></ul></article>
+      <section class="faq-grid">
+        <article class="faq-card interactive-surface"><h3>Is ARIEC60870 free?</h3><p>Yes. ARIEC60870 is free and open source under Apache-2.0. There is no license key, subscription, or account requirement for trying the release package.</p></article>
+        <article class="faq-card interactive-surface"><h3>Can it be used commercially?</h3><p>The source is Apache-2.0. That is a permissive license commonly used for commercial and internal engineering workflows. Users still need to follow the license terms, organization policy, and project/customer rules.</p></article>
+        <article class="faq-card interactive-surface"><h3>Which protocols are supported?</h3><p>The app provides practical evidence-oriented workflows for IEC 60870-5-101 serial, IEC 60870-5-103 serial relay communication, and IEC 60870-5-104 TCP/IP client testing.</p></article>
+        <article class="faq-card interactive-surface"><h3>Is it a full SCADA master?</h3><p>No. It is a focused engineering test and evidence analyzer. It is not a production SCADA system, gateway, redundant master station, or replacement for an approved test procedure.</p></article>
+        <article class="faq-card interactive-surface"><h3>Does it export PDF?</h3><p>Yes. The Report workspace exports a professional PDF evidence report generated directly by the built-in native PDF engine.</p></article>
+        <article class="faq-card interactive-surface"><h3>Does it need an installer?</h3><p>No. Download the Windows ZIP, extract it, and run <strong>ARIEC60870.exe</strong>. The user release is designed as one simple Windows package.</p></article>
+        <article class="faq-card interactive-surface"><h3>How are signal names handled?</h3><p>Protocol decode comes from traffic. Friendly project names come from user-owned JSON mapping profiles. The app does not embed a vendor-specific relay database.</p></article>
+        <article class="faq-card interactive-surface"><h3>Can it be used on live systems?</h3><p>Only use it in authorized engineering environments and approved test windows. The tool is intended for lab, FAT/SAT, commissioning, or troubleshooting use under the project procedure.</p></article>
+        <article class="faq-card interactive-surface"><h3>Does it support passive sniffing?</h3><p>The current public product is focused on active single-endpoint evidence workflows. Passive monitor and NUC-style redundancy evidence are future roadmap areas, not the current public claim.</p></article>
+        <article class="faq-card interactive-surface"><h3>What should be checked before sharing a report?</h3><p>Review station labels, IP addresses, communication addresses, signal names, mapping labels, and evidence details before sharing exported PDFs outside the project team.</p></article>
       </section>
     </main>
-    <footer class="site-footer">
-      <span>ARIEC60870</span>
-      <span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span>
-    </footer>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

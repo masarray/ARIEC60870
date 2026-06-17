@@ -1,16 +1,16 @@
-# Product Redesign Audit — ARIEC60870 Evidence Analyzer
+# Product Direction — ARIEC60870 Evidence Analyzer
 
 This build moves the desktop UX from an IEC-103-first tester to a protocol-aware IEC 60870 analyzer.
 
 ## Locked product direction
 
-The product is now treated as an ARIEC60870 protocol lab with three native profiles:
+The product is now treated as ARIEC60870 Evidence Analyzer with three native protocol profiles:
 
 - IEC 60870-5-103 protection relay serial profile.
 - IEC 60870-5-101 telecontrol serial profile.
 - IEC 60870-5-104 telecontrol TCP/IP profile.
 
-## Audit findings fixed in this pass
+## Product improvements in this direction
 
 - Connection setup no longer presents a mixed 103/101/104 parameter wall.
 - IEC-104 hides COM/baudrate/class polling setup and shows TCP/APCI-oriented information.
@@ -42,6 +42,6 @@ Primary UI language: TCP/IP endpoint, APDU, APCI, I/S/U format, N(S), N(R), STAR
 - Basic IEC-104 sequence/window findings are now present; deeper k/w state-machine validation remains a later pass.
 
 
-## v1.6.0 forensic audit pass
+## Protocol evidence model
 
-The app now treats interoperability settings as part of the evidence contract, not a hidden assumption. COT size, CA size, IOA size, IEC-101 link-address size, quality flags, COT P/N and test flags, CP56Time2a timestamps, and multi-object ASDUs are decoded into separate fields so values are readable and audit findings can point to protocol-profile mismatch.
+The app now treats interoperability settings as part of the evidence contract, not a hidden assumption. COT size, CA size, IOA size, IEC-101 link-address size, quality flags, COT P/N and test flags, CP56Time2a timestamps, and multi-object ASDUs are decoded into separate fields so values are readable and findings can point to protocol-profile mismatch.

@@ -36,6 +36,6 @@ The assessment does not replace raw frame evidence. It summarizes the evidence i
 
 ## Report output
 
-The Markdown evidence report includes an **AutoTest assessment** section with overall status, score, evidence, and recommendation per check.
+The desktop Report workspace can include assessment evidence in the native PDF evidence report when the active session has enough data for review.
 
-The CLI also prints the assessment checklist after each active master run.
+The CLI can also print the assessment checklist after each active master run for developer and regression-test workflows.

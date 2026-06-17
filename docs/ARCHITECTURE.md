@@ -157,7 +157,7 @@ ARIEC60870 must not merely say "connected". It must show:
 - listens to `Iec103MasterEvidenceEvent`
 - listens to `Iec103MasterFinding`
 - displays live KPI counters, evidence rows, selected-frame detail, and findings
-- exports Markdown evidence report using the same report writer as CLI
+- exports a native PDF evidence report from the desktop Report workspace
 
 WPF must not own protocol behavior. Polling policy, state transitions, frame building, parsing, and findings remain in `ARIEC60870.Master` and `ARIEC60870.Core` so the engine is still testable without UI.
 

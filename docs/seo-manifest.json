@@ -46,5 +46,15 @@
   "compatibilityMirrors": {
     "docsHtmlMirror": "active",
     "purpose": "Keeps GitHub Pages alive when the repository is configured for Deploy from branch /docs. The site/ folder remains the canonical source."
-  }
+  },
+  "primaryImage": "assets/screenshots/ariec60870-evidence-workspace.webp",
+  "brandIcon": "assets/brand/ariec60870-icon.png",
+  "screenshotAssets": [
+    "assets/screenshots/ariec60870-evidence-workspace.webp",
+    "assets/screenshots/ariec60870-value-viewer.webp",
+    "assets/screenshots/ariec60870-event-log.webp",
+    "assets/screenshots/ariec60870-diagnostics.webp",
+    "assets/screenshots/ariec60870-report-workspace.webp",
+    "assets/screenshots/ariec60870-iec104-setup.webp"
+  ]
 }

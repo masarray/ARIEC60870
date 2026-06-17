@@ -166,6 +166,56 @@ public sealed class RepositoryHygieneTests
         }
     }
 
+
+
+    [Fact]
+    public void PublicSiteReadmeAndManifestDoNotReferenceMissingLocalAssets()
+    {
+        var root = FindRepositoryRoot();
+        var checkedFiles = Directory.EnumerateFiles(root.File("site"), "*.html")
+            .Concat(new[] { root.File("README.md") })
+            .ToArray();
+
+        foreach (var file in checkedFiles)
+        {
+            var text = File.ReadAllText(file);
+            var matches = Regex.Matches(text, @"\b(?:href|src|data-full)=""(?<ref>[^""]+)""");
+            foreach (Match match in matches)
+            {
+                var reference = match.Groups["ref"].Value;
+                if (IsExternalOrAnchorReference(reference))
+                {
+                    continue;
+                }
+
+                var cleanReference = reference.Split('#')[0].Split('?')[0];
+                if (string.IsNullOrWhiteSpace(cleanReference))
+                {
+                    continue;
+                }
+
+                var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file)!, cleanReference.Replace('/', Path.DirectorySeparatorChar)));
+                Assert.True(File.Exists(target) || Directory.Exists(target), $"Missing local asset or page reference in {Path.GetRelativePath(root.FullName, file)}: {reference}");
+            }
+        }
+
+        using var manifestDocument = JsonDocument.Parse(File.ReadAllText(root.File("site/site.webmanifest")));
+        foreach (var icon in manifestDocument.RootElement.GetProperty("icons").EnumerateArray())
+        {
+            var source = icon.GetProperty("src").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(source));
+            Assert.True(File.Exists(root.File($"site/{source}")), $"Manifest icon points to a missing file: {source}");
+        }
+
+        static bool IsExternalOrAnchorReference(string reference)
+            => reference.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || reference.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                || reference.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+                || reference.StartsWith("#", StringComparison.OrdinalIgnoreCase)
+                || reference.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                || reference.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void DesktopArchitectureAndNativePdfGuardsRemainInPlace()
     {

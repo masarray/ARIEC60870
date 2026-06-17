@@ -15,7 +15,7 @@ The app helps engineers run a focused communication session, review decoded evid
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 Windows protocol evidence analyzer" width="92%">
+    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 Windows protocol evidence analyzer" width="92%">
   </a>
 </p>
 
@@ -110,13 +110,13 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 
 ## Screenshots
 
-| Operator evidence | Setup overlay |
+| Evidence workspace | Value Viewer |
 |---|---|
-| <img src="site/assets/screenshots/ariec60870-screen-01.webp" alt="ARIEC60870 operator evidence grid" width="100%"> | <img src="site/assets/screenshots/ariec60870-screen-05.webp" alt="ARIEC60870 setup overlay" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 evidence workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-value-viewer.webp" alt="ARIEC60870 Value Viewer workspace" width="100%"> |
 
-| Value and event review | Protocol visibility |
+| Event Log | Report workspace |
 |---|---|
-| <img src="site/assets/screenshots/ariec60870-screen-03.webp" alt="ARIEC60870 value and event review" width="100%"> | <img src="site/assets/screenshots/ariec60870-screen-04.webp" alt="ARIEC60870 protocol visibility screen" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-event-log.webp" alt="ARIEC60870 Event Log workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-report-workspace.webp" alt="ARIEC60870 Report workspace" width="100%"> |
 
 ## Core capabilities
 
@@ -179,6 +179,7 @@ The local packaging script reads the repository version by default and runs the 
 
 ## Documentation
 
+- [Documentation Map](docs/README.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Quick Start](docs/QUICK_START.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
