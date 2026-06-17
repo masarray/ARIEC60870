@@ -30,6 +30,14 @@
 - Moved README screenshots to canonical `site/assets` paths.
 - Added `seo-manifest.json`, `llms.txt`, `humans.txt`, explicit favicon/touch icons, and repository tests that verify sitemap/canonical coverage.
 
+
+### IEC-101 Dual Link Redundancy Phase 3
+- Added standby recovery latch behavior: failed standby links now require consecutive good supervision probes before being marked recovered.
+- Added `ManualOnly` failback as the safe default and an opt-in preferred-link failback policy guarded by recovery threshold and anti-ping-pong logic.
+- Added recovery/failback evidence events for `RecoveryStarted`, `RecoveryProbeSucceeded`, `RecoveryCompleted`, `AutoFailbackRequested`, and `AutoFailbackBlocked`.
+- Expanded dual-link snapshots and workspace text with recovery summary and failback policy visibility.
+- Added regression coverage for active-link timeout promotion, old-active standby recovery, and opt-in preferred-link failback evidence.
+
 ### IEC-101 Dual Link Redundancy
 - Added manual switchover proof support in the IEC-101 Dual Link workspace. The UI queues the request while the engine still validates standby promotability and records evidence.
 - Added active-link GI action in the dedicated dual-link workspace so FAT/SAT proof can refresh the application image without sending GI on standby.

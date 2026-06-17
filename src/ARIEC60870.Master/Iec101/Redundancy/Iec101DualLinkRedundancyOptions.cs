@@ -17,6 +17,8 @@ public sealed class Iec101DualLinkRedundancyOptions
     public TimeSpan AntiPingPongWindow { get; set; } = TimeSpan.FromSeconds(5);
     public int ActiveFailureThreshold { get; set; } = 2;
     public int StandbyFailureThreshold { get; set; } = 2;
+    public int StandbyRecoveryGoodResponseThreshold { get; set; } = 2;
+    public Iec101DualLinkFailbackPolicy FailbackPolicy { get; set; } = Iec101DualLinkFailbackPolicy.ManualOnly;
 
     public Iec101PostSwitchGiPolicy PostSwitchGiPolicy { get; set; } = Iec101PostSwitchGiPolicy.Required;
     public bool DrainClass1BeforePostSwitchGi { get; set; } = true;
@@ -48,6 +50,7 @@ public sealed class Iec101DualLinkRedundancyOptions
         }
         ActiveFailureThreshold = Math.Max(1, ActiveFailureThreshold);
         StandbyFailureThreshold = Math.Max(1, StandbyFailureThreshold);
+        StandbyRecoveryGoodResponseThreshold = Math.Max(1, StandbyRecoveryGoodResponseThreshold);
         StandbySupervisionInterval = TimeSpan.FromMilliseconds(Math.Max(250, StandbySupervisionInterval.TotalMilliseconds));
         RecoveryBackoff = TimeSpan.FromMilliseconds(Math.Max(250, RecoveryBackoff.TotalMilliseconds));
         AntiPingPongWindow = TimeSpan.FromMilliseconds(Math.Max(500, AntiPingPongWindow.TotalMilliseconds));

@@ -17,8 +17,11 @@ public sealed class Iec101RedundancyChannelSnapshot
     public bool FrameCountBit { get; init; }
     public DateTime? LastGoodResponseUtc { get; init; }
     public DateTime? LastTimeoutUtc { get; init; }
+    public DateTime? LastRecoveryStartedUtc { get; init; }
+    public DateTime? LastRecoveryCompletedUtc { get; init; }
     public int ConsecutiveTimeouts { get; init; }
     public int ConsecutiveFailures { get; init; }
+    public int ConsecutiveGoodResponses { get; init; }
     public int TxFrames { get; init; }
     public int RxFrames { get; init; }
     public int Class1Requests { get; init; }
@@ -47,6 +50,8 @@ public sealed class Iec101RedundancySessionSnapshot
     public string LastFailoverReason { get; init; } = string.Empty;
     public bool LastFailoverCompleted { get; init; }
     public DateTime? LastStandbySupervisionUtc { get; init; }
+    public string RecoverySummary { get; init; } = string.Empty;
+    public Iec101DualLinkFailbackPolicy FailbackPolicy { get; init; }
     public Iec101RedundancyChannelSnapshot LinkA { get; init; } = new();
     public Iec101RedundancyChannelSnapshot LinkB { get; init; } = new();
 }

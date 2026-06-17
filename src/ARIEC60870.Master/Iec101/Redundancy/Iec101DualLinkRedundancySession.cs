@@ -143,6 +143,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             LastFailoverReason = _failoverJournal.LastOrDefault()?.Reason ?? string.Empty,
             LastFailoverCompleted = _failoverJournal.LastOrDefault()?.Completed ?? false,
             LastStandbySupervisionUtc = _lastStandbySupervisionUtc == DateTime.MinValue ? null : _lastStandbySupervisionUtc,
+            RecoverySummary = BuildRecoverySummary(),
+            FailbackPolicy = _options.FailbackPolicy,
             LinkA = _linkA.CreateSnapshot(_options.StandbyFailureThreshold),
             LinkB = _linkB.CreateSnapshot(_options.StandbyFailureThreshold)
         };
@@ -395,13 +397,41 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        var standbyWasLatched = _standby.State is Iec101RedundancyChannelState.FailedLatched or Iec101RedundancyChannelState.Recovering;
+        if (standbyWasLatched
+            && _standby.LinkState.LastTimeoutUtc is DateTime lastTimeoutUtc
+            && DateTime.UtcNow - lastTimeoutUtc < _options.RecoveryBackoff)
+        {
+            _lastStandbySupervisionUtc = DateTime.UtcNow;
+            return;
+        }
+
         var response = await _standby.SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
         _lastStandbySupervisionUtc = DateTime.UtcNow;
+
         if (response.TimedOut && _standby.LinkState.ConsecutiveFailures >= _options.StandbyFailureThreshold)
         {
-            SetControllerState(Iec101RedundancyControllerState.Degraded, "IEC-101 standby link degraded", $"{_standby.Name} failed standby supervision threshold. Active link remains {_active?.Name ?? "-"}.", "Warning");
+            _standby.LatchAsFailed($"{_standby.Name} failed standby supervision threshold. Active link remains {_active?.Name ?? "-"}.");
+            SetControllerState(Iec101RedundancyControllerState.Degraded, "IEC-101 standby link degraded", $"{_standby.Name} failed standby supervision threshold. Active link remains {_active?.Name ?? "-"}.", Iec101RedundancyEventKind.StandbyTimeout.ToString());
+            return;
         }
-        else if (_controllerState == Iec101RedundancyControllerState.Degraded && _active?.IsHealthy == true && _standby.IsPromotable(_options.StandbyFailureThreshold))
+
+        if (response.Succeeded && standbyWasLatched)
+        {
+            if (_standby.LinkState.ConsecutiveGoodResponses < _options.StandbyRecoveryGoodResponseThreshold)
+            {
+                _standby.MarkRecoveryProbeSucceeded(_options.StandbyRecoveryGoodResponseThreshold);
+                SetControllerState(Iec101RedundancyControllerState.Recovering, "IEC-101 standby recovery probe succeeded", $"{_standby.Name} good probes={_standby.LinkState.ConsecutiveGoodResponses}/{_options.StandbyRecoveryGoodResponseThreshold}.");
+                return;
+            }
+
+            _standby.MarkRecoveredAsStandby($"{_standby.Name} has met the standby recovery threshold with {_standby.LinkState.ConsecutiveGoodResponses} consecutive good supervision responses.");
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 standby link recovered", $"Active={_active?.Name ?? "-"}; standby={_standby.Name}; failback policy={_options.FailbackPolicy}.");
+            await ConsiderAutoFailbackAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (_controllerState == Iec101RedundancyControllerState.Degraded && _active?.IsHealthy == true && _standby.IsPromotable(_options.StandbyFailureThreshold))
         {
             SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy recovered", $"Active={_active.Name}; standby={_standby.Name} is healthy again.");
         }
@@ -450,9 +480,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var sw = Stopwatch.StartNew();
         var from = _active;
         var to = _standby;
+        var fromWasFailed = from.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold
+            || from.State == Iec101RedundancyChannelState.TimeoutSuspect;
         try
         {
-            SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", "Warning");
+            SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", Iec101RedundancyEventKind.FailoverStarted.ToString());
             _imageTracker.MarkStale();
 
             if (!to.IsPromotable(_options.StandbyFailureThreshold))
@@ -466,12 +498,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                     Completed = false,
                     Detail = "Standby link is not promotable."
                 });
-                SetControllerState(Iec101RedundancyControllerState.NoAvailableLink, "IEC-101 failover failed", $"Standby {to.Name} is not healthy enough for promotion.", "Error");
+                SetControllerState(Iec101RedundancyControllerState.NoAvailableLink, "IEC-101 failover failed", $"Standby {to.Name} is not healthy enough for promotion.", Iec101RedundancyEventKind.FailoverRejected.ToString());
                 return;
             }
 
             to.PromoteToActive();
             from.DemoteToStandby();
+            if (fromWasFailed)
+            {
+                from.LatchAsFailed($"{from.Name} was demoted after active-link failure. It must pass standby recovery supervision before it is considered recovered.");
+            }
             _active = to;
             _standby = from;
             _lastClass2PollUtc = DateTime.MinValue;
@@ -490,7 +526,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 Completed = true,
                 Detail = $"Active link is now {to.Name}."
             });
-            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 failover completed", $"Active={to.Name}; standby={from.Name}; latency={_lastFailoverLatencyMs} ms.");
+            SetControllerState(
+                fromWasFailed ? Iec101RedundancyControllerState.Degraded : Iec101RedundancyControllerState.Healthy,
+                "IEC-101 failover completed",
+                fromWasFailed
+                    ? $"Active={to.Name}; old active {from.Name} is now standby under recovery supervision; latency={_lastFailoverLatencyMs} ms."
+                    : $"Active={to.Name}; standby={from.Name}; latency={_lastFailoverLatencyMs} ms.",
+                Iec101RedundancyEventKind.FailoverCompleted.ToString());
         }
         finally
         {
@@ -551,8 +593,93 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         AddApplicationImageEvent(kind, $"IEC-101 application image {_imageTracker.State}", $"Objects={_imageTracker.ObjectCount}; last GI complete={_imageTracker.LastGiCompletedUtc:O}.");
     }
 
-    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)
+
+    private async Task ConsiderAutoFailbackAsync(CancellationToken cancellationToken)
     {
+        if (_active is null || _standby is null)
+        {
+            return;
+        }
+
+        if (_options.FailbackPolicy != Iec101DualLinkFailbackPolicy.PreferredLinkAfterStableRecovery)
+        {
+            return;
+        }
+
+        if (!IsPreferredActive(_standby) || IsPreferredActive(_active))
+        {
+            return;
+        }
+
+        AddEvent(new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.Unknown,
+            State = Iec103MasterState.TimeoutRecovery,
+            Category = Iec101RedundancyEventKind.AutoFailbackRequested.ToString(),
+            DataClass = "Redundancy",
+            Summary = "IEC-101 preferred-link failback requested",
+            Detail = $"Preferred standby {_standby.Name} recovered while {_active.Name} is active. Failback policy={_options.FailbackPolicy}.",
+            OperatorMessage = "Preferred active link recovered and automatic failback is enabled.",
+            ProtocolMeaning = "The controller will attempt ownership return only after recovery threshold and anti-ping-pong rules are satisfied.",
+            OperatorAction = "Use this event with the following failover evidence to prove controlled failback behavior.",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            SignalGroup = "IEC-101 Dual Link"
+        });
+
+        var before = _failoverJournal.Count;
+        await TryFailoverAsync("Preferred active link recovered after stable standby supervision", cancellationToken, bypassStabilizationGuard: false).ConfigureAwait(false);
+        if (_failoverJournal.Count == before)
+        {
+            AddEvent(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.Unknown,
+                State = Iec103MasterState.TimeoutRecovery,
+                Category = Iec101RedundancyEventKind.AutoFailbackBlocked.ToString(),
+                DataClass = "Redundancy",
+                Summary = "IEC-101 preferred-link failback blocked",
+                Detail = "No failback journal entry was created. The anti-ping-pong guard or standby health policy prevented active ownership return.",
+                OperatorMessage = "Preferred-link failback was blocked by controller safety policy.",
+                ProtocolMeaning = "Automatic failback must never oscillate ownership during unstable link recovery.",
+                OperatorAction = "Wait for the stabilization window or use manual switch during FAT/SAT only after validating link health.",
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                SignalGroup = "IEC-101 Dual Link"
+            });
+        }
+    }
+
+    private bool IsPreferredActive(Iec101DualLinkChannel channel)
+        => _options.PreferredActiveLink.Equals(channel.Name, StringComparison.OrdinalIgnoreCase)
+           || _options.PreferredActiveLink.Equals(channel.Endpoint.Name, StringComparison.OrdinalIgnoreCase)
+           || (_options.PreferredActiveLink.Equals("A", StringComparison.OrdinalIgnoreCase) && ReferenceEquals(channel, _linkA))
+           || (_options.PreferredActiveLink.Equals("B", StringComparison.OrdinalIgnoreCase) && ReferenceEquals(channel, _linkB));
+
+    private string BuildRecoverySummary()
+    {
+        var standby = _standby;
+        if (standby is null)
+        {
+            return "No standby link elected.";
+        }
+
+        if (standby.State == Iec101RedundancyChannelState.FailedLatched)
+        {
+            return $"{standby.Name} failed and is waiting for recovery probes.";
+        }
+
+        if (standby.State == Iec101RedundancyChannelState.Recovering)
+        {
+            return $"{standby.Name} recovering: {standby.LinkState.ConsecutiveGoodResponses}/{_options.StandbyRecoveryGoodResponseThreshold} good probes.";
+        }
+
+        if (standby.LinkState.LastRecoveryCompletedUtc is not null)
+        {
+            return $"{standby.Name} recovered at {standby.LinkState.LastRecoveryCompletedUtc:O}.";
+        }
+
+        return $"{standby.Name} supervised as standby.";
+    }
+
+    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)    {
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
@@ -625,6 +752,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (_failoverJournal.Count == 0)
         {
             RaiseFinding(FindingSeverity.Info, "IEC101-DUAL-NO-FAILOVER", "IEC-101 dual-link session completed without failover", "No failover journal entries were recorded.", "This is expected when both links remain healthy during the run.", "For FAT/SAT redundancy proof, inject an active-link failure and verify failover evidence appears in the report.");
+        }
+
+        if (_options.FailbackPolicy == Iec101DualLinkFailbackPolicy.PreferredLinkAfterStableRecovery)
+        {
+            RaiseFinding(FindingSeverity.Info, "IEC101-DUAL-AUTO-FAILBACK", "Preferred-link auto failback is enabled", $"PreferredActiveLink={_options.PreferredActiveLink}; antiPingPong={_options.AntiPingPongWindow}.", "Automatic failback can be useful for utility procedures but must be proven against link oscillation.", "Keep ManualOnly for conservative operation unless the project FAT/SAT procedure explicitly requires automatic return to preferred link.");
         }
 
         if (_options.AllowStandbyClass1Polling || _options.AllowStandbyClass2Polling)

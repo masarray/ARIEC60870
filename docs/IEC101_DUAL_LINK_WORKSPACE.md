@@ -8,10 +8,10 @@ Top cards show:
 
 - controller state;
 - active link;
-- standby link;
-- application image and failover status.
+- standby link and last supervision age;
+- application image, recovery summary, failover count, and failback policy.
 
-The evidence grid below focuses on redundancy-specific evidence, including link status supervision, active timeouts, manual switchover requests, failover start/completion, command routing, and post-switch General Interrogation.
+The evidence grid below focuses on redundancy-specific evidence, including link status supervision, active timeouts, manual switchover requests, failover start/completion, standby recovery probes, recovery completion, command routing, and post-switch General Interrogation.
 
 ## Operator proof actions
 
@@ -39,3 +39,18 @@ IEC-101 failover completed
 ```
 
 If the standby is not promotable, the controller must reject promotion and keep the current active ownership rather than sending commands or polling through an unsafe path.
+
+
+## Recovery evidence
+
+A clean recovery sequence after an active-link failure should show:
+
+```text
+IEC-101 failover started
+IEC-101 failover completed
+RecoveryStarted on the old active link after standby supervision failures
+RecoveryProbeSucceeded until the configured good-probe threshold is met
+RecoveryCompleted when the old active is safe as standby again
+```
+
+The workspace must not automatically steal active ownership back unless the engine is configured with the explicit preferred-link failback policy. The default operator workflow is controlled manual switch proof.

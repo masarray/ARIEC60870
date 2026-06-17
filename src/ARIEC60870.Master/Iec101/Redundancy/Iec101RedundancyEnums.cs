@@ -56,16 +56,19 @@ public enum Iec101RedundancyEventKind
     FailoverRejected = 10,
     RecoveryStarted = 11,
     RecoveryCompleted = 12,
-    PostSwitchGiStarted = 13,
-    PostSwitchGiCompleted = 14,
-    ApplicationImageReady = 15,
-    ApplicationImagePartial = 16,
-    ApplicationImageStale = 17,
-    CommandDispatchedOnActive = 18,
-    CommandBlockedOnStandby = 19,
-    ManualFailoverRequested = 20,
-    ManualFailoverBlocked = 21,
-    ManualInterrogationRequested = 22
+    RecoveryProbeSucceeded = 13,
+    AutoFailbackRequested = 14,
+    AutoFailbackBlocked = 15,
+    PostSwitchGiStarted = 16,
+    PostSwitchGiCompleted = 17,
+    ApplicationImageReady = 18,
+    ApplicationImagePartial = 19,
+    ApplicationImageStale = 20,
+    CommandDispatchedOnActive = 21,
+    CommandBlockedOnStandby = 22,
+    ManualFailoverRequested = 23,
+    ManualFailoverBlocked = 24,
+    ManualInterrogationRequested = 25
 }
 
 public enum Iec101PostSwitchGiPolicy
@@ -83,4 +86,11 @@ public enum Iec101ApplicationImageState
     Ready = 2,
     Partial = 3,
     Stale = 4
+}
+
+
+public enum Iec101DualLinkFailbackPolicy
+{
+    ManualOnly = 0,
+    PreferredLinkAfterStableRecovery = 1
 }

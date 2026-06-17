@@ -28,6 +28,17 @@ ARIEC60870.Master.Iec101.Redundancy
   Iec101RedundancySessionSnapshot
 ```
 
+## Recovery and failback policy
+
+The controller treats recovery as a separate state, not as a simple timeout reset. When a standby link reaches the failure threshold, the link is latched as failed and a `RecoveryStarted` evidence event is produced. The link must then pass the configured `StandbyRecoveryGoodResponseThreshold` before the controller emits `RecoveryCompleted` and returns the channel to normal standby supervision.
+
+Failback to a preferred link is intentionally conservative:
+
+- `ManualOnly` is the default and keeps the recovered old active as standby.
+- `PreferredLinkAfterStableRecovery` is available for projects that explicitly require automatic return to the preferred path, but it still obeys recovery threshold and anti-ping-pong safety.
+
+This prevents unstable serial paths from oscillating active ownership after a cable, converter, modem, or RTU channel recovers intermittently.
+
 ## Runtime proof actions
 
 The dedicated workspace can queue two runtime proof actions while the session is running:
@@ -48,6 +59,8 @@ IEC-101 Dual Link Redundancy has its own workspace. It does not share the single
 - Link A and Link B do not share FCB state.
 - Active-link timeout can promote a healthy standby link.
 - Old active returns as standby after demotion/recovery.
+- Standby recovery is latched and requires consecutive good supervision probes before it is marked recovered.
+- Preferred-link failback is manual-only by default; automatic failback is opt-in and still guarded by the anti-ping-pong window.
 - Failover creates evidence rows and journal entries.
 - Post-switch GI status is visible.
 - Manual switchover produces `ManualFailoverRequested` evidence before `failover completed` evidence.

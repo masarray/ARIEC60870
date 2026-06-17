@@ -433,6 +433,8 @@ public partial class MainWindow
             PreferredActiveLink = "A",
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Required,
             DrainClass1BeforePostSwitchGi = true,
+            StandbyRecoveryGoodResponseThreshold = 2,
+            FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly,
             AllowStandbyClass1Polling = false,
             AllowStandbyClass2Polling = false,
             CommandOnActiveOnly = true
@@ -465,14 +467,14 @@ public partial class MainWindow
         DualLinkOverallStateText.Text = snapshot.ControllerState.ToString();
         DualLinkActiveText.Text = string.IsNullOrWhiteSpace(snapshot.ActiveLinkName) ? "-" : snapshot.ActiveLinkName;
         DualLinkStandbyText.Text = string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName;
-        DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount}";
+        DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount} · {snapshot.RecoverySummary}";
         var standbyAge = snapshot.LastStandbySupervisionUtc.HasValue
             ? $" · standby probe {(DateTime.UtcNow - snapshot.LastStandbySupervisionUtc.Value).TotalSeconds:0}s ago"
             : string.Empty;
         DualLinkStandbyText.Text = (string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName) + standbyAge;
         DualLinkLastFailoverText.Text = snapshot.LastFailoverUtc.HasValue
-            ? $"Failover: {snapshot.FailoverCount} · {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms"
-            : $"Failover: {snapshot.FailoverCount} · none yet";
+            ? $"Failover: {snapshot.FailoverCount} · {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms · failback {snapshot.FailbackPolicy}"
+            : $"Failover: {snapshot.FailoverCount} · none yet · failback {snapshot.FailbackPolicy}";
     }
 
     private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)

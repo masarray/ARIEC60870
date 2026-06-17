@@ -81,6 +81,40 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         State = Iec101RedundancyChannelState.StandbySupervising;
     }
 
+
+    public void LatchAsFailed(string reason)
+    {
+        if (State == Iec101RedundancyChannelState.FailedLatched || IsRecoveryWindowOpen())
+        {
+            State = Iec101RedundancyChannelState.FailedLatched;
+            return;
+        }
+
+        State = Iec101RedundancyChannelState.FailedLatched;
+        LinkState.MarkRecoveryStarted(DateTime.UtcNow);
+        PublishState(Iec101RedundancyEventKind.RecoveryStarted, $"{Name} recovery monitoring started", reason);
+    }
+
+    private bool IsRecoveryWindowOpen()
+        => LinkState.LastRecoveryStartedUtc is not null
+           && (LinkState.LastRecoveryCompletedUtc is null || LinkState.LastRecoveryCompletedUtc < LinkState.LastRecoveryStartedUtc);
+
+    public void MarkRecoveryProbeSucceeded(int requiredGoodResponses)
+    {
+        State = Iec101RedundancyChannelState.Recovering;
+        PublishState(
+            Iec101RedundancyEventKind.RecoveryProbeSucceeded,
+            $"{Name} recovery probe succeeded",
+            $"Good probes={LinkState.ConsecutiveGoodResponses}/{Math.Max(1, requiredGoodResponses)}. The link remains standby until the recovery threshold is met.");
+    }
+
+    public void MarkRecoveredAsStandby(string reason)
+    {
+        LinkState.MarkRecoveryCompleted(DateTime.UtcNow);
+        State = Iec101RedundancyChannelState.StandbySupervising;
+        PublishState(Iec101RedundancyEventKind.RecoveryCompleted, $"{Name} recovered as standby", reason);
+    }
+
     public async Task<Iec101ChannelExchangeResult> ResetRemoteLinkAsync(CancellationToken cancellationToken)
     {
         State = Iec101RedundancyChannelState.LinkResetting;
@@ -184,8 +218,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             FrameCountBit = LinkState.FrameCountBit,
             LastGoodResponseUtc = LinkState.LastGoodResponseUtc,
             LastTimeoutUtc = LinkState.LastTimeoutUtc,
+            LastRecoveryStartedUtc = LinkState.LastRecoveryStartedUtc,
+            LastRecoveryCompletedUtc = LinkState.LastRecoveryCompletedUtc,
             ConsecutiveTimeouts = LinkState.ConsecutiveTimeouts,
             ConsecutiveFailures = LinkState.ConsecutiveFailures,
+            ConsecutiveGoodResponses = LinkState.ConsecutiveGoodResponses,
             TxFrames = LinkState.TxFrames,
             RxFrames = LinkState.RxFrames,
             Class1Requests = LinkState.Class1Requests,

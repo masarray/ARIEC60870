@@ -10,8 +10,11 @@ public sealed class Iec101LinkLayerState
     public bool Dfc { get; set; }
     public DateTime? LastGoodResponseUtc { get; set; }
     public DateTime? LastTimeoutUtc { get; set; }
+    public DateTime? LastRecoveryStartedUtc { get; set; }
+    public DateTime? LastRecoveryCompletedUtc { get; set; }
     public int ConsecutiveTimeouts { get; set; }
     public int ConsecutiveFailures { get; set; }
+    public int ConsecutiveGoodResponses { get; set; }
     public int TxFrames { get; set; }
     public int RxFrames { get; set; }
     public int Class1Requests { get; set; }
@@ -27,6 +30,7 @@ public sealed class Iec101LinkLayerState
         LastGoodResponseUtc = utcNow;
         ConsecutiveTimeouts = 0;
         ConsecutiveFailures = 0;
+        ConsecutiveGoodResponses++;
     }
 
     public void MarkTimeout(DateTime utcNow)
@@ -34,5 +38,17 @@ public sealed class Iec101LinkLayerState
         LastTimeoutUtc = utcNow;
         ConsecutiveTimeouts++;
         ConsecutiveFailures++;
+        ConsecutiveGoodResponses = 0;
+    }
+
+    public void MarkRecoveryStarted(DateTime utcNow)
+    {
+        LastRecoveryStartedUtc = utcNow;
+        ConsecutiveGoodResponses = 0;
+    }
+
+    public void MarkRecoveryCompleted(DateTime utcNow)
+    {
+        LastRecoveryCompletedUtc = utcNow;
     }
 }

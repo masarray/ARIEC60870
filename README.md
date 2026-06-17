@@ -96,7 +96,7 @@ Use **IEC-101 serial** for serial RTU or gateway checks. Select the COM port and
 
 ### IEC-101 Dual Link Redundancy
 
-Use **IEC-101 Dual Link Redundancy** when the RTU/outstation exposes two independent IEC-101 serial paths. Link A and Link B use separate transports and link-layer state. Only the active link owns General Interrogation, commands, Class 1 drain, and Class 2 background polling; the standby link is supervised without draining event queues. The dedicated workspace includes manual switchover proof and active-link GI actions for FAT/SAT evidence.
+Use **IEC-101 Dual Link Redundancy** when the RTU/outstation exposes two independent IEC-101 serial paths. Link A and Link B use separate transports and link-layer state. Only the active link owns General Interrogation, commands, Class 1 drain, and Class 2 background polling; the standby link is supervised without draining event queues. The dedicated workspace includes manual switchover proof, active-link GI actions, standby recovery evidence, and failback policy visibility for FAT/SAT evidence.
 
 ### IEC-103 serial
 
@@ -126,7 +126,7 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 ## Core capabilities
 
 - IEC 60870-5-101 serial evidence workflow.
-- IEC 60870-5-101 Dual Link Redundancy workspace with active-only command/GI/Class polling, supervised standby, failover journal, and post-switch GI evidence.
+- IEC 60870-5-101 Dual Link Redundancy workspace with active-only command/GI/Class polling, supervised standby, recovery latch, failover journal, optional preferred-link failback, and post-switch GI evidence.
 - IEC 60870-5-103 serial relay evidence workflow.
 - IEC 60870-5-104 TCP/IP evidence workflow.
 - Startup communication, General Interrogation, value, event, diagnostic, and frame review.

@@ -28,6 +28,8 @@ public sealed class Iec101DualLinkRedundancyOptionsTests
         Assert.False(options.AllowStandbyClass2Polling);
         Assert.True(options.CommandOnActiveOnly);
         Assert.Equal(Iec101PostSwitchGiPolicy.Required, options.PostSwitchGiPolicy);
+        Assert.Equal(Iec101DualLinkFailbackPolicy.ManualOnly, options.FailbackPolicy);
+        Assert.True(options.StandbyRecoveryGoodResponseThreshold >= 1);
     }
 
     [Fact]
@@ -71,3 +73,4 @@ public sealed class Iec101DualLinkRedundancyOptionsTests
         Assert.Equal(2, result.LinkAddressSize);
     }
 }
+
