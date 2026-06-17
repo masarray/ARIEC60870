@@ -61,20 +61,59 @@ public partial class MainWindow
     }
 
     private Button[] GetSegmentedNavButtons()
-    {
-        return new[]
+        => new[]
         {
-            NavOperatorButton,
+            NavDualLinkButton,
             NavFrameButton,
             NavValueButton,
             NavEventButton,
+            NavReportButton,
+            NavOperatorButton,
             NavFindingsButton,
             NavDiagnosticsButton,
-            NavReportButton,
             NavNotesButton,
-            NavTriggersButton,
-            NavDualLinkButton
+            NavTriggersButton
         };
+
+    private void ApplyWorkspaceNavigationProfile()
+    {
+        if (!IsLoaded || MainTabControl is null)
+        {
+            return;
+        }
+
+        var isDual101 = IsIec101DualLinkModeSelected();
+
+        NavDualLinkButton.Content = "Redundancy";
+        NavFrameButton.Content = "Trace";
+        NavValueButton.Content = "Values";
+        NavEventButton.Content = "Events";
+        NavReportButton.Content = "Report";
+
+        NavDualLinkButton.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
+        NavFrameButton.Visibility = Visibility.Visible;
+        NavValueButton.Visibility = Visibility.Visible;
+        NavEventButton.Visibility = Visibility.Visible;
+        NavReportButton.Visibility = Visibility.Visible;
+
+        // Advanced/supporting workspaces remain available in code and export logic,
+        // but no longer compete with the primary commissioning path.
+        NavOperatorButton.Visibility = Visibility.Collapsed;
+        NavFindingsButton.Visibility = Visibility.Collapsed;
+        NavDiagnosticsButton.Visibility = Visibility.Collapsed;
+        NavNotesButton.Visibility = Visibility.Collapsed;
+        NavTriggersButton.Visibility = Visibility.Collapsed;
+
+        if (isDual101 && MainTabControl.SelectedIndex is 0 or 4 or 5 or 7 or 8)
+        {
+            MainTabControl.SelectedIndex = 9;
+        }
+        else if (!isDual101 && (MainTabControl.SelectedIndex == 9 || MainTabControl.SelectedIndex is 0 or 4 or 5 or 7 or 8))
+        {
+            MainTabControl.SelectedIndex = 1;
+        }
+
+        UpdateSegmentedNav(false);
     }
 
     private void UpdateSegmentedNav(bool animated)
@@ -90,23 +129,40 @@ public partial class MainWindow
             SegmentSlider.Visibility = Visibility.Collapsed;
         }
 
-        var buttons = GetSegmentedNavButtons();
-        var index = Math.Clamp(MainTabControl.SelectedIndex, 0, buttons.Length - 1);
         var inactiveBrush = (Brush)FindResource("Ink600Brush");
         var activeForegroundBrush = (Brush)FindResource("Ink900Brush");
         var activeBackgroundBrush = (Brush)FindResource("AccentSoftBrush");
         var activeBorderBrush = (Brush)FindResource("AccentBrush");
         var transparentBrush = Brushes.Transparent;
+        var selectedIndex = MainTabControl.SelectedIndex;
 
-        for (var i = 0; i < buttons.Length; i++)
+        foreach (var button in GetSegmentedNavButtons())
         {
-            var isActive = i == index;
-            buttons[i].Background = isActive ? activeBackgroundBrush : transparentBrush;
-            buttons[i].BorderBrush = isActive ? activeBorderBrush : transparentBrush;
-            buttons[i].Foreground = isActive ? activeForegroundBrush : inactiveBrush;
-            buttons[i].FontWeight = isActive ? FontWeights.Medium : FontWeights.Normal;
+            var isActive = button.Tag is not null
+                           && int.TryParse(button.Tag.ToString(), out var tagIndex)
+                           && tagIndex == selectedIndex;
+
+            button.Background = isActive ? activeBackgroundBrush : transparentBrush;
+            button.BorderBrush = isActive ? activeBorderBrush : transparentBrush;
+            button.Foreground = isActive ? activeForegroundBrush : inactiveBrush;
+            button.FontWeight = isActive ? FontWeights.Medium : FontWeights.Normal;
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -34,7 +34,7 @@ public partial class MainWindow
     private void ExportData_Click(object sender, RoutedEventArgs e)
     {
         var tabName = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? "data";
-        if (tabName.Equals("Protocol Trace", StringComparison.OrdinalIgnoreCase))
+        if (tabName.Equals("Trace", StringComparison.OrdinalIgnoreCase))
         {
             ExportProtocolTraceRows(tabName);
             return;
@@ -69,7 +69,7 @@ public partial class MainWindow
     }
 
     private void ExportSelectedTrace_Click(object sender, RoutedEventArgs e)
-        => ExportProtocolTraceRows("Protocol Trace");
+        => ExportProtocolTraceRows("Trace");
 
     private void ExportProtocolTraceRows(string tabName)
     {
@@ -80,14 +80,14 @@ public partial class MainWindow
 
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "No Protocol Trace / Messages rows are available to export.", "Export Protocol Trace", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "No Trace / Messages rows are available to export.", "Export Trace", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         var mode = selected.Count > 0 ? "selected" : "visible";
         var dialog = new SaveFileDialog
         {
-            Title = selected.Count > 0 ? "Export selected Protocol Trace rows" : "Export visible Protocol Trace rows",
+            Title = selected.Count > 0 ? "Export selected Trace rows" : "Export visible Trace rows",
             Filter = "Tab-separated text (*.txt)|*.txt|All files (*.*)|*.*",
             FileName = $"ARIEC60870-Protocol-Trace-{mode}-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
             AddExtension = true,
@@ -105,10 +105,10 @@ public partial class MainWindow
             "Info",
             "Capture",
             "ARIEC-TRACE-TXT-EXPORTED",
-            "Protocol Trace rows exported",
-            $"Exported {rows.Count} {mode} Protocol Trace rows to {dialog.FileName}.",
+            "Trace rows exported",
+            $"Exported {rows.Count} {mode} Trace rows to {dialog.FileName}.",
             "Use .ariec capture for re-openable evidence and .txt export for lightweight report appendix.");
-        AppendSessionLog($"Protocol Trace exported: {rows.Count} {mode} rows -> {dialog.FileName}");
+        AppendSessionLog($"Trace exported: {rows.Count} {mode} rows -> {dialog.FileName}");
     }
 
     private static string BuildProtocolTraceTabSeparatedText(IReadOnlyList<EvidenceRow> rows)
@@ -143,10 +143,10 @@ public partial class MainWindow
         var header = (MainTabControl.SelectedItem as TabItem)?.Header?.ToString() ?? string.Empty;
         return header switch
         {
-            "Evidence Summary" => EvidenceGrid,
-            "Value Viewer" => ValueGrid,
-            "Event Log" => RelayEventGrid,
-            "Findings" => FindingsGrid,
+            "Evidence Ledger" or "Evidence Summary" => EvidenceGrid,
+            "Values" or "Value Viewer" => ValueGrid,
+            "Events" or "Event Log" => RelayEventGrid,
+            "Issues" or "Findings" => FindingsGrid,
             "Diagnostics" => DiagnosticsGrid,
             _ => null
         };

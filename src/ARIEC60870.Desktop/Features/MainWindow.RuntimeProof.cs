@@ -482,7 +482,7 @@ public partial class MainWindow
             "ARIEC-PROOF-SESSION-VERDICT",
             verdict,
             $"{reason}. Proofs: {(criticalProofs.Count == 0 ? "-" : string.Join("; ", criticalProofs))}. GI completeness={received}/{expected} ({completeness:0.0}%). Risks: {(risks.Count == 0 ? "-" : string.Join("; ", risks))}.",
-            "Use this verdict as the top-level commissioning proof summary, then inspect Evidence Summary, Value Viewer, Event Log, Diagnostics, and export retention policy for detail.");
+            "Use this verdict as the top-level commissioning proof summary, then inspect Values, Events, Trace, Report, and export retention policy for detail.");
     }
 
     private void ObserveCommandBehaviour(Iec103MasterEvidenceEvent item)
@@ -726,7 +726,7 @@ public partial class MainWindow
             "IEC101-RUNTIME-CA-MISMATCH",
             "Runtime ASDU common address differs from setup/profile",
             $"Live process data is arriving with CA={observedCa}, but setup/profile uses CA={configuredCa}. Station GI sent to the wrong CA can be negatively confirmed and may prevent SPS/DPS snapshots from arriving.",
-            "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Value Viewer still maps values by IOA where possible.");
+            "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Values still maps values by IOA where possible.");
         AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA.");
     }
 
@@ -781,7 +781,7 @@ public partial class MainWindow
 
         if (ordered.Count > 0)
         {
-            AppendSessionLog($"Value Viewer seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing GI values stay visible as 'waiting for GI / scan'.");
+            AppendSessionLog($"Values seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing GI values stay visible as 'waiting for GI / scan'.");
         }
     }
 
@@ -844,7 +844,7 @@ public partial class MainWindow
                 "GI negative confirmation observed; value scan continues",
                 "The outstation negatively confirmed C_IC_NA_1. This is recorded as protocol evidence, but it does not overwrite seeded IOA rows. Values are still collected from subsequent Class 1/Class 2/background frames.",
                 "Check GI qualifier/CA/profile if GI is required by the test case. For live monitoring, treat actual received IOA frames as the source of truth.");
-            AppendSessionLog("GI note: NEGATIVE CONFIRMATION observed. Keeping Value Viewer neutral; continuing scan.");
+            AppendSessionLog("GI note: NEGATIVE CONFIRMATION observed. Keeping Values neutral; continuing scan.");
             StartGiClass2CollectionWindow("GI negative confirmation; continue scan-tolerant Class 1/Class 2 collection");
             return;
         }
@@ -891,7 +891,7 @@ public partial class MainWindow
             "IEC101-SCAN-PROFILE-PENDING",
             "Profile points still pending after GI/group/Class 2 observation window",
             $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points during the GI/group/Class 2 observation window. Pending sample: {sample}",
-            "This is a non-destructive scan note. Value Viewer rows stay in waiting state until actual Class 1/Class 2 frames arrive. Verify RTU profile only if the test case requires every IOA to be returned in this window.");
+            "This is a non-destructive scan note. Values rows stay in waiting state until actual Class 1/Class 2 frames arrive. Verify RTU profile only if the test case requires every IOA to be returned in this window.");
         AppendSessionLog($"Scan observation note: pending {missing.Length}/{_giExpectedValueKeys.Count} profile points after GI/group/Class 2 window. Sample: {sample}");
     }
 
@@ -927,7 +927,7 @@ public partial class MainWindow
             "IEC-101",
             "IEC101-GI-CLASS2-COLLECTION",
             isNegativeFallback ? "GI negative confirmation observed; continuing normal scan" : "GI moved to Class 2/background collection window",
-            $"{reason}. Value Viewer placeholders are kept neutral; only actual Class 1/Class 2 frames are allowed to update IOA values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting a non-destructive completeness note.",
+            $"{reason}. Values placeholders are kept neutral; only actual Class 1/Class 2 frames are allowed to update IOA values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting a non-destructive completeness note.",
             "SCADA master behaviour: GI is a collection trigger, not a reason to mark profile IOAs as failed. Continue bounded Class 1 drain and Class 2/background polling; do not mass-read or overwrite placeholders.");
         AppendSessionLog($"GI/Class2 collection: {reason}; neutral background collection window ≈{Math.Ceiling(window.TotalSeconds):0}s.");
     }

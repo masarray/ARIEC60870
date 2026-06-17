@@ -41,16 +41,15 @@ This prevents unstable serial paths from oscillating active ownership after a ca
 
 ## Runtime proof actions
 
-The dedicated workspace can queue two runtime proof actions while the session is running:
+The dedicated Redundancy workspace can queue manual switch proof while the session is running. The anti-ping-pong guard is bypassed only for this explicit operator action, but an unhealthy standby link is still rejected.
 
-- **Manual switch** requests an active/standby switchover for FAT/SAT proof. The anti-ping-pong guard is bypassed only for this explicit operator action, but an unhealthy standby link is still rejected.
-- **Active GI** queues General Interrogation through the active link only. The standby link remains protected from GI, Class 1 drain, Class 2 background polling, and commands.
+GI, clock sync, read, and control commands stay in the command dock. In dual-link mode, the command dock routes them through the current active link only. The standby link remains protected from GI, Class 1 drain, Class 2 background polling, and commands.
 
-Both actions are recorded as evidence events so the generated report can show who requested the proof, which link owned the application layer, and whether post-switch GI refreshed the image.
+Manual switch, failover, recovery, command blocking, and post-switch GI outcomes are recorded as evidence events so the generated report can show who requested the proof, which link owned the application layer, and whether the application image was refreshed.
 
 ## Desktop workspace
 
-IEC-101 Dual Link Redundancy has its own workspace. It does not share the single-link IEC-101 workspace layout because the operator must see controller state, active/standby ownership, application image status, and failover evidence at the same time.
+IEC-101 Dual Link Redundancy has its own compact **Redundancy** workspace. It does not share the single-link IEC-101 workspace layout because the operator must see controller state, active/standby ownership, application image status, and switchover proof at the same time. Supporting screens are reduced to Values, Events, Trace, and Report for the public release path.
 
 ## Acceptance checklist
 

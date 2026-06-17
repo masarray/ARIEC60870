@@ -191,7 +191,7 @@ public partial class MainWindow
                 "ARIEC-UI-QUEUE-PRESSURE",
                 "UI dispatcher queue pressure detected",
                 $"Pending evidence queue reached {queuedBeforeFlush} items. Adaptive budget={_lastFlushBudget}, last flush={_lastUiFlushMs} ms, max flush={_maxUiFlushMs} ms, dropped low-value={_backpressureDroppedEvents} (ack/no-data={_backpressureDroppedAckNoData}, poll={_backpressureDroppedBackgroundPoll}, test={_backpressureDroppedTestFrames}, other={_backpressureDroppedOtherLowValue}).",
-                "This is normally survivable. If it persists, reduce trace verbosity, keep Protocol Trace tab inactive during long tests, or increase polling interval for low-baud serial links.");
+                "This is normally survivable. If it persists, reduce trace verbosity, keep Trace tab inactive during long tests, or increase polling interval for low-baud serial links.");
         }
 
         if (_lastUiFlushMs >= UiFlushSlowWarningMs &&
@@ -204,7 +204,7 @@ public partial class MainWindow
                 "ARIEC-UI-SLOW-FLUSH",
                 "UI flush cycle is slow",
                 $"Last UI flush took {_lastUiFlushMs} ms. Queue={_pendingEvidence.Count}, processed={_lastEvidenceProcessed}, visible batch rows={_lastVisibleBatchRows}.",
-                "The protocol engine continues to protect important evidence. For smoother UI, avoid leaving high-volume Protocol Trace visible during long IEC-101/104 polling sessions.");
+                "The protocol engine continues to protect important evidence. For smoother UI, avoid leaving high-volume Trace visible during long IEC-101/104 polling sessions.");
         }
     }
 
@@ -778,10 +778,43 @@ public partial class MainWindow
         }
     }
 
+    private void AddDualLinkTimelineRowIfImportant(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode != Iec60870ProtocolMode.Iec101)
+        {
+            return;
+        }
+
+        var combined = string.Join(" ", item.Category, item.DataClass, item.SignalGroup, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction);
+        var isDualLink = ContainsAny(combined, "IEC-101 Dual Link", "Redundancy", "Link A", "Link B", "Failover", "failback", "standby", "active link");
+        if (!isDualLink)
+        {
+            return;
+        }
+
+        // Keep the Redundancy workspace quiet. Routine successful standby probes and
+        // ordinary state chatter stay in Trace/Evidence Ledger; only decisions,
+        // failures, recovery and operator actions belong in this timeline.
+        var isImportant = ContainsAny(
+            combined,
+            "Failover", "failover", "Manual", "manual", "Recovery", "recovery",
+            "blocked", "rejected", "timeout", "failed", "fault", "Stale", "Post-switch",
+            "GI completed", "GI failed", "Application image", "ApplicationImage", "Command blocked", "CommandBlocked", "AutoFailback");
+
+        if (!isImportant)
+        {
+            return;
+        }
+
+        DualLinkTimelineRows.Add(new DualLinkTimelineRow(item));
+        DualLinkTimelineRows.TrimStart(MaxVisibleDualLinkTimelineRows);
+    }
+
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
         ObserveIecProtocolTriggerWatch(item, row);
+        AddDualLinkTimelineRowIfImportant(item);
 
         if (ShouldAddToEvidenceSummary(item, row, out var summaryKey, out var summarySignature))
         {
@@ -814,7 +847,7 @@ public partial class MainWindow
         // Do not push every protocol state into the top session card. High-volume
         // polling alternates Class 2/Class 1 states quickly and makes Auto-sized WPF
         // layouts appear to flicker. The header shows stable session phase only;
-        // detailed per-frame state belongs in Evidence Summary / Protocol Trace.
+        // detailed per-frame state belongs in Evidence Ledger / Trace.
 
         if (item.Category == "Error" || item.Category == "Warning" || item.Category == "RX Warning" || IsImportantSessionNote(item))
         {
@@ -854,7 +887,7 @@ public partial class MainWindow
             return false;
         }
 
-        // Do not pollute the summary with routine line traffic. Protocol Trace remains the source of truth for these.
+        // Do not pollute the summary with routine line traffic. Trace remains the source of truth for these.
         if (!isIssue && !isCommandMilestone && !isGiMilestone)
         {
             var routine = ContainsAny(combined, "Request Class 1", "Request Class 2", "ACK", "Class 2 poll", "background poll", "S-frame", "TESTFR");
@@ -879,7 +912,7 @@ public partial class MainWindow
 
         if (isSignalOutcome && !isIssue)
         {
-            // Analog measurement scan is high-volume. Value Viewer must stay live, but Evidence Summary
+            // Analog measurement scan is high-volume. Values must stay live, but Evidence Ledger
             // should be proof-grade: first proof, quality/timestamp issue, significant drift, or slow heartbeat.
             if (IsAnalogMeasurementType(item.TypeId) && !string.IsNullOrWhiteSpace(summaryKey))
             {

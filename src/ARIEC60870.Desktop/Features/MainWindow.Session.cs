@@ -464,43 +464,62 @@ public partial class MainWindow
 
     private void ApplyDualLinkSnapshot(Iec101RedundancySessionSnapshot snapshot)
     {
-        DualLinkOverallStateText.Text = snapshot.ControllerState.ToString();
-        DualLinkActiveText.Text = string.IsNullOrWhiteSpace(snapshot.ActiveLinkName) ? "-" : snapshot.ActiveLinkName;
-        DualLinkStandbyText.Text = string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName;
-        DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount} · {snapshot.RecoverySummary}";
+        var activeName = string.IsNullOrWhiteSpace(snapshot.ActiveLinkName) ? "-" : snapshot.ActiveLinkName;
+        var standbyName = string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName;
         var standbyAge = snapshot.LastStandbySupervisionUtc.HasValue
-            ? $" · standby probe {(DateTime.UtcNow - snapshot.LastStandbySupervisionUtc.Value).TotalSeconds:0}s ago"
-            : string.Empty;
-        DualLinkStandbyText.Text = (string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName) + standbyAge;
+            ? $"{(DateTime.UtcNow - snapshot.LastStandbySupervisionUtc.Value).TotalSeconds:0}s ago"
+            : "-";
+        var commandGate = snapshot.ControllerState == Iec101RedundancyControllerState.Switching ? "Blocked" : "Ready";
+
+        DualLinkHealthStripText.Text = $"{snapshot.ControllerState} · Active {activeName} · Standby {standbyName} · Probe {standbyAge} · Image {snapshot.ApplicationImageState} · Command {commandGate}";
+        DualLinkALineText.Text = FormatDualLinkLine(snapshot.LinkA);
+        DualLinkBLineText.Text = FormatDualLinkLine(snapshot.LinkB);
+        DualLinkADetailText.Text = FormatDualLinkDetail(snapshot.LinkA);
+        DualLinkBDetailText.Text = FormatDualLinkDetail(snapshot.LinkB);
+        DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount}";
         DualLinkLastFailoverText.Text = snapshot.LastFailoverUtc.HasValue
-            ? $"Failover: {snapshot.FailoverCount} · {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms · failback {snapshot.FailbackPolicy}"
-            : $"Failover: {snapshot.FailoverCount} · none yet · failback {snapshot.FailbackPolicy}";
+            ? $"Switch: {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms · {snapshot.LastFailoverReason}"
+            : $"Switch: none · failback {snapshot.FailbackPolicy}";
+    }
+
+    private static string FormatDualLinkLine(Iec101RedundancyChannelSnapshot channel)
+        => $"{channel.Role} · {channel.State}";
+
+    private static string FormatDualLinkDetail(Iec101RedundancyChannelSnapshot channel)
+    {
+        var lastRx = channel.LastGoodResponseUtc.HasValue
+            ? $"{(DateTime.UtcNow - channel.LastGoodResponseUtc.Value).TotalSeconds:0}s ago"
+            : "-";
+        var acd = channel.Acd ? "1" : "0";
+        var dfc = channel.Dfc ? "1" : "0";
+        var fcb = channel.FrameCountBit ? "1" : "0";
+        return $"{channel.PortName} · addr {channel.LinkAddress} · last RX {lastRx} · timeout {channel.ConsecutiveTimeouts} · ACD {acd} · DFC {dfc} · FCB {fcb}";
     }
 
     private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)
     {
         if (_activeDualLinkSession is null)
         {
-            AppendSessionLog("Dual-link manual failover refused: connect IEC-101 Dual Link first.");
+            AppendSessionLog("Manual switch refused: connect IEC-101 Dual Link first.");
             return;
         }
 
-        _activeDualLinkSession.QueueManualFailover("Operator requested manual switchover from the Dual Link workspace");
-        AppendSessionLog("Dual-link manual failover requested. Controller will promote standby only if it is healthy.");
+        _activeDualLinkSession.QueueManualFailover("Operator requested manual switchover from the Redundancy workspace");
+        AppendSessionLog("Manual switch requested. Controller will promote standby only if it is healthy.");
     }
 
     private void DualLinkGi_Click(object sender, RoutedEventArgs e)
     {
         if (_activeDualLinkSession is null)
         {
-            AppendSessionLog("Dual-link GI refused: connect IEC-101 Dual Link first.");
+            AppendSessionLog("GI refused: connect IEC-101 Dual Link first.");
             return;
         }
 
         IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
         {
             Kind = Iec60870ControlCommandKind.GeneralInterrogation,
-            OperatorNote = "Dual Link workspace GI"
+            OperatorNote = "Command dock GI routed through active dual-link channel"
         });
     }
 
@@ -523,6 +542,8 @@ public partial class MainWindow
         }
 
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
+        MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1;
+        UpdateSegmentedNav(false);
     }
 
     private void ApplyProtocolUxProfile(Iec60870ProtocolMode mode)
@@ -629,7 +650,7 @@ public partial class MainWindow
         LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         MappingProfilePanel.Visibility = Visibility.Visible;
 
-        // Evidence Summary is a distilled human-readable proof view. Keep protocol-heavy columns in Protocol Trace and the selected-row inspector.
+        // Evidence Ledger is a distilled human-readable proof view. Keep protocol-heavy columns in Trace and the selected-row inspector.
         SetColumnVisibility(EvidenceClassColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceApciColumn, Visibility.Collapsed);
         SetColumnVisibility(EvidenceTypeColumn, Visibility.Collapsed);
@@ -640,10 +661,10 @@ public partial class MainWindow
         SetColumnVisibility(EvidenceQualityColumn, Visibility.Collapsed);
         EvidenceSignalColumn.Header = is103 ? "Signal" : "Signal";
 
-        // Protocol Trace is now a lightweight line monitor, not a protocol column grid.
+        // Trace is now a lightweight line monitor, not a protocol column grid.
         // Protocol-specific fields are rendered inside the line text and decoded in the interpreter.
 
-        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Protocol Trace.
+        // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Trace.
         SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
@@ -665,11 +686,13 @@ public partial class MainWindow
 
         SessionSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: dedicated redundancy workspace, active-only GI/commands/Class polling, supervised standby link.",
+            Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: use Redundancy for link ownership, Values/Events for process data, Trace only when troubleshooting.",
             Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
             Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",
             _ => "IEC-103 selected: serial protection relay, ACD/DFC, Class 1/Class 2, FUN/INF views."
         };
+
+        ApplyWorkspaceNavigationProfile();
     }
 
     private static void SetColumnVisibility(DataGridColumn column, Visibility visibility)

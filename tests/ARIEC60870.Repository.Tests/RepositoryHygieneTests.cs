@@ -217,6 +217,32 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void DesktopReleaseNavigationStaysFieldFocused()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = File.ReadAllText(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        var navRoot = xaml.IndexOf("x:Name=\"SegmentedNavRoot\"", StringComparison.Ordinal);
+        Assert.True(navRoot >= 0, "Segmented navigation root is missing.");
+        var navEnd = xaml.IndexOf("</ScrollViewer>", navRoot, StringComparison.Ordinal);
+        Assert.True(navEnd > navRoot, "Segmented navigation section is malformed.");
+        var navSection = xaml[navRoot..navEnd];
+
+        Assert.Contains("Content=\"Redundancy\"", navSection);
+        Assert.Contains("Content=\"Values\"", navSection);
+        Assert.Contains("Content=\"Events\"", navSection);
+        Assert.Contains("Content=\"Trace\"", navSection);
+        Assert.Contains("Content=\"Report\"", navSection);
+        Assert.Contains("Content=\"Evidence Ledger\"", navSection);
+        Assert.Contains("Visibility=\"Collapsed\"", navSection);
+
+        Assert.DoesNotContain("Content=\"Evidence Summary\"", navSection);
+        Assert.DoesNotContain("Content=\"Findings\"", navSection);
+        Assert.DoesNotContain("Content=\"Diagnostics\"", navSection);
+        Assert.DoesNotContain("Content=\"Session Notes\"", navSection);
+        Assert.DoesNotContain("Content=\"Capture Rules\"", navSection);
+    }
+
+    [Fact]
     public void DesktopArchitectureAndNativePdfGuardsRemainInPlace()
     {
         var root = FindRepositoryRoot();

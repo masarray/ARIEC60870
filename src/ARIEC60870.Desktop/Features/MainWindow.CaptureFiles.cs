@@ -77,8 +77,8 @@ public partial class MainWindow
                 "Capture",
                 "ARIEC-CAPTURE-OPENED",
                 "ARIEC capture opened for offline review",
-                $"Loaded {rows.Count} unified evidence rows from {dialog.FileName}. Protocol Trace and Evidence Summary are rebuilt from the same frames.jsonl truth.",
-                "Use Protocol Trace or Evidence Summary selection, frame interpreter, export data, or save another selected capture block.");
+                $"Loaded {rows.Count} unified evidence rows from {dialog.FileName}. Trace and Evidence Ledger are rebuilt from the same frames.jsonl truth.",
+                "Use Trace or Evidence Ledger selection, frame interpreter, export data, or save another selected capture block.");
             AppendSessionLog($"Offline capture opened: {rows.Count} rows <- {dialog.FileName}");
         }
         catch (Exception ex)
@@ -141,7 +141,7 @@ public partial class MainWindow
         if (rows.Count == 0)
         {
             MessageBox.Show(this,
-                "Select one or more rows in Protocol Trace or Evidence Summary first, then export the selected rows as an ARIEC capture file.",
+                "Select one or more rows in Trace or Evidence Ledger first, then export the selected rows as an ARIEC capture file.",
                 "Export selected capture",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -171,7 +171,7 @@ public partial class MainWindow
                 "ARIEC-CAPTURE-SELECTION-SAVED",
                 "Selected evidence rows saved as capture",
                 $"Saved {rows.Count} selected {sourceWorkspace} rows to {dialog.FileName}.",
-                "The capture file is a single source of truth. Opening it rebuilds Protocol Trace and Evidence Summary from the same frames.jsonl ledger.");
+                "The capture file is a single source of truth. Opening it rebuilds Trace and Evidence Ledger from the same frames.jsonl ledger.");
             AppendSessionLog($"Selected evidence capture saved: {sourceWorkspace}, {rows.Count} rows -> {dialog.FileName}");
             MessageBox.Show(this,
                 $"Selected evidence capture saved successfully.\n\nSource: {sourceWorkspace}\nRows: {rows.Count}\nFile: {dialog.FileName}",
@@ -354,7 +354,7 @@ public partial class MainWindow
         return new
         {
             sourceWorkspace,
-            policy = "Selected capture is generated from unified evidence rows. frames.jsonl is the single source of truth and is used to rebuild Protocol Trace and Evidence Summary on open.",
+            policy = "Selected capture is generated from unified evidence rows. frames.jsonl is the single source of truth and is used to rebuild Trace and Evidence Ledger on open.",
             retention = BuildEvidenceRetentionPolicyLines().ToArray(),
             trace = new
             {
@@ -460,7 +460,7 @@ public partial class MainWindow
         }
 
         builder.AppendLine();
-        builder.AppendLine("> This capture uses `frames.jsonl` as the single evidence ledger. Opening the capture rebuilds Protocol Trace and Evidence Summary from the same data.");
+        builder.AppendLine("> This capture uses `frames.jsonl` as the single evidence ledger. Opening the capture rebuilds Trace and Evidence Ledger from the same data.");
         return builder.ToString();
     }
 

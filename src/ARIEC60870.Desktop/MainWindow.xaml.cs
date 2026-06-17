@@ -79,6 +79,7 @@ public partial class MainWindow : Window
     private const int MaxVisibleDiagnosticRows = 280;
     private const int MaxVisibleValueRows = 2200;
     private const int MaxVisibleSignalListRows = 360;
+    private const int MaxVisibleDualLinkTimelineRows = 160;
     private const int MaxSessionLogLines = 280;
     private const int MaxUiFlushPerTick = 42;
     private const int MaxUiFlushBurstPerTick = 220;
@@ -232,11 +233,11 @@ public partial class MainWindow : Window
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
         AppendSessionLog("ARIEC60870 Evidence Analyzer initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
-        AppendSessionLog("Output model: Value Viewer stays live; Evidence Summary is de-noised proof; raw hex remains available in Protocol Trace for protocol transparency.");
+        AppendSessionLog("Output model: Values, Events, Trace, and Report stay focused; advanced evidence ledger remains available without crowding the main workspace.");
         Loaded += (_, _) =>
         {
-            MainTabControl.SelectedIndex = 1;
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
+            MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1;
             UpdateSegmentedNav(false);
             UpdateAutoScrollLatestRailVisual();
             ApplyCommandDockLayout();
@@ -262,6 +263,7 @@ public partial class MainWindow : Window
     public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
     public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
     public ObservableCollection<TriggerCaptureRow> TriggerCaptureRows { get; } = new();
+    public ObservableRangeCollection<DualLinkTimelineRow> DualLinkTimelineRows { get; } = new();
 
     private void RefreshPorts_Click(object sender, RoutedEventArgs e) => RefreshPorts();
 

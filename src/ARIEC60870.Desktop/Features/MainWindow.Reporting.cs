@@ -68,11 +68,11 @@ public partial class MainWindow
 
     private IEnumerable<string> BuildEvidenceRetentionPolicyLines()
     {
-        yield return $"Protocol Trace mode: {GetTraceVerbosityMode()}";
+        yield return $"Trace mode: {GetTraceVerbosityMode()}";
         yield return $"Trace ring visible/stored: {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}";
-        yield return $"Evidence Summary ring visible/stored: {EvidenceRows.Count}/{MaxVisibleEvidenceRows}";
+        yield return $"Evidence Ledger ring visible/stored: {EvidenceRows.Count}/{MaxVisibleEvidenceRows}";
         yield return $"Value store visible/keyed limit: {ValueRows.Count}/{MaxVisibleValueRows}";
-        yield return $"Event Log ring visible/stored: {RelayEventRows.Count}/{MaxVisibleRelayEventRows}";
+        yield return $"Events ring visible/stored: {RelayEventRows.Count}/{MaxVisibleRelayEventRows}";
         yield return $"Diagnostics ring visible/stored: {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}";
         yield return $"Trace verbosity suppressed rows: total={_traceVerbositySuppressedRows}, routine={_traceVerbositySuppressedRoutine}, supervisory={_traceVerbositySuppressedSupervisory}";
         yield return $"Backpressure low-value compression: total={_backpressureDroppedEvents}, ack/no-data={_backpressureDroppedAckNoData}, background-poll={_backpressureDroppedBackgroundPoll}, test/supervisory={_backpressureDroppedTestFrames}, other={_backpressureDroppedOtherLowValue}";
@@ -102,6 +102,11 @@ public partial class MainWindow
 
     private void RefreshReportPreview_Click(object sender, RoutedEventArgs e)
     {
+        if (MainTabControl is not null && MainTabControl.SelectedIndex != 6)
+        {
+            MainTabControl.SelectedIndex = 6;
+        }
+
         RefreshReportPreview();
     }
 
@@ -161,7 +166,7 @@ public partial class MainWindow
         builder.AppendLine(BuildReportCss());
         builder.AppendLine("</head><body><main class=\"page\">");
         builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ARIEC60870 Evidence Analyzer</div><h1>Report Workspace</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
-        builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Protocol Trace / Evidence Summary.</li><li>Return here and click Refresh.</li><li>Click Export PDF to create the professional evidence report.</li></ul></section>");
+        builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Values, Events, Trace, or the advanced Evidence Ledger only when needed.</li><li>Return here and click Refresh.</li><li>Click Export PDF to create the professional evidence report.</li></ul></section>");
         builder.AppendLine("<section class=\"card\"><h2>Generated</h2><p>" + EscapeHtml(createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)) + "</p></section>");
         builder.AppendLine("</main></body></html>");
         return builder.ToString();

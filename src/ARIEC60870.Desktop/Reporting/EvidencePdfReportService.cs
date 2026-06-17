@@ -567,8 +567,8 @@ public static class EvidencePdfReportService
     private static string NormalizeWorkspace(string value)
         => value switch
         {
-            "ProtocolTrace" => "Protocol Trace",
-            "EvidenceSummary" => "Evidence Summary",
+            "ProtocolTrace" => "Trace",
+            "EvidenceSummary" => "Evidence Ledger",
             "CurrentEvidenceBuffer" => "Current Evidence",
             _ => CleanCell(value)
         };

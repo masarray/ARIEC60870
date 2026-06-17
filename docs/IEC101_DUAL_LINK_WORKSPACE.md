@@ -4,23 +4,25 @@ The IEC-101 Dual Link workspace is designed for active/standby operations, not f
 
 ## Layout
 
-Top cards show:
+The release layout is intentionally compact:
 
-- controller state;
-- active link;
-- standby link and last supervision age;
-- application image, recovery summary, failover count, and failback policy.
+- a single health strip for controller state, active link, standby probe age, image state, and command gate;
+- one Link A card and one Link B card with role, state, port, last RX, timeout, ACD/DFC, and FCB;
+- one Image/Switch card for application image and last switchover proof;
+- one filtered redundancy timeline.
 
-The evidence grid below focuses on redundancy-specific evidence, including link status supervision, active timeouts, manual switchover requests, failover start/completion, standby recovery probes, recovery completion, command routing, and post-switch General Interrogation.
+The timeline is not a dump of all evidence rows. It only shows redundancy decisions and proof events: manual switch requests, failover start/completion/rejection, standby timeout/failure, recovery milestones, command blocking, image stale/ready transitions, and post-switch GI result. Routine supervision and normal Class polling belong in Trace, not here.
 
 ## Operator proof actions
 
-The controller card includes two small actions that are available only for the dedicated dual-link workflow:
+The Redundancy workspace exposes only link-ownership actions:
 
-- **Manual switch** queues a controlled active/standby ownership change. Use this during FAT/SAT to prove that the standby link can be promoted and that post-switch GI refreshes the application image.
-- **Active GI** queues General Interrogation through the current active link only. It is intentionally not sent on the standby link.
+- **Manual Switch** queues a controlled active/standby ownership change. Use this during FAT/SAT to prove that the standby link can be promoted and that post-switch GI refreshes the application image.
+- **Open Report** opens the report workflow and refreshes the proof preview.
 
-These actions do not make the UI the owner of redundancy logic. The workspace only queues the request; the engine still owns standby health checks, promotion, rejection, post-switch GI, and evidence generation.
+GI, clock sync, read, and control commands remain in the command dock so the operator has one command path. In dual-link mode, that command path is routed through the current active link only.
+
+These actions do not make the UI the owner of redundancy logic. The workspace only queues the switch request; the engine still owns standby health checks, promotion, rejection, post-switch GI, and evidence generation.
 
 ## Separation from single-link IEC-101
 

@@ -65,13 +65,13 @@
                         <TextBlock Text="Open Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="SaveCaptureRailButton" Style="{StaticResource RailIconButton}" Click="SaveSelectedCapture_Click" ToolTip="Save selected Protocol Trace rows as .ariec capture">
+                <Button x:Name="SaveCaptureRailButton" Style="{StaticResource RailIconButton}" Click="SaveSelectedCapture_Click" ToolTip="Save selected Trace rows as .ariec capture">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideDownload}" />
                         <TextBlock Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Protocol Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
+                <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileText}" />
                         <TextBlock Text="Trace TXT" Style="{StaticResource RailButtonCaption}" />
@@ -208,7 +208,7 @@
                             <Border Style="{StaticResource InstrumentChip}" Margin="0,0,8,0" Width="106">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock x:Name="DiagLed" Text="●" Style="{StaticResource LedText}" Foreground="{StaticResource BadBrush}" Opacity="0.28" />
-                                    <TextBlock Text="FIND " Style="{StaticResource ChipLabelText}" />
+                                    <TextBlock Text="ISSUES " Style="{StaticResource ChipLabelText}" />
                                     <TextBlock x:Name="FindingCountText" Text="0" Style="{StaticResource ChipValueText}" />
                                 </StackPanel>
                             </Border>
@@ -257,16 +257,16 @@
                                         <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="NavFrameButton" Content="Protocol Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavOperatorButton" Content="Evidence Summary" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavValueButton" Content="Value Viewer" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavEventButton" Content="Event Log" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavDualLinkButton" Content="Dual Link" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavFindingsButton" Content="Issues" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -275,7 +275,7 @@
                     </Grid>
 
                     <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="1" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
-                    <TabItem Header="Evidence Summary">
+                    <TabItem Header="Evidence Ledger">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
@@ -387,7 +387,7 @@
                             </ListBox>
                             <DataGrid Visibility="Collapsed" IsHitTestVisible="False" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
-                                    <!-- Evidence Summary is intentionally distilled. Full telegram detail remains available in Protocol Trace and the interpreter. -->
+                                    <!-- Evidence Ledger is intentionally distilled. Full telegram detail remains available in Trace and the interpreter. -->
                                     <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
                                     <DataGridTemplateColumn Header="Dir" Width="48"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path=Direction, Mode=OneWay}" Style="{StaticResource TrafficDirectionText}" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Service" Binding="{Binding ProtocolService}" Width="1.0*" MinWidth="132" ElementStyle="{StaticResource GridCellText}" />
@@ -431,7 +431,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Protocol Trace">
+                    <TabItem Header="Trace">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.9*" MinWidth="760" />
@@ -673,7 +673,7 @@
                     </TabItem>
 
                     
-                    <TabItem Header="Value Viewer">
+                    <TabItem Header="Values">
                         <Grid Margin="14">
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
@@ -695,7 +695,7 @@
                             </DataGrid>
                         </Grid>
                     </TabItem>
-                    <TabItem Header="Event Log">
+                    <TabItem Header="Events">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -703,7 +703,7 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <DockPanel>
-                                <TextBlock Text="Change events only" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Event Log records spontaneous, return-information, and time-tagged changes." />
+                                <TextBlock Text="Change events only" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="16,0,0,0">
                                     <TextBlock Text="Filter" Style="{StaticResource EyebrowText}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                     <ComboBox x:Name="EventLogFilterComboBox" Width="132" SelectedIndex="0" SelectionChanged="EventLogFilter_SelectionChanged" ToolTip="Filter event log by signal class">
@@ -993,52 +993,85 @@
                                      FontSize="12" />
                         </Grid>
                     </TabItem>
-                    <TabItem Header="Dual Link Redundancy">
+                    <TabItem Header="Redundancy">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <UniformGrid Grid.Row="0" Columns="4" Rows="1">
-                                <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,10,0">
-                                    <StackPanel>
-                                        <TextBlock Text="CONTROLLER" Style="{StaticResource EyebrowText}" />
-                                        <TextBlock x:Name="DualLinkOverallStateText" Text="Idle" FontSize="17" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
-                                        <TextBlock Text="Active ownership and failover decision" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                        <UniformGrid Columns="2" Margin="0,10,0,0">
-                                            <Button Content="Manual switch" Style="{StaticResource SecondaryButton}" Height="30" Padding="8,4" Margin="0,0,4,0" Click="DualLinkManualFailover_Click" ToolTip="Queue a manual active/standby switchover proof. The controller still verifies standby health before promotion." />
-                                            <Button Content="Active GI" Style="{StaticResource SecondaryButton}" Height="30" Padding="8,4" Margin="4,0,0,0" Click="DualLinkGi_Click" ToolTip="Queue General Interrogation on the current active link only." />
-                                        </UniformGrid>
+                            <Border Grid.Row="0" Style="{StaticResource Card}" Padding="12,9">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="DualLinkHealthStripText"
+                                               Text="Idle · Active - · Standby - · Image - · Command Ready"
+                                               FontSize="13"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource Ink900Brush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
+                                        <Button Content="Manual Switch"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Height="30"
+                                                Padding="10,4"
+                                                Margin="0,0,6,0"
+                                                Click="DualLinkManualFailover_Click"
+                                                ToolTip="Request a controlled active/standby switchover. The controller still verifies standby health before promotion." />
+                                        <Button Content="Open Report"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Height="30"
+                                                Padding="10,4"
+                                                Click="RefreshReportPreview_Click"
+                                                ToolTip="Open the Report workspace and refresh the proof preview." />
                                     </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,10,0">
-                                    <StackPanel>
-                                        <TextBlock Text="ACTIVE LINK" Style="{StaticResource EyebrowText}" />
-                                        <TextBlock x:Name="DualLinkActiveText" Text="-" FontSize="17" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
-                                        <TextBlock Text="Only active owns GI, commands, Class 1/Class 2" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,10,0">
-                                    <StackPanel>
-                                        <TextBlock Text="STANDBY LINK" Style="{StaticResource EyebrowText}" />
-                                        <TextBlock x:Name="DualLinkStandbyText" Text="-" FontSize="17" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
-                                        <TextBlock Text="Supervision only; no event queue drain" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Card}" Padding="14">
-                                    <StackPanel>
-                                        <TextBlock Text="IMAGE / FAILOVER" Style="{StaticResource EyebrowText}" />
-                                        <TextBlock x:Name="DualLinkImageText" Text="Image: -" FontSize="14" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
-                                        <TextBlock x:Name="DualLinkLastFailoverText" Text="Failover: -" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </UniformGrid>
+                                </Grid>
+                            </Border>
 
-                            <DataGrid Grid.Row="2"
-                                      ItemsSource="{Binding EvidenceRows}"
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.05*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="1.05*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="0.9*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="13">
+                                    <StackPanel>
+                                        <TextBlock Text="LINK A" Style="{StaticResource EyebrowText}" />
+                                        <TextBlock x:Name="DualLinkALineText" Text="-" FontSize="16" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
+                                        <TextBlock x:Name="DualLinkADetailText" Text="Port - · last RX - · timeout 0" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="13">
+                                    <StackPanel>
+                                        <TextBlock Text="LINK B" Style="{StaticResource EyebrowText}" />
+                                        <TextBlock x:Name="DualLinkBLineText" Text="-" FontSize="16" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
+                                        <TextBlock x:Name="DualLinkBDetailText" Text="Port - · last RX - · timeout 0" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="4" Style="{StaticResource Card}" Padding="13">
+                                    <StackPanel>
+                                        <TextBlock Text="IMAGE / SWITCH" Style="{StaticResource EyebrowText}" />
+                                        <TextBlock x:Name="DualLinkImageText" Text="Image: -" FontSize="14" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
+                                        <TextBlock x:Name="DualLinkLastFailoverText" Text="Switch: -" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <DataGrid Grid.Row="4"
+                                      ItemsSource="{Binding DualLinkTimelineRows}"
                                       IsReadOnly="True"
+                                      AutoGenerateColumns="False"
                                       HorizontalScrollBarVisibility="Disabled"
                                       VerticalScrollBarVisibility="Auto"
                                       EnableRowVirtualization="True"
@@ -1046,11 +1079,11 @@
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="96" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Class / link" Binding="{Binding DataClass}" Width="190" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Event" Binding="{Binding Summary}" Width="2*" MinWidth="260" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Meaning" Binding="{Binding Detail}" Width="3*" MinWidth="360" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Resp" Binding="{Binding ResponseTime}" Width="72" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="105" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Link" Binding="{Binding Link}" Width="95" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="170" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" MinWidth="260" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="2*" MinWidth="320" ElementStyle="{StaticResource GridCellText}" />
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
@@ -1180,13 +1213,13 @@
                             </StackPanel>
                         </Grid>
 
-                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,6" Margin="0,0,0,8" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Event Log.">
+                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,6" Margin="0,0,0,8" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Events.">
                             <StackPanel>
                                 <TextBlock Text="Command preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,3" />
                                 <TextBlock x:Name="CommandPreviewTitleText" Text="No command signal selected" FontWeight="Medium" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 <TextBlock x:Name="CommandPreviewFeedbackText" Text="Feedback IOA: not mapped" Style="{StaticResource SubtleText}" Visibility="Collapsed" />
-                                <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE. Verify feedback in Value Viewer/Event Log." Style="{StaticResource SubtleText}" Visibility="Collapsed" />
+                                <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE. Verify feedback in Values/Events." Style="{StaticResource SubtleText}" Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
 
