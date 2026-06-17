@@ -22,6 +22,7 @@ using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master;
+using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Reporting;
 using ARIEC60870.Master.Transport;
@@ -125,23 +126,50 @@ public partial class MainWindow
 
         try
         {
-            await using var transport = CreateTransport(settings);
-            _activeTransport = transport;
-            var session = CreateSession(settings, transport);
-            _activeControlSession = session as IProtocolControlCommandSession;
-            session.EvidenceReceived += OnEvidenceReceived;
-            session.FindingRaised += OnFindingRaised;
-
-            var result = durationSeconds <= 0
-                ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
-                : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
-            _lastResult = result;
-
-            await Dispatcher.InvokeAsync(() =>
+            if (IsIec101DualLinkModeSelected())
             {
-                ApplyFinalResult(result);
-                AppendSessionLog("Monitor session completed: " + result.CompletionReason);
-            });
+                await using var linkATransport = CreateTransport(settings);
+                await using var linkBTransport = CreateDualLinkBackupTransport(settings);
+                _activeTransport = linkATransport;
+                _activeBackupTransport = linkBTransport;
+                var session = CreateDualLinkSession(settings, linkATransport, linkBTransport);
+                _activeControlSession = session;
+                _activeDualLinkSession = session;
+                session.EvidenceReceived += OnEvidenceReceived;
+                session.FindingRaised += OnFindingRaised;
+                session.SnapshotChanged += OnDualLinkSnapshotChanged;
+
+                var result = durationSeconds <= 0
+                    ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
+                    : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
+                _lastResult = result;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    ApplyFinalResult(result);
+                    AppendSessionLog("Dual-link redundancy session completed: " + result.CompletionReason);
+                });
+            }
+            else
+            {
+                await using var transport = CreateTransport(settings);
+                _activeTransport = transport;
+                var session = CreateSession(settings, transport);
+                _activeControlSession = session as IProtocolControlCommandSession;
+                session.EvidenceReceived += OnEvidenceReceived;
+                session.FindingRaised += OnFindingRaised;
+
+                var result = durationSeconds <= 0
+                    ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
+                    : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
+                _lastResult = result;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    ApplyFinalResult(result);
+                    AppendSessionLog("Monitor session completed: " + result.CompletionReason);
+                });
+            }
         }
         catch (OperationCanceledException)
         {
@@ -174,7 +202,9 @@ public partial class MainWindow
             await Dispatcher.InvokeAsync(() =>
             {
                 _activeControlSession = null;
+                _activeDualLinkSession = null;
                 _activeTransport = null;
+                _activeBackupTransport = null;
                 _stopRequested = false;
                 _sessionCancellation?.Dispose();
                 _sessionCancellation = null;
@@ -222,7 +252,9 @@ public partial class MainWindow
         }
         settings.TargetProfile = settings.ProtocolMode switch
         {
-            Iec60870ProtocolMode.Iec101 => settings.UseSimulatedSlave ? "IEC-101 demo outstation" : "IEC-101 RTU/outstation",
+            Iec60870ProtocolMode.Iec101 => IsIec101DualLinkModeSelected()
+                ? (settings.UseSimulatedSlave ? "IEC-101 dual-link demo outstation" : "IEC-101 dual-link RTU/outstation")
+                : (settings.UseSimulatedSlave ? "IEC-101 demo outstation" : "IEC-101 RTU/outstation"),
             Iec60870ProtocolMode.Iec104 => settings.UseSimulatedSlave ? "IEC-104 demo server" : "IEC-104 server",
             _ => settings.UseSimulatedSlave ? "generic relay demo slave" : "IEC-103 protection relay"
         };
@@ -331,25 +363,29 @@ public partial class MainWindow
 
     private async Task TryCloseActiveTransportAsync(string reason)
     {
-        var transport = _activeTransport;
-        if (transport is null)
+        var transports = new[] { _activeTransport, _activeBackupTransport }.Where(x => x is not null).Cast<IByteTransport>().ToArray();
+        if (transports.Length == 0)
         {
             return;
         }
 
-        try
+        foreach (var transport in transports)
         {
-            await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-            await Dispatcher.InvokeAsync(() => AppendSessionLog($"Transport closed: {reason}."));
-        }
-        catch (Exception ex)
-        {
-            await Dispatcher.InvokeAsync(() =>
+            try
             {
-                AppendSessionLog($"Transport close warning: {ex.Message}");
-                AddUiDiagnostic("Warning", "Transport", "IEC103-TRANSPORT-CLOSE", "Transport close warning", ex.Message, "Stop/Force Close requested. If COM port remains locked, unplug/replug the USB converter or restart the app.", ex);
-            });
+                await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    AppendSessionLog($"Transport close warning: {ex.Message}");
+                    AddUiDiagnostic("Warning", "Transport", "IEC103-TRANSPORT-CLOSE", "Transport close warning", ex.Message, "Stop/Force Close requested. If COM port remains locked, unplug/replug the USB converter or restart the app.", ex);
+                });
+            }
         }
+
+        await Dispatcher.InvokeAsync(() => AppendSessionLog($"Transport closed: {reason}."));
     }
 
     private IByteTransport CreateTransport(Iec103MasterSettings settings)
@@ -366,6 +402,104 @@ public partial class MainWindow
                 ? new SimulatedRelayTransport(settings)
                 : new SerialByteTransport(settings)
         };
+    }
+
+    private IByteTransport CreateDualLinkBackupTransport(Iec103MasterSettings activeSettings)
+    {
+        var backupSettings = BuildDualLinkBackupSettings(activeSettings);
+        return backupSettings.UseSimulatedSlave
+            ? new SimulatedIec101Transport(backupSettings)
+            : new SerialByteTransport(backupSettings);
+    }
+
+    private Iec101DualLinkRedundancySession CreateDualLinkSession(Iec103MasterSettings activeSettings, IByteTransport linkATransport, IByteTransport linkBTransport)
+    {
+        var backupSettings = BuildDualLinkBackupSettings(activeSettings);
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = activeSettings,
+            LinkA = new Iec101DualLinkEndpoint
+            {
+                Name = "Link A",
+                PortName = activeSettings.PortName,
+                LinkAddress = activeSettings.LinkAddress
+            },
+            LinkB = new Iec101DualLinkEndpoint
+            {
+                Name = "Link B",
+                PortName = backupSettings.PortName,
+                LinkAddress = backupSettings.LinkAddress
+            },
+            PreferredActiveLink = "A",
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Required,
+            DrainClass1BeforePostSwitchGi = true,
+            AllowStandbyClass1Polling = false,
+            AllowStandbyClass2Polling = false,
+            CommandOnActiveOnly = true
+        };
+        options.Validate();
+        return new Iec101DualLinkRedundancySession(options, linkATransport, linkBTransport);
+    }
+
+    private Iec103MasterSettings BuildDualLinkBackupSettings(Iec103MasterSettings activeSettings)
+    {
+        var backup = activeSettings.CreateReportSnapshot();
+        backup.ProtocolMode = Iec60870ProtocolMode.Iec101;
+        backup.PortName = (BackupPortComboBox.SelectedItem as string)?.Trim() ?? BackupPortComboBox.Text.Trim();
+        if (!activeSettings.UseSimulatedSlave && string.IsNullOrWhiteSpace(backup.PortName))
+        {
+            throw new InvalidOperationException("Backup COM port is required for IEC-101 Dual Link Redundancy.");
+        }
+        backup.LinkAddress = ReadInt(BackupLinkAddressBox, "IEC-101 Link B Address", 0, activeSettings.LinkAddressSize == 1 ? 255 : 65535);
+        backup.TargetProfile = activeSettings.UseSimulatedSlave ? "IEC-101 dual-link demo outstation" : "IEC-101 dual-link RTU/outstation";
+        return backup;
+    }
+
+    private void OnDualLinkSnapshotChanged(object? sender, Iec101RedundancySessionSnapshot snapshot)
+    {
+        _ = Dispatcher.InvokeAsync(() => ApplyDualLinkSnapshot(snapshot));
+    }
+
+    private void ApplyDualLinkSnapshot(Iec101RedundancySessionSnapshot snapshot)
+    {
+        DualLinkOverallStateText.Text = snapshot.ControllerState.ToString();
+        DualLinkActiveText.Text = string.IsNullOrWhiteSpace(snapshot.ActiveLinkName) ? "-" : snapshot.ActiveLinkName;
+        DualLinkStandbyText.Text = string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName;
+        DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount}";
+        var standbyAge = snapshot.LastStandbySupervisionUtc.HasValue
+            ? $" · standby probe {(DateTime.UtcNow - snapshot.LastStandbySupervisionUtc.Value).TotalSeconds:0}s ago"
+            : string.Empty;
+        DualLinkStandbyText.Text = (string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName) + standbyAge;
+        DualLinkLastFailoverText.Text = snapshot.LastFailoverUtc.HasValue
+            ? $"Failover: {snapshot.FailoverCount} · {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms"
+            : $"Failover: {snapshot.FailoverCount} · none yet";
+    }
+
+    private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeDualLinkSession is null)
+        {
+            AppendSessionLog("Dual-link manual failover refused: connect IEC-101 Dual Link first.");
+            return;
+        }
+
+        _activeDualLinkSession.QueueManualFailover("Operator requested manual switchover from the Dual Link workspace");
+        AppendSessionLog("Dual-link manual failover requested. Controller will promote standby only if it is healthy.");
+    }
+
+    private void DualLinkGi_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeDualLinkSession is null)
+        {
+            AppendSessionLog("Dual-link GI refused: connect IEC-101 Dual Link first.");
+            return;
+        }
+
+        IssuePriorityRuntimeCommand(new Iec60870ControlCommandRequest
+        {
+            Kind = Iec60870ControlCommandKind.GeneralInterrogation,
+            OperatorNote = "Dual Link workspace GI"
+        });
     }
 
     private IProtocolMasterSession CreateSession(Iec103MasterSettings settings, IByteTransport transport)
@@ -393,6 +527,7 @@ public partial class MainWindow
     {
         var is103 = mode == Iec60870ProtocolMode.Iec103;
         var is101 = mode == Iec60870ProtocolMode.Iec101;
+        var isDual101 = is101 && IsIec101DualLinkModeSelected();
         var is104 = mode == Iec60870ProtocolMode.Iec104;
         var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
@@ -411,29 +546,33 @@ public partial class MainWindow
 
         SetupTitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 dual link redundancy setup",
             Iec60870ProtocolMode.Iec101 => "IEC-101 telecontrol serial setup",
             Iec60870ProtocolMode.Iec104 => "IEC-104 telecontrol TCP/IP setup",
             _ => "IEC-103 protection relay setup"
         };
         SetupSubtitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isDual101 => "Two independent serial links: active owns GI, commands and Class polling; standby is supervised without draining event queues.",
             Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
             Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
             _ => "Serial protection interface: link address, Class 1/Class 2 policy, FUN/INF mapping."
         };
         ProtocolSetupBadgeText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 · Dual Link Redundancy",
             Iec60870ProtocolMode.Iec101 => "IEC-101 · FT1.2 serial telecontrol",
             Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP telecontrol",
             _ => "IEC-103 · FT1.2 serial protection"
         };
         ProtocolSetupDescriptionText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isDual101 => "Use this workspace when the RTU/outstation exposes two IEC-101 serial paths with active/standby master ownership, failover evidence, and post-switch GI validation.",
             Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
             Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
             _ => "Use this profile for protection IED IEC-103 tests. Main addressing is FUN/INF; Class 1 carries events, Class 2 carries background data."
         };
-        SerialConnectionTitleText.Text = is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
+        SerialConnectionTitleText.Text = isDual101 ? "ACTIVE LINK A SERIAL CONNECTION" : is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
         PollingPolicyTitleText.Text = is101 ? "IEC-101 CLASS POLLING" : "IEC-103 CLASS POLLING";
         Class2IntervalLabelText.Text = is101 ? "Class 2 scan interval (ms)" : "Class 2 interval (ms)";
         MaxDrainLabelText.Text = is101 ? "Max Class 1 event drain" : "Max Class 1 drain";
@@ -477,6 +616,7 @@ public partial class MainWindow
         }
 
         SerialConnectionPanel.Visibility = serialVisibility;
+        DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
         TcpConnectionPanel.Visibility = tcpVisibility;
         SerialPollingPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         Iec10xProfilePanel.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
@@ -523,6 +663,7 @@ public partial class MainWindow
 
         SessionSubtitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: dedicated redundancy workspace, active-only GI/commands/Class polling, supervised standby link.",
             Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
             Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",
             _ => "IEC-103 selected: serial protection relay, ACD/DFC, Class 1/Class 2, FUN/INF views."
@@ -553,6 +694,13 @@ public partial class MainWindow
         {
             // Keep the default app icon if a resource is unavailable in a developer build.
         }
+    }
+
+    private bool IsIec101DualLinkModeSelected()
+    {
+        var protocol = (ProtocolModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty;
+        return protocol.Contains("dual link", StringComparison.OrdinalIgnoreCase)
+               || protocol.Contains("redundancy", StringComparison.OrdinalIgnoreCase);
     }
 
     private Iec60870ProtocolMode GetSelectedProtocolMode()

@@ -8,7 +8,7 @@ The primary product role is:
 
 > **Single-connection IEC 60870 analyzer/tester that presents each protocol with its own setup, grid columns, decoder language, and evidence model.**
 
-IEC-103 remains the mature protection-relay path. IEC-101 and IEC-104 are expanded as practical telecontrol analyzer paths with protocol-aware UX and clean-room 10x ASDU/APCI decoding. Dual-link/NUC-style redundancy is intentionally out of scope for the baseline analyzer.
+IEC-103 remains the mature protection-relay path. IEC-101 and IEC-104 are expanded as practical telecontrol analyzer paths with protocol-aware UX and clean-room 10x ASDU/APCI decoding. IEC-101 dual-link redundancy is implemented as a dedicated workspace and engine path; single-link IEC-101 remains a separate clean workflow.
 
 
 ## Protocol-Aware UX Contract
@@ -48,7 +48,7 @@ The IEC101MasterTester reference implementation shows a useful product pattern:
 For ARIEC60870 we keep this pattern, but we remove:
 
 - dual redundancy
-- NUC workspace
+- IEC-101 Dual Link Redundancy workspace
 - slave simulator scope
 - external protocol-stack dependency
 

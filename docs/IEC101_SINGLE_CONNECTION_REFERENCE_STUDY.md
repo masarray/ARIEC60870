@@ -8,7 +8,7 @@ Only the **single active connection** pattern is relevant for ARIEC60870.
 
 The following parts are intentionally not carried over:
 
-- NUC dual redundancy
+- IEC-101 Dual Link Redundancy
 - active/standby channel orchestration
 - dual-link slave host
 - redundancy dashboards

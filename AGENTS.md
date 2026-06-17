@@ -23,7 +23,7 @@ ARIEC60870 is **not**:
    - Offline decoder is a supporting mode for troubleshooting traces.
 
 2. **Single connection baseline**
-   - Do not add dual-link redundancy, active/standby, or NUC-style architecture unless explicitly requested.
+   - Dual-link redundancy and active/standby architecture may be added only when explicitly requested; keep the wording protocol-neutral and avoid customer- or country-specific convention labels in public files.
 
 3. **Controlled polling**
    - Class 2 is normal/background polling.

@@ -35,12 +35,13 @@ Start with the website when you want the user-facing product explanation, downlo
 Use ARIEC60870 when you need to:
 
 - check a single IEC-101, IEC-103, or IEC-104 endpoint in a controlled test environment;
+- validate IEC-101 dual-link active/standby redundancy behavior with a dedicated workspace;
 - confirm startup communication and General Interrogation behavior;
 - review decoded values, events, diagnostics, and protocol evidence;
 - use project-owned mapping profiles for readable signal names;
 - export a professional PDF evidence report for review, FAT/SAT notes, or handover.
 
-ARIEC60870 is not a production SCADA system, not a gateway, not a redundant master station, and not a replacement for an approved project test procedure.
+ARIEC60870 is not a production SCADA system, not a gateway, not a production redundant master station, and not a replacement for an approved project test procedure.
 
 ## Download and run
 
@@ -73,7 +74,7 @@ SHA256SUMS.txt
 ## First use
 
 1. Open **Setup**.
-2. Select the protocol mode: **IEC-101 serial**, **IEC-103 serial**, or **IEC-104 TCP/IP**.
+2. Select the protocol mode: **IEC-101 serial**, **IEC-101 Dual Link Redundancy**, **IEC-103 serial**, or **IEC-104 TCP/IP**.
 3. Enter the project-approved communication settings for the test device.
 4. Enable **General Interrogation** when a startup snapshot is needed.
 5. Load a mapping profile if readable signal names are required.
@@ -92,6 +93,10 @@ Use **IEC-104 TCP/IP** for authorized endpoint checks over a TCP connection. Ent
 ### IEC-101 serial
 
 Use **IEC-101 serial** for serial RTU or gateway checks. Select the COM port and enter the approved serial settings, link address, common address, and ASDU size profile.
+
+### IEC-101 Dual Link Redundancy
+
+Use **IEC-101 Dual Link Redundancy** when the RTU/outstation exposes two independent IEC-101 serial paths. Link A and Link B use separate transports and link-layer state. Only the active link owns General Interrogation, commands, Class 1 drain, and Class 2 background polling; the standby link is supervised without draining event queues. The dedicated workspace includes manual switchover proof and active-link GI actions for FAT/SAT evidence.
 
 ### IEC-103 serial
 
@@ -121,6 +126,7 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 ## Core capabilities
 
 - IEC 60870-5-101 serial evidence workflow.
+- IEC 60870-5-101 Dual Link Redundancy workspace with active-only command/GI/Class polling, supervised standby, failover journal, and post-switch GI evidence.
 - IEC 60870-5-103 serial relay evidence workflow.
 - IEC 60870-5-104 TCP/IP evidence workflow.
 - Startup communication, General Interrogation, value, event, diagnostic, and frame review.
@@ -182,6 +188,7 @@ The local packaging script reads the repository version by default and runs the 
 - [Documentation Map](docs/README.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Quick Start](docs/QUICK_START.md)
+- [IEC-101 Dual Link FAT Checklist](docs/IEC101_DUAL_LINK_FAT_CHECKLIST.md)
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Native PDF Engine](docs/NATIVE_PDF_ENGINE.md)

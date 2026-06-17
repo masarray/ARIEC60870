@@ -30,6 +30,13 @@
 - Moved README screenshots to canonical `site/assets` paths.
 - Added `seo-manifest.json`, `llms.txt`, `humans.txt`, explicit favicon/touch icons, and repository tests that verify sitemap/canonical coverage.
 
+### IEC-101 Dual Link Redundancy
+- Added manual switchover proof support in the IEC-101 Dual Link workspace. The UI queues the request while the engine still validates standby promotability and records evidence.
+- Added active-link GI action in the dedicated dual-link workspace so FAT/SAT proof can refresh the application image without sending GI on standby.
+- Expanded dual-link snapshots with application-image object count, GI timing, standby supervision timing, and last failover route/reason.
+- Added dual-link session regression tests for manual failover evidence and stabilization-window behavior.
+- Added `docs/IEC101_DUAL_LINK_FAT_CHECKLIST.md` for startup, manual switch, failure proof, and report acceptance checks.
+
 ### Added
 - Phase C test credibility upgrade with first-class xUnit regression suites for Core, Master, Reporting, Desktop capture contracts, and Repository hygiene.
 - CI coverage collection and `.trx` result artifacts for every xUnit suite.

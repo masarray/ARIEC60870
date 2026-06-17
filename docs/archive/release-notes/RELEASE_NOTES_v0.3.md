@@ -37,7 +37,7 @@ Single active IEC-103 master connection -> protection relay IEC-103 slave
 ## Intentionally excluded
 
 - Dual redundancy.
-- NUC active/standby orchestration.
+- IEC-101 dual-link active/standby orchestration.
 - Slave simulator.
 - external protocol stack/dissector dependency.
 

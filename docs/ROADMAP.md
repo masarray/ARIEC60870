@@ -39,7 +39,7 @@ This keeps the public message honest while still making the project useful to pr
 | Offline capture review | Medium | should rebuild all relevant workspaces from one source of truth |
 | Native PDF evidence report | Implemented baseline | built-in clean-room PDF engine is available; future work is PDF/A, richer typography, branding, and appendix controls |
 | Release automation | Medium-high | single-file Windows ZIP, checksum, SBOM, and provenance workflow are in place |
-| Passive monitor / NUC evidence | Planned | future feature family; should start with offline IEC-104 PCAP review before live capture |
+| Passive monitor / dual-link evidence | Planned | future feature family; should start with offline IEC-104 PCAP review before live capture |
 | RTU/slave simulation | Future | useful later, but not required for the current public positioning |
 
 ## Public-show strategy
@@ -180,7 +180,7 @@ Exit criteria:
 - user can run a guided task and export task evidence;
 - failed attempts and successful official captures can be separated.
 
-### v4.x — Passive monitor and NUC evidence family
+### v4.x — Passive monitor and dual-link evidence family
 
 Goal: add read-only monitoring and redundancy evidence without changing the current product into an unsafe sniffer.
 
@@ -190,7 +190,7 @@ Planned sequence:
 2. live IEC-104 passive monitor for authorized mirror/TAP/endpoint capture;
 3. offline IEC-101 serial byte-stream review;
 4. live serial passive monitor with explicit tap mode and safety warnings;
-5. NUC / redundant-link evidence summary and PDF section.
+5. IEC-101 dual-link redundancy evidence summary and PDF section.
 
 Safety position:
 
@@ -237,7 +237,7 @@ Safety position:
    Decoded protocol fields, raw hex, and assumptions should remain visible.
 
 4. **Safe wording**  
-   The product should be described as a focused IEC 60870 Evidence Analyzer until simulator, task mode, passive monitor, NUC, and report workflow become mature enough for a wider claim.
+   The product should be described as a focused IEC 60870 Evidence Analyzer until simulator, task mode, passive monitor, IEC-101 dual-link redundancy, and report workflow become mature enough for a wider claim.
 
 5. **Public trust**  
    Apache-2.0 licensing, clean release assets, checksums, SBOM, provenance, clear docs, and green CI matter as much as feature count.

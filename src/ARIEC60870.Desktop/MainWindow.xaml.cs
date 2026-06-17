@@ -22,6 +22,7 @@ using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master;
+using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Reporting;
 using ARIEC60870.Master.Transport;
@@ -47,9 +48,11 @@ public partial class MainWindow : Window
     private Iec103SignalMappingProfile _mappingProfile = Iec103SignalMappingProfile.Empty;
     private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
     private IProtocolControlCommandSession? _activeControlSession;
+    private Iec101DualLinkRedundancySession? _activeDualLinkSession;
     private bool _commandDockExpanded = true;
     private readonly BoundedRingBuffer<RelayEventRow> _relayEventStore = new(MaxVisibleRelayEventRows);
     private IByteTransport? _activeTransport;
+    private IByteTransport? _activeBackupTransport;
     private bool _stopRequested;
     private string _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
     private EvidenceRow? _selectedFrameRow;
@@ -297,6 +300,29 @@ public partial class MainWindow : Window
         PortComboBox.SelectedItem = !string.IsNullOrWhiteSpace(previous) && PortComboBox.Items.Contains(previous)
             ? previous
             : PortComboBox.Items[0];
+
+        if (BackupPortComboBox is not null)
+        {
+            var previousBackup = BackupPortComboBox.SelectedItem as string;
+            BackupPortComboBox.Items.Clear();
+            foreach (var port in PortComboBox.Items.OfType<string>())
+            {
+                BackupPortComboBox.Items.Add(port);
+            }
+
+            if (!string.IsNullOrWhiteSpace(previousBackup) && BackupPortComboBox.Items.Contains(previousBackup))
+            {
+                BackupPortComboBox.SelectedItem = previousBackup;
+            }
+            else if (BackupPortComboBox.Items.Count > 1)
+            {
+                BackupPortComboBox.SelectedIndex = 1;
+            }
+            else if (BackupPortComboBox.Items.Count > 0)
+            {
+                BackupPortComboBox.SelectedIndex = 0;
+            }
+        }
     }
 
 

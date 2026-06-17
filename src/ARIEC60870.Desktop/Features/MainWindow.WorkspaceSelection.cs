@@ -72,7 +72,8 @@ public partial class MainWindow
             NavDiagnosticsButton,
             NavReportButton,
             NavNotesButton,
-            NavTriggersButton
+            NavTriggersButton,
+            NavDualLinkButton
         };
     }
 

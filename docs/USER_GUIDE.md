@@ -15,7 +15,7 @@ Use it for:
 - Value, event, diagnostic, and raw frame review.
 - Professional PDF evidence reports for FAT/SAT notes, troubleshooting records, and handover.
 
-ARIEC60870 is not a SCADA server, not a redundant master station, and not a replacement for an approved project FAT/SAT procedure.
+ARIEC60870 is not a SCADA server, not a production redundant master station, and not a replacement for an approved project FAT/SAT procedure.
 
 ## Download the application
 
