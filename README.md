@@ -10,13 +10,25 @@
 
 The app helps engineers run a focused communication session, review decoded evidence, inspect protocol details, and export a professional PDF report. It is intended for authorized engineering environments only.
 
-Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest).
+- Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
+- Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
     <img src="site/assets/screenshots/ariec60870-screen-02.webp" alt="ARIEC60870 Windows protocol evidence analyzer" width="92%">
   </a>
 </p>
+
+## Website and user guide hub
+
+Start with the website when you want the user-facing product explanation, download path, and short wiki pages:
+
+- [Product website](https://masarray.github.io/ARIEC60870/) — product purpose, features, use cases, screenshots, license notes, and download CTA.
+- [Quick Start](https://masarray.github.io/ARIEC60870/quick-start.html) — download, run, configure, review evidence, export PDF.
+- [Download Guide](https://masarray.github.io/ARIEC60870/download.html) — release asset, package contents, and integrity files.
+- [Protocol Coverage](https://masarray.github.io/ARIEC60870/protocol-coverage.html) — IEC-101, IEC-103, and IEC-104 evidence workflows.
+- [Troubleshooting](https://masarray.github.io/ARIEC60870/troubleshooting.html) — no response, GI gaps, serial/TCP checks, mapping issues, and report review.
+- [FAQ](https://masarray.github.io/ARIEC60870/faq.html) — license, commercial use, protocol support, current scope, and safe use boundaries.
 
 ## What it is for
 
@@ -69,7 +81,7 @@ SHA256SUMS.txt
 7. Review **Operator Evidence**, **Value Viewer**, **Event Log**, **Frame Trace**, **Diagnostics**, and **Report**.
 8. Open **Report** and click **Export PDF** when the evidence is ready.
 
-For a fuller walkthrough, read the [User Guide](docs/USER_GUIDE.md) and [Quick Start](docs/QUICK_START.md).
+For a fuller walkthrough, read the [User Guide](docs/USER_GUIDE.md), [Quick Start](docs/QUICK_START.md), or the [user website](https://masarray.github.io/ARIEC60870/).
 
 ## Connection overview
 
@@ -123,6 +135,12 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 - `docs/` — User Guide, Quick Start, Troubleshooting, Validation Matrix, and Release Packaging notes.
 - `samples/` and `profiles/` — neutral example files.
 - `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `CHANGELOG.md`.
+
+## License and commercial use
+
+ARIEC60870 is licensed under [Apache-2.0](LICENSE). It may be used in internal and commercial engineering workflows, subject to the Apache-2.0 license terms, organization policy, customer/project rules, and the approved test environment.
+
+Commercial or internal use does not remove the need to validate exported evidence, follow the approved project procedure, and protect sensitive project information before sharing reports.
 
 ## Build from source
 
