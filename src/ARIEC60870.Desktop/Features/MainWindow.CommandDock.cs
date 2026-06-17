@@ -120,13 +120,7 @@ public partial class MainWindow
         }
         if (CommandQualifierHelpText is not null)
         {
-            CommandQualifierHelpText.Text = kind == Iec60870ControlCommandKind.DoubleCommand
-                ? "0 = default double command"
-                : kind == Iec60870ControlCommandKind.SingleCommand
-                    ? "0 = default single command"
-                    : kind == Iec60870ControlCommandKind.RegulatingStepCommand
-                        ? "0 = default step command"
-                        : "0 = default qualifier";
+            CommandQualifierHelpText.Text = string.Empty;
         }
         CommandSelectCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
         CommandOperateCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
@@ -254,7 +248,6 @@ public partial class MainWindow
         }
 
         UpdateCommandPreview(option);
-        CommandDockStatusText.Text = $"Target selected: {option.Name}";
         AppendSessionLog($"Command target selected: {option.Name} ({option.Detail}).");
     }
 

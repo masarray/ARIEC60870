@@ -1,10 +1,24 @@
 ## Unreleased
 
+### UX polish
+- Stabilized WPF scrollbar rendering with an Apple-style full-hit-area thumb template that keeps the rounded pill inside the allocated Thumb bounds.
+- Replaced text-only report preview with an embedded WebView2 PDF preview generated from the same native PDF engine as Export PDF.
+- Hardened trace selection so clicks in the right scrollbar zone are never treated as trace row selection.
+
+## Unreleased
+
 ### IEC-101 Dual Link Release UX Cleanup
 - Reduced the primary desktop workspaces to the field workflow: Redundancy, Values, Events, Trace, and Report for IEC-101 dual-link mode.
 - Moved Evidence Summary out of the primary path by renaming it to Evidence Ledger and hiding advanced/supporting tabs from the segmented release navigation.
 - Rebuilt the Redundancy workspace into a compact health strip, Link A/Link B cards, image/switch card, and filtered redundancy timeline.
 - Removed the Active GI button from the Redundancy workspace so GI, clock sync, read, and control actions stay in the command dock and route through the active link only.
+
+### Final release micro-polish
+- Removed the command preview card and repeated command-target status copy from the command dock.
+- Removed low-value helper text from the command dock surface while keeping tooltips on all command controls.
+- Replaced the report preview WebBrowser with a WPF FlowDocument preview so it uses the same modern scrollbar styling as the rest of the app.
+- Matched Auto Scroll rail button sizing with the other left-rail buttons and softened the rail background gradient.
+- Refined scrollbar thumb templates so short thumbs remain rounded instead of looking clipped at the bottom.
 
 # Changelog
 

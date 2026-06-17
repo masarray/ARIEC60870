@@ -60,6 +60,7 @@ public sealed class RelayEventRow
     {
         if (string.IsNullOrWhiteSpace(item.RelayTimeText) ||
             item.RelayTimeText == "-" ||
+            item.RelayTimeText.Contains("no timestamp", System.StringComparison.OrdinalIgnoreCase) ||
             item.RelayTimeText.Contains("No relay timestamp", System.StringComparison.OrdinalIgnoreCase))
         {
             return "no timestamp";

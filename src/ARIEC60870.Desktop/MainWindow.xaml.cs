@@ -57,7 +57,7 @@ public partial class MainWindow : Window
     private string _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
     private EvidenceRow? _selectedFrameRow;
     private string? _pinnedProtocolMapKey;
-    private bool _statusHistoryExpanded = true;
+    private bool _statusHistoryExpanded;
     private bool _isApplyingSavedSetup;
     private bool _savedSetupPreferencesLoaded;
     private bool _defaultIoaSeedSettingsApplied;
@@ -243,6 +243,8 @@ public partial class MainWindow : Window
             ApplyCommandDockLayout();
             UpdateCommandDockActionButtons();
             UpdateConnectToggleVisual(false);
+            SetStatusHistoryPanelExpanded(false);
+            RefreshReportPreview();
             RefreshCommandSignalOptions();
             AutoFillCommandTargetFromProfile();
         };
@@ -276,6 +278,16 @@ public partial class MainWindow : Window
     {
         SaveSetupPreferencesFromUi(silent: true);
         SetupOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void CloseSetupAndConnect_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSetupPreferencesFromUi(silent: true);
+        SetupOverlay.Visibility = Visibility.Collapsed;
+        if (_sessionCancellation is null)
+        {
+            Start_Click(sender, e);
+        }
     }
 
     private void RefreshPorts()

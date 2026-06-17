@@ -317,7 +317,7 @@ public partial class MainWindow
         settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
         settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
         settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
-        settings.MappingProfilePath = MappingProfilePathBox.Text.Trim();
+        settings.MappingProfilePath = SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text.Trim());
         ApplyLowBaudSerialTimingGuard(settings);
 
         var serialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
@@ -476,10 +476,57 @@ public partial class MainWindow
         DualLinkBLineText.Text = FormatDualLinkLine(snapshot.LinkB);
         DualLinkADetailText.Text = FormatDualLinkDetail(snapshot.LinkA);
         DualLinkBDetailText.Text = FormatDualLinkDetail(snapshot.LinkB);
+        ApplyDualLinkCardTheme(DualLinkACard, snapshot.LinkA);
+        ApplyDualLinkCardTheme(DualLinkBCard, snapshot.LinkB);
         DualLinkImageText.Text = $"Image: {snapshot.ApplicationImageState} · objects {snapshot.ApplicationImageObjectCount}";
         DualLinkLastFailoverText.Text = snapshot.LastFailoverUtc.HasValue
             ? $"Switch: {snapshot.LastFailoverFromLink} → {snapshot.LastFailoverToLink} · {snapshot.LastFailoverLatencyMs} ms · {snapshot.LastFailoverReason}"
             : $"Switch: none · failback {snapshot.FailbackPolicy}";
+    }
+
+
+    private static void ApplyDualLinkCardTheme(Border card, Iec101RedundancyChannelSnapshot channel)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        var (from, to, border) = ResolveDualLinkCardPalette(channel);
+        var background = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1),
+            GradientStops =
+            {
+                new GradientStop((Color)ColorConverter.ConvertFromString(from), 0),
+                new GradientStop((Color)ColorConverter.ConvertFromString("#FFFFFF"), 0.58),
+                new GradientStop((Color)ColorConverter.ConvertFromString(to), 1)
+            }
+        };
+        background.Freeze();
+
+        var borderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(border));
+        borderBrush.Freeze();
+
+        card.Background = background;
+        card.BorderBrush = borderBrush;
+    }
+
+    private static (string From, string To, string Border) ResolveDualLinkCardPalette(Iec101RedundancyChannelSnapshot channel)
+    {
+        if (channel.State is Iec101RedundancyChannelState.TimeoutSuspect or Iec101RedundancyChannelState.FailedLatched
+            || (channel.IsOpen && !channel.IsHealthy && channel.Role != Iec101RedundancyChannelRole.None))
+        {
+            return ("#FFF1F2", "#FECACA", "#F87171");
+        }
+
+        return channel.Role switch
+        {
+            Iec101RedundancyChannelRole.Active => ("#ECFDF5", "#A7F3D0", "#10B981"),
+            Iec101RedundancyChannelRole.Standby => ("#EFF6FF", "#BFDBFE", "#3B82F6"),
+            _ => ("#FFFFFF", "#F1F5F9", "#DBE5F2")
+        };
     }
 
     private static string FormatDualLinkLine(Iec101RedundancyChannelSnapshot channel)

@@ -12,11 +12,13 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
@@ -41,7 +43,7 @@ public partial class MainWindow
         RefreshActiveTraceSnapshot();
         if (IsReportPreviewTabActive())
         {
-            RefreshReportPreview();
+            Dispatcher.BeginInvoke(new Action(RefreshReportPreview), DispatcherPriority.Background);
         }
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
@@ -179,7 +181,13 @@ public partial class MainWindow
             return;
         }
 
-        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        var pointer = e.GetPosition(listBox);
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) || IsPointerInsideVerticalScrollbarZone(listBox, pointer))
+        {
+            return;
+        }
+
+        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
         if (index < 0 || index >= FrameTraceRows.Count)
         {
             return;
@@ -206,7 +214,13 @@ public partial class MainWindow
             return;
         }
 
-        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
+        var pointer = e.GetPosition(listBox);
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) || IsPointerInsideVerticalScrollbarZone(listBox, pointer))
+        {
+            return;
+        }
+
+        var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
         if (index < 0 || index >= FrameTraceRows.Count)
         {
             return;
@@ -405,6 +419,36 @@ public partial class MainWindow
         return fallbackIndex;
     }
 
+
+    private static bool IsScrollChromeInput(DependencyObject? source)
+    {
+        for (var current = source; current is not null; current = GetVisualOrLogicalParent(current))
+        {
+            if (current is ScrollBar or Thumb or Track or RepeatButton)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPointerInsideVerticalScrollbarZone(FrameworkElement owner, Point point)
+    {
+        // Guard against template hit-test quirks: clicks in the right rail belong to the ScrollBar, not row selection.
+        return point.X >= Math.Max(0, owner.ActualWidth - 28);
+    }
+
+    private static DependencyObject? GetVisualOrLogicalParent(DependencyObject current)
+    {
+        if (current is Visual or Visual3D)
+        {
+            return VisualTreeHelper.GetParent(current);
+        }
+
+        return LogicalTreeHelper.GetParent(current);
+    }
+
     private int GetProtocolTraceIndexFromInput(ListBox listBox, DependencyObject? originalSource, Point point)
     {
         var sourceItem = originalSource is null
@@ -545,6 +589,11 @@ public partial class MainWindow
             return;
         }
 
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject))
+        {
+            return;
+        }
+
         var index = GetEvidenceSummaryIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
         if (index < 0 || index >= EvidenceRows.Count)
         {
@@ -567,6 +616,11 @@ public partial class MainWindow
         }
 
         if (sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject))
         {
             return;
         }

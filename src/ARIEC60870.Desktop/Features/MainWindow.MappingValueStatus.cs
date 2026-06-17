@@ -56,14 +56,14 @@ public partial class MainWindow
             if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
             {
                 _mappingProfile = Iec103SignalMappingProfile.LoadFromFile(fileName);
-                MappingProfilePathBox.Text = fileName;
+                MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 MappingProfileStatusText.Text = $"Loaded: {_mappingProfile.ProfileName} ({_mappingProfile.Signals.Count} signals)";
                 AppendSessionLog("IEC-103 mapping profile loaded: " + _mappingProfile.ProfileName);
             }
             else
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(fileName);
-                MappingProfilePathBox.Text = fileName;
+                MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
                 var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
                 MappingProfileStatusText.Text = $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
@@ -106,7 +106,7 @@ public partial class MainWindow
             return;
         }
 
-        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty, MappingProfilePathBox.Text)
+        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty, SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text))
         {
             Owner = this
         };
@@ -114,7 +114,7 @@ public partial class MainWindow
         if (editor.ShowDialog() == true)
         {
             _ioaProfile = editor.Profile;
-            MappingProfilePathBox.Text = editor.SavedProfilePath;
+            MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(editor.SavedProfilePath);
             ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
             var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
             MappingProfileStatusText.Text = $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
@@ -916,13 +916,16 @@ public partial class MainWindow
     }
 
     private void ToggleStatusHistoryPanel()
+        => SetStatusHistoryPanelExpanded(!_statusHistoryExpanded);
+
+    private void SetStatusHistoryPanelExpanded(bool expanded)
     {
-        _statusHistoryExpanded = !_statusHistoryExpanded;
-        StatusHistoryPanel.Height = _statusHistoryExpanded ? double.NaN : 52;
-        StatusHistoryGapRow.Height = _statusHistoryExpanded ? new GridLength(8) : new GridLength(0);
-        StatusHistoryContentRow.Height = _statusHistoryExpanded ? new GridLength(118) : new GridLength(0);
-        StatusHistoryGrid.Visibility = _statusHistoryExpanded ? Visibility.Visible : Visibility.Collapsed;
-        StatusHistoryToggleIcon.Data = (Geometry)FindResource(_statusHistoryExpanded ? "LucideCircleChevronDown" : "LucideCircleChevronUp");
+        _statusHistoryExpanded = expanded;
+        StatusHistoryPanel.Height = expanded ? double.NaN : 52;
+        StatusHistoryGapRow.Height = expanded ? new GridLength(8) : new GridLength(0);
+        StatusHistoryContentRow.Height = expanded ? new GridLength(118) : new GridLength(0);
+        StatusHistoryGrid.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        StatusHistoryToggleIcon.Data = (Geometry)FindResource(expanded ? "LucideCircleChevronDown" : "LucideCircleChevronUp");
         StatusHistoryToggleIcon.Stroke = (Brush)FindResource("Ink500Brush");
     }
 

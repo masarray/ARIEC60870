@@ -3,6 +3,7 @@
 <Window x:Class="ARIEC60870.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="ARIEC60870 Evidence Analyzer"
         Width="1540" Height="900" MinWidth="1280" MinHeight="760"
         WindowStartupLocation="CenterScreen"
@@ -24,8 +25,9 @@
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
-                    <GradientStop Color="#FAFCFF" Offset="0.55" />
-                    <GradientStop Color="#F3F7FF" Offset="1" />
+                    <GradientStop Color="#F7FBFF" Offset="0.42" />
+                    <GradientStop Color="#EEF6FF" Offset="0.76" />
+                    <GradientStop Color="#F0FFF9" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
             <StackPanel VerticalAlignment="Stretch" HorizontalAlignment="Center">
@@ -78,9 +80,9 @@
                     </StackPanel>
                 </Button>
                 <ToggleButton x:Name="AutoScrollLatestToggleButton"
-                              Width="76"
-                              Height="64"
-                              Margin="0,0,0,8"
+                              Width="68"
+                              Height="66"
+                              Margin="0,5"
                               IsChecked="True"
                               IsEnabled="False"
                               Checked="AutoScrollLatestToggle_Changed"
@@ -95,15 +97,17 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="{x:Type ToggleButton}">
-                                        <Border x:Name="ToggleRoot"
-                                                Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="18"
-                                                Padding="8"
-                                                Effect="{StaticResource SoftShadow}">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
+                                        <Grid Margin="4">
+                                            <Border x:Name="ToggleRoot"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="18"
+                                                    Padding="8"
+                                                    Effect="{StaticResource SoftShadow}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </Grid>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsChecked" Value="True">
                                                 <Setter TargetName="ToggleRoot" Property="Background" Value="{StaticResource AccentSoftBrush}" />
@@ -122,7 +126,7 @@
                         </Style>
                     </ToggleButton.Style>
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Grid Width="20" Height="20" HorizontalAlignment="Center">
+                        <Grid Width="24" Height="24" HorizontalAlignment="Center">
                             <Path x:Name="AutoScrollOnIcon"
                                   Style="{StaticResource RailIconPath}"
                                   Data="{StaticResource LucideMouse}"
@@ -818,8 +822,14 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
-                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Scrollable HTML preview of the final PDF content.">
-                                <WebBrowser x:Name="ReportPreviewBrowser" />
+                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Auto-generated PDF preview using the same report engine as Export PDF.">
+                                <Grid>
+                                    <wv2:WebView2 x:Name="ReportPreviewWebView" />
+                                    <FlowDocumentScrollViewer x:Name="ReportPreviewFallbackViewer"
+                                                              Visibility="Collapsed"
+                                                              VerticalScrollBarVisibility="Auto"
+                                                              HorizontalScrollBarVisibility="Disabled" />
+                                </Grid>
                             </Border>
                         </Grid>
                     </TabItem>
@@ -1047,7 +1057,7 @@
                                     <ColumnDefinition Width="0.9*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="13">
+                                <Border x:Name="DualLinkACard" Grid.Column="0" Style="{StaticResource Card}" Padding="13">
                                     <StackPanel>
                                         <TextBlock Text="LINK A" Style="{StaticResource EyebrowText}" />
                                         <TextBlock x:Name="DualLinkALineText" Text="-" FontSize="16" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
@@ -1055,7 +1065,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="13">
+                                <Border x:Name="DualLinkBCard" Grid.Column="2" Style="{StaticResource Card}" Padding="13">
                                     <StackPanel>
                                         <TextBlock Text="LINK B" Style="{StaticResource EyebrowText}" />
                                         <TextBlock x:Name="DualLinkBLineText" Text="-" FontSize="16" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,5,0,0" />
@@ -1138,7 +1148,6 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Command" Style="{StaticResource EyebrowText}" />
-                            <TextBlock Text="Tap to collapse or expand the command dock." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" />
                         </StackPanel>
                         <Path x:Name="CommandDockToggleIcon" Grid.Column="1" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronRight}" Stroke="#94A3B8" Width="24" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </Grid>
@@ -1156,7 +1165,7 @@
                             <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" ToolTip="Issue C_IC_NA_1 General Interrogation." />
                             <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" ToolTip="Issue C_CS_NA_1 clock synchronization." />
                             <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" ToolTip="Issue C_RD_NA_1 read command." />
-                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" />
+                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" ToolTip="Clear visible session rows." />
                         </UniformGrid>
 
                         <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
@@ -1184,18 +1193,18 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="CA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <TextBox x:Name="CommandCaBox" Text="1" />
+                                        <TextBox x:Name="CommandCaBox" Text="1" ToolTip="IEC common address. Filled automatically when a command signal is selected; edit only for manual target testing." />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="IOA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <TextBox x:Name="CommandIoaBox" Text="101" />
+                                        <TextBox x:Name="CommandIoaBox" Text="101" ToolTip="Information object address for the command target. Filled automatically from the Signal List when available." />
                                     </StackPanel>
                                 </Grid>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="Command type" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged">
+                                        <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged" ToolTip="Choose the IEC-101/104 command ASDU type. Signal selection usually fills this automatically.">
                                             <ComboBoxItem Content="Single C_SC_NA_1" />
                                             <ComboBoxItem Content="Double C_DC_NA_1" />
                                             <ComboBoxItem Content="Regulating C_RC_NA_1" />
@@ -1205,35 +1214,30 @@
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Qualifier (QOC)" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                         <TextBox x:Name="CommandQualifierBox" Text="0" ToolTip="Command qualifier. 0 = default. Use project-specific values only when required by the remote device." />
-                                        <TextBlock x:Name="CommandQualifierHelpText" Text="0 = default" Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="CommandQualifierHelpText" Text="" Visibility="Collapsed" />
                                     </StackPanel>
                                 </Grid>
                                 <StackPanel x:Name="CommandSetpointPanel" Margin="0,0,0,10" Visibility="Collapsed">
                                     <TextBlock x:Name="CommandSetpointLabel" Text="Setpoint value" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                     <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the utility profile range to interpret engineering value." />
-                                    <TextBlock Text="Only used for setpoint commands." Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,4,0,0" />
+                                    
                                 </StackPanel>
-                                <TextBlock Text="Select → Operate only. Route follows the active IEC-101 / IEC-104 link." Style="{StaticResource SubtleText}" Margin="0,0,0,2" TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CommandPreviewCard" Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="8,7" Margin="0,0,0,10" ToolTip="Command preview, CA/IOA, feedback mapping, and safety hints are shown here in compact form. Full command verdict is recorded in Diagnostics/Events.">
-                            <StackPanel>
-                                <TextBlock Text="Preview" Style="{StaticResource EyebrowText}" Margin="0,0,0,3" />
-                                <TextBlock x:Name="CommandPreviewTitleText" Text="No command signal selected" FontWeight="Medium" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                                <TextBlock x:Name="CommandPreviewAddressText" Text="CA/IOA preview will update when a signal is selected." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                                <TextBlock x:Name="CommandPreviewFeedbackText" Text="Feedback IOA: not mapped" Style="{StaticResource SubtleText}" Visibility="Collapsed" />
-                                <TextBlock x:Name="CommandPreviewSafetyText" Text="Use SELECT then OPERATE. Verify feedback in Values/Events." Style="{StaticResource SubtleText}" Visibility="Collapsed" />
-                            </StackPanel>
-                        </Border>
+                        <StackPanel Visibility="Collapsed">
+                            <TextBlock x:Name="CommandPreviewTitleText" Text="" />
+                            <TextBlock x:Name="CommandPreviewAddressText" Text="" />
+                            <TextBlock x:Name="CommandPreviewFeedbackText" Text="" />
+                            <TextBlock x:Name="CommandPreviewSafetyText" Text="" />
+                        </StackPanel>
 
                         <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" ToolTip="Send SELECT for open/off/lower direction to the active command route." />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" ToolTip="Send OPERATE for open/off/lower direction to the active command route." />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" ToolTip="Send SELECT for close/on/raise direction to the active command route." />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" ToolTip="Send OPERATE for close/on/raise direction to the active command route." />
                         </UniformGrid>
-                        <TextBlock Text="Use only safe test targets. Verify feedback from Values or Events after operate." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
@@ -1284,8 +1288,8 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition x:Name="StatusHistoryGapRow" Height="8" />
-                    <RowDefinition x:Name="StatusHistoryContentRow" Height="118" />
+                    <RowDefinition x:Name="StatusHistoryGapRow" Height="0" />
+                    <RowDefinition x:Name="StatusHistoryContentRow" Height="0" />
                 </Grid.RowDefinitions>
                 <Border x:Name="StatusHistoryHeader"
                         Grid.Row="0"
@@ -1321,10 +1325,10 @@
                             <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium" ToolTip="Session history and diagnostics" Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
                             <TextBlock x:Name="StatusHistorySummaryText" Text="No active session" Style="{StaticResource SubtleText}" FontSize="12" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-                        <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronDown}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
+                        <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronUp}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
-                <DataGrid x:Name="StatusHistoryGrid" Grid.Row="2" ItemsSource="{Binding StatusHistoryRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                <DataGrid x:Name="StatusHistoryGrid" Grid.Row="2" Visibility="Collapsed" ItemsSource="{Binding StatusHistoryRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150" />
@@ -1351,7 +1355,10 @@
                             <TextBlock x:Name="SetupTitleText" Text="IEC-103 protection relay setup" Style="{StaticResource HeadingText}" FontSize="18" />
                             <TextBlock x:Name="SetupSubtitleText" Text="Serial protection interface: link address, Class 1/Class 2 policy, FUN/INF mapping." Style="{StaticResource SubtleText}" />
                         </StackPanel>
-                        <Button Grid.Column="1" Content="Close" Style="{StaticResource SecondaryButton}" Width="88" Click="CloseSetup_Click" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Content="Connect" Style="{StaticResource PrimaryButton}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
+                            <Button Content="Close" Style="{StaticResource SecondaryButton}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
+                        </StackPanel>
                     </Grid>
 
                     <Grid Grid.Row="2">

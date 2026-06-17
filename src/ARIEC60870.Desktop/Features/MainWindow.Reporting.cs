@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -32,6 +33,15 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private string? _lastReportPreviewPdfPath;
+    private static readonly Brush InkBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39));
+    private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+    private static readonly Brush AccentBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235));
+    private static readonly Brush GoodBrush = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+    private static readonly Brush WarnBrush = new SolidColorBrush(Color.FromRgb(180, 83, 9));
+    private static readonly Brush BadBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+    private static readonly Brush LineBrush = new SolidColorBrush(Color.FromRgb(219, 229, 242));
+    private static readonly Brush PanelBrush = new SolidColorBrush(Color.FromRgb(248, 251, 255));
     private string AppendEvidenceRetentionPolicy(string markdown)
     {
         var builder = new StringBuilder(markdown ?? string.Empty);
@@ -110,15 +120,405 @@ public partial class MainWindow
         RefreshReportPreview();
     }
 
-    private void RefreshReportPreview()
+    private async void RefreshReportPreview()
     {
-        if (ReportPreviewBrowser is null)
+        if (ReportPreviewWebView is null && ReportPreviewFallbackViewer is null)
         {
             return;
         }
 
-        var html = BuildCurrentReportPreviewHtml();
-        ReportPreviewBrowser.NavigateToString(html);
+        try
+        {
+            var previewPath = BuildCurrentReportPreviewPdf();
+            _lastReportPreviewPdfPath = previewPath;
+
+            if (ReportPreviewWebView is not null)
+            {
+                ReportPreviewWebView.Visibility = Visibility.Visible;
+                if (ReportPreviewFallbackViewer is not null)
+                {
+                    ReportPreviewFallbackViewer.Visibility = Visibility.Collapsed;
+                }
+
+                await ReportPreviewWebView.EnsureCoreWebView2Async();
+                if (ReportPreviewWebView.CoreWebView2 is not null)
+                {
+                    ReportPreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                    ReportPreviewWebView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
+                    ReportPreviewWebView.CoreWebView2.Navigate(new Uri(previewPath).AbsoluteUri);
+                }
+                else
+                {
+                    ReportPreviewWebView.Source = new Uri(previewPath);
+                }
+
+                return;
+            }
+
+            if (ReportPreviewFallbackViewer is not null)
+            {
+                ReportPreviewFallbackViewer.Document = BuildCurrentReportPreviewDocument(previewPath);
+                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
+            }
+        }
+        catch (Exception ex)
+        {
+            AddUiDiagnostic("Error", "Report", "ARIEC-PDF-PREVIEW-FAILED", "PDF report preview failed", ex.Message, "Use Export PDF while the preview issue is investigated.");
+            AppendSessionLog("PDF report preview failed: " + ex.Message);
+            if (ReportPreviewWebView is not null)
+            {
+                ReportPreviewWebView.Visibility = Visibility.Collapsed;
+            }
+            if (ReportPreviewFallbackViewer is not null)
+            {
+                ReportPreviewFallbackViewer.Document = BuildReportPreviewErrorDocument(ex.Message);
+                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
+            }
+        }
+    }
+
+    private string BuildCurrentReportPreviewPdf()
+    {
+        var rows = GetCurrentReportRows(out var sourceWorkspace);
+        var created = DateTime.Now;
+        var previewRows = rows.Count == 0 ? BuildEmptyReportPreviewRows() : rows;
+        var source = rows.Count == 0 ? "Preview" : sourceWorkspace;
+        var model = BuildEvidencePdfReportModel("ARIEC-REPORT-PREVIEW", created, previewRows, source);
+        var previewDirectory = Path.Combine(Path.GetTempPath(), "ARIEC60870", "ReportPreview");
+        Directory.CreateDirectory(previewDirectory);
+        var previewPath = Path.Combine(previewDirectory, "ARIEC60870-report-preview.pdf");
+        EvidencePdfReportService.Save(previewPath, model);
+        return previewPath;
+    }
+
+    private static IReadOnlyList<EvidenceRow> BuildEmptyReportPreviewRows()
+    {
+        return new[]
+        {
+            new EvidenceRow(new CaptureFrameSnapshot
+            {
+                Sequence = 0,
+                Time = "-",
+                Direction = "STATE",
+                ProtocolName = "ARIEC60870",
+                ProtocolMode = "101",
+                State = "Preview",
+                Category = "Report",
+                DataClass = "Report",
+                Service = "Report preview",
+                Address = "-",
+                SignalOrAddress = "No evidence rows",
+                Value = "-",
+                Quality = "-",
+                AsduType = "-",
+                TypeId = "-",
+                Cot = "-",
+                CotCode = "-",
+                LinkAddress = "-",
+                CommonAddress = "-",
+                Ioa = "-",
+                Acd = "-",
+                Dfc = "-",
+                RelayTime = "no timestamp",
+                ResponseTime = "-",
+                Meaning = "No evidence rows are available yet. Run a session, open capture evidence, or select evidence rows first.",
+                Detail = "This generated placeholder keeps the PDF preview pipeline identical to Export PDF.",
+                RawHex = "-",
+                ProtocolTraceTitle = "Report preview placeholder",
+                ProtocolTraceMeaning = "No evidence rows are available yet.",
+                ProtocolTraceRaw = "RAW -",
+                ProtocolTraceMeta = "#0  -  ARIEC60870"
+            })
+        };
+    }
+
+    private string BuildCurrentReportPreviewText()
+    {
+        var rows = GetCurrentReportRows(out var sourceWorkspace);
+        var created = DateTime.Now;
+        if (rows.Count == 0)
+        {
+            return "ARIEC60870 Evidence Analyzer" + Environment.NewLine +
+                   "Report Workspace" + Environment.NewLine + Environment.NewLine +
+                   "No evidence rows are available yet." + Environment.NewLine +
+                   "Run a session, open a capture, or select evidence rows first." + Environment.NewLine + Environment.NewLine +
+                   "Generated: " + created.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return BuildEvidencePreviewText("ARIEC-REPORT-PREVIEW", created, rows, sourceWorkspace);
+    }
+
+    private string BuildEvidencePreviewText(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
+    {
+        var orderedRows = rows.OrderBy(row => row.Sequence).ToArray();
+        var first = orderedRows.First();
+        var last = orderedRows.Last();
+        var verdict = BuildReportVerdict(orderedRows);
+        var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
+        var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(30).ToArray();
+        if (importantRows.Length == 0)
+        {
+            importantRows = orderedRows.Take(30).ToArray();
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("ARIEC60870 Evidence Analyzer");
+        builder.AppendLine("IEC 60870 Evidence Report");
+        builder.AppendLine("Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.");
+        builder.AppendLine();
+        builder.AppendLine("Verdict: " + verdict.Status);
+        builder.AppendLine(verdict.Summary);
+        builder.AppendLine();
+        builder.AppendLine("Report");
+        builder.AppendLine("  Report ID       : " + reportId);
+        builder.AppendLine("  Created         : " + createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Source          : " + sourceWorkspace);
+        builder.AppendLine("  Protocol        : " + GetSelectedProtocolMode());
+        builder.AppendLine("  Rows            : " + orderedRows.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Sequence        : " + first.Sequence + " → " + last.Sequence);
+        builder.AppendLine("  Frames SHA256   : " + framesSha256);
+        builder.AppendLine();
+        builder.AppendLine("Session Counters");
+        builder.AppendLine("  TX / RX         : " + _txCount + " / " + _rxCount);
+        builder.AppendLine("  GI              : " + _giCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Class 1 / 2     : " + _class1Count + " / " + _class2Count);
+        builder.AppendLine("  No data         : " + _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Event           : " + _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Issues          : " + FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine();
+        builder.AppendLine("Important Protocol Evidence");
+        foreach (var row in importantRows)
+        {
+            builder.AppendLine("  #" + row.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                " · " + row.Time +
+                " · " + row.Direction +
+                " · " + row.ProtocolService +
+                " · " + ResolvePreviewMeaning(row));
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Export PDF for the formatted evidence report.");
+        return builder.ToString();
+    }
+
+    private FlowDocument BuildCurrentReportPreviewDocument(string previewPdfPath)
+    {
+        var document = CreatePreviewDocument();
+        var text = BuildCurrentReportPreviewText() + Environment.NewLine + "Preview PDF generated: " + previewPdfPath;
+        var paragraph = new Paragraph(new Run(text))
+        {
+            FontFamily = new FontFamily("Cascadia Mono, Consolas, Segoe UI, Arial"),
+            FontSize = 12.2,
+            Foreground = InkBrush,
+            Margin = new Thickness(0),
+            LineHeight = 18
+        };
+        document.Blocks.Add(paragraph);
+        return document;
+    }
+
+    private FlowDocument BuildReportPreviewErrorDocument(string message)
+    {
+        var document = CreatePreviewDocument();
+        document.Blocks.Add(PreviewParagraph("PDF preview unavailable", 20, FontWeights.SemiBold, BadBrush, 10));
+        document.Blocks.Add(PreviewParagraph(message, 12.5, FontWeights.Normal, MutedBrush, 12));
+        document.Blocks.Add(PreviewParagraph("Export PDF still uses the native PDF engine. Refresh after the session stabilizes.", 12.5, FontWeights.Normal, MutedBrush, 0));
+        return document;
+    }
+
+    private FlowDocument CreatePreviewDocument()
+    {
+        return new FlowDocument
+        {
+            FontFamily = new FontFamily("Aptos, Segoe UI, Arial"),
+            FontSize = 12,
+            Foreground = InkBrush,
+            Background = Brushes.White,
+            PagePadding = new Thickness(4, 4, 18, 18),
+            ColumnWidth = 10000
+        };
+    }
+
+    private FlowDocument BuildEmptyReportPreviewDocument(DateTime createdLocal)
+    {
+        var document = CreatePreviewDocument();
+        document.Blocks.Add(PreviewParagraph("ARIEC60870 Evidence Analyzer", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
+        document.Blocks.Add(PreviewParagraph("Report Workspace", 25, FontWeights.SemiBold, InkBrush, 8));
+        document.Blocks.Add(PreviewParagraph("No evidence rows are available yet. Run a session, open a capture, or select evidence rows first.", 12.5, FontWeights.Normal, MutedBrush, 16));
+        AddPreviewKeyValues(document, "Generated", new[]
+        {
+            new KeyValuePair<string, string>("Time", createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Next step", "Run or open capture evidence, then refresh this preview.")
+        });
+        return document;
+    }
+
+    private FlowDocument BuildEvidencePreviewDocument(string reportId, DateTime createdLocal, IReadOnlyList<EvidenceRow> rows, string sourceWorkspace)
+    {
+        var orderedRows = rows.OrderBy(row => row.Sequence).ToArray();
+        var first = orderedRows.First();
+        var last = orderedRows.Last();
+        var verdict = BuildReportVerdict(orderedRows);
+        var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
+        var document = CreatePreviewDocument();
+
+        document.Blocks.Add(PreviewParagraph("ARIEC60870 EVIDENCE ANALYZER", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
+        document.Blocks.Add(PreviewParagraph("IEC 60870 Evidence Report", 26, FontWeights.SemiBold, InkBrush, 8));
+        document.Blocks.Add(PreviewParagraph("Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.", 12.5, FontWeights.Normal, MutedBrush, 18));
+        document.Blocks.Add(PreviewParagraph("Verdict: " + verdict.Status, 16, FontWeights.SemiBold, verdict.CssClass == "pass" ? GoodBrush : verdict.CssClass == "fail" ? BadBrush : WarnBrush, 14));
+
+        AddPreviewKeyValues(document, "Report", new[]
+        {
+            new KeyValuePair<string, string>("Report ID", reportId),
+            new KeyValuePair<string, string>("Created", createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Source", sourceWorkspace),
+            new KeyValuePair<string, string>("Protocol", GetSelectedProtocolMode().ToString()),
+            new KeyValuePair<string, string>("Rows", orderedRows.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Sequence", $"{first.Sequence} → {last.Sequence}"),
+            new KeyValuePair<string, string>("Frames SHA256", framesSha256)
+        });
+
+        AddPreviewKeyValues(document, "Session Counters", new[]
+        {
+            new KeyValuePair<string, string>("TX / RX", $"{_txCount} / {_rxCount}"),
+            new KeyValuePair<string, string>("GI", _giCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
+            new KeyValuePair<string, string>("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("Issues", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        });
+
+        document.Blocks.Add(PreviewParagraph("Summary Verdict", 16, FontWeights.SemiBold, InkBrush, 6));
+        document.Blocks.Add(PreviewParagraph(verdict.Summary, 12.5, FontWeights.Normal, MutedBrush, 14));
+
+        var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(80).ToArray();
+        if (importantRows.Length == 0)
+        {
+            importantRows = orderedRows.Take(80).ToArray();
+        }
+
+        AddPreviewRowsTable(document, "Important Protocol Evidence", importantRows);
+        AddPreviewRowsTable(document, "Command Evidence", orderedRows.Where(IsCommandEvidenceRow).Take(50).ToArray());
+        AddPreviewRowsTable(document, "SOE / Event Evidence", orderedRows.Where(IsSoeOrEventEvidenceRow).Take(60).ToArray());
+        return document;
+    }
+
+    private static Paragraph PreviewParagraph(string text, double size, FontWeight weight, Brush brush, double bottomMargin, bool characterSpacing = false)
+    {
+        var paragraph = new Paragraph(new Run(text ?? string.Empty))
+        {
+            FontSize = size,
+            FontWeight = weight,
+            Foreground = brush,
+            Margin = new Thickness(0, 0, 0, bottomMargin),
+            LineHeight = size * 1.45
+        };
+        return paragraph;
+    }
+
+    private void AddPreviewKeyValues(FlowDocument document, string title, IReadOnlyList<KeyValuePair<string, string>> rows)
+    {
+        document.Blocks.Add(PreviewParagraph(title, 16, FontWeights.SemiBold, InkBrush, 8));
+        var table = new Table { CellSpacing = 0, Margin = new Thickness(0, 0, 0, 16) };
+        table.Columns.Add(new TableColumn { Width = new GridLength(150) });
+        table.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
+        var group = new TableRowGroup();
+        table.RowGroups.Add(group);
+        foreach (var item in rows)
+        {
+            var row = new TableRow();
+            row.Cells.Add(PreviewCell(item.Key, FontWeights.SemiBold, MutedBrush, true));
+            row.Cells.Add(PreviewCell(item.Value, FontWeights.Normal, InkBrush, false));
+            group.Rows.Add(row);
+        }
+        document.Blocks.Add(table);
+    }
+
+    private void AddPreviewRowsTable(FlowDocument document, string title, IReadOnlyList<EvidenceRow> rows)
+    {
+        document.Blocks.Add(PreviewParagraph(title, 16, FontWeights.SemiBold, InkBrush, 8));
+        if (rows.Count == 0)
+        {
+            document.Blocks.Add(PreviewParagraph("No matching evidence rows in this report scope.", 12, FontWeights.Normal, MutedBrush, 12));
+            return;
+        }
+
+        var table = new Table { CellSpacing = 0, Margin = new Thickness(0, 0, 0, 18) };
+        table.Columns.Add(new TableColumn { Width = new GridLength(60) });
+        table.Columns.Add(new TableColumn { Width = new GridLength(92) });
+        table.Columns.Add(new TableColumn { Width = new GridLength(78) });
+        table.Columns.Add(new TableColumn { Width = new GridLength(128) });
+        table.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
+        var group = new TableRowGroup();
+        table.RowGroups.Add(group);
+        var header = new TableRow();
+        foreach (var heading in new[] { "#", "Time", "Dir", "Service", "Meaning" })
+        {
+            header.Cells.Add(PreviewCell(heading, FontWeights.SemiBold, MutedBrush, true, PanelBrush));
+        }
+        group.Rows.Add(header);
+
+        foreach (var item in rows)
+        {
+            var row = new TableRow();
+            row.Cells.Add(PreviewCell(item.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture), FontWeights.Normal, InkBrush, false));
+            row.Cells.Add(PreviewCell(item.Time, FontWeights.Normal, InkBrush, false));
+            row.Cells.Add(PreviewCell(item.Direction, FontWeights.SemiBold, AccentBrush, false));
+            row.Cells.Add(PreviewCell(item.ProtocolService, FontWeights.Normal, InkBrush, false));
+            row.Cells.Add(PreviewCell(ResolvePreviewMeaning(item), FontWeights.Normal, InkBrush, false));
+            group.Rows.Add(row);
+        }
+        document.Blocks.Add(table);
+    }
+
+
+    private static string ResolvePreviewMeaning(EvidenceRow item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ProtocolTraceMeaning))
+        {
+            return item.ProtocolTraceMeaning;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.ReadableMeaning))
+        {
+            return item.ReadableMeaning;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.OperatorMessage))
+        {
+            return item.OperatorMessage;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Summary))
+        {
+            return item.Summary;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Detail))
+        {
+            return item.Detail;
+        }
+
+        return item.State;
+    }
+
+    private static TableCell PreviewCell(string text, FontWeight weight, Brush brush, bool compact, Brush? background = null)
+    {
+        var cell = new TableCell(new Paragraph(new Run(text ?? string.Empty))
+        {
+            FontWeight = weight,
+            Foreground = brush,
+            FontSize = compact ? 10.5 : 11.5,
+            Margin = new Thickness(0),
+            LineHeight = compact ? 14 : 16
+        })
+        {
+            Padding = new Thickness(8, compact ? 6 : 7, 8, compact ? 6 : 7),
+            BorderBrush = LineBrush,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Background = background ?? Brushes.Transparent
+        };
+        return cell;
     }
 
     private IReadOnlyList<EvidenceRow> GetCurrentReportRows(out string sourceWorkspace)
@@ -368,7 +768,7 @@ public partial class MainWindow
         yield return new("COT / CA / IOA size", $"{(CotSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(CaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(IoaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content}");
         yield return new("T0/T1/T2/T3", $"{Iec104T0Box?.Text}/{Iec104T1Box?.Text}/{Iec104T2Box?.Text}/{Iec104T3Box?.Text}");
         yield return new("K/W", $"{Iec104KBox?.Text}/{Iec104WBox?.Text}");
-        yield return new("Mapping profile", string.IsNullOrWhiteSpace(MappingProfilePathBox?.Text) ? "-" : MappingProfilePathBox.Text);
+        yield return new("Mapping profile", string.IsNullOrWhiteSpace(SanitizeSavedMappingProfilePath(MappingProfilePathBox?.Text)) ? "-" : SanitizeSavedMappingProfilePath(MappingProfilePathBox?.Text));
     }
 
     private static string BuildReportCss()

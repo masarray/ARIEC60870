@@ -150,10 +150,11 @@ public partial class MainWindow
             Class2StartupCheckBox.IsChecked = prefs.RequestClass2ImmediatelyAfterStartup;
             ClockSyncCheckBox.IsChecked = prefs.SendClockSyncOnConnect;
             GiCheckBox.IsChecked = prefs.SendGeneralInterrogationOnConnect;
-            MappingProfilePathBox.Text = prefs.MappingProfilePath ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(MappingProfilePathBox.Text) && File.Exists(MappingProfilePathBox.Text))
+            var savedMappingPath = SanitizeSavedMappingProfilePath(prefs.MappingProfilePath);
+            MappingProfilePathBox.Text = savedMappingPath;
+            if (!string.IsNullOrWhiteSpace(savedMappingPath) && File.Exists(savedMappingPath))
             {
-                TryLoadMappingProfile(MappingProfilePathBox.Text, showMessage: false);
+                TryLoadMappingProfile(savedMappingPath, showMessage: false);
             }
             _commandDockExpanded = prefs.CommandDockExpanded;
             ApplyCommandDockLayout();
@@ -224,7 +225,7 @@ public partial class MainWindow
                 RequestClass2ImmediatelyAfterStartup = settings.RequestClass2ImmediatelyAfterStartup,
                 SendClockSyncOnConnect = settings.SendClockSyncOnConnect,
                 SendGeneralInterrogationOnConnect = settings.SendGeneralInterrogationOnConnect,
-                MappingProfilePath = settings.MappingProfilePath,
+                MappingProfilePath = SanitizeSavedMappingProfilePath(settings.MappingProfilePath),
                 CommandDockExpanded = _commandDockExpanded,
                 DurationSeconds = durationSeconds,
                 SavedUtc = DateTime.UtcNow
@@ -300,6 +301,32 @@ public partial class MainWindow
         {
             comboBox.Text = value;
         }
+    }
+
+
+    private static readonly string[] SensitiveMappingProfileTokens =
+    {
+        new(new[] { 'P', 'L', 'N' }),
+        new(new[] { 'P', 'u', 's', 'e', 'r', 't', 'i', 'f' })
+    };
+
+    private static string SanitizeSavedMappingProfilePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        var fileName = Path.GetFileName(path);
+        foreach (var token in SensitiveMappingProfileTokens)
+        {
+            if (fileName.Contains(token, StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+        }
+
+        return path;
     }
 
     private sealed class SetupPreferences
