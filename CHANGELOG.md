@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### UX polish
+- Stabilized the WPF scrollbar skin with a fixed macOS-like drag thumb to prevent tiny clipped vertical thumbs in virtualized trace lists.
+- Reworked the app scrollbar thumb template again: full transparent hit target, Rectangle-based inner pill, no Border clipping, larger top/bottom track gutter, and no fixed visual height outside the allocated Thumb bounds.
 - Stabilized WPF scrollbar rendering with an Apple-style full-hit-area thumb template that keeps the rounded pill inside the allocated Thumb bounds.
 - Replaced text-only report preview with an embedded WebView2 PDF preview generated from the same native PDF engine as Export PDF.
 - Hardened trace selection so clicks in the right scrollbar zone are never treated as trace row selection.

@@ -1062,35 +1062,48 @@
 
     <Style x:Key="InvisibleScrollBarButton" TargetType="RepeatButton">
         <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RepeatButton">
-                    <Rectangle Fill="Transparent" />
+                    <Border Background="Transparent" />
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
+    <!--
+        Release-safe macOS-like scrollbar.
+        WPF Track uses ViewportSize to calculate Thumb size when it is not NaN.
+        The earlier proportional template kept producing a too-small/clipped visual in
+        virtualized trace lists. For this release skin we intentionally use a fixed
+        76px drag thumb by setting Track.ViewportSize="NaN" and explicitly sizing the
+        Thumb. This preserves normal Track drag behavior and prevents the bottom edge
+        from being clipped by tiny proportional slots.
+    -->
     <Style x:Key="VerticalScrollBarThumb" TargetType="Thumb">
-        <Setter Property="MinHeight" Value="72" />
-        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="76" />
+        <Setter Property="MinHeight" Value="76" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Background" Value="#8FA1B6" />
+        <Setter Property="SnapsToDevicePixels" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Grid Background="Transparent" ClipToBounds="False">
-                        <Rectangle Fill="Transparent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    <Grid Width="18" Height="76" Background="Transparent" ClipToBounds="False">
                         <Border x:Name="ThumbPill"
                                 Width="8"
-                                Margin="0,3,0,3"
+                                Height="76"
                                 HorizontalAlignment="Center"
-                                VerticalAlignment="Stretch"
+                                VerticalAlignment="Center"
+                                CornerRadius="4"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Opacity="0.96" />
+                                Opacity="0.96"
+                                SnapsToDevicePixels="False" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -1108,24 +1121,27 @@
     </Style>
 
     <Style x:Key="HorizontalScrollBarThumb" TargetType="Thumb">
-        <Setter Property="MinWidth" Value="72" />
-        <Setter Property="MinHeight" Value="18" />
+        <Setter Property="Width" Value="76" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="MinWidth" Value="76" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Background" Value="#8FA1B6" />
+        <Setter Property="SnapsToDevicePixels" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Grid Background="Transparent" ClipToBounds="False">
-                        <Rectangle Fill="Transparent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    <Grid Width="76" Height="18" Background="Transparent" ClipToBounds="False">
                         <Border x:Name="ThumbPill"
+                                Width="76"
                                 Height="8"
-                                Margin="3,0,3,0"
+                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                HorizontalAlignment="Stretch"
+                                CornerRadius="4"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Opacity="0.96" />
+                                Opacity="0.96"
+                                SnapsToDevicePixels="False" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -1148,19 +1164,18 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="#8FA1B6" />
         <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Stylus.IsFlicksEnabled" Value="False" />
+        <Setter Property="SnapsToDevicePixels" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
                     <Grid Width="18" Background="Transparent" ClipToBounds="False">
-                        <Border Width="2"
-                                Margin="0,3,0,3"
-                                HorizontalAlignment="Center"
-                                Background="#EEF4FB"
-                                CornerRadius="2"
-                                Opacity="0.55"
-                                IsHitTestVisible="False" />
-                        <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
+                        <Track x:Name="PART_Track"
+                               IsDirectionReversed="True"
+                               Focusable="False"
+                               ViewportSize="NaN"
+                               ClipToBounds="False">
                             <Track.DecreaseRepeatButton>
                                 <RepeatButton Style="{StaticResource InvisibleScrollBarButton}" Command="ScrollBar.PageUpCommand" />
                             </Track.DecreaseRepeatButton>
@@ -1189,14 +1204,10 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="ScrollBar">
                             <Grid Height="18" Background="Transparent" ClipToBounds="False">
-                                <Border Height="2"
-                                        Margin="3,0,3,0"
-                                        VerticalAlignment="Center"
-                                        Background="#EEF4FB"
-                                        CornerRadius="2"
-                                        Opacity="0.55"
-                                        IsHitTestVisible="False" />
-                                <Track x:Name="PART_Track" Focusable="False">
+                                <Track x:Name="PART_Track"
+                                       Focusable="False"
+                                       ViewportSize="NaN"
+                                       ClipToBounds="False">
                                     <Track.DecreaseRepeatButton>
                                         <RepeatButton Style="{StaticResource InvisibleScrollBarButton}" Command="ScrollBar.PageLeftCommand" />
                                     </Track.DecreaseRepeatButton>
