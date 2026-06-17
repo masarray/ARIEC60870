@@ -824,11 +824,34 @@
                             </Border>
                             <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Auto-generated PDF preview using the same report engine as Export PDF.">
                                 <Grid>
-                                    <wv2:WebView2 x:Name="ReportPreviewWebView" />
+                                    <wv2:WebView2 x:Name="ReportPreviewWebView"
+                                                  Visibility="Hidden"
+                                                  NavigationCompleted="ReportPreviewWebView_NavigationCompleted" />
                                     <FlowDocumentScrollViewer x:Name="ReportPreviewFallbackViewer"
                                                               Visibility="Collapsed"
                                                               VerticalScrollBarVisibility="Auto"
                                                               HorizontalScrollBarVisibility="Disabled" />
+                                    <Border x:Name="ReportPreviewLoadingOverlay"
+                                            Background="#FBFDFF"
+                                            CornerRadius="18"
+                                            Visibility="Visible"
+                                            Panel.ZIndex="10">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="260">
+                                            <ProgressBar Height="4"
+                                                         IsIndeterminate="True"
+                                                         Margin="0,0,0,14" />
+                                            <TextBlock x:Name="ReportPreviewLoadingText"
+                                                       Text="Preparing PDF preview..."
+                                                       Foreground="{StaticResource Ink800Brush}"
+                                                       FontWeight="Medium"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="The viewer will appear when the generated PDF is ready."
+                                                       Style="{StaticResource SubtleText}"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,6,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
                             </Border>
                         </Grid>

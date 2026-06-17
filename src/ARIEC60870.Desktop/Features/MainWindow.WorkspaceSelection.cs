@@ -43,7 +43,7 @@ public partial class MainWindow
         RefreshActiveTraceSnapshot();
         if (IsReportPreviewTabActive())
         {
-            Dispatcher.BeginInvoke(new Action(RefreshReportPreview), DispatcherPriority.Background);
+            Dispatcher.BeginInvoke(new Action(EnsureReportPreviewVisible), DispatcherPriority.Background);
         }
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);

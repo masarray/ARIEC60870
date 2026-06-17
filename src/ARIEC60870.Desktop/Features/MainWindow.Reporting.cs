@@ -28,12 +28,15 @@ using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Reporting;
 using ARIEC60870.Master.Transport;
 using Microsoft.Win32;
+using Microsoft.Web.WebView2.Core;
 
 namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
     private string? _lastReportPreviewPdfPath;
+    private string? _lastReportPreviewSignature;
+    private bool _reportPreviewRefreshInProgress;
     private static readonly Brush InkBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39));
     private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(100, 116, 139));
     private static readonly Brush AccentBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235));
@@ -117,39 +120,63 @@ public partial class MainWindow
             MainTabControl.SelectedIndex = 6;
         }
 
-        RefreshReportPreview();
+        RefreshReportPreview(force: true);
     }
 
-    private async void RefreshReportPreview()
+    private void EnsureReportPreviewVisible()
     {
-        if (ReportPreviewWebView is null && ReportPreviewFallbackViewer is null)
+        if (!string.IsNullOrWhiteSpace(_lastReportPreviewPdfPath) && File.Exists(_lastReportPreviewPdfPath))
         {
             return;
         }
 
+        RefreshReportPreview(force: false);
+    }
+
+    private async void RefreshReportPreview(bool force = false)
+    {
+        if (_reportPreviewRefreshInProgress || (ReportPreviewWebView is null && ReportPreviewFallbackViewer is null))
+        {
+            return;
+        }
+
+        var signature = BuildReportPreviewSignature();
+        if (!force && !string.IsNullOrWhiteSpace(_lastReportPreviewPdfPath) && File.Exists(_lastReportPreviewPdfPath) && string.Equals(_lastReportPreviewSignature, signature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _reportPreviewRefreshInProgress = true;
+        ShowReportPreviewLoading("Preparing PDF preview...");
+
         try
         {
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
             var previewPath = BuildCurrentReportPreviewPdf();
             _lastReportPreviewPdfPath = previewPath;
+            _lastReportPreviewSignature = signature;
 
             if (ReportPreviewWebView is not null)
             {
-                ReportPreviewWebView.Visibility = Visibility.Visible;
                 if (ReportPreviewFallbackViewer is not null)
                 {
                     ReportPreviewFallbackViewer.Visibility = Visibility.Collapsed;
                 }
 
+                ReportPreviewWebView.Visibility = Visibility.Hidden;
                 await ReportPreviewWebView.EnsureCoreWebView2Async();
                 if (ReportPreviewWebView.CoreWebView2 is not null)
                 {
                     ReportPreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                     ReportPreviewWebView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
+                    ReportPreviewWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
                     ReportPreviewWebView.CoreWebView2.Navigate(new Uri(previewPath).AbsoluteUri);
                 }
                 else
                 {
                     ReportPreviewWebView.Source = new Uri(previewPath);
+                    ShowReportPreviewViewer();
+                    HideReportPreviewLoading();
                 }
 
                 return;
@@ -159,6 +186,7 @@ public partial class MainWindow
             {
                 ReportPreviewFallbackViewer.Document = BuildCurrentReportPreviewDocument(previewPath);
                 ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
+                HideReportPreviewLoading();
             }
         }
         catch (Exception ex)
@@ -174,7 +202,94 @@ public partial class MainWindow
                 ReportPreviewFallbackViewer.Document = BuildReportPreviewErrorDocument(ex.Message);
                 ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
             }
+            HideReportPreviewLoading();
         }
+        finally
+        {
+            _reportPreviewRefreshInProgress = false;
+        }
+    }
+
+    private string BuildReportPreviewSignature()
+    {
+        static string TailSequence(IEnumerable<EvidenceRow> rows)
+        {
+            var last = rows.LastOrDefault();
+            return last is null ? "-" : last.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return string.Join("|",
+            EvidenceRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            FrameTraceRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ValueRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            RelayEventRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            DiagnosticRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            TailSequence(EvidenceRows),
+            TailSequence(FrameTraceRows));
+    }
+
+    private void ShowReportPreviewLoading(string message)
+    {
+        if (ReportPreviewLoadingText is not null)
+        {
+            ReportPreviewLoadingText.Text = message;
+        }
+        if (ReportPreviewLoadingOverlay is not null)
+        {
+            ReportPreviewLoadingOverlay.Opacity = 1;
+            ReportPreviewLoadingOverlay.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void HideReportPreviewLoading()
+    {
+        if (ReportPreviewLoadingOverlay is null)
+        {
+            return;
+        }
+
+        var animation = new DoubleAnimation(0, TimeSpan.FromMilliseconds(160))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        animation.Completed += (_, _) => ReportPreviewLoadingOverlay.Visibility = Visibility.Collapsed;
+        ReportPreviewLoadingOverlay.BeginAnimation(UIElement.OpacityProperty, animation);
+    }
+
+    private void ShowReportPreviewViewer()
+    {
+        if (ReportPreviewWebView is null)
+        {
+            return;
+        }
+
+        // WebView2 is an HWND-backed control. Its Opacity property is not settable
+        // from XAML/code in this project target, so keep the native host hidden
+        // while loading and fade out the WPF overlay instead. This avoids XAML
+        // compile errors and prevents a half-loaded PDF view from flashing.
+        ReportPreviewWebView.Visibility = Visibility.Visible;
+    }
+
+    private void ReportPreviewWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (!e.IsSuccess)
+        {
+            if (ReportPreviewFallbackViewer is not null)
+            {
+                ReportPreviewFallbackViewer.Document = BuildReportPreviewErrorDocument("PDF preview could not be loaded. Use Export PDF to open the generated report.");
+                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
+            }
+            if (ReportPreviewWebView is not null)
+            {
+                ReportPreviewWebView.Visibility = Visibility.Collapsed;
+            }
+            HideReportPreviewLoading();
+            return;
+        }
+
+        ShowReportPreviewViewer();
+        HideReportPreviewLoading();
     }
 
     private string BuildCurrentReportPreviewPdf()
