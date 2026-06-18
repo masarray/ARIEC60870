@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### UX polish
+- Replaced WebView2 PDF preview with a native WPF FixedDocument/DocumentViewer report preview to remove browser runtime dependency and tab-switch flicker.
+- Added a report preview document builder that renders from the same evidence report model used by PDF export.
 - Stabilized the WPF scrollbar skin with a fixed macOS-like drag thumb to prevent tiny clipped vertical thumbs in virtualized trace lists.
 - Reworked the app scrollbar thumb template again: full transparent hit target, Rectangle-based inner pill, no Border clipping, larger top/bottom track gutter, and no fixed visual height outside the allocated Thumb bounds.
 - Stabilized WPF scrollbar rendering with an Apple-style full-hit-area thumb template that keeps the rounded pill inside the allocated Thumb bounds.

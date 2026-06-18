@@ -28,13 +28,11 @@ using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Reporting;
 using ARIEC60870.Master.Transport;
 using Microsoft.Win32;
-using Microsoft.Web.WebView2.Core;
 
 namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    private string? _lastReportPreviewPdfPath;
     private string? _lastReportPreviewSignature;
     private bool _reportPreviewRefreshInProgress;
     private static readonly Brush InkBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39));
@@ -125,8 +123,9 @@ public partial class MainWindow
 
     private void EnsureReportPreviewVisible()
     {
-        if (!string.IsNullOrWhiteSpace(_lastReportPreviewPdfPath) && File.Exists(_lastReportPreviewPdfPath))
+        if (ReportPreviewDocumentViewer?.Document is not null && string.Equals(_lastReportPreviewSignature, BuildReportPreviewSignature(), StringComparison.Ordinal))
         {
+            QueueReportPreviewChromeStateUpdate();
             return;
         }
 
@@ -135,73 +134,41 @@ public partial class MainWindow
 
     private async void RefreshReportPreview(bool force = false)
     {
-        if (_reportPreviewRefreshInProgress || (ReportPreviewWebView is null && ReportPreviewFallbackViewer is null))
+        if (_reportPreviewRefreshInProgress || ReportPreviewDocumentViewer is null)
         {
             return;
         }
 
         var signature = BuildReportPreviewSignature();
-        if (!force && !string.IsNullOrWhiteSpace(_lastReportPreviewPdfPath) && File.Exists(_lastReportPreviewPdfPath) && string.Equals(_lastReportPreviewSignature, signature, StringComparison.Ordinal))
+        if (!force && ReportPreviewDocumentViewer.Document is not null && string.Equals(_lastReportPreviewSignature, signature, StringComparison.Ordinal))
         {
+            QueueReportPreviewChromeStateUpdate();
             return;
         }
 
         _reportPreviewRefreshInProgress = true;
-        ShowReportPreviewLoading("Preparing PDF preview...");
+        ShowReportPreviewLoading("Preparing report preview...");
 
         try
         {
-            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
-            var previewPath = BuildCurrentReportPreviewPdf();
-            _lastReportPreviewPdfPath = previewPath;
+            // Defer until the tab switch layout pass finishes. This avoids UI flicker
+            // and prevents report generation from running inside TabControl selection processing.
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+            var model = BuildCurrentReportPreviewModel();
+            var document = EvidenceReportPreviewDocumentBuilder.Build(model);
+            ReportPreviewDocumentViewer.Document = document;
+            ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
             _lastReportPreviewSignature = signature;
-
-            if (ReportPreviewWebView is not null)
-            {
-                if (ReportPreviewFallbackViewer is not null)
-                {
-                    ReportPreviewFallbackViewer.Visibility = Visibility.Collapsed;
-                }
-
-                ReportPreviewWebView.Visibility = Visibility.Hidden;
-                await ReportPreviewWebView.EnsureCoreWebView2Async();
-                if (ReportPreviewWebView.CoreWebView2 is not null)
-                {
-                    ReportPreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                    ReportPreviewWebView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
-                    ReportPreviewWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-                    ReportPreviewWebView.CoreWebView2.Navigate(new Uri(previewPath).AbsoluteUri);
-                }
-                else
-                {
-                    ReportPreviewWebView.Source = new Uri(previewPath);
-                    ShowReportPreviewViewer();
-                    HideReportPreviewLoading();
-                }
-
-                return;
-            }
-
-            if (ReportPreviewFallbackViewer is not null)
-            {
-                ReportPreviewFallbackViewer.Document = BuildCurrentReportPreviewDocument(previewPath);
-                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
-                HideReportPreviewLoading();
-            }
+            QueueReportPreviewChromeStateUpdate();
+            HideReportPreviewLoading();
         }
         catch (Exception ex)
         {
-            AddUiDiagnostic("Error", "Report", "ARIEC-PDF-PREVIEW-FAILED", "PDF report preview failed", ex.Message, "Use Export PDF while the preview issue is investigated.");
-            AppendSessionLog("PDF report preview failed: " + ex.Message);
-            if (ReportPreviewWebView is not null)
-            {
-                ReportPreviewWebView.Visibility = Visibility.Collapsed;
-            }
-            if (ReportPreviewFallbackViewer is not null)
-            {
-                ReportPreviewFallbackViewer.Document = BuildReportPreviewErrorDocument(ex.Message);
-                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
-            }
+            AddUiDiagnostic("Error", "Report", "ARIEC-REPORT-PREVIEW-FAILED", "Report preview failed", ex.Message, "Export PDF still uses the native PDF engine. Refresh the preview after the session stabilizes.");
+            AppendSessionLog("Report preview failed: " + ex.Message);
+            ReportPreviewDocumentViewer.Document = EvidenceReportPreviewDocumentBuilder.Build(BuildReportPreviewErrorModel(ex.Message));
+            ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
+            QueueReportPreviewChromeStateUpdate();
             HideReportPreviewLoading();
         }
         finally
@@ -218,13 +185,16 @@ public partial class MainWindow
             return last is null ? "-" : last.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        var setupSignature = string.Join(";", BuildReportCommunicationSetupLines().Select(line => line.Key + "=" + line.Value));
         return string.Join("|",
+            "layout-v3-smart-findings",
             EvidenceRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             FrameTraceRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ValueRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             RelayEventRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             DiagnosticRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            setupSignature,
             TailSequence(EvidenceRows),
             TailSequence(FrameTraceRows));
     }
@@ -257,53 +227,167 @@ public partial class MainWindow
         ReportPreviewLoadingOverlay.BeginAnimation(UIElement.OpacityProperty, animation);
     }
 
-    private void ShowReportPreviewViewer()
+    private void ReportPreviewPrint_Click(object sender, RoutedEventArgs e)
     {
-        if (ReportPreviewWebView is null)
+        if (ReportPreviewDocumentViewer?.Document is null)
         {
             return;
         }
 
-        // WebView2 is an HWND-backed control. Its Opacity property is not settable
-        // from XAML/code in this project target, so keep the native host hidden
-        // while loading and fade out the WPF overlay instead. This avoids XAML
-        // compile errors and prevents a half-loaded PDF view from flashing.
-        ReportPreviewWebView.Visibility = Visibility.Visible;
+        if (ApplicationCommands.Print.CanExecute(null, ReportPreviewDocumentViewer))
+        {
+            ApplicationCommands.Print.Execute(null, ReportPreviewDocumentViewer);
+        }
+        QueueReportPreviewChromeStateUpdate();
     }
 
-    private void ReportPreviewWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    private void ReportPreviewCopy_Click(object sender, RoutedEventArgs e)
     {
-        if (!e.IsSuccess)
+        if (ReportPreviewDocumentViewer?.Document is null)
         {
-            if (ReportPreviewFallbackViewer is not null)
-            {
-                ReportPreviewFallbackViewer.Document = BuildReportPreviewErrorDocument("PDF preview could not be loaded. Use Export PDF to open the generated report.");
-                ReportPreviewFallbackViewer.Visibility = Visibility.Visible;
-            }
-            if (ReportPreviewWebView is not null)
-            {
-                ReportPreviewWebView.Visibility = Visibility.Collapsed;
-            }
-            HideReportPreviewLoading();
             return;
         }
 
-        ShowReportPreviewViewer();
-        HideReportPreviewLoading();
+        if (ApplicationCommands.Copy.CanExecute(null, ReportPreviewDocumentViewer))
+        {
+            ApplicationCommands.Copy.Execute(null, ReportPreviewDocumentViewer);
+        }
+        QueueReportPreviewChromeStateUpdate();
     }
 
-    private string BuildCurrentReportPreviewPdf()
+    private void ReportPreviewZoomOut_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReportPreviewDocumentViewer?.Document is null)
+        {
+            return;
+        }
+
+        ReportPreviewDocumentViewer.Zoom = Math.Max(40, ReportPreviewDocumentViewer.Zoom - 10);
+        QueueReportPreviewChromeStateUpdate();
+    }
+
+    private void ReportPreviewZoomIn_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReportPreviewDocumentViewer?.Document is null)
+        {
+            return;
+        }
+
+        ReportPreviewDocumentViewer.Zoom = Math.Min(300, ReportPreviewDocumentViewer.Zoom + 10);
+        QueueReportPreviewChromeStateUpdate();
+    }
+
+    private void ReportPreviewFitWidth_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReportPreviewDocumentViewer?.Document is null)
+        {
+            return;
+        }
+
+        ReportPreviewDocumentViewer.FitToWidth();
+        QueueReportPreviewChromeStateUpdate();
+    }
+
+    private void ReportPreviewPreviousPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReportPreviewDocumentViewer?.Document is null)
+        {
+            return;
+        }
+
+        if (NavigationCommands.PreviousPage.CanExecute(null, ReportPreviewDocumentViewer))
+        {
+            NavigationCommands.PreviousPage.Execute(null, ReportPreviewDocumentViewer);
+        }
+        QueueReportPreviewChromeStateUpdate();
+    }
+
+    private void ReportPreviewNextPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReportPreviewDocumentViewer?.Document is null)
+        {
+            return;
+        }
+
+        if (NavigationCommands.NextPage.CanExecute(null, ReportPreviewDocumentViewer))
+        {
+            NavigationCommands.NextPage.Execute(null, ReportPreviewDocumentViewer);
+        }
+        QueueReportPreviewChromeStateUpdate();
+    }
+
+    private void QueueReportPreviewChromeStateUpdate()
+    {
+        Dispatcher.BeginInvoke(new Action(UpdateReportPreviewChromeState), DispatcherPriority.Background);
+    }
+
+    private void UpdateReportPreviewChromeState()
+    {
+        if (ReportPreviewDocumentViewer is null)
+        {
+            return;
+        }
+
+        if (ReportPreviewZoomText is not null)
+        {
+            ReportPreviewZoomText.Text = Math.Round(ReportPreviewDocumentViewer.Zoom).ToString(System.Globalization.CultureInfo.InvariantCulture) + "%";
+        }
+
+        if (ReportPreviewPageText is not null)
+        {
+            var current = Math.Max(1, ReportPreviewDocumentViewer.MasterPageNumber);
+            var total = Math.Max(1, ReportPreviewDocumentViewer.PageCount);
+            ReportPreviewPageText.Text = $"Page {current} / {total}";
+        }
+    }
+
+    private EvidencePdfReportModel BuildCurrentReportPreviewModel()
     {
         var rows = GetCurrentReportRows(out var sourceWorkspace);
         var created = DateTime.Now;
         var previewRows = rows.Count == 0 ? BuildEmptyReportPreviewRows() : rows;
         var source = rows.Count == 0 ? "Preview" : sourceWorkspace;
-        var model = BuildEvidencePdfReportModel("ARIEC-REPORT-PREVIEW", created, previewRows, source);
-        var previewDirectory = Path.Combine(Path.GetTempPath(), "ARIEC60870", "ReportPreview");
-        Directory.CreateDirectory(previewDirectory);
-        var previewPath = Path.Combine(previewDirectory, "ARIEC60870-report-preview.pdf");
-        EvidencePdfReportService.Save(previewPath, model);
-        return previewPath;
+        return BuildEvidencePdfReportModel("ARIEC-REPORT-PREVIEW", created, previewRows, source);
+    }
+
+    private EvidencePdfReportModel BuildReportPreviewErrorModel(string message)
+    {
+        var row = new EvidenceRow(new CaptureFrameSnapshot
+        {
+            Sequence = 0,
+            Time = "-",
+            Direction = "STATE",
+            ProtocolName = "ARIEC60870",
+            ProtocolMode = "101",
+            State = "PreviewError",
+            Category = "Report",
+            DataClass = "Report",
+            Service = "Report preview",
+            Address = "-",
+            SignalOrAddress = "Report preview failed",
+            Value = "-",
+            Quality = "-",
+            AsduType = "-",
+            TypeId = "-",
+            Cot = "-",
+            CotCode = "-",
+            LinkAddress = "-",
+            CommonAddress = "-",
+            Ioa = "-",
+            Acd = "-",
+            Dfc = "-",
+            RelayTime = "no timestamp",
+            ResponseTime = "-",
+            Meaning = message,
+            Detail = "Export PDF can still be used while the preview issue is investigated.",
+            RawHex = "-",
+            ProtocolTraceTitle = "Report preview failed",
+            ProtocolTraceMeaning = message,
+            ProtocolTraceRaw = "RAW -",
+            ProtocolTraceMeta = "#0  -  ARIEC60870"
+        });
+
+        return BuildEvidencePdfReportModel("ARIEC-REPORT-PREVIEW", DateTime.Now, new[] { row }, "Preview");
     }
 
     private static IReadOnlyList<EvidenceRow> BuildEmptyReportPreviewRows()
@@ -739,7 +823,9 @@ public partial class MainWindow
         var soeRows = orderedRows.Where(IsSoeOrEventEvidenceRow).Take(120).ToArray();
         var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(180).ToArray();
         var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
-        var verdict = BuildReportVerdict(orderedRows);
+        var communicationSetup = BuildReportCommunicationSetupLines().ToArray();
+        var smartFindings = EvidenceSmartFindingAnalyzer.Analyze(orderedRows, FindingRows.ToArray(), communicationSetup);
+        var verdict = BuildReportVerdict(orderedRows, smartFindings);
 
         return new EvidencePdfReportModel(
             reportId,
@@ -749,6 +835,7 @@ public partial class MainWindow
             verdict.Status,
             verdict.Summary,
             verdict.CssClass,
+            smartFindings,
             new[]
             {
                 new KeyValuePair<string, string>("Report ID", reportId),
@@ -766,9 +853,9 @@ public partial class MainWindow
                 new KeyValuePair<string, string>("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
                 new KeyValuePair<string, string>("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 new KeyValuePair<string, string>("DPI/Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                new KeyValuePair<string, string>("Findings", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                new KeyValuePair<string, string>("Smart findings", smartFindings.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
             },
-            BuildReportCommunicationSetupLines().ToArray(),
+            communicationSetup,
             giRows,
             commandRows,
             soeRows,
@@ -973,8 +1060,20 @@ public partial class MainWindow
     private static string BuildReportSearchText(EvidenceRow row)
         => string.Join(" ", row.Category, row.State, row.ProtocolService, row.ProtocolTraceTitle, row.ProtocolTraceMeaning, row.Detail, row.CotDisplay, row.Quality, row.RawHex, row.SignalOrAddress, row.SemanticState);
 
-    private static (string Status, string Summary, string CssClass) BuildReportVerdict(IReadOnlyList<EvidenceRow> rows)
+    private static (string Status, string Summary, string CssClass) BuildReportVerdict(IReadOnlyList<EvidenceRow> rows, IReadOnlyList<EvidenceSmartFinding>? smartFindings = null)
     {
+        if (smartFindings is not null && smartFindings.Any(finding => finding.Severity == EvidenceSmartFindingSeverity.Error))
+        {
+            var primary = smartFindings.First(finding => finding.Severity == EvidenceSmartFindingSeverity.Error);
+            return ("ATTENTION", primary.Problem + " Follow the Smart Solution before accepting this test evidence.", "attention");
+        }
+
+        if (smartFindings is not null && smartFindings.Any(finding => finding.Severity == EvidenceSmartFindingSeverity.Warning))
+        {
+            var primary = smartFindings.First(finding => finding.Severity == EvidenceSmartFindingSeverity.Warning);
+            return ("ATTENTION", primary.Problem + " Review the Smart Findings section and retest the affected path.", "attention");
+        }
+
         var combined = string.Join(" ", rows.Select(BuildReportSearchText));
         if (ContainsAny(combined, "error", "timeout", "failed", "negative", "nack"))
         {

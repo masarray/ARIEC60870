@@ -3,7 +3,6 @@
 <Window x:Class="ARIEC60870.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="ARIEC60870 Evidence Analyzer"
         Width="1540" Height="900" MinWidth="1280" MinHeight="760"
         WindowStartupLocation="CenterScreen"
@@ -794,44 +793,109 @@
                     </TabItem>
 
                     <TabItem Header="Report">
-                        <Grid Margin="18">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="12" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
-                                <DockPanel LastChildFill="True">
-                                    <StackPanel DockPanel.Dock="Left">
-                                        <TextBlock Text="Report Workspace" FontWeight="Medium" FontSize="16" />
-                                        <TextBlock Text="Preview the professional evidence report content, then export a clean PDF for FAT/SAT or troubleshooting records." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                    </StackPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource SecondaryButton}" Width="126" Height="34" Padding="10,6" Click="RefreshReportPreview_Click" ToolTip="Refresh report preview from current evidence">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" />
-                                                <TextBlock Text="Refresh" Margin="7,0,0,0" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource PrimaryButton}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="ExportPdf_Click" ToolTip="Export a professional PDF evidence report.">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" Stroke="#FFFFFF" />
-                                                <TextBlock Text="Export PDF" Margin="7,0,0,0" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-                            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Auto-generated PDF preview using the same report engine as Export PDF.">
+                        <Grid Margin="14">
+                            <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Native WPF fixed-document preview rendered from the same shared layout plan used by Export PDF.">
                                 <Grid>
-                                    <wv2:WebView2 x:Name="ReportPreviewWebView"
-                                                  Visibility="Hidden"
-                                                  NavigationCompleted="ReportPreviewWebView_NavigationCompleted" />
-                                    <FlowDocumentScrollViewer x:Name="ReportPreviewFallbackViewer"
-                                                              Visibility="Collapsed"
-                                                              VerticalScrollBarVisibility="Auto"
-                                                              HorizontalScrollBarVisibility="Disabled" />
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="34" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.Row="0"
+                                            Background="#F3F7FC"
+                                            BorderBrush="#D9E3EF"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="8,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewPrint_Click"
+                                                        ToolTip="Print preview report">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialPrint}" />
+                                                </Button>
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewCopy_Click"
+                                                        ToolTip="Copy selected text">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialContentCopy}" />
+                                                </Button>
+                                                <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewZoomOut_Click"
+                                                        ToolTip="Zoom out">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialZoomOut}" />
+                                                </Button>
+                                                <TextBlock x:Name="ReportPreviewZoomText"
+                                                           Text="100%"
+                                                           Width="44"
+                                                           VerticalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="#40516B"
+                                                           FontSize="11.5"
+                                                           FontWeight="SemiBold" />
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewZoomIn_Click"
+                                                        ToolTip="Zoom in">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialZoomIn}" />
+                                                </Button>
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewFitWidth_Click"
+                                                        ToolTip="Fit width">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialFitScreen}" />
+                                                </Button>
+                                                <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewPreviousPage_Click"
+                                                        ToolTip="Previous page">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialChevronLeft}" />
+                                                </Button>
+                                                <TextBlock x:Name="ReportPreviewPageText"
+                                                           Text="Page 1 / 1"
+                                                           MinWidth="78"
+                                                           VerticalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Foreground="#40516B"
+                                                           FontSize="11.5"
+                                                           FontWeight="SemiBold" />
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="ReportPreviewNextPage_Click"
+                                                        ToolTip="Next page">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialChevronRight}" />
+                                                </Button>
+                                                <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
+                                                <Button Style="{StaticResource ReportChromeIconButton}"
+                                                        Click="RefreshReportPreview_Click"
+                                                        ToolTip="Refresh report preview">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialRefresh}" />
+                                                </Button>
+                                                <Button Style="{StaticResource ReportChromePrimaryIconButton}"
+                                                        Click="ExportPdf_Click"
+                                                        ToolTip="Export PDF">
+                                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialFileDownload}" />
+                                                </Button>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="2"
+                                                       Text="Native preview"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="#728096"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold" />
+                                        </Grid>
+                                    </Border>
+
+                                    <DocumentViewer x:Name="ReportPreviewDocumentViewer"
+                                                    Grid.Row="1"
+                                                    Visibility="Collapsed"
+                                                    Style="{StaticResource ChromeFreeDocumentViewer}" />
+
                                     <Border x:Name="ReportPreviewLoadingOverlay"
+                                            Grid.RowSpan="2"
                                             Background="#FBFDFF"
                                             CornerRadius="18"
                                             Visibility="Visible"
@@ -841,15 +905,10 @@
                                                          IsIndeterminate="True"
                                                          Margin="0,0,0,14" />
                                             <TextBlock x:Name="ReportPreviewLoadingText"
-                                                       Text="Preparing PDF preview..."
+                                                       Text="Preparing report preview..."
                                                        Foreground="{StaticResource Ink800Brush}"
                                                        FontWeight="Medium"
                                                        HorizontalAlignment="Center" />
-                                            <TextBlock Text="The viewer will appear when the generated PDF is ready."
-                                                       Style="{StaticResource SubtleText}"
-                                                       TextAlignment="Center"
-                                                       TextWrapping="Wrap"
-                                                       Margin="0,6,0,0" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>

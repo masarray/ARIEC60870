@@ -15,6 +15,7 @@ public sealed record EvidencePdfReportModel(
     string VerdictStatus,
     string VerdictSummary,
     string VerdictTone,
+    IReadOnlyList<EvidenceSmartFinding> SmartFindings,
     IReadOnlyList<KeyValuePair<string, string>> ReportInfo,
     IReadOnlyList<KeyValuePair<string, string>> SessionCounters,
     IReadOnlyList<KeyValuePair<string, string>> CommunicationSetup,
