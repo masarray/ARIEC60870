@@ -964,9 +964,6 @@ public partial class MainWindow
             return;
         }
 
-        var traceHold = IsProtocolTraceViewFrozen() ? $", traceHold {_protocolTraceRowsDeferredWhileFrozen}" : string.Empty;
-        var evidenceHold = IsEvidenceSummaryViewFrozen() ? $", evidenceHold {_evidenceSummaryRowsDeferredWhileFrozen}" : string.Empty;
-        BufferStatusText.Text =
-            $"Buffer: trace {GetTraceVerbosityMode()}{traceHold}{evidenceHold}, operator {EvidenceRows.Count}/{MaxVisibleEvidenceRows}, frames {FrameTraceRows.Count}/{MaxVisibleFrameTraceRows}, values {ValueRows.Count}/{MaxVisibleValueRows}, events {RelayEventRows.Count}/{MaxVisibleRelayEventRows}, diagnostics {DiagnosticRows.Count}/{MaxVisibleDiagnosticRows}, queued {_pendingEvidence.Count}, qMax {_maxPendingEvidenceDepth}, budget {_lastFlushBudget}, dropped {_backpressureDroppedEvents} [ack {_backpressureDroppedAckNoData}, poll {_backpressureDroppedBackgroundPoll}, test {_backpressureDroppedTestFrames}, other {_backpressureDroppedOtherLowValue}], traceSkip {_traceVerbositySuppressedRows} [routine {_traceVerbositySuppressedRoutine}, sup {_traceVerbositySuppressedSupervisory}], flush {_lastUiFlushMs}/{_maxUiFlushMs} ms, ticks {_uiFlushTicks}, rows {_lastEvidenceProcessed}+{_lastFindingProcessed}/{_lastVisibleBatchRows}, relayDrop {_visibleRelayEventsDropped}, diagDrop {_visibleDiagnosticsDropped}";
+        BufferStatusText.Text = string.Empty;
     }
 }

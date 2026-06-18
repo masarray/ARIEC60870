@@ -45,6 +45,10 @@ public partial class MainWindow
         {
             Dispatcher.BeginInvoke(new Action(EnsureReportPreviewVisible), DispatcherPriority.Background);
         }
+        if (IsFindingsWorkspaceTabActive())
+        {
+            RefreshFindingsWorkspace(force: true);
+        }
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
     }
@@ -69,9 +73,9 @@ public partial class MainWindow
             NavFrameButton,
             NavValueButton,
             NavEventButton,
+            NavFindingsButton,
             NavReportButton,
             NavOperatorButton,
-            NavFindingsButton,
             NavDiagnosticsButton,
             NavNotesButton,
             NavTriggersButton
@@ -90,27 +94,28 @@ public partial class MainWindow
         NavFrameButton.Content = "Trace";
         NavValueButton.Content = "Values";
         NavEventButton.Content = "Events";
+        NavFindingsButton.Content = "Findings";
         NavReportButton.Content = "Report";
 
         NavDualLinkButton.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
         NavFrameButton.Visibility = Visibility.Visible;
         NavValueButton.Visibility = Visibility.Visible;
         NavEventButton.Visibility = Visibility.Visible;
+        NavFindingsButton.Visibility = Visibility.Visible;
         NavReportButton.Visibility = Visibility.Visible;
 
         // Advanced/supporting workspaces remain available in code and export logic,
         // but no longer compete with the primary commissioning path.
         NavOperatorButton.Visibility = Visibility.Collapsed;
-        NavFindingsButton.Visibility = Visibility.Collapsed;
         NavDiagnosticsButton.Visibility = Visibility.Collapsed;
         NavNotesButton.Visibility = Visibility.Collapsed;
         NavTriggersButton.Visibility = Visibility.Collapsed;
 
-        if (isDual101 && MainTabControl.SelectedIndex is 0 or 4 or 5 or 7 or 8)
+        if (isDual101 && MainTabControl.SelectedIndex is 0 or 5 or 7 or 8)
         {
             MainTabControl.SelectedIndex = 9;
         }
-        else if (!isDual101 && (MainTabControl.SelectedIndex == 9 || MainTabControl.SelectedIndex is 0 or 4 or 5 or 7 or 8))
+        else if (!isDual101 && (MainTabControl.SelectedIndex == 9 || MainTabControl.SelectedIndex is 0 or 5 or 7 or 8))
         {
             MainTabControl.SelectedIndex = 1;
         }

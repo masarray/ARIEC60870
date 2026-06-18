@@ -651,6 +651,11 @@ public partial class MainWindow
             _pendingDiagnosticUiRows.Clear();
         }
 
+        if (IsFindingsWorkspaceTabActive() && (batchRows > 0 || _pendingEvidence.Count == 0))
+        {
+            RefreshFindingsWorkspace();
+        }
+
         _lastVisibleBatchRows = batchRows;
         UpdateLineMonitorStatus();
     }

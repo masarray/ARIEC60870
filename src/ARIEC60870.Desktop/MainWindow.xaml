@@ -4,7 +4,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ARIEC60870 Evidence Analyzer"
-        Width="1540" Height="900" MinWidth="1280" MinHeight="760"
+        Width="1540" Height="900" MinWidth="980" MinHeight="720"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
@@ -175,10 +175,10 @@
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
                             <TextBlock x:Name="ProductTitleText" Text="ARIEC60870 Evidence Analyzer" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
                             <TextBlock x:Name="SessionSubtitleText" Text="Ready. Setup and connect." Style="{StaticResource SubtleText}" FontSize="10.8" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="BufferStatusText" Text="Buffer ready" Style="{StaticResource SubtleText}" FontSize="10.2" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                            <Border Style="{StaticResource InstrumentChip}" Height="48" Padding="14,0" MinWidth="662">
+                            <Border x:Name="HeaderIndicatorChip" Style="{StaticResource InstrumentChip}" Height="48" Padding="12,0" MinWidth="412">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock x:Name="TxLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -204,19 +204,19 @@
                                         <TextBlock x:Name="Class2Led" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock Text="C2" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="NoDataSeparator" Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel x:Name="NoDataChipStack" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="NO DATA" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
                                         <TextBlock x:Name="NoDataText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="EventSeparator" Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel x:Name="EventChipStack" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock x:Name="EventLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource BadBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="EventChipLabelText" Text="EVENT" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
                                         <TextBlock x:Name="DpiText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <Border Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="IssuesSeparator" Width="1" Height="16" Background="#E2E8F0" Margin="12,0" VerticalAlignment="Center" />
+                                    <StackPanel x:Name="IssuesChipStack" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock x:Name="DiagLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource BadBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock Text="ISSUES" Style="{StaticResource ChipLabelText}" VerticalAlignment="Center" />
                                         <TextBlock x:Name="FindingCountText" Text="0" Style="{StaticResource ChipValueText}" Margin="4,0,0,0" VerticalAlignment="Center" />
@@ -268,9 +268,9 @@
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavFindingsButton" Content="Issues" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" Visibility="Collapsed" />
@@ -281,7 +281,8 @@
 
                     </Grid>
 
-                    <TabControl x:Name="MainTabControl" Grid.Row="1" Margin="0" SelectedIndex="1" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
+                    <Grid Grid.Row="1" ClipToBounds="True">
+                    <TabControl x:Name="MainTabControl" Margin="0" SelectedIndex="1" Style="{StaticResource ContentOnlyTabControl}" SelectionChanged="MainTabControl_SelectionChanged">
                     <TabItem Header="Evidence Ledger">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
@@ -392,7 +393,7 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <DataGrid Visibility="Collapsed" IsHitTestVisible="False" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <DataGrid Visibility="Collapsed" IsHitTestVisible="False" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="EvidenceGrid" ItemsSource="{Binding EvidenceRows}" CellStyle="{StaticResource TrafficDataGridCellStyle}" RowStyle="{StaticResource TrafficDataGridRowStyle}" SelectionChanged="EvidenceGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.Columns>
                                     <!-- Evidence Ledger is intentionally distilled. Full telegram detail remains available in Trace and the interpreter. -->
                                     <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
@@ -401,7 +402,7 @@
                                     <DataGridTextColumn Header="Address" Binding="{Binding ProtocolAddress}" Width="1.0*" MinWidth="124" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn x:Name="EvidenceSignalColumn" Header="Signal" Binding="{Binding SignalOrAddress}" Width="1.35*" MinWidth="180" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Value" Binding="{Binding SemanticState}" Width="0.95*" MinWidth="118" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn x:Name="EvidenceRelayTimeColumn" Header="IED/RTU time" Binding="{Binding RelayTime}" Width="128" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Meaning" Binding="{Binding ReadableMeaning}" Width="2.0*" MinWidth="260" ElementStyle="{StaticResource GridCellMeaningText}" />
 
@@ -441,9 +442,9 @@
                     <TabItem Header="Trace">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.9*" MinWidth="760" />
+                                <ColumnDefinition Width="1.8*" MinWidth="560" />
                                 <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="0.68*" MinWidth="340" />
+                                <ColumnDefinition Width="0.75*" MinWidth="300" />
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0">
@@ -682,14 +683,14 @@
                     
                     <TabItem Header="Values">
                         <Grid Margin="14">
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2*" MinWidth="240" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="1*" MinWidth="130" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1*" MinWidth="130" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="1*" MinWidth="120" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="135" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="125" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="150" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn x:Name="ValueGroupColumn" Header="Group" Binding="{Binding Group}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
@@ -720,16 +721,16 @@
                                     </ComboBox>
                                 </StackPanel>
                             </DockPanel>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="150" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2*" MinWidth="240" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Before" Binding="{Binding Previous}" Width="108" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="After" Binding="{Binding NewValue}" Width="108" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Cause" Binding="{Binding Cot}" Width="1*" MinWidth="120" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="0.9*" MinWidth="110" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="1.3*" MinWidth="160" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Cause" Binding="{Binding Cot}" Width="135" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventIoaColumn" Header="IOA" Binding="{Binding IoAddress}" Width="76" Visibility="Collapsed" />
@@ -743,16 +744,133 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Findings">
-                        <Grid Margin="14">
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="FindingsGrid" ItemsSource="{Binding FindingRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="88" />
-                                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="150" />
-                                    <DataGridTextColumn Header="Finding" Binding="{Binding Title}" Width="1.4*" MinWidth="220" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                    <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="2*" MinWidth="280" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                    <DataGridTextColumn Header="Recommendation" Binding="{Binding Recommendation}" Width="1.5*" MinWidth="240" ElementStyle="{StaticResource GridCellWrapMeaningText}" />
-                                </DataGrid.Columns>
-                            </DataGrid>
+                        <Grid Margin="12" MinWidth="860">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="8" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <DockPanel>
+                                <TextBlock Text="Smart findings" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
+                                <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource SecondaryButton}" Width="78" Height="26" Click="RefreshFindingsWorkspace_Click" ToolTip="Rebuild findings from current evidence" />
+                            </DockPanel>
+                            <ListBox x:Name="FindingsWorkspaceList"
+                                     Grid.Row="2"
+                                     ItemsSource="{Binding FindingWorkspaceRows}"
+                                     Style="{StaticResource ProtocolTraceListBox}"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="{x:Type ListBoxItem}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0,0,0,10" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                                    <ContentPresenter />
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FFFFFF" BorderBrush="#DDE7F2" BorderThickness="1" CornerRadius="14" Padding="12" Effect="{StaticResource SoftShadow}">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="8" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="10" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="10" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <DockPanel>
+                                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                                        <Border Background="#EFF6FF" BorderBrush="#CFE0FA" BorderThickness="1" CornerRadius="999" Padding="8,3" Margin="0,0,6,0">
+                                                            <TextBlock Text="{Binding Severity}" FontSize="10.4" FontWeight="SemiBold" Foreground="#1D4ED8" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Code}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                                        <TextBlock Text="{Binding Confidence}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                        <TextBlock Text="{Binding Sequence}" FontSize="10.4" FontFamily="{StaticResource TraceMonoFont}" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                                <TextBlock Grid.Row="2" Text="{Binding Problem}" FontSize="14.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap" />
+                                                <Grid Grid.Row="4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="10" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="10" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="WHY" Style="{StaticResource EyebrowText}" />
+                                                        <TextBlock Text="{Binding Why}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="PROOF" Style="{StaticResource EyebrowText}" />
+                                                        <TextBlock Text="{Binding Proof}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="4">
+                                                        <TextBlock Text="FIX" Style="{StaticResource EyebrowText}" />
+                                                        <TextBlock Text="{Binding Fix}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                                <Border Grid.Row="6" Background="#F8FBFF" BorderBrush="#E1EAF5" BorderThickness="1" CornerRadius="10" Padding="10">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="8" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Text="{Binding Interpretation}" FontSize="11.4" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" />
+                                                        <ItemsControl Grid.Row="2" ItemsSource="{Binding Frames}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="#FFFFFF" BorderBrush="#E5EDF6" BorderThickness="1" CornerRadius="9" Padding="9" Margin="0,0,0,7">
+                                                                        <Grid>
+                                                                            <Grid.RowDefinitions>
+                                                                                <RowDefinition Height="Auto" />
+                                                                                <RowDefinition Height="Auto" />
+                                                                                <RowDefinition Height="Auto" />
+                                                                            </Grid.RowDefinitions>
+                                                                            <DockPanel>
+                                                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                                                                    <Border Background="#EEF5FF" CornerRadius="5" Padding="5,2" Margin="0,0,6,0">
+                                                                                        <TextBlock Text="{Binding Direction}" FontSize="10.4" FontWeight="SemiBold" Foreground="#1D4ED8" />
+                                                                                    </Border>
+                                                                                    <TextBlock Text="{Binding Sequence}" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.8" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                                                    <TextBlock Text="{Binding Time}" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.8" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" />
+                                                                                </StackPanel>
+                                                                                <TextBlock Text="{Binding Address}" DockPanel.Dock="Right" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                                                            </DockPanel>
+                                                                            <TextBlock Grid.Row="1" Text="{Binding Title}" FontFamily="{StaticResource TraceMonoFont}" FontSize="11.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                                            <StackPanel Grid.Row="2" Margin="0,4,0,0">
+                                                                                <TextBlock Text="{Binding Meaning}" FontSize="11.1" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" />
+                                                                                <TextBlock Text="{Binding Raw}" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                                            </StackPanel>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <DataGrid x:Name="FindingsGrid" ItemsSource="{Binding FindingRows}" Visibility="Collapsed" />
                         </Grid>
                     </TabItem>
                     <TabItem Header="Diagnostics">
@@ -771,7 +889,7 @@
                                     <Button Content="Copy Detail" Style="{StaticResource SecondaryButton}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
                                 </StackPanel>
                             </DockPanel>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="DiagnosticsGrid" Grid.Row="2" ItemsSource="{Binding DiagnosticRows}" SelectionChanged="DiagnosticsGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="DiagnosticsGrid" Grid.Row="2" ItemsSource="{Binding DiagnosticRows}" SelectionChanged="DiagnosticsGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Copy selected diagnostic row" Click="CopySelectedDiagnostic_Click" />
@@ -1186,6 +1304,7 @@
                     </TabItem>
 
 </TabControl>
+                    </Grid>
                 </Grid>
             </Border>
         <Border x:Name="CommandDockPanel" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="12" Margin="12,0,0,0" Effect="{StaticResource SoftShadow}">
@@ -1410,7 +1529,7 @@
                         <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronUp}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
-                <DataGrid x:Name="StatusHistoryGrid" Grid.Row="2" Visibility="Collapsed" ItemsSource="{Binding StatusHistoryRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                <DataGrid x:Name="StatusHistoryGrid" Grid.Row="2" Visibility="Collapsed" ItemsSource="{Binding StatusHistoryRows}" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="PC arrival" Binding="{Binding Time}" Width="92" Visibility="Collapsed" />
                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="150" />

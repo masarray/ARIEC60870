@@ -26,4 +26,47 @@ public sealed record EvidencePdfReportModel(
     int TotalRows,
     long FirstSequence,
     long LastSequence,
-    string FramesSha256);
+    string FramesSha256)
+{
+    public EvidencePdfReportModel(
+        string reportId,
+        DateTime createdLocal,
+        string sourceWorkspace,
+        string protocolMode,
+        string verdictStatus,
+        string verdictSummary,
+        string verdictTone,
+        IReadOnlyList<KeyValuePair<string, string>> reportInfo,
+        IReadOnlyList<KeyValuePair<string, string>> sessionCounters,
+        IReadOnlyList<KeyValuePair<string, string>> communicationSetup,
+        IReadOnlyList<EvidenceRow> giRows,
+        IReadOnlyList<EvidenceRow> commandRows,
+        IReadOnlyList<EvidenceRow> soeRows,
+        IReadOnlyList<EvidenceRow> importantRows,
+        int totalRows,
+        long firstSequence,
+        long lastSequence,
+        string framesSha256)
+        : this(
+            reportId,
+            createdLocal,
+            sourceWorkspace,
+            protocolMode,
+            verdictStatus,
+            verdictSummary,
+            verdictTone,
+            Array.Empty<EvidenceSmartFinding>(),
+            reportInfo,
+            sessionCounters,
+            communicationSetup,
+            giRows,
+            commandRows,
+            soeRows,
+            importantRows,
+            totalRows,
+            firstSequence,
+            lastSequence,
+            framesSha256)
+    {
+    }
+}

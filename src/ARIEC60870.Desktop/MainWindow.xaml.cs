@@ -239,6 +239,7 @@ public partial class MainWindow : Window
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
             MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1;
             UpdateSegmentedNav(false);
+            UpdateResponsiveHeaderLayout();
             UpdateAutoScrollLatestRailVisual();
             ApplyCommandDockLayout();
             UpdateCommandDockActionButtons();
@@ -248,13 +249,18 @@ public partial class MainWindow : Window
             RefreshCommandSignalOptions();
             AutoFillCommandTargetFromProfile();
         };
-        SizeChanged += (_, _) => UpdateSegmentedNav(false);
+        SizeChanged += (_, _) =>
+        {
+            UpdateSegmentedNav(false);
+            UpdateResponsiveHeaderLayout();
+        };
         Closing += (_, _) => SaveSetupPreferencesFromUi(silent: true);
     }
 
     public ObservableRangeCollection<EvidenceRow> EvidenceRows { get; } = new();
     public ObservableRangeCollection<EvidenceRow> FrameTraceRows { get; } = new();
     public ObservableRangeCollection<FindingRow> FindingRows { get; } = new();
+    public ObservableRangeCollection<FindingWorkspaceRow> FindingWorkspaceRows { get; } = new();
     public ObservableRangeCollection<ValueRow> ValueRows { get; } = new();
     public ObservableRangeCollection<RelayEventRow> RelayEventRows { get; } = new();
     public ObservableCollection<IoaMappingRow> IoaProfileRows { get; } = new();
