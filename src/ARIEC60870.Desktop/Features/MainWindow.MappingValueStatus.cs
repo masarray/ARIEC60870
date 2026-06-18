@@ -792,9 +792,7 @@ public partial class MainWindow
         while (_pendingEvidence.TryDequeue(out _)) { }
         while (_pendingFindings.TryDequeue(out _)) { }
         _visibleEvidenceDropped = 0;
-        _visibleRelayEventsDropped = 0;
         _visibleLogLinesDropped = 0;
-        _visibleDiagnosticsDropped = 0;
         _txCount = 0;
         _rxCount = 0;
         _giCount = 0;

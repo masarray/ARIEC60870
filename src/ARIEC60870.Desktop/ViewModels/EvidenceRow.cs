@@ -39,8 +39,9 @@ public sealed partial class EvidenceRow
         RawHex = string.IsNullOrWhiteSpace(item.RawHex) ? "-" : item.RawHex;
         PollingReason = item.PollingReason;
         Category = item.Category;
-        Acd = item.Acd.HasValue ? (item.Acd.Value ? "1" : "0") : "-";
-        Dfc = item.Dfc.HasValue ? (item.Dfc.Value ? "1" : "0") : "-";
+        Acd = ResolveLinkFlagText(item.Acd, item, "ACD");
+        Dfc = ResolveLinkFlagText(item.Dfc, item, "DFC");
+        LinkFlags = BuildLinkFlags(item.Frame?.LinkControl?.Prm, Acd, Dfc);
         AsduType = item.AsduType ?? "-";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         TypeIdName = BuildTypeIdName(item);
@@ -101,6 +102,7 @@ public sealed partial class EvidenceRow
     public string Category { get; }
     public string Acd { get; }
     public string Dfc { get; }
+    public string LinkFlags { get; }
     public string AsduType { get; }
     public string TypeId { get; }
     public string TypeIdName { get; }
@@ -179,6 +181,7 @@ public sealed partial class EvidenceRow
         Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category;
         Acd = string.IsNullOrWhiteSpace(capture.Acd) ? "-" : capture.Acd;
         Dfc = string.IsNullOrWhiteSpace(capture.Dfc) ? "-" : capture.Dfc;
+        LinkFlags = BuildLinkFlags(null, Acd, Dfc);
         AsduType = string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
         TypeId = string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
         TypeIdName = TypeId == "-" ? AsduType : $"{TypeId} · {AsduType}";
@@ -242,6 +245,12 @@ public sealed partial class EvidenceRow
             tail += $"  @{time}";
         }
 
+        var linkFlags = CleanTracePart(LinkFlags);
+        if (linkFlags != "-")
+        {
+            tail += $"  |  {linkFlags}";
+        }
+
         return $"{direction}  {service}  |  {address}{tail}";
     }
 
@@ -264,7 +273,38 @@ public sealed partial class EvidenceRow
     private string BuildProtocolTraceRaw()
     {
         var raw = CleanTracePart(RawHex);
-        return raw == "-" ? "RAW -" : "RAW " + raw;
+        var prefix = CleanTracePart(LinkFlags);
+        var rawLine = raw == "-" ? "RAW -" : "RAW " + raw;
+        return prefix == "-" ? rawLine : $"LINK {prefix}  ·  {rawLine}";
+    }
+
+    private static string ResolveLinkFlagText(bool? decoded, Iec103MasterEvidenceEvent item, string name)
+    {
+        if (decoded.HasValue)
+        {
+            return decoded.Value ? "1" : "0";
+        }
+
+        var source = string.Join(" ", item.Detail, item.OperatorMessage, item.ProtocolMeaning, item.OperatorAction, item.Summary);
+        var match = Regex.Match(source, name + @"\s*=\s*([01])", RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : "-";
+    }
+
+    private static string BuildLinkFlags(bool? prm, string acd, string dfc)
+    {
+        if (acd == "-" && dfc == "-")
+        {
+            return "-";
+        }
+
+        // ACD/DFC are secondary/outstation response bits. For primary master requests, the same bit positions are FCB/FCV.
+        // Keep the label explicit so a beginner does not mistake master FCB/FCV for outstation ACD/DFC.
+        if (prm == true)
+        {
+            return "PRM=1, FCB/FCV only";
+        }
+
+        return $"ACD={acd}, DFC={dfc}";
     }
 
     private static string CleanTracePart(string value)

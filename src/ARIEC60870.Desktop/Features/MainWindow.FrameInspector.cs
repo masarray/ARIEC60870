@@ -273,7 +273,7 @@ public partial class MainWindow
         if (row.ProtocolMode == "101" && bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
         {
             yield return new ProtocolMapLine("envelope", "FT1.2 variable frame", "IEC-101 serial variable-length frame. The repeated length block and checksum protect the serial telegram.", string.Join(" ", bytes.Take(4)));
-            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), string.Join(" ", bytes.Skip(4).Take(2)));
+            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), BuildControlEvidence(row, string.Join(" ", bytes.Skip(4).Take(2))));
             yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 8)))));
             yield return new ProtocolMapLine("object", "Information object address", BuildSignalAddressMeaning(row), row.ProtocolAddress);
             if (!string.IsNullOrWhiteSpace(row.SemanticState))
@@ -294,7 +294,7 @@ public partial class MainWindow
         if (bytes[0].Equals("10", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 5)
         {
             yield return new ProtocolMapLine("envelope", "FT1.2 fixed frame", $"Short {row.ProtocolName} link frame. Used for reset, Class 1/Class 2 request, ACK, or NO DATA response.", string.Join(" ", bytes.Take(1)));
-            yield return new ProtocolMapLine("control", "Control field", BuildControlMeaning(row), bytes.ElementAtOrDefault(1) ?? "-");
+            yield return new ProtocolMapLine("control", "Control field", BuildControlMeaning(row), BuildControlEvidence(row, bytes.ElementAtOrDefault(1) ?? "-"));
             yield return new ProtocolMapLine("address", "Link address", "Slave/link address on the serial IEC-60870 link.", bytes.ElementAtOrDefault(2) ?? "-");
             yield return new ProtocolMapLine("check", "Integrity", "Checksum and stop byte. This proves what was actually transmitted on the wire.", string.Join(" ", bytes.Skip(3).Take(2)));
             yield break;
@@ -303,7 +303,7 @@ public partial class MainWindow
         if (bytes[0].Equals("68", StringComparison.OrdinalIgnoreCase) && bytes.Length >= 9)
         {
             yield return new ProtocolMapLine("envelope", "FT1.2 variable frame", $"Variable {row.ProtocolName} frame carrying an ASDU. The length bytes define the payload size and must match.", string.Join(" ", bytes.Take(4)));
-            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), string.Join(" ", bytes.Skip(4).Take(2)));
+            yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), BuildControlEvidence(row, string.Join(" ", bytes.Skip(4).Take(2))));
             yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(4, Math.Max(0, bytes.Length - 8)))));
 
             if (bytes.Length > 11)
@@ -322,6 +322,12 @@ public partial class MainWindow
         }
 
         yield return new ProtocolMapLine("raw", $"Raw {row.ProtocolName} bytes", "The analyzer preserved this frame as raw evidence, but it could not classify it into the expected protocol structure.", string.Join(" ", bytes));
+    }
+
+    private static string BuildControlEvidence(EvidenceRow row, string rawControl)
+    {
+        var flags = row.LinkFlags == "-" ? string.Empty : " · " + row.LinkFlags;
+        return string.IsNullOrWhiteSpace(rawControl) ? flags.TrimStart(' ', '·') : rawControl + flags;
     }
 
     private static string BuildControlMeaning(EvidenceRow row)

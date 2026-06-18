@@ -178,7 +178,7 @@
                             <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                            <Border x:Name="HeaderIndicatorChip" Style="{StaticResource InstrumentChip}" Height="48" Padding="12,0" MinWidth="412">
+                            <Border x:Name="HeaderIndicatorChip" Style="{StaticResource InstrumentChip}" Height="48" Padding="10,0" MinWidth="220">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock x:Name="TxLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -442,9 +442,9 @@
                     <TabItem Header="Trace">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.8*" MinWidth="560" />
+                                <ColumnDefinition Width="1.45*" MinWidth="300" />
                                 <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="0.75*" MinWidth="300" />
+                                <ColumnDefinition Width="0.85*" MinWidth="210" />
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0">
@@ -744,16 +744,25 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Findings">
-                        <Grid Margin="12" MinWidth="860">
+                        <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="8" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <DockPanel>
-                                <TextBlock Text="Smart findings" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
-                                <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource SecondaryButton}" Width="78" Height="26" Click="RefreshFindingsWorkspace_Click" ToolTip="Rebuild findings from current evidence" />
-                            </DockPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Smart findings and solution" Style="{StaticResource SubtleText}" FontSize="11.8" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
+                                <Button Grid.Column="1"
+                                        Style="{StaticResource ReportChromeIconButton}"
+                                        Click="RefreshFindingsWorkspace_Click"
+                                        ToolTip="Refresh findings">
+                                    <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialRefresh}" />
+                                </Button>
+                            </Grid>
                             <ListBox x:Name="FindingsWorkspaceList"
                                      Grid.Row="2"
                                      ItemsSource="{Binding FindingWorkspaceRows}"
@@ -804,27 +813,20 @@
                                                     </StackPanel>
                                                 </DockPanel>
                                                 <TextBlock Grid.Row="2" Text="{Binding Problem}" FontSize="14.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap" />
-                                                <Grid Grid.Row="4">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="10" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="10" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Row="4">
                                                     <StackPanel>
                                                         <TextBlock Text="WHY" Style="{StaticResource EyebrowText}" />
                                                         <TextBlock Text="{Binding Why}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="2">
+                                                    <StackPanel Margin="0,8,0,0">
                                                         <TextBlock Text="PROOF" Style="{StaticResource EyebrowText}" />
                                                         <TextBlock Text="{Binding Proof}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="4">
+                                                    <StackPanel Margin="0,8,0,0">
                                                         <TextBlock Text="FIX" Style="{StaticResource EyebrowText}" />
                                                         <TextBlock Text="{Binding Fix}" FontSize="11.6" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                                     </StackPanel>
-                                                </Grid>
+                                                </StackPanel>
                                                 <Border Grid.Row="6" Background="#F8FBFF" BorderBrush="#E1EAF5" BorderThickness="1" CornerRadius="10" Padding="10">
                                                     <Grid>
                                                         <Grid.RowDefinitions>
@@ -851,7 +853,7 @@
                                                                                     <TextBlock Text="{Binding Sequence}" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.8" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                                                                     <TextBlock Text="{Binding Time}" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.8" Foreground="{StaticResource Ink500Brush}" VerticalAlignment="Center" />
                                                                                 </StackPanel>
-                                                                                <TextBlock Text="{Binding Address}" DockPanel.Dock="Right" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                                                                <TextBlock Text="{Binding Address}" DockPanel.Dock="Right" FontFamily="{StaticResource TraceMonoFont}" FontSize="10.4" Foreground="{StaticResource Ink500Brush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxWidth="130" />
                                                                             </DockPanel>
                                                                             <TextBlock Grid.Row="1" Text="{Binding Title}" FontFamily="{StaticResource TraceMonoFont}" FontSize="11.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap" Margin="0,5,0,0" />
                                                                             <StackPanel Grid.Row="2" Margin="0,4,0,0">
@@ -912,7 +914,7 @@
 
                     <TabItem Header="Report">
                         <Grid Margin="14">
-                            <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True" ToolTip="Native WPF fixed-document preview rendered from the same shared layout plan used by Export PDF.">
+                            <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="0" ClipToBounds="True">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="34" />
@@ -933,19 +935,16 @@
 
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewPrint_Click"
-                                                        ToolTip="Print preview report">
+                                                        Click="ReportPreviewPrint_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialPrint}" />
                                                 </Button>
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewCopy_Click"
-                                                        ToolTip="Copy selected text">
+                                                        Click="ReportPreviewCopy_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialContentCopy}" />
                                                 </Button>
                                                 <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewZoomOut_Click"
-                                                        ToolTip="Zoom out">
+                                                        Click="ReportPreviewZoomOut_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialZoomOut}" />
                                                 </Button>
                                                 <TextBlock x:Name="ReportPreviewZoomText"
@@ -957,19 +956,16 @@
                                                            FontSize="11.5"
                                                            FontWeight="SemiBold" />
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewZoomIn_Click"
-                                                        ToolTip="Zoom in">
+                                                        Click="ReportPreviewZoomIn_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialZoomIn}" />
                                                 </Button>
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewFitWidth_Click"
-                                                        ToolTip="Fit width">
+                                                        Click="ReportPreviewFitWidth_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialFitScreen}" />
                                                 </Button>
                                                 <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewPreviousPage_Click"
-                                                        ToolTip="Previous page">
+                                                        Click="ReportPreviewPreviousPage_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialChevronLeft}" />
                                                 </Button>
                                                 <TextBlock x:Name="ReportPreviewPageText"
@@ -981,19 +977,16 @@
                                                            FontSize="11.5"
                                                            FontWeight="SemiBold" />
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="ReportPreviewNextPage_Click"
-                                                        ToolTip="Next page">
+                                                        Click="ReportPreviewNextPage_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialChevronRight}" />
                                                 </Button>
                                                 <Border Width="1" Height="18" Background="#D4DFEC" Margin="7,4" />
                                                 <Button Style="{StaticResource ReportChromeIconButton}"
-                                                        Click="RefreshReportPreview_Click"
-                                                        ToolTip="Refresh report preview">
+                                                        Click="RefreshReportPreview_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialRefresh}" />
                                                 </Button>
                                                 <Button Style="{StaticResource ReportChromePrimaryIconButton}"
-                                                        Click="ExportPdf_Click"
-                                                        ToolTip="Export PDF">
+                                                        Click="ExportPdf_Click">
                                                     <Path Style="{StaticResource MaterialToolbarIconPath}" Data="{StaticResource MaterialFileDownload}" />
                                                 </Button>
                                             </StackPanel>
@@ -1010,13 +1003,19 @@
                                     <DocumentViewer x:Name="ReportPreviewDocumentViewer"
                                                     Grid.Row="1"
                                                     Visibility="Collapsed"
-                                                    Style="{StaticResource ChromeFreeDocumentViewer}" />
+                                                    Opacity="1"
+                                                    Style="{StaticResource ChromeFreeDocumentViewer}">
+                                        <DocumentViewer.RenderTransform>
+                                            <TranslateTransform Y="0" />
+                                        </DocumentViewer.RenderTransform>
+                                    </DocumentViewer>
 
                                     <Border x:Name="ReportPreviewLoadingOverlay"
                                             Grid.RowSpan="2"
                                             Background="#FBFDFF"
                                             CornerRadius="18"
-                                            Visibility="Visible"
+                                            Visibility="Collapsed"
+                                            Opacity="0"
                                             Panel.ZIndex="10">
                                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="260">
                                             <ProgressBar Height="4"

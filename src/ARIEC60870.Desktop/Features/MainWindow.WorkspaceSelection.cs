@@ -43,6 +43,7 @@ public partial class MainWindow
         RefreshActiveTraceSnapshot();
         if (IsReportPreviewTabActive())
         {
+            PrepareReportPreviewForDeferredReveal();
             Dispatcher.BeginInvoke(new Action(EnsureReportPreviewVisible), DispatcherPriority.Background);
         }
         if (IsFindingsWorkspaceTabActive())

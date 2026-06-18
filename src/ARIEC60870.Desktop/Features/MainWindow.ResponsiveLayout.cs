@@ -14,7 +14,8 @@ public partial class MainWindow
             return;
         }
 
-        var compact = ActualWidth < 1340;
+        var narrow = ActualWidth < 1120;
+        var compact = ActualWidth < 1420;
         var secondaryVisibility = compact ? Visibility.Collapsed : Visibility.Visible;
 
         SetVisible(NoDataSeparator, secondaryVisibility);
@@ -26,8 +27,8 @@ public partial class MainWindow
 
         if (HeaderIndicatorChip is not null)
         {
-            HeaderIndicatorChip.MinWidth = compact ? 408 : 662;
-            HeaderIndicatorChip.Padding = compact ? new Thickness(10, 0, 10, 0) : new Thickness(14, 0, 14, 0);
+            HeaderIndicatorChip.MinWidth = narrow ? 220 : compact ? 244 : 520;
+            HeaderIndicatorChip.Padding = narrow ? new Thickness(8, 0, 8, 0) : compact ? new Thickness(10, 0, 10, 0) : new Thickness(14, 0, 14, 0);
         }
     }
 

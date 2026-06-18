@@ -42,9 +42,7 @@ public partial class MainWindow : Window
     private int _noDataCount;
     private int _dpiCount;
     private long _visibleEvidenceDropped;
-    private long _visibleRelayEventsDropped;
     private long _visibleLogLinesDropped;
-    private long _visibleDiagnosticsDropped;
     private Iec103SignalMappingProfile _mappingProfile = Iec103SignalMappingProfile.Empty;
     private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
     private IProtocolControlCommandSession? _activeControlSession;

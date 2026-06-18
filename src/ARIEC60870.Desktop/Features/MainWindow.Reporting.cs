@@ -16,7 +16,6 @@ using System.Windows.Documents;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
@@ -35,6 +34,7 @@ public partial class MainWindow
 {
     private string? _lastReportPreviewSignature;
     private bool _reportPreviewRefreshInProgress;
+    private int _reportPreviewRevealVersion;
     private static readonly Brush InkBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39));
     private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(100, 116, 139));
     private static readonly Brush AccentBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235));
@@ -121,10 +121,12 @@ public partial class MainWindow
         RefreshReportPreview(force: true);
     }
 
-    private void EnsureReportPreviewVisible()
+    private async void EnsureReportPreviewVisible()
     {
         if (ReportPreviewDocumentViewer?.Document is not null && string.Equals(_lastReportPreviewSignature, BuildReportPreviewSignature(), StringComparison.Ordinal))
         {
+            HideReportPreviewLoading(immediate: true);
+            await RevealReportPreviewAsync(revealVersion: ++_reportPreviewRevealVersion);
             QueueReportPreviewChromeStateUpdate();
             return;
         }
@@ -142,34 +144,64 @@ public partial class MainWindow
         var signature = BuildReportPreviewSignature();
         if (!force && ReportPreviewDocumentViewer.Document is not null && string.Equals(_lastReportPreviewSignature, signature, StringComparison.Ordinal))
         {
+            HideReportPreviewLoading(immediate: true);
+            if (IsReportPreviewTabActive())
+            {
+                await RevealReportPreviewAsync(revealVersion: ++_reportPreviewRevealVersion);
+            }
+            else
+            {
+                PrepareReportPreviewForDeferredReveal();
+            }
             QueueReportPreviewChromeStateUpdate();
             return;
         }
 
         _reportPreviewRefreshInProgress = true;
-        ShowReportPreviewLoading("Preparing report preview...");
+        var revealVersion = ++_reportPreviewRevealVersion;
+        var isActiveReportTab = IsReportPreviewTabActive();
+
+        HideReportPreviewLoading(immediate: true);
+        if (isActiveReportTab || ReportPreviewDocumentViewer.Document is null)
+        {
+            PrepareReportPreviewForDeferredReveal();
+        }
 
         try
         {
-            // Defer until the tab switch layout pass finishes. This avoids UI flicker
-            // and prevents report generation from running inside TabControl selection processing.
-            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
             var model = BuildCurrentReportPreviewModel();
             var document = EvidenceReportPreviewDocumentBuilder.Build(model);
             ReportPreviewDocumentViewer.Document = document;
-            ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
+            ReportPreviewDocumentViewer.UpdateLayout();
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
             _lastReportPreviewSignature = signature;
+
+            if (isActiveReportTab)
+            {
+                await RevealReportPreviewAsync(revealVersion: revealVersion);
+            }
+            else
+            {
+                PrepareReportPreviewForDeferredReveal();
+            }
+
             QueueReportPreviewChromeStateUpdate();
-            HideReportPreviewLoading();
         }
         catch (Exception ex)
         {
             AddUiDiagnostic("Error", "Report", "ARIEC-REPORT-PREVIEW-FAILED", "Report preview failed", ex.Message, "Export PDF still uses the native PDF engine. Refresh the preview after the session stabilizes.");
             AppendSessionLog("Report preview failed: " + ex.Message);
             ReportPreviewDocumentViewer.Document = EvidenceReportPreviewDocumentBuilder.Build(BuildReportPreviewErrorModel(ex.Message));
-            ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
+            ReportPreviewDocumentViewer.UpdateLayout();
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (IsReportPreviewTabActive())
+            {
+                await RevealReportPreviewAsync(revealVersion: revealVersion);
+            }
             QueueReportPreviewChromeStateUpdate();
-            HideReportPreviewLoading();
         }
         finally
         {
@@ -207,24 +239,85 @@ public partial class MainWindow
         }
         if (ReportPreviewLoadingOverlay is not null)
         {
+            ReportPreviewLoadingOverlay.BeginAnimation(UIElement.OpacityProperty, null);
             ReportPreviewLoadingOverlay.Opacity = 1;
             ReportPreviewLoadingOverlay.Visibility = Visibility.Visible;
         }
     }
 
-    private void HideReportPreviewLoading()
+    private void HideReportPreviewLoading(bool immediate = false)
     {
         if (ReportPreviewLoadingOverlay is null)
         {
             return;
         }
 
-        var animation = new DoubleAnimation(0, TimeSpan.FromMilliseconds(160))
+        ReportPreviewLoadingOverlay.BeginAnimation(UIElement.OpacityProperty, null);
+        ReportPreviewLoadingOverlay.Opacity = 0;
+        ReportPreviewLoadingOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void PrepareReportPreviewForDeferredReveal()
+    {
+        if (ReportPreviewDocumentViewer is null)
         {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            return;
+        }
+
+        ReportPreviewDocumentViewer.BeginAnimation(UIElement.OpacityProperty, null);
+        ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
+        ReportPreviewDocumentViewer.Opacity = 0;
+        ReportPreviewDocumentViewer.IsHitTestVisible = false;
+        if (ReportPreviewDocumentViewer.RenderTransform is TranslateTransform transform)
+        {
+            transform.BeginAnimation(TranslateTransform.YProperty, null);
+            transform.Y = 3;
+        }
+    }
+
+    private async System.Threading.Tasks.Task RevealReportPreviewAsync(int revealVersion)
+    {
+        if (ReportPreviewDocumentViewer is null)
+        {
+            return;
+        }
+
+        PrepareReportPreviewForDeferredReveal();
+        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+        await System.Threading.Tasks.Task.Delay(100);
+        if (revealVersion != _reportPreviewRevealVersion || ReportPreviewDocumentViewer is null)
+        {
+            return;
+        }
+
+        ReportPreviewDocumentViewer.Visibility = Visibility.Visible;
+        ReportPreviewDocumentViewer.IsHitTestVisible = true;
+        ReportPreviewDocumentViewer.BeginAnimation(UIElement.OpacityProperty, null);
+        if (ReportPreviewDocumentViewer.RenderTransform is TranslateTransform transform)
+        {
+            transform.BeginAnimation(TranslateTransform.YProperty, null);
+        }
+
+        var opacity = new System.Windows.Media.Animation.DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = TimeSpan.FromMilliseconds(110),
+            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
         };
-        animation.Completed += (_, _) => ReportPreviewLoadingOverlay.Visibility = Visibility.Collapsed;
-        ReportPreviewLoadingOverlay.BeginAnimation(UIElement.OpacityProperty, animation);
+        ReportPreviewDocumentViewer.BeginAnimation(UIElement.OpacityProperty, opacity);
+
+        if (ReportPreviewDocumentViewer.RenderTransform is TranslateTransform revealTransform)
+        {
+            var slide = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 3,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(110),
+                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            };
+            revealTransform.BeginAnimation(TranslateTransform.YProperty, slide);
+        }
     }
 
     private void ReportPreviewPrint_Click(object sender, RoutedEventArgs e)
