@@ -376,3 +376,20 @@ p { color: var(--muted); }
   .evidence-band { padding-inline: 14px; }
   .site-footer { flex-direction: column; }
 }
+
+
+/* Field Wiki and bilingual landing polish */
+.nav-links a[aria-current="page"] { background: var(--brand-soft); color: var(--brand-ink); }
+.card-link { display: inline-flex; margin-top: 18px; color: var(--brand-ink); font-size: 13px; font-weight: 560; text-decoration: none; }
+.card-link::after { content: "→"; margin-left: 8px; transition: transform 220ms var(--ease); }
+.card-link:hover::after { transform: translateX(3px); }
+.wiki-grid .doc-card { min-height: 230px; }
+.protocol-console { display: grid; gap: 10px; border: 1px solid rgba(18, 168, 196, 0.18); border-radius: 22px; padding: 18px; background: linear-gradient(145deg, rgba(255,255,255,0.94), rgba(237,248,251,0.86)); box-shadow: 0 18px 48px rgba(15, 34, 52, 0.08); }
+.protocol-console div { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 3px; align-items: center; border: 1px solid rgba(220, 231, 238, 0.9); border-radius: 14px; padding: 12px; background: rgba(255,255,255,0.78); }
+.protocol-console span { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 24px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.protocol-console .tx { color: #17506a; background: #e8f8fb; }
+.protocol-console .rx { color: #37515e; background: #eef4f7; }
+.protocol-console code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.protocol-console small { grid-column: 2; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.hero .protocol-console { margin-top: 16px; }
+@media (max-width: 620px) { .protocol-console div { grid-template-columns: 1fr; } .protocol-console small { grid-column: 1; } }

@@ -5,51 +5,189 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer</title>
-    <meta name="description" content="FAQ for ARIEC60870 Evidence Analyzer: free Apache-2.0 licensing, commercial use, supported IEC 60870 protocols, PDF reports, Windows download, and product boundaries." />
+    <title>ARIEC60870 FAQ | IEC 101 103 104 Analyzer Questions</title>
+    <meta name="description" content="Expanded FAQ for ARIEC60870 Evidence Analyzer: IEC 101, IEC 103, IEC 104, ACD, DFC, Class 1/Class 2 polling, command timeout, PDF report, license, and product scope." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
-    <meta name="msapplication-TileColor" content="#0b6f86" />
     <link rel="canonical" href="https://masarray.github.io/ARIEC60870/faq.html" />
+    <link rel="alternate" hreflang="en" href="https://masarray.github.io/ARIEC60870/faq.html" />
+    <link rel="alternate" hreflang="id" href="https://masarray.github.io/ARIEC60870/id/faq.html" />
     <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
     <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer" />
-    <meta property="og:description" content="Answers about ARIEC60870 licensing, commercial use, protocols, download, evidence review, and PDF reports." />
+    <meta property="og:title" content="ARIEC60870 FAQ | IEC 101 103 104 Analyzer Questions" />
+    <meta property="og:description" content="Expanded FAQ for ARIEC60870 Evidence Analyzer: IEC 101, IEC 103, IEC 104, ACD, DFC, Class 1/Class 2 polling, command timeout, PDF report, license, and product scope." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/faq.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 evidence analyzer screenshot" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is ARIEC60870 free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. The public source is Apache-2.0 and the Windows release can be used without a license key, account, or subscription."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is ARIEC60870 made for?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It is made for IEC 60870 engineering evidence: checking frames, values, events, General Interrogation behavior, commands, findings, and PDF handover records."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it replace a SCADA master station?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It is an engineering evidence analyzer, not a production SCADA system, gateway, or permanent master station."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use it during FAT or SAT?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, when the test is authorized and the project procedure allows it. The app helps prepare and review evidence, while formal acceptance remains under the approved FAT/SAT procedure."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it support IEC 60870-5-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. IEC-101 workflows include serial setup, link evidence, General Interrogation review, value and event decoding, frame trace, ACD/DFC visibility, and command evidence."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it support IEC 60870-5-103?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. IEC-103 workflows focus on protection relay communication evidence, link reset, class polling, relay events, function information, timestamps, and mapping-assisted review."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it support IEC 60870-5-104?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. IEC-104 workflows cover TCP client evidence, STARTDT/STOPDT/TESTFR visibility, I/S/U frame behavior, sequence counters, ASDU decoding, and report output."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does ACD mean in IEC-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "ACD is the Access Demand bit in the secondary link response. When it is set, the outstation is telling the master that Class 1 data is waiting."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does DFC mean in IEC-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "DFC is the Data Flow Control bit. When it is set, the outstation is indicating that it cannot accept more data at that moment."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Should the master poll Class 1 all the time?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Normally no. A healthy unbalanced IEC-101 cycle uses Class 2 polling for regular traffic and drains Class 1 when ACD indicates pending high-priority data."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does an IEC-101 command become slow?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A common cause is Class 1 congestion: events or cyclic analog data are configured so aggressively that command confirmation has to compete with too much high-priority traffic."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Common Address?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Common Address identifies the ASDU station/object group, while link address belongs to the link layer. Mixing the two is a common source of silent or rejected communication."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the app include vendor relay databases?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Protocol data comes from traffic, while readable signal names come from user-owned JSON mapping profiles."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it export PDF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. The Report workspace exports a native evidence PDF for review and handover."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can the report be shared directly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Review station names, IP addresses, signal names, and project labels first. The report is evidence, so sensitive project data should be checked before distribution."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it a certified conformance tester?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It is an engineering analyzer and learning-friendly evidence tool, not a certified IEC conformance test suite."
+      }
+    }
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "ARIEC60870",
+      "item": "https://masarray.github.io/ARIEC60870/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Field Wiki",
+      "item": "https://masarray.github.io/ARIEC60870/faq.html"
+    }
+  ]
+}
+    </script>
     <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
       <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
-      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocols</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></nav>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="wiki.html">Wiki</a><a href="wiki.html#iec101">Learn</a><a href="faq.html" aria-current="page">FAQ</a><a href="download.html">Download</a><a href="id/">Indonesia</a></nav>
     </header>
-    <main class="doc-main">
-      <section class="doc-hero reveal">
-        <p class="eyebrow">FAQ</p>
-        <h1>Questions before using ARIEC60870.</h1>
-        <p>These answers clarify the product scope, license, commercial use, operating system, supported protocols, mapping approach, and report output.</p>
-        <div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="https://github.com/masarray/ARIEC60870"><span>Open GitHub repository</span></a></div>
-      </section>
-      <section class="faq-grid">
-        <article class="faq-card interactive-surface"><h3>Is ARIEC60870 free?</h3><p>Yes. ARIEC60870 is free and open source under Apache-2.0. There is no license key, subscription, or account requirement for trying the release package.</p></article>
-        <article class="faq-card interactive-surface"><h3>Can it be used commercially?</h3><p>The source is Apache-2.0. That is a permissive license commonly used for commercial and internal engineering workflows. Users still need to follow the license terms, organization policy, and project/customer rules.</p></article>
-        <article class="faq-card interactive-surface"><h3>Which protocols are supported?</h3><p>The app provides practical evidence-oriented workflows for IEC 60870-5-101 serial, IEC 60870-5-103 serial relay communication, and IEC 60870-5-104 TCP/IP client testing.</p></article>
-        <article class="faq-card interactive-surface"><h3>Is it a full SCADA master?</h3><p>No. It is a focused engineering test and evidence analyzer. It is not a production SCADA system, gateway, production redundant master station, or replacement for an approved test procedure.</p></article>
-        <article class="faq-card interactive-surface"><h3>Does it export PDF?</h3><p>Yes. The Report workspace exports a professional PDF evidence report generated directly by the built-in native PDF engine.</p></article>
-        <article class="faq-card interactive-surface"><h3>Does it need an installer?</h3><p>No. Download the Windows ZIP, extract it, and run <strong>ARIEC60870.exe</strong>. The user release is designed as one simple Windows package.</p></article>
-        <article class="faq-card interactive-surface"><h3>How are signal names handled?</h3><p>Protocol decode comes from traffic. Friendly project names come from user-owned JSON mapping profiles. The app does not embed a vendor-specific relay database.</p></article>
-        <article class="faq-card interactive-surface"><h3>Can it be used on live systems?</h3><p>Only use it in authorized engineering environments and approved test windows. The tool is intended for lab, FAT/SAT, commissioning, or troubleshooting use under the project procedure.</p></article>
-        <article class="faq-card interactive-surface"><h3>Does it support passive sniffing?</h3><p>The current public product is focused on active single-endpoint evidence workflows. Passive monitor and dual-link redundancy evidence are advanced workflows; IEC-101 Dual Link Redundancy now has a dedicated workspace and evidence path.</p></article>
-        <article class="faq-card interactive-surface"><h3>What should be checked before sharing a report?</h3><p>Review station labels, IP addresses, communication addresses, signal names, mapping labels, and evidence details before sharing exported PDFs outside the project team.</p></article>
-      </section>
-    </main>
-    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="quick-start.html">Quick Start</a><a href="protocol-coverage.html">Protocol Coverage</a><a href="download.html">Download</a><a href="troubleshooting.html">Troubleshooting</a><a href="faq.html">FAQ</a></span></footer>
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">FAQ</p><h1>Questions engineers usually ask before using ARIEC60870.</h1><p>Clear answers about product scope, supported protocols, ACD/DFC, class polling, reports, licensing, and safe engineering use.</p><div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="wiki.html"><span>Open Field Wiki</span></a></div></section><section class="faq-grid"><article class="faq-card interactive-surface"><h3>Is ARIEC60870 free?</h3><p>Yes. The public source is Apache-2.0 and the Windows release can be used without a license key, account, or subscription.</p></article><article class="faq-card interactive-surface"><h3>What is ARIEC60870 made for?</h3><p>It is made for IEC 60870 engineering evidence: checking frames, values, events, General Interrogation behavior, commands, findings, and PDF handover records.</p></article><article class="faq-card interactive-surface"><h3>Does it replace a SCADA master station?</h3><p>No. It is an engineering evidence analyzer, not a production SCADA system, gateway, or permanent master station.</p></article><article class="faq-card interactive-surface"><h3>Can I use it during FAT or SAT?</h3><p>Yes, when the test is authorized and the project procedure allows it. The app helps prepare and review evidence, while formal acceptance remains under the approved FAT/SAT procedure.</p></article><article class="faq-card interactive-surface"><h3>Does it support IEC 60870-5-101?</h3><p>Yes. IEC-101 workflows include serial setup, link evidence, General Interrogation review, value and event decoding, frame trace, ACD/DFC visibility, and command evidence.</p></article><article class="faq-card interactive-surface"><h3>Does it support IEC 60870-5-103?</h3><p>Yes. IEC-103 workflows focus on protection relay communication evidence, link reset, class polling, relay events, function information, timestamps, and mapping-assisted review.</p></article><article class="faq-card interactive-surface"><h3>Does it support IEC 60870-5-104?</h3><p>Yes. IEC-104 workflows cover TCP client evidence, STARTDT/STOPDT/TESTFR visibility, I/S/U frame behavior, sequence counters, ASDU decoding, and report output.</p></article><article class="faq-card interactive-surface"><h3>What does ACD mean in IEC-101?</h3><p>ACD is the Access Demand bit in the secondary link response. When it is set, the outstation is telling the master that Class 1 data is waiting.</p></article><article class="faq-card interactive-surface"><h3>What does DFC mean in IEC-101?</h3><p>DFC is the Data Flow Control bit. When it is set, the outstation is indicating that it cannot accept more data at that moment.</p></article><article class="faq-card interactive-surface"><h3>Should the master poll Class 1 all the time?</h3><p>Normally no. A healthy unbalanced IEC-101 cycle uses Class 2 polling for regular traffic and drains Class 1 when ACD indicates pending high-priority data.</p></article><article class="faq-card interactive-surface"><h3>Why does an IEC-101 command become slow?</h3><p>A common cause is Class 1 congestion: events or cyclic analog data are configured so aggressively that command confirmation has to compete with too much high-priority traffic.</p></article><article class="faq-card interactive-surface"><h3>What is Common Address?</h3><p>Common Address identifies the ASDU station/object group, while link address belongs to the link layer. Mixing the two is a common source of silent or rejected communication.</p></article><article class="faq-card interactive-surface"><h3>Does the app include vendor relay databases?</h3><p>No. Protocol data comes from traffic, while readable signal names come from user-owned JSON mapping profiles.</p></article><article class="faq-card interactive-surface"><h3>Does it export PDF?</h3><p>Yes. The Report workspace exports a native evidence PDF for review and handover.</p></article><article class="faq-card interactive-surface"><h3>Can the report be shared directly?</h3><p>Review station names, IP addresses, signal names, and project labels first. The report is evidence, so sensitive project data should be checked before distribution.</p></article><article class="faq-card interactive-surface"><h3>Is it a certified conformance tester?</h3><p>No. It is an engineering analyzer and learning-friendly evidence tool, not a certified IEC conformance test suite.</p></article></section></main>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="iec101-command-flow.html">Command flow</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

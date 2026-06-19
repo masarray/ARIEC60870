@@ -1,12 +1,16 @@
-# ARIEC60870 GitHub Pages site
+# ARIEC60870 public site
 
-This directory is the canonical source for the public GitHub Pages landing site.
+This folder contains the public ARIEC60870 product site and field-learning pages served by GitHub Pages.
 
-The Pages workflow publishes this folder directly, so product/SEO changes are made here. Historical `landing/` and `docs/index.html` mirrors are intentionally removed to prevent stale metadata and duplicate maintenance.
+Core pages:
 
-## Local preview
+- `index.html` — English product landing page.
+- `id/index.html` — Indonesian product landing page.
+- `wiki.html` and `id/wiki.html` — IEC 60870 Field Wiki indexes.
+- `iec101-*.html`, `iec103-*.html`, `iec104-*.html` — practical protocol learning pages.
+- `faq.html` and `id/faq.html` — user-facing FAQ pages.
 
-Open `index.html` in a browser, or serve the folder with any static web server:
+Local preview:
 
 ```bash
 python -m http.server 8080 --directory site

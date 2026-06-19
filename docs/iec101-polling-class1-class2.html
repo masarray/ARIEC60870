@@ -1,0 +1,84 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IEC-101 Class 1 and Class 2 Polling | Master Polling Sequence</title>
+    <meta name="description" content="Practical guide to IEC 60870-5-101 Class 1 and Class 2 polling, when the master should request each class, why polling Class 1 forever is wrong, and how command delays happen." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <link rel="canonical" href="https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html" />
+    <link rel="alternate" hreflang="en" href="https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html" />
+    <link rel="alternate" hreflang="id" href="https://masarray.github.io/ARIEC60870/id/iec101-polling-class1-class2.html" />
+    <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:title" content="IEC-101 Class 1 and Class 2 Polling | Master Polling Sequence" />
+    <meta property="og:description" content="Practical guide to IEC 60870-5-101 Class 1 and Class 2 polling, when the master should request each class, why polling Class 1 forever is wrong, and how command delays happen." />
+    <meta property="og:url" content="https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "IEC-101 Class 1 and Class 2 Polling | Master Polling Sequence",
+  "description": "Practical guide to IEC 60870-5-101 Class 1 and Class 2 polling, when the master should request each class, why polling Class 1 forever is wrong, and how command delays happen.",
+  "inLanguage": "en",
+  "url": "https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html",
+  "publisher": {
+    "@type": "Organization",
+    "name": "MasArray",
+    "url": "https://github.com/masarray"
+  },
+  "about": [
+    "IEC 60870-5-101",
+    "IEC 60870-5-103",
+    "IEC 60870-5-104",
+    "SCADA protocol troubleshooting",
+    "ARIEC60870 Evidence Analyzer"
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "ARIEC60870",
+      "item": "https://masarray.github.io/ARIEC60870/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Field Wiki",
+      "item": "https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html"
+    }
+  ]
+}
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="wiki.html">Wiki</a><a href="wiki.html#iec101">Learn</a><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="id/">Indonesia</a></nav>
+    </header>
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Class 1 and Class 2 polling</h1><p>Class 2 is usually the regular polling path. Class 1 is the priority path for events, command confirmations, and pending urgent data.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><span>Back to Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">What it means</p><h2>Class 1 and Class 2 polling</h2><p>Class 2 is usually the regular polling path. Class 1 is the priority path for events, command confirmations, and pending urgent data.</p></div><div class="report-list"><div class="interactive-surface"><strong>Class 2 request</strong><span>Used for regular low-priority data when no Class 1 demand is pending.</span></div><div class="interactive-surface"><strong>ACD=1 response</strong><span>The outstation tells the master that Class 1 data is waiting.</span></div><div class="interactive-surface"><strong>Class 1 request</strong><span>The master drains priority data until the pending condition clears.</span></div><div class="interactive-surface"><strong>Return to Class 2</strong><span>The master returns to regular polling after high-priority data is handled.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">What to check in ARIEC60870</p><h2>Use the software to connect the explanation to the frame evidence.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>A master that polls Class 1 continuously can starve regular traffic.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>Too much cyclic analog data configured as Class 1 can make commands feel slow.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>ARIEC60870 helps separate normal polling from a congested high-priority path.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
+      <div><span class="tx">TX</span><code>10 49 01 4A 16</code><small>request link status</small></div>
+      <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
+      <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
+      <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
+    </div></div><div><p class="eyebrow">Read next</p><h2>Keep following the evidence.</h2><p>Protocol learning is easier when every concept is connected to a visible frame, counter, address, value, event, or report finding.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><span>Class 1/Class 2</span></a><a class="button secondary" href="iec101-command-flow.html"><span>Command</span></a></div></div></section></main>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="iec101-command-flow.html">Command flow</a><a href="faq.html">FAQ</a></span></footer>
+  </body>
+</html>

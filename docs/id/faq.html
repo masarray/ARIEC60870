@@ -1,0 +1,193 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FAQ ARIEC60870 | Pertanyaan IEC 101 103 104 Analyzer</title>
+    <meta name="description" content="FAQ lengkap ARIEC60870 Evidence Analyzer: IEC 101, IEC 103, IEC 104, ACD, DFC, polling Class 1/Class 2, command timeout, PDF report, lisensi, dan scope produk." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <link rel="canonical" href="https://masarray.github.io/ARIEC60870/id/faq.html" />
+    <link rel="alternate" hreflang="en" href="https://masarray.github.io/ARIEC60870/faq.html" />
+    <link rel="alternate" hreflang="id" href="https://masarray.github.io/ARIEC60870/id/faq.html" />
+    <link rel="icon" href="../assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="../assets/brand/ariec60870-icon-192.png" type="image/png" />
+    <link rel="manifest" href="../site.webmanifest" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:title" content="FAQ ARIEC60870 | Pertanyaan IEC 101 103 104 Analyzer" />
+    <meta property="og:description" content="FAQ lengkap ARIEC60870 Evidence Analyzer: IEC 101, IEC 103, IEC 104, ACD, DFC, polling Class 1/Class 2, command timeout, PDF report, lisensi, dan scope produk." />
+    <meta property="og:url" content="https://masarray.github.io/ARIEC60870/id/faq.html" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Apakah ARIEC60870 gratis?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya. Source publik berlisensi Apache-2.0 dan paket Windows dapat dicoba tanpa license key, akun, atau subscription."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "ARIEC60870 dibuat untuk apa?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Aplikasi ini dibuat untuk evidence engineering IEC 60870: membaca frame, value, event, General Interrogation, command, findings, dan PDF handover."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah ini pengganti SCADA master?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tidak. Ini analyzer evidence engineering, bukan SCADA produksi, gateway, atau master station permanen."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Bisa dipakai untuk FAT atau SAT?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Bisa, selama test memang authorized dan sesuai prosedur project. Aplikasi membantu review evidence, sedangkan acceptance tetap mengikuti prosedur FAT/SAT resmi."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah mendukung IEC 60870-5-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya. Workflow IEC-101 meliputi setup serial, evidence link, General Interrogation, value/event decode, frame trace, ACD/DFC, dan evidence command."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah mendukung IEC 60870-5-103?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya. Workflow IEC-103 fokus pada evidence komunikasi relay proteksi, reset link, class polling, event relay, function information, timestamp, dan mapping."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah mendukung IEC 60870-5-104?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya. Workflow IEC-104 mencakup TCP client evidence, STARTDT/STOPDT/TESTFR, frame I/S/U, sequence counter, decode ASDU, dan report."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apa arti ACD di IEC-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "ACD adalah Access Demand pada response link dari slave/outstation. Jika ACD=1, device memberi tanda bahwa ada data Class 1 yang menunggu."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apa arti DFC di IEC-101?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "DFC adalah Data Flow Control. Jika DFC=1, device memberi tanda bahwa sementara tidak siap menerima data tambahan."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah master harus polling Class 1 terus?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Normalnya tidak. Siklus IEC-101 unbalanced yang sehat memakai polling Class 2 untuk traffic reguler dan mengambil Class 1 saat ACD menunjukkan data prioritas menunggu."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Kenapa command IEC-101 bisa lambat?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Penyebab umum adalah congestion di Class 1: event atau data analog cyclic masuk prioritas tinggi terlalu ramai sehingga confirmation command ikut tersendat."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apa itu Common Address?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Common Address mengidentifikasi station/group ASDU, sedangkan link address ada di layer link. Mencampur keduanya sering membuat komunikasi silent atau ditolak."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah aplikasi membawa database vendor relay?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tidak. Data protokol berasal dari traffic, sedangkan nama sinyal dibaca dari mapping profile JSON milik user."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah bisa export PDF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ya. Workspace Report bisa export native evidence PDF untuk review dan handover."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah report bisa langsung dibagikan?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sebaiknya cek nama station, IP address, nama sinyal, dan label project dulu karena report bisa memuat data sensitif."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Apakah ini conformance tester tersertifikasi?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tidak. Ini analyzer dan learning-friendly evidence tool, bukan certified IEC conformance test suite."
+      }
+    }
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "ARIEC60870",
+      "item": "https://masarray.github.io/ARIEC60870/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Wiki Lapangan",
+      "item": "https://masarray.github.io/ARIEC60870/id/faq.html"
+    }
+  ]
+}
+    </script>
+    <link rel="stylesheet" href="../styles.css" />
+    <script src="../script.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>analyzer evidence IEC 60870</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Beranda</a><a href="wiki.html">Wiki</a><a href="wiki.html#iec101">Panduan</a><a href="faq.html" aria-current="page">FAQ</a><a href="../download.html">Download</a><a href="../">English</a></nav>
+    </header>
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">FAQ</p><h1>Pertanyaan yang biasanya muncul sebelum memakai ARIEC60870.</h1><p>Jawaban jelas tentang scope produk, protokol yang didukung, ACD/DFC, class polling, report, lisensi, dan penggunaan engineering yang aman.</p><div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download latest release</span></a><a class="button secondary" href="wiki.html"><span>Buka Field Wiki</span></a></div></section><section class="faq-grid"><article class="faq-card interactive-surface"><h3>Apakah ARIEC60870 gratis?</h3><p>Ya. Source publik berlisensi Apache-2.0 dan paket Windows dapat dicoba tanpa license key, akun, atau subscription.</p></article><article class="faq-card interactive-surface"><h3>ARIEC60870 dibuat untuk apa?</h3><p>Aplikasi ini dibuat untuk evidence engineering IEC 60870: membaca frame, value, event, General Interrogation, command, findings, dan PDF handover.</p></article><article class="faq-card interactive-surface"><h3>Apakah ini pengganti SCADA master?</h3><p>Tidak. Ini analyzer evidence engineering, bukan SCADA produksi, gateway, atau master station permanen.</p></article><article class="faq-card interactive-surface"><h3>Bisa dipakai untuk FAT atau SAT?</h3><p>Bisa, selama test memang authorized dan sesuai prosedur project. Aplikasi membantu review evidence, sedangkan acceptance tetap mengikuti prosedur FAT/SAT resmi.</p></article><article class="faq-card interactive-surface"><h3>Apakah mendukung IEC 60870-5-101?</h3><p>Ya. Workflow IEC-101 meliputi setup serial, evidence link, General Interrogation, value/event decode, frame trace, ACD/DFC, dan evidence command.</p></article><article class="faq-card interactive-surface"><h3>Apakah mendukung IEC 60870-5-103?</h3><p>Ya. Workflow IEC-103 fokus pada evidence komunikasi relay proteksi, reset link, class polling, event relay, function information, timestamp, dan mapping.</p></article><article class="faq-card interactive-surface"><h3>Apakah mendukung IEC 60870-5-104?</h3><p>Ya. Workflow IEC-104 mencakup TCP client evidence, STARTDT/STOPDT/TESTFR, frame I/S/U, sequence counter, decode ASDU, dan report.</p></article><article class="faq-card interactive-surface"><h3>Apa arti ACD di IEC-101?</h3><p>ACD adalah Access Demand pada response link dari slave/outstation. Jika ACD=1, device memberi tanda bahwa ada data Class 1 yang menunggu.</p></article><article class="faq-card interactive-surface"><h3>Apa arti DFC di IEC-101?</h3><p>DFC adalah Data Flow Control. Jika DFC=1, device memberi tanda bahwa sementara tidak siap menerima data tambahan.</p></article><article class="faq-card interactive-surface"><h3>Apakah master harus polling Class 1 terus?</h3><p>Normalnya tidak. Siklus IEC-101 unbalanced yang sehat memakai polling Class 2 untuk traffic reguler dan mengambil Class 1 saat ACD menunjukkan data prioritas menunggu.</p></article><article class="faq-card interactive-surface"><h3>Kenapa command IEC-101 bisa lambat?</h3><p>Penyebab umum adalah congestion di Class 1: event atau data analog cyclic masuk prioritas tinggi terlalu ramai sehingga confirmation command ikut tersendat.</p></article><article class="faq-card interactive-surface"><h3>Apa itu Common Address?</h3><p>Common Address mengidentifikasi station/group ASDU, sedangkan link address ada di layer link. Mencampur keduanya sering membuat komunikasi silent atau ditolak.</p></article><article class="faq-card interactive-surface"><h3>Apakah aplikasi membawa database vendor relay?</h3><p>Tidak. Data protokol berasal dari traffic, sedangkan nama sinyal dibaca dari mapping profile JSON milik user.</p></article><article class="faq-card interactive-surface"><h3>Apakah bisa export PDF?</h3><p>Ya. Workspace Report bisa export native evidence PDF untuk review dan handover.</p></article><article class="faq-card interactive-surface"><h3>Apakah report bisa langsung dibagikan?</h3><p>Sebaiknya cek nama station, IP address, nama sinyal, dan label project dulu karena report bisa memuat data sensitif.</p></article><article class="faq-card interactive-surface"><h3>Apakah ini conformance tester tersertifikasi?</h3><p>Tidak. Ini analyzer dan learning-friendly evidence tool, bukan certified IEC conformance test suite.</p></article></section></main>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
+  </body>
+</html>

@@ -1,18 +1,23 @@
 # ARIEC60870
 
-ARIEC60870 is a free Apache-2.0 Windows desktop protocol evidence analyzer for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 testing.
+ARIEC60870 is a field-tested IEC 60870 evidence analyzer and learning-friendly protocol review tool for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering workflows.
 
-Canonical site: https://masarray.github.io/ARIEC60870/
-GitHub repository: https://github.com/masarray/ARIEC60870
-Latest release: https://github.com/masarray/ARIEC60870/releases/latest
-License: Apache-2.0
-
-Primary pages:
-- Quick Start: https://masarray.github.io/ARIEC60870/quick-start.html
-- Protocol Coverage: https://masarray.github.io/ARIEC60870/protocol-coverage.html
-- Download: https://masarray.github.io/ARIEC60870/download.html
-- Troubleshooting: https://masarray.github.io/ARIEC60870/troubleshooting.html
+## Main pages
+- Home: https://masarray.github.io/ARIEC60870/
+- Indonesian home: https://masarray.github.io/ARIEC60870/id/
+- Field Wiki: https://masarray.github.io/ARIEC60870/wiki.html
 - FAQ: https://masarray.github.io/ARIEC60870/faq.html
+- Download: https://masarray.github.io/ARIEC60870/download.html
 
-Summary:
-The tool runs controlled master/client sessions, decodes IEC 60870 traffic, shows readable engineering evidence, preserves raw TX/RX frame traces, and exports reportable FAT/SAT evidence for commissioning and troubleshooting review.
+## Field Wiki topics
+- IEC-101 ACD and DFC: https://masarray.github.io/ARIEC60870/iec101-acd-dfc.html
+- IEC-101 Class 1 and Class 2 polling: https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html
+- IEC-101 command flow: https://masarray.github.io/ARIEC60870/iec101-command-flow.html
+- IEC-101 Common Address vs Link Address: https://masarray.github.io/ARIEC60870/iec101-addressing.html
+- IEC-101 General Interrogation: https://masarray.github.io/ARIEC60870/iec101-general-interrogation.html
+- IEC-104 STARTDT STOPDT TESTFR: https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html
+- IEC-103 relay events: https://masarray.github.io/ARIEC60870/iec103-relay-events.html
+- Smart Findings: https://masarray.github.io/ARIEC60870/smart-findings.html
+
+## Product boundary
+ARIEC60870 is an engineering evidence analyzer. It is not a production SCADA system, gateway, protection device, or certified conformance test suite.

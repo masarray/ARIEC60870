@@ -1,0 +1,84 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IEC-101 Common Address vs Link Address | CA IOA Link Layer</title>
+    <meta name="description" content="Understand the difference between IEC-101 link address, Common Address, IOA, and why confusing them can create silent failures or unknown address responses." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <link rel="canonical" href="https://masarray.github.io/ARIEC60870/iec101-addressing.html" />
+    <link rel="alternate" hreflang="en" href="https://masarray.github.io/ARIEC60870/iec101-addressing.html" />
+    <link rel="alternate" hreflang="id" href="https://masarray.github.io/ARIEC60870/id/iec101-addressing.html" />
+    <link rel="icon" href="assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:title" content="IEC-101 Common Address vs Link Address | CA IOA Link Layer" />
+    <meta property="og:description" content="Understand the difference between IEC-101 link address, Common Address, IOA, and why confusing them can create silent failures or unknown address responses." />
+    <meta property="og:url" content="https://masarray.github.io/ARIEC60870/iec101-addressing.html" />
+    <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "IEC-101 Common Address vs Link Address | CA IOA Link Layer",
+  "description": "Understand the difference between IEC-101 link address, Common Address, IOA, and why confusing them can create silent failures or unknown address responses.",
+  "inLanguage": "en",
+  "url": "https://masarray.github.io/ARIEC60870/iec101-addressing.html",
+  "publisher": {
+    "@type": "Organization",
+    "name": "MasArray",
+    "url": "https://github.com/masarray"
+  },
+  "about": [
+    "IEC 60870-5-101",
+    "IEC 60870-5-103",
+    "IEC 60870-5-104",
+    "SCADA protocol troubleshooting",
+    "ARIEC60870 Evidence Analyzer"
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "ARIEC60870",
+      "item": "https://masarray.github.io/ARIEC60870/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Field Wiki",
+      "item": "https://masarray.github.io/ARIEC60870/iec101-addressing.html"
+    }
+  ]
+}
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./">Home</a><a href="wiki.html">Wiki</a><a href="wiki.html#iec101">Learn</a><a href="faq.html">FAQ</a><a href="download.html">Download</a><a href="id/">Indonesia</a></nav>
+    </header>
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Common Address vs Link Address</h1><p>Link address belongs to the link layer. Common Address belongs to the ASDU. IOA identifies the information object inside the ASDU.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><span>Back to Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">What it means</p><h2>Common Address vs Link Address</h2><p>Link address belongs to the link layer. Common Address belongs to the ASDU. IOA identifies the information object inside the ASDU.</p></div><div class="report-list"><div class="interactive-surface"><strong>Link address</strong><span>Used by the link layer to reach the outstation on the serial line.</span></div><div class="interactive-surface"><strong>Common Address</strong><span>Used by the application layer to identify the ASDU station or group.</span></div><div class="interactive-surface"><strong>IOA</strong><span>Identifies the information object such as a measured value, indication, or command point.</span></div><div class="interactive-surface"><strong>Profile sizes</strong><span>COT, CA, and IOA length must match the target device profile.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">What to check in ARIEC60870</p><h2>Use the software to connect the explanation to the frame evidence.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>A device can answer link-layer frames while rejecting application data because CA is wrong.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>Wrong IOA often appears as no useful point change or unknown information object behavior.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>Use mapping profiles to translate raw addresses into project signal names.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
+      <div><span class="tx">TX</span><code>10 49 01 4A 16</code><small>request link status</small></div>
+      <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
+      <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
+      <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
+    </div></div><div><p class="eyebrow">Read next</p><h2>Keep following the evidence.</h2><p>Protocol learning is easier when every concept is connected to a visible frame, counter, address, value, event, or report finding.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><span>Class 1/Class 2</span></a><a class="button secondary" href="iec101-command-flow.html"><span>Command</span></a></div></div></section></main>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="iec101-command-flow.html">Command flow</a><a href="faq.html">FAQ</a></span></footer>
+  </body>
+</html>

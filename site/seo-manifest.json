@@ -1,60 +1,35 @@
 {
-  "name": "ARIEC60870 GitHub Pages site",
-  "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
-  "sourceOfTruth": "site/",
-  "version": "3.6.6",
-  "generatedAt": "2026-06-17",
-  "publishedBy": ".github/workflows/pages.yml",
-  "pages": [
-    {
-      "path": "index.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/",
-      "title": "ARIEC60870 Evidence Analyzer | Free IEC 60870-5-101 103 104 Windows Tool",
-      "description": "Free Apache-2.0 Windows desktop app for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering evidence review, FAT/SAT preparation, troubleshooting, raw frame visibility, and native PDF reports."
-    },
-    {
-      "path": "quick-start.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/quick-start.html",
-      "title": "ARIEC60870 Quick Start | IEC 60870 Download Setup Evidence PDF",
-      "description": "Quick start guide for ARIEC60870 Evidence Analyzer: download the Windows ZIP, run ARIEC60870.exe, configure IEC-101, IEC-103, or IEC-104, review evidence, and export a native PDF report."
-    },
-    {
-      "path": "protocol-coverage.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/protocol-coverage.html",
-      "title": "ARIEC60870 Protocol Coverage | IEC-101 IEC-103 IEC-104 Evidence Analyzer",
-      "description": "Protocol coverage for ARIEC60870 Evidence Analyzer: IEC 60870-5-101 serial FT1.2, IEC 60870-5-103 relay serial workflow, and IEC 60870-5-104 TCP/IP client evidence."
-    },
-    {
-      "path": "download.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/download.html",
-      "title": "Download ARIEC60870 | Free Single EXE IEC 60870 Windows Analyzer",
-      "description": "Download ARIEC60870 Evidence Analyzer as one self-contained Windows ZIP for IEC-101, IEC-103, and IEC-104 evidence review, troubleshooting, and native PDF reporting."
-    },
-    {
-      "path": "troubleshooting.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/troubleshooting.html",
-      "title": "ARIEC60870 Troubleshooting | IEC-101 IEC-103 IEC-104 Evidence Checks",
-      "description": "Troubleshooting guide for ARIEC60870: no response, General Interrogation gaps, IEC-101 and IEC-103 serial issues, IEC-104 TCP issues, mapping problems, and PDF report review."
-    },
-    {
-      "path": "faq.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/faq.html",
-      "title": "ARIEC60870 FAQ | Free Apache-2.0 IEC 60870 Evidence Analyzer",
-      "description": "FAQ for ARIEC60870 Evidence Analyzer: free Apache-2.0 licensing, commercial use, supported IEC 60870 protocols, PDF reports, Windows download, and product boundaries."
-    }
+  "site": "ARIEC60870",
+  "canonical": "https://masarray.github.io/ARIEC60870/",
+  "languages": [
+    "en",
+    "id"
   ],
-  "compatibilityMirrors": {
-    "docsHtmlMirror": "active",
-    "purpose": "Keeps GitHub Pages alive when the repository is configured for Deploy from branch /docs. The site/ folder remains the canonical source."
-  },
-  "primaryImage": "assets/screenshots/ariec60870-evidence-workspace.webp",
-  "brandIcon": "assets/brand/ariec60870-icon.png",
-  "screenshotAssets": [
-    "assets/screenshots/ariec60870-evidence-workspace.webp",
-    "assets/screenshots/ariec60870-value-viewer.webp",
-    "assets/screenshots/ariec60870-event-log.webp",
-    "assets/screenshots/ariec60870-diagnostics.webp",
-    "assets/screenshots/ariec60870-report-workspace.webp",
-    "assets/screenshots/ariec60870-iec104-setup.webp"
-  ]
+  "primaryPages": [
+    "/",
+    "/id/",
+    "/wiki.html",
+    "/id/wiki.html",
+    "/faq.html",
+    "/id/faq.html"
+  ],
+  "fieldWikiTopics": [
+    "id/iec101-acd-dfc.html",
+    "id/iec101-addressing.html",
+    "id/iec101-command-flow.html",
+    "id/iec101-general-interrogation.html",
+    "id/iec101-polling-class1-class2.html",
+    "id/iec103-relay-events.html",
+    "id/iec104-startdt-stopdt-testfr.html",
+    "id/smart-findings.html",
+    "iec101-acd-dfc.html",
+    "iec101-addressing.html",
+    "iec101-command-flow.html",
+    "iec101-general-interrogation.html",
+    "iec101-polling-class1-class2.html",
+    "iec103-relay-events.html",
+    "iec104-startdt-stopdt-testfr.html",
+    "smart-findings.html"
+  ],
+  "description": "Field-tested IEC 60870 evidence analyzer and learning center for IEC 101, IEC 103, and IEC 104."
 }
