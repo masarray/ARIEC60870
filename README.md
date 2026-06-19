@@ -1,4 +1,4 @@
-# ARIEC60870 Evidence Analyzer
+# ARIEC60870 Protocol Tester & Evidence Analyzer
 
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
@@ -6,16 +6,16 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download-and-run)
 
-**ARIEC60870 Evidence Analyzer** is a free Apache-2.0 Windows desktop application for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 evidence review, FAT/SAT preparation, commissioning checks, and troubleshooting records.
+**ARIEC60870** is a free Apache-2.0 Windows **IEC 60870 protocol tester and protocol analyzer** for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering work.
 
-The app helps engineers run a focused communication session, review decoded evidence, inspect protocol details, and export a professional PDF report. It is intended for authorized engineering environments only.
+Unlike a basic protocol tester that only shows pass/fail status or raw frames, ARIEC60870 keeps the raw TX/RX hex evidence visible, explains what the selected frame means in readable engineering language, records values and events, highlights likely issues with **Smart Findings**, and exports a clean PDF evidence report for FAT, SAT, commissioning, troubleshooting, homologation support, certification attachments, beauty contest/vendor comparison, and technical handover.
 
 - Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
 - Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 protocol-aware line monitor and evidence analyzer" width="92%">
+    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 IEC 60870 protocol tester with raw TX/RX interpreter, event log, Smart Findings, and evidence report" width="92%">
   </a>
 </p>
 
@@ -32,16 +32,18 @@ Start with the website when you want the user-facing product explanation, downlo
 
 ## What it is for
 
-Use ARIEC60870 when you need to:
+Use ARIEC60870 when you need an IEC 60870 protocol tester that can also explain and package the evidence:
 
 - check a single IEC-101, IEC-103, or IEC-104 endpoint in a controlled test environment;
 - validate IEC-101 dual-link active/standby redundancy behavior with a dedicated workspace;
-- confirm startup communication and General Interrogation behavior;
-- review decoded values, events, diagnostics, and protocol evidence;
-- use project-owned mapping profiles for readable signal names;
-- export a professional PDF evidence report for review, FAT/SAT notes, or handover.
+- confirm startup communication, IEC-104 session control, and General Interrogation behavior;
+- inspect raw TX/RX hex frames with selected-frame interpretation instead of reading hex manually;
+- review decoded values, SOE-style events, diagnostics, quality flags, timestamps, and protocol evidence;
+- use Smart Findings to connect symptoms such as CA mismatch, unknown IOA, GI gaps, Class 1 congestion, command timeout, bad quality, or unstable session behavior to likely causes and practical next steps;
+- use project-owned mapping profiles for readable signal names while keeping raw addresses traceable;
+- export a professional PDF evidence report for FAT/SAT notes, commissioning records, troubleshooting escalation, homologation support, certification attachments, beauty contest/vendor comparison, or handover.
 
-ARIEC60870 is not a production SCADA system, not a gateway, not a production redundant master station, and not a replacement for an approved project test procedure.
+ARIEC60870 is not a production SCADA system, not a gateway, not a production redundant master station, not a certified conformance test suite, and not a replacement for an approved project test procedure.
 
 ## Download and run
 
@@ -79,8 +81,9 @@ SHA256SUMS.txt
 4. Enable **General Interrogation** when a startup snapshot is needed.
 5. Load a mapping profile if readable signal names are required.
 6. Click **Start**.
-7. Review the focused workspaces: **Redundancy** when using dual-link IEC-101, then **Values**, **Events**, **Trace**, and **Report**.
-8. Open **Report** and click **Export PDF** when the evidence is ready.
+7. Review the focused workspaces: **Redundancy** when using dual-link IEC-101, then **Values**, **Events**, **Trace**, **Smart Findings**, and **Report**.
+8. Use **Trace** to inspect raw TX/RX hex and selected-frame meaning when the decoded view is not enough.
+9. Open **Report** and click **Export PDF** when the evidence is ready.
 
 For a fuller walkthrough, read the [User Guide](docs/USER_GUIDE.md), [Quick Start](docs/QUICK_START.md), or the [user website](https://masarray.github.io/ARIEC60870/).
 
@@ -96,7 +99,7 @@ Use **IEC-101 serial** for serial RTU or gateway checks. Select the COM port and
 
 ### IEC-101 Dual Link Redundancy
 
-Use **IEC-101 Dual Link Redundancy** when the RTU/outstation exposes two independent IEC-101 serial paths. Link A and Link B use separate transports and link-layer state. Only the active link owns General Interrogation, commands, Class 1 drain, and Class 2 background polling; the standby link is supervised without draining event queues. The release workspace is intentionally compact: **Redundancy** for active/standby ownership and switch proof, **Values** for the logical RTU image, **Events** for SOE/process events, **Trace** for telegram troubleshooting, and **Report** for FAT/SAT proof.
+Use **IEC-101 Dual Link Redundancy** when the RTU/outstation exposes two independent IEC-101 serial paths. Link A and Link B use separate transports and link-layer state. Only the active link owns General Interrogation, commands, Class 1 drain, and Class 2 background polling; the standby link is supervised without draining event queues. The release workspace is intentionally compact: **Redundancy** for active/standby ownership and switch proof, **Values** for the logical RTU image, **Events** for SOE/process events, **Trace** for telegram troubleshooting, **Smart Findings** for likely protocol problems, and **Report** for FAT/SAT proof.
 
 ### IEC-103 serial
 
@@ -133,12 +136,14 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 
 ## Core capabilities
 
-- IEC 60870-5-101 serial evidence workflow.
+- IEC 60870 protocol tester and analyzer workflow for IEC 60870-5-101 serial.
 - IEC 60870-5-101 Dual Link Redundancy workspace with active-only command/GI/Class polling, supervised standby, recovery latch, filtered redundancy timeline, optional preferred-link failback, and post-switch GI evidence.
-- IEC 60870-5-103 serial relay evidence workflow.
-- IEC 60870-5-104 TCP/IP evidence workflow.
-- Startup communication, General Interrogation, value, event, diagnostic, and frame review.
-- User-owned JSON mapping profiles for readable project signal names.
+- IEC 60870 protocol analyzer workflow for IEC 60870-5-103 serial protection relay communication.
+- IEC 60870 protocol tester workflow for IEC 60870-5-104 TCP/IP endpoint checks.
+- Raw TX/RX hex frame trace with selected-frame interpretation for practical troubleshooting.
+- Startup communication, General Interrogation, value, event, diagnostic, quality, timestamp, and command evidence review.
+- Smart Findings for protocol symptoms, proof, likely cause, and practical next action.
+- User-owned JSON mapping profiles for readable project signal names while raw CA/IOA/FUN/INF details remain traceable.
 - Professional PDF evidence report generated by the built-in native PDF engine.
 - Sanitized protocol smoke tests and xUnit regression suites.
 
