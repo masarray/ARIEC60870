@@ -268,12 +268,12 @@
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavFindingsButton" Content="Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavDiagnosticsButton" Content="Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavNotesButton" Content="Session Notes" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavTriggersButton" Content="Capture Rules" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavDiagnosticsButton" Content="System Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavNotesButton" Content="Session Log" Style="{StaticResource SegmentedNavButton}" Tag="7" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavTriggersButton" Content="Capture Policy" Style="{StaticResource SegmentedNavButton}" Tag="8" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                     </StackPanel>
                                 </Grid>
                             </Border>

@@ -1,35 +1,162 @@
 {
   "site": "ARIEC60870",
+  "version": "3.6.6",
+  "sourceOfTruth": "site/",
+  "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "canonical": "https://masarray.github.io/ARIEC60870/",
   "languages": [
     "en",
     "id"
   ],
-  "primaryPages": [
-    "/",
-    "/id/",
-    "/wiki.html",
-    "/id/wiki.html",
-    "/faq.html",
-    "/id/faq.html"
+  "description": "Field-tested IEC 60870 evidence analyzer and learning center for IEC 101, IEC 103, and IEC 104.",
+  "pages": [
+    {
+      "path": "index.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/",
+      "language": "en"
+    },
+    {
+      "path": "id/index.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/",
+      "language": "id"
+    },
+    {
+      "path": "wiki.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/wiki.html",
+      "language": "en"
+    },
+    {
+      "path": "id/wiki.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/wiki.html",
+      "language": "id"
+    },
+    {
+      "path": "iec101-acd-dfc.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec101-acd-dfc.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec101-acd-dfc.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html",
+      "language": "id"
+    },
+    {
+      "path": "iec101-polling-class1-class2.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec101-polling-class1-class2.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-polling-class1-class2.html",
+      "language": "id"
+    },
+    {
+      "path": "iec101-command-flow.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec101-command-flow.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec101-command-flow.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-command-flow.html",
+      "language": "id"
+    },
+    {
+      "path": "iec101-addressing.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec101-addressing.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec101-addressing.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-addressing.html",
+      "language": "id"
+    },
+    {
+      "path": "iec101-general-interrogation.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec101-general-interrogation.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec101-general-interrogation.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-general-interrogation.html",
+      "language": "id"
+    },
+    {
+      "path": "iec104-startdt-stopdt-testfr.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec104-startdt-stopdt-testfr.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html",
+      "language": "id"
+    },
+    {
+      "path": "iec103-relay-events.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/iec103-relay-events.html",
+      "language": "en"
+    },
+    {
+      "path": "id/iec103-relay-events.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/iec103-relay-events.html",
+      "language": "id"
+    },
+    {
+      "path": "smart-findings.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/smart-findings.html",
+      "language": "en"
+    },
+    {
+      "path": "id/smart-findings.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/smart-findings.html",
+      "language": "id"
+    },
+    {
+      "path": "faq.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/faq.html",
+      "language": "en"
+    },
+    {
+      "path": "id/faq.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/id/faq.html",
+      "language": "id"
+    },
+    {
+      "path": "download.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/download.html",
+      "language": "en"
+    },
+    {
+      "path": "quick-start.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/quick-start.html",
+      "language": "en"
+    },
+    {
+      "path": "protocol-coverage.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/protocol-coverage.html",
+      "language": "en"
+    },
+    {
+      "path": "troubleshooting.html",
+      "canonical": "https://masarray.github.io/ARIEC60870/troubleshooting.html",
+      "language": "en"
+    }
   ],
   "fieldWikiTopics": [
-    "id/iec101-acd-dfc.html",
-    "id/iec101-addressing.html",
-    "id/iec101-command-flow.html",
-    "id/iec101-general-interrogation.html",
-    "id/iec101-polling-class1-class2.html",
-    "id/iec103-relay-events.html",
-    "id/iec104-startdt-stopdt-testfr.html",
-    "id/smart-findings.html",
     "iec101-acd-dfc.html",
-    "iec101-addressing.html",
-    "iec101-command-flow.html",
-    "iec101-general-interrogation.html",
+    "id/iec101-acd-dfc.html",
     "iec101-polling-class1-class2.html",
-    "iec103-relay-events.html",
+    "id/iec101-polling-class1-class2.html",
+    "iec101-command-flow.html",
+    "id/iec101-command-flow.html",
+    "iec101-addressing.html",
+    "id/iec101-addressing.html",
+    "iec101-general-interrogation.html",
+    "id/iec101-general-interrogation.html",
     "iec104-startdt-stopdt-testfr.html",
-    "smart-findings.html"
-  ],
-  "description": "Field-tested IEC 60870 evidence analyzer and learning center for IEC 101, IEC 103, and IEC 104."
+    "id/iec104-startdt-stopdt-testfr.html",
+    "iec103-relay-events.html",
+    "id/iec103-relay-events.html",
+    "smart-findings.html",
+    "id/smart-findings.html"
+  ]
 }
