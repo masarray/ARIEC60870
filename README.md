@@ -14,6 +14,7 @@ Unlike a basic protocol tester that only shows pass/fail status or raw frames, A
 
 - Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
 - Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
+- Evidence-focused alias: **ARIEC60870 Evidence Analyzer**.
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
@@ -69,7 +70,14 @@ Start with the website when you want the user-facing product explanation, downlo
 - [Quick Start](https://masarray.github.io/ARIEC60870/quick-start.html) — download, run, configure, review evidence, export PDF.
 - [Download Guide](https://masarray.github.io/ARIEC60870/download.html) — release asset, package contents, and integrity files.
 - [Protocol Coverage](https://masarray.github.io/ARIEC60870/protocol-coverage.html) — IEC-101, IEC-103, and IEC-104 evidence workflows.
-- [Troubleshooting](https://masarray.github.io/ARIEC60870/troubleshooting.html) — no response, GI gaps, serial/TCP checks, mapping issues, and report review.
+- [Field Wiki](https://masarray.github.io/ARIEC60870/wiki.html) — ACD, DFC, Class 1/Class 2, GI, command flow, addressing, IEC-104 session control, and relay events.
+- [Smart Findings](https://masarray.github.io/ARIEC60870/smart-findings.html) — problem, proof, likely cause, and next step from protocol symptoms.
+- [Troubleshooting](https://masarray.github.io/ARIEC60870/troubleshooting.html) — no response, CA mismatch, GI gaps, serial/TCP checks, mapping issues, and report review.
+- [Common Address mismatch](https://masarray.github.io/ARIEC60870/iec60870-common-address-mismatch.html) — why a device can answer but still use the wrong ASDU CA.
+- [General Interrogation incomplete](https://masarray.github.io/ARIEC60870/iec101-general-interrogation-incomplete.html) — how to read GI gaps from trace and event evidence.
+- [ACTCON missing](https://masarray.github.io/ARIEC60870/iec60870-command-actcon-missing.html) — command confirmation troubleshooting for IEC 101/104 style workflows.
+- [IEC-104 sequence/session issues](https://masarray.github.io/ARIEC60870/iec104-sequence-counter-mismatch.html) — STARTDT, TESTFR, I/S-frame acknowledgement, and sequence behavior.
+- [PDF Evidence Report](https://masarray.github.io/ARIEC60870/iec60870-pdf-evidence-report.html) — FAT/SAT, commissioning, troubleshooting, homologation, certification attachment, and handover evidence.
 - [FAQ](https://masarray.github.io/ARIEC60870/faq.html) — license, commercial use, protocol support, current scope, and safe use boundaries.
 
 ## What it is for
@@ -157,105 +165,3 @@ Use **IEC-103 serial** for protection relay communication checks. Select the COM
 6. Review the generated PDF before sharing it.
 
 The PDF is generated directly by the built-in native PDF engine. No external PDF conversion workflow is required.
-
-## Screenshots
-
-| Line monitor | Value viewer |
-|---|---|
-| <img src="site/assets/screenshots/ariec60870-frame-trace.webp" alt="ARIEC60870 Line Monitor workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-value-viewer.webp" alt="ARIEC60870 Value Viewer workspace" width="100%"> |
-
-| Relay event log | Smart findings |
-|---|---|
-| <img src="site/assets/screenshots/ariec60870-event-log.webp" alt="ARIEC60870 Relay Event Log workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-smart-findings.webp" alt="ARIEC60870 Smart Findings workspace" width="100%"> |
-
-| Report preview | Signal List Editor |
-|---|---|
-| <img src="site/assets/screenshots/ariec60870-report-workspace.webp" alt="ARIEC60870 Report workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-signal-list-editor.webp" alt="ARIEC60870 Signal List Editor" width="100%"> |
-
-| IEC-101 setup | IEC-103 setup | IEC-104 setup |
-|---|---|---|
-| <img src="site/assets/screenshots/ariec60870-iec101-setup.webp" alt="ARIEC60870 IEC-101 setup dialog" width="100%"> | <img src="site/assets/screenshots/ariec60870-iec103-setup.webp" alt="ARIEC60870 IEC-103 setup dialog" width="100%"> | <img src="site/assets/screenshots/ariec60870-iec104-setup.webp" alt="ARIEC60870 IEC-104 setup dialog" width="100%"> |
-
-## Core capabilities
-
-- IEC 60870 protocol tester and analyzer workflow for IEC 60870-5-101 serial.
-- IEC 60870-5-101 Dual Link Redundancy workspace with active-only command/GI/Class polling, supervised standby, recovery latch, filtered redundancy timeline, optional preferred-link failback, and post-switch GI evidence.
-- IEC 60870 protocol analyzer workflow for IEC 60870-5-103 serial protection relay communication.
-- IEC 60870 protocol tester workflow for IEC 60870-5-104 TCP/IP endpoint checks.
-- Raw TX/RX hex frame trace with selected-frame interpretation for practical troubleshooting.
-- Startup communication, General Interrogation, value, event, diagnostic, quality, timestamp, and command evidence review.
-- Smart Findings for protocol symptoms, proof, likely cause, and practical next action.
-- User-owned JSON mapping profiles for readable project signal names while raw CA/IOA/FUN/INF details remain traceable.
-- Professional PDF evidence report generated by the built-in native PDF engine.
-- Sanitized protocol smoke tests and xUnit regression suites.
-
-## Included in the user release package
-
-- `ARIEC60870.exe` — the Windows desktop application.
-- `README_RELEASE.txt` — short first-run instructions.
-- `docs/` — User Guide, Quick Start, Troubleshooting, Validation Matrix, and Release Packaging notes.
-- `samples/` and `profiles/` — neutral example files.
-- `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `CHANGELOG.md`.
-
-## License and commercial use
-
-ARIEC60870 is licensed under [Apache-2.0](LICENSE). It may be used in internal and commercial engineering workflows, subject to the Apache-2.0 license terms, organization policy, customer/project rules, and the approved test environment.
-
-Commercial or internal use does not remove the need to validate exported evidence, follow the approved project procedure, and protect sensitive project information before sharing reports.
-
-## Build from source
-
-Requirements:
-
-- .NET 8 SDK
-- Windows for the WPF desktop app
-- Visual Studio 2022 or newer, or command-line `dotnet`
-
-Build:
-
-```bash
-dotnet restore ARIEC60870.sln
-dotnet build ARIEC60870.sln --configuration Release
-```
-
-Run desktop:
-
-```bash
-dotnet run --project src/ARIEC60870.Desktop
-```
-
-Run tests:
-
-```bash
-dotnet test ARIEC60870.sln --configuration Release
-```
-
-Create the user release package locally:
-
-```powershell
-pwsh ./scripts/publish-windows-portable.ps1
-```
-
-The local packaging script reads the repository version by default and runs the same release checks unless `-SkipTests` is explicitly used for local experiments.
-
-## Documentation
-
-- [Documentation Map](docs/README.md)
-- [User Guide](docs/USER_GUIDE.md)
-- [Quick Start](docs/QUICK_START.md)
-- [IEC-101 Dual Link FAT Checklist](docs/IEC101_DUAL_LINK_FAT_CHECKLIST.md)
-- [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Native PDF Engine](docs/NATIVE_PDF_ENGINE.md)
-- [Validation Matrix](docs/VALIDATION_MATRIX.md)
-- [Testing Strategy](docs/TESTING_STRATEGY.md)
-- [Release Packaging](docs/RELEASE_PACKAGING.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Changelog](CHANGELOG.md)
-- [Test Suite](tests/README.md)
-
-## Security and privacy
-
-Protocol traces and exported reports may contain project names, station labels, communication addresses, mapping labels, and evidence details. Review exported files before sharing them outside the project team.
-
-Please report security issues using [SECURITY.md](SECURITY.md).
