@@ -30,18 +30,8 @@
   "description": "Practical IEC 60870-5-104 guide to STARTDT, STOPDT, TESTFR, I-frame, S-frame, U-frame, and sequence counter evidence for troubleshooting TCP-based IEC 104 sessions.",
   "inLanguage": "en",
   "url": "https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html",
-  "publisher": {
-    "@type": "Organization",
-    "name": "MasArray",
-    "url": "https://github.com/masarray"
-  },
-  "about": [
-    "IEC 60870-5-101",
-    "IEC 60870-5-103",
-    "IEC 60870-5-104",
-    "SCADA protocol troubleshooting",
-    "ARIEC60870 Evidence Analyzer"
-  ]
+  "publisher": { "@type": "Organization", "name": "MasArray", "url": "https://github.com/masarray" },
+  "about": ["IEC 60870-5-104", "IEC 104 protocol analyzer", "IEC 104 protocol tester", "SCADA protocol troubleshooting", "ARIEC60870 Protocol Tester"]
 }
     </script>
     <script type="application/ld+json">
@@ -49,18 +39,8 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "ARIEC60870",
-      "item": "https://masarray.github.io/ARIEC60870/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Field Wiki",
-      "item": "https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html"
-    }
+    { "@type": "ListItem", "position": 1, "name": "ARIEC60870", "item": "https://masarray.github.io/ARIEC60870/" },
+    { "@type": "ListItem", "position": 2, "name": "IEC-104 session control", "item": "https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html" }
   ]
 }
     </script>
@@ -70,15 +50,17 @@
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Learn</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="id/"><span class="flag-icon" aria-hidden="true">🇮🇩</span><span>Indonesia</span></a></nav>
     </header>
-    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>IEC-104 session control</h1><p>IEC-104 is not only TCP open. The application session must be started, supervised, acknowledged, and tested.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Back to Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">What it means</p><h2>IEC-104 session control</h2><p>IEC-104 is not only TCP open. The application session must be started, supervised, acknowledged, and tested.</p></div><div class="report-list"><div class="interactive-surface"><strong>STARTDT</strong><span>Starts data transfer after TCP connection is established.</span></div><div class="interactive-surface"><strong>STOPDT</strong><span>Stops data transfer without necessarily closing TCP immediately.</span></div><div class="interactive-surface"><strong>TESTFR</strong><span>Keeps the session supervised when no useful data is flowing.</span></div><div class="interactive-surface"><strong>I/S/U frames</strong><span>I-frames carry ASDUs, S-frames acknowledge, U-frames control the session.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">What to check in ARIEC60870</p><h2>Use the software to connect the explanation to the frame evidence.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>A socket can be open while application transfer has not started.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>Sequence mismatch points to acknowledgement or state tracking issues.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>ARIEC60870 keeps session control visible next to decoded ASDU evidence.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
-      <div><span class="tx">TX</span><code>10 49 01 4A 16</code><small>request link status</small></div>
-      <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
-      <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
-      <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
-    </div></div><div><p class="eyebrow">Read next</p><h2>Keep following the evidence.</h2><p>Protocol learning is easier when every concept is connected to a visible frame, counter, address, value, event, or report finding.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg><span>Class 1/Class 2</span></a><a class="button secondary" href="iec101-command-flow.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#send"></use></svg><span>Command</span></a></div></div></section></main>
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>IEC-104 session control</h1><p>IEC-104 is not only TCP open. The application session must be started, supervised, acknowledged, and tested.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Back to Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">What it means</p><h2>STARTDT, STOPDT, TESTFR, I/S/U frames</h2><p>In IEC-104, TCP reachability only proves the socket is open. Data transfer starts after STARTDT, ASDU data is carried in I-frames, acknowledgements are visible in S-frames, and U-frames control or test the session.</p></div><div class="report-list"><div class="interactive-surface"><strong>STARTDT</strong><span>Starts application data transfer after TCP connection is established.</span></div><div class="interactive-surface"><strong>STOPDT</strong><span>Stops application data transfer without necessarily closing TCP immediately.</span></div><div class="interactive-surface"><strong>TESTFR</strong><span>Supervises the session when no useful data is flowing.</span></div><div class="interactive-surface"><strong>I/S/U frames</strong><span>I-frames carry ASDUs, S-frames acknowledge, U-frames control the session.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">What to check in ARIEC60870</p><h2>Use the software to connect session control to visible frame evidence.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>A socket can be open while STARTDT confirmation is missing, so application transfer has not really started.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>Sequence mismatch or missing acknowledgement points to state tracking, timing, or reconnect behavior.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>ARIEC60870 keeps U/I/S frame behavior visible next to decoded ASDU evidence, event log, and Smart Findings.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-104 session control example">
+      <div><span class="tx">TX</span><code>68 04 07 00 00 00</code><small>STARTDT act: request data transfer start</small></div>
+      <div><span class="rx">RX</span><code>68 04 0B 00 00 00</code><small>STARTDT con: device accepted data transfer</small></div>
+      <div><span class="tx">TX</span><code>68 0E 00 00 00 00 64 01 06 00 01 00 00 00 14</code><small>I-frame ASDU: General Interrogation activation, CA=1</small></div>
+      <div><span class="rx">RX</span><code>68 04 01 00 02 00</code><small>S-frame: acknowledgement for received I-frame sequence</small></div>
+      <div><span class="tx">TX</span><code>68 04 43 00 00 00</code><small>TESTFR act: session supervision test</small></div>
+      <div><span class="rx">RX</span><code>68 04 83 00 00 00</code><small>TESTFR con: supervision response</small></div>
+    </div></div><div><p class="eyebrow">Read next</p><h2>Keep following the evidence.</h2><p>Protocol learning is easier when every concept is connected to a visible frame, counter, address, value, event, or report finding.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg><span>Class 1/Class 2</span></a><a class="button secondary" href="smart-findings.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#analytics"></use></svg><span>Smart Findings</span></a></div></div></section></main>
     <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="iec101-command-flow.html">Command flow</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>
