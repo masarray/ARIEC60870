@@ -4,142 +4,40 @@
   "sourceOfTruth": "site/",
   "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "canonical": "https://masarray.github.io/ARIEC60870/",
-  "languages": [
-    "en",
-    "id"
-  ],
-  "description": "Field-tested IEC 60870 evidence analyzer and learning center for IEC 101, IEC 103, and IEC 104.",
+  "languages": ["en", "id"],
+  "description": "Free IEC 60870 protocol tester, analyzer, evidence report tool, and learning center for IEC 101, IEC 103, and IEC 104.",
   "pages": [
-    {
-      "path": "index.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/",
-      "language": "en"
-    },
-    {
-      "path": "id/index.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/",
-      "language": "id"
-    },
-    {
-      "path": "wiki.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/wiki.html",
-      "language": "en"
-    },
-    {
-      "path": "id/wiki.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/wiki.html",
-      "language": "id"
-    },
-    {
-      "path": "iec101-acd-dfc.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec101-acd-dfc.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec101-acd-dfc.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html",
-      "language": "id"
-    },
-    {
-      "path": "iec101-polling-class1-class2.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec101-polling-class1-class2.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-polling-class1-class2.html",
-      "language": "id"
-    },
-    {
-      "path": "iec101-command-flow.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec101-command-flow.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec101-command-flow.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-command-flow.html",
-      "language": "id"
-    },
-    {
-      "path": "iec101-addressing.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec101-addressing.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec101-addressing.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-addressing.html",
-      "language": "id"
-    },
-    {
-      "path": "iec101-general-interrogation.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec101-general-interrogation.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec101-general-interrogation.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec101-general-interrogation.html",
-      "language": "id"
-    },
-    {
-      "path": "iec104-startdt-stopdt-testfr.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec104-startdt-stopdt-testfr.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html",
-      "language": "id"
-    },
-    {
-      "path": "iec103-relay-events.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/iec103-relay-events.html",
-      "language": "en"
-    },
-    {
-      "path": "id/iec103-relay-events.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/iec103-relay-events.html",
-      "language": "id"
-    },
-    {
-      "path": "smart-findings.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/smart-findings.html",
-      "language": "en"
-    },
-    {
-      "path": "id/smart-findings.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/smart-findings.html",
-      "language": "id"
-    },
-    {
-      "path": "faq.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/faq.html",
-      "language": "en"
-    },
-    {
-      "path": "id/faq.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/id/faq.html",
-      "language": "id"
-    },
-    {
-      "path": "download.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/download.html",
-      "language": "en"
-    },
-    {
-      "path": "quick-start.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/quick-start.html",
-      "language": "en"
-    },
-    {
-      "path": "protocol-coverage.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/protocol-coverage.html",
-      "language": "en"
-    },
-    {
-      "path": "troubleshooting.html",
-      "canonical": "https://masarray.github.io/ARIEC60870/troubleshooting.html",
-      "language": "en"
-    }
+    {"path":"index.html","canonical":"https://masarray.github.io/ARIEC60870/","language":"en"},
+    {"path":"id/index.html","canonical":"https://masarray.github.io/ARIEC60870/id/","language":"id"},
+    {"path":"wiki.html","canonical":"https://masarray.github.io/ARIEC60870/wiki.html","language":"en"},
+    {"path":"id/wiki.html","canonical":"https://masarray.github.io/ARIEC60870/id/wiki.html","language":"id"},
+    {"path":"iec101-acd-dfc.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-acd-dfc.html","language":"en"},
+    {"path":"id/iec101-acd-dfc.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html","language":"id"},
+    {"path":"iec101-polling-class1-class2.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html","language":"en"},
+    {"path":"id/iec101-polling-class1-class2.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec101-polling-class1-class2.html","language":"id"},
+    {"path":"iec101-command-flow.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-command-flow.html","language":"en"},
+    {"path":"id/iec101-command-flow.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec101-command-flow.html","language":"id"},
+    {"path":"iec101-addressing.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-addressing.html","language":"en"},
+    {"path":"id/iec101-addressing.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec101-addressing.html","language":"id"},
+    {"path":"iec101-general-interrogation.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-general-interrogation.html","language":"en"},
+    {"path":"id/iec101-general-interrogation.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec101-general-interrogation.html","language":"id"},
+    {"path":"iec101-general-interrogation-incomplete.html","canonical":"https://masarray.github.io/ARIEC60870/iec101-general-interrogation-incomplete.html","language":"en"},
+    {"path":"iec104-startdt-stopdt-testfr.html","canonical":"https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html","language":"en"},
+    {"path":"id/iec104-startdt-stopdt-testfr.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html","language":"id"},
+    {"path":"iec104-sequence-counter-mismatch.html","canonical":"https://masarray.github.io/ARIEC60870/iec104-sequence-counter-mismatch.html","language":"en"},
+    {"path":"iec103-relay-events.html","canonical":"https://masarray.github.io/ARIEC60870/iec103-relay-events.html","language":"en"},
+    {"path":"id/iec103-relay-events.html","canonical":"https://masarray.github.io/ARIEC60870/id/iec103-relay-events.html","language":"id"},
+    {"path":"smart-findings.html","canonical":"https://masarray.github.io/ARIEC60870/smart-findings.html","language":"en"},
+    {"path":"id/smart-findings.html","canonical":"https://masarray.github.io/ARIEC60870/id/smart-findings.html","language":"id"},
+    {"path":"iec60870-common-address-mismatch.html","canonical":"https://masarray.github.io/ARIEC60870/iec60870-common-address-mismatch.html","language":"en"},
+    {"path":"iec60870-command-actcon-missing.html","canonical":"https://masarray.github.io/ARIEC60870/iec60870-command-actcon-missing.html","language":"en"},
+    {"path":"iec60870-pdf-evidence-report.html","canonical":"https://masarray.github.io/ARIEC60870/iec60870-pdf-evidence-report.html","language":"en"},
+    {"path":"faq.html","canonical":"https://masarray.github.io/ARIEC60870/faq.html","language":"en"},
+    {"path":"id/faq.html","canonical":"https://masarray.github.io/ARIEC60870/id/faq.html","language":"id"},
+    {"path":"download.html","canonical":"https://masarray.github.io/ARIEC60870/download.html","language":"en"},
+    {"path":"quick-start.html","canonical":"https://masarray.github.io/ARIEC60870/quick-start.html","language":"en"},
+    {"path":"protocol-coverage.html","canonical":"https://masarray.github.io/ARIEC60870/protocol-coverage.html","language":"en"},
+    {"path":"troubleshooting.html","canonical":"https://masarray.github.io/ARIEC60870/troubleshooting.html","language":"en"}
   ],
   "fieldWikiTopics": [
     "iec101-acd-dfc.html",
@@ -152,11 +50,16 @@
     "id/iec101-addressing.html",
     "iec101-general-interrogation.html",
     "id/iec101-general-interrogation.html",
+    "iec101-general-interrogation-incomplete.html",
     "iec104-startdt-stopdt-testfr.html",
     "id/iec104-startdt-stopdt-testfr.html",
+    "iec104-sequence-counter-mismatch.html",
     "iec103-relay-events.html",
     "id/iec103-relay-events.html",
     "smart-findings.html",
-    "id/smart-findings.html"
+    "id/smart-findings.html",
+    "iec60870-common-address-mismatch.html",
+    "iec60870-command-actcon-missing.html",
+    "iec60870-pdf-evidence-report.html"
   ]
 }
