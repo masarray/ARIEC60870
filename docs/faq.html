@@ -19,7 +19,7 @@
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
     <meta property="og:title" content="ARIEC60870 FAQ | IEC 101 103 104 Analyzer Questions" />
-    <meta property="og:description" content="Short, practical answers before downloading or opening a test session." />
+    <meta property="og:description" content="Short, practical answers before you download, connect to a device, or export an evidence report." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/faq.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -189,156 +189,156 @@
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Learn</span></a><a href="faq.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="id/"><span class="flag-icon" aria-hidden="true">🇮🇩</span><span>Indonesia</span></a></nav>
     </header>
     <main class="doc-main">
-      <section class="faq-section reveal">
-        <div class="faq-intro">
+      <section class="faq-layout reveal">
+        <div class="faq-copy">
           <p class="eyebrow">FAQ</p>
-          <h2>General questions asked by engineers.</h2>
+          <h1>General questions asked by engineers.</h1>
           <p>Short, practical answers before you download, connect to a device, or export an evidence report.</p>
           <a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download latest release</span></a>
         </div>
-        <div class="faq-grid" aria-label="Frequently asked questions">
-<article class="faq-card faq-accordion interactive-surface is-open">
-  <button class="faq-toggle" type="button" aria-expanded="true">
-    <span class="faq-question">Is ARIEC60870 free?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+        <div class="faq-accordion-list" aria-label="Frequently asked questions">
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q1" aria-controls="faq-en-a1" aria-expanded="false">
+    <span class="faq-accordion-question">Is ARIEC60870 free?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="false">
-    <div class="faq-answer-inner"><p>Yes. The public source is Apache-2.0 and the Windows release can be used without a license key, account, or subscription.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a1" role="region" aria-labelledby="faq-en-q1" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes. The public source is Apache-2.0 and the Windows release can be used without a license key, account, or subscription.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">What is ARIEC60870 made for?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q2" aria-controls="faq-en-a2" aria-expanded="false">
+    <span class="faq-accordion-question">What is ARIEC60870 made for?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>It is made for IEC 60870 engineering evidence: checking frames, values, events, General Interrogation behavior, commands, findings, and PDF handover records.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a2" role="region" aria-labelledby="faq-en-q2" aria-hidden="true">
+    <div class="faq-accordion-content"><p>It is made for IEC 60870 engineering evidence: checking frames, values, events, General Interrogation behavior, commands, findings, and PDF handover records.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does it replace a SCADA master station?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q3" aria-controls="faq-en-a3" aria-expanded="false">
+    <span class="faq-accordion-question">Does it replace a SCADA master station?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>No. It is an engineering evidence analyzer, not a production SCADA system, gateway, or permanent master station.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a3" role="region" aria-labelledby="faq-en-q3" aria-hidden="true">
+    <div class="faq-accordion-content"><p>No. It is an engineering evidence analyzer, not a production SCADA system, gateway, or permanent master station.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Can I use it during FAT or SAT?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q4" aria-controls="faq-en-a4" aria-expanded="false">
+    <span class="faq-accordion-question">Can I use it during FAT or SAT?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Yes, when the test is authorized and the project procedure allows it. The app helps prepare and review evidence, while formal acceptance remains under the approved FAT/SAT procedure.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a4" role="region" aria-labelledby="faq-en-q4" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes, when the test is authorized and the project procedure allows it. The app helps prepare and review evidence, while formal acceptance remains under the approved FAT/SAT procedure.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does it support IEC 60870-5-101?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q5" aria-controls="faq-en-a5" aria-expanded="false">
+    <span class="faq-accordion-question">Does it support IEC 60870-5-101?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Yes. IEC-101 workflows include serial setup, link evidence, General Interrogation review, value and event decoding, frame trace, ACD/DFC visibility, and command evidence.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a5" role="region" aria-labelledby="faq-en-q5" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes. IEC-101 workflows include serial setup, link evidence, General Interrogation review, value and event decoding, frame trace, ACD/DFC visibility, and command evidence.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does it support IEC 60870-5-103?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q6" aria-controls="faq-en-a6" aria-expanded="false">
+    <span class="faq-accordion-question">Does it support IEC 60870-5-103?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Yes. IEC-103 workflows focus on protection relay communication evidence, link reset, class polling, relay events, function information, timestamps, and mapping-assisted review.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a6" role="region" aria-labelledby="faq-en-q6" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes. IEC-103 workflows focus on protection relay communication evidence, link reset, class polling, relay events, function information, timestamps, and mapping-assisted review.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does it support IEC 60870-5-104?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q7" aria-controls="faq-en-a7" aria-expanded="false">
+    <span class="faq-accordion-question">Does it support IEC 60870-5-104?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Yes. IEC-104 workflows cover TCP client evidence, STARTDT/STOPDT/TESTFR visibility, I/S/U frame behavior, sequence counters, ASDU decoding, and report output.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a7" role="region" aria-labelledby="faq-en-q7" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes. IEC-104 workflows cover TCP client evidence, STARTDT/STOPDT/TESTFR visibility, I/S/U frame behavior, sequence counters, ASDU decoding, and report output.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">What does ACD mean in IEC-101?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q8" aria-controls="faq-en-a8" aria-expanded="false">
+    <span class="faq-accordion-question">What does ACD mean in IEC-101?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>ACD is the Access Demand bit in the secondary link response. When it is set, the outstation is telling the master that Class 1 data is waiting.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a8" role="region" aria-labelledby="faq-en-q8" aria-hidden="true">
+    <div class="faq-accordion-content"><p>ACD is the Access Demand bit in the secondary link response. When it is set, the outstation is telling the master that Class 1 data is waiting.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">What does DFC mean in IEC-101?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q9" aria-controls="faq-en-a9" aria-expanded="false">
+    <span class="faq-accordion-question">What does DFC mean in IEC-101?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>DFC is the Data Flow Control bit. When it is set, the outstation is indicating that it cannot accept more data at that moment.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a9" role="region" aria-labelledby="faq-en-q9" aria-hidden="true">
+    <div class="faq-accordion-content"><p>DFC is the Data Flow Control bit. When it is set, the outstation is indicating that it cannot accept more data at that moment.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Should the master poll Class 1 all the time?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q10" aria-controls="faq-en-a10" aria-expanded="false">
+    <span class="faq-accordion-question">Should the master poll Class 1 all the time?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Normally no. A healthy unbalanced IEC-101 cycle uses Class 2 polling for regular traffic and drains Class 1 when ACD indicates pending high-priority data.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a10" role="region" aria-labelledby="faq-en-q10" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Normally no. A healthy unbalanced IEC-101 cycle uses Class 2 polling for regular traffic and drains Class 1 when ACD indicates pending high-priority data.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Why does an IEC-101 command become slow?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q11" aria-controls="faq-en-a11" aria-expanded="false">
+    <span class="faq-accordion-question">Why does an IEC-101 command become slow?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>A common cause is Class 1 congestion: events or cyclic analog data are configured so aggressively that command confirmation has to compete with too much high-priority traffic.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a11" role="region" aria-labelledby="faq-en-q11" aria-hidden="true">
+    <div class="faq-accordion-content"><p>A common cause is Class 1 congestion: events or cyclic analog data are configured so aggressively that command confirmation has to compete with too much high-priority traffic.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">What is Common Address?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q12" aria-controls="faq-en-a12" aria-expanded="false">
+    <span class="faq-accordion-question">What is Common Address?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Common Address identifies the ASDU station/object group, while link address belongs to the link layer. Mixing the two is a common source of silent or rejected communication.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a12" role="region" aria-labelledby="faq-en-q12" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Common Address identifies the ASDU station/object group, while link address belongs to the link layer. Mixing the two is a common source of silent or rejected communication.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does the app include vendor relay databases?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q13" aria-controls="faq-en-a13" aria-expanded="false">
+    <span class="faq-accordion-question">Does the app include vendor relay databases?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>No. Protocol data comes from traffic, while readable signal names come from user-owned JSON mapping profiles.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a13" role="region" aria-labelledby="faq-en-q13" aria-hidden="true">
+    <div class="faq-accordion-content"><p>No. Protocol data comes from traffic, while readable signal names come from user-owned JSON mapping profiles.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Does it export PDF?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q14" aria-controls="faq-en-a14" aria-expanded="false">
+    <span class="faq-accordion-question">Does it export PDF?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Yes. The Report workspace exports a native evidence PDF for review and handover.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a14" role="region" aria-labelledby="faq-en-q14" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Yes. The Report workspace exports a native evidence PDF for review and handover.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Can the report be shared directly?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q15" aria-controls="faq-en-a15" aria-expanded="false">
+    <span class="faq-accordion-question">Can the report be shared directly?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>Review station names, IP addresses, signal names, and project labels first. The report is evidence, so sensitive project data should be checked before distribution.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a15" role="region" aria-labelledby="faq-en-q15" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Review station names, IP addresses, signal names, and project labels first. The report is evidence, so sensitive project data should be checked before distribution.</p></div>
   </div>
 </article>
-<article class="faq-card faq-accordion interactive-surface">
-  <button class="faq-toggle" type="button" aria-expanded="false">
-    <span class="faq-question">Is it a certified conformance tester?</span>
-    <span class="faq-chevron" aria-hidden="true"></span>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="faq-en-q16" aria-controls="faq-en-a16" aria-expanded="false">
+    <span class="faq-accordion-question">Is it a certified conformance tester?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
   </button>
-  <div class="faq-answer" aria-hidden="true">
-    <div class="faq-answer-inner"><p>No. It is an engineering analyzer and learning-friendly evidence tool, not a certified IEC conformance test suite.</p></div>
+  <div class="faq-accordion-panel" id="faq-en-a16" role="region" aria-labelledby="faq-en-q16" aria-hidden="true">
+    <div class="faq-accordion-content"><p>No. It is an engineering analyzer and learning-friendly evidence tool, not a certified IEC conformance test suite.</p></div>
   </div>
 </article>
         </div>

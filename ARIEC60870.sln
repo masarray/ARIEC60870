@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11819.183
+VisualStudioVersion = 18.6.11819.183 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Core", "src\ARIEC60870.Core\ARIEC60870.Core.csproj", "{C5B870D3-4B93-4B64-8C0B-3FBBD2E53A11}"
 EndProject
@@ -11,6 +11,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Desktop", "src\ARIEC60870.Desktop\ARIEC60870.Desktop.csproj", "{A9E10305-1030-4A5A-B103-71E103A10305}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Protocol.Tests", "tests\ARIEC60870.Protocol.Tests\ARIEC60870.Protocol.Tests.csproj", "{B1E10306-1030-4C5A-B103-71E103A10306}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Repository.Tests", "tests\ARIEC60870.Repository.Tests\ARIEC60870.Repository.Tests.csproj", "{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARIEC60870.Core.Tests", "tests\ARIEC60870.Core.Tests\ARIEC60870.Core.Tests.csproj", "{D6A7B7A1-5B0D-4C9E-8F2B-2E2A5F2A0101}"
 EndProject
@@ -46,6 +48,10 @@ Global
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1E10306-1030-4C5A-B103-71E103A10306}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4B74B42-2F18-4F6B-9B72-35E0A4A10970}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D6A7B7A1-5B0D-4C9E-8F2B-2E2A5F2A0101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D6A7B7A1-5B0D-4C9E-8F2B-2E2A5F2A0101}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6A7B7A1-5B0D-4C9E-8F2B-2E2A5F2A0101}.Release|Any CPU.ActiveCfg = Release|Any CPU

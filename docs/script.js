@@ -71,37 +71,35 @@
   }
 
 
-  const faqAccordions = document.querySelectorAll(".faq-accordion");
-  faqAccordions.forEach((card, index) => {
-    const toggle = card.querySelector(".faq-toggle");
-    const answer = card.querySelector(".faq-answer");
-    if (!toggle || !answer) {
+  const faqCards = document.querySelectorAll(".faq-accordion-card");
+  faqCards.forEach((card) => {
+    const trigger = card.querySelector(".faq-accordion-trigger");
+    const panel = card.querySelector(".faq-accordion-panel");
+    if (!trigger || !panel) {
       return;
     }
 
-    const expanded = card.classList.contains("is-open") || index === 0;
-    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-    answer.setAttribute("aria-hidden", expanded ? "false" : "true");
-    card.classList.toggle("is-open", expanded);
+    card.classList.remove("is-open");
+    trigger.setAttribute("aria-expanded", "false");
+    panel.setAttribute("aria-hidden", "true");
 
-    toggle.addEventListener("click", () => {
+    trigger.addEventListener("click", () => {
       const willOpen = !card.classList.contains("is-open");
+      const list = card.closest(".faq-accordion-list");
+      const groupCards = list ? list.querySelectorAll(".faq-accordion-card") : faqCards;
 
-      faqAccordions.forEach((otherCard) => {
-        const otherToggle = otherCard.querySelector(".faq-toggle");
-        const otherAnswer = otherCard.querySelector(".faq-answer");
-        if (!otherToggle || !otherAnswer) {
-          return;
-        }
+      groupCards.forEach((otherCard) => {
+        const otherTrigger = otherCard.querySelector(".faq-accordion-trigger");
+        const otherPanel = otherCard.querySelector(".faq-accordion-panel");
         otherCard.classList.remove("is-open");
-        otherToggle.setAttribute("aria-expanded", "false");
-        otherAnswer.setAttribute("aria-hidden", "true");
+        otherTrigger?.setAttribute("aria-expanded", "false");
+        otherPanel?.setAttribute("aria-hidden", "true");
       });
 
       if (willOpen) {
         card.classList.add("is-open");
-        toggle.setAttribute("aria-expanded", "true");
-        answer.setAttribute("aria-hidden", "false");
+        trigger.setAttribute("aria-expanded", "true");
+        panel.setAttribute("aria-hidden", "false");
       }
     });
   });

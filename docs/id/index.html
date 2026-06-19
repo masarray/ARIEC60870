@@ -173,7 +173,78 @@
       <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
       <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
       <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
-    </div></div></section><section class="section faq-section" id="faq"><div class="section-heading reveal"><p class="eyebrow">FAQ</p><h2>Pertanyaan yang biasanya muncul sebelum memakai tool.</h2><p>Jawaban singkat dan praktis sebelum download atau membuka test session.</p></div><div class="faq-grid"><article class="faq-card reveal interactive-surface"><h3>Apakah ARIEC60870 gratis?</h3><p>Ya. Source publik berlisensi Apache-2.0 dan paket Windows dapat dicoba tanpa license key, akun, atau subscription.</p></article><article class="faq-card reveal interactive-surface"><h3>ARIEC60870 dibuat untuk apa?</h3><p>Aplikasi ini dibuat untuk evidence engineering IEC 60870: membaca frame, value, event, General Interrogation, command, findings, dan PDF handover.</p></article><article class="faq-card reveal interactive-surface"><h3>Apakah ini pengganti SCADA master?</h3><p>Tidak. Ini analyzer evidence engineering, bukan SCADA produksi, gateway, atau master station permanen.</p></article><article class="faq-card reveal interactive-surface"><h3>Bisa dipakai untuk FAT atau SAT?</h3><p>Bisa, selama test memang authorized dan sesuai prosedur project. Aplikasi membantu review evidence, sedangkan acceptance tetap mengikuti prosedur FAT/SAT resmi.</p></article><article class="faq-card reveal interactive-surface"><h3>Apakah mendukung IEC 60870-5-101?</h3><p>Ya. Workflow IEC-101 meliputi setup serial, evidence link, General Interrogation, value/event decode, frame trace, ACD/DFC, dan evidence command.</p></article><article class="faq-card reveal interactive-surface"><h3>Apakah mendukung IEC 60870-5-103?</h3><p>Ya. Workflow IEC-103 fokus pada evidence komunikasi relay proteksi, reset link, class polling, event relay, function information, timestamp, dan mapping.</p></article><article class="faq-card reveal interactive-surface"><h3>Apakah mendukung IEC 60870-5-104?</h3><p>Ya. Workflow IEC-104 mencakup TCP client evidence, STARTDT/STOPDT/TESTFR, frame I/S/U, sequence counter, decode ASDU, dan report.</p></article><article class="faq-card reveal interactive-surface"><h3>Apa arti ACD di IEC-101?</h3><p>ACD adalah Access Demand pada response link dari slave/outstation. Jika ACD=1, device memberi tanda bahwa ada data Class 1 yang menunggu.</p></article></div><div class="doc-link-row"><a class="button secondary" href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>Baca semua FAQ</span></a></div></section><section class="section download-band" id="download"><div class="download-card reveal interactive-surface"><div><p class="eyebrow">Download</p><h2>Download Windows ZIP dan jalankan ARIEC60870.exe.</h2><p>Gunakan di lingkungan engineering yang authorized dan periksa evidence sebelum report dibagikan keluar team project.</p></div><div class="download-actions"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download latest release</span></a><a class="button secondary" href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Panduan download</span></a></div></div></section></main><dialog class="lightbox" aria-label="Preview screenshot"><button class="lightbox-close" type="button" aria-label="Tutup preview">Tutup</button><figure><img alt="" /><figcaption></figcaption></figure></dialog>
+    </div></div></section><section class="section faq-home-layout" id="faq"><div class="faq-home-copy reveal"><p class="eyebrow">FAQ</p><h2>Pertanyaan yang biasanya muncul sebelum memakai tool.</h2><p>Buka jawaban singkat tentang scope produk, protokol, ACD, DFC, polling, command, dan report.</p><a class="button secondary" href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>Baca semua FAQ</span></a></div><div class="faq-accordion-list faq-home-list reveal"><article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q1" aria-controls="home-id-a1" aria-expanded="false">
+    <span class="faq-accordion-question">Apakah ARIEC60870 gratis?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a1" role="region" aria-labelledby="home-id-q1" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Ya. Source publik berlisensi Apache-2.0 dan paket Windows dapat dicoba tanpa license key, akun, atau subscription.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q2" aria-controls="home-id-a2" aria-expanded="false">
+    <span class="faq-accordion-question">ARIEC60870 dibuat untuk apa?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a2" role="region" aria-labelledby="home-id-q2" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Aplikasi ini dibuat untuk evidence engineering IEC 60870: membaca frame, value, event, General Interrogation, command, findings, dan PDF handover.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q3" aria-controls="home-id-a3" aria-expanded="false">
+    <span class="faq-accordion-question">Apakah ini pengganti SCADA master?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a3" role="region" aria-labelledby="home-id-q3" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Tidak. Ini analyzer evidence engineering, bukan SCADA produksi, gateway, atau master station permanen.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q4" aria-controls="home-id-a4" aria-expanded="false">
+    <span class="faq-accordion-question">Bisa dipakai untuk FAT atau SAT?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a4" role="region" aria-labelledby="home-id-q4" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Bisa, selama test memang authorized dan sesuai prosedur project. Aplikasi membantu review evidence, sedangkan acceptance tetap mengikuti prosedur FAT/SAT resmi.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q5" aria-controls="home-id-a5" aria-expanded="false">
+    <span class="faq-accordion-question">Apakah mendukung IEC 60870-5-101?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a5" role="region" aria-labelledby="home-id-q5" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Ya. Workflow IEC-101 meliputi setup serial, evidence link, General Interrogation, value/event decode, frame trace, ACD/DFC, dan evidence command.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q6" aria-controls="home-id-a6" aria-expanded="false">
+    <span class="faq-accordion-question">Apakah mendukung IEC 60870-5-103?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a6" role="region" aria-labelledby="home-id-q6" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Ya. Workflow IEC-103 fokus pada evidence komunikasi relay proteksi, reset link, class polling, event relay, function information, timestamp, dan mapping.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q7" aria-controls="home-id-a7" aria-expanded="false">
+    <span class="faq-accordion-question">Apakah mendukung IEC 60870-5-104?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a7" role="region" aria-labelledby="home-id-q7" aria-hidden="true">
+    <div class="faq-accordion-content"><p>Ya. Workflow IEC-104 mencakup TCP client evidence, STARTDT/STOPDT/TESTFR, frame I/S/U, sequence counter, decode ASDU, dan report.</p></div>
+  </div>
+</article>
+<article class="faq-accordion-card interactive-surface">
+  <button class="faq-accordion-trigger" type="button" id="home-id-q8" aria-controls="home-id-a8" aria-expanded="false">
+    <span class="faq-accordion-question">Apa arti ACD di IEC-101?</span>
+    <span class="faq-accordion-icon" aria-hidden="true"></span>
+  </button>
+  <div class="faq-accordion-panel" id="home-id-a8" role="region" aria-labelledby="home-id-q8" aria-hidden="true">
+    <div class="faq-accordion-content"><p>ACD adalah Access Demand pada response link dari slave/outstation. Jika ACD=1, device memberi tanda bahwa ada data Class 1 yang menunggu.</p></div>
+  </div>
+</article></div></section><section class="section download-band" id="download"><div class="download-card reveal interactive-surface"><div><p class="eyebrow">Download</p><h2>Download Windows ZIP dan jalankan ARIEC60870.exe.</h2><p>Gunakan di lingkungan engineering yang authorized dan periksa evidence sebelum report dibagikan keluar team project.</p></div><div class="download-actions"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download latest release</span></a><a class="button secondary" href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Panduan download</span></a></div></div></section></main><dialog class="lightbox" aria-label="Preview screenshot"><button class="lightbox-close" type="button" aria-label="Tutup preview">Tutup</button><figure><img alt="" /><figcaption></figcaption></figure></dialog>
     <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>
