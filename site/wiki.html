@@ -30,18 +30,8 @@
   "description": "Practical IEC 60870 field wiki for engineers: ACD, DFC, Class 1/Class 2 polling, General Interrogation, command flow, Common Address, IEC-103 relay events, and IEC-104 session control.",
   "inLanguage": "en",
   "url": "https://masarray.github.io/ARIEC60870/wiki.html",
-  "publisher": {
-    "@type": "Organization",
-    "name": "MasArray",
-    "url": "https://github.com/masarray"
-  },
-  "about": [
-    "IEC 60870-5-101",
-    "IEC 60870-5-103",
-    "IEC 60870-5-104",
-    "SCADA protocol troubleshooting",
-    "ARIEC60870 Evidence Analyzer"
-  ]
+  "publisher": { "@type": "Organization", "name": "MasArray", "url": "https://github.com/masarray" },
+  "about": ["IEC 60870-5-101", "IEC 60870-5-103", "IEC 60870-5-104", "SCADA protocol troubleshooting", "ARIEC60870 Protocol Tester"]
 }
     </script>
     <script type="application/ld+json">
@@ -49,18 +39,8 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "ARIEC60870",
-      "item": "https://masarray.github.io/ARIEC60870/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Field Wiki",
-      "item": "https://masarray.github.io/ARIEC60870/wiki.html"
-    }
+    { "@type": "ListItem", "position": 1, "name": "ARIEC60870", "item": "https://masarray.github.io/ARIEC60870/" },
+    { "@type": "ListItem", "position": 2, "name": "Field Wiki", "item": "https://masarray.github.io/ARIEC60870/wiki.html" }
   ]
 }
     </script>
@@ -70,7 +50,7 @@
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="wiki.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Learn</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="id/"><span class="flag-icon" aria-hidden="true">🇮🇩</span><span>Indonesia</span></a></nav>
     </header>
     <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Practical IEC 60870 notes for engineers reading real traffic.</h1><p>If the trace says ACD, DFC, Class 1, Class 2, ACTCON, ACTTERM, CA, IOA, STARTDT, or TESTFR, this wiki explains what the word means, what a normal sequence looks like, and how to use ARIEC60870 to see the evidence.</p><div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a><a class="button secondary" href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>Read FAQ</span></a></div></section><section class="section" id="iec101"><div class="section-heading reveal"><p class="eyebrow">IEC-101</p><h2>Start here when a serial RTU link is alive but the behavior is not clear.</h2><p>IEC-101 issues often look simple from the outside and messy inside the frame trace. These pages focus on the parts that usually explain the problem.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg></span><h3>IEC-101 ACD and DFC</h3><p>Understand the two link-layer bits that explain why a slave has pending data or is temporarily busy.</p><a class="card-link" href="iec101-acd-dfc.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg></span><h3>Class 1 and Class 2 polling</h3><p>See how the master should poll normal data and drain high-priority data without flooding the link.</p><a class="card-link" href="iec101-polling-class1-class2.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#send"></use></svg></span><h3>Command flow</h3><p>Follow select, execute, ACTCON, feedback, and ACTTERM from a practical field point of view.</p><a class="card-link" href="iec101-command-flow.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#account-tree"></use></svg></span><h3>Common Address vs Link Address</h3><p>Separate link-layer addressing from ASDU addressing before chasing the wrong problem.</p><a class="card-link" href="iec101-addressing.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#playlist-check"></use></svg></span><h3>General Interrogation</h3><p>Learn the normal IEC-101 startup snapshot flow and the symptoms when it does not finish.</p><a class="card-link" href="iec101-general-interrogation.html">Read page</a></article></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">IEC-103 / IEC-104 / Findings</p><h2>Protection relay events, TCP session control, and evidence interpretation.</h2></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg></span><h3>IEC-104 session control</h3><p>Read STARTDT, STOPDT, TESTFR, I-frame, S-frame, U-frame, and sequence behavior.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#bolt"></use></svg></span><h3>IEC-103 relay events</h3><p>Understand why relay protocol evidence looks different from telecontrol points.</p><a class="card-link" href="iec103-relay-events.html">Read page</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#analytics"></use></svg></span><h3>Smart Findings</h3><p>See how ARIEC60870 turns raw symptoms into problem, proof, and practical next step.</p><a class="card-link" href="smart-findings.html">Read page</a></article></div></section></main>
