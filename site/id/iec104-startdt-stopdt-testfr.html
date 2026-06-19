@@ -22,63 +22,21 @@
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "TechArticle",
-  "headline": "IEC-104 STARTDT STOPDT TESTFR | Dasar Frame I S U",
-  "description": "Panduan praktis IEC 60870-5-104 untuk STARTDT, STOPDT, TESTFR, frame I/S/U, dan sequence counter saat troubleshooting session IEC 104 TCP.",
-  "inLanguage": "id",
-  "url": "https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html",
-  "publisher": {
-    "@type": "Organization",
-    "name": "MasArray",
-    "url": "https://github.com/masarray"
-  },
-  "about": [
-    "IEC 60870-5-101",
-    "IEC 60870-5-103",
-    "IEC 60870-5-104",
-    "SCADA protocol troubleshooting",
-    "ARIEC60870 Evidence Analyzer"
-  ]
-}
-    </script>
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "ARIEC60870",
-      "item": "https://masarray.github.io/ARIEC60870/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Wiki Lapangan",
-      "item": "https://masarray.github.io/ARIEC60870/id/iec104-startdt-stopdt-testfr.html"
-    }
-  ]
-}
-    </script>
     <link rel="stylesheet" href="../styles.css" />
     <script src="../script.js" defer></script>
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>analyzer evidence IEC 60870</small></span></a>
-      <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#home"></use></svg><span>Beranda</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Panduan</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="../"><span class="flag-icon" aria-hidden="true">🇬🇧</span><span>English</span></a></nav>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
+      <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#home"></use></svg><span>Beranda</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="../"><span class="flag-icon" aria-hidden="true">🇬🇧</span><span>English</span></a></nav>
     </header>
-    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Kontrol session IEC-104</h1><p>IEC-104 bukan hanya TCP open. Session aplikasi harus dimulai, disupervisi, di-acknowledge, dan diuji.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Kembali ke Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">Artinya</p><h2>Kontrol session IEC-104</h2><p>IEC-104 bukan hanya TCP open. Session aplikasi harus dimulai, disupervisi, di-acknowledge, dan diuji.</p></div><div class="report-list"><div class="interactive-surface"><strong>STARTDT</strong><span>Memulai data transfer setelah TCP connect.</span></div><div class="interactive-surface"><strong>STOPDT</strong><span>Menghentikan data transfer tanpa harus langsung menutup TCP.</span></div><div class="interactive-surface"><strong>TESTFR</strong><span>Mengawasi session saat tidak ada data berguna mengalir.</span></div><div class="interactive-surface"><strong>Frame I/S/U</strong><span>I-frame membawa ASDU, S-frame acknowledge, U-frame kontrol session.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">Yang dicek di ARIEC60870</p><h2>Gunakan aplikasi untuk menghubungkan penjelasan dengan evidence frame.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>Socket bisa open tetapi application transfer belum start.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>Sequence mismatch menunjukkan masalah acknowledgement atau state tracking.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>ARIEC60870 menampilkan kontrol session bersama evidence ASDU.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
-      <div><span class="tx">TX</span><code>10 49 01 4A 16</code><small>request link status</small></div>
-      <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
-      <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
-      <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
-    </div></div><div><p class="eyebrow">Baca berikutnya</p><h2>Ikuti evidence berikutnya.</h2><p>Belajar protokol lebih mudah ketika setiap konsep terhubung ke frame, counter, address, value, event, atau finding yang terlihat.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg><span>Class 1/Class 2</span></a><a class="button secondary" href="iec101-command-flow.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#send"></use></svg><span>Command</span></a></div></div></section></main>
+    <main class="doc-main">
+      <section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Kontrol session IEC-104</h1><p>IEC-104 bukan hanya TCP open. Session aplikasi harus dimulai dengan STARTDT, diawasi dengan TESTFR, dan diikuti lewat frame I/S/U.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Kembali ke Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a></div></section>
+      <section class="section split"><div><p class="eyebrow">Artinya</p><h2>STARTDT, STOPDT, TESTFR, frame I/S/U</h2><p>TCP connect hanya membuktikan socket terbuka. Data transfer dimulai setelah STARTDT. Data ASDU dibawa I-frame, acknowledgement terlihat di S-frame, dan U-frame mengontrol session.</p></div><div class="report-list"><div class="interactive-surface"><strong>STARTDT</strong><span>Memulai application data transfer setelah TCP connect.</span></div><div class="interactive-surface"><strong>STOPDT</strong><span>Menghentikan application data transfer.</span></div><div class="interactive-surface"><strong>TESTFR</strong><span>Menguji session saat traffic sedang sepi.</span></div><div class="interactive-surface"><strong>Frame I/S/U</strong><span>I-frame membawa ASDU, S-frame acknowledge, U-frame kontrol session.</span></div></div></section>
+      <section class="section"><div class="section-heading reveal"><p class="eyebrow">Contoh frame IEC-104</p><h2>Contoh ini memakai U-frame, I-frame, dan S-frame IEC-104, bukan contoh IEC-101 serial.</h2></div><div class="protocol-console" aria-label="Contoh kontrol session IEC-104"><div><span class="tx">TX</span><code>STARTDT act</code><small>Master meminta data transfer dimulai</small></div><div><span class="rx">RX</span><code>STARTDT con</code><small>Device mengkonfirmasi data transfer</small></div><div><span class="tx">TX</span><code>I-frame ASDU</code><small>General Interrogation activation dengan Common Address sesuai setup</small></div><div><span class="rx">RX</span><code>S-frame</code><small>Acknowledgement untuk sequence I-frame</small></div><div><span class="tx">TX</span><code>TESTFR act</code><small>Test supervision session</small></div><div><span class="rx">RX</span><code>TESTFR con</code><small>Response supervision</small></div></div></section>
+      <section class="section"><div class="section-heading reveal"><p class="eyebrow">Yang dicek di ARIEC60870</p><h2>Hubungkan session control dengan evidence frame.</h2><p>ARIEC60870 membantu melihat apakah STARTDT dikonfirmasi, sequence di-acknowledge, dan TESTFR dijawab sehingga engineer tidak hanya mengandalkan status TCP connect.</p></div></section>
+    </main>
     <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>
