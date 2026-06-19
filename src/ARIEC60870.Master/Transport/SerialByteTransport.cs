@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Diagnostics;
+using System.IO;
 using System.IO.Ports;
 using ARIEC60870.Master.Model;
 
@@ -33,7 +34,12 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         _serialPort = new SerialPort(_settings.PortName, _settings.BaudRate, _settings.Parity, _settings.DataBits, _settings.StopBits)
         {
             ReadTimeout = _settings.ResponseTimeoutMs,
-            WriteTimeout = _settings.ResponseTimeoutMs,
+            // Keep write timeout independent from protocol response timeout. In field use, response
+            // timeout may be intentionally short (for fast polling), while SerialPort.Write still
+            // needs enough room for USB/RS-485 driver latency and OS scheduling. A too-short write
+            // timeout creates noisy System.TimeoutException failures before the protocol timeout logic
+            // can produce a clean diagnostic row.
+            WriteTimeout = Math.Max(2000, _settings.ResponseTimeoutMs),
             Handshake = Handshake.None,
             DtrEnable = false,
             RtsEnable = true
@@ -112,6 +118,43 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         catch (Exception ex) when (cancellationToken.IsCancellationRequested)
         {
             throw new OperationCanceledException("Serial transport write was cancelled or closed.", ex, cancellationToken);
+        }
+        catch (TimeoutException ex)
+        {
+            RecordDiagnostic(
+                code: "IEC60870-TRANSPORT-WRITE-TIMEOUT",
+                message: "Serial write timed out",
+                exception: ex,
+                recommendation: "The serial driver did not accept outgoing bytes before the write timeout. Check USB/RS-485 converter state, COM port ownership, wiring, RTS direction control, and retry after reconnecting the adapter. The protocol session will stop cleanly instead of crashing the UI.");
+            TryDiscardOutputBuffer(serialPort);
+            throw new IOException($"Serial write timed out on {SafePortName(serialPort)} after {serialPort.WriteTimeout} ms. Check USB/RS-485 converter, wiring, RTS direction control, and COM port ownership.", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            RecordDiagnostic(
+                code: "IEC60870-TRANSPORT-WRITE-CLOSED",
+                message: "Serial port closed while writing",
+                exception: ex,
+                recommendation: "The COM port closed while ARIEC60870 was sending a frame. Check USB/serial adapter stability and make sure another tool is not taking ownership of the same port.");
+            throw new IOException($"Serial port {SafePortName(serialPort)} closed while writing.", ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            RecordDiagnostic(
+                code: "IEC60870-TRANSPORT-WRITE-ACCESS",
+                message: "Serial port access was denied while writing",
+                exception: ex,
+                recommendation: "Another application or driver may own the COM port. Close other serial tools, unplug/replug the adapter, then reopen the session.");
+            throw new IOException($"Serial port {SafePortName(serialPort)} denied write access.", ex);
+        }
+        catch (IOException ex)
+        {
+            RecordDiagnostic(
+                code: "IEC60870-TRANSPORT-WRITE-IO",
+                message: "Serial write I/O exception",
+                exception: ex,
+                recommendation: "Check the serial adapter, cable, port driver, and RS-485 converter direction control. Reconnect the adapter if the port remains unhealthy.");
+            throw;
         }
     }
 
@@ -207,6 +250,38 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             var copy = _diagnostics.ToArray();
             _diagnostics.Clear();
             return copy;
+        }
+    }
+
+
+    private void TryDiscardOutputBuffer(SerialPort serialPort)
+    {
+        try
+        {
+            if (serialPort.IsOpen)
+            {
+                serialPort.DiscardOutBuffer();
+            }
+        }
+        catch (Exception ex)
+        {
+            RecordDiagnostic(
+                code: "IEC60870-TRANSPORT-DISCARD-OUT",
+                message: "Serial output buffer cleanup failed after write fault",
+                exception: ex,
+                recommendation: "The COM port driver may be stuck after the previous write fault. Reconnect the USB/serial adapter before retrying.");
+        }
+    }
+
+    private static string SafePortName(SerialPort serialPort)
+    {
+        try
+        {
+            return serialPort.PortName;
+        }
+        catch
+        {
+            return "serial port";
         }
     }
 

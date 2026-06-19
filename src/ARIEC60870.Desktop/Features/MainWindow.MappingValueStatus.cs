@@ -127,9 +127,25 @@ public partial class MainWindow
 
     private Iec10xPointMappingEntry? ResolveIoaPoint(Iec103MasterEvidenceEvent item)
     {
-        return item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
-            ? _ioaProfile.Resolve(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId)
-            : null;
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
+        {
+            return null;
+        }
+
+        var exact = _ioaProfile.Resolve(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId);
+        if (exact is not null || !item.InformationObjectAddress.HasValue)
+        {
+            return exact;
+        }
+
+        // Field devices sometimes answer with a live ASDU CA that differs from the configured
+        // FAT/SAT profile CA. The Values workspace is an operator view, so keep mapping by IOA
+        // when the runtime CA is different; the dedicated runtime CA warning explains the mismatch.
+        // Without this fallback, real values appear as a second unmapped row while the profile row
+        // remains stuck in the old "waiting for GI" placeholder state.
+        return _ioaProfile.Points.FirstOrDefault(point =>
+            point.Ioa == item.InformationObjectAddress.Value &&
+            (!point.TypeId.HasValue || !item.TypeId.HasValue || point.TypeId.Value == item.TypeId.Value));
     }
 
     private static string ExtractSimpleStateToken(string value)
@@ -409,16 +425,19 @@ public partial class MainWindow
 
     private static string BuildValueKey(Iec103MasterEvidenceEvent item)
     {
-        if (!string.IsNullOrWhiteSpace(item.SignalKey))
-        {
-            return item.SignalKey;
-        }
-
         if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
         {
+            // IEC-101/104 operator values must be keyed by IOA so seeded profile placeholders
+            // and live RX process values update the same row even when live CA differs from the
+            // configured profile CA or the decoder supplies a richer SignalKey.
             return item.InformationObjectAddress.HasValue
                 ? BuildIoaValueKey(item.InformationObjectAddress.Value)
                 : $"{item.ProtocolMode}:IOA-";
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.SignalKey))
+        {
+            return item.SignalKey;
         }
 
         return $"FUN{(item.FunctionType ?? 0):000}:INF{(item.InformationNumber ?? 0):000}";

@@ -765,9 +765,9 @@ public partial class MainWindow
                 SignalName = point.Name,
                 SignalGroup = string.IsNullOrWhiteSpace(point.Group) ? "Profile" : point.Group,
                 SignalType = string.IsNullOrWhiteSpace(point.SignalType) ? $"Type {point.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point.SignalType,
-                DisplayValue = "waiting for GI / scan",
+                DisplayValue = "awaiting live value",
                 RawValue = string.Empty,
-                CauseOfTransmission = "profile expected",
+                CauseOfTransmission = "profile pending",
                 AsduType = string.IsNullOrWhiteSpace(point.SignalType) ? string.Empty : point.SignalType,
                 RelayTimeText = "not received",
                 ArrivalTimeUtc = DateTime.UtcNow,
@@ -775,13 +775,13 @@ public partial class MainWindow
                 CommonAddress = point.Ca ?? _ioaProfile.CommonAddress,
                 InformationObjectAddress = point.Ioa,
                 TypeId = point.TypeId,
-                QualityText = "not received"
+                QualityText = "pending"
             }));
         }
 
         if (ordered.Count > 0)
         {
-            AppendSessionLog($"Values seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing GI values stay visible as 'waiting for GI / scan'.");
+            AppendSessionLog($"Values seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing profile values stay visible as 'awaiting live value' until the RTU sends the IOA.");
         }
     }
 

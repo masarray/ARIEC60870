@@ -208,6 +208,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = this;
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
         _uiFlushTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(75)
