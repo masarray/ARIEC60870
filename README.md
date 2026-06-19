@@ -10,6 +10,8 @@
 
 Unlike a basic protocol tester that only shows pass/fail status or raw frames, ARIEC60870 keeps the raw TX/RX hex evidence visible, explains what the selected frame means in readable engineering language, records values and events, highlights likely issues with **Smart Findings**, and exports a clean PDF evidence report for FAT, SAT, commissioning, troubleshooting, homologation support, certification attachments, beauty contest/vendor comparison, and technical handover.
 
+> **From raw hex to root cause.** Test IEC 60870, understand the frame, diagnose likely communication issues, and export the evidence.
+
 - Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
 - Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
 
@@ -18,6 +20,46 @@ Unlike a basic protocol tester that only shows pass/fail status or raw frames, A
     <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 IEC 60870 protocol tester with raw TX/RX interpreter, event log, Smart Findings, and evidence report" width="92%">
   </a>
 </p>
+
+## See what the device is really saying
+
+A basic protocol analyzer can show a frame. ARIEC60870 is designed to help the engineer understand what the frame means, why it matters, and how it can be used as evidence.
+
+```text
+TX 68 0E 00 00 00 00 64 01 06 00 01 00 00 00 14
+```
+
+ARIEC60870 connects that raw traffic to a readable engineering explanation:
+
+```text
+Direction: TX
+Protocol: IEC 60870-5-104
+Frame: I-frame carrying ASDU data
+Type: C_IC_NA_1 General Interrogation command
+Cause of transmission: Activation
+Common Address: 1
+Meaning: The master requests a startup snapshot from the device.
+Evidence use: Include this frame when proving GI was initiated during FAT/SAT or troubleshooting.
+```
+
+Then Smart Findings can connect symptoms to likely causes:
+
+```text
+Problem: Device answered but the ASDU Common Address does not match the expected profile.
+Proof: RX frame shows CA=2 while the test setup expects CA=1.
+Likely cause: Wrong station address, wrong profile, or connected endpoint is not the expected device.
+Next step: Verify CA in device configuration, project documentation, and ARIEC60870 setup.
+```
+
+## Why engineers use it instead of a basic protocol tester
+
+| Basic protocol tester | ARIEC60870 |
+|---|---|
+| Shows raw frames or pass/fail status | Shows raw TX/RX frames and selected-frame interpretation |
+| Error messages can be hard for new users | Smart Findings explain problem, proof, likely cause, and next step |
+| Manual notes are needed after testing | Native PDF evidence report reduces repetitive paperwork |
+| Hard to teach juniors from raw traffic alone | Field Wiki connects protocol concepts to real evidence |
+| Troubleshooting often stops at “no response” | Helps check CA, IOA, GI, ACTCON, ACTTERM, Class 1, quality, and IEC-104 session symptoms |
 
 ## Website and user guide hub
 
