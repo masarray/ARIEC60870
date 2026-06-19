@@ -70,6 +70,42 @@
     });
   }
 
+
+  const faqAccordions = document.querySelectorAll(".faq-accordion");
+  faqAccordions.forEach((card, index) => {
+    const toggle = card.querySelector(".faq-toggle");
+    const answer = card.querySelector(".faq-answer");
+    if (!toggle || !answer) {
+      return;
+    }
+
+    const expanded = card.classList.contains("is-open") || index === 0;
+    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    answer.setAttribute("aria-hidden", expanded ? "false" : "true");
+    card.classList.toggle("is-open", expanded);
+
+    toggle.addEventListener("click", () => {
+      const willOpen = !card.classList.contains("is-open");
+
+      faqAccordions.forEach((otherCard) => {
+        const otherToggle = otherCard.querySelector(".faq-toggle");
+        const otherAnswer = otherCard.querySelector(".faq-answer");
+        if (!otherToggle || !otherAnswer) {
+          return;
+        }
+        otherCard.classList.remove("is-open");
+        otherToggle.setAttribute("aria-expanded", "false");
+        otherAnswer.setAttribute("aria-hidden", "true");
+      });
+
+      if (willOpen) {
+        card.classList.add("is-open");
+        toggle.setAttribute("aria-expanded", "true");
+        answer.setAttribute("aria-hidden", "false");
+      }
+    });
+  });
+
   const lightbox = document.querySelector(".lightbox");
   const lightboxImage = lightbox?.querySelector("img");
   const lightboxCaption = lightbox?.querySelector("figcaption");

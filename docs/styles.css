@@ -408,12 +408,39 @@ p { color: var(--muted); }
 .button { line-height: 1; }
 .button .material-icon { width: 18px; height: 18px; opacity: 0.95; }
 .button.primary .material-icon { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.16)); }
+
+.faq-grid { grid-template-columns: 1fr; gap: 18px; }
+.faq-card { min-height: 0; padding: 0; background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(247, 252, 253, 0.82)), var(--surface); }
+.faq-accordion { overflow: hidden; }
+.faq-toggle { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; margin: 0; border: 0; padding: 24px 24px 18px; background: transparent; color: inherit; text-align: left; cursor: pointer; appearance: none; }
+.faq-toggle::-moz-focus-inner { border: 0; }
+.faq-toggle:hover .faq-question { color: var(--brand-ink); }
+.faq-toggle:focus-visible { outline: none; }
+.faq-toggle:focus-visible .faq-question,
+.faq-toggle:focus-visible .faq-chevron { box-shadow: 0 0 0 4px rgba(18, 168, 196, 0.16); }
+.faq-question { display: block; color: var(--ink-strong); font-size: clamp(19px, 2vw, 22px); font-weight: 560; line-height: 1.2; transition: color 220ms var(--ease); }
+.faq-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--brand-ink); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.faq-eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--brand-2); box-shadow: 0 0 0 5px rgba(18, 168, 196, 0.10); }
+.faq-chevron { position: relative; flex: 0 0 auto; width: 36px; height: 36px; border: 1px solid rgba(18, 168, 196, 0.16); border-radius: 999px; background: linear-gradient(145deg, rgba(255,255,255,0.84), rgba(232,248,251,0.92)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.86), 0 10px 24px rgba(15, 34, 52, 0.06); transition: transform 320ms var(--spring), background 220ms var(--ease), border-color 220ms var(--ease), box-shadow 220ms var(--ease); }
+.faq-chevron::before,
+.faq-chevron::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 2px; border-radius: 999px; background: var(--brand-ink); transform: translate(-50%, -50%); transition: transform 240ms var(--ease), opacity 220ms var(--ease); }
+.faq-chevron::after { transform: translate(-50%, -50%) rotate(90deg); }
+.faq-card.is-open .faq-chevron { transform: rotate(180deg); background: linear-gradient(145deg, rgba(232,248,251,0.96), rgba(255,255,255,0.9)); border-color: rgba(18, 168, 196, 0.28); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 12px 28px rgba(15, 34, 52, 0.08); }
+.faq-card.is-open .faq-chevron::after { opacity: 0; transform: translate(-50%, -50%) rotate(90deg) scale(0.4); }
+.faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 360ms var(--spring); }
+.faq-card.is-open .faq-answer { grid-template-rows: 1fr; }
+.faq-answer-inner { min-height: 0; overflow: hidden; padding: 0 24px 0; }
+.faq-answer p { margin: 0; padding: 0 0 24px; color: var(--muted); font-size: 17px; line-height: 1.72; }
+.faq-answer::before { content: ""; display: block; height: 1px; margin: 0 24px; background: rgba(220, 231, 238, 0.92); opacity: 0; transform: scaleX(0.96); transition: opacity 220ms var(--ease), transform 280ms var(--ease); }
+.faq-card.is-open .faq-answer::before { opacity: 1; transform: scaleX(1); }
+@media (max-width: 620px) { .faq-toggle { padding: 22px 20px 16px; gap: 12px; } .faq-question { font-size: 18px; } .faq-chevron { width: 32px; height: 32px; } .faq-answer-inner { padding-inline: 20px; } .faq-answer::before { margin-inline: 20px; } .faq-answer p { padding-bottom: 20px; font-size: 16px; line-height: 1.68; } }
+
 .card-top-icon,
-.evidence-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; line-height: 0; text-align: center; padding: 0; }
+.evidence-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; line-height: 0; text-align: center; padding: 0; overflow: hidden; }
 .card-top-icon { width: 40px; height: 40px; margin-bottom: 16px; border: 1px solid rgba(18, 168, 196, 0.17); border-radius: 14px; background: linear-gradient(145deg, rgba(255,255,255,0.86), rgba(232,248,251,0.92)); color: var(--brand-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,0.82), 0 12px 26px rgba(15, 34, 52, 0.055); }
 .card-top-icon.subtle { width: 38px; height: 38px; margin-bottom: 14px; }
 .card-top-icon .material-icon,
-.evidence-icon .material-icon { display: block; width: 20px; height: 20px; margin: 0; transform: translateZ(0); }
+.evidence-icon .material-icon { position: absolute; left: 50%; top: 50%; display: block; width: 20px; height: 20px; margin: 0; transform: translate(-50%, -50%) translateZ(0); }
 .card-top-icon.subtle .material-icon { width: 19px; height: 19px; }
 .screen-card .card-top-icon { margin: 16px 8px 0; }
 .screen-card h3 { margin-top: 12px; }
