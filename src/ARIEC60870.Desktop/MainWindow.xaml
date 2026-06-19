@@ -151,6 +151,12 @@
                         <TextBlock Text="Signals" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="HelpButton" Style="{StaticResource RailPrimaryIconButton}" Click="Help_Click" ToolTip="Open the field help center (F1)">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideCircleHelp}" />
+                        <TextBlock Text="Help" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
 
