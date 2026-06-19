@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ARIEC60870 Troubleshooting | IEC-101 IEC-103 IEC-104 Evidence Checks</title>
-    <meta name="description" content="Troubleshooting guide for ARIEC60870: no response, General Interrogation gaps, IEC-101 and IEC-103 serial issues, IEC-104 TCP issues, mapping problems, and PDF report review." />
+    <meta name="description" content="Troubleshooting guide for ARIEC60870: no response, CA mismatch, General Interrogation gaps, command confirmation issues, IEC-104 TCP session issues, mapping problems, and PDF report review." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <meta name="msapplication-TileColor" content="#0b6f86" />
@@ -21,28 +21,28 @@
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/troubleshooting.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 evidence analyzer screenshot" />
+    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 protocol tester screenshot" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="quick-start.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#play"></use></svg><span>Quick Start</span></a><a href="protocol-coverage.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg><span>Protocols</span></a><a href="troubleshooting.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#troubleshoot"></use></svg><span>Troubleshooting</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="id/"><span class="flag-icon" aria-hidden="true">🇮🇩</span><span>Indonesia</span></a></nav>
     </header>
     <main class="doc-main">
       <section class="doc-hero reveal">
         <p class="eyebrow">Troubleshooting</p>
-        <h1>Practical checks for no response, GI gaps, command issues, mapping issues, and report findings.</h1>
+        <h1>Practical checks for no response, CA mismatch, GI gaps, command issues, mapping issues, and report findings.</h1>
         <p>Use this page to separate physical link problems, addressing problems, protocol state problems, mapping problems, and reporting problems before escalating to vendor or site teams.</p>
         <div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download latest release</span></a><a class="button secondary" href="https://github.com/masarray/ARIEC60870/blob/master/docs/TROUBLESHOOTING.md"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Full troubleshooting guide</span></a></div>
       </section>
       <section class="doc-grid">
         <article class="doc-card interactive-surface"><h3>No response</h3><p>Start with transport and addressing before assuming the protocol decoder is wrong.</p><ul><li>IEC-101/103: check COM port, baud rate, parity, stop bits, RS-485 direction, and wiring.</li><li>IEC-104: check IP address, TCP port, firewall, routing, and whether the endpoint accepts the client.</li><li>Confirm link address and common address against the device configuration.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>Common Address mismatch</h3><p>The device may respond while using a different ASDU Common Address than the test profile expects.</p><ul><li>Open Frame Trace and compare decoded CA with project documentation.</li><li>Check whether the connected endpoint is the expected station or bay controller.</li><li>Update ARIEC60870 setup only after confirming the device configuration.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>General Interrogation incomplete</h3><p>GI gaps often come from addressing, device profile, polling policy, or expectation mismatch.</p><ul><li>Verify COT and common address in Frame Trace.</li><li>Watch ACD/DFC and Class 1/Class 2 activity for serial links.</li><li>Confirm the expected Type IDs or FUN/INF values exist in the device profile.</li></ul></article>
-        <article class="doc-card interactive-surface"><h3>IEC-103 relay data missing</h3><p>Relay serial communication often needs careful timing and polling review.</p><ul><li>Check reset link and FCB behavior.</li><li>Watch class polling and event drain behavior.</li><li>Compare FUN/INF values against the mapping profile and relay documentation.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>Command confirmation missing</h3><p>A command can be sent but still fail to produce a clear ACTCON, feedback, or ACTTERM sequence.</p><ul><li>Check command type, select/execute policy, IOA, and Common Address.</li><li>Review event log and Frame Trace together instead of checking only the operator message.</li><li>Use Smart Findings as a guide, then validate against the approved test procedure.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>IEC-104 session unstable</h3><p>Look at TCP reachability first, then session control frames.</p><ul><li>Confirm STARTDT/STOPDT/TESTFR behavior.</li><li>Review I/S/U frames and sequence counters.</li><li>Check reconnect behavior and timing in the Event Log and Frame Trace.</li></ul></article>
-        <article class="doc-card interactive-surface"><h3>Values appear without readable names</h3><p>Protocol decode and friendly naming are separate.</p><ul><li>Load a project-owned JSON mapping profile.</li><li>Check IOA or FUN/INF keys in the mapping file.</li><li>Keep signal naming under user/project control instead of relying on a hidden database.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>Report looks incomplete</h3><p>The report reflects the evidence currently available in the session.</p><ul><li>Run the session long enough for GI and event drain.</li><li>Check Diagnostics and Findings before exporting.</li><li>Use Frame Trace when high-level evidence does not explain the issue.</li></ul></article>
       </section>
       <section class="section split"><div><p class="eyebrow">Escalation package</p><h2>What to collect before asking for help.</h2><p>A good escalation package saves time because it separates project configuration mistakes from protocol or device behavior.</p></div><div class="report-list"><div class="interactive-surface"><strong>Configuration</strong><span>Protocol mode, serial/TCP parameters, link/common address, ASDU profile, expected points, and mapping profile version.</span></div><div class="interactive-surface"><strong>Evidence</strong><span>Operator Evidence, Value Viewer, Event Log, Diagnostics, Findings, and relevant Frame Trace rows.</span></div><div class="interactive-surface"><strong>Report</strong><span>Export a PDF after reviewing sensitive project data. Keep raw traces private unless the project allows sharing.</span></div></div></section>
