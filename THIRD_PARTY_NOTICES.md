@@ -22,7 +22,7 @@ ARIEC60870 is released under the Apache License, Version 2.0. This file lists th
 ### Google Material Icons
 
 - Supplier: Google
-- Usage: native PDF preview toolbar filled icon geometry references
+- Usage: native PDF preview toolbar and public landing page inline icon geometry references
 - License: Apache License 2.0
 
 ## PDF generation

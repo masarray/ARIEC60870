@@ -1,0 +1,22 @@
+<!-- Copyright Google LLC
+     SPDX-License-Identifier: Apache-2.0
+     Inline SVG symbol references adapted from Google Material Icons. -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="home" viewBox="0 0 24 24"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></symbol>
+  <symbol id="menu-book" viewBox="0 0 24 24"><path fill="currentColor" d="M21 4.5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5C10.55 4.4 8.45 4 6.5 4 4.55 4 2.45 4.4 1 5.5v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 19.95 5.05 19.5 6.5 19.5c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V5.5c-.6-.45-1.25-.75-2-1zM12 18.5c-1.4-.85-3.3-1.25-5.5-1.25-1.15 0-2.35.15-3.5.5V6.75c1.05-.35 2.25-.5 3.5-.5 2.2 0 4.1.45 5.5 1.35v10.9zm9-.75c-1.15-.35-2.35-.5-3.5-.5-2.2 0-4.1.4-5.5 1.25V7.6c1.4-.9 3.3-1.35 5.5-1.35 1.25 0 2.45.15 3.5.5v11z"/></symbol>
+  <symbol id="school" viewBox="0 0 24 24"><path fill="currentColor" d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3 1 9l11 6 9-4.91V17h2V9L12 3z"/></symbol>
+  <symbol id="help" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></symbol>
+  <symbol id="download" viewBox="0 0 24 24"><path fill="currentColor" d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></symbol>
+  <symbol id="lan" viewBox="0 0 24 24"><path fill="currentColor" d="M13 7h-2v4H5v6H3v4h6v-4H7v-4h10v4h-2v4h6v-4h-2v-6h-6V7zm2-6H9v6h6V1z"/></symbol>
+  <symbol id="troubleshoot" viewBox="0 0 24 24"><path fill="currentColor" d="M19.43 18.02c.36-.59.57-1.28.57-2.02 0-2.21-1.79-4-4-4s-4 1.79-4 4 1.79 4 4 4c.74 0 1.43-.21 2.02-.57L21.59 23 23 21.59l-3.57-3.57zM16 18c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM12 6V3H2v16h8.5c-.32-.6-.5-1.28-.5-2H4V5h6v3h3.5c.4 0 .77.08 1.12.21L12 6z"/></symbol>
+  <symbol id="sync-alt" viewBox="0 0 24 24"><path fill="currentColor" d="M7 7h11l-4-4 1.41-1.41L21.83 8l-6.42 6.41L14 13l4-4H7V7zm10 10H6l4 4-1.41 1.41L2.17 16l6.42-6.41L10 11l-4 4h11v2z"/></symbol>
+  <symbol id="send" viewBox="0 0 24 24"><path fill="currentColor" d="M2 21 23 12 2 3v7l15 2-15 2v7z"/></symbol>
+  <symbol id="account-tree" viewBox="0 0 24 24"><path fill="currentColor" d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3h7zM7 9H4V5h3v4zm10 6h3v4h-3v-4zm0-10h3v4h-3V5z"/></symbol>
+  <symbol id="playlist-check" viewBox="0 0 24 24"><path fill="currentColor" d="M14 10H3V8h11v2zm0-4H3V4h11v2zM3 14h7v-2H3v2zm18-2.5L22.5 13 17 18.5 13.5 15 15 13.5l2 2 4-4z"/></symbol>
+  <symbol id="analytics" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></symbol>
+  <symbol id="description" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM13 9V3.5L18.5 9H13zm2 9H8v-2h7v2zm1-4H8v-2h8v2z"/></symbol>
+  <symbol id="verified" viewBox="0 0 24 24"><path fill="currentColor" d="m23 12-2.44-2.79.34-3.69-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.69l-3.61.82.34 3.69L1 12l2.44 2.79-.34 3.69 3.61.82 1.89 3.2 3.4-1.47 3.4 1.47 1.89-3.2 3.61-.82-.34-3.69L23 12zm-12.91 4.72-3.8-3.81 1.41-1.41 2.39 2.4 6.21-6.22 1.41 1.41-7.62 7.63z"/></symbol>
+  <symbol id="bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M7 2v11h3v9l7-12h-4l4-8z"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><path fill="currentColor" d="M9.5 3C5.91 3 3 5.91 3 9.5S5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57L19.29 20 20.7 18.59l-5.56-5.56C15.95 12.01 16 10.78 16 9.5 16 5.91 13.09 3 9.5 3zm0 2C11.99 5 14 7.01 14 9.5S11.99 14 9.5 14 5 11.99 5 9.5 7.01 5 9.5 5z"/></symbol>
+</svg>

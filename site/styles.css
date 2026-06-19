@@ -393,3 +393,21 @@ p { color: var(--muted); }
 .protocol-console small { grid-column: 2; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .hero .protocol-console { margin-top: 16px; }
 @media (max-width: 620px) { .protocol-console div { grid-template-columns: 1fr; } .protocol-console small { grid-column: 1; } }
+
+
+/* Material icon polish for public landing pages */
+.material-icon { display: block; width: 17px; height: 17px; flex: 0 0 auto; fill: currentColor; stroke: none; }
+.material-icon use { fill: currentColor; stroke: none; }
+.nav-links a { display: inline-flex; align-items: center; gap: 6px; }
+.nav-links .material-icon { width: 15px; height: 15px; opacity: 0.82; }
+.nav-links a:hover .material-icon,
+.nav-links a[aria-current="page"] .material-icon { opacity: 1; }
+.flag-icon { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; font-size: 15px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(15, 34, 52, 0.12)); }
+.button .material-icon { width: 18px; height: 18px; opacity: 0.95; }
+.button.primary .material-icon { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.16)); }
+.card-top-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 16px; border: 1px solid rgba(18, 168, 196, 0.17); border-radius: 14px; background: linear-gradient(145deg, rgba(255,255,255,0.86), rgba(232,248,251,0.92)); color: var(--brand-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,0.82), 0 12px 26px rgba(15, 34, 52, 0.055); }
+.card-top-icon.subtle { width: 38px; height: 38px; margin-bottom: 14px; }
+.card-top-icon .material-icon { width: 20px; height: 20px; }
+.evidence-icon .material-icon { width: 20px; height: 20px; }
+.card-link { align-items: center; gap: 7px; }
+@media (max-width: 620px) { .nav-links a { gap: 5px; padding-inline: 10px; } .nav-links .material-icon { width: 14px; height: 14px; } }
