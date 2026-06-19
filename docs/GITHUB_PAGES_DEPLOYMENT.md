@@ -62,10 +62,16 @@ Canonical screenshot names should describe the screen, not the export order:
 
 ```text
 ariec60870-evidence-workspace.webp
+ariec60870-frame-trace.webp
 ariec60870-value-viewer.webp
 ariec60870-event-log.webp
+ariec60870-smart-findings.webp
 ariec60870-diagnostics.webp
 ariec60870-report-workspace.webp
+ariec60870-pdf-report.webp
+ariec60870-signal-list-editor.webp
+ariec60870-iec101-setup.webp
+ariec60870-iec103-setup.webp
 ariec60870-iec104-setup.webp
 ```
 

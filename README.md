@@ -15,7 +15,7 @@ The app helps engineers run a focused communication session, review decoded evid
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 Windows protocol evidence analyzer" width="92%">
+    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 protocol-aware line monitor and evidence analyzer" width="92%">
   </a>
 </p>
 
@@ -115,13 +115,21 @@ The PDF is generated directly by the built-in native PDF engine. No external PDF
 
 ## Screenshots
 
-| Evidence workspace | Values |
+| Line monitor | Value viewer |
 |---|---|
-| <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 evidence workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-value-viewer.webp" alt="ARIEC60870 Values workspace" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-frame-trace.webp" alt="ARIEC60870 Line Monitor workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-value-viewer.webp" alt="ARIEC60870 Value Viewer workspace" width="100%"> |
 
-| Events | Report workspace |
+| Relay event log | Smart findings |
 |---|---|
-| <img src="site/assets/screenshots/ariec60870-event-log.webp" alt="ARIEC60870 Events workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-report-workspace.webp" alt="ARIEC60870 Report workspace" width="100%"> |
+| <img src="site/assets/screenshots/ariec60870-event-log.webp" alt="ARIEC60870 Relay Event Log workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-smart-findings.webp" alt="ARIEC60870 Smart Findings workspace" width="100%"> |
+
+| Report preview | Signal List Editor |
+|---|---|
+| <img src="site/assets/screenshots/ariec60870-report-workspace.webp" alt="ARIEC60870 Report workspace" width="100%"> | <img src="site/assets/screenshots/ariec60870-signal-list-editor.webp" alt="ARIEC60870 Signal List Editor" width="100%"> |
+
+| IEC-101 setup | IEC-103 setup | IEC-104 setup |
+|---|---|---|
+| <img src="site/assets/screenshots/ariec60870-iec101-setup.webp" alt="ARIEC60870 IEC-101 setup dialog" width="100%"> | <img src="site/assets/screenshots/ariec60870-iec103-setup.webp" alt="ARIEC60870 IEC-103 setup dialog" width="100%"> | <img src="site/assets/screenshots/ariec60870-iec104-setup.webp" alt="ARIEC60870 IEC-104 setup dialog" width="100%"> |
 
 ## Core capabilities
 
