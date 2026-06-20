@@ -5,6 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="Ari Sulistiono" />
     <title>IEC-104 STARTDT STOPDT TESTFR | Dasar Frame I S U</title>
     <meta name="description" content="Panduan praktis IEC 60870-5-104 untuk STARTDT, STOPDT, TESTFR, frame I/S/U, dan sequence counter saat troubleshooting session IEC 104 TCP." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -37,6 +38,6 @@
       <section class="section"><div class="section-heading reveal"><p class="eyebrow">Contoh frame IEC-104</p><h2>Contoh ini memakai U-frame, I-frame, dan S-frame IEC-104, bukan contoh IEC-101 serial.</h2></div><div class="protocol-console" aria-label="Contoh kontrol session IEC-104"><div><span class="tx">TX</span><code>STARTDT act</code><small>Master meminta data transfer dimulai</small></div><div><span class="rx">RX</span><code>STARTDT con</code><small>Device mengkonfirmasi data transfer</small></div><div><span class="tx">TX</span><code>I-frame ASDU</code><small>General Interrogation activation dengan Common Address sesuai setup</small></div><div><span class="rx">RX</span><code>S-frame</code><small>Acknowledgement untuk sequence I-frame</small></div><div><span class="tx">TX</span><code>TESTFR act</code><small>Test supervision session</small></div><div><span class="rx">RX</span><code>TESTFR con</code><small>Response supervision</small></div></div></section>
       <section class="section"><div class="section-heading reveal"><p class="eyebrow">Yang dicek di ARIEC60870</p><h2>Hubungkan session control dengan evidence frame.</h2><p>ARIEC60870 membantu melihat apakah STARTDT dikonfirmasi, sequence di-acknowledge, dan TESTFR dijawab sehingga engineer tidak hanya mengandalkan status TCP connect.</p></div></section>
     </main>
-    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
+    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ARIEC60870 · Open source Apache-2.0</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

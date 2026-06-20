@@ -221,7 +221,6 @@ body h1,
 
 .hero-panel { position: relative; padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .hero-panel::before { content: ""; position: absolute; inset: -32px -26px -26px; z-index: -1; border-radius: 36px; background: radial-gradient(circle at 82% 14%, rgba(18, 168, 196, 0.18), transparent 46%), linear-gradient(145deg, rgba(232, 248, 251, 0.62), rgba(255, 255, 255, 0)); filter: blur(0.2px); }
-.hero-media-label { position: absolute; top: 14px; right: 14px; z-index: 4; }
 .panel-logo { width: 84px; max-width: 30%; height: auto; border-radius: 5px; filter: drop-shadow(0 16px 24px rgba(15, 34, 52, 0.10)); }
 .screen-frame { appearance: none; position: relative; display: block; width: 100%; aspect-ratio: 5 / 3; overflow: hidden; border: 1px solid var(--hairline); border-radius: 20px; background: #fff; box-shadow: 0 18px 52px rgba(15, 34, 52, 0.14); cursor: zoom-in; line-height: 0; padding: 0; text-align: left; }
 .screen-frame::after { content: "Click to enlarge"; position: absolute; right: 12px; top: 12px; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.44); border-radius: 999px; background: rgba(7, 24, 39, 0.66); color: #fff; font-size: 11px; font-weight: 500; line-height: 1; opacity: 0; padding: 8px 10px; transform: translateY(-6px); transition: opacity 260ms var(--ease), transform 260ms var(--ease); }
