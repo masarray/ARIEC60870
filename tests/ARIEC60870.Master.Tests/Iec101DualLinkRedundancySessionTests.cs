@@ -118,6 +118,43 @@ public sealed class Iec101DualLinkRedundancySessionTests
     }
 
     [Fact]
+    public async Task ObservedProcessCommonAddressRetriesGiWithLearnedCa()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.MaxClass1DrainFrames = 8;
+        settings.Class2PollIntervalMs = 40;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(500),
+            RecoveryBackoff = TimeSpan.FromMilliseconds(100),
+            AntiPingPongWindow = TimeSpan.FromSeconds(30),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+
+        var session = new Iec101DualLinkRedundancySession(
+            options,
+            new WrongConfiguredCaIec101Transport(options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140),
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1200), CancellationToken.None);
+        var valueEvents = result.Events
+            .Where(x => x.Direction == FrameDirection.SlaveToMaster && x.TypeId == 1)
+            .ToArray();
+
+        Assert.Equal(1, result.Settings.CommonAddress);
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-CA-AUTO-LEARNED");
+        Assert.Contains(result.Events, x => x.Direction == FrameDirection.MasterToSlave && x.TypeId == 100 && x.CommonAddressNumber == 1 && x.PollingReason == "Dual-link GI retry using observed CA 1");
+        Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 140 && x.SignalDisplayValue.Contains("ON", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 141 && x.SignalDisplayValue.Contains("OFF", StringComparison.OrdinalIgnoreCase));
+        Assert.True(session.CreateSnapshot().ApplicationImageObjectCount >= 2);
+    }
+
+    [Fact]
     public async Task ManualFailoverBypassesStabilizationGuardButStillRequiresPromotableStandby()
     {
         var settings = CreateFastSimulatedIec101Settings();
@@ -432,6 +469,191 @@ public sealed class Iec101DualLinkRedundancySessionTests
             if (!_isOpen)
             {
                 throw new InvalidOperationException("Scripted IEC-101 negative GI test transport is not open.");
+            }
+        }
+    }
+
+    private sealed class WrongConfiguredCaIec101Transport : IByteTransport
+    {
+        private readonly Iec103MasterSettings _settings;
+        private readonly Iec10xAsduDecoder _asduDecoder;
+        private readonly Ft12Parser _ft12;
+        private readonly Channel<byte> _rxBytes = Channel.CreateUnbounded<byte>();
+        private readonly int _observedCa;
+        private readonly int _baseIoa;
+        private bool _isOpen;
+        private bool _learnedGiAccepted;
+        private bool _sentLearnedSequence;
+        private bool _sentLearnedGiEnd;
+        private int _class2ValueResponses;
+
+        public WrongConfiguredCaIec101Transport(Iec103MasterSettings settings, int configuredCa, int observedCa, int baseIoa)
+        {
+            if (configuredCa == observedCa)
+            {
+                throw new ArgumentException("The scripted CA-learning test requires a different configured and observed CA.", nameof(observedCa));
+            }
+
+            _settings = settings;
+            _observedCa = observedCa;
+            _baseIoa = baseIoa;
+            _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
+            _ft12 = new Ft12Parser(settings.LinkAddressSize);
+        }
+
+        public bool IsOpen => _isOpen;
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            _isOpen = true;
+            _learnedGiAccepted = false;
+            _sentLearnedSequence = false;
+            _sentLearnedGiEnd = false;
+            _class2ValueResponses = 0;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            _isOpen = false;
+            return ValueTask.CompletedTask;
+        }
+
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        {
+            EnsureOpen();
+            var decoded = _ft12.Decode(buffer.ToArray());
+            if (decoded.AsduBytes.Count > 0)
+            {
+                var asdu = _asduDecoder.Decode(decoded.AsduBytes);
+                if (asdu.TypeId == 100)
+                {
+                    var qoi = decoded.AsduBytes[^1];
+                    if (asdu.CommonAddress == _observedCa && qoi == 20)
+                    {
+                        _learnedGiAccepted = true;
+                        await EnqueueAsync(FixedSecondary(functionCode: 0, acd: true), cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    await EnqueueAsync(UserData(NegativeInterrogationConfirmation(asdu.CommonAddress, qoi), acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+            }
+
+            if (decoded.LinkControl?.FunctionCode == 10 && _learnedGiAccepted)
+            {
+                if (!_sentLearnedSequence)
+                {
+                    _sentLearnedSequence = true;
+                    await EnqueueAsync(UserData(SinglePointSequenceAsdu(), acd: true), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
+                if (!_sentLearnedGiEnd)
+                {
+                    _sentLearnedGiEnd = true;
+                    await EnqueueAsync(UserData(Iec10xAsduBuilder.ActivationTermination(SettingsForCa(_observedCa)), acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+            }
+
+            if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 2)
+            {
+                var ioa = _baseIoa + 20 + _class2ValueResponses;
+                _class2ValueResponses++;
+                await EnqueueAsync(UserData(Iec10xAsduBuilder.FloatMeasurement(SettingsForCa(_observedCa), ioa, 12.5f + _class2ValueResponses, cause: 3), acd: false), cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            EnsureOpen();
+            if (buffer.Length == 0)
+            {
+                return 0;
+            }
+
+            var first = await _rxBytes.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            buffer.Span[0] = first;
+            var count = 1;
+            while (count < buffer.Length && _rxBytes.Reader.TryRead(out var next))
+            {
+                buffer.Span[count++] = next;
+            }
+
+            return count;
+        }
+
+        public void Dispose() => _isOpen = false;
+
+        public ValueTask DisposeAsync()
+        {
+            _isOpen = false;
+            return ValueTask.CompletedTask;
+        }
+
+        private byte[] NegativeInterrogationConfirmation(int requestCa, byte qoi)
+        {
+            var bytes = Iec10xAsduBuilder.Header(typeId: 100, vsq: 1, cause: 7, settings: SettingsForCa(requestCa), ioa: 0);
+            bytes[2] |= 0x40;
+            bytes.Add(qoi);
+            return bytes.ToArray();
+        }
+
+        private byte[] SinglePointSequenceAsdu()
+        {
+            var bytes = Iec10xAsduBuilder.Header(typeId: 1, vsq: 0x82, cause: 20, settings: SettingsForCa(_observedCa), ioa: _baseIoa);
+            bytes.Add(0x01);
+            bytes.Add(0x00);
+            return bytes.ToArray();
+        }
+
+        private Iec103MasterSettings SettingsForCa(int ca)
+        {
+            var copy = _settings.CreateReportSnapshot();
+            copy.CommonAddress = ca;
+            return copy;
+        }
+
+        private byte[] FixedSecondary(int functionCode, bool acd)
+        {
+            var control = (byte)(functionCode & 0x0F);
+            if (acd)
+            {
+                control |= 0x20;
+            }
+
+            return Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize);
+        }
+
+        private byte[] UserData(byte[] asdu, bool acd)
+        {
+            var control = (byte)0x08;
+            if (acd)
+            {
+                control |= 0x20;
+            }
+
+            return Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize);
+        }
+
+        private async Task EnqueueAsync(byte[] bytes, CancellationToken cancellationToken)
+        {
+            foreach (var b in bytes)
+            {
+                await _rxBytes.Writer.WriteAsync(b, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private void EnsureOpen()
+        {
+            if (!_isOpen)
+            {
+                throw new InvalidOperationException("Scripted IEC-101 CA learning test transport is not open.");
             }
         }
     }

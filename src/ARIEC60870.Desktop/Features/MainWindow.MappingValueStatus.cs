@@ -713,6 +713,8 @@ public partial class MainWindow
         TcpHostBox.IsEnabled = !isRunning;
         TcpPortBox.IsEnabled = !isRunning;
         PortComboBox.IsEnabled = !isRunning;
+        BackupPortComboBox.IsEnabled = !isRunning;
+        BackupLinkAddressBox.IsEnabled = !isRunning;
         BaudComboBox.IsEnabled = !isRunning;
         SerialModeComboBox.IsEnabled = !isRunning;
         LinkAddressBox.IsEnabled = !isRunning;

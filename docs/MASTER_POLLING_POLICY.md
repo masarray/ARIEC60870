@@ -44,6 +44,8 @@ Enter normal Class 2 cycle
 
 If IEC-101 station GI (`C_IC_NA_1`, QOI=20) is negatively confirmed, the master must record the negative confirmation as evidence and avoid waiting forever for a station-GI image that the outstation rejected. A bounded group interrogation fallback (QOI=21..36) is allowed on the active link, followed by the same bounded Class 1 drain and normal Class 2 verification sweep. Standby links must not perform this fallback because it can drain application queues.
 
+For IEC-101 single-link and dual-link sessions, live process ASDUs may prove that the outstation uses a different Common Address (CA) than the configured GI/command CA. The master may learn a stable observed CA from real process ASDUs that carry information objects, raise evidence/finding rows, and retry GI once with the observed CA. Negative confirmations and command echoes must not dominate CA learning. In dual-link mode, the learned CA applies to the active-link GI/command path and is persisted by the desktop setup preferences for the next run; link address and standby supervision policy remain unchanged.
+
 ## Normal Runtime
 
 ```text

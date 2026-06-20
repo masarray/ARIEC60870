@@ -122,11 +122,18 @@ public partial class MainWindow
                 PortComboBox.SelectedItem = prefs.PortName;
             }
 
+            if (!string.IsNullOrWhiteSpace(prefs.BackupPortName))
+            {
+                EnsureComboItem(BackupPortComboBox, prefs.BackupPortName);
+                BackupPortComboBox.SelectedItem = prefs.BackupPortName;
+            }
+
             SetEditableComboText(BaudComboBox, prefs.BaudRate.ToString());
             SelectComboContent(SerialModeComboBox, string.IsNullOrWhiteSpace(prefs.SerialMode) ? "8E1" : prefs.SerialMode);
             TcpHostBox.Text = string.IsNullOrWhiteSpace(prefs.TcpHost) ? "127.0.0.1" : prefs.TcpHost;
             TcpPortBox.Text = prefs.TcpPort <= 0 ? "2404" : prefs.TcpPort.ToString();
             LinkAddressBox.Text = prefs.LinkAddress.ToString();
+            BackupLinkAddressBox.Text = prefs.BackupLinkAddress.ToString();
             CommonAddressBox.Text = prefs.CommonAddress.ToString();
             CommandCaBox.Text = prefs.CommonAddress.ToString();
             SelectComboContent(LinkAddressSizeComboBox, Math.Clamp(prefs.LinkAddressSize, 0, 2).ToString());
@@ -205,6 +212,8 @@ public partial class MainWindow
                 TcpHost = settings.TcpHost,
                 TcpPort = settings.TcpPort,
                 LinkAddress = settings.LinkAddress,
+                BackupPortName = (BackupPortComboBox.SelectedItem as string)?.Trim() ?? BackupPortComboBox.Text.Trim(),
+                BackupLinkAddress = int.TryParse(BackupLinkAddressBox.Text, out var backupLinkAddress) ? backupLinkAddress : settings.LinkAddress,
                 CommonAddress = settings.CommonAddress,
                 LinkAddressSize = settings.LinkAddressSize,
                 CauseOfTransmissionSize = settings.CauseOfTransmissionSize,
@@ -339,6 +348,8 @@ public partial class MainWindow
         public string TcpHost { get; set; } = "127.0.0.1";
         public int TcpPort { get; set; } = 2404;
         public int LinkAddress { get; set; } = 1;
+        public string BackupPortName { get; set; } = string.Empty;
+        public int BackupLinkAddress { get; set; } = 1;
         public int CommonAddress { get; set; } = 1;
         public int LinkAddressSize { get; set; } = 1;
         public int CauseOfTransmissionSize { get; set; } = 2;

@@ -720,6 +720,7 @@ public partial class MainWindow
         }
 
         _runtimeCaMismatchReported = true;
+        ApplyObservedCommonAddressToSetupPreferences(observedCa, configuredCa);
         AddUiDiagnostic(
             "Warning",
             "IEC-101",
@@ -727,7 +728,27 @@ public partial class MainWindow
             "Runtime ASDU common address differs from setup/profile",
             $"Live process data is arriving with CA={observedCa}, but setup/profile uses CA={configuredCa}. Station GI sent to the wrong CA can be negatively confirmed and may prevent SPS/DPS snapshots from arriving.",
             "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Values still maps values by IOA where possible.");
-        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA.");
+        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA; setup preferences were updated for the next run.");
+    }
+
+    private void ApplyObservedCommonAddressToSetupPreferences(int observedCa, int configuredCa)
+    {
+        if (observedCa <= 0 || observedCa > 65535)
+        {
+            return;
+        }
+
+        var observedText = observedCa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var configuredText = configuredCa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        CommonAddressBox.Text = observedText;
+        if (CommandCaBox is not null
+            && (string.IsNullOrWhiteSpace(CommandCaBox.Text)
+                || string.Equals(CommandCaBox.Text.Trim(), configuredText, StringComparison.OrdinalIgnoreCase)))
+        {
+            CommandCaBox.Text = observedText;
+        }
+
+        SaveSetupPreferencesFromUi(silent: true);
     }
 
     private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
