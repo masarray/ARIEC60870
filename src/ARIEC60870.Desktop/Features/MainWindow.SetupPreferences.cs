@@ -193,7 +193,7 @@ public partial class MainWindow
         {
             if (!silent)
             {
-                MessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ModernMessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
@@ -252,7 +252,7 @@ public partial class MainWindow
         {
             if (!silent)
             {
-                MessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ModernMessageBox.Show(this, ex.Message, "Could not save setup", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }

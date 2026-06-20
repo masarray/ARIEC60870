@@ -43,7 +43,7 @@ public partial class MainWindow
         var grid = GetCurrentTabDataGrid();
         if (grid is null)
         {
-            MessageBox.Show(this, "The selected tab does not contain exportable grid data.", "Export Data", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "The selected tab does not contain exportable grid data.", "Export Data", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -80,7 +80,7 @@ public partial class MainWindow
 
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "No Trace / Messages rows are available to export.", "Export Trace", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "No Trace / Messages rows are available to export.", "Export Trace", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 

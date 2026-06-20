@@ -241,6 +241,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         var now = DateTime.UtcNow;
+        var rescueSupervisionInterval = TimeSpan.FromMilliseconds(Math.Min(80, Math.Max(20, _options.StandbySupervisionInterval.TotalMilliseconds)));
+        if (ActiveNeedsRescue() && now - _lastStandbySupervisionUtc >= rescueSupervisionInterval)
+        {
+            await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (now - _lastClass2PollUtc >= TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
         {
             _counters.Class2Requests++;

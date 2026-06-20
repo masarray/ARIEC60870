@@ -870,7 +870,7 @@ public partial class MainWindow
 
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "No evidence rows are available yet. Run or open a capture first.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "No evidence rows are available yet. Run or open a capture first.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -896,12 +896,12 @@ public partial class MainWindow
             EvidencePdfReportService.Save(dialog.FileName, model);
             AddEvidenceRetentionExportMarker("protocol PDF evidence report");
             AppendSessionLog("protocol PDF evidence report exported: " + dialog.FileName);
-            MessageBox.Show(this, "PDF evidence report exported successfully.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "PDF evidence report exported successfully.", "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
             AddUiDiagnostic("Error", "Report", "ARIEC-PDF-EXPORT-FAILED", "PDF report export failed", ex.Message, "Check the output path, file permissions, and whether the target PDF file is already open.");
-            MessageBox.Show(this, "PDF export failed: " + ex.Message, "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Error);
+            ModernMessageBox.Show(this, "PDF export failed: " + ex.Message, "Export PDF report", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

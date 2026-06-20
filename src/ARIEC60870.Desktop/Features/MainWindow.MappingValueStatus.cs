@@ -76,7 +76,7 @@ public partial class MainWindow
             AddUiDiagnostic("Warning", "Mapping", "IEC60870-MAPPING-LOAD", "Mapping profile could not be loaded", ex.Message, "Check JSON syntax and schema. IEC-103 uses FUN/INF schema; IEC-101/104 uses ariec10x-ioa-profile-v1.", ex);
             if (showMessage)
             {
-                MessageBox.Show(this, ex.Message, "Mapping profile error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ModernMessageBox.Show(this, ex.Message, "Mapping profile error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
@@ -98,7 +98,7 @@ public partial class MainWindow
     {
         if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
         {
-            MessageBox.Show(this,
+            ModernMessageBox.Show(this,
                 "Signal List Editor is for IEC-101/104 IOA mapping profiles. IEC-103 uses FUN/INF mapping and will get a dedicated editor later.",
                 "Signal List Editor",
                 MessageBoxButton.OK,

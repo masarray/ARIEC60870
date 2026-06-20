@@ -217,7 +217,7 @@ public partial class MainWindow
     {
         if (TriggerCaptureGrid.SelectedItem is not TriggerCaptureRow row || string.IsNullOrWhiteSpace(row.FilePath))
         {
-            MessageBox.Show(this, "Select a trigger capture row first.", "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "Select a trigger capture row first.", "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -247,7 +247,7 @@ public partial class MainWindow
                 ex.Message,
                 "Open the local app data ARIEC60870 trigger-captures folder manually.",
                 ex);
-            MessageBox.Show(this, "Failed to open trigger capture folder: " + ex.Message, "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Error);
+            ModernMessageBox.Show(this, "Failed to open trigger capture folder: " + ex.Message, "Trigger capture", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

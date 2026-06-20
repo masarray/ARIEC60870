@@ -27,7 +27,7 @@ public partial class MainWindow
 
         if (evidence.Count == 0)
         {
-            MessageBox.Show(this, "No evidence is available yet. Capture traffic first so smart correction can infer the configuration from real frames.", "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, "No evidence is available yet. Capture traffic first so smart correction can infer the configuration from real frames.", "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -37,7 +37,7 @@ public partial class MainWindow
         {
             AppendSessionLog("Smart correction reviewed the current evidence and found no higher-confidence configuration change.");
             RefreshFindingsWorkspace(force: true);
-            MessageBox.Show(this, suggestion.Summary, "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, suggestion.Summary, "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -52,7 +52,7 @@ public partial class MainWindow
         UpdateStableHeader("Smart correction applied", summary);
         SetupOverlay.Visibility = Visibility.Visible;
 
-        MessageBox.Show(this, "Smart correction updated these setup fields:\n\n- " + string.Join("\n- ", suggestion.Changes.Select(change => $"{change.Label}: {change.CurrentValue} → {change.ProposedValue}")) + "\n\nThe original finding is kept in Findings/Report as a corrected finding trail. Start the next session with this corrected setup; if the evidence is clean, the finding will disappear naturally.", "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
+        ModernMessageBox.Show(this, "Smart correction updated these setup fields:\n\n- " + string.Join("\n- ", suggestion.Changes.Select(change => $"{change.Label}: {change.CurrentValue} → {change.ProposedValue}")) + "\n\nThe original finding is kept in Findings/Report as a corrected finding trail. Start the next session with this corrected setup; if the evidence is clean, the finding will disappear naturally.", "Auto fix config", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private IReadOnlyList<EvidenceSmartFinding> BuildSmartFindingsWithCorrectionTrail(

@@ -115,7 +115,7 @@ public partial class HelpWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Unable to open the online Field Wiki.\n\n{ex.Message}", "Open Field Wiki", MessageBoxButton.OK, MessageBoxImage.Information);
+            ModernMessageBox.Show(this, $"Unable to open the online Field Wiki.\n\n{ex.Message}", "Open Field Wiki", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 

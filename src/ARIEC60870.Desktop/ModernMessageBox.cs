@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Data;
 using System.Windows.Media.Effects;
 
 namespace ARIEC60870.Desktop;
@@ -204,7 +205,7 @@ internal sealed class ModernMessageDialog : Window
             Foreground = _ink700Brush,
             TextWrapping = TextWrapping.Wrap
         };
-        messageBox.Content = scroll;
+        messageBox.Child = scroll;
         Grid.SetRow(messageBox, 2);
         root.Children.Add(messageBox);
 
@@ -221,7 +222,7 @@ internal sealed class ModernMessageDialog : Window
         Grid.SetRow(buttonPanel, 4);
         root.Children.Add(buttonPanel);
 
-        shell.Content = root;
+        shell.Child = root;
         return new Grid { Margin = new Thickness(18), Children = { shell } };
     }
 
@@ -345,14 +346,14 @@ internal sealed class ModernMessageDialog : Window
         var border = new FrameworkElementFactory(typeof(Border));
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(13));
         border.SetValue(Border.PaddingProperty, new Thickness(12, 0, 12, 0));
-        border.SetBinding(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
-        border.SetBinding(Border.BorderBrushProperty, new TemplateBindingExtension(Control.BorderBrushProperty));
-        border.SetBinding(Border.BorderThicknessProperty, new TemplateBindingExtension(Control.BorderThicknessProperty));
+        border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Control.Background)) { RelativeSource = RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
 
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         presenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        presenter.SetBinding(ContentPresenter.ContentProperty, new TemplateBindingExtension(ContentControl.ContentProperty));
+        presenter.SetBinding(ContentPresenter.ContentProperty, new Binding(nameof(ContentControl.Content)) { RelativeSource = RelativeSource.TemplatedParent });
         border.AppendChild(presenter);
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };

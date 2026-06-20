@@ -905,7 +905,7 @@ public sealed class SignalListEditorWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Load signal list", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ModernMessageBox.Show(this, ex.Message, "Load signal list", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -923,7 +923,7 @@ public sealed class SignalListEditorWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Signal list validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ModernMessageBox.Show(this, ex.Message, "Signal list validation", MessageBoxButton.OK, MessageBoxImage.Warning);
             UpdateStatus("Validation failed. Fix the highlighted data in the table or selected-signal editor.", danger: true);
         }
     }
@@ -951,7 +951,7 @@ public sealed class SignalListEditorWindow : Window
             return;
         }
 
-        MessageBox.Show(this, string.Join(Environment.NewLine, errors), "Validate selected signal", MessageBoxButton.OK, MessageBoxImage.Warning);
+        ModernMessageBox.Show(this, string.Join(Environment.NewLine, errors), "Validate selected signal", MessageBoxButton.OK, MessageBoxImage.Warning);
         UpdateStatus("Selected row needs correction before saving.", danger: true);
     }
 
@@ -992,7 +992,7 @@ public sealed class SignalListEditorWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Save signal list", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ModernMessageBox.Show(this, ex.Message, "Save signal list", MessageBoxButton.OK, MessageBoxImage.Warning);
             UpdateStatus("Save failed. Review numeric fields, state map, and required IOA values.", danger: true);
             return false;
         }
@@ -1002,7 +1002,7 @@ public sealed class SignalListEditorWindow : Window
     {
         if (_dirty)
         {
-            var result = MessageBox.Show(this, "Signal list has unsaved changes. Close without saving?", "Signal List Editor", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = ModernMessageBox.Show(this, "Signal list has unsaved changes. Close without saving?", "Signal List Editor", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result != MessageBoxResult.Yes)
             {
                 e.Cancel = true;

@@ -50,7 +50,7 @@ public partial class MainWindow
             var rows = ReadCaptureRows(dialog.FileName);
             if (rows.Count == 0)
             {
-                MessageBox.Show(this,
+                ModernMessageBox.Show(this,
                     "The capture file does not contain frame rows.",
                     "Open capture",
                     MessageBoxButton.OK,
@@ -91,7 +91,7 @@ public partial class MainWindow
                 ex.Message,
                 "Verify the file is a valid .ariec ZIP capture containing frames.jsonl.",
                 ex);
-            MessageBox.Show(this,
+            ModernMessageBox.Show(this,
                 "Failed to open capture: " + ex.Message,
                 "Open capture",
                 MessageBoxButton.OK,
@@ -140,7 +140,7 @@ public partial class MainWindow
         var rows = GetSelectedRowsForUnifiedEvidenceCapture(out var sourceWorkspace);
         if (rows.Count == 0)
         {
-            MessageBox.Show(this,
+            ModernMessageBox.Show(this,
                 "Select one or more rows in Trace or Evidence Ledger first, then export the selected rows as an ARIEC capture file.",
                 "Export selected capture",
                 MessageBoxButton.OK,
@@ -173,7 +173,7 @@ public partial class MainWindow
                 $"Saved {rows.Count} selected {sourceWorkspace} rows to {dialog.FileName}.",
                 "The capture file is a single source of truth. Opening it rebuilds Trace and Evidence Ledger from the same frames.jsonl ledger.");
             AppendSessionLog($"Selected evidence capture saved: {sourceWorkspace}, {rows.Count} rows -> {dialog.FileName}");
-            MessageBox.Show(this,
+            ModernMessageBox.Show(this,
                 $"Selected evidence capture saved successfully.\n\nSource: {sourceWorkspace}\nRows: {rows.Count}\nFile: {dialog.FileName}",
                 "Export selected capture",
                 MessageBoxButton.OK,
@@ -189,7 +189,7 @@ public partial class MainWindow
                 ex.Message,
                 "Check destination write permission and available disk space.",
                 ex);
-            MessageBox.Show(this,
+            ModernMessageBox.Show(this,
                 "Failed to save capture: " + ex.Message,
                 "Export selected capture",
                 MessageBoxButton.OK,
