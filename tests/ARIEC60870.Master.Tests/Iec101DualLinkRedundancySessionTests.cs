@@ -257,6 +257,40 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.True(session.FailoverJournal.Count(x => x.Completed) >= 1);
     }
 
+    [Fact]
+    public async Task CascadedActiveTimeoutCanFailBackToRecoveredStandbyInsideAntiPingPongWindow()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.ResponseTimeoutMs = 60;
+        settings.Class2PollIntervalMs = 40;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            ActiveFailureThreshold = 1,
+            StandbyFailureThreshold = 1,
+            StandbyRecoveryGoodResponseThreshold = 2,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(80),
+            RecoveryBackoff = TimeSpan.FromMilliseconds(80),
+            AntiPingPongWindow = TimeSpan.FromSeconds(30),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled,
+            FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly
+        };
+
+        var linkA = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedReadCount: 1);
+        var linkB = new DropReadsAfterSuccessfulReadsTransport(new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)), successfulReadsBeforeDrop: 1, droppedReadCount: 3);
+        var session = new Iec101DualLinkRedundancySession(options, linkA, linkB);
+
+        await session.RunForAsync(TimeSpan.FromMilliseconds(2400), CancellationToken.None);
+        var completed = session.FailoverJournal.Where(x => x.Completed).ToArray();
+        var snapshot = session.CreateSnapshot();
+
+        Assert.Contains(completed, x => x.FromLink == "Link A" && x.ToLink == "Link B");
+        Assert.Contains(completed, x => x.FromLink == "Link B" && x.ToLink == "Link A");
+        Assert.Equal("Link A", snapshot.ActiveLinkName);
+    }
+
     private static Iec103MasterSettings CreateFastSimulatedIec101Settings()        => new()
         {
             ProtocolMode = Iec60870ProtocolMode.Iec101,
@@ -298,6 +332,46 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
         {
+            if (_remainingDroppedReads > 0)
+            {
+                _remainingDroppedReads--;
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+                return 0;
+            }
+
+            return await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        }
+
+        public void Dispose() => _inner.Dispose();
+        public ValueTask DisposeAsync() => _inner.DisposeAsync();
+    }
+
+    private sealed class DropReadsAfterSuccessfulReadsTransport : IByteTransport
+    {
+        private readonly IByteTransport _inner;
+        private int _remainingSuccessfulReadsBeforeDrop;
+        private int _remainingDroppedReads;
+
+        public DropReadsAfterSuccessfulReadsTransport(IByteTransport inner, int successfulReadsBeforeDrop, int droppedReadCount)
+        {
+            _inner = inner;
+            _remainingSuccessfulReadsBeforeDrop = Math.Max(0, successfulReadsBeforeDrop);
+            _remainingDroppedReads = Math.Max(0, droppedReadCount);
+        }
+
+        public bool IsOpen => _inner.IsOpen;
+        public ValueTask OpenAsync(CancellationToken cancellationToken) => _inner.OpenAsync(cancellationToken);
+        public ValueTask CloseAsync(CancellationToken cancellationToken) => _inner.CloseAsync(cancellationToken);
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) => _inner.WriteAsync(buffer, cancellationToken);
+
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (_remainingSuccessfulReadsBeforeDrop > 0)
+            {
+                _remainingSuccessfulReadsBeforeDrop--;
+                return await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+
             if (_remainingDroppedReads > 0)
             {
                 _remainingDroppedReads--;

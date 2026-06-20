@@ -461,6 +461,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (response.Succeeded && standbyWasLatched)
         {
+            if (ActiveNeedsRescue() && _standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+            {
+                _standby.MarkRecoveredAsStandby($"{_standby.Name} passed an emergency recovery probe while active {_active?.Name ?? "-"} was failing.");
+                SetControllerState(Iec101RedundancyControllerState.Recovering, "IEC-101 standby ready to rescue failed active link", $"Standby={_standby.Name}; active={_active?.Name ?? "-"}; good probes={_standby.LinkState.ConsecutiveGoodResponses}.");
+                await TryFailoverAsync($"Standby {_standby.Name} recovered while active {_active?.Name ?? "-"} is failed/timed out", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+                return;
+            }
+
             if (_standby.LinkState.ConsecutiveGoodResponses < _options.StandbyRecoveryGoodResponseThreshold)
             {
                 _standby.MarkRecoveryProbeSucceeded(_options.StandbyRecoveryGoodResponseThreshold);
@@ -470,11 +478,25 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
             _standby.MarkRecoveredAsStandby($"{_standby.Name} has met the standby recovery threshold with {_standby.LinkState.ConsecutiveGoodResponses} consecutive good supervision responses.");
             SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 standby link recovered", $"Active={_active?.Name ?? "-"}; standby={_standby.Name}; failback policy={_options.FailbackPolicy}.");
+            if (ActiveNeedsRescue())
+            {
+                await TryFailoverAsync($"Standby {_standby.Name} recovered while active {_active?.Name ?? "-"} is failed/timed out", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+                return;
+            }
+
             await ConsiderAutoFailbackAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        if (_controllerState == Iec101RedundancyControllerState.Degraded && _active?.IsHealthy == true && _standby.IsPromotable(_options.StandbyFailureThreshold))
+        if (response.Succeeded && ActiveNeedsRescue() && _standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+        {
+            await TryFailoverAsync($"Standby {_standby.Name} is healthy while active {_active?.Name ?? "-"} is failed/timed out", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+            return;
+        }
+
+        if (_controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering
+            && _active?.IsHealthy == true
+            && _standby.IsPromotable(_options.StandbyFailureThreshold))
         {
             SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy recovered", $"Active={_active.Name}; standby={_standby.Name} is healthy again.");
         }
@@ -485,6 +507,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (_active is null)
         {
             return;
+        }
+
+        if (_active.IsHealthy
+            && _controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering)
+        {
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 active link recovered", $"Active={_active.Name}; standby={_standby?.Name ?? "-"}; reason={reason}.");
         }
 
         if (_active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold)
@@ -500,7 +528,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
-        if (!bypassStabilizationGuard && DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow)
+        var activeFailureEmergency = IsActiveFailureEmergency(_active, _standby);
+        if (!bypassStabilizationGuard && DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow && !activeFailureEmergency)
         {
             AddEvent(new Iec103MasterEvidenceEvent
             {
@@ -516,7 +545,27 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 ProtocolMode = Iec60870ProtocolMode.Iec101,
                 SignalGroup = "IEC-101 Dual Link"
             });
+            _lastClass2PollUtc = DateTime.MinValue;
+            _lastStandbySupervisionUtc = DateTime.MinValue;
             return;
+        }
+
+        if (activeFailureEmergency && !bypassStabilizationGuard && DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow)
+        {
+            AddEvent(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.Unknown,
+                State = Iec103MasterState.TimeoutRecovery,
+                Category = Iec101RedundancyEventKind.StateChanged.ToString(),
+                DataClass = "Redundancy",
+                Summary = "IEC-101 anti-ping-pong guard bypassed for active-link failure",
+                Detail = $"Active={_active.Name}; standby={_standby.Name}; reason={reason}; active failures={_active.LinkState.ConsecutiveFailures}; standby good={_standby.LinkState.ConsecutiveGoodResponses}.",
+                OperatorMessage = "The active link is failing and the standby has enough health evidence to rescue service.",
+                ProtocolMeaning = "Anti-ping-pong protection must not leave a failed active link latched when the standby can carry traffic.",
+                OperatorAction = "Use the following failover evidence to verify cascaded redundancy behavior.",
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                SignalGroup = "IEC-101 Dual Link"
+            });
         }
 
         _switchInProgress = true;
@@ -530,7 +579,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", Iec101RedundancyEventKind.FailoverStarted.ToString());
             _imageTracker.MarkStale();
 
-            if (!to.IsPromotable(_options.StandbyFailureThreshold))
+            if (!to.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
             {
                 _failoverJournal.Add(new Iec101FailoverJournalEntry
                 {
@@ -542,6 +591,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                     Detail = "Standby link is not promotable."
                 });
                 SetControllerState(Iec101RedundancyControllerState.NoAvailableLink, "IEC-101 failover failed", $"Standby {to.Name} is not healthy enough for promotion.", Iec101RedundancyEventKind.FailoverRejected.ToString());
+                _lastStandbySupervisionUtc = DateTime.MinValue;
                 return;
             }
 
@@ -583,6 +633,30 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             PublishSnapshot();
         }
     }
+
+    private bool IsActiveFailureEmergency(Iec101DualLinkChannel active, Iec101DualLinkChannel standby)
+    {
+        var activeFailed = active.State is Iec101RedundancyChannelState.TimeoutSuspect or Iec101RedundancyChannelState.FailedLatched
+            || active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold;
+        if (!activeFailed)
+        {
+            return false;
+        }
+
+        return standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow());
+    }
+
+    private TimeSpan BuildRecentGoodRescueWindow()
+    {
+        var timeoutMs = Math.Max(250, _options.BaseSettings.ResponseTimeoutMs);
+        var standbyMs = Math.Max(250, _options.StandbySupervisionInterval.TotalMilliseconds);
+        return TimeSpan.FromMilliseconds(Math.Max(timeoutMs * 4, standbyMs * 3));
+    }
+
+    private bool ActiveNeedsRescue()
+        => _active is not null
+           && (_active.State is Iec101RedundancyChannelState.TimeoutSuspect or Iec101RedundancyChannelState.FailedLatched
+               || _active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold);
 
     private async Task RunPostSwitchGiPolicyAsync(CancellationToken cancellationToken)
     {

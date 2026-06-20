@@ -47,6 +47,19 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public bool IsOpen => _transport.IsOpen;
     public bool IsHealthy => IsOpen && LinkState.ConsecutiveFailures == 0;
     public bool IsPromotable(int failureThreshold) => IsOpen && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
+    public bool HasRecentGoodResponse(TimeSpan window)
+        => IsOpen
+           && LinkState.ConsecutiveFailures == 0
+           && LinkState.LastGoodResponseUtc is DateTime lastGood
+           && DateTime.UtcNow - lastGood <= window;
+
+    public bool CanRescueFailedActive(int failureThreshold, TimeSpan recentGoodWindow)
+        => IsPromotable(failureThreshold)
+           || HasRecentGoodResponse(recentGoodWindow)
+           || (IsOpen
+               && State == Iec101RedundancyChannelState.StandbySupervising
+               && LinkState.ConsecutiveFailures == 0
+               && LinkState.RxFrames > 0);
 
     public async Task OpenAsync(Iec101RedundancyChannelRole role, CancellationToken cancellationToken)
     {
