@@ -225,7 +225,7 @@ public partial class MainWindow
             ValueRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             RelayEventRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
             DiagnosticRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            CountActionableIssueRows().ToString(System.Globalization.CultureInfo.InvariantCulture),
             setupSignature,
             TailSequence(EvidenceRows),
             TailSequence(FrameTraceRows));
@@ -576,7 +576,7 @@ public partial class MainWindow
         builder.AppendLine("  Class 1 / 2     : " + _class1Count + " / " + _class2Count);
         builder.AppendLine("  No data         : " + _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.AppendLine("  Event           : " + _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        builder.AppendLine("  Issues          : " + FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.AppendLine("  Issues          : " + CountActionableIssueRows().ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.AppendLine();
         builder.AppendLine("Important Protocol Evidence");
         foreach (var row in importantRows)
@@ -677,7 +677,7 @@ public partial class MainWindow
             new KeyValuePair<string, string>("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
             new KeyValuePair<string, string>("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new KeyValuePair<string, string>("Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string>("Issues", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            new KeyValuePair<string, string>("Issues", CountActionableIssueRows().ToString(System.Globalization.CultureInfo.InvariantCulture))
         });
 
         document.Blocks.Add(PreviewParagraph("Summary Verdict", 16, FontWeights.SemiBold, InkBrush, 6));
@@ -1013,7 +1013,7 @@ public partial class MainWindow
             ("Class 1 / Class 2", $"{_class1Count} / {_class2Count}"),
             ("No data", _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             ("DPI/Event", _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            ("Findings", FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            ("Active issues", CountActionableIssueRows().ToString(System.Globalization.CultureInfo.InvariantCulture))
         }));
         html.AppendLine("</section>");
 

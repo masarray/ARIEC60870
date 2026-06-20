@@ -66,9 +66,9 @@ public partial class MainWindow
         // engine store. They must not be copied into a sticky session ledger because
         // many protocol findings, such as GI incomplete, naturally resolve a few
         // frames later when ACTCON/data arrives.
-        foreach (var runtimeFinding in existingFindings.Select(ConvertRuntimeFindingToSmartFinding))
+        foreach (var finding in existingFindings.Where(ShouldImportRuntimeFinding))
         {
-            AddDistinctFinding(active, runtimeFinding);
+            AddDistinctFinding(active, ConvertRuntimeFindingToSmartFinding(finding));
         }
 
         // Only Smart Correction results are sticky. This keeps the audit trail for a
@@ -86,6 +86,26 @@ public partial class MainWindow
             .ThenBy(finding => finding.Sequence)
             .Take(10)
             .ToArray();
+    }
+
+    private static bool ShouldImportRuntimeFinding(FindingRow finding)
+    {
+        var text = string.Join(" ", finding.Id, finding.Title, finding.Evidence, finding.Impact, finding.Recommendation);
+
+        // Guard the Smart Findings UI from older runtime diagnostics that used the
+        // generic word "command" for C_IC_NA_1 General Interrogation. GI refresh
+        // after a redundancy switch is a service scan, not an operate command and
+        // not command congestion.
+        if (text.Contains("class", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("congestion", StringComparison.OrdinalIgnoreCase)
+            && (text.Contains("general interrogation", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("C_IC", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("interrogation command", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static EvidenceSmartFinding ConvertRuntimeFindingToSmartFinding(FindingRow finding)

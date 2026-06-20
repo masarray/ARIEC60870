@@ -1040,7 +1040,20 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         if (_failoverJournal.Count == 0)
         {
-            RaiseFinding(FindingSeverity.Info, "IEC101-DUAL-NO-FAILOVER", "IEC-101 dual-link session completed without failover", "No failover journal entries were recorded.", "This is expected when both links remain healthy during the run.", "For FAT/SAT redundancy proof, inject an active-link failure and verify failover evidence appears in the report.");
+            AddEvent(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.Unknown,
+                State = Iec103MasterState.Stopped,
+                Category = Iec101RedundancyEventKind.StateChanged.ToString(),
+                DataClass = "Redundancy Assessment",
+                Summary = "IEC-101 dual-link session ended without failover",
+                Detail = "No failover journal entries were recorded. This is normal when the operator stops a healthy session or no active-link failure was injected.",
+                OperatorMessage = "No redundancy failover was assessed in this run.",
+                ProtocolMeaning = "No failover journal entries were recorded; treat this as context, not an issue.",
+                OperatorAction = "For FAT/SAT redundancy proof, deliberately interrupt the active link and verify failover evidence appears in the timeline/report.",
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                SignalGroup = "IEC-101 Dual Link"
+            });
         }
 
         if (_options.FailbackPolicy == Iec101DualLinkFailbackPolicy.PreferredLinkAfterStableRecovery)

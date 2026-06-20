@@ -642,7 +642,7 @@ public partial class MainWindow
         {
             FindingRows.ReplaceRange(_findingStore.Snapshot());
             _pendingFindingUiRows.Clear();
-            FindingCountText.Text = FindingRows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            UpdateFindingCountChip();
         }
 
         if (_pendingDiagnosticUiRows.Count > 0)
@@ -1078,10 +1078,16 @@ public partial class MainWindow
 
     private void ApplyFindingToUi(Iec103MasterFinding finding)
     {
+        if (ShouldSuppressFindingForOperatorStop(finding))
+        {
+            AppendSessionLog($"Context note [{finding.Severity}] {finding.Id}: suppressed as operator-stop/non-issue context.");
+            return;
+        }
+
         var row = new FindingRow(finding);
         _findingStore.Add(row);
         _pendingFindingUiRows.Add(row);
-        FindingCountText.Text = Math.Min(MaxVisibleFindingRows, FindingRows.Count + _pendingFindingUiRows.Count).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        UpdateFindingCountChip();
         PulseLed(DiagLed);
         AddDiagnosticRow(new DiagnosticRow(finding));
         AppendSessionLog($"Finding [{finding.Severity}] {finding.Id}: {finding.Title}");
@@ -1223,7 +1229,7 @@ public partial class MainWindow
         ClassPollText.Text = $"{result.Counters.GiCommands + result.Counters.GiEndResponses} / {result.Counters.Class1Requests} / {result.Counters.Class2Requests}";
         NoDataText.Text = result.Counters.NoDataResponses.ToString(System.Globalization.CultureInfo.InvariantCulture);
         DpiText.Text = result.Counters.DpiEvents.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        FindingCountText.Text = result.Findings.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        FindingCountText.Text = CountActionableIssues(result.Findings.ToArray()).ToString(System.Globalization.CultureInfo.InvariantCulture);
         UpdateStableHeader(result.CompletedNormally ? "Completed" : "Faulted",
             $"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100). {result.CompletionReason}");
         ExportReportButton.IsEnabled = true;
@@ -1261,6 +1267,12 @@ public partial class MainWindow
 
         foreach (var finding in result.Findings)
         {
+            if (ShouldSuppressFindingForOperatorStop(finding))
+            {
+                AppendSessionLog($"Context note [{finding.Severity}] {finding.Id}: not counted as an issue for this session context.");
+                continue;
+            }
+
             if (!FindingRows.Any(x => x.Id == finding.Id && x.Title == finding.Title))
             {
                 var row = new FindingRow(finding);
@@ -1269,6 +1281,7 @@ public partial class MainWindow
             }
         }
         FlushVisibleUiBatches();
+        UpdateFindingCountChip();
         EmitGiCoverageMatrixVerdict("Completed session result applied");
         EmitSessionProofVerdict("Completed session result applied");
     }

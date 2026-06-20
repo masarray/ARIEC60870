@@ -96,6 +96,8 @@ public partial class MainWindow
         ClearSessionView(clearLog: false);
         SeedValueViewerFromIoaProfile(settings.ProtocolMode);
         _stopRequested = false;
+        _operatorDisconnectInProgress = false;
+        _operatorDisconnectRequestedUtc = DateTime.MinValue;
         SetRunUiState(isRunning: true);
         _lastResult = null;
         _sessionCancellation = new CancellationTokenSource();
@@ -112,7 +114,7 @@ public partial class MainWindow
             AppendSessionLog($"Class 2 scan feasibility: configured={settings.Class2PollIntervalMs} ms, estimated physical minimum≈{estimatedClass2CycleMs} ms at {settings.BaudRate} bps.");
             if (settings.BaudRate <= 1200)
             {
-                AppendSessionLog("Low-baud serial timing guard active: timeout/poll/backoff widened for 1200 bps field channels; 100 ms polling cannot be treated as a guaranteed measurement refresh at this speed.");
+                AppendSessionLog($"Low-baud serial advisory: using the configured response timeout {settings.ResponseTimeoutMs} ms. Poll/backoff guards may be widened, but failover detection timeout is not silently changed.");
             }
         }
 
@@ -222,6 +224,8 @@ public partial class MainWindow
         }
 
         _stopRequested = true;
+        _operatorDisconnectInProgress = true;
+        _operatorDisconnectRequestedUtc = DateTime.UtcNow;
         _sessionCancellation.Cancel();
         StopButton.IsEnabled = true;
         StopButton.ToolTip = "Force close transport";
@@ -351,11 +355,12 @@ public partial class MainWindow
             return;
         }
 
-        // Low-speed IEC-101/103 channels are common in legacy utility links. A large ASDU,
-        // modem/RS-485 turnaround time, or Class 1 drain cycle can exceed aggressive bench
-        // timing. Guard the session so 1200 bps does not fail simply because the analyzer
-        // was tuned for 9600/19200 bps lab links.
-        settings.ResponseTimeoutMs = Math.Max(settings.ResponseTimeoutMs, 5000);
+        // Low-speed IEC-101/103 channels are common in legacy utility links. The guard must
+        // not silently override the operator's response-timeout because that timeout is also
+        // used for redundancy failover detection. If the engineer enters 1000 ms for a
+        // switchover test, evidence and failover timing must say 1000 ms, not 5000 ms.
+        // Keep only cadence/backoff protection so aggressive background polling does not
+        // overload 1200 bps field channels.
         settings.Class2PollIntervalMs = Math.Max(settings.Class2PollIntervalMs, 1000);
         settings.BusyBackoffMs = Math.Max(settings.BusyBackoffMs, 500);
         settings.TimeoutRecoveryBackoffMs = Math.Max(settings.TimeoutRecoveryBackoffMs, 500);
@@ -433,6 +438,12 @@ public partial class MainWindow
             PreferredActiveLink = "A",
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Required,
             DrainClass1BeforePostSwitchGi = true,
+            // Fast redundancy testing: when the operator intentionally configures a short
+            // response timeout, fail over on the first active-link timeout if the standby is
+            // already supervised/promotable. With longer field timeouts, keep the conservative
+            // two-failure threshold to avoid ping-pong on noisy channels.
+            ActiveFailureThreshold = activeSettings.ResponseTimeoutMs <= 1200 ? 1 : 2,
+            StandbyFailureThreshold = 2,
             StandbyRecoveryGoodResponseThreshold = 2,
             FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly,
             AllowStandbyClass1Polling = false,

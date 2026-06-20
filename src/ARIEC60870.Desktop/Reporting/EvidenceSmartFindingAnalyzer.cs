@@ -35,6 +35,7 @@ public static class EvidenceSmartFindingAnalyzer
         var protocolMode = InferProtocolMode(ordered, communicationSetup);
         var autoConfig = Iec10xAutoConfigCorrector.Analyze(ordered, communicationSetup, protocolMode);
 
+        AddConnectionContextFindings(ordered, existingFindings, findings);
         AddCommonAddressMismatch(ordered, configuredCa, findings);
         AddUnknownAddressFindings(ordered, findings);
         AddProfileSizeMismatch(ordered, autoConfig, findings);
@@ -57,7 +58,7 @@ public static class EvidenceSmartFindingAnalyzer
     private static void AddCommonAddressMismatch(IReadOnlyList<EvidenceRow> rows, int? configuredCa, List<EvidenceSmartFinding> findings)
     {
         var txCandidates = rows
-            .Where(row => IsTx(row) && (IsGi(row) || IsCommand(row) || IsReadRequest(row)))
+            .Where(row => IsTx(row) && (IsGi(row) || IsControlCommand(row) || IsReadRequest(row)))
             .Select(row => (Row: row, Ca: ParsePositiveInt(row.CommonAddress)))
             .Where(item => item.Ca.HasValue)
             .ToArray();
@@ -205,7 +206,7 @@ public static class EvidenceSmartFindingAnalyzer
 
     private static void AddCommandNoFeedback(IReadOnlyList<EvidenceRow> rows, List<EvidenceSmartFinding> findings)
     {
-        var commandTx = rows.FirstOrDefault(row => IsTx(row) && IsCommand(row));
+        var commandTx = rows.FirstOrDefault(row => IsTx(row) && IsControlCommand(row));
         if (commandTx is null)
         {
             return;
@@ -214,7 +215,7 @@ public static class EvidenceSmartFindingAnalyzer
         var window = rows.Where(row => row.Sequence >= commandTx.Sequence).Take(80).ToArray();
         var hasActCon = window.Any(row => IsRx(row) && IsActivationConfirmation(row));
         var hasActTerm = window.Any(row => IsRx(row) && IsActivationTermination(row));
-        var hasFeedback = window.Any(row => IsRx(row) && ContainsAny(SearchText(row), "feedback", "single-point", "double-point", "position", "status", "soe", "spontaneous"));
+        var hasFeedback = window.Any(row => IsLikelyControlFeedback(row, commandTx));
         var hasNegative = window.Any(row => IsNegative(row));
 
         if ((hasActCon || hasActTerm || hasFeedback) && !hasNegative)
@@ -235,21 +236,23 @@ public static class EvidenceSmartFindingAnalyzer
 
     private static void AddCommandDelayedByClassOneTraffic(IReadOnlyList<EvidenceRow> rows, List<EvidenceSmartFinding> findings)
     {
-        var commandTx = rows.FirstOrDefault(row => IsTx(row) && IsCommand(row));
+        var commandTx = rows.FirstOrDefault(row => IsTx(row) && IsControlCommand(row));
         if (commandTx is null)
         {
             return;
         }
 
         var afterCommand = rows.Where(row => row.Sequence > commandTx.Sequence).Take(120).ToArray();
-        var analogClassOne = afterCommand.Where(row => IsClassOne(row) && IsAnalogMeasuredValue(row)).Take(80).ToArray();
-        var spontaneousAnalog = afterCommand.Where(row => IsSpontaneous(row) && IsAnalogMeasuredValue(row)).Take(80).ToArray();
-        var latencyMs = afterCommand.Select(ParseResponseTimeMs).Where(value => value.HasValue).Select(value => value!.Value).DefaultIfEmpty(0).Max();
-
-        if (analogClassOne.Length < 8 && spontaneousAnalog.Length < 8 && latencyMs < 1500)
+        if (afterCommand.Length == 0)
         {
             return;
         }
+
+        var analogClassOne = afterCommand.Where(row => IsClassOne(row) && IsAnalogMeasuredValue(row)).Take(80).ToArray();
+        var spontaneousAnalog = afterCommand.Where(row => IsSpontaneous(row) && IsAnalogMeasuredValue(row)).Take(80).ToArray();
+        var latencyMs = afterCommand.Select(ParseResponseTimeMs).Where(value => value.HasValue).Select(value => value!.Value).DefaultIfEmpty(0).Max();
+        var hasCommandConfirmation = afterCommand.Any(row => IsRx(row) && IsActivationConfirmation(row));
+        var hasCommandFeedback = afterCommand.Any(row => IsRx(row) && IsLikelyControlFeedback(row, commandTx));
 
         var dominant = analogClassOne.Length >= spontaneousAnalog.Length ? analogClassOne : spontaneousAnalog;
         if (dominant.Length == 0)
@@ -257,14 +260,26 @@ public static class EvidenceSmartFindingAnalyzer
             return;
         }
 
+        // This finding is only valid for real operate/select commands. A General
+        // Interrogation burst after redundancy switchover is expected behaviour and
+        // can contain many Class 1 values with a very small response time. Do not
+        // call that congestion.
+        var delayedEnough = latencyMs >= 1500;
+        var noisyEnough = dominant.Length >= 8;
+        var severeQueueWithoutProof = dominant.Length >= 24 && !hasCommandConfirmation && !hasCommandFeedback;
+        if ((!delayedEnough || !noisyEnough) && !severeQueueWithoutProof)
+        {
+            return;
+        }
+
         findings.Add(new EvidenceSmartFinding(
             EvidenceSmartFindingSeverity.Warning,
             "ARIEC-SMART-CLASS1-CONGESTION",
-            "Command response is competing with noisy Class 1 / spontaneous analog traffic.",
-            "Class 1 should carry urgent events and command evidence. Cyclic analog values in Class 1 can delay confirmation and make the command feel unresponsive.",
-            $"After command row #{commandTx.Sequence}, detected {dominant.Length} analog/Class 1 rows before the response window settled; max response time {latencyMs} ms.",
-            "Move cyclic analog/measured values to Class 2 or background scan. Keep Class 1 for SOE, protection events, command confirmation, and status changes, then retest command latency.",
-            dominant.Length >= 15 || latencyMs >= 3000 ? "High" : "Medium",
+            "Control command evidence may be delayed by noisy Class 1 / spontaneous analog traffic.",
+            "Class 1 should carry urgent events and command evidence. Cyclic analog values in Class 1 can delay confirmation and make an operate command feel unresponsive.",
+            $"After control command row #{commandTx.Sequence}, detected {dominant.Length} analog/Class 1 rows; max response time {latencyMs} ms; ACTCON={(hasCommandConfirmation ? "present" : "missing")}; feedback={(hasCommandFeedback ? "present" : "missing")}.",
+            "Move cyclic analog/measured values to Class 2 or background scan. Keep Class 1 for SOE, protection events, control command confirmation, and status changes, then retest command latency.",
+            dominant.Length >= 24 || latencyMs >= 3000 ? "High" : "Medium",
             commandTx.Sequence));
     }
 
@@ -290,7 +305,7 @@ public static class EvidenceSmartFindingAnalyzer
 
     private static void AddLinkAliveApplicationSilent(IReadOnlyList<EvidenceRow> rows, List<EvidenceSmartFinding> findings)
     {
-        var hasTxApplication = rows.Any(row => IsTx(row) && (IsGi(row) || IsCommand(row) || IsReadRequest(row)));
+        var hasTxApplication = rows.Any(row => IsTx(row) && (IsGi(row) || IsControlCommand(row) || IsReadRequest(row)));
         var noDataRows = rows.Where(row => ContainsAny(SearchText(row), "no data", "ack/no-data", "no user data")).Take(20).ToArray();
         var rxAsduRows = rows.Count(row => IsRx(row) && ParsePositiveInt(row.TypeId).HasValue);
 
@@ -310,12 +325,191 @@ public static class EvidenceSmartFindingAnalyzer
             noDataRows[0].Sequence));
     }
 
+    private static void AddConnectionContextFindings(IReadOnlyList<EvidenceRow> rows, IReadOnlyList<FindingRow> existingFindings, List<EvidenceSmartFinding> findings)
+    {
+        var evidenceText = string.Join(" ", rows.Select(SearchText));
+        var findingText = string.Join(" ", existingFindings.Select(finding => string.Join(" ", finding.Id, finding.Title, finding.Evidence, finding.Impact, finding.Recommendation)));
+        var text = string.Join(" ", evidenceText, findingText);
+
+        if (string.IsNullOrWhiteSpace(text) || IsOperatorStopContext(text))
+        {
+            return;
+        }
+
+        var latestTx = rows.Where(IsTx).OrderByDescending(row => row.Sequence).FirstOrDefault();
+        var latestRx = rows.Where(IsRx).OrderByDescending(row => row.Sequence).FirstOrDefault();
+        var rowsAfterLatestTx = latestTx is null ? 0 : rows.Count(row => row.Sequence > latestTx.Sequence);
+        var hasRecentTxWithoutRx = latestTx is not null && (latestRx is null || latestTx.Sequence > latestRx.Sequence + 2) && rowsAfterLatestTx >= 4;
+        var hasTimeoutEvidence = ContainsAny(text, "timeout", "timed out", "no response", "no data received", "TESTFR confirmation was not received", "STARTDT confirmation was not received");
+        var hasFaultEvidence = ContainsAny(text, "session faulted", "transport", "socket", "serial", "connection", "ioexception", "unauthorized", "access to the port", "port not", "does not exist", "forcibly closed", "connection reset", "broken pipe", "host unreachable", "network unreachable", "connection refused");
+
+        // Do not create a live flicker merely because a TX row is currently the
+        // newest frame. Wait for an actual timeout/fault diagnostic or several
+        // subsequent rows after the unanswered request.
+        if (!hasFaultEvidence && !hasTimeoutEvidence && !hasRecentTxWithoutRx)
+        {
+            return;
+        }
+
+        var classification = ClassifyConnectionContext(text, hasRecentTxWithoutRx, rows);
+        if (classification is null)
+        {
+            return;
+        }
+
+        findings.Add(new EvidenceSmartFinding(
+            classification.Severity,
+            classification.Code,
+            classification.Problem,
+            classification.Why,
+            classification.Proof,
+            classification.Fix,
+            classification.Confidence,
+            classification.Sequence));
+    }
+
+    private static ConnectionContextFinding? ClassifyConnectionContext(string text, bool hasRecentTxWithoutRx, IReadOnlyList<EvidenceRow> rows)
+    {
+        var lastSequence = rows.Count == 0 ? 0 : rows.Max(row => row.Sequence);
+
+        if (ContainsAny(text, "actively refused", "connection refused", "no connection could be made"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-CONNECTION-REFUSED",
+                "IEC-104 TCP connection was refused by the target endpoint.",
+                "The network path reached a host, but the remote TCP service rejected port access. This is different from a manual Disconnect.",
+                "Fault text indicates connection refused / no listener response.",
+                "Verify IP address, TCP port 2404, server service status, firewall rule, and active-client limit. Check whether another master is already connected.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "forcibly closed", "connection reset", "reset by peer", "broken pipe", "connection abort", "software caused connection abort"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-REMOTE-CLOSED",
+                "Remote endpoint closed or reset the IEC-104 connection.",
+                "A TCP reset/abort normally means the peer, firewall, or network stack closed an active connection. This is not the same as the operator pressing Disconnect.",
+                "Fault text contains reset/abort/forcibly-closed evidence.",
+                "Check server logs, duplicate master/client sessions, IEC-104 STARTDT policy, keepalive/test-frame timers, and network equipment that may reset idle TCP sessions.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "host unreachable", "network unreachable", "no route", "destination unreachable"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-NETWORK-PATH-DOWN",
+                "Network path to the IEC-104 endpoint is unreachable.",
+                "The client cannot reach the host/network. This points to cable, switch, routing, VLAN, IP addressing, or device power rather than an application CA/COT/IOA issue.",
+                "Fault text indicates unreachable host/network/no route.",
+                "Check link LEDs, switch port, VLAN, IP/subnet/gateway, firewall, and device power before changing IEC application profile fields.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "access to the port", "unauthorizedaccess", "access is denied"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-SERIAL-PORT-BUSY",
+                "Serial COM port is not available to the analyzer.",
+                "The local PC/driver rejected access before the protocol could prove slave health. This is a local port ownership problem, not a slave CA/profile problem.",
+                "Fault text indicates access denied / port busy.",
+                "Close the other serial client, release the USB/RS-485 adapter, verify driver permission, then reconnect. Do not change CA/COT/IOA for this symptom.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "port does not exist", "does not exist", "port not found", "could not find", "file not found"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-SERIAL-PORT-MISSING",
+                "Configured serial COM port is missing.",
+                "The PC cannot open the configured serial adapter. This usually means wrong COM selection, unplugged USB adapter, disabled driver, or OS port renumbering.",
+                "Fault text indicates port missing/not found.",
+                "Refresh ports, select the correct COM port, verify USB/RS-485 adapter power/driver, then reconnect.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "TESTFR confirmation was not received", "testfr"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Warning,
+                "ARIEC-SMART-IEC104-SUPERVISION-TIMEOUT",
+                "IEC-104 idle supervision is not confirmed.",
+                "IEC-104 uses TCP plus APCI supervision. Missing TESTFR confirmation means the TCP session may be half-open, filtered, overloaded, or the server does not answer the test frame policy.",
+                "TESTFR confirmation timeout was recorded.",
+                "Check t1/t2/t3 timers, server TESTFR support, firewall/NAT idle timeout, duplicate sessions, and whether I-format traffic resumes after the timeout.",
+                "Medium",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "STARTDT confirmation was not received", "startdt"))
+        {
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Error,
+                "ARIEC-SMART-IEC104-STARTDT-BLOCKED",
+                "IEC-104 connection opened, but STARTDT was not confirmed.",
+                "TCP may be connected, but the IEC-104 data-transfer state did not open. This usually points to server policy, duplicate clients, access control, or a non-IEC-104 service on the port.",
+                "STARTDT confirmation timeout was recorded.",
+                "Verify server connection limit, allowed client IP, port 2404, STARTDT policy, firewall/NAT path, and server application state.",
+                "High",
+                lastSequence);
+        }
+
+        if (ContainsAny(text, "timed out", "timeout", "no response") || hasRecentTxWithoutRx)
+        {
+            var hasAnyRx = rows.Any(IsRx);
+            var hasLinkAck = rows.Any(row => IsRx(row) && ContainsAny(SearchText(row), "link status", "access demand", "acd=", "dfc=", "ack"));
+            var problem = hasAnyRx
+                ? "Communication became silent after previously valid responses."
+                : "No response was received from the slave/device.";
+            var why = hasAnyRx
+                ? "The line had valid RX evidence earlier, so the later silence is more consistent with slave hang, device restart, cable disturbance, or serial/network interruption than a static CA/profile error."
+                : "Protocol evidence alone cannot prove whether the cable is unplugged, the device is powered off, or the device application is hung; it can prove that TX was sent and no slave response arrived.";
+            var proof = hasLinkAck
+                ? "Earlier link-layer response was seen, then timeout/no-response evidence appeared."
+                : "Timeout/no-response evidence exists without sufficient RX proof in the selected scope.";
+            return new ConnectionContextFinding(
+                EvidenceSmartFindingSeverity.Warning,
+                hasAnyRx ? "ARIEC-SMART-LINK-DROPPED-OR-HUNG" : "ARIEC-SMART-NO-SLAVE-RESPONSE",
+                problem,
+                why,
+                proof,
+                "First separate operator Disconnect from fault evidence. Then check physical cable/link LEDs, device power/boot state, serial polarity/termination, COM adapter, and only after link replies exist check CA/COT/IOA/application profile.",
+                hasAnyRx ? "Medium" : "High",
+                lastSequence);
+        }
+
+        return null;
+    }
+
+    private static bool IsOperatorStopContext(string text)
+        => ContainsAny(text, "stop requested by user", "session stopped by user", "operator disconnected", "operator disconnect", "disconnect button", "manual disconnect");
+
+    private sealed record ConnectionContextFinding(
+        EvidenceSmartFindingSeverity Severity,
+        string Code,
+        string Problem,
+        string Why,
+        string Proof,
+        string Fix,
+        string Confidence,
+        long Sequence);
+
     private static void AddHighValueExistingFindings(IReadOnlyList<FindingRow> existingFindings, List<EvidenceSmartFinding> findings)
     {
         foreach (var finding in existingFindings.Take(6))
         {
             var text = string.Join(" ", finding.Id, finding.Title, finding.Evidence, finding.Impact, finding.Recommendation);
-            if (!ContainsAny(text, "timeout", "negative", "unknown", "ca", "ioa", "quality", "class 1", "gi", "command", "profile"))
+            if (ShouldSkipImportedExistingFinding(text)
+                || !ContainsAny(text, "timeout", "negative", "unknown", "ca", "ioa", "quality", "class 1", "gi", "command", "profile"))
             {
                 continue;
             }
@@ -338,6 +532,25 @@ public static class EvidenceSmartFindingAnalyzer
         }
     }
 
+    private static bool ShouldSkipImportedExistingFinding(string text)
+    {
+        if (ContainsAny(text, "no failover", "session completed without failover", "healthy during the run", "auto failback is enabled"))
+        {
+            return true;
+        }
+
+        if (IsOperatorStopContext(text) || ContainsAny(text, "stopped by cancellation", "operation canceled"))
+        {
+            return true;
+        }
+
+        return text.Contains("class", StringComparison.OrdinalIgnoreCase)
+               && text.Contains("congestion", StringComparison.OrdinalIgnoreCase)
+               && (text.Contains("general interrogation", StringComparison.OrdinalIgnoreCase)
+                   || text.Contains("C_IC", StringComparison.OrdinalIgnoreCase)
+                   || text.Contains("interrogation command", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static Iec60870ProtocolMode InferProtocolMode(IReadOnlyList<EvidenceRow> rows, IReadOnlyList<KeyValuePair<string, string>> setup)
     {
         var setupProtocol = setup.FirstOrDefault(pair => pair.Key.Equals("Protocol", StringComparison.OrdinalIgnoreCase)).Value ?? string.Empty;
@@ -356,13 +569,69 @@ public static class EvidenceSmartFindingAnalyzer
 
     private static bool IsTx(EvidenceRow row) => row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase);
     private static bool IsRx(EvidenceRow row) => row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase);
-    private static bool IsGi(EvidenceRow row) => ContainsAny(SearchText(row), "general interrogation", "interrogation", "c_ic", "qoi");
-    private static bool IsCommand(EvidenceRow row) => ContainsAny(SearchText(row), "command", "select", "operate", "c_sc", "c_dc", "c_se", "set-point", "setpoint");
-    private static bool IsReadRequest(EvidenceRow row) => ContainsAny(SearchText(row), "read", "c_rd");
+    private static bool IsGi(EvidenceRow row) => IsTypeId(row, 100) || ContainsAny(SearchText(row), "general interrogation", "c_ic_na_1", "c_ic", "interrogation qualifier", "qoi");
+    private static bool IsReadRequest(EvidenceRow row) => IsTypeId(row, 102) || ContainsAny(SearchText(row), "c_rd_na_1", "read command", "read request");
+
+    private static bool IsControlCommand(EvidenceRow row)
+    {
+        var typeId = ParsePositiveInt(row.TypeId);
+        if (typeId.HasValue)
+        {
+            // IEC-101/104 operate command ASDUs. Service commands such as GI (100),
+            // counter interrogation (101), read (102), clock sync (103), test/reset,
+            // and delay acquisition are intentionally excluded.
+            return typeId.Value is 45 or 46 or 47 or 48 or 49 or 50 or 51
+                or 58 or 59 or 60 or 61 or 62 or 63 or 64;
+        }
+
+        var text = SearchText(row);
+        if (ContainsAny(text,
+            "general interrogation", "interrogation command", "c_ic_na_1", "c_ci_na_1",
+            "c_rd_na_1", "read command", "c_cs_na_1", "clock sync", "clock synchronization",
+            "c_ts_na_1", "test command", "c_rp_na_1", "reset process", "c_cd_na_1", "delay acquisition"))
+        {
+            return false;
+        }
+
+        return ContainsAny(text,
+            "c_sc_na_1", "c_dc_na_1", "c_rc_na_1", "c_se_na_1", "c_se_nb_1", "c_se_nc_1", "c_bo_na_1",
+            "c_sc_ta_1", "c_dc_ta_1", "c_rc_ta_1", "c_se_ta_1", "c_se_tb_1", "c_se_tc_1", "c_bo_ta_1",
+            "select", "operate", "control command", "breaker open", "breaker close");
+    }
+
+    private static bool IsLikelyControlFeedback(EvidenceRow row, EvidenceRow commandTx)
+    {
+        if (!IsRx(row))
+        {
+            return false;
+        }
+
+        if (IsActivationConfirmation(row) || IsActivationTermination(row))
+        {
+            return true;
+        }
+
+        var typeId = ParsePositiveInt(row.TypeId);
+        if (typeId.HasValue && typeId.Value is 1 or 2 or 3 or 4 or 30 or 31)
+        {
+            return true;
+        }
+
+        var commandIoa = ParsePositiveInt(commandTx.IoAddress);
+        var feedbackIoa = ParsePositiveInt(row.IoAddress);
+        if (commandIoa.HasValue && feedbackIoa.HasValue && commandIoa.Value == feedbackIoa.Value)
+        {
+            return true;
+        }
+
+        return ContainsAny(SearchText(row), "feedback", "position", "status", "closed", "opened", "single-point", "double-point");
+    }
+
     private static bool IsActivationConfirmation(EvidenceRow row) => IsCotCode(row, 7) || ContainsAny(SearchText(row), "activation confirmation", "actcon", "act_con");
     private static bool IsActivationTermination(EvidenceRow row) => IsCotCode(row, 10) || ContainsAny(SearchText(row), "activation termination", "actterm", "act_term");
     private static bool IsNegative(EvidenceRow row) => ContainsAny(SearchText(row), "negative", "nack", "failed", "reject", "not accepted");
     private static bool IsCotCode(EvidenceRow row, int expected) => ParsePositiveInt(row.CotCode) == expected;
+    private static bool IsTypeId(EvidenceRow row, int expected) => ParsePositiveInt(row.TypeId) == expected;
     private static bool IsClassOne(EvidenceRow row) => ContainsAny(SearchText(row), "class 1", "class1", "data class 1", "class=1");
     private static bool IsSpontaneous(EvidenceRow row) => ContainsAny(SearchText(row), "spontaneous", "spont");
     private static bool IsGiApplicationData(EvidenceRow row)

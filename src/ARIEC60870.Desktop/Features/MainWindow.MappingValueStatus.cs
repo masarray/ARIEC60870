@@ -788,6 +788,8 @@ public partial class MainWindow
         _protocolTriggerCompletedCount = 0;
         FindingRows.Clear();
         FindingWorkspaceRows.Clear();
+        _operatorDisconnectInProgress = false;
+        _operatorDisconnectRequestedUtc = DateTime.MinValue;
         ClearSmartCorrectionSessionTrail();
         ValueRows.Clear();
         RelayEventRows.Clear();

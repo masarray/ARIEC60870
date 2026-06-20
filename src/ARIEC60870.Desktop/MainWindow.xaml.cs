@@ -52,6 +52,8 @@ public partial class MainWindow : Window
     private IByteTransport? _activeTransport;
     private IByteTransport? _activeBackupTransport;
     private bool _stopRequested;
+    private bool _operatorDisconnectInProgress;
+    private DateTime _operatorDisconnectRequestedUtc = DateTime.MinValue;
     private string _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
     private EvidenceRow? _selectedFrameRow;
     private string? _pinnedProtocolMapKey;
