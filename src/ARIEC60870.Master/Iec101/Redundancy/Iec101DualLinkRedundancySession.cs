@@ -524,6 +524,27 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (_active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold)
         {
+            var failedActiveName = _active.Name;
+            var insideStabilizationWindow = DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow;
+
+            // Cascaded failure case: A failed to B, then B times out while A is still in
+            // recovery/standby. Do not let normal active Class-2 scheduling or the
+            // anti-ping-pong window leave the newly failed active link stuck forever.
+            // First force a standby health probe; a successful probe will call
+            // TryFailoverAsync(..., bypassStabilizationGuard: true) from
+            // SuperviseStandbyAsync and rescue service immediately.
+            if (insideStabilizationWindow
+                && _standby is not null
+                && !_standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+            {
+                _lastStandbySupervisionUtc = DateTime.MinValue;
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+                if (_active is null || !string.Equals(_active.Name, failedActiveName, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
             await TryFailoverAsync(reason, cancellationToken, bypassStabilizationGuard: false).ConfigureAwait(false);
         }
     }
@@ -536,8 +557,33 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         var activeFailureEmergency = IsActiveFailureEmergency(_active, _standby);
-        if (!bypassStabilizationGuard && DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow && !activeFailureEmergency)
+        var insideStabilizationWindow = DateTime.UtcNow - _lastFailoverUtc < _options.AntiPingPongWindow;
+        var activeHardFailed = _active.State is Iec101RedundancyChannelState.TimeoutSuspect or Iec101RedundancyChannelState.FailedLatched
+            || _active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold;
+        if (!bypassStabilizationGuard && insideStabilizationWindow && !activeFailureEmergency)
         {
+            if (activeHardFailed)
+            {
+                AddEvent(new Iec103MasterEvidenceEvent
+                {
+                    Direction = FrameDirection.Unknown,
+                    State = Iec103MasterState.TimeoutRecovery,
+                    Category = Iec101RedundancyEventKind.StateChanged.ToString(),
+                    DataClass = "Redundancy",
+                    Summary = "IEC-101 active failure awaiting standby rescue proof",
+                    Detail = $"Active={_active.Name}; standby={_standby.Name}; reason={reason}; last failover={_lastFailoverUtc:O}; active failures={_active.LinkState.ConsecutiveFailures}.",
+                    OperatorMessage = "Active link is failing inside the stabilization window; standby supervision is prioritized before changing ownership again.",
+                    ProtocolMeaning = "Anti-ping-pong protection must not lock the controller on a failed active link, but the old active still needs a fresh standby health proof before rescue promotion.",
+                    OperatorAction = "Wait for the next standby supervision row. If it succeeds, the controller will rescue failover without waiting for the anti-ping-pong window.",
+                    ProtocolMode = Iec60870ProtocolMode.Iec101,
+                    SignalGroup = "IEC-101 Dual Link"
+                });
+                _lastClass2PollUtc = DateTime.UtcNow;
+                _lastStandbySupervisionUtc = DateTime.MinValue;
+                SetControllerState(Iec101RedundancyControllerState.Recovering, "IEC-101 standby rescue supervision required", $"Active={_active.Name}; standby={_standby.Name}; reason={reason}.");
+                return;
+            }
+
             AddEvent(new Iec103MasterEvidenceEvent
             {
                 Direction = FrameDirection.Unknown,

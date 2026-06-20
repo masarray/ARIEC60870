@@ -18,5 +18,7 @@ public static class LocalWorkspacePaths
 
     public static string SetupPreferencesFile => Path.Combine(AppDataRoot, "setup-preferences.json");
 
+    public static string ReleaseUpdateStateFile => Path.Combine(AppDataRoot, "release-update-state.json");
+
     public static string TriggerCaptureFolder => Path.Combine(AppDataRoot, "trigger-captures");
 }

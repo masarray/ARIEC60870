@@ -232,6 +232,15 @@
                                     <TextBlock x:Name="ClassPollLabelText" Text="GI/C1/C2" Visibility="Collapsed" />
                                 </StackPanel>
                             </Border>
+                            <Button x:Name="UpdateAvailableButton"
+                                    Content="Update available"
+                                    Style="{StaticResource SecondaryButton}"
+                                    MinWidth="132"
+                                    Height="36"
+                                    Margin="10,0,0,0"
+                                    Visibility="Collapsed"
+                                    Click="UpdateAvailable_Click"
+                                    ToolTip="A newer ARIEC60870 release is available. Click to open the release page." />
                             <Border Visibility="Collapsed">
                                 <StackPanel>
                                     <TextBlock x:Name="StateText" Text="Idle" />

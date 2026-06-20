@@ -26,6 +26,24 @@
 
 # Changelog
 
+## [3.6.7] - 2026-06-20
+
+### Added
+- Added a low-priority lazy release update notifier that checks for newer GitHub releases after startup, stays silent when offline, and never blocks protocol testing.
+- Added modern in-app dialogs to replace native WPF message boxes across the desktop application.
+- Added user-facing release notes for the v3.6.7 portable Windows package.
+
+### Changed
+- Upgraded Smart Findings context handling so manual operator disconnect, GI traffic, redundancy switchover, background scan, and real fault symptoms are classified separately.
+- Improved IEC-101 dual-link redundancy recovery so cascaded active-link timeouts prioritize standby rescue/failback instead of getting stuck on a timed-out active link.
+- Preserved user-configured IEC-101 response timeout for failover timing instead of widening short timeout values through the low-baud timing guard.
+- Improved Values workspace column sizing and corrected setup-field highlight behavior after Smart Correction.
+
+### Fixed
+- Fixed release update checker catch ordering so network timeout handling builds cleanly.
+- Fixed Smart Findings false positives that treated C_IC_NA_1 General Interrogation as a control command.
+- Fixed stale GI and redundancy findings that could remain visible after valid response evidence or operator stop.
+
 
 ## [3.6.6] - Unreleased
 

@@ -249,13 +249,18 @@ public partial class MainWindow : Window
             RefreshReportPreview();
             RefreshCommandSignalOptions();
             AutoFillCommandTargetFromProfile();
+            StartLazyReleaseUpdateCheck();
         };
         SizeChanged += (_, _) =>
         {
             UpdateSegmentedNav(false);
             UpdateResponsiveHeaderLayout();
         };
-        Closing += (_, _) => SaveSetupPreferencesFromUi(silent: true);
+        Closing += (_, _) =>
+        {
+            CancelReleaseUpdateCheck();
+            SaveSetupPreferencesFromUi(silent: true);
+        };
     }
 
     public ObservableRangeCollection<EvidenceRow> EvidenceRows { get; } = new();
