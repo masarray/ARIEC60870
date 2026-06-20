@@ -94,7 +94,7 @@ li + li { margin-top: 5px; }
 .brand img {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: 5px;
   box-shadow: 0 12px 28px rgba(15, 34, 52, 0.14);
   transition: transform 520ms var(--spring), box-shadow 520ms var(--ease);
 }
@@ -171,10 +171,16 @@ p { margin-top: 0; }
 h1,
 h2,
 h3 { color: var(--ink-strong); letter-spacing: 0; text-wrap: balance; }
-h1 { max-width: 680px; margin-bottom: 22px; font-size: clamp(32px, 3.1vw, 45px); font-weight: 560; line-height: 1.08; }
+h1 { max-width: 680px; margin-bottom: 22px; font-size: clamp(30px, 3vw, 44px); font-weight: 560; line-height: 1.08; }
 h2 { margin-bottom: 16px; font-size: clamp(28px, 3vw, 36px); font-weight: 560; line-height: 1.16; }
 h3 { margin-bottom: 10px; font-size: 18px; font-weight: 560; line-height: 1.28; }
 p { color: var(--muted); }
+/* Public page title guard: keep every H1 under the 45px GitHub Pages visual ceiling. */
+body h1,
+.demo-hero h1,
+.wiki-hero h1,
+.faq-copy h1 { font-size: min(44px, max(30px, 3vw)); }
+
 .lead,
 .section-heading p { max-width: 720px; color: var(--muted); font-size: 17px; font-weight: 400; line-height: 1.78; }
 
@@ -213,10 +219,10 @@ p { color: var(--muted); }
 .live-pill { color: var(--brand-ink); background: #e8f8fb; }
 .live-pill::before { content: ""; width: 7px; height: 7px; margin-right: 8px; border-radius: 999px; background: var(--brand-2); animation: pulseDot 1.8s ease-in-out infinite; }
 
-.hero-panel { position: relative; border: 1px solid rgba(220, 231, 238, 0.92); border-radius: 30px; padding: clamp(16px, 2.8vw, 28px); background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(242, 249, 252, 0.90)), var(--surface); box-shadow: var(--shadow-panel); }
-.hero-panel::before { content: ""; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(18,168,196,0.18), rgba(255,255,255,0.5)); }
-.hero-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
-.panel-logo { width: 84px; max-width: 30%; height: auto; border-radius: 20px; filter: drop-shadow(0 16px 24px rgba(15, 34, 52, 0.10)); }
+.hero-panel { position: relative; padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.hero-panel::before { content: ""; position: absolute; inset: -32px -26px -26px; z-index: -1; border-radius: 36px; background: radial-gradient(circle at 82% 14%, rgba(18, 168, 196, 0.18), transparent 46%), linear-gradient(145deg, rgba(232, 248, 251, 0.62), rgba(255, 255, 255, 0)); filter: blur(0.2px); }
+.hero-media-label { position: absolute; top: 14px; right: 14px; z-index: 4; }
+.panel-logo { width: 84px; max-width: 30%; height: auto; border-radius: 5px; filter: drop-shadow(0 16px 24px rgba(15, 34, 52, 0.10)); }
 .screen-frame { appearance: none; position: relative; display: block; width: 100%; aspect-ratio: 5 / 3; overflow: hidden; border: 1px solid var(--hairline); border-radius: 20px; background: #fff; box-shadow: 0 18px 52px rgba(15, 34, 52, 0.14); cursor: zoom-in; line-height: 0; padding: 0; text-align: left; }
 .screen-frame::after { content: "Click to enlarge"; position: absolute; right: 12px; top: 12px; z-index: 2; border: 1px solid rgba(255, 255, 255, 0.44); border-radius: 999px; background: rgba(7, 24, 39, 0.66); color: #fff; font-size: 11px; font-weight: 500; line-height: 1; opacity: 0; padding: 8px 10px; transform: translateY(-6px); transition: opacity 260ms var(--ease), transform 260ms var(--ease); }
 .screen-frame:hover::after { opacity: 1; transform: translateY(0); }
@@ -288,6 +294,10 @@ p { color: var(--muted); }
 .download-band { border-top: 0; }
 .download-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; border: 1px solid rgba(18, 168, 196, 0.20); border-radius: 28px; padding: clamp(24px, 5vw, 42px); background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(232, 248, 251, 0.86)), var(--surface); box-shadow: 0 24px 70px rgba(15, 34, 52, 0.12); }
 .download-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+.download-copy { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.download-logo { flex: 0 0 auto; width: 58px; height: 58px; border-radius: 5px; box-shadow: 0 14px 32px rgba(15, 34, 52, 0.14); }
+@media (max-width: 620px) { .download-copy { align-items: flex-start; } .download-logo { width: 46px; height: 46px; } }
+
 
 .doc-main { padding-top: 112px; padding-bottom: 72px; }
 .doc-hero { max-width: 900px; padding: 48px 0 40px; }
@@ -349,7 +359,7 @@ p { color: var(--muted); }
 @media (max-width: 620px) {
   body { font-size: 14px; }
   .site-header { padding: 12px 14px; }
-  .brand img { width: 36px; height: 36px; }
+  .brand img { width: 36px; height: 36px; border-radius: 5px; }
   .brand strong { font-size: 14px; }
   .brand small { font-size: 11px; }
   main,
@@ -422,28 +432,18 @@ p { color: var(--muted); }
 }
 .flag-icon {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
   width: 24px;
   height: 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.92);
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 7px 16px rgba(15, 34, 52, 0.12), inset 0 1px 0 rgba(255,255,255,0.88);
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1;
+  object-fit: cover;
+  object-position: center;
+  vertical-align: middle;
   transform: translateY(-0.5px);
-}
-.flag-icon::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(255,255,255,0.40), transparent 52%);
-  pointer-events: none;
 }
 .lang-label { font-weight: 600; letter-spacing: -0.01em; }
 .button { line-height: 1; }
@@ -561,7 +561,7 @@ p { color: var(--muted); }
 .faq-home-copy h2 {
   max-width: 13ch;
   margin-bottom: 18px;
-  font-size: clamp(32px, 3.4vw, 45px);
+  font-size: clamp(30px, 3.2vw, 44px);
   font-weight: 560;
   line-height: 1.04;
   letter-spacing: -0.035em;
@@ -845,10 +845,10 @@ p { color: var(--muted); }
 }
 
 .featured-screen {
-  border-radius: 22px;
-  border-color: rgba(203, 219, 229, 0.92);
-  background: linear-gradient(180deg, #fff, #f7fbfd);
-  box-shadow: 0 20px 54px rgba(15, 34, 52, 0.16);
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 34, 52, 0.14), 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .featured-screen video {
@@ -894,7 +894,7 @@ p { color: var(--muted); }
 
 .demo-hero h1 {
   max-width: 860px;
-  font-size: clamp(34px, 4vw, 45px);
+  font-size: clamp(31px, 3.4vw, 44px);
   font-weight: 560;
   line-height: 1.02;
 }
@@ -939,28 +939,15 @@ p { color: var(--muted); }
 
 .demo-stage {
   position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(18, 168, 196, 0.18);
-  border-radius: 34px;
-  padding: clamp(15px, 2vw, 22px);
-  background:
-    radial-gradient(circle at 88% 12%, rgba(18, 168, 196, 0.16), transparent 30%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(237, 248, 251, 0.86)), var(--surface);
-  box-shadow: 0 36px 100px rgba(15, 34, 52, 0.16);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.demo-stage::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(61, 127, 156, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(61, 127, 156, 0.045) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: radial-gradient(65% 62% at 50% 24%, #000, transparent 80%);
-  opacity: 0.6;
-}
+.demo-stage::before { content: none; }
 
 .demo-stage-bar {
   position: relative;
@@ -974,10 +961,10 @@ p { color: var(--muted); }
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border: 1px solid rgba(203, 219, 229, 0.96);
-  border-radius: 26px;
+  border: 0;
+  border-radius: 6px;
   background: #fff;
-  box-shadow: 0 24px 70px rgba(15, 34, 52, 0.18);
+  box-shadow: 0 20px 48px rgba(15, 34, 52, 0.14), 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 
 .demo-video-frame video,
@@ -1168,7 +1155,7 @@ p { color: var(--muted); }
 
 .wiki-hero h1 {
   max-width: 860px;
-  font-size: clamp(34px, 4vw, 45px);
+  font-size: clamp(31px, 3.4vw, 44px);
   font-weight: 560;
   line-height: 1.02;
 }
