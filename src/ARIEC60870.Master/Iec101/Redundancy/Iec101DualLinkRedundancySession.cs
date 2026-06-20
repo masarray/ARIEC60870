@@ -241,11 +241,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         var now = DateTime.UtcNow;
-        var rescueSupervisionInterval = TimeSpan.FromMilliseconds(Math.Min(80, Math.Max(20, _options.StandbySupervisionInterval.TotalMilliseconds)));
-        if (ActiveNeedsRescue() && now - _lastStandbySupervisionUtc >= rescueSupervisionInterval)
+        if (ActiveNeedsRescue())
         {
             await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
-            return;
+            if (_active is null || !ActiveNeedsRescue())
+            {
+                return;
+            }
         }
 
         if (now - _lastClass2PollUtc >= TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
@@ -449,6 +451,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         var standbyWasLatched = _standby.State is Iec101RedundancyChannelState.FailedLatched or Iec101RedundancyChannelState.Recovering;
         if (standbyWasLatched
+            && !ActiveNeedsRescue()
             && _standby.LinkState.LastTimeoutUtc is DateTime lastTimeoutUtc
             && DateTime.UtcNow - lastTimeoutUtc < _options.RecoveryBackoff)
         {

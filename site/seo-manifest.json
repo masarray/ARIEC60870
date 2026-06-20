@@ -1,6 +1,6 @@
 {
   "site": "ARIEC60870",
-  "version": "3.6.6",
+  "version": "3.6.7",
   "sourceOfTruth": "site/",
   "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "canonical": "https://masarray.github.io/ARIEC60870/",
