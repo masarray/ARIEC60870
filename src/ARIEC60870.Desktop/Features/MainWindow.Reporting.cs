@@ -917,7 +917,7 @@ public partial class MainWindow
         var importantRows = orderedRows.Where(IsReportImportantEvidenceRow).Take(180).ToArray();
         var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
         var communicationSetup = BuildReportCommunicationSetupLines().ToArray();
-        var smartFindings = EvidenceSmartFindingAnalyzer.Analyze(orderedRows, FindingRows.ToArray(), communicationSetup);
+        var smartFindings = BuildSmartFindingsWithCorrectionTrail(orderedRows, FindingRows.ToArray(), communicationSetup);
         var verdict = BuildReportVerdict(orderedRows, smartFindings);
 
         return new EvidencePdfReportModel(
@@ -1056,11 +1056,13 @@ public partial class MainWindow
         yield return new("Protocol", GetSelectedProtocolMode().ToString());
         yield return new("Transport", (TransportModeComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "-");
         yield return new("Serial port", PortComboBox?.SelectedItem?.ToString() ?? "-");
-        yield return new("Baud", (BaudComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "-");
+        yield return new("Baud", string.IsNullOrWhiteSpace(BaudComboBox?.Text) ? ((BaudComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "-") : BaudComboBox!.Text);
         yield return new("IEC104 host/port", $"{TcpHostBox?.Text}:{TcpPortBox?.Text}");
         yield return new("Link address", LinkAddressBox?.Text ?? "-");
         yield return new("Common address", CommonAddressBox?.Text ?? "-");
-        yield return new("COT / CA / IOA size", $"{(CotSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(CaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content} / {(IoaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content}");
+        yield return new("Link address size", (LinkAddressSizeComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? LinkAddressSizeComboBox?.Text ?? "-");
+        yield return new("COT / CA / IOA size", $"{(CotSizeComboBox?.SelectedItem as ComboBoxItem)?.Content ?? CotSizeComboBox?.Text} / {(CaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content ?? CaSizeComboBox?.Text} / {(IoaSizeComboBox?.SelectedItem as ComboBoxItem)?.Content ?? IoaSizeComboBox?.Text}");
+        yield return new("Class 2 interval", Class2IntervalBox?.Text ?? "-");
         yield return new("T0/T1/T2/T3", $"{Iec104T0Box?.Text}/{Iec104T1Box?.Text}/{Iec104T2Box?.Text}/{Iec104T3Box?.Text}");
         yield return new("K/W", $"{Iec104KBox?.Text}/{Iec104WBox?.Text}");
         yield return new("Mapping profile", string.IsNullOrWhiteSpace(SanitizeSavedMappingProfilePath(MappingProfilePathBox?.Text)) ? "-" : SanitizeSavedMappingProfilePath(MappingProfilePathBox?.Text));

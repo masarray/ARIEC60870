@@ -41,7 +41,7 @@ public partial class MainWindow
             return;
         }
 
-        var smartFindings = EvidenceSmartFindingAnalyzer.Analyze(evidence, _findingStore.Snapshot(), setup);
+        var smartFindings = BuildSmartFindingsWithCorrectionTrail(evidence, _findingStore.Snapshot(), setup);
         var rows = smartFindings
             .Select(finding => BuildFindingWorkspaceRow(finding, evidence))
             .ToArray();
@@ -54,7 +54,7 @@ public partial class MainWindow
     {
         var last = evidence.Count == 0 ? 0 : evidence[^1].Sequence;
         var setupKey = string.Join("|", setup.Select(pair => pair.Key + "=" + pair.Value));
-        return string.Join(";", evidence.Count.ToString(CultureInfo.InvariantCulture), last.ToString(CultureInfo.InvariantCulture), FindingRows.Count.ToString(CultureInfo.InvariantCulture), setupKey.GetHashCode(StringComparison.Ordinal).ToString(CultureInfo.InvariantCulture));
+        return string.Join(";", evidence.Count.ToString(CultureInfo.InvariantCulture), last.ToString(CultureInfo.InvariantCulture), FindingRows.Count.ToString(CultureInfo.InvariantCulture), _smartCorrectionFindingTrail.Count.ToString(CultureInfo.InvariantCulture), setupKey.GetHashCode(StringComparison.Ordinal).ToString(CultureInfo.InvariantCulture));
     }
 
     private FindingWorkspaceRow BuildFindingWorkspaceRow(EvidenceSmartFinding finding, IReadOnlyList<EvidenceRow> evidence)

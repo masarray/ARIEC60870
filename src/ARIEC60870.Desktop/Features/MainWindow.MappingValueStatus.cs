@@ -787,6 +787,8 @@ public partial class MainWindow
         _protocolTriggerStartedCount = 0;
         _protocolTriggerCompletedCount = 0;
         FindingRows.Clear();
+        FindingWorkspaceRows.Clear();
+        ClearSmartCorrectionSessionTrail();
         ValueRows.Clear();
         RelayEventRows.Clear();
         _lastDisplayedValueByKey.Clear();

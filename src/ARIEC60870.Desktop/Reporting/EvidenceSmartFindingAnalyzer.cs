@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Desktop.Reporting;
 
@@ -31,10 +32,12 @@ public static class EvidenceSmartFindingAnalyzer
         var ordered = rows.OrderBy(row => row.Sequence).ToArray();
         var findings = new List<EvidenceSmartFinding>();
         var configuredCa = ReadSetupInt(communicationSetup, "Common address");
+        var protocolMode = InferProtocolMode(ordered, communicationSetup);
+        var autoConfig = Iec10xAutoConfigCorrector.Analyze(ordered, communicationSetup, protocolMode);
 
         AddCommonAddressMismatch(ordered, configuredCa, findings);
         AddUnknownAddressFindings(ordered, findings);
-        AddProfileSizeMismatch(ordered, findings);
+        AddProfileSizeMismatch(ordered, autoConfig, findings);
         AddGiIncomplete(ordered, findings);
         AddCommandNoFeedback(ordered, findings);
         AddCommandDelayedByClassOneTraffic(ordered, findings);
@@ -123,37 +126,68 @@ public static class EvidenceSmartFindingAnalyzer
         }
     }
 
-    private static void AddProfileSizeMismatch(IReadOnlyList<EvidenceRow> rows, List<EvidenceSmartFinding> findings)
+    private static void AddProfileSizeMismatch(IReadOnlyList<EvidenceRow> rows, Iec10xAutoConfigCorrector.Iec10xAutoConfigSuggestion autoConfig, List<EvidenceSmartFinding> findings)
     {
         var hit = rows.FirstOrDefault(row => ContainsAny(SearchText(row),
             "profile size", "cot size", "ioa size", "ca size", "parse", "unknown asdu", "unknown type", "invalid vsq"));
-        if (hit is null)
+
+        var relevantChanges = autoConfig.Changes
+            .Where(change => change.Key is "LinkAddressSize" or "CotSize" or "CaSize" or "IoaSize")
+            .ToArray();
+
+        // Do not create a generic profile warning just because a trace row contains
+        // parser text. A Smart Finding should remain active only when the correction
+        // engine can point to a concrete setup field, or when the protocol engine has
+        // already produced a high-value runtime finding that is imported below.
+        if (relevantChanges.Length == 0)
         {
             return;
         }
 
+        var fix = relevantChanges.Length == 0
+            ? "Try the documented profile first. If unknown, test COT 1/2, CA 1/2, IOA 1/2/3 and keep the profile that yields stable TypeID, COT, CA, and plausible IOA range."
+            : "Apply the profile that matches the raw evidence: " + string.Join(", ", relevantChanges.Select(change => $"{change.Label}={change.ProposedValue}")) + ". Reconnect or re-run the session after saving the corrected setup.";
+        var proof = hit is null
+            ? Short(autoConfig.Summary, 160)
+            : $"Parser/profile symptom at row #{hit.Sequence}: {Short(hit.ProtocolTraceMeaning, 120)}";
+        var sequence = hit?.Sequence ?? rows.FirstOrDefault()?.Sequence ?? 0;
+
         findings.Add(new EvidenceSmartFinding(
             EvidenceSmartFindingSeverity.Warning,
             "ARIEC-SMART-PROFILE-SIZE",
-            "Application profile size may not match the slave.",
+            relevantChanges.Length == 0 ? "Application profile size may not match the slave." : "Application profile size can be corrected from the captured evidence.",
             "Wrong COT/CA/IOA byte size shifts the ASDU fields. The frame can be present, but TypeID, COT, CA, or IOA are decoded incorrectly.",
-            $"Parser/profile symptom at row #{hit.Sequence}: {Short(hit.ProtocolTraceMeaning, 120)}",
-            "Try the documented profile first. If unknown, test COT 1/2, CA 1/2, IOA 1/2/3 and keep the profile that yields stable TypeID, COT, CA, and plausible IOA range.",
-            "Medium",
-            hit.Sequence));
+            proof,
+            fix,
+            relevantChanges.Length >= 2 ? "High" : "Medium",
+            sequence));
     }
 
     private static void AddGiIncomplete(IReadOnlyList<EvidenceRow> rows, List<EvidenceSmartFinding> findings)
     {
-        var giTx = rows.FirstOrDefault(row => IsTx(row) && IsGi(row));
+        var giTx = rows.Where(row => IsTx(row) && IsGi(row)).OrderByDescending(row => row.Sequence).FirstOrDefault();
         if (giTx is null)
         {
             return;
         }
 
-        var hasActCon = rows.Any(row => row.Sequence >= giTx.Sequence && IsRx(row) && IsActivationConfirmation(row));
-        var hasActTerm = rows.Any(row => row.Sequence >= giTx.Sequence && IsRx(row) && IsActivationTermination(row));
-        if (hasActCon && hasActTerm)
+        var afterGi = rows.Where(row => row.Sequence >= giTx.Sequence).OrderBy(row => row.Sequence).ToArray();
+        var hasActCon = afterGi.Any(row => IsRx(row) && IsActivationConfirmation(row));
+        var hasActTerm = afterGi.Any(row => IsRx(row) && IsActivationTermination(row));
+        var hasApplicationData = afterGi.Any(row => IsRx(row) && IsGiApplicationData(row));
+
+        // Do not keep a transient GI warning alive once the evidence has proven that
+        // the device answered the interrogation. Many field devices stream values
+        // before ACTTERM, and some captures do not include the final termination row.
+        if ((hasActCon && hasApplicationData) || hasActTerm)
+        {
+            return;
+        }
+
+        // Avoid flickering a false warning while the session is still collecting the
+        // first few frames after GI. A missing ACTCON is only meaningful after several
+        // follow-up frames have arrived.
+        if (!hasActCon && afterGi.Length < 6)
         {
             return;
         }
@@ -161,9 +195,9 @@ public static class EvidenceSmartFindingAnalyzer
         findings.Add(new EvidenceSmartFinding(
             EvidenceSmartFindingSeverity.Warning,
             "ARIEC-SMART-GI-INCOMPLETE",
-            hasActCon ? "GI started but did not finish cleanly." : "GI request has no activation confirmation.",
-            "A complete GI needs request, activation confirmation, data, and activation termination. Missing ACTCON/ACTTERM means the baseline point scan is not acceptance-ready.",
-            $"GI request row #{giTx.Sequence}; ACTCON={(hasActCon ? "present" : "missing")}; ACTTERM={(hasActTerm ? "present" : "missing")}.",
+            hasActCon ? "GI started but no data or termination is visible yet." : "GI request has no activation confirmation.",
+            "A complete GI needs request, activation confirmation, data, and normally activation termination. Missing ACTCON plus no data means the baseline point scan is not proven.",
+            $"GI request row #{giTx.Sequence}; ACTCON={(hasActCon ? "present" : "missing")}; data={(hasApplicationData ? "present" : "missing")}; ACTTERM={(hasActTerm ? "present" : "missing")}. Used latest GI request to avoid stale findings.",
             "Check CA, interrogation group, scan table, and device support for station interrogation. Repeat GI after link reset and compare point count.",
             hasActCon ? "Medium" : "High",
             giTx.Sequence));
@@ -281,7 +315,7 @@ public static class EvidenceSmartFindingAnalyzer
         foreach (var finding in existingFindings.Take(6))
         {
             var text = string.Join(" ", finding.Id, finding.Title, finding.Evidence, finding.Impact, finding.Recommendation);
-            if (!ContainsAny(text, "timeout", "negative", "unknown", "ca", "ioa", "quality", "class 1", "gi", "command"))
+            if (!ContainsAny(text, "timeout", "negative", "unknown", "ca", "ioa", "quality", "class 1", "gi", "command", "profile"))
             {
                 continue;
             }
@@ -304,6 +338,22 @@ public static class EvidenceSmartFindingAnalyzer
         }
     }
 
+    private static Iec60870ProtocolMode InferProtocolMode(IReadOnlyList<EvidenceRow> rows, IReadOnlyList<KeyValuePair<string, string>> setup)
+    {
+        var setupProtocol = setup.FirstOrDefault(pair => pair.Key.Equals("Protocol", StringComparison.OrdinalIgnoreCase)).Value ?? string.Empty;
+        if (setupProtocol.Contains("104", StringComparison.OrdinalIgnoreCase) || rows.Any(row => row.ProtocolMode == "104"))
+        {
+            return Iec60870ProtocolMode.Iec104;
+        }
+
+        if (setupProtocol.Contains("101", StringComparison.OrdinalIgnoreCase) || rows.Any(row => row.ProtocolMode == "101"))
+        {
+            return Iec60870ProtocolMode.Iec101;
+        }
+
+        return Iec60870ProtocolMode.Iec103;
+    }
+
     private static bool IsTx(EvidenceRow row) => row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase);
     private static bool IsRx(EvidenceRow row) => row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase);
     private static bool IsGi(EvidenceRow row) => ContainsAny(SearchText(row), "general interrogation", "interrogation", "c_ic", "qoi");
@@ -315,6 +365,25 @@ public static class EvidenceSmartFindingAnalyzer
     private static bool IsCotCode(EvidenceRow row, int expected) => ParsePositiveInt(row.CotCode) == expected;
     private static bool IsClassOne(EvidenceRow row) => ContainsAny(SearchText(row), "class 1", "class1", "data class 1", "class=1");
     private static bool IsSpontaneous(EvidenceRow row) => ContainsAny(SearchText(row), "spontaneous", "spont");
+    private static bool IsGiApplicationData(EvidenceRow row)
+    {
+        var typeId = ParsePositiveInt(row.TypeId);
+        if (!typeId.HasValue)
+        {
+            return false;
+        }
+
+        // C_IC_NA_1 confirmation/termination rows prove GI control flow, but they are
+        // not the application image. Values/events after the GI request are the proof
+        // that interrogation is progressing.
+        if (typeId.Value == 100)
+        {
+            return false;
+        }
+
+        return !IsActivationConfirmation(row) && !IsActivationTermination(row);
+    }
+
     private static bool IsAnalogMeasuredValue(EvidenceRow row)
     {
         var typeId = ParsePositiveInt(row.TypeId);
