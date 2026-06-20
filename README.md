@@ -6,9 +6,9 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20desktop-0078D4.svg)](#download-and-run)
 
-**ARIEC60870** is a free Apache-2.0 Windows **IEC 60870 protocol tester and protocol analyzer** for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering work.
+**ARIEC60870** is a **100% free, Apache-2.0 open-source Windows IEC 60870 protocol tester and evidence analyzer** for authorized IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering work. It can be used for learning, academic research, internal engineering, FAT/SAT, commissioning support, troubleshooting, vendor evaluation, and commercial activities without a license key, account, subscription, or activation server.
 
-Unlike a basic protocol tester that only shows pass/fail status or raw frames, ARIEC60870 keeps the raw TX/RX hex evidence visible, explains what the selected frame means in readable engineering language, records values and events, highlights likely issues with **Smart Findings**, and exports a clean PDF evidence report for FAT, SAT, commissioning, troubleshooting, homologation support, certification attachments, beauty contest/vendor comparison, and technical handover.
+Unlike a basic protocol tester that only shows pass/fail status or raw frames, ARIEC60870 keeps the raw TX/RX hex evidence visible, explains what the selected frame means in readable engineering language, records values and events, highlights likely issues with **Smart Findings**, and exports a clean PDF evidence report for FAT, SAT, commissioning, troubleshooting, homologation support, certification attachments, vendor evaluation, and technical handover.
 
 > **From raw hex to root cause.** Test IEC 60870, understand the frame, diagnose likely communication issues, and export the evidence.
 

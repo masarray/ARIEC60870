@@ -51,11 +51,15 @@ jobs:
             echo "::warning::docs/index.html is out of sync with site/index.html. Run scripts/sync-github-pages-docs-mirror.ps1 after landing edits."
           fi
 
-      - name: Copy demo media into canonical site assets
+      - name: Validate lightweight demo media
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p site/assets/screenshots
+          test -f site/assets/screenshots/IEC-60870.webm
+          if [ "$(wc -c < site/assets/screenshots/IEC-60870.webm)" -gt 768000 ]; then
+            echo "site/assets/screenshots/IEC-60870.webm must stay under 750 KiB for public Pages hygiene."
+            exit 1
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

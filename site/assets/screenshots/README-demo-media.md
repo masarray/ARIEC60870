@@ -1,3 +1,10 @@
-# Demo media
+# Demo media policy
 
-`The landing page now uses `ariec60870-evidence-workspace.webp` as the lightweight canonical preview so public site assets stay below the repository hygiene size limit. Keep animated raw captures outside public site folders; use release assets or external video hosting when a full motion demo is required.
+The public landing page uses `site/assets/screenshots/IEC-60870.webm`, a compressed WebM preview kept under the 750 KiB site-asset hygiene limit.
+
+The higher quality animated demo files remain in `docs/assets/screenshots/` for README and documentation use:
+
+- `docs/assets/screenshots/IEC-60870.gif` for README rendering.
+- `docs/assets/screenshots/IEC-60870.webm` for documentation/demo source quality.
+
+Do not commit large GIF/WebM files under `site/assets`. If the demo is refreshed, regenerate a lightweight `site/assets/screenshots/IEC-60870.webm` and keep it below the CI limit.
