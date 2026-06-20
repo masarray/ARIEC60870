@@ -222,6 +222,9 @@ p { color: var(--muted); }
 .screen-frame:hover::after { opacity: 1; transform: translateY(0); }
 .screen-frame img { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; object-position: center top; transition: transform 760ms var(--spring), filter 420ms var(--ease); }
 .screen-frame:hover img { transform: scale(1.012); filter: saturate(1.04) contrast(1.015); }
+.screen-frame video { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.featured-screen { aspect-ratio: 16 / 9; cursor: default; }
+.featured-screen::after { content: none; }
 .metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .metric-row div { min-height: 76px; border: 1px solid rgba(220, 231, 238, 0.94); border-radius: 17px; padding: 13px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 12px 28px rgba(15, 34, 52, 0.045); }
 .metric-row span,
@@ -745,4 +748,795 @@ p { color: var(--muted); }
   .faq-accordion-icon { width: 31px; height: 31px; }
   .faq-accordion-content::before { margin-inline: 18px; margin-bottom: 16px; }
   .faq-accordion-content p { padding: 0 18px 20px; font-size: 14.5px; line-height: 1.66; }
+}
+
+/* Video hero and professional demo page polish */
+.hero-panel {
+  overflow: hidden;
+  border-color: rgba(18, 168, 196, 0.18);
+  padding: clamp(18px, 2.4vw, 24px);
+  background:
+    radial-gradient(circle at 76% 8%, rgba(18, 168, 196, 0.18), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(238, 249, 252, 0.88)), var(--surface);
+  box-shadow: 0 30px 86px rgba(15, 34, 52, 0.13);
+}
+
+.hero-panel-top,
+.demo-stage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.panel-brand-mark .panel-logo {
+  width: 58px;
+  max-width: none;
+  height: 58px;
+  border-radius: 16px;
+  box-shadow: 0 15px 30px rgba(15, 34, 52, 0.15);
+  filter: none;
+}
+
+.panel-brand-mark strong,
+.panel-brand-mark span {
+  display: block;
+  min-width: 0;
+}
+
+.panel-brand-mark strong {
+  color: var(--ink-strong);
+  font-size: 15px;
+  font-weight: 590;
+  line-height: 1.2;
+}
+
+.panel-brand-mark span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 430;
+  line-height: 1.35;
+}
+
+.featured-screen {
+  border-radius: 22px;
+  border-color: rgba(203, 219, 229, 0.92);
+  background: linear-gradient(180deg, #fff, #f7fbfd);
+  box-shadow: 0 20px 54px rgba(15, 34, 52, 0.16);
+}
+
+.featured-screen video {
+  object-position: center center;
+}
+
+.metric-row {
+  gap: 12px;
+}
+
+.metric-row div {
+  min-height: 84px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 26px rgba(15, 34, 52, 0.055);
+}
+
+.demo-page {
+  width: min(1180px, calc(100vw - 48px));
+  margin-inline: auto;
+}
+
+.demo-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.46fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: end;
+  padding: 128px 0 34px;
+}
+
+.demo-hero::before {
+  content: "";
+  position: absolute;
+  inset: 86px -14vw auto;
+  z-index: -1;
+  height: 360px;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(61, 127, 156, 0.12), transparent 28%),
+    radial-gradient(circle at 74% 12%, rgba(18, 168, 196, 0.14), transparent 34%);
+  filter: blur(8px);
+}
+
+.demo-hero h1 {
+  max-width: 860px;
+  font-size: clamp(40px, 5.2vw, 70px);
+  font-weight: 560;
+  line-height: 1.02;
+}
+
+.demo-hero .lead {
+  max-width: 760px;
+}
+
+.demo-hero-proof {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.demo-hero-proof div {
+  border: 1px solid rgba(220, 231, 238, 0.92);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 14px 38px rgba(15, 34, 52, 0.06);
+}
+
+.demo-hero-proof span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.demo-hero-proof strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-strong);
+  font-size: 15px;
+  font-weight: 570;
+  line-height: 1.35;
+}
+
+.demo-stage-section {
+  padding: 6px 0 92px;
+}
+
+.demo-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(18, 168, 196, 0.18);
+  border-radius: 34px;
+  padding: clamp(15px, 2vw, 22px);
+  background:
+    radial-gradient(circle at 88% 12%, rgba(18, 168, 196, 0.16), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(237, 248, 251, 0.86)), var(--surface);
+  box-shadow: 0 36px 100px rgba(15, 34, 52, 0.16);
+}
+
+.demo-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(61, 127, 156, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 127, 156, 0.045) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(65% 62% at 50% 24%, #000, transparent 80%);
+  opacity: 0.6;
+}
+
+.demo-stage-bar {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 16px;
+}
+
+.demo-video-frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid rgba(203, 219, 229, 0.96);
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 34, 52, 0.18);
+}
+
+.demo-video-frame video,
+.demo-video-frame img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.demo-stage-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.demo-stage-footer a {
+  flex: 0 0 auto;
+  color: var(--brand-ink);
+  font-weight: 560;
+  text-decoration: none;
+}
+
+.demo-stage-footer a:hover {
+  text-decoration: underline;
+}
+
+.demo-story-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.demo-story-card {
+  min-width: 0;
+  min-height: 246px;
+  border: 1px solid rgba(220, 231, 238, 0.92);
+  border-radius: 22px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(18, 168, 196, 0.08), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 252, 253, 0.86)), var(--surface);
+  box-shadow: 0 16px 44px rgba(15, 34, 52, 0.065);
+  transition: transform 260ms var(--spring), border-color 260ms var(--ease), box-shadow 260ms var(--ease);
+}
+
+.demo-story-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(18, 168, 196, 0.28);
+  box-shadow: 0 24px 64px rgba(15, 34, 52, 0.10);
+}
+
+.demo-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 30px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(18, 168, 196, 0.20);
+  border-radius: 999px;
+  background: rgba(232, 248, 251, 0.88);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.demo-story-card p {
+  margin-bottom: 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.demo-gallery-section .screen-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  .demo-page {
+    width: min(1180px, calc(100vw - 32px));
+  }
+
+  .demo-hero {
+    grid-template-columns: 1fr;
+    padding-top: 150px;
+  }
+
+  .demo-hero-proof {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .demo-story-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .demo-page {
+    width: calc(100vw - 28px);
+    max-width: calc(100vw - 28px);
+  }
+
+  .hero-panel-top,
+  .demo-stage-bar,
+  .demo-stage-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-brand-mark .panel-logo {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+  }
+
+  .demo-hero {
+    gap: 24px;
+    padding-top: 154px;
+    padding-bottom: 24px;
+  }
+
+  .demo-hero h1 {
+    font-size: 34px;
+    line-height: 1.1;
+    text-wrap: normal;
+  }
+
+  .demo-hero-proof,
+  .demo-story-grid,
+  .demo-gallery-section .screen-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-stage-section {
+    padding-bottom: 64px;
+  }
+
+  .demo-stage {
+    border-radius: 26px;
+    padding: 14px;
+  }
+
+  .demo-video-frame {
+    border-radius: 20px;
+  }
+
+  .demo-story-card {
+    min-height: 0;
+  }
+}
+
+/* IEC 60870 wiki learning hub */
+.wiki-main {
+  width: min(1180px, calc(100vw - 48px));
+}
+
+.wiki-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  gap: clamp(30px, 5vw, 72px);
+  align-items: end;
+  padding: 48px 0 60px;
+}
+
+.wiki-hero::before {
+  content: "";
+  position: absolute;
+  inset: 20px -12vw auto;
+  z-index: -1;
+  height: 360px;
+  background:
+    radial-gradient(circle at 22% 24%, rgba(61, 127, 156, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 12%, rgba(18, 168, 196, 0.14), transparent 34%);
+  filter: blur(8px);
+}
+
+.wiki-hero h1 {
+  max-width: 860px;
+  font-size: clamp(40px, 5.1vw, 68px);
+  font-weight: 560;
+  line-height: 1.02;
+}
+
+.wiki-hero .lead {
+  max-width: 780px;
+}
+
+.wiki-hero-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(18, 168, 196, 0.18);
+  border-radius: 28px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 96% 8%, rgba(18, 168, 196, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(237, 248, 251, 0.84)), var(--surface);
+  box-shadow: 0 24px 70px rgba(15, 34, 52, 0.12);
+}
+
+.wiki-kpi,
+.source-link,
+.wiki-ladder-step,
+.wiki-anatomy-card,
+.wiki-sequence-card,
+.wiki-term {
+  border: 1px solid rgba(220, 231, 238, 0.92);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 38px rgba(15, 34, 52, 0.055);
+}
+
+.wiki-kpi {
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+
+.wiki-kpi span,
+.source-link span,
+.wiki-term span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.wiki-kpi strong,
+.source-link strong,
+.wiki-term strong {
+  display: block;
+  color: var(--ink-strong);
+  font-weight: 570;
+  line-height: 1.35;
+}
+
+.wiki-kpi strong {
+  margin-top: 5px;
+  font-size: 15px;
+}
+
+.source-link-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.source-link {
+  min-width: 0;
+  border-radius: 18px;
+  padding: 16px;
+  text-decoration: none;
+  transition: transform 260ms var(--spring), border-color 260ms var(--ease), box-shadow 260ms var(--ease);
+}
+
+.source-link:hover {
+  transform: translateY(-3px);
+  border-color: rgba(18, 168, 196, 0.28);
+  box-shadow: 0 20px 54px rgba(15, 34, 52, 0.09);
+}
+
+.wiki-source-note {
+  padding-top: 70px;
+}
+
+.wiki-table-wrap {
+  overflow: hidden;
+  border: 1px solid rgba(220, 231, 238, 0.94);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 54px rgba(15, 34, 52, 0.08);
+}
+
+.wiki-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wiki-table th,
+.wiki-table td {
+  padding: 17px 18px;
+  border-bottom: 1px solid rgba(220, 231, 238, 0.82);
+  text-align: left;
+  vertical-align: top;
+}
+
+.wiki-table th {
+  background: rgba(237, 248, 251, 0.78);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wiki-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.wiki-table td strong,
+.wiki-table td span {
+  display: block;
+}
+
+.wiki-table td strong {
+  color: var(--ink-strong);
+  font-weight: 590;
+}
+
+.wiki-table td span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wiki-table a {
+  color: var(--brand-ink);
+  font-weight: 570;
+  text-decoration: none;
+}
+
+.wiki-table a:hover {
+  text-decoration: underline;
+}
+
+.wiki-ladder {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wiki-ladder-step {
+  position: relative;
+  min-width: 0;
+  min-height: 220px;
+  border-radius: 20px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(18, 168, 196, 0.08), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 252, 253, 0.88)), var(--surface);
+}
+
+.wiki-ladder-step span,
+.demo-step {
+  font-variant-numeric: tabular-nums;
+}
+
+.wiki-ladder-step > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 28px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: rgba(232, 248, 251, 0.94);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wiki-ladder-step strong {
+  display: block;
+  color: var(--ink-strong);
+  font-size: 16px;
+  font-weight: 590;
+  line-height: 1.28;
+}
+
+.wiki-ladder-step p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.wiki-anatomy-grid,
+.wiki-sequence-grid,
+.wiki-primer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.wiki-anatomy-card,
+.wiki-sequence-card,
+.wiki-primer-card,
+.wiki-story-panel {
+  min-width: 0;
+  border-radius: 24px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 94% 12%, rgba(18, 168, 196, 0.08), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 252, 253, 0.88)), var(--surface);
+}
+
+.wiki-flow-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wiki-flow-list li {
+  margin: 0;
+  border: 1px solid rgba(220, 231, 238, 0.84);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.wiki-flow-list strong,
+.wiki-flow-list span {
+  display: block;
+}
+
+.wiki-flow-list strong {
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 590;
+}
+
+.wiki-flow-list span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.wiki-sequence-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wiki-sequence-card {
+  min-height: 230px;
+  transition: transform 260ms var(--spring), border-color 260ms var(--ease), box-shadow 260ms var(--ease);
+}
+
+.wiki-sequence-card:hover,
+.wiki-primer-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(18, 168, 196, 0.28);
+  box-shadow: 0 24px 64px rgba(15, 34, 52, 0.10);
+}
+
+.wiki-sequence-card p,
+.wiki-primer-card p {
+  font-size: 14px;
+  line-height: 1.64;
+}
+
+.wiki-primer-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wiki-primer-card {
+  min-height: 236px;
+  border: 1px solid rgba(220, 231, 238, 0.92);
+  box-shadow: 0 16px 44px rgba(15, 34, 52, 0.065);
+  transition: transform 260ms var(--spring), border-color 260ms var(--ease), box-shadow 260ms var(--ease);
+}
+
+.wiki-story-panel {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.42fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 18px;
+  border: 1px solid rgba(18, 168, 196, 0.18);
+  box-shadow: 0 22px 62px rgba(15, 34, 52, 0.09);
+}
+
+.wiki-story-panel h3 {
+  max-width: 12ch;
+  margin-bottom: 0;
+  font-size: clamp(24px, 2.4vw, 34px);
+  line-height: 1.12;
+}
+
+.wiki-glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wiki-term {
+  min-width: 0;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.wiki-term strong {
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.wiki-card p strong {
+  color: var(--ink-strong);
+  font-weight: 590;
+}
+
+@media (max-width: 1100px) {
+  .wiki-ladder,
+  .wiki-sequence-grid,
+  .wiki-glossary-grid,
+  .wiki-primer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .source-link-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .wiki-main {
+    width: min(1180px, calc(100vw - 32px));
+  }
+
+  .wiki-hero {
+    grid-template-columns: 1fr;
+    padding-top: 40px;
+  }
+
+  .wiki-hero-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wiki-table-wrap {
+    overflow-x: auto;
+  }
+
+  .wiki-table {
+    min-width: 860px;
+  }
+}
+
+@media (max-width: 620px) {
+  .wiki-main {
+    width: calc(100vw - 28px);
+    max-width: calc(100vw - 28px);
+  }
+
+  .wiki-hero {
+    padding-bottom: 48px;
+  }
+
+  .wiki-hero h1 {
+    font-size: 34px;
+    line-height: 1.1;
+    text-wrap: normal;
+  }
+
+  .wiki-hero-panel,
+  .source-link-row,
+  .wiki-ladder,
+  .wiki-anatomy-grid,
+  .wiki-sequence-grid,
+  .wiki-glossary-grid,
+  .wiki-primer-grid,
+  .wiki-story-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .wiki-table th,
+  .wiki-table td {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 620px) {
+  html {
+    overflow-x: hidden;
+  }
+
+  .site-header {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .nav-links {
+    flex: 1 1 calc(100vw - 28px);
+    width: calc(100vw - 28px);
+    max-width: calc(100vw - 28px);
+    min-width: 0;
+  }
 }

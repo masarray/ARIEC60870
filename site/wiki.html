@@ -5,8 +5,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>IEC 60870 Field Wiki | Learn IEC 101 103 104 with ARIEC60870</title>
-    <meta name="description" content="Practical IEC 60870 field wiki for engineers: ACD, DFC, Class 1/Class 2 polling, General Interrogation, command flow, Common Address, IEC-103 relay events, IEC-104 session control, Smart Findings, and evidence reports." />
+    <title>IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence</title>
+    <meta name="description" content="Engineering learning hub for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104: protocol map, frame anatomy, GI, ACD/DFC, Common Address, commands, IEC-103 relay events, IEC-104 sessions, troubleshooting, and evidence reporting." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <link rel="canonical" href="https://masarray.github.io/ARIEC60870/wiki.html" />
@@ -17,13 +17,13 @@
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="IEC 60870 Field Wiki | Learn IEC 101 103 104 with ARIEC60870" />
-    <meta property="og:description" content="Learn ACD, DFC, Class 1/Class 2 polling, GI, command flow, Common Address, IEC-103 relay events, IEC-104 session control, and Smart Findings from practical frame evidence." />
+    <meta property="og:title" content="IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence" />
+    <meta property="og:description" content="A practical IEC 60870 learning center for engineers: protocol family map, frame anatomy, startup flow, polling, commands, relay events, IEC-104 sessions, troubleshooting, and report evidence." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/wiki.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"IEC 60870 Field Wiki | Learn IEC 101 103 104 with ARIEC60870","description":"Practical IEC 60870 field wiki for engineers reading real traffic and evidence.","inLanguage":"en","url":"https://masarray.github.io/ARIEC60870/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","ARIEC60870 Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ARIEC60870","item":"https://masarray.github.io/ARIEC60870/"},{"@type":"ListItem","position":2,"name":"Field Wiki","item":"https://masarray.github.io/ARIEC60870/wiki.html"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence","description":"Practical IEC 60870 engineering wiki for learning IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 from field evidence.","inLanguage":"en","url":"https://masarray.github.io/ARIEC60870/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ARIEC60870 Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ARIEC60870","item":"https://masarray.github.io/ARIEC60870/"},{"@type":"ListItem","position":2,"name":"Engineering Wiki","item":"https://masarray.github.io/ARIEC60870/wiki.html"}]}</script>
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
   </head>
@@ -31,17 +31,324 @@
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
       <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
-      <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Demo</span></a><a href="wiki.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="id/"><span class="flag-icon" aria-hidden="true">🇮🇩</span><span>Indonesia</span></a></nav>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a>
+        <a href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Demo</span></a>
+        <a href="wiki.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a>
+        <a href="troubleshooting.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#build"></use></svg><span>Troubleshooting</span></a>
+        <a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a>
+        <a href="download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download</span></a>
+        <a href="id/"><span class="flag-icon" aria-hidden="true">ID</span><span>Indonesia</span></a>
+      </nav>
     </header>
-    <main class="doc-main">
-      <section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Learn IEC 60870 from real traffic, not only from the standard.</h1><p>This wiki is written for field engineers, FAT/SAT teams, commissioning engineers, relay engineers, and SCADA/RTU troubleshooters. It explains what the protocol words mean, what a normal sequence looks like, what usually goes wrong, and how ARIEC60870 shows the evidence.</p><div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a><a class="button secondary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#play"></use></svg><span>Watch demo</span></a></div></section>
-      <section class="section split"><div><p class="eyebrow">How to read evidence</p><h2>Use the same mental flow for IEC-101, IEC-103, and IEC-104.</h2><p>Start with connection state, then verify addressing, then verify startup data, then inspect command confirmation, events, quality flags, and timing. ARIEC60870 keeps the raw proof visible while explaining selected frames and summarizing findings.</p></div><div class="report-list"><div class="interactive-surface"><strong>1. Is the link/session alive?</strong><span>For IEC-101/103, check serial and link-layer responses. For IEC-104, check TCP, STARTDT, TESTFR, and sequence behavior.</span></div><div class="interactive-surface"><strong>2. Is the address correct?</strong><span>Separate link address from ASDU Common Address. A device can answer while application data uses the wrong CA.</span></div><div class="interactive-surface"><strong>3. Did startup complete?</strong><span>General Interrogation should provide a clear startup snapshot. Missing ACTCON, termination, or values are evidence.</span></div><div class="interactive-surface"><strong>4. Can the evidence be reported?</strong><span>Use raw frames, decoded values, events, Smart Findings, and PDF report output together.</span></div></div></section>
-      <section class="section" id="iec101"><div class="section-heading reveal"><p class="eyebrow">IEC-101 fundamentals</p><h2>Serial RTU links often fail in the small details: bits, classes, addresses, and GI flow.</h2><p>IEC-101 troubleshooting is not only about whether the port is open. The useful clues are often ACD/DFC bits, polling strategy, Common Address, IOA mapping, and command confirmation.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg></span><h3>ACD and DFC</h3><p><strong>ACD</strong> means the outstation has Class 1 data waiting. <strong>DFC</strong> means data flow control: the device is temporarily busy. If these bits are ignored, the master may poll the wrong class or overload the link.</p><a class="card-link" href="iec101-acd-dfc.html">Read ACD/DFC guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#playlist-check"></use></svg></span><h3>Class 1 and Class 2 polling</h3><p>Class 2 is normal cyclic/background data. Class 1 is high-priority event or confirmation data. A healthy master does not hammer Class 1 forever; it drains it when the slave signals demand.</p><a class="card-link" href="iec101-polling-class1-class2.html">Read polling guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#account-tree"></use></svg></span><h3>Common Address vs Link Address</h3><p>The link address selects the station at link layer. The Common Address identifies the ASDU/application station. A CA mismatch can look like a connected device that still provides wrong or missing application data.</p><a class="card-link" href="iec101-addressing.html">Read addressing guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#playlist-check"></use></svg></span><h3>General Interrogation</h3><p>GI is the startup snapshot. A useful trace should show activation, confirmation, returned data, and completion/termination behavior. If GI is incomplete, the report should show which proof is missing.</p><a class="card-link" href="iec101-general-interrogation.html">Read GI guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#send"></use></svg></span><h3>Command flow</h3><p>A command is not proven by TX alone. Look for select/execute behavior, ACTCON, process feedback, ACTTERM, quality, and timeout evidence.</p><a class="card-link" href="iec101-command-flow.html">Read command guide</a></article></div></section>
-      <section class="section"><div class="section-heading reveal"><p class="eyebrow">IEC-104 essentials</p><h2>TCP connected is not the same as protocol healthy.</h2><p>IEC-104 adds APCI session control, U-frames, I/S-frame counters, and keepalive behavior. A device can be reachable over TCP while data exchange is not usable.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg></span><h3>STARTDT / STOPDT / TESTFR</h3><p>STARTDT enables data transfer, STOPDT stops it, and TESTFR checks liveness. Missing confirmations should be treated as protocol evidence, not only a generic timeout.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Read IEC-104 session guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg></span><h3>I-frame, S-frame, U-frame</h3><p>I-frames carry ASDUs, S-frames acknowledge receive sequence, and U-frames control the session. Sequence issues are easier to explain when frame counters are kept near the raw trace.</p><a class="card-link" href="iec104-sequence-counter-mismatch.html">Read sequence issue guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#search"></use></svg></span><h3>IEC-104 troubleshooting</h3><p>When TCP is open but values do not move, check STARTDT, GI, CA, sequence counters, TESTFR, and whether the outstation actually sends expected ASDUs.</p><a class="card-link" href="troubleshooting.html">Open troubleshooting</a></article></div></section>
-      <section class="section"><div class="section-heading reveal"><p class="eyebrow">IEC-103 relay evidence</p><h2>Relay communication has a different evidence shape than RTU telecontrol.</h2><p>IEC-103 is commonly used around protection relays. Evidence often includes link reset, class polling, function information, relay event timestamps, and mapping from FUN/INF to readable signal names.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#bolt"></use></svg></span><h3>Relay events</h3><p>Relay events are not just values. Look at event class, timestamp source, function type, information number, and whether the event mapping is readable enough for project review.</p><a class="card-link" href="iec103-relay-events.html">Read IEC-103 relay guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg></span><h3>Report evidence</h3><p>Relay events become more useful when exported with timestamps, mapping names, raw frame proof, and Smart Findings that explain unusual behavior.</p><a class="card-link" href="iec60870-pdf-evidence-report.html">Read report guide</a></article></div></section>
-      <section class="section"><div class="section-heading reveal"><p class="eyebrow">Troubleshooting cookbook</p><h2>When something looks wrong, start from symptom, proof, and next step.</h2><p>These pages are designed for search intent: the exact problems engineers type when a device connects but does not behave correctly.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#account-tree"></use></svg></span><h3>Common Address mismatch</h3><p>Device answers, but ASDU CA is not the configured project CA. This can make values appear missing, wrong, or unrelated.</p><a class="card-link" href="iec60870-common-address-mismatch.html">Read CA guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#playlist-check"></use></svg></span><h3>GI incomplete</h3><p>GI starts but does not produce a full usable startup snapshot. The evidence should show whether confirmation, data, or termination is missing.</p><a class="card-link" href="iec101-general-interrogation-incomplete.html">Read GI issue guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#send"></use></svg></span><h3>ACTCON missing</h3><p>Command TX is not enough. Missing activation confirmation, feedback, or termination should be tied to the exact frame proof.</p><a class="card-link" href="iec60870-command-actcon-missing.html">Read ACTCON guide</a></article><article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#analytics"></use></svg></span><h3>Smart Findings</h3><p>Smart Findings summarize the symptom as problem, likely cause, proof, and next action, without hiding raw evidence.</p><a class="card-link" href="smart-findings.html">Read Smart Findings</a></article></div></section>
-      <section class="section split"><div><p class="eyebrow">How ARIEC60870 teaches while testing</p><h2>Raw frame → explanation → finding → report.</h2><p>The software keeps raw TX/RX traffic visible, explains the selected frame in readable engineering language, attaches Smart Findings when the communication looks suspicious, and lets the user generate a PDF evidence report.</p><div class="doc-link-row"><a class="button secondary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#play"></use></svg><span>Watch demo</span></a><a class="button secondary" href="examples/iec104-ca-mismatch-sample-trace.txt"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg><span>Open sample trace</span></a></div></div><div class="report-list"><div class="interactive-surface"><strong>For juniors</strong><span>Use the wiki and frame interpreter to learn why a bit, address, COT, or confirmation matters.</span></div><div class="interactive-surface"><strong>For FAT/SAT</strong><span>Use screenshots, raw frames, values, events, and findings as review evidence.</span></div><div class="interactive-surface"><strong>For troubleshooting</strong><span>Use problem guides to move from symptom to likely cause without guessing.</span></div></div></section>
+    <main class="doc-main wiki-main">
+      <section class="wiki-hero reveal">
+        <div>
+          <p class="eyebrow">IEC 60870 Engineering Wiki</p>
+          <h1>Learn IEC 60870 from protocol evidence, not memorized byte tables.</h1>
+          <p class="lead">This is a practical learning center for engineers working with IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104. It explains the protocol family, how frames are shaped, what healthy sessions look like, what usually breaks in the field, and how to turn raw TX/RX traffic into defensible evidence.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Watch evidence demo</span></a>
+            <a class="button secondary" href="#learning-path"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Start learning path</span></a>
+          </div>
+        </div>
+        <aside class="wiki-hero-panel interactive-surface" aria-label="IEC 60870 quick orientation">
+          <div class="wiki-kpi"><span>Family</span><strong>Telecontrol / SCADA protocols</strong></div>
+          <div class="wiki-kpi"><span>Core field problem</span><strong>Proving what the device actually said</strong></div>
+          <div class="wiki-kpi"><span>Best evidence</span><strong>Frame trace + decoded meaning + report</strong></div>
+        </aside>
+      </section>
+
+      <section class="section wiki-source-note">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Source and legal scope</p>
+          <h2>This page is a field guide, not a replacement for the IEC standards.</h2>
+          <p>IEC standards are licensed publications. This wiki uses public descriptions, the ARIEC60870 implementation model, and practical engineering explanations. It intentionally does not reproduce protected normative tables. For formal conformance work, buy and use the official IEC publications.</p>
+        </div>
+        <div class="source-link-row">
+          <a class="source-link interactive-surface" href="https://webstore.iec.ch/" rel="noopener"><strong>IEC Webstore</strong><span>Official standards source</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_60870" rel="noopener"><strong>IEC 60870 overview</strong><span>Public family overview</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_60870-5" rel="noopener"><strong>IEC 60870-5 overview</strong><span>Public companion-standard map</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_62351" rel="noopener"><strong>IEC 62351 context</strong><span>Security family context</span></a>
+        </div>
+      </section>
+
+      <section class="section" id="beginner-primer">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Beginner primer</p>
+          <h2>If you are new to IEC 60870, start with the SCADA picture.</h2>
+          <p>IEC 60870 is not a screen protocol. It is a field communication family used so control centers, gateways, RTUs, and relays can exchange status, measurements, events, and control commands in a predictable way.</p>
+        </div>
+        <div class="wiki-primer-grid">
+          <article class="wiki-primer-card reveal interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#dashboard"></use></svg></span>
+            <h3>Control center / master</h3>
+            <p>The master initiates communication, polls data, sends commands, and expects proof. In IEC-101 and IEC-103 this often means controlled serial polling. In IEC-104 it means TCP session control plus ASDU exchange.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-1 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg></span>
+            <h3>RTU / outstation</h3>
+            <p>The RTU or outstation exposes field points: breaker status, alarms, analog values, counters, and command targets. It may answer only when polled, or it may advertise pending high-priority data.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-2 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#bolt"></use></svg></span>
+            <h3>Protection relay / IED</h3>
+            <p>A relay is not just another RTU. It can provide protection events, disturbance-related data, relay timestamps, and relay-specific FUN/INF addressing that must be mapped carefully.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-3 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#account-tree"></use></svg></span>
+            <h3>Point list and mapping</h3>
+            <p>The protocol tells you addresses and raw values. The project point list tells you what those points mean in the substation. Friendly signal names must come from user-owned mapping data, not guesses.</p>
+          </article>
+        </div>
+        <div class="wiki-story-panel reveal interactive-surface">
+          <div>
+            <p class="eyebrow">Plain-language flow</p>
+            <h3>What happens when a SCADA engineer says "test the protocol"?</h3>
+          </div>
+          <ol class="wiki-flow-list">
+            <li><strong>Connect</strong><span>Open the serial or TCP path and prove that the remote device answers at the communication layer.</span></li>
+            <li><strong>Identify addressing</strong><span>Confirm the link address, Common Address, IOA or FUN/INF, and profile settings match the project point list.</span></li>
+            <li><strong>Build the snapshot</strong><span>Run General Interrogation or background polling to learn the current state of the station.</span></li>
+            <li><strong>Watch events</strong><span>Drain high-priority data when the device advertises it and keep relay/device timestamps when available.</span></li>
+            <li><strong>Prove commands</strong><span>Show command request, confirmation, feedback, timeout, and termination evidence before calling it successful.</span></li>
+            <li><strong>Report</strong><span>Export the evidence so another engineer can understand what happened without sitting beside the test PC.</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="protocol-map">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Protocol map</p>
+          <h2>Where IEC 101, IEC 103, and IEC 104 fit.</h2>
+          <p>IEC 60870 is a telecontrol standards family. In daily SCADA and protection work, the names engineers meet most often are 101, 103, and 104.</p>
+        </div>
+        <div class="wiki-table-wrap reveal interactive-surface">
+          <table class="wiki-table">
+            <thead>
+              <tr>
+                <th>Protocol</th>
+                <th>Typical job</th>
+                <th>Transport shape</th>
+                <th>Evidence you inspect</th>
+                <th>Common field failure</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>IEC 60870-5-101</strong><span>IEC-101</span></td>
+                <td>RTU/outstation telecontrol for serial links.</td>
+                <td>Asynchronous serial, FT1.2 style link framing, balanced or unbalanced procedures depending on profile.</td>
+                <td>Link control bits, Class 1/Class 2 polling, ASDU Type/COT/CA/IOA, GI and commands.</td>
+                <td>Wrong CA/IOA, bad polling policy, endless Class 1 requests, missing ACTCON, incomplete GI.</td>
+              </tr>
+              <tr>
+                <td><strong>IEC 60870-5-103</strong><span>IEC-103</span></td>
+                <td>Protection relay communication and event/measurand exchange.</td>
+                <td>Serial relay link using IEC-103 ASDUs and relay-oriented FUN/INF addressing.</td>
+                <td>Reset/link state, relay event timestamps, Type/COT, FUN/INF, generic service evidence.</td>
+                <td>Mapped names guessed from vendor behavior, relay timestamp ignored, event drain confused with polling.</td>
+              </tr>
+              <tr>
+                <td><strong>IEC 60870-5-104</strong><span>IEC-104</span></td>
+                <td>Network access to IEC-101-style application data over TCP/IP.</td>
+                <td>TCP session with APCI control, U-frames, I-frames, S-frames, and ASDUs.</td>
+                <td>STARTDT/STOPDT/TESTFR, send/receive sequence counters, ASDU CA/IOA, GI and command lifecycle.</td>
+                <td>TCP connected but STARTDT not confirmed, sequence counter mismatch, CA mismatch, idle TESTFR symptoms.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="mental-model">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Mental model</p>
+          <h2>Read every IEC 60870 problem from the outside inward.</h2>
+          <p>Do not start by interpreting one hex byte in isolation. Establish the session, link, address, ASDU, object, quality, and timing evidence in order.</p>
+        </div>
+        <div class="wiki-ladder reveal">
+          <article class="wiki-ladder-step interactive-surface"><span>01</span><strong>Physical or TCP reachability</strong><p>Serial parameters, RS-485 direction, modem behavior, TCP port, firewall, latency, and idle disconnects.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>02</span><strong>Link or APCI session health</strong><p>IEC-101/103 link control and FCB/FCV behavior; IEC-104 STARTDT, STOPDT, TESTFR, and sequence counters.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>03</span><strong>Application addressing</strong><p>Type identifier, Cause of Transmission, Common Address, IOA or FUN/INF, and profile-specific address lengths.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>04</span><strong>Process meaning</strong><p>Single or double indications, measurands, commands, protection events, timestamps, quality, and project mapping.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>05</span><strong>Operator evidence</strong><p>What changed, what failed, what proof supports it, and what the next engineering action should be.</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="frame-anatomy">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Frame anatomy</p>
+          <h2>Understand the building blocks before chasing symptoms.</h2>
+          <p>Exact field sizes depend on protocol mode and profile settings. The learning goal is to know which layer a field belongs to and what question it answers.</p>
+        </div>
+        <div class="wiki-anatomy-grid">
+          <article class="wiki-anatomy-card reveal interactive-surface">
+            <h3>IEC-101 / IEC-103 serial frame</h3>
+            <ol class="wiki-flow-list">
+              <li><strong>FT1.2 envelope</strong><span>Start, length, checksum, and end bytes prove frame integrity.</span></li>
+              <li><strong>Control and link address</strong><span>Direction, primary/secondary role, ACD/DFC, FCB/FCV, and station selection.</span></li>
+              <li><strong>ASDU header</strong><span>Type, VSQ, COT, and Common Address describe application intent.</span></li>
+              <li><strong>Information object</strong><span>IOA for IEC-101 or FUN/INF for IEC-103 identifies the point or relay function.</span></li>
+              <li><strong>Payload and time</strong><span>Value, quality, command qualifier, or relay timestamp becomes engineering evidence.</span></li>
+            </ol>
+          </article>
+          <article class="wiki-anatomy-card reveal delay-1 interactive-surface">
+            <h3>IEC-104 APDU</h3>
+            <ol class="wiki-flow-list">
+              <li><strong>APCI start and length</strong><span>The TCP stream is split into IEC-104 application protocol data units.</span></li>
+              <li><strong>U-frame</strong><span>STARTDT, STOPDT, and TESTFR control the data-transfer session.</span></li>
+              <li><strong>I-frame</strong><span>Carries ASDU data and send/receive sequence counters.</span></li>
+              <li><strong>S-frame</strong><span>Acknowledges received I-frames without carrying process data.</span></li>
+              <li><strong>ASDU body</strong><span>Shares IEC-101-style application concepts: Type, COT, CA, IOA, value, quality, and time.</span></li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="normal-sequences">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Normal sequences</p>
+          <h2>Healthy communication has a recognizable rhythm.</h2>
+          <p>When the rhythm breaks, ARIEC60870 should show the missing step and keep the raw frame proof beside the explanation.</p>
+        </div>
+        <div class="wiki-sequence-grid">
+          <article class="wiki-sequence-card reveal interactive-surface">
+            <h3>IEC-101 startup</h3>
+            <p>Open serial link, optionally reset link, establish FCB state, optionally synchronize time, activate GI, receive confirmation and data, then return to controlled Class 2 polling.</p>
+            <a class="card-link" href="iec101-general-interrogation.html">Study GI startup</a>
+          </article>
+          <article class="wiki-sequence-card reveal delay-1 interactive-surface">
+            <h3>IEC-101 event drain</h3>
+            <p>Poll Class 2 normally. When a response advertises ACD=1, request Class 1 in a bounded drain until no data, GI completion, ACD clear, DFC busy, timeout, or configured max drain.</p>
+            <a class="card-link" href="iec101-polling-class1-class2.html">Study Class 1/Class 2</a>
+          </article>
+          <article class="wiki-sequence-card reveal delay-2 interactive-surface">
+            <h3>IEC-104 session start</h3>
+            <p>Open TCP, receive or send STARTDT activation, confirm data transfer, exchange I-frames/S-frames, use TESTFR for liveness, and close intentionally with STOPDT or TCP close.</p>
+            <a class="card-link" href="iec104-startdt-stopdt-testfr.html">Study IEC-104 session</a>
+          </article>
+          <article class="wiki-sequence-card reveal delay-3 interactive-surface">
+            <h3>IEC-103 relay evidence</h3>
+            <p>Reset link/state, read identification or measurands as needed, drain Class 1 relay events, preserve relay timestamps, and map FUN/INF only through user-owned profile files.</p>
+            <a class="card-link" href="iec103-relay-events.html">Study IEC-103 events</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="learning-path">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Learning path</p>
+          <h2>Use this order if you are learning IEC 60870 seriously.</h2>
+          <p>The order below avoids the usual trap: memorizing type numbers before understanding session state, addressing, polling, and evidence.</p>
+        </div>
+        <div class="doc-grid wiki-grid">
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#account-tree"></use></svg></span><h3>1. Addressing first</h3><p>Learn the difference between link address, Common Address, IOA, and IEC-103 FUN/INF before debugging values.</p><a class="card-link" href="iec101-addressing.html">Read addressing guide</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#playlist-check"></use></svg></span><h3>2. Startup and GI</h3><p>GI is the clearest first proof that the outstation can deliver a usable process snapshot.</p><a class="card-link" href="iec101-general-interrogation.html">Read GI guide</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#sync-alt"></use></svg></span><h3>3. Polling policy</h3><p>Understand Class 2 background polling, ACD-driven Class 1 drain, DFC busy, and why uncontrolled Class 1 loops are bad evidence.</p><a class="card-link" href="iec101-polling-class1-class2.html">Read polling guide</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#send"></use></svg></span><h3>4. Commands</h3><p>Do not call a command successful until confirmations, feedback, termination, and quality/timing evidence make sense.</p><a class="card-link" href="iec101-command-flow.html">Read command guide</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg></span><h3>5. IEC-104 sessions</h3><p>TCP connect is only the first layer. STARTDT, TESTFR, sequence counters, and I/S/U frame roles decide protocol health.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Read IEC-104 guide</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#bolt"></use></svg></span><h3>6. IEC-103 relay events</h3><p>Use relay timestamp when available, preserve raw FUN/INF, and avoid inventing vendor semantics without a mapping profile.</p><a class="card-link" href="iec103-relay-events.html">Read relay guide</a></article>
+        </div>
+      </section>
+
+      <section class="section" id="troubleshooting-matrix">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Troubleshooting matrix</p>
+          <h2>Turn symptoms into proof instead of guesses.</h2>
+          <p>A good report does not say only "communication failed." It states the symptom, the evidence, likely cause, and next action.</p>
+        </div>
+        <div class="wiki-table-wrap reveal interactive-surface">
+          <table class="wiki-table">
+            <thead>
+              <tr>
+                <th>Symptom</th>
+                <th>Proof to capture</th>
+                <th>Likely layer</th>
+                <th>Start here</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Port/TCP is open but no values arrive.</td>
+                <td>Startup frames, GI activation/confirmation, returned ASDUs, timeout evidence.</td>
+                <td>Session, polling, or addressing.</td>
+                <td><a href="iec101-general-interrogation-incomplete.html">GI incomplete</a></td>
+              </tr>
+              <tr>
+                <td>Device answers but values look wrong or empty.</td>
+                <td>ASDU Common Address, IOA/FUN/INF, Type/COT, selected-frame decode.</td>
+                <td>Application addressing or mapping.</td>
+                <td><a href="iec60870-common-address-mismatch.html">CA mismatch</a></td>
+              </tr>
+              <tr>
+                <td>Master repeats Class 1 requests with no useful data.</td>
+                <td>ACD/DFC bits, request class, no-data responses, drain limit.</td>
+                <td>Polling policy.</td>
+                <td><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a></td>
+              </tr>
+              <tr>
+                <td>Command was transmitted but not accepted.</td>
+                <td>Command ASDU, ACTCON/ACTTERM, select/execute state, timeout, feedback event.</td>
+                <td>Command lifecycle.</td>
+                <td><a href="iec60870-command-actcon-missing.html">ACTCON missing</a></td>
+              </tr>
+              <tr>
+                <td>IEC-104 connects but data transfer does not start.</td>
+                <td>STARTDT activation, STARTDT confirmation, TESTFR, I/S/U frame sequence.</td>
+                <td>APCI session control.</td>
+                <td><a href="iec104-startdt-stopdt-testfr.html">STARTDT/TESTFR</a></td>
+              </tr>
+              <tr>
+                <td>Relay events appear at wrong time.</td>
+                <td>Relay ASDU timestamp, PC arrival time, raw event frame, mapping profile.</td>
+                <td>Event semantics or reporting.</td>
+                <td><a href="iec103-relay-events.html">IEC-103 relay events</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="glossary">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Glossary for frame reading</p>
+          <h2>Terms that appear in real traces.</h2>
+          <p>Use these terms as a practical decoder when reading frame trace, Smart Findings, and PDF evidence.</p>
+        </div>
+        <div class="wiki-glossary-grid">
+          <article class="wiki-term interactive-surface"><strong>ASDU</strong><span>Application Service Data Unit. The application payload carrying type, cause, address, object, value, quality, and time data.</span></article>
+          <article class="wiki-term interactive-surface"><strong>COT</strong><span>Cause of Transmission. Explains why a value or command response was sent: cyclic, spontaneous, activation, interrogation, and similar reasons.</span></article>
+          <article class="wiki-term interactive-surface"><strong>CA</strong><span>Common Address. The application station identity inside an ASDU. It is not the same thing as the link address.</span></article>
+          <article class="wiki-term interactive-surface"><strong>IOA</strong><span>Information Object Address. The point address used by IEC-101/104 data and commands.</span></article>
+          <article class="wiki-term interactive-surface"><strong>FUN / INF</strong><span>IEC-103 relay-oriented function type and information number. Keep raw values visible even when a mapping profile provides friendly names.</span></article>
+          <article class="wiki-term interactive-surface"><strong>ACD</strong><span>Access Demand. A secondary response can advertise that high-priority Class 1 data is waiting.</span></article>
+          <article class="wiki-term interactive-surface"><strong>DFC</strong><span>Data Flow Control. A busy signal; the master should back off and preserve the busy evidence.</span></article>
+          <article class="wiki-term interactive-surface"><strong>GI</strong><span>General Interrogation. Startup or operator-triggered process snapshot request.</span></article>
+          <article class="wiki-term interactive-surface"><strong>ACTCON</strong><span>Activation confirmation. One important proof point in command execution.</span></article>
+          <article class="wiki-term interactive-surface"><strong>CP56Time2a</strong><span>Common timestamp format often seen in IEC-101/104 event data. Relay/event time should not be replaced by PC arrival time when the protocol timestamp exists.</span></article>
+          <article class="wiki-term interactive-surface"><strong>I/S/U frame</strong><span>IEC-104 frame families: I carries ASDUs, S acknowledges sequence, U controls data transfer and tests.</span></article>
+          <article class="wiki-term interactive-surface"><strong>Quality</strong><span>Status flags that qualify a value or event. Bad, invalid, substituted, blocked, or overflow evidence can matter more than the value itself.</span></article>
+        </div>
+      </section>
+
+      <section class="section split" id="tooling">
+        <div>
+          <p class="eyebrow">How ARIEC60870 helps</p>
+          <h2>Use the tester as a protocol tutor and evidence recorder.</h2>
+          <p>ARIEC60870 is built around an operator-first evidence hierarchy: readable meaning, current values, relay events, frame trace, findings, and report output. Raw hex stays available, but it is not the only language the engineer sees.</p>
+          <div class="doc-link-row">
+            <a class="button secondary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Watch demo</span></a>
+            <a class="button secondary" href="examples/iec104-ca-mismatch-sample-trace.txt"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg><span>Open sample trace</span></a>
+          </div>
+        </div>
+        <div class="report-list">
+          <div class="interactive-surface"><strong>For learning</strong><span>Read the selected-frame explanation beside the raw TX/RX frame and connect fields to protocol meaning.</span></div>
+          <div class="interactive-surface"><strong>For FAT/SAT</strong><span>Keep frame proof, decoded values, events, and findings in one evidence trail.</span></div>
+          <div class="interactive-surface"><strong>For support escalation</strong><span>Export a report that shows symptom, proof, likely cause, and next action without hiding raw frames.</span></div>
+        </div>
+      </section>
     </main>
-    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="iec101-command-flow.html">Command flow</a><a href="smart-findings.html">Smart Findings</a></span></footer>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="#protocol-map">Protocol map</a><a href="#learning-path">Learning path</a><a href="#troubleshooting-matrix">Troubleshooting</a><a href="smart-findings.html">Smart Findings</a><a href="download.html">Download</a></span></footer>
   </body>
 </html>

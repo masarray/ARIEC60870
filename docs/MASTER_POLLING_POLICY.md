@@ -42,6 +42,8 @@ Bounded GI Class 1 follow-up
 Enter normal Class 2 cycle
 ```
 
+If IEC-101 station GI (`C_IC_NA_1`, QOI=20) is negatively confirmed, the master must record the negative confirmation as evidence and avoid waiting forever for a station-GI image that the outstation rejected. A bounded group interrogation fallback (QOI=21..36) is allowed on the active link, followed by the same bounded Class 1 drain and normal Class 2 verification sweep. Standby links must not perform this fallback because it can drain application queues.
+
 ## Normal Runtime
 
 ```text

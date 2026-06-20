@@ -158,10 +158,16 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         return await RequestLinkStatusAsync("Standby dual-link supervision", cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<Iec101ChannelExchangeResult> SendGeneralInterrogationAsync(string reason, CancellationToken cancellationToken)
+    public async Task<Iec101ChannelExchangeResult> SendGeneralInterrogationAsync(string reason, CancellationToken cancellationToken, byte qualifier = 20, int? commonAddress = null)
     {
         EnsureActiveOwner("general interrogation");
-        return await SendVariableAndReceiveAsync("IEC-101 general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(_settings), reason, cancellationToken).ConfigureAwait(false);
+        var commandSettings = SettingsForCommonAddress(commonAddress);
+        return await SendVariableAndReceiveAsync(
+            qualifier == 20 ? "IEC-101 general interrogation" : $"IEC-101 group interrogation QOI={qualifier}",
+            "Class 2",
+            Iec10xAsduBuilder.GeneralInterrogation(commandSettings, qualifier),
+            reason,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Iec101ChannelExchangeResult> SendClockSyncAsync(string reason, CancellationToken cancellationToken)
@@ -246,8 +252,18 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             return _settings;
         }
 
+        return SettingsForCommonAddress(request.CommonAddress);
+    }
+
+    private Iec103MasterSettings SettingsForCommonAddress(int? commonAddress)
+    {
+        if (!commonAddress.HasValue || commonAddress.Value == _settings.CommonAddress)
+        {
+            return _settings;
+        }
+
         var copy = _settings.CreateReportSnapshot();
-        copy.CommonAddress = request.CommonAddress.Value;
+        copy.CommonAddress = commonAddress.Value;
         return copy;
     }
 
@@ -415,6 +431,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
+        PublishAdditionalObjectEvents(decoded, asdu, raw, dataClass, reason, sw.ElapsedMilliseconds);
 
         State = Role == Iec101RedundancyChannelRole.Active
             ? Iec101RedundancyChannelState.ActivePolling
@@ -431,6 +448,58 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             Asdu = asdu,
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds)
         };
+    }
+
+    private void PublishAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)
+    {
+        if (asdu is null || asdu.Objects.Count <= 1)
+        {
+            return;
+        }
+
+        foreach (var obj in asdu.Objects.Skip(1))
+        {
+            _publish(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.SlaveToMaster,
+                State = Iec103MasterState.NormalClass2Polling,
+                Category = decoded.IsChecksumValid ? "RX Object" : "RX Warning",
+                DataClass = DecorateDataClass(dataClass),
+                PollingReason = reason,
+                Summary = $"{Name} RX object - {asdu.TypeName}, IOA={obj.InformationObjectAddress}, {obj.ShortValue}",
+                Detail = obj.ReadableSummary,
+                OperatorMessage = $"IEC-101 dual-link information object received on {Name}: IOA {obj.InformationObjectAddress} = {obj.ShortValue}.",
+                ProtocolMeaning = $"{asdu.TypeName}, COT={asdu.CotDisplay}, CA={asdu.CommonAddress}, IOA={obj.InformationObjectAddress}, {obj.ShortValue}",
+                OperatorAction = decoded.LinkControl?.Acd == true ? "Active link should drain Class 1. Standby must not drain the event queue." : "Continue configured dual-link policy.",
+                RawHex = ToHex(raw),
+                ResponseTimeMs = (int)Math.Min(int.MaxValue, responseTimeMs),
+                Frame = decoded,
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                LinkAddress = _settings.LinkAddress,
+                TypeId = asdu.TypeId,
+                TypeName = asdu.TypeName,
+                VariableStructureQualifier = asdu.VariableStructureQualifier,
+                IsSequenceAsdu = asdu.IsSequence,
+                ObjectCount = asdu.ObjectCount,
+                CauseOfTransmission = asdu.CauseOfTransmission,
+                CauseName = asdu.CotNameWithFlags,
+                OriginatorAddress = asdu.OriginatorAddress,
+                CommonAddressNumber = asdu.CommonAddress,
+                InformationObjectAddress = obj.InformationObjectAddress,
+                ObjectSummary = obj.ElementSummary,
+                QualityText = obj.QualityText,
+                IsRelayValue = asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
+                IsRelayEdgeEvent = (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
+                SignalKey = $"{Name}:IOA:{obj.InformationObjectAddress}",
+                SignalName = $"{Name} IOA {obj.InformationObjectAddress}",
+                SignalGroup = "IEC-101 Dual Link",
+                SignalType = asdu.TypeName,
+                SignalDisplayValue = obj.ShortValue,
+                SignalRawValue = obj.ElementSummary,
+                RelayTimestampText = obj.TimestampText,
+                EdgeReason = asdu.CauseName
+            });
+        }
     }
 
     private void PublishState(Iec101RedundancyEventKind kind, string summary, string detail)

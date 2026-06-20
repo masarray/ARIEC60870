@@ -5,8 +5,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wiki Lapangan IEC 60870 | Belajar IEC 101 103 104 dengan ARIEC60870</title>
-    <meta name="description" content="Wiki praktis IEC 60870 untuk engineer: ACD, DFC, polling Class 1/Class 2, General Interrogation, command flow, Common Address, event relay IEC-103, dan session IEC-104." />
+    <title>Wiki Engineering IEC 60870 | Belajar IEC 101 103 104 dari Evidence</title>
+    <meta name="description" content="Pusat belajar IEC 60870-5-101, IEC 60870-5-103, dan IEC 60870-5-104 untuk engineer: peta protokol, anatomi frame, GI, ACD/DFC, Common Address, command, event relay IEC-103, session IEC-104, troubleshooting, dan report evidence." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <link rel="canonical" href="https://masarray.github.io/ARIEC60870/id/wiki.html" />
@@ -17,63 +17,292 @@
     <link rel="manifest" href="../site.webmanifest" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="Wiki Lapangan IEC 60870 | Belajar IEC 101 103 104 dengan ARIEC60870" />
-    <meta property="og:description" content="Wiki praktis IEC 60870 untuk engineer: ACD, DFC, polling Class 1/Class 2, General Interrogation, command flow, Common Address, event relay IEC-103, dan session IEC-104." />
+    <meta property="og:title" content="Wiki Engineering IEC 60870 | Belajar IEC 101 103 104 dari Evidence" />
+    <meta property="og:description" content="Pusat belajar IEC 60870 untuk engineer: SCADA, RTU, relay proteksi, frame trace, polling, GI, command, IEC-104 session, troubleshooting, dan evidence report." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/id/wiki.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "TechArticle",
-  "headline": "Wiki Lapangan IEC 60870 | Belajar IEC 101 103 104 dengan ARIEC60870",
-  "description": "Wiki praktis IEC 60870 untuk engineer: ACD, DFC, polling Class 1/Class 2, General Interrogation, command flow, Common Address, event relay IEC-103, dan session IEC-104.",
-  "inLanguage": "id",
-  "url": "https://masarray.github.io/ARIEC60870/id/wiki.html",
-  "publisher": {
-    "@type": "Organization",
-    "name": "MasArray",
-    "url": "https://github.com/masarray"
-  },
-  "about": [
-    "IEC 60870-5-101",
-    "IEC 60870-5-103",
-    "IEC 60870-5-104",
-    "SCADA protocol troubleshooting",
-    "ARIEC60870 Evidence Analyzer"
-  ]
-}
-    </script>
-    <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "ARIEC60870",
-      "item": "https://masarray.github.io/ARIEC60870/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Wiki Lapangan",
-      "item": "https://masarray.github.io/ARIEC60870/id/wiki.html"
-    }
-  ]
-}
-    </script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Wiki Engineering IEC 60870 | Belajar IEC 101 103 104 dari Evidence","description":"Pusat belajar IEC 60870 praktis untuk memahami IEC 60870-5-101, IEC 60870-5-103, dan IEC 60870-5-104 dari evidence lapangan.","inLanguage":"id","url":"https://masarray.github.io/ARIEC60870/id/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ARIEC60870 Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ARIEC60870","item":"https://masarray.github.io/ARIEC60870/id/"},{"@type":"ListItem","position":2,"name":"Wiki Engineering","item":"https://masarray.github.io/ARIEC60870/id/wiki.html"}]}</script>
     <link rel="stylesheet" href="../styles.css" />
     <script src="../script.js" defer></script>
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>analyzer evidence IEC 60870</small></span></a>
-      <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#home"></use></svg><span>Beranda</span></a><a href="wiki.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Panduan</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download</span></a><a href="../"><span class="flag-icon" aria-hidden="true">🇬🇧</span><span>English</span></a></nav>
+      <a class="brand" href="./" aria-label="Beranda ARIEC60870"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
+      <nav class="nav-links" aria-label="Navigasi utama">
+        <a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#home"></use></svg><span>Beranda</span></a>
+        <a href="../demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#smart-display"></use></svg><span>Demo</span></a>
+        <a href="wiki.html" aria-current="page"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a>
+        <a href="../troubleshooting.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#build"></use></svg><span>Troubleshooting</span></a>
+        <a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>FAQ</span></a>
+        <a href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download</span></a>
+        <a href="../wiki.html"><span class="flag-icon" aria-hidden="true">EN</span><span>English</span></a>
+      </nav>
     </header>
-    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>Catatan praktis IEC 60870 untuk engineer yang membaca traffic asli.</h1><p>Jika trace menampilkan ACD, DFC, Class 1, Class 2, ACTCON, ACTTERM, CA, IOA, STARTDT, atau TESTFR, wiki ini menjelaskan artinya, urutan normalnya, dan bagaimana ARIEC60870 membantu melihat evidence.</p><div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a><a class="button secondary" href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>Baca FAQ</span></a></div></section><section class="section" id="iec101"><div class="section-heading reveal"><p class="eyebrow">IEC-101</p><h2>Mulai dari sini ketika link serial RTU hidup tetapi perilakunya belum jelas.</h2><p>Masalah IEC-101 sering terlihat sederhana dari luar, tetapi detailnya ada di frame trace. Halaman ini fokus pada bagian yang paling sering menjelaskan masalah.</p></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg></span><h3>IEC-101 ACD dan DFC</h3><p>Pahami dua bit link-layer yang menjelaskan apakah slave punya data menunggu atau sedang sibuk.</p><a class="card-link" href="iec101-acd-dfc.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg></span><h3>Polling Class 1 dan Class 2</h3><p>Lihat bagaimana master mengambil data normal dan data prioritas tanpa membuat link penuh.</p><a class="card-link" href="iec101-polling-class1-class2.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#send"></use></svg></span><h3>Alur command</h3><p>Ikuti select, execute, ACTCON, feedback, dan ACTTERM dari sudut pandang lapangan.</p><a class="card-link" href="iec101-command-flow.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#account-tree"></use></svg></span><h3>Common Address vs Link Address</h3><p>Pisahkan alamat link-layer dan alamat ASDU sebelum mengejar masalah yang salah.</p><a class="card-link" href="iec101-addressing.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#playlist-check"></use></svg></span><h3>General Interrogation</h3><p>Pelajari flow snapshot awal IEC-101 dan gejala ketika GI tidak selesai.</p><a class="card-link" href="iec101-general-interrogation.html">Baca halaman</a></article></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">IEC-103 / IEC-104 / Findings</p><h2>Event relay proteksi, session TCP, dan interpretasi evidence.</h2></div><div class="doc-grid wiki-grid"><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#lan"></use></svg></span><h3>Kontrol session IEC-104</h3><p>Baca STARTDT, STOPDT, TESTFR, frame I/S/U, dan sequence counter.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#bolt"></use></svg></span><h3>Event relay IEC-103</h3><p>Pahami kenapa evidence protokol relay berbeda dari telecontrol point biasa.</p><a class="card-link" href="iec103-relay-events.html">Baca halaman</a></article><article class="doc-card wiki-card reveal interactive-surface"><span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#analytics"></use></svg></span><h3>Smart Findings</h3><p>Lihat bagaimana ARIEC60870 mengubah symptom mentah menjadi problem, proof, dan langkah berikutnya.</p><a class="card-link" href="smart-findings.html">Baca halaman</a></article></div></section></main>
-    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
+    <main class="doc-main wiki-main">
+      <section class="wiki-hero reveal">
+        <div>
+          <p class="eyebrow">Wiki Engineering IEC 60870</p>
+          <h1>Belajar IEC 60870 dari evidence protokol, bukan hafalan tabel byte.</h1>
+          <p class="lead">Ini adalah pusat belajar praktis untuk engineer yang bekerja dengan IEC 60870-5-101, IEC 60870-5-103, dan IEC 60870-5-104. Fokusnya: keluarga protokol, bentuk frame, urutan komunikasi sehat, masalah lapangan yang sering terjadi, dan cara mengubah TX/RX mentah menjadi evidence yang bisa dipertanggungjawabkan.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="../demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#smart-display"></use></svg><span>Tonton demo evidence</span></a>
+            <a class="button secondary" href="#learning-path"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Mulai belajar</span></a>
+          </div>
+        </div>
+        <aside class="wiki-hero-panel interactive-surface" aria-label="Orientasi cepat IEC 60870">
+          <div class="wiki-kpi"><span>Keluarga</span><strong>Protokol telecontrol / SCADA</strong></div>
+          <div class="wiki-kpi"><span>Masalah inti di lapangan</span><strong>Membuktikan apa yang benar-benar dikirim device</strong></div>
+          <div class="wiki-kpi"><span>Evidence terbaik</span><strong>Frame trace + decoded meaning + report</strong></div>
+        </aside>
+      </section>
+
+      <section class="section wiki-source-note">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Sumber dan batas legal</p>
+          <h2>Halaman ini adalah field guide, bukan pengganti standar IEC resmi.</h2>
+          <p>Standar IEC adalah publikasi berlisensi. Wiki ini memakai deskripsi publik, model implementasi ARIEC60870, dan penjelasan praktik engineering. Halaman ini sengaja tidak menyalin tabel normatif yang dilindungi. Untuk pekerjaan conformance formal, gunakan publikasi IEC resmi.</p>
+        </div>
+        <div class="source-link-row">
+          <a class="source-link interactive-surface" href="https://webstore.iec.ch/" rel="noopener"><strong>IEC Webstore</strong><span>Sumber standar resmi</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_60870" rel="noopener"><strong>Overview IEC 60870</strong><span>Ringkasan publik keluarga standar</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_60870-5" rel="noopener"><strong>Overview IEC 60870-5</strong><span>Peta companion standard publik</span></a>
+          <a class="source-link interactive-surface" href="https://en.wikipedia.org/wiki/IEC_62351" rel="noopener"><strong>Konteks IEC 62351</strong><span>Keluarga standar keamanan</span></a>
+        </div>
+      </section>
+
+      <section class="section" id="beginner-primer">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Untuk pemula</p>
+          <h2>Kalau baru belajar IEC 60870, mulai dari gambar besar SCADA.</h2>
+          <p>IEC 60870 bukan protokol tampilan layar. Ini keluarga komunikasi lapangan agar control center, gateway, RTU, dan relay bisa bertukar status, pengukuran, event, dan command secara konsisten.</p>
+        </div>
+        <div class="wiki-primer-grid">
+          <article class="wiki-primer-card reveal interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#dashboard"></use></svg></span>
+            <h3>Control center / master</h3>
+            <p>Master memulai komunikasi, polling data, mengirim command, dan menunggu proof. Pada IEC-101/103 ini biasanya serial polling terkendali. Pada IEC-104 ini berarti TCP session control plus pertukaran ASDU.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-1 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#lan"></use></svg></span>
+            <h3>RTU / outstation</h3>
+            <p>RTU atau outstation menampilkan point lapangan: status breaker, alarm, analog, counter, dan target command. Device bisa hanya menjawab saat dipolling, atau memberi tanda ada data prioritas menunggu.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-2 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#bolt"></use></svg></span>
+            <h3>Protection relay / IED</h3>
+            <p>Relay proteksi bukan sekadar RTU biasa. Relay bisa membawa event proteksi, data gangguan, timestamp relay, dan addressing FUN/INF yang harus dimapping dengan hati-hati.</p>
+          </article>
+          <article class="wiki-primer-card reveal delay-3 interactive-surface">
+            <span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#account-tree"></use></svg></span>
+            <h3>Point list dan mapping</h3>
+            <p>Protokol memberi address dan raw value. Point list proyek menjelaskan arti address itu di gardu. Nama sinyal harus berasal dari mapping milik user/proyek, bukan tebakan vendor.</p>
+          </article>
+        </div>
+        <div class="wiki-story-panel reveal interactive-surface">
+          <div>
+            <p class="eyebrow">Flow sederhana</p>
+            <h3>Apa artinya saat engineer berkata "test protokol"?</h3>
+          </div>
+          <ol class="wiki-flow-list">
+            <li><strong>Connect</strong><span>Buka jalur serial atau TCP dan buktikan device remote menjawab di layer komunikasi.</span></li>
+            <li><strong>Identifikasi addressing</strong><span>Pastikan link address, Common Address, IOA atau FUN/INF, dan profile setting sesuai point list proyek.</span></li>
+            <li><strong>Bangun snapshot</strong><span>Jalankan General Interrogation atau background polling untuk membaca kondisi station saat ini.</span></li>
+            <li><strong>Pantau event</strong><span>Drain data prioritas saat device memberi tanda, dan pertahankan timestamp relay/device jika tersedia.</span></li>
+            <li><strong>Buktikan command</strong><span>Tampilkan request, confirmation, feedback, timeout, dan termination sebelum menyebut command berhasil.</span></li>
+            <li><strong>Report</strong><span>Export evidence agar engineer lain bisa memahami kejadian tanpa harus berada di samping PC test.</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="protocol-map">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Peta protokol</p>
+          <h2>Posisi IEC 101, IEC 103, dan IEC 104.</h2>
+          <p>IEC 60870 adalah keluarga standar telecontrol. Dalam pekerjaan SCADA dan proteksi, nama yang paling sering ditemui adalah 101, 103, dan 104.</p>
+        </div>
+        <div class="wiki-table-wrap reveal interactive-surface">
+          <table class="wiki-table">
+            <thead>
+              <tr>
+                <th>Protokol</th>
+                <th>Tugas umum</th>
+                <th>Bentuk transport</th>
+                <th>Evidence yang dibaca</th>
+                <th>Masalah lapangan umum</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>IEC 60870-5-101</strong><span>IEC-101</span></td>
+                <td>Telecontrol RTU/outstation untuk link serial.</td>
+                <td>Serial asynchronous, FT1.2 style link framing, balanced atau unbalanced tergantung profile.</td>
+                <td>Link control bits, Class 1/Class 2 polling, ASDU Type/COT/CA/IOA, GI, dan command.</td>
+                <td>CA/IOA salah, polling policy buruk, request Class 1 berulang, ACTCON hilang, GI tidak lengkap.</td>
+              </tr>
+              <tr>
+                <td><strong>IEC 60870-5-103</strong><span>IEC-103</span></td>
+                <td>Komunikasi relay proteksi dan pertukaran event/measurand.</td>
+                <td>Serial relay link memakai ASDU IEC-103 dan addressing relay FUN/INF.</td>
+                <td>Reset/link state, timestamp event relay, Type/COT, FUN/INF, generic service evidence.</td>
+                <td>Nama sinyal ditebak dari vendor, timestamp relay diabaikan, event drain tertukar dengan polling biasa.</td>
+              </tr>
+              <tr>
+                <td><strong>IEC 60870-5-104</strong><span>IEC-104</span></td>
+                <td>Akses network ke data aplikasi gaya IEC-101 lewat TCP/IP.</td>
+                <td>TCP session dengan APCI control, U-frame, I-frame, S-frame, dan ASDU.</td>
+                <td>STARTDT/STOPDT/TESTFR, send/receive sequence counter, ASDU CA/IOA, GI, dan command lifecycle.</td>
+                <td>TCP connected tapi STARTDT tidak confirmed, sequence counter mismatch, CA mismatch, gejala idle TESTFR.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="mental-model">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Mental model</p>
+          <h2>Baca masalah IEC 60870 dari luar ke dalam.</h2>
+          <p>Jangan mulai dari satu byte hex terpisah. Bangun dulu evidence session, link, address, ASDU, object, quality, dan timing secara berurutan.</p>
+        </div>
+        <div class="wiki-ladder reveal">
+          <article class="wiki-ladder-step interactive-surface"><span>01</span><strong>Reachability fisik atau TCP</strong><p>Parameter serial, arah RS-485, modem, TCP port, firewall, latency, dan idle disconnect.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>02</span><strong>Link atau APCI session</strong><p>IEC-101/103 link control dan FCB/FCV; IEC-104 STARTDT, STOPDT, TESTFR, dan sequence counter.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>03</span><strong>Application addressing</strong><p>Type identifier, Cause of Transmission, Common Address, IOA atau FUN/INF, dan panjang address sesuai profile.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>04</span><strong>Process meaning</strong><p>Single/double indication, measurand, command, event proteksi, timestamp, quality, dan mapping proyek.</p></article>
+          <article class="wiki-ladder-step interactive-surface"><span>05</span><strong>Operator evidence</strong><p>Apa yang berubah, apa yang gagal, proof apa yang mendukung, dan tindakan engineering berikutnya.</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="frame-anatomy">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Anatomi frame</p>
+          <h2>Pahami building block sebelum mengejar symptom.</h2>
+          <p>Ukuran field detail tergantung mode protokol dan profile. Tujuan belajar di sini adalah tahu sebuah field berada di layer mana dan menjawab pertanyaan apa.</p>
+        </div>
+        <div class="wiki-anatomy-grid">
+          <article class="wiki-anatomy-card reveal interactive-surface">
+            <h3>Frame serial IEC-101 / IEC-103</h3>
+            <ol class="wiki-flow-list">
+              <li><strong>FT1.2 envelope</strong><span>Start, length, checksum, dan end byte membuktikan integritas frame.</span></li>
+              <li><strong>Control dan link address</strong><span>Direction, role primary/secondary, ACD/DFC, FCB/FCV, dan pemilihan station.</span></li>
+              <li><strong>ASDU header</strong><span>Type, VSQ, COT, dan Common Address menjelaskan maksud aplikasi.</span></li>
+              <li><strong>Information object</strong><span>IOA untuk IEC-101 atau FUN/INF untuk IEC-103 mengidentifikasi point atau fungsi relay.</span></li>
+              <li><strong>Payload dan time</strong><span>Value, quality, command qualifier, atau timestamp relay menjadi evidence engineering.</span></li>
+            </ol>
+          </article>
+          <article class="wiki-anatomy-card reveal delay-1 interactive-surface">
+            <h3>APDU IEC-104</h3>
+            <ol class="wiki-flow-list">
+              <li><strong>APCI start dan length</strong><span>TCP stream dibagi menjadi unit data aplikasi IEC-104.</span></li>
+              <li><strong>U-frame</strong><span>STARTDT, STOPDT, dan TESTFR mengontrol session data transfer.</span></li>
+              <li><strong>I-frame</strong><span>Membawa ASDU dan send/receive sequence counter.</span></li>
+              <li><strong>S-frame</strong><span>Mengakui I-frame yang diterima tanpa membawa process data.</span></li>
+              <li><strong>ASDU body</strong><span>Berbagi konsep aplikasi IEC-101: Type, COT, CA, IOA, value, quality, dan time.</span></li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="normal-sequences">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Urutan normal</p>
+          <h2>Komunikasi sehat punya ritme yang bisa dikenali.</h2>
+          <p>Jika ritmenya putus, ARIEC60870 harus menunjukkan step yang hilang dan tetap menyimpan raw frame proof di samping penjelasan.</p>
+        </div>
+        <div class="wiki-sequence-grid">
+          <article class="wiki-sequence-card reveal interactive-surface"><h3>Startup IEC-101</h3><p>Buka serial link, opsional reset link, tetapkan state FCB, opsional sinkronisasi waktu, aktifkan GI, terima confirmation dan data, lalu kembali ke Class 2 polling terkendali.</p><a class="card-link" href="iec101-general-interrogation.html">Pelajari GI startup</a></article>
+          <article class="wiki-sequence-card reveal delay-1 interactive-surface"><h3>Event drain IEC-101</h3><p>Poll Class 2 normal. Saat response memberi ACD=1, request Class 1 secara bounded sampai no data, GI completion, ACD clear, DFC busy, timeout, atau max drain.</p><a class="card-link" href="iec101-polling-class1-class2.html">Pelajari Class 1/Class 2</a></article>
+          <article class="wiki-sequence-card reveal delay-2 interactive-surface"><h3>Session start IEC-104</h3><p>Buka TCP, aktivasi STARTDT, confirm data transfer, tukar I-frame/S-frame, pakai TESTFR untuk liveness, dan tutup dengan STOPDT atau TCP close yang jelas.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Pelajari IEC-104 session</a></article>
+          <article class="wiki-sequence-card reveal delay-3 interactive-surface"><h3>Evidence relay IEC-103</h3><p>Reset link/state, baca identification atau measurand sesuai kebutuhan, drain event Class 1, simpan timestamp relay, dan mapping FUN/INF hanya lewat profile milik user.</p><a class="card-link" href="iec103-relay-events.html">Pelajari event IEC-103</a></article>
+        </div>
+      </section>
+
+      <section class="section" id="learning-path">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Learning path</p>
+          <h2>Urutan belajar jika ingin serius memahami IEC 60870.</h2>
+          <p>Urutan ini menghindari jebakan umum: menghafal type number sebelum paham session, addressing, polling, dan evidence.</p>
+        </div>
+        <div class="doc-grid wiki-grid">
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#account-tree"></use></svg></span><h3>1. Addressing dulu</h3><p>Pahami link address, Common Address, IOA, dan FUN/INF IEC-103 sebelum mengejar nilai.</p><a class="card-link" href="iec101-addressing.html">Baca addressing</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#playlist-check"></use></svg></span><h3>2. Startup dan GI</h3><p>GI adalah proof awal paling jelas bahwa outstation bisa memberi snapshot proses yang usable.</p><a class="card-link" href="iec101-general-interrogation.html">Baca GI</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg></span><h3>3. Polling policy</h3><p>Pahami Class 2 background polling, ACD-driven Class 1 drain, DFC busy, dan kenapa Class 1 loop liar adalah evidence buruk.</p><a class="card-link" href="iec101-polling-class1-class2.html">Baca polling</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#send"></use></svg></span><h3>4. Command</h3><p>Jangan anggap command berhasil sampai confirmation, feedback, termination, quality, dan timing evidence masuk akal.</p><a class="card-link" href="iec101-command-flow.html">Baca command</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#lan"></use></svg></span><h3>5. Session IEC-104</h3><p>TCP connect hanya layer pertama. STARTDT, TESTFR, sequence counter, dan frame I/S/U menentukan kesehatan protokol.</p><a class="card-link" href="iec104-startdt-stopdt-testfr.html">Baca IEC-104</a></article>
+          <article class="doc-card wiki-card interactive-surface"><span class="card-top-icon"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#bolt"></use></svg></span><h3>6. Event relay IEC-103</h3><p>Gunakan timestamp relay jika ada, simpan raw FUN/INF, dan jangan invent vendor semantics tanpa mapping profile.</p><a class="card-link" href="iec103-relay-events.html">Baca relay</a></article>
+        </div>
+      </section>
+
+      <section class="section" id="troubleshooting-matrix">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Matriks troubleshooting</p>
+          <h2>Ubah symptom menjadi proof, bukan tebakan.</h2>
+          <p>Report yang baik tidak hanya mengatakan "communication failed". Report harus menjelaskan symptom, evidence, likely cause, dan next action.</p>
+        </div>
+        <div class="wiki-table-wrap reveal interactive-surface">
+          <table class="wiki-table">
+            <thead>
+              <tr>
+                <th>Symptom</th>
+                <th>Proof yang perlu dicapture</th>
+                <th>Layer kemungkinan</th>
+                <th>Mulai dari sini</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Port/TCP open tetapi values tidak masuk.</td><td>Frame startup, GI activation/confirmation, ASDU balik, timeout evidence.</td><td>Session, polling, atau addressing.</td><td><a href="../iec101-general-interrogation-incomplete.html">GI incomplete</a></td></tr>
+              <tr><td>Device menjawab tetapi nilai salah atau kosong.</td><td>ASDU Common Address, IOA/FUN/INF, Type/COT, selected-frame decode.</td><td>Application addressing atau mapping.</td><td><a href="../iec60870-common-address-mismatch.html">CA mismatch</a></td></tr>
+              <tr><td>Master mengulang request Class 1 tanpa data berguna.</td><td>ACD/DFC bit, request class, no-data response, drain limit.</td><td>Polling policy.</td><td><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a></td></tr>
+              <tr><td>Command dikirim tetapi tidak diterima.</td><td>Command ASDU, ACTCON/ACTTERM, select/execute state, timeout, feedback event.</td><td>Command lifecycle.</td><td><a href="../iec60870-command-actcon-missing.html">ACTCON missing</a></td></tr>
+              <tr><td>IEC-104 connect tetapi data transfer tidak mulai.</td><td>STARTDT activation, STARTDT confirmation, TESTFR, sequence frame I/S/U.</td><td>APCI session control.</td><td><a href="iec104-startdt-stopdt-testfr.html">STARTDT/TESTFR</a></td></tr>
+              <tr><td>Event relay terlihat di waktu yang salah.</td><td>Timestamp ASDU relay, PC arrival time, raw event frame, mapping profile.</td><td>Event semantics atau reporting.</td><td><a href="iec103-relay-events.html">IEC-103 relay events</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="glossary">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Glossary frame reading</p>
+          <h2>Istilah yang sering muncul di trace nyata.</h2>
+          <p>Gunakan glossary ini saat membaca frame trace, Smart Findings, dan PDF evidence.</p>
+        </div>
+        <div class="wiki-glossary-grid">
+          <article class="wiki-term interactive-surface"><strong>ASDU</strong><span>Application Service Data Unit. Payload aplikasi yang membawa type, cause, address, object, value, quality, dan time.</span></article>
+          <article class="wiki-term interactive-surface"><strong>COT</strong><span>Cause of Transmission. Menjelaskan kenapa value atau command response dikirim.</span></article>
+          <article class="wiki-term interactive-surface"><strong>CA</strong><span>Common Address. Identitas station aplikasi di dalam ASDU. Ini berbeda dari link address.</span></article>
+          <article class="wiki-term interactive-surface"><strong>IOA</strong><span>Information Object Address. Address point untuk data dan command IEC-101/104.</span></article>
+          <article class="wiki-term interactive-surface"><strong>FUN / INF</strong><span>Function type dan information number pada IEC-103. Raw value harus tetap terlihat walaupun ada mapping profile.</span></article>
+          <article class="wiki-term interactive-surface"><strong>ACD</strong><span>Access Demand. Response secondary bisa memberi tanda bahwa data prioritas Class 1 sedang menunggu.</span></article>
+          <article class="wiki-term interactive-surface"><strong>DFC</strong><span>Data Flow Control. Sinyal busy; master harus back off dan menyimpan evidence busy.</span></article>
+          <article class="wiki-term interactive-surface"><strong>GI</strong><span>General Interrogation. Request snapshot proses saat startup atau atas perintah operator.</span></article>
+          <article class="wiki-term interactive-surface"><strong>ACTCON</strong><span>Activation confirmation. Salah satu proof penting dalam eksekusi command.</span></article>
+          <article class="wiki-term interactive-surface"><strong>CP56Time2a</strong><span>Format timestamp umum pada event IEC-101/104. Jika timestamp protokol ada, jangan diganti dengan PC arrival time.</span></article>
+          <article class="wiki-term interactive-surface"><strong>I/S/U frame</strong><span>Keluarga frame IEC-104: I membawa ASDU, S acknowledge sequence, U mengontrol transfer dan test.</span></article>
+          <article class="wiki-term interactive-surface"><strong>Quality</strong><span>Flag status yang mengkualifikasi value/event. Evidence invalid, substituted, blocked, atau overflow bisa lebih penting dari nilainya.</span></article>
+        </div>
+      </section>
+
+      <section class="section split" id="tooling">
+        <div>
+          <p class="eyebrow">Bagaimana ARIEC60870 membantu</p>
+          <h2>Pakai tester sebagai tutor protokol dan evidence recorder.</h2>
+          <p>ARIEC60870 dibangun dengan hierarchy evidence yang operator-first: readable meaning, current values, relay events, frame trace, findings, dan report output. Raw hex tetap tersedia, tetapi bukan satu-satunya bahasa yang dilihat engineer.</p>
+          <div class="doc-link-row">
+            <a class="button secondary" href="../demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#smart-display"></use></svg><span>Tonton demo</span></a>
+            <a class="button secondary" href="../examples/iec104-ca-mismatch-sample-trace.txt"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#description"></use></svg><span>Buka sample trace</span></a>
+          </div>
+        </div>
+        <div class="report-list">
+          <div class="interactive-surface"><strong>Untuk belajar</strong><span>Baca selected-frame explanation di samping raw TX/RX frame dan hubungkan field ke arti protokol.</span></div>
+          <div class="interactive-surface"><strong>Untuk FAT/SAT</strong><span>Simpan frame proof, decoded values, event, dan findings dalam satu evidence trail.</span></div>
+          <div class="interactive-surface"><strong>Untuk support escalation</strong><span>Export report yang menunjukkan symptom, proof, likely cause, dan next action tanpa menyembunyikan raw frame.</span></div>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer"><span>ARIEC60870</span><span class="footer-links"><a href="#protocol-map">Peta protokol</a><a href="#learning-path">Learning path</a><a href="#troubleshooting-matrix">Troubleshooting</a><a href="smart-findings.html">Smart Findings</a><a href="../download.html">Download</a></span></footer>
   </body>
 </html>

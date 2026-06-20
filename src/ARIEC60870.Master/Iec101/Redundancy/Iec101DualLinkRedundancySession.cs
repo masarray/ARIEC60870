@@ -194,11 +194,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (_options.BaseSettings.SendGeneralInterrogationOnConnect)
         {
             SetControllerState(Iec101RedundancyControllerState.BootstrappingApplicationImage, "Bootstrapping IEC-101 application image", "General Interrogation is sent only on the active link.");
-            _imageTracker.MarkGiStarted(DateTime.UtcNow);
-            _counters.GiCommands++;
-            await _active.SendGeneralInterrogationAsync("Dual-link startup station interrogation", cancellationToken).ConfigureAwait(false);
-            await DrainClass1OnActiveAsync("Dual-link startup GI follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
-            PublishApplicationImageMilestone();
+            await RunGeneralInterrogationLifecycleOnActiveAsync(
+                "Dual-link startup station interrogation",
+                "Dual-link startup GI",
+                "Dual-link startup post-GI Class 2 verification sweep",
+                commonAddress: null,
+                cancellationToken).ConfigureAwait(false);
         }
 
         SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy running", $"Active={_active.Name}; standby={_standby.Name}; standby is supervised without Class 1/Class 2 polling.");
@@ -321,6 +322,17 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             SignalGroup = "IEC-101 Dual Link"
         });
+
+        if (request.Kind == Iec60870ControlCommandKind.GeneralInterrogation)
+        {
+            await RunGeneralInterrogationLifecycleOnActiveAsync(
+                "Manual dual-link station interrogation",
+                "Manual dual-link GI",
+                "Manual dual-link GI post-GI Class 2 verification sweep",
+                request.CommonAddress,
+                cancellationToken).ConfigureAwait(false);
+            return true;
+        }
 
         await _active.SendControlCommandAsync(request, cancellationToken).ConfigureAwait(false);
         if (_active.LinkState.Acd)
@@ -564,16 +576,176 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiStarted, "IEC-101 post-switch GI started", $"Active={_active.Name}; policy={_options.PostSwitchGiPolicy}.");
-        _imageTracker.MarkGiStarted(DateTime.UtcNow);
-        _counters.GiCommands++;
         if (_options.DrainClass1BeforePostSwitchGi && _active.LinkState.Acd)
         {
             await DrainClass1OnActiveAsync("Pre-GI active event queue drain after failover", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
 
-        await _active.SendGeneralInterrogationAsync("Post-switch station interrogation on promoted active link", cancellationToken).ConfigureAwait(false);
-        await DrainClass1OnActiveAsync("Post-switch GI follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+        await RunGeneralInterrogationLifecycleOnActiveAsync(
+            "Post-switch station interrogation on promoted active link",
+            "Post-switch GI",
+            "Post-switch GI Class 2 verification sweep",
+            commonAddress: null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task RunGeneralInterrogationLifecycleOnActiveAsync(string commandReason, string lifecycleLabel, string sweepReason, int? commonAddress, CancellationToken cancellationToken)
+    {
+        if (_active is null)
+        {
+            return;
+        }
+
+        _imageTracker.MarkGiStarted(DateTime.UtcNow);
+        _counters.GiCommands++;
+        var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: commonAddress).ConfigureAwait(false);
+        if (IsNegativeConfirmation(response, expectedTypeId: 100))
+        {
+            var caText = commonAddress.HasValue ? commonAddress.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : _options.BaseSettings.CommonAddress.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            AddApplicationImageEvent(
+                Iec101RedundancyEventKind.ApplicationImagePartial,
+                "IEC-101 station GI negatively confirmed",
+                $"{lifecycleLabel}: outstation negatively confirmed QOI=20 station interrogation for CA={caText}. Trying bounded group interrogation QOI=21..36 on active link.");
+            RaiseFinding(
+                FindingSeverity.Warning,
+                "IEC101-DUAL-GI-NEGATIVE-CONFIRMATION",
+                "IEC-101 dual-link station GI negatively confirmed",
+                $"{lifecycleLabel}; CA={caText}; active={_active.Name}; COT={response.Asdu?.CotDisplay ?? response.Frame?.ShortMeaning ?? "-"}",
+                "The outstation rejected station interrogation, so waiting for a full QOI=20 image can leave mapped points pending.",
+                "Use group interrogation fallback, verify the interoperability list/QOI support, and continue Class 2/background scan for values.");
+            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain after negative station GI", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+            await RunGroupInterrogationFallbackOnActiveAsync($"{lifecycleLabel} negative station GI", commonAddress, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (_options.BaseSettings.RequestClass2ImmediatelyAfterStartup)
+        {
+            await RunPostGiClass2VerificationSweepAsync(sweepReason, cancellationToken).ConfigureAwait(false);
+        }
+
         PublishApplicationImageMilestone();
+    }
+
+    private async Task RunGroupInterrogationFallbackOnActiveAsync(string reason, int? commonAddress, CancellationToken cancellationToken)
+    {
+        if (_active is null)
+        {
+            return;
+        }
+
+        AddApplicationImageEvent(
+            Iec101RedundancyEventKind.ApplicationImagePartial,
+            "IEC-101 group interrogation fallback started",
+            reason + ". Station interrogation QOI=20 was negatively confirmed; trying bounded group interrogation QOI=21..36 on the active link.");
+
+        var acceptedGroups = 0;
+        var negativeGroups = 0;
+        var noResponseGroups = 0;
+        const int firstGroup = 21;
+        const int lastGroup = 36;
+
+        for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
+        {
+            var beforeRx = _active.LinkState.RxFrames;
+            var response = await _active.SendGeneralInterrogationAsync(
+                $"Group interrogation fallback QOI={qoi}",
+                cancellationToken,
+                qualifier: (byte)qoi,
+                commonAddress: commonAddress).ConfigureAwait(false);
+
+            if (response.TimedOut || _active.LinkState.RxFrames == beforeRx)
+            {
+                noResponseGroups++;
+            }
+            else if (IsNegativeConfirmation(response, expectedTypeId: 100))
+            {
+                negativeGroups++;
+            }
+            else
+            {
+                acceptedGroups++;
+                await DrainClass1OnActiveAsync($"Group GI QOI={qoi} follow-up drain on active link", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (acceptedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, acceptedGroups + 2))
+            {
+                break;
+            }
+
+            if (_options.BaseSettings.Class1DrainDelayMs > 0)
+            {
+                await Task.Delay(_options.BaseSettings.Class1DrainDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        AddApplicationImageEvent(
+            Iec101RedundancyEventKind.ApplicationImagePartial,
+            "IEC-101 group interrogation fallback completed",
+            $"Groups accepted={acceptedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.");
+    }
+
+    private static bool IsNegativeConfirmation(Iec101ChannelExchangeResult? response, int expectedTypeId)
+    {
+        if (response is null)
+        {
+            return false;
+        }
+
+        if (response.Frame?.IsSingleCharacterNack == true)
+        {
+            return true;
+        }
+
+        return response.Asdu?.IsNegativeConfirm == true
+            && (expectedTypeId <= 0 || response.Asdu.TypeId == expectedTypeId);
+    }
+
+    private async Task RunPostGiClass2VerificationSweepAsync(string reason, CancellationToken cancellationToken)
+    {
+        if (_active is null)
+        {
+            return;
+        }
+
+        AddApplicationImageEvent(
+            Iec101RedundancyEventKind.ApplicationImagePartial,
+            "IEC-101 dual-link post-GI Class 2 verification sweep started",
+            $"{reason}. Active={_active.Name}; background values may arrive after station/group interrogation.");
+
+        var noDataStreak = 0;
+        var userDataBefore = _active.LinkState.UserDataResponses;
+        var maxSweeps = Math.Clamp(_options.BaseSettings.MaxClass1DrainFrames / 2, 8, 32);
+        for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
+        {
+            var beforeNoData = _active.LinkState.NoDataResponses;
+            var beforeUserData = _active.LinkState.UserDataResponses;
+
+            _counters.Class2Requests++;
+            await _active.RequestClass2Async(reason, cancellationToken).ConfigureAwait(false);
+            _lastClass2PollUtc = DateTime.UtcNow;
+
+            if (_active.LinkState.UserDataResponses > beforeUserData)
+            {
+                noDataStreak = 0;
+            }
+            else if (_active.LinkState.NoDataResponses > beforeNoData)
+            {
+                noDataStreak++;
+            }
+
+            if (noDataStreak >= 2 && _active.LinkState.UserDataResponses > userDataBefore)
+            {
+                break;
+            }
+
+            if (_options.BaseSettings.Class1DrainDelayMs > 0)
+            {
+                await Task.Delay(_options.BaseSettings.Class1DrainDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow)

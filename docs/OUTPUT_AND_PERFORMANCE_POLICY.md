@@ -28,6 +28,8 @@ The Value Viewer is a current snapshot. It should show one row per current relay
 
 The Value Viewer must not become a frame log.
 
+For IEC-101/IEC-104 10x ASDUs, one RX frame may contain multiple information objects through VSQ/SQ sequencing. The master engine must publish/update every decoded information object as Value Viewer evidence, not only the first object in the ASDU. This is required for GI completeness in single-link and dual-link sessions.
+
 ### 3. Relay Event Log
 
 The Event Log is edge/state-change oriented.
@@ -100,4 +102,3 @@ Serial read code should not depend on unbounded asynchronous reads that ignore c
 ## Diagnostics pipeline note
 
 Runtime faults and recoverable transport exceptions are routed to Diagnostics rows. The UI must remain operator-safe: no unhandled serial timeout should block the Start/Stop workflow, and every exception worth escalating must be selectable/copyable from the Diagnostics tab.
-
