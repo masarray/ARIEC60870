@@ -51,6 +51,14 @@ jobs:
             echo "::warning::docs/index.html is out of sync with site/index.html. Run scripts/sync-github-pages-docs-mirror.ps1 after landing edits."
           fi
 
+      - name: Copy demo media into canonical site assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site/assets/screenshots
+          cp docs/assets/screenshots/IEC-60870.webm site/assets/screenshots/IEC-60870.webm
+          cp docs/assets/screenshots/IEC-60870.gif site/assets/screenshots/IEC-60870.gif
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
