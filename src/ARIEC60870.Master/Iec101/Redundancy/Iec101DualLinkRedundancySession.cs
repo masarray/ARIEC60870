@@ -248,6 +248,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             {
                 return;
             }
+
+            if (_standby is not null && _standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+            {
+                await TryFailoverAsync("Active link failed and standby has emergency rescue proof", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+                return;
+            }
         }
 
         if (now - _lastClass2PollUtc >= TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
@@ -536,14 +542,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             // First force a standby health probe; a successful probe will call
             // TryFailoverAsync(..., bypassStabilizationGuard: true) from
             // SuperviseStandbyAsync and rescue service immediately.
-            if (insideStabilizationWindow
-                && _standby is not null
-                && !_standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+            if (insideStabilizationWindow && _standby is not null)
             {
                 _lastStandbySupervisionUtc = DateTime.MinValue;
                 await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
                 if (_active is null || !string.Equals(_active.Name, failedActiveName, StringComparison.Ordinal))
                 {
+                    return;
+                }
+
+                if (_standby.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+                {
+                    await TryFailoverAsync(reason + " · emergency standby rescue proof", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
                     return;
                 }
             }

@@ -124,6 +124,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Stamp package version metadata
+        shell: pwsh
+        run: ./scripts/stamp-release-version.ps1 -Version '${{ needs.resolve.outputs.version }}'
+
       - name: Run full xUnit regression gate
         shell: pwsh
         run: |

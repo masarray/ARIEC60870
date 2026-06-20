@@ -1,3 +1,3 @@
 # Demo media
 
-`IEC-60870.webm` is the canonical landing-page hero media. `IEC-60870.gif` is kept as fallback for browsers that cannot play WebM. The GitHub Pages workflow copies the same files from `docs/assets/screenshots/` into `site/assets/screenshots/` before deploying the `site/` artifact.
+`The landing page now uses `ariec60870-evidence-workspace.webp` as the lightweight canonical preview so public site assets stay below the repository hygiene size limit. Keep animated raw captures outside public site folders; use release assets or external video hosting when a full motion demo is required.

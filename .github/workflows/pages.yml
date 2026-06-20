@@ -56,8 +56,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p site/assets/screenshots
-          cp docs/assets/screenshots/IEC-60870.webm site/assets/screenshots/IEC-60870.webm
-          cp docs/assets/screenshots/IEC-60870.gif site/assets/screenshots/IEC-60870.gif
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
