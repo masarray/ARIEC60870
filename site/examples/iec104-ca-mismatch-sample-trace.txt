@@ -1,0 +1,42 @@
+ARIEC60870 sanitized IEC-104 sample trace
+=========================================
+
+Purpose
+-------
+This sample trace is intentionally sanitized. It is not copied from a project site. Use it to explain the ARIEC60870 evidence workflow: raw traffic, readable interpretation, Smart Findings, and report output.
+
+Scenario
+--------
+A device answers the IEC-104 session and STARTDT succeeds, but application ASDUs are returned with a different Common Address than the test profile expects.
+
+Expected profile
+----------------
+Protocol: IEC 60870-5-104
+Endpoint: 192.0.2.10:2404 (documentation example address)
+Expected Common Address: 1
+Workflow: STARTDT, General Interrogation, value/event review, Smart Findings, PDF report
+
+Trace summary
+-------------
+[00:00.000] TX U-frame STARTDT activation
+[00:00.018] RX U-frame STARTDT confirmation
+[00:00.120] TX I-frame General Interrogation activation, CA=1
+[00:00.166] RX I-frame activation confirmation, CA=2
+[00:00.221] RX I-frame measured/status data, CA=2
+[00:00.250] RX S-frame acknowledgement
+
+Readable interpretation
+-----------------------
+The transport/session is alive because STARTDT was confirmed and I/S frame traffic is visible.
+The application layer does not match the expected project profile because the device answers with CA=2 while the test setup expects CA=1.
+
+Smart Finding example
+---------------------
+Problem: Device answered, but ASDU Common Address does not match the expected profile.
+Proof: RX ASDU uses CA=2; configured expected CA is 1.
+Likely cause: Wrong station address, wrong profile, wrong endpoint, or device configuration mismatch.
+Next step: Verify device CA, project interoperability document, endpoint selection, and ARIEC60870 setup.
+
+Evidence report notes
+---------------------
+Include session setup, selected trace rows, frame interpretation, Smart Findings, values/events affected by CA mismatch, and the final engineering conclusion.
