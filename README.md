@@ -14,13 +14,26 @@ Unlike a basic protocol tester that only shows pass/fail status or raw frames, A
 
 - Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
 - Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
+- Demo flow: [watch the GIF walkthrough](https://masarray.github.io/ARIEC60870/demo.html)
 - Evidence-focused alias: **ARIEC60870 Evidence Analyzer**.
 
 <p align="center">
-  <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="ARIEC60870 IEC 60870 protocol tester with raw TX/RX interpreter, event log, Smart Findings, and evidence report" width="92%">
+  <a href="https://masarray.github.io/ARIEC60870/demo.html">
+    <img src="docs/assets/screenshots/IEC-60870.gif" alt="ARIEC60870 IEC 60870 protocol tester demo showing raw TX/RX interpretation, Smart Findings, event log, and evidence report workflow" width="92%">
   </a>
 </p>
+
+## 30-second demo: raw frame → finding → report
+
+The demo shows the product story that makes ARIEC60870 different from a basic protocol tester:
+
+1. connect to an IEC 101, IEC 103, or IEC 104 endpoint in an authorized test session;
+2. capture TX/RX protocol evidence;
+3. inspect the selected raw frame with readable interpretation;
+4. review values, events, and Smart Findings;
+5. export a native PDF evidence report for project records.
+
+This flow is designed for engineers who need to explain **what happened**, **where the proof is**, and **what should be checked next** without writing repetitive paperwork from scratch.
 
 ## See what the device is really saying
 
@@ -61,6 +74,14 @@ Next step: Verify CA in device configuration, project documentation, and ARIEC60
 | Manual notes are needed after testing | Native PDF evidence report reduces repetitive paperwork |
 | Hard to teach juniors from raw traffic alone | Field Wiki connects protocol concepts to real evidence |
 | Troubleshooting often stops at “no response” | Helps check CA, IOA, GI, ACTCON, ACTTERM, Class 1, quality, and IEC-104 session symptoms |
+
+## Shareable evidence assets
+
+Use these pages when explaining the tool to engineers, vendors, QA teams, or project stakeholders:
+
+- [Demo walkthrough](https://masarray.github.io/ARIEC60870/demo.html) — the GIF story: connect, interpret, find, report.
+- [Sample IEC-104 trace](https://masarray.github.io/ARIEC60870/examples/iec104-ca-mismatch-sample-trace.txt) — sanitized text trace for learning and documentation.
+- [PDF Evidence Report](https://masarray.github.io/ARIEC60870/iec60870-pdf-evidence-report.html) — how evidence output supports FAT/SAT, commissioning, troubleshooting, homologation, certification attachment, vendor comparison, and handover.
 
 ## Website and user guide hub
 
