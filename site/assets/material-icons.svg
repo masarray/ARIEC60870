@@ -8,8 +8,11 @@
   <symbol id="help" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></symbol>
   <symbol id="download" viewBox="0 0 24 24"><path fill="currentColor" d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></symbol>
   <symbol id="play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></symbol>
+  <symbol id="smart-display" viewBox="0 0 24 24"><path fill="currentColor" d="M3 5c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2h-5v2h3v2H7v-2h3v-2H5c-1.1 0-2-.9-2-2V5zm2 0v11h14V5H5zm5 2.5 5 3-5 3v-6z"/></symbol>
   <symbol id="lan" viewBox="0 0 24 24"><path fill="currentColor" d="M13 7h-2v4H5v6H3v4h6v-4H7v-4h10v4h-2v4h6v-4h-2v-6h-6V7zm2-6H9v6h6V1z"/></symbol>
   <symbol id="troubleshoot" viewBox="0 0 24 24"><path fill="currentColor" d="M19.43 18.02c.36-.59.57-1.28.57-2.02 0-2.21-1.79-4-4-4s-4 1.79-4 4 1.79 4 4 4c.74 0 1.43-.21 2.02-.57L21.59 23 23 21.59l-3.57-3.57zM16 18c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM12 6V3H2v16h8.5c-.32-.6-.5-1.28-.5-2H4V5h6v3h3.5c.4 0 .77.08 1.12.21L12 6z"/></symbol>
+  <symbol id="build" viewBox="0 0 24 24"><path fill="currentColor" d="M22.7 19.3 13.6 10.2c.9-2.3.4-5-1.5-6.9C10.1 1.3 7.2.8 4.8 1.8l4.1 4.1-3 3-4.2-4.1C.7 7.2 1.3 10.1 3.3 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2-2c.4-.4.4-1 0-1.4z"/></symbol>
+  <symbol id="dashboard" viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></symbol>
   <symbol id="sync-alt" viewBox="0 0 24 24"><path fill="currentColor" d="M7 7h11l-4-4 1.41-1.41L21.83 8l-6.42 6.41L14 13l4-4H7V7zm10 10H6l4 4-1.41 1.41L2.17 16l6.42-6.41L10 11l-4 4h11v2z"/></symbol>
   <symbol id="send" viewBox="0 0 24 24"><path fill="currentColor" d="M2 21 23 12 2 3v7l15 2-15 2v7z"/></symbol>
   <symbol id="account-tree" viewBox="0 0 24 24"><path fill="currentColor" d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3h7zM7 9H4V5h3v4zm10 6h3v4h-3v-4zm0-10h3v4h-3V5z"/></symbol>
