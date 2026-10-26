@@ -115,6 +115,35 @@ public sealed class Iec101RejectedRxSessionTests
     }
 
     [Fact]
+    public async Task HealthyActiveWithForeignPrimaryOnlyStandbyNeverReportsHealthy()
+    {
+        var settings = CreateSettings(105);
+        var options = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new() { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
+            LinkB = new() { Name = "B", PortName = "FAKE-B", LinkAddress = 1 },
+            ActiveFailureThreshold = 2,
+            StandbyFailureThreshold = 1,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(50)
+        };
+        var session = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancySession(
+            options,
+            new ARIEC60870.Master.Transport.SimulatedIec101Transport(options.LinkA.ApplyTo(settings)),
+            new PrimaryOnlyTransport());
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(450), CancellationToken.None);
+        var snapshot = session.CreateSnapshot();
+
+        Assert.True(snapshot.LinkA.RxFrames > 0);
+        Assert.False(snapshot.LinkB.IsHealthy);
+        Assert.NotEqual(ARIEC60870.Master.Iec101.Redundancy.Iec101RedundancyControllerState.Healthy, snapshot.ControllerState);
+        Assert.DoesNotContain(result.Events, e =>
+            e.Summary.Contains("dual-link redundancy recovered", StringComparison.OrdinalIgnoreCase) ||
+            e.Summary.Contains("active link recovered", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task DualLinkForeignPrimaryRxCannotPromoteOrCertifyStandby()
     {
         var settings = CreateSettings(105);
