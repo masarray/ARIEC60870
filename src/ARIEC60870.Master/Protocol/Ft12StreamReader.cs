@@ -9,6 +9,7 @@ public sealed class Ft12StreamReader
 {
     private readonly IByteTransport _transport;
     private readonly int _linkAddressSize;
+    private readonly byte[] _oneByte = new byte[1];
 
     public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1)
     {
@@ -95,9 +96,16 @@ public sealed class Ft12StreamReader
 
     private async Task<byte?> ReadByteAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[1];
-        var read = await _transport.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-        return read <= 0 ? null : buffer[0];
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var read = await _transport.ReadAsync(_oneByte, cancellationToken).ConfigureAwait(false);
+            if (read > 0) return _oneByte[0];
+            // IByteTransport may report a transient empty read; only the
+            // enclosing receive deadline may terminate an in-progress frame.
+            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return null;
     }
 
     private async Task<byte[]?> ReadExactAsync(int count, CancellationToken cancellationToken)
@@ -110,7 +118,8 @@ public sealed class Ft12StreamReader
             var read = await _transport.ReadAsync(buffer.AsMemory(offset, count - offset), cancellationToken).ConfigureAwait(false);
             if (read <= 0)
             {
-                return null;
+                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+                continue;
             }
 
             offset += read;

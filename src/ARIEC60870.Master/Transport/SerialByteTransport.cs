@@ -31,7 +31,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             return ValueTask.CompletedTask;
         }
 
-        _serialPort = new SerialPort(_settings.PortName, _settings.BaudRate, _settings.Parity, _settings.DataBits, _settings.StopBits)
+        var port = new SerialPort(_settings.PortName, _settings.BaudRate, _settings.Parity, _settings.DataBits, _settings.StopBits)
         {
             ReadTimeout = _settings.ResponseTimeoutMs,
             // Keep write timeout independent from protocol response timeout. In field use, response
@@ -40,14 +40,32 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             // timeout creates noisy System.TimeoutException failures before the protocol timeout logic
             // can produce a clean diagnostic row.
             WriteTimeout = Math.Max(2000, _settings.ResponseTimeoutMs),
-            Handshake = Handshake.None,
-            DtrEnable = false,
-            RtsEnable = true
+            Handshake = _settings.SerialHandshake,
+            DtrEnable = _settings.SerialDtrEnable
         };
 
-        _serialPort.Open();
-        _serialPort.DiscardInBuffer();
-        _serialPort.DiscardOutBuffer();
+        // The OS owns RTS when hardware flow control is selected; assigning
+        // RtsEnable in that mode may throw and misrepresent actual line state.
+        if (_settings.SerialHandshake is not (Handshake.RequestToSend or Handshake.RequestToSendXOnXOff))
+        {
+            port.RtsEnable = _settings.SerialRtsEnable;
+        }
+
+        try
+        {
+            port.Open();
+            port.DiscardInBuffer();
+            port.DiscardOutBuffer();
+            _serialPort = port;
+            RecordInformational("IEC60870-SERIAL-OPEN-PROFILE",
+                $"Serial open: {_settings.SerialSummary}; {_settings.SerialControlLineSummary}; {ReadModemInputs(port)}.",
+                "This is a local OS/adapter observation, not proof that the SICAM RTU received frames.");
+        }
+        catch
+        {
+            port.Dispose();
+            throw;
+        }
 
         return ValueTask.CompletedTask;
     }
@@ -273,7 +291,33 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
-    private static string SafePortName(SerialPort serialPort)
+    private static string SafePortName(SerialPort serialPort)    // CTS/DSR/DCD are locally observed input states, never interpreted as RTU link health.
+    private static string ReadModemInputs(SerialPort port)
+    {
+        try
+        {
+            return $"CTS={(port.CtsHolding ? 1 : 0)}, DSR={(port.DsrHolding ? 1 : 0)}, DCD={(port.CDHolding ? 1 : 0)}";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or NotSupportedException)
+        {
+            return $"CTS/DSR/DCD unavailable ({ex.GetType().Name})";
+        }
+    }
+
+    private void RecordInformational(string code, string detail, string recommendation)
+    {
+        lock (_diagnosticsLock)
+        {
+            _diagnostics.Add(new TransportDiagnostic
+            {
+                Severity = "Info", Source = "SerialTransport", Code = code,
+                Message = "Serial adapter settings and modem input snapshot",
+                Detail = detail, Recommendation = recommendation
+            });
+        }
+    }
+
+
     {
         try
         {
@@ -295,7 +339,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 Source = "SerialTransport",
                 Code = code,
                 Message = message,
-                Detail = exception.Message,
+                Detail = $"{exception.Message}; {_settings.SerialControlLineSummary}",
                 Recommendation = recommendation,
                 ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
                 ExceptionMessage = exception.Message,

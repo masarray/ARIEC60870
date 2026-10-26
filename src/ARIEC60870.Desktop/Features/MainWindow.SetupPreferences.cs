@@ -130,6 +130,14 @@ public partial class MainWindow
 
             SetEditableComboText(BaudComboBox, prefs.BaudRate.ToString());
             SelectComboContent(SerialModeComboBox, string.IsNullOrWhiteSpace(prefs.SerialMode) ? "8E1" : prefs.SerialMode);
+            SelectComboContent(SerialHandshakeComboBox, prefs.SerialHandshake switch
+            {
+                "RequestToSend" => "RTS/CTS",
+                "XOnXOff" => "XON/XOFF",
+                _ => "None"
+            });
+            SerialRtsCheckBox.IsChecked = prefs.SerialRtsEnable;
+            SerialDtrCheckBox.IsChecked = prefs.SerialDtrEnable;
             TcpHostBox.Text = string.IsNullOrWhiteSpace(prefs.TcpHost) ? "127.0.0.1" : prefs.TcpHost;
             TcpPortBox.Text = prefs.TcpPort <= 0 ? "2404" : prefs.TcpPort.ToString();
             LinkAddressBox.Text = prefs.LinkAddress.ToString();
@@ -209,6 +217,9 @@ public partial class MainWindow
                 PortName = settings.PortName,
                 BaudRate = settings.BaudRate,
                 SerialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? SerialModeComboBox.Text,
+                SerialHandshake = settings.SerialHandshake.ToString(),
+                SerialRtsEnable = settings.SerialRtsEnable,
+                SerialDtrEnable = settings.SerialDtrEnable,
                 TcpHost = settings.TcpHost,
                 TcpPort = settings.TcpPort,
                 LinkAddress = settings.LinkAddress,
@@ -345,6 +356,9 @@ public partial class MainWindow
         public string PortName { get; set; } = "COM1";
         public int BaudRate { get; set; } = 9600;
         public string SerialMode { get; set; } = "8E1";
+        public string SerialHandshake { get; set; } = "None";
+        public bool SerialRtsEnable { get; set; } = true;
+        public bool SerialDtrEnable { get; set; } = false;
         public string TcpHost { get; set; } = "127.0.0.1";
         public int TcpPort { get; set; } = 2404;
         public int LinkAddress { get; set; } = 1;

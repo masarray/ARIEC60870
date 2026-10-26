@@ -22,7 +22,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
-    private byte[] _lastTxFrame = Array.Empty<byte>();
+    private byte[] _lastTxFrame = Array.Empty<byte>(); 
+    private readonly Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
@@ -575,6 +576,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
         _lastTxFrame = frame;
+        _transmitHistory.Record(frame);
         _counters.TxFrames++;
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
@@ -624,7 +626,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
             _counters.RxFrames++; // Physical RX bytes, not necessarily a valid outstation reply.
             var candidate = _ft12.Decode(raw);
-            var validation = Iec101SecondaryResponseValidator.Validate(candidate, _settings.LinkAddress, _lastTxFrame);
+            var validation = Iec101SecondaryResponseValidator.Validate(
+                candidate, _settings.LinkAddress, _lastTxFrame,
+                _transmitHistory.MatchesEarlier(candidate.RawBytes));
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;
@@ -632,9 +636,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             }
 
             rejected++;
+            var totalRejected = ++_counters.RejectedFrames;
+            if (validation.Code is "IEC101-RX-TX-ECHO" or "IEC101-RX-DELAYED-TX-ECHO") _counters.TxEchoFrames++;
+            if (validation.Code == "IEC101-RX-FOREIGN-PRIMARY") _counters.ForeignPrimaryFrames++;
+            if (validation.Code == "IEC101-RX-LINK-ADDRESS-MISMATCH") _counters.LinkAddressMismatchFrames++;
             if (!candidate.IsChecksumValid) _counters.ChecksumErrors++;
             if (candidate.Format == Ft12FrameFormat.Malformed) _counters.MalformedFrames++;
-            PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
+            if (totalRejected <= 4 || (totalRejected & (totalRejected - 1)) == 0)
+                PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
         }
         sw.Stop();
         if (acceptedFrame is null)
@@ -642,7 +651,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
-            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}.", category: "Warning", dataClass: dataClass);
+            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
             return null;
         }
 
@@ -726,10 +735,10 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         Ft12FrameDecode decoded, Iec101SecondaryResponseValidation validation,
         string dataClass, string reason, int rejectedInExchange)
     {
-        var context = $"Configured serial={_settings.SerialSummary}; transmission={_settings.TransmissionMode}; RTS=enabled, DTR=disabled, handshake=None (SerialByteTransport defaults); " +
+        var context = $"Configured serial={_settings.SerialSummary}; transmission={_settings.TransmissionMode}; {_settings.SerialControlLineSummary}; " +
                       $"COM={_settings.PortName}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); actual Link={decoded.LinkAddress?.ToString() ?? "-"}; " +
                       $"PRM={(decoded.LinkControl?.Prm == true ? 1 : 0)}; checksum={decoded.IsChecksumValid}; " +
-                      $"request={reason}; rejected-in-exchange={rejectedInExchange}; last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
+                      $"request={reason}; rejected-in-exchange={rejectedInExchange}; total-rejected={_counters.RejectedFrames}; last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.SlaveToMaster,

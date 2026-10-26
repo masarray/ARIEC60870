@@ -25,7 +25,8 @@ public sealed class MasterMarkdownReportWriter
 
         sb.AppendLine("## Connection");
         sb.AppendLine();
-        sb.AppendLine($"- Serial: `{result.Settings.SerialSummary}`");
+        sb.AppendLine($"- Serial: `{result.Settings.SerialSummary}`"); 
+        sb.AppendLine($"- Serial flow/lines: `{result.Settings.SerialControlLineSummary}`");
         sb.AppendLine($"- Mapping profile file: `{(string.IsNullOrWhiteSpace(result.Settings.MappingProfilePath) ? "not loaded" : result.Settings.MappingProfilePath)}`");
         sb.AppendLine($"- Timeout: `{result.Settings.ResponseTimeoutMs} ms`");
         sb.AppendLine($"- Class 2 interval: `{result.Settings.Class2PollIntervalMs} ms`");

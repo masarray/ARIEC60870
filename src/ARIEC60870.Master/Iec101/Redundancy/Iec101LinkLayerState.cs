@@ -24,6 +24,10 @@ public sealed class Iec101LinkLayerState
     public int UserDataResponses { get; set; }
     public int ChecksumErrors { get; set; }
     public int MalformedFrames { get; set; }
+    public int RejectedFrames { get; set; }
+    public int TxEchoFrames { get; set; }
+    public int ForeignPrimaryFrames { get; set; }
+    public int LinkAddressMismatchFrames { get; set; }
 
     public void MarkGoodResponse(DateTime utcNow)
     {

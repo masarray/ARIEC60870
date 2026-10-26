@@ -333,6 +333,15 @@ public partial class MainWindow
             "8O1" => Parity.Odd,
             _ => Parity.Even
         };
+        var flowControl = (SerialHandshakeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "None";
+        settings.SerialHandshake = flowControl switch
+        {
+            "RTS/CTS" => Handshake.RequestToSend,
+            "XON/XOFF" => Handshake.XOnXOff,
+            _ => Handshake.None
+        };
+        settings.SerialRtsEnable = SerialRtsCheckBox.IsChecked == true;
+        settings.SerialDtrEnable = SerialDtrCheckBox.IsChecked == true;
 
         return settings;
     }

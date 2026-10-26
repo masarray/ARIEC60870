@@ -32,6 +32,13 @@ public sealed class Iec103MasterSettings
     public int DataBits { get; set; } = 8;
     public Parity Parity { get; set; } = Parity.Even;
     public StopBits StopBits { get; set; } = StopBits.One;
+    // 3-wire RS232 defaults preserved; RTS/CTS handshake is explicitly opt-in.
+    public Handshake SerialHandshake { get; set; } = Handshake.None;
+    public bool SerialRtsEnable { get; set; } = true;
+    public bool SerialDtrEnable { get; set; }
+    public string SerialControlLineSummary =>
+        $"Flow={SerialHandshake}, RTS={(SerialHandshake is Handshake.RequestToSend or Handshake.RequestToSendXOnXOff ? "driver-controlled" : SerialRtsEnable ? "ON" : "OFF")}, DTR={(SerialDtrEnable ? "ON" : "OFF")}";
+
 
     public int LinkAddress { get; set; } = 1;
     public int CommonAddress { get; set; } = 1;
