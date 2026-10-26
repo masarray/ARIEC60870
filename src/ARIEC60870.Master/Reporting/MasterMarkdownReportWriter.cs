@@ -25,7 +25,8 @@ public sealed class MasterMarkdownReportWriter
 
         sb.AppendLine("## Connection");
         sb.AppendLine();
-        sb.AppendLine($"- Serial: `{result.Settings.SerialSummary}`");
+        sb.AppendLine($"- Serial: `{result.Settings.SerialSummary}`"); 
+        sb.AppendLine($"- Serial flow/lines: `{result.Settings.SerialControlLineSummary}`");
         sb.AppendLine($"- Mapping profile file: `{(string.IsNullOrWhiteSpace(result.Settings.MappingProfilePath) ? "not loaded" : result.Settings.MappingProfilePath)}`");
         sb.AppendLine($"- Timeout: `{result.Settings.ResponseTimeoutMs} ms`");
         sb.AppendLine($"- Class 2 interval: `{result.Settings.Class2PollIntervalMs} ms`");
@@ -55,6 +56,10 @@ public sealed class MasterMarkdownReportWriter
         sb.AppendLine($"| Transport exceptions captured | {c.TransportExceptions} |");
         sb.AppendLine($"| Busy responses | {c.BusyResponses} |");
         sb.AppendLine($"| Checksum errors / malformed | {c.ChecksumErrors} / {c.MalformedFrames} |");
+        sb.AppendLine($"| IEC-101 rejected RX frames | {c.RejectedFrames} |");
+        sb.AppendLine($"| IEC-101 recent/delayed TX echoes | {c.TxEchoFrames} |");
+        sb.AppendLine($"| IEC-101 foreign primary frames | {c.ForeignPrimaryFrames} |");
+        sb.AppendLine($"| IEC-101 secondary wrong-link frames | {c.LinkAddressMismatchFrames} |");
         sb.AppendLine($"| Avg / Max response time | {c.AverageResponseTimeMs:F1} ms / {c.MaxResponseTimeMs} ms |");
         sb.AppendLine($"| Value points | {result.ValuePoints.Count} |");
         sb.AppendLine($"| Relay event log entries retained | {result.EventLog.Count} |");

@@ -31,6 +31,10 @@ public sealed class Iec101RedundancyChannelSnapshot
     public int UserDataResponses { get; init; }
     public int ChecksumErrors { get; init; }
     public int MalformedFrames { get; init; }
+    public int RejectedFrames { get; init; }
+    public int TxEchoFrames { get; init; }
+    public int ForeignPrimaryFrames { get; init; }
+    public int LinkAddressMismatchFrames { get; init; }
 }
 
 public sealed class Iec101RedundancySessionSnapshot

@@ -24,6 +24,10 @@ public sealed class Iec103MasterCounters
     public int BusyResponses { get; set; }
     public int ChecksumErrors { get; set; }
     public int MalformedFrames { get; set; }
+    public int RejectedFrames { get; set; }
+    public int TxEchoFrames { get; set; }
+    public int ForeignPrimaryFrames { get; set; }
+    public int LinkAddressMismatchFrames { get; set; }
     public int Class1DrainBursts { get; set; }
     public int Class1DrainFrames { get; set; }
     public int Class1DrainStoppedByNoData { get; set; }

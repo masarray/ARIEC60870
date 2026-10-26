@@ -846,7 +846,13 @@ public partial class MainWindow
         {
             PulseLed(DiagLed);
             AddDiagnosticRow(new DiagnosticRow(item));
-            UpdateStableHeader("Attention", ChooseOperatorStatus(item));
+            // A successful COM-profile snapshot is informational and must not
+            // turn the stable session header into a false Attention state.
+            if (!string.Equals(item.PollingReason, "IEC60870-SERIAL-OPEN-PROFILE", StringComparison.Ordinal)
+                && !string.Equals(item.PollingReason, "IEC60870-SERIAL-CLOSE-PROFILE", StringComparison.Ordinal))
+            {
+                UpdateStableHeader("Attention", ChooseOperatorStatus(item));
+            }
         }
 
         // Do not push every protocol state into the top session card. High-volume

@@ -205,7 +205,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly
         };
 
-        var linkA = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedReadCount: 3);
+        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 3);
         var session = new Iec101DualLinkRedundancySession(
             options,
             linkA,
@@ -244,7 +244,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             FailbackPolicy = Iec101DualLinkFailbackPolicy.PreferredLinkAfterStableRecovery
         };
 
-        var linkA = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedReadCount: 2);
+        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 2);
         var session = new Iec101DualLinkRedundancySession(
             options,
             linkA,
@@ -278,11 +278,11 @@ public sealed class Iec101DualLinkRedundancySessionTests
             FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly
         };
 
-        var linkA = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedReadCount: 1);
+        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 1);
         // Let B first prove a genuine secondary response. Drop its RX only after
         // it is promoted; byte-level damage before promotion no longer counts as
         // health evidence (and should never trigger an unsafe rescue).
-        var linkB = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)), droppedReadCount: 0);
+        var linkB = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)), droppedResponseCount: 0);
         var session = new Iec101DualLinkRedundancySession(options, linkA, linkB);
 
         var runTask = session.RunForAsync(TimeSpan.FromMilliseconds(3600), CancellationToken.None);
@@ -292,7 +292,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             await Task.Delay(20);
         }
         Assert.Contains(session.FailoverJournal, x => x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B");
-        linkB.DropNextReads(1); // Actively corrupt B's next response after valid promotion.
+        linkB.DropNextResponses(1); // Actively corrupt B's next response after valid promotion.
         await runTask;
         var completed = session.FailoverJournal.Where(x => x.Completed).ToArray();
         var snapshot = session.CreateSnapshot();
@@ -325,35 +325,43 @@ public sealed class Iec101DualLinkRedundancySessionTests
             MaxRetainedEvidenceEvents = 2000
         };
 
-    private sealed class DroppingReadTransport : IByteTransport
+    // Drop entire scripted RTU exchanges, not transient zero-byte reads:
+    // FT1.2 P0 correctly tolerates the latter within its receive deadline.
+    private sealed class DroppingResponseTransport : IByteTransport
     {
         private readonly IByteTransport _inner;
-        private int _remainingDroppedReads;
+        private int _remainingDroppedResponses;
 
-        public DroppingReadTransport(IByteTransport inner, int droppedReadCount)
+        public DroppingResponseTransport(IByteTransport inner, int droppedResponseCount)
         {
             _inner = inner;
-            _remainingDroppedReads = droppedReadCount;
+            _remainingDroppedResponses = Math.Max(0, droppedResponseCount);
         }
 
-        public void DropNextReads(int count) => Volatile.Write(ref _remainingDroppedReads, Math.Max(0, count));
+        public void DropNextResponses(int count) =>
+            Volatile.Write(ref _remainingDroppedResponses, Math.Max(0, count));
 
         public bool IsOpen => _inner.IsOpen;
         public ValueTask OpenAsync(CancellationToken cancellationToken) => _inner.OpenAsync(cancellationToken);
         public ValueTask CloseAsync(CancellationToken cancellationToken) => _inner.CloseAsync(cancellationToken);
-        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken) => _inner.WriteAsync(buffer, cancellationToken);
 
-        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
-            if (Volatile.Read(ref _remainingDroppedReads) > 0)
+            while (true)
             {
-                _remainingDroppedReads--;
-                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-                return 0;
+                var pending = Volatile.Read(ref _remainingDroppedResponses);
+                if (pending <= 0) return _inner.WriteAsync(buffer, cancellationToken);
+                if (Interlocked.CompareExchange(ref _remainingDroppedResponses, pending - 1, pending) == pending)
+                {
+                    // Do not feed this request to the simulator. No response will
+                    // be queued; the master must observe a bounded real timeout.
+                    return ValueTask.CompletedTask;
+                }
             }
-
-            return await _inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
         }
+
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken) =>
+            _inner.ReadAsync(buffer, cancellationToken);
 
         public void Dispose() => _inner.Dispose();
         public ValueTask DisposeAsync() => _inner.DisposeAsync();

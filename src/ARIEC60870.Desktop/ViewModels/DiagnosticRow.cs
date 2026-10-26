@@ -12,9 +12,12 @@ public sealed class DiagnosticRow
         Time = item.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff");
         Severity = NormalizeSeverity(item.Category);
         Source = item.DirectionText == "STATE" ? item.State.ToString() : item.DirectionText;
-        Code = item.Category;
+        Code = item.PollingReason.StartsWith("IEC101-RX-", StringComparison.Ordinal)
+            || item.PollingReason.StartsWith("IEC60870-SERIAL-", StringComparison.Ordinal)
+            || item.PollingReason.StartsWith("IEC60870-TRANSPORT-", StringComparison.Ordinal)
+            ? item.PollingReason : item.Category;
         Message = string.IsNullOrWhiteSpace(item.OperatorMessage) ? item.Summary : item.OperatorMessage;
-        Detail = string.IsNullOrWhiteSpace(item.ProtocolMeaning) ? item.Detail : item.ProtocolMeaning;
+        Detail = string.IsNullOrWhiteSpace(item.Detail) ? item.ProtocolMeaning : item.Detail;
         Recommendation = item.OperatorAction;
         ExceptionType = item.ExceptionType;
         StackTrace = item.ExceptionStackTrace;

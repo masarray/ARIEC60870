@@ -49,3 +49,16 @@ The report is acceptable when it can show:
 - application image object count;
 - command route after switchover;
 - no standby Class 1/Class 2 drain evidence.
+
+## SICAM serial P0/P1 checks
+
+| Injected condition | Acceptance evidence |
+| --- | --- |
+| No RTU / silent line | Timeout, no valid secondary response or false Healthy |
+| Latest/older TX echo | RX diagnostic TX-ECHO/DELAYED-TX-ECHO; no FCB/GI advancement |
+| Foreign primary LA=105 on standby LA=1 | FOREIGN-PRIMARY; standby not promoted |
+| Wrong secondary link address | LINK-ADDRESS-MISMATCH, no process value update |
+| Fragmented RX with temporary 0-byte reads | Valid frame recovered before original deadline |
+| Valid secondary after invalid primary | Valid reply accepted in same exchange, no extra TX |
+| Open/close COM | Serial profile including RTS/DTR/handshake and observed modem inputs |
+| GI after verified link | Correct CA/COT/IOA, ACTCON and ACTTERM as supported |

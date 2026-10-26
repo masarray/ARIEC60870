@@ -14,7 +14,8 @@ public static class Iec101SecondaryResponseValidator
     public const int MaxRejectedFramesPerExchange = 16;
 
     public static Iec101SecondaryResponseValidation Validate(
-        Ft12FrameDecode frame, int expectedLinkAddress, ReadOnlySpan<byte> lastTransmit)
+        Ft12FrameDecode frame, int expectedLinkAddress, ReadOnlySpan<byte> lastTransmit,
+        bool matchesEarlierTransmit = false)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
@@ -45,10 +46,11 @@ public static class Iec101SecondaryResponseValidator
                               && bytes.AsSpan().SequenceEqual(lastTransmit)
                               && lastTransmit.Length > 0;
             var code = isExactEcho ? "IEC101-RX-TX-ECHO"
+                : matchesEarlierTransmit ? "IEC101-RX-DELAYED-TX-ECHO"
                 : frame.LinkAddress != expectedLinkAddress ? "IEC101-RX-FOREIGN-PRIMARY"
                 : "IEC101-RX-UNEXPECTED-PRIMARY";
             return Rejected(code,
-                $"PRM=1 (primary/master frame, expected secondary PRM=0); received Link={frame.LinkAddress?.ToString() ?? "-"}, expected Link={expectedLinkAddress}; exact last-TX echo={isExactEcho}; FC={control.FunctionCode}. Could be echo, another master, crossover, or wrong link mode. The trace alone cannot identify the physical cause.");
+                $"PRM=1 (primary/master frame, expected secondary PRM=0); received Link={frame.LinkAddress?.ToString() ?? "-"}, expected Link={expectedLinkAddress}; exact last-TX echo={isExactEcho}; earlier-TX match={matchesEarlierTransmit}; FC={control.FunctionCode}. Could be echo, another master, crossover, or wrong link mode. The trace alone cannot identify the physical cause.");
         }
 
         if (frame.LinkAddress != expectedLinkAddress)
@@ -69,7 +71,8 @@ public static class Iec101SecondaryResponseValidator
     }
 
     public static bool CanAdvanceFcb(Ft12FrameDecode? frame)
-        => frame is not null
+        => frame is { IsChecksumValid: true, IsLengthValid: true }
+           && frame.Format != Ft12FrameFormat.Malformed
            && (frame.IsSingleCharacterAck
                || (frame.LinkControl is { Prm: false } link
                    && link.Dfc != true

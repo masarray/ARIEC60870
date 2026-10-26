@@ -1648,6 +1648,25 @@
                                         </ComboBox>
                                     </StackPanel>
                                 </Grid>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Flow control" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <ComboBox x:Name="SerialHandshakeComboBox" SelectedIndex="0" ToolTip="None for three-wire RS232; RTS/CTS only if the converter and RTU wiring support hardware flow control.">
+                                            <ComboBoxItem Content="None" />
+                                            <ComboBoxItem Content="RTS/CTS" />
+                                            <ComboBoxItem Content="XON/XOFF" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Output lines" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox x:Name="SerialRtsCheckBox" Content="RTS" IsChecked="True" Margin="0,5,12,0" ToolTip="RTS forced output only when hardware RTS/CTS flow control is disabled." />
+                                            <CheckBox x:Name="SerialDtrCheckBox" Content="DTR" IsChecked="False" Margin="0,5,0,0" ToolTip="DTR output asserted at COM open. Only enable if the connected device/converter requires it." />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="Use None for 3-wire RS232. RTS/CTS requires matching physical wiring; a valid TX/RX LED is not proof of an IEC-101 response." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="1,0,0,10" />
                             </StackPanel>
 
                             <StackPanel x:Name="DualLinkBackupPanel" Visibility="Collapsed" Margin="0,0,0,14">
