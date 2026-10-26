@@ -206,7 +206,23 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 cancellationToken).ConfigureAwait(false);
         }
 
-        SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy running", $"Active={_active.Name}; standby={_standby.Name}; standby is supervised without Class 1/Class 2 polling.");
+        // An open COM port or checksum-valid primary echo is not evidence that a
+        // secondary station answered. Do not report a healthy controller during
+        // startup until both channels have a validated secondary response.
+        if (!_active.IsHealthy || !_standby.IsHealthy)
+        {
+            SetControllerState(
+                Iec101RedundancyControllerState.Degraded,
+                "IEC-101 dual-link secondary response not verified",
+                $"Active={_active.Name}, validated={_active.IsHealthy}; standby={_standby.Name}, validated={_standby.IsHealthy}. " +
+                "Check RX rejection diagnostics, PRM, Link Address and physical serial routing.",
+                "Warning");
+        }
+        else
+        {
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy running",
+                $"Active={_active.Name}; standby={_standby.Name}; both secondary links validated.");
+        }
     }
 
     private async Task RunOneSchedulerCycleAsync(CancellationToken cancellationToken)
