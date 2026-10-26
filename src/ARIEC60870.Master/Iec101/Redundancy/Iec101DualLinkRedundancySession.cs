@@ -541,10 +541,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        // Overall dual-link health requires both channels to have proven a valid
+        // secondary response. A recovering active link alone cannot certify standby.
         if (_active.IsHealthy
+            && _standby?.IsHealthy == true
             && _controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering)
         {
-            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 active link recovered", $"Active={_active.Name}; standby={_standby?.Name ?? "-"}; reason={reason}.");
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 active link recovered", $"Active={_active.Name}; standby={_standby.Name}; both secondary links verified; reason={reason}.");
         }
 
         if (_active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold)
