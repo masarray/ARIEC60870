@@ -41,6 +41,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
           dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build 2>&1 | Tee-Object -FilePath artifacts/test-results/protocol-smoke-tests.log
+          if ($LASTEXITCODE -ne 0) { throw "Protocol smoke tests failed with exit code $LASTEXITCODE." }
 
       - name: Run xUnit regression suites with TRX and coverage
         shell: pwsh
@@ -63,6 +64,7 @@ jobs:
               --logger "trx;LogFileName=$name.trx" `
               --results-directory artifacts/test-results `
               --collect "XPlat Code Coverage"
+            if ($LASTEXITCODE -ne 0) { throw "Regression suite $project failed with exit code $LASTEXITCODE." }
           }
 
       - name: Upload test and coverage artifacts
