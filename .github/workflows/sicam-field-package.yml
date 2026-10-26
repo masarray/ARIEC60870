@@ -61,9 +61,9 @@ jobs:
           @(
             '### SICAM A8000 P0/P1 field-testing package'
             ''
-            "| Source commit | `$exeInfo` |"
-            "| Portable ZIP | `$(Split-Path $package -Leaf)` |"
-            "| SHA-256 | `$hash` |"
+            "| Source commit | $exeInfo |"
+            "| Portable ZIP | $(Split-Path $package -Leaf) |"
+            "| SHA-256 | $hash |"
             '| Usage | Extract ZIP, run ARIEC60870.exe, select IEC-101 Serial, then export ProtocolTrace |'
             '| Classification | Engineering/FAT pre-release, **not** an interoperability-certified release |'
           ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
