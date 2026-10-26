@@ -71,6 +71,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         {
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            DrainTransportDiagnostics("Open transport");
             SetState(Iec103MasterState.Connected, "IEC-101 connected", _settings.SerialSummary);
 
             if (_settings.ResetRemoteLinkOnConnect)
@@ -946,7 +947,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         if (_transport is not ITransportDiagnosticSource source) return;
         foreach (var d in source.DrainDiagnostics())
         {
-            AddEvent(new Iec103MasterEvidenceEvent { Direction = FrameDirection.Unknown, State = _state, Category = d.Severity, PollingReason = d.Code, Summary = d.Message, Detail = d.Detail, OperatorMessage = d.Message, ProtocolMeaning = d.Detail, OperatorAction = d.Recommendation });
+            AddEvent(new Iec103MasterEvidenceEvent { Direction = FrameDirection.Unknown, State = _state, Category = d.Severity == "Info" ? "Diagnostic" : d.Severity, PollingReason = d.Code, Summary = d.Message, Detail = d.Detail, OperatorMessage = d.Message, ProtocolMeaning = d.Detail, OperatorAction = d.Recommendation });
         }
     }
 

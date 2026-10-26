@@ -68,12 +68,20 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
         State = role == Iec101RedundancyChannelRole.Active ? Iec101RedundancyChannelState.ActivePolling : Iec101RedundancyChannelState.StandbySupervising;
         PublishState(Iec101RedundancyEventKind.ChannelOpened, $"{Name} opened as {role}", Endpoint.ToString());
+        DrainTransportDiagnostics();
     }
 
     public async Task CloseAsync(CancellationToken cancellationToken)
     {
         State = Iec101RedundancyChannelState.Closed;
-        await _transport.CloseAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _transport.CloseAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            DrainTransportDiagnostics();
+        }
         PublishState(Iec101RedundancyEventKind.ChannelClosed, $"{Name} closed", Endpoint.ToString());
     }
 
@@ -495,6 +503,30 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             Asdu = asdu,
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds)
         };
+    }
+
+    private void DrainTransportDiagnostics()
+    {
+        if (_transport is not ITransportDiagnosticSource source) return;
+        foreach (var d in source.DrainDiagnostics())
+        {
+            _publish(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.Unknown,
+                State = Iec103MasterState.NormalClass2Polling,
+                Category = d.Severity == "Info" ? "Diagnostic" : d.Severity,
+                PollingReason = d.Code,
+                DataClass = DecorateDataClass("Transport"),
+                Summary = $"{Name} · {d.Message}",
+                Detail = $"{Name} ({_settings.PortName}): {d.Detail}",
+                OperatorMessage = d.Message,
+                ProtocolMeaning = d.Detail,
+                OperatorAction = d.Recommendation,
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                LinkAddress = _settings.LinkAddress,
+                SignalGroup = "IEC-101 Link Diagnostics"
+            });
+        }
     }
 
     private void PublishRejectedIec101Rx(

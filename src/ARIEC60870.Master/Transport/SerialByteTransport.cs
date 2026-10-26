@@ -84,6 +84,9 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         {
             if (serialPort.IsOpen)
             {
+                RecordInformational("IEC60870-SERIAL-CLOSE-PROFILE",
+                    $"Before close: {_settings.SerialControlLineSummary}; {ReadModemInputs(serialPort)}.",
+                    "Modem inputs describe the local serial adapter, not IEC-101 secondary link health.");
                 serialPort.Close();
             }
         }

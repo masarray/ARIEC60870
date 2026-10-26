@@ -56,6 +56,10 @@ public sealed class MasterMarkdownReportWriter
         sb.AppendLine($"| Transport exceptions captured | {c.TransportExceptions} |");
         sb.AppendLine($"| Busy responses | {c.BusyResponses} |");
         sb.AppendLine($"| Checksum errors / malformed | {c.ChecksumErrors} / {c.MalformedFrames} |");
+        sb.AppendLine($"| IEC-101 rejected RX frames | {c.RejectedFrames} |");
+        sb.AppendLine($"| IEC-101 recent/delayed TX echoes | {c.TxEchoFrames} |");
+        sb.AppendLine($"| IEC-101 foreign primary frames | {c.ForeignPrimaryFrames} |");
+        sb.AppendLine($"| IEC-101 secondary wrong-link frames | {c.LinkAddressMismatchFrames} |");
         sb.AppendLine($"| Avg / Max response time | {c.AverageResponseTimeMs:F1} ms / {c.MaxResponseTimeMs} ms |");
         sb.AppendLine($"| Value points | {result.ValuePoints.Count} |");
         sb.AppendLine($"| Relay event log entries retained | {result.EventLog.Count} |");

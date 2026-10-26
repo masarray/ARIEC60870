@@ -1203,6 +1203,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         _counters.Timeouts = _linkA.LinkState.ConsecutiveTimeouts + _linkB.LinkState.ConsecutiveTimeouts;
         _counters.ChecksumErrors = _linkA.LinkState.ChecksumErrors + _linkB.LinkState.ChecksumErrors;
         _counters.MalformedFrames = _linkA.LinkState.MalformedFrames + _linkB.LinkState.MalformedFrames;
+        _counters.RejectedFrames = _linkA.LinkState.RejectedFrames + _linkB.LinkState.RejectedFrames;
+        _counters.TxEchoFrames = _linkA.LinkState.TxEchoFrames + _linkB.LinkState.TxEchoFrames;
+        _counters.ForeignPrimaryFrames = _linkA.LinkState.ForeignPrimaryFrames + _linkB.LinkState.ForeignPrimaryFrames;
+        _counters.LinkAddressMismatchFrames = _linkA.LinkState.LinkAddressMismatchFrames + _linkB.LinkState.LinkAddressMismatchFrames;
         _counters.NoDataResponses = Math.Max(_counters.NoDataResponses, _linkA.LinkState.NoDataResponses + _linkB.LinkState.NoDataResponses);
         _counters.UserDataResponses = Math.Max(_counters.UserDataResponses, _linkA.LinkState.UserDataResponses + _linkB.LinkState.UserDataResponses);
     }
