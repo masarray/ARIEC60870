@@ -20,6 +20,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly Action<Iec103MasterEvidenceEvent> _publish;
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
+    private byte[] _lastTxFrame = Array.Empty<byte>();
 
     public Iec101DualLinkChannel(
         Iec101DualLinkEndpoint endpoint,
@@ -45,8 +46,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public Iec101RedundancyChannelState State { get; private set; } = Iec101RedundancyChannelState.Closed;
     public Iec101LinkLayerState LinkState { get; } = new();
     public bool IsOpen => _transport.IsOpen;
-    public bool IsHealthy => IsOpen && LinkState.ConsecutiveFailures == 0;
-    public bool IsPromotable(int failureThreshold) => IsOpen && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
+    public bool IsHealthy => IsOpen && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures == 0;
+    public bool IsPromotable(int failureThreshold) => IsOpen && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
     public bool HasRecentGoodResponse(TimeSpan window)
         => IsOpen
            && LinkState.ConsecutiveFailures == 0
@@ -54,12 +55,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
            && DateTime.UtcNow - lastGood <= window;
 
     public bool CanRescueFailedActive(int failureThreshold, TimeSpan recentGoodWindow)
-        => IsPromotable(failureThreshold)
-           || HasRecentGoodResponse(recentGoodWindow)
-           || (IsOpen
-               && State == Iec101RedundancyChannelState.StandbySupervising
-               && LinkState.ConsecutiveFailures == 0
-               && LinkState.RxFrames > 0);
+        => IsPromotable(failureThreshold) && HasRecentGoodResponse(recentGoodWindow);
 
     public async Task OpenAsync(Iec101RedundancyChannelRole role, CancellationToken cancellationToken)
     {
@@ -320,6 +316,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
     {
         await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+        _lastTxFrame = frame;
         LinkState.TxFrames++;
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
@@ -357,10 +354,35 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
-        var raw = await _reader.ReadFrameAsync(_settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        byte[]? raw = null;
+        Ft12FrameDecode? acceptedFrame = null;
+        Iec101SecondaryResponseValidation validation = default;
+        var rejected = 0;
+        while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
+               && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
+        {
+            raw = await _reader.ReadFrameAsync(
+                Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
+                cancellationToken).ConfigureAwait(false);
+            if (raw is null || raw.Length == 0) break;
+
+            LinkState.RxFrames++; // Count physical frames separately from validated responses.
+            var candidate = _ft12.Decode(raw);
+            validation = Iec101SecondaryResponseValidator.Validate(candidate, _settings.LinkAddress, _lastTxFrame);
+            if (validation.IsValid)
+            {
+                acceptedFrame = candidate;
+                break;
+            }
+
+            rejected++;
+            if (!candidate.IsChecksumValid) LinkState.ChecksumErrors++;
+            if (candidate.Format == Ft12FrameFormat.Malformed) LinkState.MalformedFrames++;
+            PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
+        }
         sw.Stop();
         var now = DateTime.UtcNow;
-        if (raw is null || raw.Length == 0)
+        if (acceptedFrame is null)
         {
             LinkState.MarkTimeout(now);
             State = Iec101RedundancyChannelState.TimeoutSuspect;
@@ -372,7 +394,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
                 DataClass = DecorateDataClass(dataClass),
                 PollingReason = reason,
                 Summary = $"{Name} response timeout",
-                Detail = $"No outstation response within {_settings.ResponseTimeoutMs} ms after {reason}. Consecutive failures={LinkState.ConsecutiveFailures}.",
+                Detail = $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}. Rejected RX frames={rejected}; consecutive failures={LinkState.ConsecutiveFailures}.",
                 OperatorMessage = $"{Name} timeout",
                 ProtocolMeaning = "IEC-101 dual-link channel did not receive a valid FT1.2 response in the configured timeout.",
                 OperatorAction = Role == Iec101RedundancyChannelRole.Active ? "Controller may fail over when the active failure threshold is reached." : "Keep active link unchanged; monitor standby recovery.",
@@ -383,11 +405,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             return new Iec101ChannelExchangeResult { TimedOut = true };
         }
 
-        LinkState.RxFrames++;
         LinkState.MarkGoodResponse(now);
-        var decoded = _ft12.Decode(raw);
-        if (!decoded.IsChecksumValid) LinkState.ChecksumErrors++;
-        if (decoded.Format == Ft12FrameFormat.Malformed) LinkState.MalformedFrames++;
+        var decoded = acceptedFrame;
 
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
         _observeAsdu(asdu, now);
@@ -416,7 +435,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             OperatorMessage = asdu?.ShortMeaning ?? decoded.ShortMeaning,
             ProtocolMeaning = asdu?.ShortMeaning ?? decoded.ShortMeaning,
             OperatorAction = decoded.LinkControl?.Acd == true ? "Active link should drain Class 1. Standby must not drain the event queue." : "Continue configured dual-link policy.",
-            RawHex = ToHex(raw),
+            RawHex = ToHex(raw!),
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds),
             Frame = decoded,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
@@ -444,7 +463,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
-        PublishAdditionalObjectEvents(decoded, asdu, raw, dataClass, reason, sw.ElapsedMilliseconds);
+        PublishAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
 
         State = Role == Iec101RedundancyChannelRole.Active
             ? Iec101RedundancyChannelState.ActivePolling
@@ -452,7 +471,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
         return new Iec101ChannelExchangeResult
         {
-            Succeeded = decoded.Format != Ft12FrameFormat.Malformed && decoded.IsChecksumValid,
+            Succeeded = validation.AdvancesFcb,
             IsNoData = isNoData,
             IsUserData = isUserData,
             Acd = LinkState.Acd,
@@ -461,6 +480,34 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             Asdu = asdu,
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds)
         };
+    }
+
+    private void PublishRejectedIec101Rx(
+        Ft12FrameDecode decoded, Iec101SecondaryResponseValidation validation,
+        string dataClass, string reason, int rejectedInExchange)
+    {
+        var context = $"COM={_settings.PortName}; channel={Name}/{Role}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
+                      $"actual Link={decoded.LinkAddress?.ToString() ?? "-"}; PRM={(decoded.LinkControl?.Prm == true ? 1 : 0)}; " +
+                      $"checksum={decoded.IsChecksumValid}; request={reason}; rejected-in-exchange={rejectedInExchange}; " +
+                      $"last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
+        _publish(new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            State = Iec103MasterState.NormalClass2Polling,
+            Category = "Warning",
+            DataClass = DecorateDataClass(dataClass),
+            PollingReason = validation.Code,
+            Summary = $"{Name} IEC-101 RX rejected [{validation.Code}]",
+            Detail = validation.Explanation + " " + context,
+            OperatorMessage = "Serial RX is not a valid IEC-101 secondary reply; channel health remains unproven.",
+            ProtocolMeaning = validation.Explanation,
+            OperatorAction = "Check COM converter echo, crossover/cross-channel wiring, SICAM primary/secondary mode and link address.",
+            RawHex = decoded.Hex,
+            Frame = decoded,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            LinkAddress = decoded.LinkAddress,
+            SignalGroup = "IEC-101 Link Diagnostics"
+        });
     }
 
     private void PublishAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)

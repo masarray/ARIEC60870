@@ -22,6 +22,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
+    private byte[] _lastTxFrame = Array.Empty<byte>();
     private bool _acd;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
@@ -557,7 +558,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
-        if (response is not null && fcv && response.Format != Ft12FrameFormat.Malformed && response.IsChecksumValid) _fcb = !fcbBefore;
+        if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
     }
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
@@ -566,13 +567,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
-        if (response is not null && response.Format != Ft12FrameFormat.Malformed && response.IsChecksumValid) _fcb = !fcbBefore;
+        if (Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
         return response;
     }
 
     private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
     {
         await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+        _lastTxFrame = frame;
         _counters.TxFrames++;
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
@@ -609,18 +611,42 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize);
         var sw = Stopwatch.StartNew();
-        var raw = await reader.ReadFrameAsync(_settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        byte[]? raw = null;
+        Ft12FrameDecode? acceptedFrame = null;
+        var rejected = 0;
+        while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
+               && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
+        {
+            raw = await reader.ReadFrameAsync(
+                Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
+                cancellationToken).ConfigureAwait(false);
+            if (raw is null || raw.Length == 0) break;
+
+            _counters.RxFrames++; // Physical RX bytes, not necessarily a valid outstation reply.
+            var candidate = _ft12.Decode(raw);
+            var validation = Iec101SecondaryResponseValidator.Validate(candidate, _settings.LinkAddress, _lastTxFrame);
+            if (validation.IsValid)
+            {
+                acceptedFrame = candidate;
+                break;
+            }
+
+            rejected++;
+            if (!candidate.IsChecksumValid) _counters.ChecksumErrors++;
+            if (candidate.Format == Ft12FrameFormat.Malformed) _counters.MalformedFrames++;
+            PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
+        }
         sw.Stop();
-        if (raw is null || raw.Length == 0)
+        if (acceptedFrame is null)
         {
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
-            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No outstation response within {_settings.ResponseTimeoutMs} ms after {reason}.", category: "Warning", dataClass: dataClass);
+            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}.", category: "Warning", dataClass: dataClass);
             return null;
         }
 
-        _counters.RxFrames++;
+        var decoded = acceptedFrame;
         if (string.Equals(dataClass, "Class 2", StringComparison.OrdinalIgnoreCase))
         {
             var nowCycle = DateTime.UtcNow;
@@ -635,9 +661,6 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _counters.TotalResponseTimeMs += sw.ElapsedMilliseconds;
         _counters.MaxResponseTimeMs = Math.Max(_counters.MaxResponseTimeMs, (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds));
 
-        var decoded = _ft12.Decode(raw);
-        if (!decoded.IsChecksumValid) _counters.ChecksumErrors++;
-        if (decoded.Format == Ft12FrameFormat.Malformed) _counters.MalformedFrames++;
         if (decoded.IsSingleCharacterAck) _counters.AckResponses++;
         else if (decoded.IsSingleCharacterNack) _counters.NackResponses++;
 
@@ -668,7 +691,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             OperatorMessage = BuildReceiveOperatorMessage(decoded, asdu),
             ProtocolMeaning = asdu?.ShortMeaning ?? decoded.ShortMeaning,
             OperatorAction = BuildReceiveAction(decoded, asdu),
-            RawHex = ToHex(raw),
+            RawHex = ToHex(raw!),
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds),
             Frame = decoded,
             LinkAddress = _settings.LinkAddress,
@@ -695,8 +718,39 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
-        AddAdditionalObjectEvents(decoded, asdu, raw, dataClass, reason, sw.ElapsedMilliseconds);
+        AddAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
         return decoded;
+    }
+
+    private void PublishRejectedIec101Rx(
+        Ft12FrameDecode decoded, Iec101SecondaryResponseValidation validation,
+        string dataClass, string reason, int rejectedInExchange)
+    {
+        var context = $"COM={_settings.PortName}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); actual Link={decoded.LinkAddress?.ToString() ?? "-"}; " +
+                      $"PRM={(decoded.LinkControl?.Prm == true ? 1 : 0)}; checksum={decoded.IsChecksumValid}; " +
+                      $"request={reason}; rejected-in-exchange={rejectedInExchange}; last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
+        AddEvent(new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            State = _state,
+            Category = "Warning",
+            DataClass = dataClass,
+            PollingReason = validation.Code,
+            Summary = $"IEC-101 RX rejected [{validation.Code}]",
+            Detail = validation.Explanation + " " + context,
+            OperatorMessage = "Received serial bytes are not a valid IEC-101 secondary reply.",
+            ProtocolMeaning = validation.Explanation,
+            OperatorAction = "Isolate each serial channel; check RS232 echo/crossover, converter routing, Link Address and RTU primary/secondary (balanced/unbalanced) mode.",
+            RawHex = decoded.Hex,
+            Frame = decoded,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            LinkAddress = decoded.LinkAddress,
+            SignalGroup = "IEC-101 Link Diagnostics"
+        });
+        RaiseFinding(FindingSeverity.Warning, validation.Code,
+            "IEC-101 rejected RX frame", validation.Explanation + " " + context,
+            "The frame must not prove link health, advance FCB, or update GI.",
+            "Inspect the raw RX and last TX on each COM channel, then verify SICAM link mode/address and the physical serial path.");
     }
 
     private void AddAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)

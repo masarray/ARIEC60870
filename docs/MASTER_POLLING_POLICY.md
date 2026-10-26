@@ -103,3 +103,33 @@ TimeoutRecovery
 ```
 
 The report must show why Class 1 was requested.
+
+## IEC-101 P0 secondary RX integrity gate (SICAM field evidence, October 2026)
+
+In unbalanced master mode a received FT1.2 frame is not a successful reply
+merely because its checksum is correct. Single-link and dual-link sessions now
+validate the entire FT1.2 envelope, secondary direction (PRM=0), configured
+link address, and permitted secondary function codes **before** updating link
+health, FCB, ACD/DFC, CA learning, GI or value/event tables.
+
+- Genuine single-character E5 ACK and A2 NACK remain recognizable (they
+  do not carry a link address). NACK and DFC=1 never advance FCB.
+- Rejected frames retain raw RX, last TX, port, channel/role, expected/actual
+  link address, PRM, polling reason and a stable diagnostic code. An invalid
+  frame is skipped within the original response-time budget, up to 16 frames,
+  allowing a real outstation reply to follow a converter echo.
+- If no validated secondary reply is received, the exchange times out and
+  failure/failover policy applies. Merely opening COM or receiving a primary
+  frame never proves a standby channel healthy.
+- `IEC101-RX-TX-ECHO` means the primary RX matches the last TX exactly.
+  `IEC101-RX-UNEXPECTED-PRIMARY` means PRM=1 on RX; if its address is
+  foreign to the channel the code is `IEC101-RX-FOREIGN-PRIMARY`.
+  `IEC101-RX-LINK-ADDRESS-MISMATCH` means a secondary reply has the
+  wrong link address. None of these codes alone proves which device or
+  wiring element originated the frame.
+
+Field isolation sequence: test only one COM channel; disconnect the RTU in a
+safe test setup and check whether primary frames still appear on RX; verify
+SICAM unbalanced secondary configuration, separate Link Address vs Common
+Address, baud/parity/stop bits and RS232 RTS/CTS/converter wiring. Do not
+change RTU settings or issue control commands blindly based on suspected echo.
