@@ -206,7 +206,23 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 cancellationToken).ConfigureAwait(false);
         }
 
-        SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy running", $"Active={_active.Name}; standby={_standby.Name}; standby is supervised without Class 1/Class 2 polling.");
+        // An open COM port or checksum-valid primary echo is not evidence that a
+        // secondary station answered. Do not report a healthy controller during
+        // startup until both channels have a validated secondary response.
+        if (!_active.IsHealthy || !_standby.IsHealthy)
+        {
+            SetControllerState(
+                Iec101RedundancyControllerState.Degraded,
+                "IEC-101 dual-link secondary response not verified",
+                $"Active={_active.Name}, validated={_active.IsHealthy}; standby={_standby.Name}, validated={_standby.IsHealthy}. " +
+                "Check RX rejection diagnostics, PRM, Link Address and physical serial routing.",
+                "Warning");
+        }
+        else
+        {
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy running",
+                $"Active={_active.Name}; standby={_standby.Name}; both secondary links validated.");
+        }
     }
 
     private async Task RunOneSchedulerCycleAsync(CancellationToken cancellationToken)
@@ -493,7 +509,19 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
 
             _standby.MarkRecoveredAsStandby($"{_standby.Name} has met the standby recovery threshold with {_standby.LinkState.ConsecutiveGoodResponses} consecutive good supervision responses.");
-            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 standby link recovered", $"Active={_active?.Name ?? "-"}; standby={_standby.Name}; failback policy={_options.FailbackPolicy}.");
+            // Recovery of standby does not establish full dual-link health if active
+            // is still failing. The following rescue probe decides whether to switch.
+            if (_active?.IsHealthy == true)
+            {
+                SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 standby link recovered",
+                    $"Active={_active.Name}; standby={_standby.Name}; both links validated; failback policy={_options.FailbackPolicy}.");
+            }
+            else
+            {
+                SetControllerState(Iec101RedundancyControllerState.Recovering, "IEC-101 standby recovered; active unhealthy",
+                    $"Active={_active?.Name ?? "-"} has no current good secondary response; standby={_standby.Name} recovered. Assessing failover.",
+                    "Warning");
+            }
             if (ActiveNeedsRescue())
             {
                 await TryFailoverAsync($"Standby {_standby.Name} recovered while active {_active?.Name ?? "-"} is failed/timed out", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
@@ -510,9 +538,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
-        if (_controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering
-            && _active?.IsHealthy == true
-            && _standby.IsPromotable(_options.StandbyFailureThreshold))
+        if (_active?.IsHealthy == true
+            && _standby.IsHealthy
+            && _controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering)
         {
             SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 dual-link redundancy recovered", $"Active={_active.Name}; standby={_standby.Name} is healthy again.");
         }
@@ -525,10 +553,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        // Overall dual-link health requires both channels to have proven a valid
+        // secondary response. A recovering active link alone cannot certify standby.
         if (_active.IsHealthy
+            && _standby?.IsHealthy == true
             && _controllerState is Iec101RedundancyControllerState.Degraded or Iec101RedundancyControllerState.NoAvailableLink or Iec101RedundancyControllerState.Recovering)
         {
-            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 active link recovered", $"Active={_active.Name}; standby={_standby?.Name ?? "-"}; reason={reason}.");
+            SetControllerState(Iec101RedundancyControllerState.Healthy, "IEC-101 active link recovered", $"Active={_active.Name}; standby={_standby.Name}; both secondary links verified; reason={reason}.");
         }
 
         if (_active.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold)

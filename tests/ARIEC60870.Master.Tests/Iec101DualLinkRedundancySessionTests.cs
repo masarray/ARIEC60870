@@ -279,10 +279,21 @@ public sealed class Iec101DualLinkRedundancySessionTests
         };
 
         var linkA = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedReadCount: 1);
-        var linkB = new DropReadsAfterSuccessfulReadsTransport(new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)), successfulReadsBeforeDrop: 1, droppedReadCount: 3);
+        // Let B first prove a genuine secondary response. Drop its RX only after
+        // it is promoted; byte-level damage before promotion no longer counts as
+        // health evidence (and should never trigger an unsafe rescue).
+        var linkB = new DroppingReadTransport(new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)), droppedReadCount: 0);
         var session = new Iec101DualLinkRedundancySession(options, linkA, linkB);
 
-        await session.RunForAsync(TimeSpan.FromMilliseconds(2400), CancellationToken.None);
+        var runTask = session.RunForAsync(TimeSpan.FromMilliseconds(3600), CancellationToken.None);
+        for (var attempt = 0; attempt < 100 &&
+             !session.FailoverJournal.Any(x => x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B"); attempt++)
+        {
+            await Task.Delay(20);
+        }
+        Assert.Contains(session.FailoverJournal, x => x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B");
+        linkB.DropNextReads(1); // Actively corrupt B's next response after valid promotion.
+        await runTask;
         var completed = session.FailoverJournal.Where(x => x.Completed).ToArray();
         var snapshot = session.CreateSnapshot();
 
@@ -325,6 +336,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
             _remainingDroppedReads = droppedReadCount;
         }
 
+        public void DropNextReads(int count) => Volatile.Write(ref _remainingDroppedReads, Math.Max(0, count));
+
         public bool IsOpen => _inner.IsOpen;
         public ValueTask OpenAsync(CancellationToken cancellationToken) => _inner.OpenAsync(cancellationToken);
         public ValueTask CloseAsync(CancellationToken cancellationToken) => _inner.CloseAsync(cancellationToken);
@@ -332,7 +345,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
         {
-            if (_remainingDroppedReads > 0)
+            if (Volatile.Read(ref _remainingDroppedReads) > 0)
             {
                 _remainingDroppedReads--;
                 await Task.Delay(1, cancellationToken).ConfigureAwait(false);
