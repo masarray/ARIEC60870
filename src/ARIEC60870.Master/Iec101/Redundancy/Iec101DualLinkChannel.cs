@@ -55,7 +55,9 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
            && DateTime.UtcNow - lastGood <= window;
 
     public bool CanRescueFailedActive(int failureThreshold, TimeSpan recentGoodWindow)
-        => IsPromotable(failureThreshold) && HasRecentGoodResponse(recentGoodWindow);
+        // An earlier validated secondary reply is required. Raw RX/COM-open alone never qualify.
+        // Failure counters and active standby supervision still gate subsequent promotion.
+        => IsPromotable(failureThreshold) || HasRecentGoodResponse(recentGoodWindow);
 
     public async Task OpenAsync(Iec101RedundancyChannelRole role, CancellationToken cancellationToken)
     {
