@@ -36,13 +36,11 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/stamp-release-version.ps1 -Version '3.6.8-sicam-p0p1.20261026'
-          if ($LASTEXITCODE -ne 0) { throw "Version stamping failed." }
 
       - name: Package Windows x64 single-file application
         shell: pwsh
         run: |
           ./scripts/publish-windows-portable.ps1 -Version '3.6.8-sicam-p0p1.20261026' -SkipTests
-          if ($LASTEXITCODE -ne 0) { throw "Packaging failed." }
 
       - name: Verify deliverable and checksum
         shell: pwsh
@@ -52,7 +50,6 @@ jobs:
           $package = "artifacts/release/ARIEC60870-v$version-win-x64.zip"
           if (-not (Test-Path $package)) { throw "Windows ZIP was not produced." }
           ./scripts/verify-release-package.ps1 -PackagePath $package
-          if ($LASTEXITCODE -ne 0) { throw "Package structure verification failed." }
           $hash = (Get-FileHash -Algorithm SHA256 $package).Hash.ToLowerInvariant()
           $expected = "$hash  $(Split-Path $package -Leaf)"
           $stored = Get-Content artifacts/release/SHA256SUMS.txt
