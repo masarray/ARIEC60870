@@ -294,7 +294,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
-    private static string SafePortName(SerialPort serialPort)    // CTS/DSR/DCD are locally observed input states, never interpreted as RTU link health.
+    // CTS/DSR/DCD are locally observed input states, never interpreted as RTU link health.
     private static string ReadModemInputs(SerialPort port)
     {
         try
@@ -320,7 +320,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
-
+    private static string SafePortName(SerialPort serialPort)
     {
         try
         {
