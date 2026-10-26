@@ -83,7 +83,7 @@ public sealed class Iec101SecondaryResponseValidatorTests
     [InlineData("E5", true)]
     [InlineData("A2", false)]
     [InlineData("100169006A16", false)] // Secondary NACK function 1.
-    [InlineData("102B69009416", false)] // Secondary ACK with DFC=1 (0x2B).
+    [InlineData("101B69008416", false)] // Secondary response with DFC=1 (0x1B).
     public void AckNackAndBusyPreserveFcbSemantics(string hex, bool advances)
     {
         var frame = Parser.Decode(Convert.FromHexString(hex));
