@@ -726,7 +726,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         Ft12FrameDecode decoded, Iec101SecondaryResponseValidation validation,
         string dataClass, string reason, int rejectedInExchange)
     {
-        var context = $"COM={_settings.PortName}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); actual Link={decoded.LinkAddress?.ToString() ?? "-"}; " +
+        var context = $"Configured serial={_settings.SerialSummary}; transmission={_settings.TransmissionMode}; RTS=enabled, DTR=disabled, handshake=None (SerialByteTransport defaults); " +
+                      $"COM={_settings.PortName}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); actual Link={decoded.LinkAddress?.ToString() ?? "-"}; " +
                       $"PRM={(decoded.LinkControl?.Prm == true ? 1 : 0)}; checksum={decoded.IsChecksumValid}; " +
                       $"request={reason}; rejected-in-exchange={rejectedInExchange}; last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
         AddEvent(new Iec103MasterEvidenceEvent

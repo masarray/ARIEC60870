@@ -488,7 +488,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Ft12FrameDecode decoded, Iec101SecondaryResponseValidation validation,
         string dataClass, string reason, int rejectedInExchange)
     {
-        var context = $"COM={_settings.PortName}; channel={Name}/{Role}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
+        var context = $"Configured serial={_settings.SerialSummary}; transmission={_settings.TransmissionMode}; RTS=enabled, DTR=disabled, handshake=None (SerialByteTransport defaults); " +
+                      $"COM={_settings.PortName}; channel={Name}/{Role}; expected Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
                       $"actual Link={decoded.LinkAddress?.ToString() ?? "-"}; PRM={(decoded.LinkControl?.Prm == true ? 1 : 0)}; " +
                       $"checksum={decoded.IsChecksumValid}; request={reason}; rejected-in-exchange={rejectedInExchange}; " +
                       $"last TX={ToHex(_lastTxFrame)}; RX={decoded.Hex}.";
