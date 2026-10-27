@@ -1,4 +1,4 @@
-# P0 — IEC-101 Passive Serial Raw Capture (Engineering Field Preview)
+# P0 — IEC-101 Passive Serial Raw Capture (GUI Engineering Field Preview)
 
 Status: implementation branch, **hardware not yet qualified**. Tracking: issue #19, design PR #20.
 
@@ -13,6 +13,20 @@ Read-only observation of an existing IEC-101 RS-232 full-duplex connection using
 3. Use an approved high-impedance/buffered **isolated RX-only tap** and an electrically safe ground reference.
 4. **Do not connect monitor TXD, RTS or DTR to either production endpoint.** A USB COM adapter/driver may toggle these outputs on open even when the software sets them false.
 5. Two COMs cover only both directions of ONE physical duplex link. To see both paths of redundant A/B, four RX inputs are needed (P3).
+
+## Main GUI workflow (preferred)
+
+1. Download the Windows x64 GUI test package from the PR's latest passing CI artifacts. Open `ARIEC60870.Desktop.exe` from its published folder (runtime bundled; no .NET SDK needed).
+2. Click **Sniff RX** on the main ARIEC60870 left toolbar. This opens a dedicated **IEC-101 Passive Monitor** window, not a Master/Command session.
+3. Select two different receiver ports: *SCADA TX → RTU* and *RTU TX → SCADA*; verify baud, parity, data and stop bits, and choose the recording directory.
+4. Confirm the electrical isolation checklist after physically verifying the RX-only tap.
+5. Click **Start Recording**. See cumulative byte counters from each direction and sampled raw HEX rows. The preview is bounded and intentionally may skip rows; actual journal raw byte capture is independent.
+6. Click **Stop & Finalize**. Use **Verify Capture** for CRC32, sequence, offsets and SHA-256. Use **Open Capture Folder** to access both binary journals and manifest.
+7. Switching to another window, freezing the view or scrolling does not interrupt the disk archive. Closing the monitor while recording requests Stop and waits for finalization.
+
+P0 GUI shows raw UART sample chunks, **not yet fully framed and decoded IEC-101 telegrams**. P1 adds protocol parser, transaction pairing, timeline, and final `.ariec` export.
+
+## Internal CLI diagnostic (optional, not the user-facing app)
 
 ## Build & run on Windows
 
@@ -44,8 +58,8 @@ A passing audit verifies journal structure, per-direction sequence and raw offse
 
 ## Operational boundaries
 
-- This is an isolated CLI P0 foundation. The existing WPF IEC-101 Master and Dual Link tabs remain unchanged.
-- No realtime IEC-101 telegram table, event correlation, failover detector, V2 .ariec ZIP export, or multi-link 4-COM capture yet.
+- This is an integrated GUI P0 capture. The existing WPF IEC-101 Master and Dual Link sessions remain unchanged; Sniff RX opens a separate receive-only window.
+- The GUI includes live raw-byte chunk preview, capture controls and verification. IEC-101 decoded telegrams, event correlation, failover detection, V2 .ariec ZIP export, and multi-link 4-COM capture are P1–P3.
 - `NoApplicationLossDetected` means no known application-layer drop; it is **not** hardware-grade lossless proof.
 - When one COM fails to open, the session is marked `Incomplete`, not silently reduced to one-direction observation.
 - Do not upload unsanitized customer/SCADA/RTU capture files to public GitHub.
@@ -60,4 +74,4 @@ Sources: docs/IEC101_PASSIVE_MONITOR_PRD.md, docs/IEC101_PASSIVE_MONITOR_ARD.md 
 
 ## CI bench artifact
 
-When all Windows CI gates pass, the same PR workflow publishes a **non-release** single-file, self-contained win-x64 CLI ZIP with SHA256SUMS.txt as an Actions artifact named `ARIEC60870-IEC101-PASSIVE-P0-win-x64`. This is for an isolated serial bench, **not** a certified field wiring validation or production deployment.
+When all Windows CI gates pass, the PR workflow publishes a **non-release** self-contained win-x64 **ARIEC60870 Desktop GUI** ZIP with SHA256SUMS.txt as an Actions artifact named `ARIEC60870-Passive-Monitor-P0-GUI-win-x64`. This is a field/bench test artifact, **not** a certified production deployment.

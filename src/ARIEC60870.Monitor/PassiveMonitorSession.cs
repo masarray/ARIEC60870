@@ -17,6 +17,15 @@ public sealed class PassiveMonitorSession
 {
     private readonly PassiveCaptureOptions _options;
     private readonly IReadOnlySerialTap[] _taps;
+    // UI-only feed: bounded; loss here never changes raw journal contents.
+    private readonly Channel<PassiveChunkPreview> _previews =
+        Channel.CreateBounded<PassiveChunkPreview>(new BoundedChannelOptions(256)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.DropOldest,
+            AllowSynchronousContinuations = false
+        });
     private readonly long[] _writtenBytes = new long[2];
     private readonly long[] _writtenChunks = new long[2];
     private readonly string[] _rawHashes = new string[2];
@@ -24,6 +33,10 @@ public sealed class PassiveMonitorSession
     private int _integrityUncertain;
     private int _fatal;
     private int _started;
+    private string _captureDirectory = string.Empty;
+    private string _captureStatus = "Idle";
+    private DateTime _utcOrigin;
+    private long _timestampOrigin;
 
     public PassiveMonitorSession(PassiveCaptureOptions options, IReadOnlySerialTap scadaTx, IReadOnlySerialTap rtuTx)
     {
@@ -36,6 +49,21 @@ public sealed class PassiveMonitorSession
     }
 
     /// <summary>Starts immediately; returns only after Stop/cancellation and durable archive finalization.</summary>
+    /// <summary>Thread-safe UI polling; never accesses COM drivers from WPF.</summary>
+    public PassiveMonitorProgress GetProgress() => new(
+        Volatile.Read(ref _captureStatus),
+        Volatile.Read(ref _captureDirectory),
+        Interlocked.Read(ref _writtenBytes[0]),
+        Interlocked.Read(ref _writtenBytes[1]),
+        Interlocked.Read(ref _writtenChunks[0]),
+        Interlocked.Read(ref _writtenChunks[1]),
+        _taps[0].DriverErrorCount,
+        _taps[1].DriverErrorCount,
+        Volatile.Read(ref _integrityUncertain) != 0 || Volatile.Read(ref _fatal) != 0);
+
+    /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
+    public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
+
     public async Task<(string Directory, PassiveCaptureManifest Manifest)> RunAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) != 0) throw new InvalidOperationException("One session cannot be reused.");
@@ -45,6 +73,10 @@ public sealed class PassiveMonitorSession
         Directory.CreateDirectory(root);
         var startUtc = DateTime.UtcNow;
         var origin = Stopwatch.GetTimestamp();
+        _utcOrigin = startUtc;
+        _timestampOrigin = origin;
+        Volatile.Write(ref _captureDirectory, root);
+        Volatile.Write(ref _captureStatus, "Starting");
         WriteManifest(root, Snapshot(id, "Recording", startUtc, startUtc, origin));
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -61,6 +93,7 @@ public sealed class PassiveMonitorSession
         {
             // Both monitored directions must be armed before recording; never silently record just one.
             foreach (var tap in _taps) { tap.Open(); opened.Add(tap); }
+            Volatile.Write(ref _captureStatus, "Recording");
 
             writerTask = Task.Run(() => WriteLoopAsync(root, channel, stop));
             var reads = new[]
@@ -107,6 +140,7 @@ public sealed class PassiveMonitorSession
                 Volatile.Read(ref _integrityUncertain) != 0 ? "IntegrityUncertain" : "NoApplicationLossDetected";
             var completed = Snapshot(id, status, startUtc, DateTime.UtcNow, origin);
             WriteManifest(root, completed);
+            Volatile.Write(ref _captureStatus, status);
             Result = (root, completed);
         }
 
@@ -185,6 +219,15 @@ public sealed class PassiveMonitorSession
                 {
                     await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
                     hashes[chunk.StreamId].AppendData(chunk.Buffer, PassiveJournalFormat.HeaderSize, chunk.Length - PassiveJournalFormat.HeaderSize);
+                    // Small capped byte sample, copied while the writer still owns the pooled buffer.
+                    var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
+                    var first = new byte[Math.Min(byteCount, 48)];
+                    chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize, first.Length).CopyTo(first);
+                    var sequence = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(8, 8));
+                    var ticks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
+                    var utcEstimate = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, ticks);
+                    _previews.Writer.TryWrite(new PassiveChunkPreview(
+                        chunk.StreamId, sequence, utcEstimate, byteCount, first));
                     Interlocked.Increment(ref _writtenChunks[chunk.StreamId]);
                     Interlocked.Add(ref _writtenBytes[chunk.StreamId], chunk.Length - PassiveJournalFormat.HeaderSize);
                     bytesSinceFlush += chunk.Length;
@@ -264,3 +307,12 @@ public sealed class PassiveMonitorSession
 
     private sealed record OwnedCaptureRecord(byte StreamId, byte[] Buffer, int Length);
 }
+
+// These immutable snapshots are presentation-only, independent of serial write capabilities.
+public sealed record PassiveMonitorProgress(
+    string Status, string CaptureDirectory, long ScadaBytes, long RtuBytes,
+    long ScadaChunks, long RtuChunks, long ScadaDriverErrors, long RtuDriverErrors,
+    bool IntegrityWarning);
+
+public sealed record PassiveChunkPreview(
+    byte StreamId, long Sequence, DateTime EstimatedUtc, int ByteCount, byte[] FirstBytes);

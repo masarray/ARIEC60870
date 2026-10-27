@@ -58,6 +58,20 @@ public sealed class PassiveMonitorP0Tests
             Assert.Equal(Convert.ToHexString(SHA256.HashData(a)), audit.Streams[0].Sha256);
             Assert.Equal(Convert.ToHexString(SHA256.HashData(b)), audit.Streams[1].Sha256);
             Assert.True(audit.Streams.All(x => x.Records > 2));
+            // UI-only preview is bounded and may skip chunks; the disk stream must stay exact.
+            Assert.Equal("NoApplicationLossDetected", session.GetProgress().Status);
+            Assert.Equal(a.Length, session.GetProgress().ScadaBytes);
+            Assert.Equal(b.Length, session.GetProgress().RtuBytes);
+            var previewCount = 0;
+            while (session.TryReadPreview(out var preview))
+            {
+                Assert.InRange(preview.StreamId, (byte)0, (byte)1);
+                Assert.InRange(preview.FirstBytes.Length, 1, 48);
+                Assert.True(preview.ByteCount >= preview.FirstBytes.Length);
+                previewCount++;
+            }
+            Assert.InRange(previewCount, 1, 256);
+
         }
         finally { Directory.Delete(folder, recursive: true); }
     }

@@ -76,28 +76,26 @@ jobs:
           path: artifacts/test-results
           if-no-files-found: warn
 
-      - name: Package isolated P0 monitor CLI for Windows x64 bench verification
+      - name: Package ARIEC60870 GUI with integrated Passive Monitor
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $publish = 'artifacts/monitor-p0-publish'
-          $package = 'artifacts/monitor-p0-package'
-          dotnet publish src/ARIEC60870.Monitor.Cli/ARIEC60870.Monitor.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -o $publish
-          if ($LASTEXITCODE -ne 0) { throw 'P0 monitor publish failed.' }
-          $exe = Join-Path $publish 'ARIEC60870.Monitor.Cli.exe'
-          if (!(Test-Path $exe)) { throw 'Expected P0 monitor EXE is missing.' }
-          & $exe --help
-          if ($LASTEXITCODE -ne 0) { throw 'P0 Windows executable smoke test failed.' }
+          $publish = 'artifacts/passive-gui-publish'
+          $package = 'artifacts/passive-gui-package'
+          dotnet publish src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -o $publish
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop GUI publish failed.' }
+          $exe = Join-Path $publish 'ARIEC60870.Desktop.exe'
+          if (!(Test-Path $exe)) { throw 'Expected GUI executable missing.' }
           New-Item -ItemType Directory -Force -Path $package | Out-Null
-          $zip = Join-Path $package 'ARIEC60870-IEC101-PASSIVE-P0-win-x64.zip'
-          Compress-Archive -Path $exe, 'docs/IEC101_PASSIVE_MONITOR_P0_CAPTURE.md' -DestinationPath $zip
-          $digest = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$digest  ARIEC60870-IEC101-PASSIVE-P0-win-x64.zip"
+          $zip = Join-Path $package 'ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip'
+          Compress-Archive -Path (Join-Path $publish '*'), 'docs/IEC101_PASSIVE_MONITOR_P0_CAPTURE.md' -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
-      - name: Upload P0 Windows bench artifact
+      - name: Upload integrated P0 Windows GUI test package
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-IEC101-PASSIVE-P0-win-x64
-          path: artifacts/monitor-p0-package/
+          name: ARIEC60870-Passive-Monitor-P0-GUI-win-x64
+          path: artifacts/passive-gui-package/
           if-no-files-found: error
           retention-days: 14
