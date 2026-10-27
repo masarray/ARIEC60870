@@ -36,6 +36,10 @@ public partial class MainWindow
     private long _passiveFrameSequence;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
     private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
+    // GUI-only aggregation; all events remain durable in transactions.jsonl.
+    private readonly Dictionary<(PassiveTransactionKind Kind, int? Address), DateTime> _passiveFindingLastShown = new();
+    private DateTime _passiveFindingWindowEndUtc = DateTime.MinValue;
+    private int _passiveFindingWindowCount;
     private int _passiveLinkAddressWidth;
 
     public ObservableCollection<PassiveRxRow> PassiveRawRows => _passiveRawRows;
@@ -274,6 +278,9 @@ public partial class MainWindow
         _passiveFrameSequence = 0;
         _passiveReplayCorrelator = null;
         _passiveTransactionNotes.Clear();
+        _passiveFindingLastShown.Clear();
+        _passiveFindingWindowEndUtc = DateTime.MinValue;
+        _passiveFindingWindowCount = 0;
         _passiveAsduDecoder = new Iec10xAsduDecoder(
             options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
         _passiveLinkAddressWidth = options.LinkAddressWidth;
@@ -545,6 +552,25 @@ public partial class MainWindow
             _ => (FindingSeverity?)null
         };
         if (severity is null) return;
+
+        // Protect the application's existing pending Findings queue from prolonged
+        // corrupt traffic or repeated timeouts. Emit at most 20 per wall-clock
+        // second and coalesce repeated (kind, link address) for 3 seconds.
+        // Neither rule suppresses the complete disk-backed transaction journal.
+        var now = DateTime.UtcNow;
+        if (now >= _passiveFindingWindowEndUtc)
+        {
+            _passiveFindingWindowEndUtc = now.AddSeconds(1);
+            _passiveFindingWindowCount = 0;
+        }
+        if (_passiveFindingWindowCount >= 20) return;
+        var key = (item.Kind, item.LinkAddress);
+        if (_passiveFindingLastShown.TryGetValue(key, out var last) &&
+            now - last < TimeSpan.FromSeconds(3)) return;
+        if (_passiveFindingLastShown.Count >= 128)
+            _passiveFindingLastShown.Clear();
+        _passiveFindingLastShown[key] = now;
+        _passiveFindingWindowCount++;
         OnFindingRaised(this, new Iec103MasterFinding
         {
             TimestampUtc = item.EstimatedUtc,

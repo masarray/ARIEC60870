@@ -45,6 +45,9 @@ public partial class MainWindow
             ClearSessionView(clearLog: true);
             _passiveFrameSequence = 0;
             _passiveTransactionNotes.Clear();
+            _passiveFindingLastShown.Clear();
+            _passiveFindingWindowEndUtc = DateTime.MinValue;
+            _passiveFindingWindowCount = 0;
             _passiveReplayCorrelator = null;
             _passiveCaptureResult = null;
             MainTabControl.SelectedIndex = PassiveTraceTabIndex;
