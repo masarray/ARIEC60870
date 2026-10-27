@@ -33,6 +33,11 @@ public partial class PassiveMonitorWindow : Window
     private bool _isStopping;
     private bool _closeAfterStop;
 
+    public bool IsRecording => _captureTask is { IsCompleted: false };
+
+    /// <summary>Called by the shell before it closes, to preserve the final journal.</summary>
+    public Task StopForOwnerCloseAsync() => StopAndFinalizeAsync();
+
     public ReadOnlyObservableCollection<PassiveMonitorUiRow> RecentRxRows { get; }
 
     public PassiveMonitorWindow()
