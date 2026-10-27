@@ -22,6 +22,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
+    private bool _linkVerified;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
     private readonly Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
@@ -72,46 +73,66 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             DrainTransportDiagnostics("Open transport");
-            SetState(Iec103MasterState.Connected, "IEC-101 connected", _settings.SerialSummary);
+            // A Windows COM handle does not establish IEC-101 RTU connectivity.
+            SetState(Iec103MasterState.OpeningTransport,
+                "IEC-101 COM open — secondary link NOT verified",
+                $"COM opened: {_settings.SerialSummary}. Awaiting a valid IEC-101 secondary reply (PRM=0).");
 
             if (_settings.ResetRemoteLinkOnConnect)
-            {
-                await SendFixedAndReceiveAsync("Reset remote link", "Link", 0, false, "Startup link reset", cancellationToken).ConfigureAwait(false);
-            }
+                await SendFixedAndReceiveAsync("Reset remote link", "Link", 0, false,
+                    "Startup link reset", cancellationToken).ConfigureAwait(false);
 
             if (_settings.ResetFcbOnConnect)
             {
-                await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false, "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
+                await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
+                    "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
                 _fcb = false;
             }
 
-            if (_settings.SendClockSyncOnConnect)
+            if (!_linkVerified)
+                await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                    "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
+
+            var pendingStartup = _settings.SendClockSyncOnConnect || _settings.SendGeneralInterrogationOnConnect;
+            if (_linkVerified && pendingStartup)
             {
-                await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2", Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now), "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
+                pendingStartup = false;
+                await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
             }
-
-            if (_settings.SendGeneralInterrogationOnConnect)
+            else if (!_linkVerified)
             {
-                _counters.GiCommands++;
-                var giResponse = await SendVariableAndReceiveAsync("IEC-101 general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(_settings), "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (IsNegativeConfirmation(giResponse, 100))
-                {
-                    SetState(Iec103MasterState.NormalClass2Polling, "IEC-101 station GI negatively confirmed", "Outstation negatively confirmed QOI=20 station interrogation for configured CA. Continuing scan and enabling observed-CA retry if live traffic proves a different CA.", category: "Warning", dataClass: "Class 2");
-                    await DrainClass1Async("GI follow-up / event queue drain after negative confirmation", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await DrainClass1Async("GI follow-up / event queue drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (_settings.RequestClass2ImmediatelyAfterStartup)
-                {
-                    await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
-                }
+                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-UNVERIFIED",
+                    "COM port open but IEC-101 link not verified",
+                    $"COM={_settings.PortName}; Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
+                    $"rejected RX={_counters.RejectedFrames}, echo={_counters.TxEchoFrames}, " +
+                    $"foreign primary={_counters.ForeignPrimaryFrames}.",
+                    "No GI or data delivery can be confirmed without a real secondary reply.",
+                    "Inspect IEC101-RX-* Diagnostics and full TX/RX trace; verify physical link, " +
+                    "SICAM unbalanced secondary mode and link address.");
             }
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                if (!_linkVerified)
+                {
+                    // Never flood a silent RTU with GI or Class 1 requests.
+                    await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                        "Unverified IEC-101 link recheck", cancellationToken).ConfigureAwait(false);
+                    if (!_linkVerified)
+                    {
+                        await Task.Delay(Math.Clamp(_settings.ResponseTimeoutMs, 250, 2000), cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+                }
+
+                if (pendingStartup)
+                {
+                    pendingStartup = false;
+                    await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 if (await ProcessPendingControlCommandsAsync(cancellationToken).ConfigureAwait(false))
                 {
                     continue;
@@ -173,6 +194,43 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     }
 
 
+
+    private async Task RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
+    {
+        if (!_linkVerified) return;
+        if (_settings.SendClockSyncOnConnect)
+        {
+            await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
+                Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now),
+                "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!_settings.SendGeneralInterrogationOnConnect) return;
+
+        _counters.GiCommands++;
+        var giResponse = await SendVariableAndReceiveAsync(
+            "IEC-101 general interrogation", "Class 2",
+            Iec10xAsduBuilder.GeneralInterrogation(_settings),
+            "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
+
+        if (giResponse is null || IsNegativeConfirmation(giResponse, 100))
+        {
+            var why = giResponse is null ? "No secondary reply to GI" : "Negative GI response";
+            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 GI not confirmed",
+                $"{why}; Link={_settings.LinkAddress}, CA={_settings.CommonAddress}. " +
+                "Not entering blind Class 1 drain.", category: "Warning", dataClass: "Class 2");
+            RaiseFinding(FindingSeverity.Warning, "IEC101-GI-UNCONFIRMED",
+                "SICAM GI request not confirmed", why,
+                "GI transmitted does not mean GI accepted or data received.",
+                "Inspect response PRM/FC, link address, CA/COT/IOA sizes and SICAM interrogation support.");
+            return;
+        }
+
+        await DrainClass1Async("GI follow-up / event queue drain",
+            stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+        if (_settings.RequestClass2ImmediatelyAfterStartup)
+            await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
     {
@@ -423,16 +481,27 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             dataClass: "Class 2");
 
         var noDataStreak = 0;
+        var unresponsiveStreak = 0;
         var userDataBefore = _counters.UserDataResponses;
         var maxSweeps = Math.Clamp(_settings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
             var beforeNoData = _counters.NoDataResponses;
             var beforeUserData = _counters.UserDataResponses;
+            var beforeValidResponses = _counters.TimedResponses;
 
             _counters.Class2Requests++;
             await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Post-GI Class 2 verification sweep", cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            unresponsiveStreak = _counters.TimedResponses == beforeValidResponses ? unresponsiveStreak + 1 : 0;
+            if (unresponsiveStreak >= 2)
+            {
+                SetState(Iec103MasterState.TimeoutRecovery,
+                    "IEC-101 post-GI sweep stopped — RTU silent",
+                    "Two Class 2 polls received no validated secondary reply.",
+                    category: "Warning", dataClass: "Class 2");
+                break;
+            }
 
             if (_counters.UserDataResponses > beforeUserData)
             {
@@ -471,6 +540,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var stoppedByNoData = false;
         var stoppedByAcdClearAfterEvent = false;
         var stoppedByClass2Fairness = false;
+        var stoppedByTimeout = false;
 
         while (!cancellationToken.IsCancellationRequested && drained < _settings.MaxClass1DrainFrames)
         {
@@ -489,11 +559,17 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             var beforeNoData = _counters.NoDataResponses;
             var beforeUserData = _counters.UserDataResponses;
             var beforeGiEnd = _counters.GiEndResponses;
+            var beforeValidResponses = _counters.TimedResponses;
 
             _counters.Class1Requests++;
             await SendFixedAndReceiveAsync("Request Class 1", "Class 1", 10, true, reason, cancellationToken).ConfigureAwait(false);
             drained++;
             _counters.Class1DrainFrames++;
+            if (_counters.TimedResponses == beforeValidResponses)
+            {
+                stoppedByTimeout = true;
+                break;
+            }
 
             if (_counters.GiEndResponses > beforeGiEnd)
             {
@@ -536,7 +612,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         else
         {
-            var stopReason = stoppedByGiEnd
+            var stopReason = stoppedByTimeout
+                ? "RTU did not reply; no blind Class 1 polling"
+                : stoppedByGiEnd
                 ? "ACTTERM observed"
                 : stoppedByNoData
                     ? "NO DATA received"
@@ -554,13 +632,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
     }
 
-    private async Task SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
         var fcbBefore = _fcb;
         var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
         if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        return response;
     }
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
@@ -652,6 +731,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
+            if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
+            {
+                _linkVerified = false;
+                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
+                    "IEC-101 link no longer responding",
+                    $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
+                    "An open COM port does not prove current RTU connectivity.",
+                    "Inspect serial RX and SICAM link state before retrying GI.");
+            }
             SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
             return null;
         }
@@ -668,6 +756,12 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         _counters.ConsecutiveTimeouts = 0;
         _counters.TimedResponses++;
+        if (!_linkVerified && Iec101SecondaryResponseValidator.CanAdvanceFcb(decoded))
+        {
+            _linkVerified = true;
+            SetState(Iec103MasterState.Connected, "IEC-101 secondary link verified",
+                $"Validated PRM=0 response from Link={_settings.LinkAddress} on {_settings.PortName}.");
+        }
         _counters.TotalResponseTimeMs += sw.ElapsedMilliseconds;
         _counters.MaxResponseTimeMs = Math.Max(_counters.MaxResponseTimeMs, (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds));
 
