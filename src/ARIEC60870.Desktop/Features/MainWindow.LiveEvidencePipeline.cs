@@ -702,6 +702,9 @@ public partial class MainWindow
 
     private bool ShouldShowInFrameTrace(Iec103MasterEvidenceEvent item, EvidenceRow row)
     {
+        // Monitor mode must show real SCADA↔RTU traffic, including routine polls,
+        // independently of the Active Master Balanced/Proof trace suppression rules.
+        if (item.PollingReason == "PASSIVE-IEC101") return true;
         if (row.RawHex == "-" ||
             (!row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) &&
              !row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase)))

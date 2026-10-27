@@ -26,6 +26,15 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
+    // Bounded presentation feed; frame index files and primary binary journals remain durable.
+    private readonly Channel<PassiveObservedFrame> _frames =
+        Channel.CreateBounded<PassiveObservedFrame>(new BoundedChannelOptions(512)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.DropOldest,
+            AllowSynchronousContinuations = false
+        });
     private readonly long[] _writtenBytes = new long[2];
     private readonly long[] _writtenChunks = new long[2];
     private readonly string[] _rawHashes = new string[2];
@@ -63,6 +72,9 @@ public sealed class PassiveMonitorSession
 
     /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
+
+    /// <summary>Decoding feed for Trace/Values/Events. A slow UI cannot block archival.</summary>
+    public bool TryReadFrame(out PassiveObservedFrame frame) => _frames.Reader.TryRead(out frame!);
 
     public async Task<(string Directory, PassiveCaptureManifest Manifest)> RunAsync(CancellationToken cancellationToken)
     {
@@ -205,12 +217,26 @@ public sealed class PassiveMonitorSession
     {
         FileStream[]? files = null;
         FileStream? firstFile = null;
+        StreamWriter[]? frameFiles = null;
+        var scanners = new[]
+        {
+            new PassiveFt12Scanner(_options.LinkAddressWidth),
+            new PassiveFt12Scanner(_options.LinkAddressWidth)
+        };
+        var lastSeenTicks = new long[2];
         var hashes = new[] { IncrementalHash.CreateHash(HashAlgorithmName.SHA256), IncrementalHash.CreateHash(HashAlgorithmName.SHA256) };
         try
         {
             firstFile = OpenJournal(root, 0);
             var secondFile = OpenJournal(root, 1);
             files = new[] { firstFile, secondFile };
+            frameFiles = new[]
+            {
+                new StreamWriter(new FileStream(Path.Combine(root, "frames-00.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8),
+                new StreamWriter(new FileStream(Path.Combine(root, "frames-01.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8)
+            };
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
             await foreach (var chunk in channel.Reader.ReadAllAsync().ConfigureAwait(false))
@@ -219,6 +245,35 @@ public sealed class PassiveMonitorSession
                 {
                     await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
                     hashes[chunk.StreamId].AppendData(chunk.Buffer, PassiveJournalFormat.HeaderSize, chunk.Length - PassiveJournalFormat.HeaderSize);
+                    var rawOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(24, 8));
+                    var frameTicks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
+                    var frameUtc = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, frameTicks);
+                    // The journal is authoritative. Frame recognition is a passive projection
+                    // of the COMPLETE chunk, not the bounded 48-byte UI preview.
+                    var observed = new List<PassiveObservedFrame>();
+                    if (lastSeenTicks[chunk.StreamId] > 0 &&
+                        Stopwatch.GetElapsedTime(lastSeenTicks[chunk.StreamId], frameTicks) > TimeSpan.FromMilliseconds(900))
+                    {
+                        var partial = scanners[chunk.StreamId].ExpireIncomplete();
+                        if (partial is not null)
+                            observed.Add(new PassiveObservedFrame(chunk.StreamId, partial.ByteOffset,
+                                frameUtc, partial.Format, false, partial.RawBytes));
+                    }
+                    lastSeenTicks[chunk.StreamId] = frameTicks;
+                    scanners[chunk.StreamId].Feed(chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize,
+                        chunk.Length - PassiveJournalFormat.HeaderSize), rawOffset,
+                        frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
+                            frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid, frame.RawBytes)));
+                    foreach (var frame in observed)
+                    {
+                        var line = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
+                            frame.Format, frame.ChecksumValid, Length = frame.RawBytes.Length
+                        });
+                        await frameFiles[chunk.StreamId].WriteLineAsync(line).ConfigureAwait(false);
+                        _frames.Writer.TryWrite(frame);
+                    }
                     // Small capped byte sample, copied while the writer still owns the pooled buffer.
                     var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
                     var first = new byte[Math.Min(byteCount, 48)];
@@ -235,14 +290,33 @@ public sealed class PassiveMonitorSession
                     {
                         await files[0].FlushAsync().ConfigureAwait(false);
                         await files[1].FlushAsync().ConfigureAwait(false);
+                        await frameFiles[0].FlushAsync().ConfigureAwait(false);
+                        await frameFiles[1].FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
                     }
                 }
                 finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
             }
+            // Preserve truncated tail candidates as explicit partial-frame observations
+            // at EOF rather than silently suppressing them.
+            for (byte sid = 0; sid < 2; sid++)
+            {
+                var partial = scanners[sid].ExpireIncomplete();
+                if (partial is null) continue;
+                var observedTail = new PassiveObservedFrame(sid, partial.ByteOffset,
+                    DateTime.UtcNow, "Partial", false, partial.RawBytes);
+                await frameFiles[sid].WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
+                    observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
+                })).ConfigureAwait(false);
+                _frames.Writer.TryWrite(observedTail);
+            }
             await files[0].FlushAsync().ConfigureAwait(false);
             await files[1].FlushAsync().ConfigureAwait(false);
+            await frameFiles[0].FlushAsync().ConfigureAwait(false);
+            await frameFiles[1].FlushAsync().ConfigureAwait(false);
             for (var i = 0; i < 2; i++) _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
         }
         catch (Exception ex)
@@ -256,6 +330,7 @@ public sealed class PassiveMonitorSession
         {
             while (channel.Reader.TryRead(out var remaining)) ArrayPool<byte>.Shared.Return(remaining.Buffer);
             foreach (var hash in hashes) hash.Dispose();
+            if (frameFiles is not null) foreach (var index in frameFiles) index.Dispose();
             if (files is null) firstFile?.Dispose();
             if (files is not null)
                 foreach (var file in files)
@@ -282,6 +357,10 @@ public sealed class PassiveMonitorSession
             EndUtc = ended,
             StopwatchOriginTicks = origin,
             StopwatchFrequency = Stopwatch.Frequency,
+            LinkAddressWidth = _options.LinkAddressWidth,
+            CotWidth = _options.CotWidth,
+            CommonAddressWidth = _options.CommonAddressWidth,
+            InformationAddressWidth = _options.InformationAddressWidth,
             Streams = new[]
             {
                 new CapturedStreamSummary(0, _options.ScadaTx.PortName,

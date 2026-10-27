@@ -621,7 +621,7 @@ public partial class MainWindow
         }
 
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
-        MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 10 : IsIec101DualLinkModeSelected() ? 9 : 1;
+        MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 1 : IsIec101DualLinkModeSelected() ? 9 : 1;
         UpdateSegmentedNav(false);
     }
 

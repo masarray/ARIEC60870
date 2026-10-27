@@ -121,6 +121,10 @@ public partial class MainWindow
             }
             PassiveCaptureFolderBox.Text = string.IsNullOrWhiteSpace(prefs.PassiveOutputDirectory)
                 ? DefaultPassiveCaptureDirectory() : prefs.PassiveOutputDirectory;
+            SelectComboContent(PassiveLinkWidthCombo, prefs.PassiveLinkWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SelectComboContent(PassiveCotWidthCombo, prefs.PassiveCotWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SelectComboContent(PassiveCaWidthCombo, prefs.PassiveCaWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SelectComboContent(PassiveIoaWidthCombo, prefs.PassiveIoaWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             SelectComboContent(TransportModeComboBox, prefs.UseSimulatedSlave ? "Built-in demo simulation" : "Real device / server");
 
             if (!string.IsNullOrWhiteSpace(prefs.PortName))
@@ -227,6 +231,10 @@ public partial class MainWindow
                 ProtocolMode = settings.ProtocolMode.ToString(),
                 PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
                 PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
+                PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width"),
+                PassiveCotWidth = ReadComboInt(PassiveCotWidthCombo, "Passive COT width"),
+                PassiveCaWidth = ReadComboInt(PassiveCaWidthCombo, "Passive CA width"),
+                PassiveIoaWidth = ReadComboInt(PassiveIoaWidthCombo, "Passive IOA width"),
                 UseSimulatedSlave = settings.UseSimulatedSlave,
                 PortName = settings.PortName,
                 BaudRate = settings.BaudRate,
@@ -379,6 +387,10 @@ public partial class MainWindow
         public string PortName { get; set; } = "COM1";
         public string PassiveRtuPortName { get; set; } = string.Empty;
         public string PassiveOutputDirectory { get; set; } = string.Empty;
+        public int PassiveLinkWidth { get; set; } = 1;
+        public int PassiveCotWidth { get; set; } = 2;
+        public int PassiveCaWidth { get; set; } = 2;
+        public int PassiveIoaWidth { get; set; } = 3;
         public int BaudRate { get; set; } = 9600;
         public string SerialMode { get; set; } = "8E1";
         public string SerialHandshake { get; set; } = "None";

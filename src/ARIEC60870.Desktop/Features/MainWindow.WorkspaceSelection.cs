@@ -91,25 +91,34 @@ public partial class MainWindow
 
         var isDual101 = IsIec101DualLinkModeSelected();
         var isPassive101 = IsIec101PassiveMonitorSelected();
-        NavFrameButton.Tag = isPassive101 ? "10" : "1";
+        NavFrameButton.Tag = "1";
+        NavTriggersButton.Tag = isPassive101 ? "10" : "8";
         if (isPassive101)
         {
+            // Monitor is a data source, not a separate UX: reuse ordinary analysis views.
+            NavFrameButton.Content = "Frame Trace";
+            NavEventButton.Content = "Event Log";
+            NavValueButton.Content = "Values";
+            NavOperatorButton.Content = "Messages";
+            NavTriggersButton.Content = "Capture";
             NavDualLinkButton.Visibility = Visibility.Collapsed;
             NavFrameButton.Visibility = Visibility.Visible;
-            NavFrameButton.Content = "Raw Trace";
-            NavValueButton.Visibility = Visibility.Collapsed;
-            NavEventButton.Visibility = Visibility.Collapsed;
-            NavFindingsButton.Visibility = Visibility.Collapsed;
-            NavReportButton.Visibility = Visibility.Collapsed;
-            NavOperatorButton.Visibility = Visibility.Collapsed;
+            NavValueButton.Visibility = Visibility.Visible;
+            NavEventButton.Visibility = Visibility.Visible;
+            NavOperatorButton.Visibility = Visibility.Visible;
+            NavTriggersButton.Visibility = Visibility.Visible;
+            NavFindingsButton.Visibility = Visibility.Visible;
+            NavReportButton.Visibility = Visibility.Visible;
             NavDiagnosticsButton.Visibility = Visibility.Collapsed;
             NavNotesButton.Visibility = Visibility.Collapsed;
-            NavTriggersButton.Visibility = Visibility.Collapsed;
-            MainTabControl.SelectedIndex = 10;
+            if (MainTabControl.SelectedIndex is 5 or 7 or 8 or 9)
+                MainTabControl.SelectedIndex = 1;
             UpdateSegmentedNav(false);
             return;
         }
 
+        NavOperatorButton.Content = "Evidence Ledger";
+        NavTriggersButton.Content = "Capture Policy";
         NavDualLinkButton.Content = "Redundancy";
         NavFrameButton.Content = "Trace";
         NavValueButton.Content = "Values";

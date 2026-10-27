@@ -13,6 +13,10 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ARIEC60870.Monitor;
+using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 using Microsoft.Win32;
 
 namespace ARIEC60870.Desktop;
@@ -20,7 +24,7 @@ namespace ARIEC60870.Desktop;
 /// <summary>Passive RX capture lives in existing Setup, Connect and Trace workspaces.</summary>
 public partial class MainWindow
 {
-    private const int PassiveTraceTabIndex = 10;
+    private const int PassiveTraceTabIndex = 1;
     private const int MaxVisiblePassiveRows = 600;
     private readonly ObservableCollection<PassiveRxRow> _passiveRawRows = new();
     private DispatcherTimer? _passiveUiTimer;
@@ -28,6 +32,9 @@ public partial class MainWindow
     private Task<(string Directory, PassiveCaptureManifest Manifest)>? _passiveCaptureTask;
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
     private bool _closingAfterPassiveStop;
+    private Iec10xAsduDecoder? _passiveAsduDecoder;
+    private long _passiveFrameSequence;
+    private int _passiveLinkAddressWidth;
 
     public ObservableCollection<PassiveRxRow> PassiveRawRows => _passiveRawRows;
 
@@ -53,8 +60,31 @@ public partial class MainWindow
             ActiveSerialHandshakePanel.Visibility != Visibility.Collapsed ||
             CommandDockPanel.Visibility != Visibility.Collapsed ||
             MainTabControl.SelectedIndex != PassiveTraceTabIndex ||
-            NavFrameButton.Tag?.ToString() != "10")
+            NavFrameButton.Tag?.ToString() != "1" ||
+            NavEventButton.Visibility != Visibility.Visible ||
+            NavValueButton.Visibility != Visibility.Visible ||
+            NavOperatorButton.Visibility != Visibility.Visible ||
+            NavTriggersButton.Tag?.ToString() != "10")
             throw new InvalidOperationException("Passive mode is not correctly embedded in Setup/Trace; active controls remain visible.");
+
+        // End-to-end GUI probe: real FT1.2 user-data frame → existing IEC-101
+        // decoder → normal Frame Trace, Values, and Event Log. No hardware opened.
+        var asdu = new byte[] { 1, 1, 3, 0, 1, 0, 7, 0, 0, 1 };
+        var payload = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+        var testFrame = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+            .Concat(payload)
+            .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 })
+            .ToArray();
+        _passiveLinkAddressWidth = 1;
+        _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 0, DateTime.UtcNow,
+            "Variable", true, testFrame));
+        FlushUiQueues();
+        if (FrameTraceRows.Count == 0 || ValueRows.Count == 0 || RelayEventRows.Count == 0)
+            throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
+        if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+        ClearSessionView(clearLog: true);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
         if (IsIec101PassiveMonitorSelected() ||
@@ -100,6 +130,10 @@ public partial class MainWindow
             prefs.PortName = (PortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim();
+            prefs.PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width");
+            prefs.PassiveCotWidth = ReadComboInt(PassiveCotWidthCombo, "Passive COT width");
+            prefs.PassiveCaWidth = ReadComboInt(PassiveCaWidthCombo, "Passive CA width");
+            prefs.PassiveIoaWidth = ReadComboInt(PassiveIoaWidthCombo, "Passive IOA width");
             if (int.TryParse(BaudComboBox.Text, out var baud)) prefs.BaudRate = baud;
             prefs.SerialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
             prefs.SavedUtc = DateTime.UtcNow;
@@ -129,9 +163,16 @@ public partial class MainWindow
         };
         var output = string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text)
             ? DefaultPassiveCaptureDirectory() : PassiveCaptureFolderBox.Text.Trim();
+        static int Width(ComboBox combo) => int.Parse(
+            (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "0",
+            System.Globalization.CultureInfo.InvariantCulture);
         var options = new PassiveCaptureOptions(output,
             new PassiveSerialSource(first, "SCADA TX -> RTU", baud, parity, 8, StopBits.One),
-            new PassiveSerialSource(second, "RTU TX -> SCADA", baud, parity, 8, StopBits.One));
+            new PassiveSerialSource(second, "RTU TX -> SCADA", baud, parity, 8, StopBits.One),
+            LinkAddressWidth: Width(PassiveLinkWidthCombo),
+            CotWidth: Width(PassiveCotWidthCombo),
+            CommonAddressWidth: Width(PassiveCaWidthCombo),
+            InformationAddressWidth: Width(PassiveIoaWidthCombo));
         options.Validate();
 
         var directory = Path.GetFullPath(output);
@@ -173,7 +214,12 @@ public partial class MainWindow
             new WindowsReadOnlySerialTap(options.RtuTx));
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
+        ClearSessionView(clearLog: true);
         _passiveRawRows.Clear();
+        _passiveFrameSequence = 0;
+        _passiveAsduDecoder = new Iec10xAsduDecoder(
+            options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
+        _passiveLinkAddressWidth = options.LinkAddressWidth;
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
         PassiveIntegrityText.Text = "Opening receivers...";
@@ -254,6 +300,15 @@ public partial class MainWindow
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
 
+        // Frame reconstruction is independent of the raw sample view and its Freeze flag.
+        // Every observed frame is projected onto the EXISTING Evidence/Trace/Values/Event pipeline.
+        var framed = 0;
+        while (framed < 180 && session.TryReadFrame(out var frame))
+        {
+            FeedPassiveFrameToExistingViews(frame);
+            framed++;
+        }
+
         if (PassiveFreezeCheckBox.IsChecked == true) return;
         var count = 0;
         while (count < 65 && session.TryReadPreview(out var sample))
@@ -269,6 +324,121 @@ public partial class MainWindow
         }
         if (count > 0 && PassiveRawGrid.SelectedItem is null)
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
+    }
+
+    private void FeedPassiveFrameToExistingViews(PassiveObservedFrame seen)
+    {
+        var raw = seen.RawBytes;
+        var controlOffset = seen.Format == "Fixed" ? 1 : seen.Format == "Variable" ? 4 : -1;
+        var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
+        var linkWidth = _passiveLinkAddressWidth;
+        var address = 0;
+        if (control.HasValue)
+            for (var i = 0; i < linkWidth; i++) address |= raw[controlOffset + 1 + i] << (8 * i);
+        var asduOffset = 5 + linkWidth;
+        var asduCount = seen.Format == "Variable" ? Math.Max(0, raw[1] - 1 - linkWidth) : 0;
+        byte[] asduRaw = seen.Format == "Variable" && asduCount > 0
+            ? raw.AsSpan(asduOffset, asduCount).ToArray() : Array.Empty<byte>();
+        var link = control.HasValue ? LinkControlDecoder.Decode(control.Value) : null;
+        var decode = seen.ChecksumValid && asduRaw.Length > 0 ? _passiveAsduDecoder?.Decode(asduRaw) : null;
+        var format = seen.Format switch
+        {
+            "Fixed" => Ft12FrameFormat.FixedLength,
+            "Variable" => Ft12FrameFormat.VariableLength,
+            "Partial" => Ft12FrameFormat.Malformed,
+            _ => Ft12FrameFormat.SingleCharacter
+        };
+        var frame = new Ft12FrameDecode
+        {
+            Format = format, RawBytes = raw, Control = control,
+            LinkAddress = control.HasValue ? address : null,
+            LinkAddressSize = linkWidth, LinkControl = link,
+            AsduBytes = asduRaw, IsChecksumValid = seen.ChecksumValid,
+            IsLengthValid = true,
+            Issues = seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum." }
+        };
+        var direction = seen.StreamId == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
+        var prefix = seen.StreamId == 0 ? "SCADA → RTU" : "RTU → SCADA";
+        var function = seen.Format == "Partial" ? "Incomplete frame" :
+            link?.FunctionName ?? (raw[0] == 0xE5 ? "ACK (E5)" : "NACK (A2)");
+        var meaning = decode?.ShortMeaning ?? function;
+        if (!seen.ChecksumValid && seen.Format != "Partial")
+            meaning = "Bad checksum · " + meaning;
+        var first = decode?.FirstObject;
+
+        var ev = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = ++_passiveFrameSequence,
+            TimestampUtc = seen.EstimatedUtc, Direction = direction,
+            Category = seen.ChecksumValid ? "Passive Traffic" : "RX Warning",
+            DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
+            PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Summary = prefix + " · " + function,
+            Detail = meaning + $" · Link {address} · RX offset {seen.StreamOffset}" +
+                     (decode?.Issues.Count > 0 ? " · " + string.Join("; ", decode.Issues) : ""),
+            OperatorMessage = meaning, ProtocolMeaning = meaning,
+            OperatorAction = "Observed only; no commands transmitted",
+            RawHex = Convert.ToHexString(raw),
+            Frame = frame, LinkAddress = control.HasValue ? address : null,
+            TypeId = decode?.TypeId,
+            TypeName = decode?.TypeName ?? "",
+            VariableStructureQualifier = decode?.VariableStructureQualifier,
+            IsSequenceAsdu = decode?.IsSequence,
+            ObjectCount = decode?.ObjectCount,
+            CauseOfTransmission = decode?.CauseOfTransmission,
+            CauseName = decode?.CauseName ?? "",
+            OriginatorAddress = decode?.OriginatorAddress,
+            CommonAddressNumber = decode?.CommonAddress,
+            InformationObjectAddress = first?.InformationObjectAddress,
+            ObjectSummary = decode?.ObjectSummary ?? "",
+            QualityText = first?.QualityText ?? "",
+            IsRelayEdgeEvent = seen.ChecksumValid && seen.StreamId == 1 && first is not null &&
+                decode?.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
+            IsRelayValue = seen.ChecksumValid && seen.StreamId == 1 && first is not null && decode is not null &&
+                decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
+            SignalKey = first is null || decode is null ? "" : $"{decode.CommonAddress}:{first.InformationObjectAddress}",
+            SignalName = first is null ? "" : $"IOA {first.InformationObjectAddress}",
+            SignalGroup = "IEC-101",
+            SignalType = decode?.TypeName ?? "",
+            SignalDisplayValue = first?.ShortValue ?? "",
+            SignalRawValue = first?.ValueText ?? "",
+            RelayTimestampText = first?.TimestampText ?? "",
+            RelayTimestampInvalid = first?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true
+        };
+        OnEvidenceReceived(this, ev);
+
+        // Multi-object ASDUs must update EVERY point, not only the first IOA.
+        if (seen.ChecksumValid && seen.StreamId == 1 && decode is not null &&
+            decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
+        {
+            foreach (var obj in decode.Objects.Skip(1))
+            {
+                UpdateValueAndEventViews(new Iec103MasterEvidenceEvent
+                {
+                    SequenceNumber = _passiveFrameSequence,
+                    TimestampUtc = seen.EstimatedUtc,
+                    Direction = direction,
+                    ProtocolMode = Iec60870ProtocolMode.Iec101,
+                    Category = "Passive Point",
+                    PollingReason = "PASSIVE-POINT",
+                    RawHex = Convert.ToHexString(raw),
+                    TypeId = decode.TypeId, TypeName = decode.TypeName,
+                    CauseOfTransmission = decode.CauseOfTransmission,
+                    CauseName = decode.CauseName, CommonAddressNumber = decode.CommonAddress,
+                    InformationObjectAddress = obj.InformationObjectAddress,
+                    ObjectSummary = obj.ReadableSummary,
+                    IsRelayValue = true,
+                    IsRelayEdgeEvent = decode.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
+                    SignalKey = $"{decode.CommonAddress}:{obj.InformationObjectAddress}",
+                    SignalName = $"IOA {obj.InformationObjectAddress}",
+                    SignalGroup = "IEC-101",
+                    SignalType = decode.TypeName,
+                    SignalDisplayValue = obj.ShortValue,
+                    SignalRawValue = obj.ValueText,
+                    RelayTimestampText = obj.TimestampText
+                });
+            }
+        }
     }
 
     private void PassiveRawGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
