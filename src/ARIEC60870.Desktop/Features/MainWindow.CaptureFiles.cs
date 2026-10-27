@@ -31,12 +31,12 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    private void OpenCapture_Click(object sender, RoutedEventArgs e)
+    private async void OpenCapture_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Open ARIEC capture",
-            Filter = "ARIEC capture (*.ariec;*.zip)|*.ariec;*.zip|All files (*.*)|*.*",
+            Title = "Open ARIEC evidence",
+            Filter = "All ARIEC evidence (*.ariec;*.zip;manifest.json)|*.ariec;*.zip;manifest.json|Selected frame capture (*.ariec;*.zip)|*.ariec;*.zip|Full passive raw capture (manifest.json)|manifest.json|All files (*.*)|*.*",
             CheckFileExists = true
         };
 
@@ -47,6 +47,12 @@ public partial class MainWindow
 
         try
         {
+            if (Path.GetFileName(dialog.FileName).Equals("manifest.json", StringComparison.OrdinalIgnoreCase))
+            {
+                await OpenPassiveRawJournalAsync(dialog.FileName);
+                return;
+            }
+
             var rows = ReadCaptureRows(dialog.FileName);
             if (rows.Count == 0)
             {

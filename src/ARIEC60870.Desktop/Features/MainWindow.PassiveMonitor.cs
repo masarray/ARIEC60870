@@ -521,7 +521,21 @@ public partial class MainWindow
 
     private async void MainWindow_ClosingPassive(object? sender, CancelEventArgs e)
     {
-        if (_closingAfterPassiveStop || _passiveMonitorSession is null) return;
+        if (_closingAfterPassiveStop) return;
+        if (_passiveReplayCancellation is { } replay && _passiveReplayWork is { } replayTask)
+        {
+            e.Cancel = true;
+            _closingAfterPassiveStop = true;
+            IsEnabled = false;
+            replay.Cancel();
+            try { await replayTask; }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { AppendSessionLog("Offline replay shutdown: " + ex.Message); }
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            Close();
+            return;
+        }
+        if (_passiveMonitorSession is null) return;
         e.Cancel = true;
         _closingAfterPassiveStop = true;
         IsEnabled = false;
