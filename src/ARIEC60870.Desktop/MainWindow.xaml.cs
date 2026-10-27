@@ -238,7 +238,7 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
-            MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1;
+            MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 10 : IsIec101DualLinkModeSelected() ? 9 : 1;
             UpdateSegmentedNav(false);
             UpdateResponsiveHeaderLayout();
             UpdateAutoScrollLatestRailVisual();
@@ -261,6 +261,7 @@ public partial class MainWindow : Window
             CancelReleaseUpdateCheck();
             SaveSetupPreferencesFromUi(silent: true);
         };
+        Closing += MainWindow_ClosingPassive;
     }
 
     public ObservableRangeCollection<EvidenceRow> EvidenceRows { get; } = new();
@@ -294,6 +295,12 @@ public partial class MainWindow : Window
 
     private void CloseSetupAndConnect_Click(object sender, RoutedEventArgs e)
     {
+        if (IsIec101PassiveMonitorSelected() && PassiveSafetyCheckBox.IsChecked != true)
+        {
+            ModernMessageBox.Show(this, "Verify the approved isolated RX-only tap, disconnected TXD/RTS/DTR and intact production handshake before recording.",
+                "Passive monitor safety", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
         SaveSetupPreferencesFromUi(silent: true);
         SetupOverlay.Visibility = Visibility.Collapsed;
         if (_sessionCancellation is null)
@@ -326,6 +333,17 @@ public partial class MainWindow : Window
         PortComboBox.SelectedItem = !string.IsNullOrWhiteSpace(previous) && PortComboBox.Items.Contains(previous)
             ? previous
             : PortComboBox.Items[0];
+        var previousPassiveRtu = PassiveRtuPortComboBox.SelectedItem as string;
+        PassiveRtuPortComboBox.Items.Clear();
+        foreach (var port in ports) PassiveRtuPortComboBox.Items.Add(port);
+        if (!string.IsNullOrWhiteSpace(previousPassiveRtu))
+        {
+            if (!PassiveRtuPortComboBox.Items.Contains(previousPassiveRtu))
+                PassiveRtuPortComboBox.Items.Add(previousPassiveRtu);
+            PassiveRtuPortComboBox.SelectedItem = previousPassiveRtu;
+        }
+        else if (PassiveRtuPortComboBox.Items.Count > 1)
+            PassiveRtuPortComboBox.SelectedIndex = 1;
 
         if (BackupPortComboBox is not null)
         {

@@ -38,6 +38,13 @@ public partial class MainWindow
             return;
         }
 
+        if (IsIec101PassiveMonitorSelected())
+        {
+            CommandDockColumn.Width = new GridLength(0);
+            CommandDockPanel.Visibility = Visibility.Collapsed;
+            CommandDockMiniButton.Visibility = Visibility.Collapsed;
+            return;
+        }
         CommandDockColumn.Width = _commandDockExpanded ? new GridLength(320) : new GridLength(42);
         CommandDockPanel.Visibility = _commandDockExpanded ? Visibility.Visible : Visibility.Collapsed;
         CommandDockMiniButton.Visibility = _commandDockExpanded ? Visibility.Collapsed : Visibility.Visible;

@@ -9,22 +9,22 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Internal Windows-CI GUI load probe: exercises real XAML/resource loading
-        // with no COM connection and no master transaction.
         if (e.Args.Contains("--passive-gui-smoke", StringComparer.OrdinalIgnoreCase))
         {
-            StartupUri = null; // do not open main commissioning session in a smoke test
+            StartupUri = null;
             base.OnStartup(e);
             try
             {
-                var window = new PassiveMonitorWindow();
+                // Real main application window, existing Setup dropdown and Trace workspace.
+                var window = new MainWindow();
                 window.Show();
+                window.RunPassiveGuiSmokeProbe();
                 window.Close();
                 Shutdown(0);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("Passive GUI startup probe failed: " + ex);
+                Console.Error.WriteLine("Integrated passive GUI smoke failed: " + ex);
                 Shutdown(1);
             }
             return;
