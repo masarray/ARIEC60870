@@ -24,6 +24,22 @@ public sealed class PassiveFt12Scanner
         _addressWidth = linkAddressWidth;
     }
 
+    /// <summary>
+    /// A communication idle gap/EOF can terminate an uncompleted candidate.
+    /// Bytes remain present in the raw journal; emit a partial diagnostic instead
+    /// of silently losing a later ACK behind a stale 0x10/0x68 prefix.
+    /// </summary>
+    public PassiveFt12Frame? ExpireIncomplete()
+    {
+        if (_count == 0) return null;
+        var raw = new byte[_count];
+        Array.Copy(_pending, raw, _count);
+        var partial = new PassiveFt12Frame(_startOffset, "Partial", false, raw);
+        _noiseBytes += _count;
+        _count = 0;
+        return partial;
+    }
+
     public long NoiseBytes => _noiseBytes;
     public long IncompleteBytes => _count;
 

@@ -223,6 +223,7 @@ public sealed class PassiveMonitorSession
             new PassiveFt12Scanner(_options.LinkAddressWidth),
             new PassiveFt12Scanner(_options.LinkAddressWidth)
         };
+        var lastSeenTicks = new long[2];
         var hashes = new[] { IncrementalHash.CreateHash(HashAlgorithmName.SHA256), IncrementalHash.CreateHash(HashAlgorithmName.SHA256) };
         try
         {
@@ -247,9 +248,18 @@ public sealed class PassiveMonitorSession
                     var rawOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(24, 8));
                     var frameTicks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
                     var frameUtc = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, frameTicks);
-                    // The journal is authoritative. Frame recognition is a passive projection of
-                    // the COMPLETE received chunk, not the bounded 48-byte UI preview.
+                    // The journal is authoritative. Frame recognition is a passive projection
+                    // of the COMPLETE chunk, not the bounded 48-byte UI preview.
                     var observed = new List<PassiveObservedFrame>();
+                    if (lastSeenTicks[chunk.StreamId] > 0 &&
+                        Stopwatch.GetElapsedTime(lastSeenTicks[chunk.StreamId], frameTicks) > TimeSpan.FromMilliseconds(900))
+                    {
+                        var partial = scanners[chunk.StreamId].ExpireIncomplete();
+                        if (partial is not null)
+                            observed.Add(new PassiveObservedFrame(chunk.StreamId, partial.ByteOffset,
+                                frameUtc, partial.Format, false, partial.RawBytes));
+                    }
+                    lastSeenTicks[chunk.StreamId] = frameTicks;
                     scanners[chunk.StreamId].Feed(chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize,
                         chunk.Length - PassiveJournalFormat.HeaderSize), rawOffset,
                         frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
@@ -287,6 +297,21 @@ public sealed class PassiveMonitorSession
                     }
                 }
                 finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
+            }
+            // Preserve truncated tail candidates as explicit partial-frame observations
+            // at EOF rather than silently suppressing them.
+            for (byte sid = 0; sid < 2; sid++)
+            {
+                var partial = scanners[sid].ExpireIncomplete();
+                if (partial is null) continue;
+                var observedTail = new PassiveObservedFrame(sid, partial.ByteOffset,
+                    DateTime.UtcNow, "Partial", false, partial.RawBytes);
+                await frameFiles[sid].WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
+                    observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
+                })).ConfigureAwait(false);
+                _frames.Writer.TryWrite(observedTail);
             }
             await files[0].FlushAsync().ConfigureAwait(false);
             await files[1].FlushAsync().ConfigureAwait(false);

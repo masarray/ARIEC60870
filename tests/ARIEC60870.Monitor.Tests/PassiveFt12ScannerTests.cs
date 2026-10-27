@@ -69,6 +69,9 @@ public sealed class PassiveFt12ScannerTests
         var output = new List<PassiveFt12Frame>();
         for (var i = 0; i < 5000; i++)
             scanner.Feed(new byte[] { 0x68, 0xFF, 0x10, 0x10, 0x00 }, i * 5, output.Add);
+        // The raw stream may legitimately end with an incomplete candidate; an
+        // independently observed idle gap/EOF is the boundary that releases it.
+        scanner.ExpireIncomplete();
         scanner.Feed(new byte[] { 0xE5 }, 25000, output.Add);
         Assert.Contains(output, f => f.Format == "Single" && f.ChecksumValid);
         Assert.InRange(scanner.IncompleteBytes, 0, 260);

@@ -67,6 +67,25 @@ public partial class MainWindow
             NavTriggersButton.Tag?.ToString() != "10")
             throw new InvalidOperationException("Passive mode is not correctly embedded in Setup/Trace; active controls remain visible.");
 
+        // End-to-end GUI probe: real FT1.2 user-data frame → existing IEC-101
+        // decoder → normal Frame Trace, Values, and Event Log. No hardware opened.
+        var asdu = new byte[] { 1, 1, 3, 0, 1, 0, 7, 0, 0, 1 };
+        var payload = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+        var testFrame = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+            .Concat(payload)
+            .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 })
+            .ToArray();
+        _passiveLinkAddressWidth = 1;
+        _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 0, DateTime.UtcNow,
+            "Variable", true, testFrame));
+        FlushUiQueues();
+        if (FrameTraceRows.Count == 0 || ValueRows.Count == 0 || RelayEventRows.Count == 0)
+            throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
+        if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+        ClearSessionView(clearLog: true);
+
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
         if (IsIec101PassiveMonitorSelected() ||
             ActiveSetupRightPanel.Visibility != Visibility.Visible ||
@@ -326,6 +345,7 @@ public partial class MainWindow
         {
             "Fixed" => Ft12FrameFormat.FixedLength,
             "Variable" => Ft12FrameFormat.VariableLength,
+            "Partial" => Ft12FrameFormat.Malformed,
             _ => Ft12FrameFormat.SingleCharacter
         };
         var frame = new Ft12FrameDecode
@@ -339,9 +359,11 @@ public partial class MainWindow
         };
         var direction = seen.StreamId == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
         var prefix = seen.StreamId == 0 ? "SCADA → RTU" : "RTU → SCADA";
-        var function = link?.FunctionName ?? (raw[0] == 0xE5 ? "ACK (E5)" : "NACK (A2)");
+        var function = seen.Format == "Partial" ? "Incomplete frame" :
+            link?.FunctionName ?? (raw[0] == 0xE5 ? "ACK (E5)" : "NACK (A2)");
         var meaning = decode?.ShortMeaning ?? function;
-        if (!seen.ChecksumValid) meaning = "Bad checksum · " + meaning;
+        if (!seen.ChecksumValid && seen.Format != "Partial")
+            meaning = "Bad checksum · " + meaning;
         var first = decode?.FirstObject;
 
         var ev = new Iec103MasterEvidenceEvent
