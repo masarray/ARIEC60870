@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Security.Cryptography;
+using System.IO.Ports;
 using ARIEC60870.Monitor;
 using Xunit;
 
@@ -28,6 +29,32 @@ public sealed class PassiveMonitorP0Tests
             new PassiveSerialSource("com7", "RTU TX")).Validate());
         Assert.Throws<ArgumentException>(() => new PassiveCaptureOptions("capture", a,
             new PassiveSerialSource("COM8", "RTU TX", BaudRate: 1200)).Validate());
+    }
+
+    [Fact]
+    public void FieldUartAndDecodeProfilesAreIndependentAndValidated()
+    {
+        var uartA = new PassiveSerialSource("COM10", "SCADA TX", 1200, Parity.Even, 8, StopBits.Two);
+        var uartB = new PassiveSerialSource("COM11", "RTU TX", 1200, Parity.Even, 8, StopBits.Two);
+        var opts = new PassiveCaptureOptions("capture", uartA, uartB,
+            LinkAddressWidth: 2, CotWidth: 1, CommonAddressWidth: 1,
+            InformationAddressWidth: 2, FrameGapMilliseconds: 1500, LinkMode: "Balanced");
+        opts.Validate();
+        Assert.Equal(StopBits.Two, opts.RtuTx.StopBits);
+        Assert.Equal(1500, opts.FrameGapMilliseconds);
+        Assert.Equal("Balanced", opts.LinkMode);
+        Assert.Throws<ArgumentOutOfRangeException>(() => (opts with { FrameGapMilliseconds = 99 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (opts with { FrameGapMilliseconds = 10001 }).Validate());
+        Assert.Throws<ArgumentException>(() => (opts with { LinkMode = "Unknown" }).Validate());
+        Assert.Throws<ArgumentException>(() => (opts with
+        {
+            ScadaTx = uartA with { DataBits = 7 },
+            RtuTx = uartB with { DataBits = 7 }
+        }).Validate());
+        Assert.Throws<ArgumentException>(() => (opts with
+        {
+            RtuTx = uartB with { StopBits = StopBits.One }
+        }).Validate());
     }
 
     [Fact]

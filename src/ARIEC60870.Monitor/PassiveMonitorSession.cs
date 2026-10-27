@@ -252,7 +252,7 @@ public sealed class PassiveMonitorSession
                     // of the COMPLETE chunk, not the bounded 48-byte UI preview.
                     var observed = new List<PassiveObservedFrame>();
                     if (lastSeenTicks[chunk.StreamId] > 0 &&
-                        Stopwatch.GetElapsedTime(lastSeenTicks[chunk.StreamId], frameTicks) > TimeSpan.FromMilliseconds(900))
+                        Stopwatch.GetElapsedTime(lastSeenTicks[chunk.StreamId], frameTicks) > TimeSpan.FromMilliseconds(_options.FrameGapMilliseconds))
                     {
                         var partial = scanners[chunk.StreamId].ExpireIncomplete();
                         if (partial is not null)
@@ -361,6 +361,8 @@ public sealed class PassiveMonitorSession
             CotWidth = _options.CotWidth,
             CommonAddressWidth = _options.CommonAddressWidth,
             InformationAddressWidth = _options.InformationAddressWidth,
+            FrameGapMilliseconds = _options.FrameGapMilliseconds,
+            LinkMode = _options.LinkMode,
             Streams = new[]
             {
                 new CapturedStreamSummary(0, _options.ScadaTx.PortName,
