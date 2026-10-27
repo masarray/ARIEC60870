@@ -39,7 +39,7 @@ This keeps the public message honest while still making the project useful to pr
 | Offline capture review | Medium | should rebuild all relevant workspaces from one source of truth |
 | Native PDF evidence report | Implemented baseline | built-in clean-room PDF engine is available; future work is PDF/A, richer typography, branding, and appendix controls |
 | Release automation | Medium-high | single-file Windows ZIP, checksum, SBOM, and provenance workflow are in place |
-| Passive monitor / dual-link evidence | Planned | future feature family; should start with offline IEC-104 PCAP review before live capture |
+| Passive monitor / dual-link evidence | Planned (IEC-101 field priority) | start with 2-COM read-only IEC-101 serial forensic capture per #19, then decoding/analysis; IEC-104 PCAP remains later |
 | RTU/slave simulation | Future | useful later, but not required for the current public positioning |
 
 ## Public-show strategy
@@ -182,21 +182,27 @@ Exit criteria:
 
 ### v4.x — Passive monitor and dual-link evidence family
 
-Goal: add read-only monitoring and redundancy evidence without changing the current product into an unsafe sniffer.
+**2026-10-27 field-priority adjustment:** The urgent first deliverable is **IEC-101 RS-232 passive serial forensic monitoring** of an existing master↔RTU conversation. It must observe both physical transmit directions using two independent receive-only serial taps without competing with the SCADA master. This supersedes the older plan to implement IEC-104 PCAP first; existing IEC-101 Active Master and Dual Link workflows remain unchanged.
 
-Planned sequence:
+Canonical scoped design:
+- [Passive Monitor PRD](IEC101_PASSIVE_MONITOR_PRD.md): user workflow, feature benchmarks, requirements, acceptance and non-goals.
+- [Passive Monitor ARD](IEC101_PASSIVE_MONITOR_ARD.md): separate RX-only runtime, exact raw journaling, parser migration, integrity/time semantics and release gates.
+- [Passive Monitor UX](IEC101_PASSIVE_MONITOR_UX.md): dense separate WPF workspace reusing trace and inspector components.
+- [Issue #19](https://github.com/masarray/ARIEC60870/issues/19): central tracking.
 
-1. offline IEC-104 PCAP/PCAPNG review;
-2. live IEC-104 passive monitor for authorized mirror/TAP/endpoint capture;
-3. offline IEC-101 serial byte-stream review;
-4. live serial passive monitor with explicit tap mode and safety warnings;
-5. IEC-101 dual-link redundancy evidence summary and PDF section.
+Revised milestone order:
+1. P0: two-COM read-only RS-232 acquisition for one physical duplex link; durable raw archive and integrity;
+2. P1: IEC-101 FT1.2 decoder with shared clean IEC-10x ASDU interpretation, merged trace, .ariec V2 offline replay;
+3. P2: passive request/response correlation, FCB/DFC/ACD/GI analysis and ~30-second recurring incident evidence;
+4. P3: four-COM observation of both redundant duplex links and confidence-qualified traffic-ownership inference;
+5. P4: hardware/driver throughput and non-interference tests; verified Windows field artifact;
+6. later: offline IEC-104 PCAP/PCAPNG analysis, then authorized Ethernet SPAN/TAP observation.
 
-Safety position:
-
-- passive monitor mode must be read-only;
-- live Ethernet capture requires a valid observation point such as SPAN/mirror port, TAP, endpoint host, or firewall/router capture;
-- serial passive monitor requires appropriate RS-232/RS-485 tap wiring and must not drive the line.
+Safety:
+- Serial passive mode is read-only. Physical tap must be electrically approved (RS-232 vs RS-485, loading, ground reference, handshake retention).
+- Two COM cannot prove which of two unobserved redundant lines becomes active; four COM needed for full A/B directional traffic.
+- RS-232 USB COM captures UART bytes with OS/driver timing uncertainty, not ASE2000 BCOM-USB bit-level/line-carrier oscilloscope equivalence.
+- Do not claim live-field qualification until tested on appropriate hardware.
 
 ## Later roadmap
 
