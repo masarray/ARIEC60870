@@ -45,9 +45,13 @@ public static class PassiveJournalVerifier
             if (declared is null) { problems.Add($"Stream {id}: missing manifest entry"); continue; }
             if (declared.Bytes != audits[id].RawBytes || declared.Chunks != audits[id].Records)
                 problems.Add($"Stream {id}: count differs from manifest");
-            if (!string.IsNullOrEmpty(declared.RawSha256) &&
-                !string.Equals(declared.RawSha256, audits[id].Sha256, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(declared.RawSha256))
+                problems.Add($"Stream {id}: SHA256 absent from finalized manifest");
+            else if (!string.Equals(declared.RawSha256, audits[id].Sha256, StringComparison.OrdinalIgnoreCase))
                 problems.Add($"Stream {id}: SHA256 differs from manifest");
+            if (declared.BaudRate <= 0 || declared.DataBits == 0 ||
+                string.IsNullOrWhiteSpace(declared.Parity) || string.IsNullOrWhiteSpace(declared.StopBits))
+                problems.Add($"Stream {id}: serial configuration metadata missing");
             if (declared.DriverErrors != 0)
                 problems.Add($"Stream {id}: UART driver errors detected");
         }

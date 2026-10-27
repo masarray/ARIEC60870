@@ -243,10 +243,14 @@ public sealed class PassiveMonitorSession
             {
                 new CapturedStreamSummary(0, _options.ScadaTx.PortName,
                     _options.ScadaTx.PhysicalTransmitter, Interlocked.Read(ref _writtenChunks[0]),
-                    Interlocked.Read(ref _writtenBytes[0]), _taps[0].DriverErrorCount, "stream-00.bin", _rawHashes[0]),
+                    Interlocked.Read(ref _writtenBytes[0]), _taps[0].DriverErrorCount, "stream-00.bin", _rawHashes[0],
+                    _options.ScadaTx.BaudRate, _options.ScadaTx.Parity.ToString(),
+                    _options.ScadaTx.DataBits, _options.ScadaTx.StopBits.ToString()),
                 new CapturedStreamSummary(1, _options.RtuTx.PortName,
                     _options.RtuTx.PhysicalTransmitter, Interlocked.Read(ref _writtenChunks[1]),
-                    Interlocked.Read(ref _writtenBytes[1]), _taps[1].DriverErrorCount, "stream-01.bin", _rawHashes[1])
+                    Interlocked.Read(ref _writtenBytes[1]), _taps[1].DriverErrorCount, "stream-01.bin", _rawHashes[1],
+                    _options.RtuTx.BaudRate, _options.RtuTx.Parity.ToString(),
+                    _options.RtuTx.DataBits, _options.RtuTx.StopBits.ToString())
             }
         };
 

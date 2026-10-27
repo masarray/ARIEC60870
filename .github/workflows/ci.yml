@@ -75,3 +75,29 @@ jobs:
           name: ARIEC60870-test-results
           path: artifacts/test-results
           if-no-files-found: warn
+
+      - name: Package isolated P0 monitor CLI for Windows x64 bench verification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publish = 'artifacts/monitor-p0-publish'
+          $package = 'artifacts/monitor-p0-package'
+          dotnet publish src/ARIEC60870.Monitor.Cli/ARIEC60870.Monitor.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -o $publish
+          if ($LASTEXITCODE -ne 0) { throw 'P0 monitor publish failed.' }
+          $exe = Join-Path $publish 'ARIEC60870.Monitor.Cli.exe'
+          if (!(Test-Path $exe)) { throw 'Expected P0 monitor EXE is missing.' }
+          & $exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'P0 Windows executable smoke test failed.' }
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          $zip = Join-Path $package 'ARIEC60870-IEC101-PASSIVE-P0-win-x64.zip'
+          Compress-Archive -Path $exe, 'docs/IEC101_PASSIVE_MONITOR_P0_CAPTURE.md' -DestinationPath $zip
+          $digest = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$digest  ARIEC60870-IEC101-PASSIVE-P0-win-x64.zip"
+
+      - name: Upload P0 Windows bench artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-IEC101-PASSIVE-P0-win-x64
+          path: artifacts/monitor-p0-package/
+          if-no-files-found: error
+          retention-days: 14

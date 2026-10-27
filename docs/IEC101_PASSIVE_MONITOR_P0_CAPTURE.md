@@ -29,7 +29,7 @@ Captured directory is named `ARIEC-PASSIVE-<UTC timestamp>-<random>`. It contain
 
 - `stream-00.bin`: raw received bytes from SCADA TX, wrapped in checksummed journal records.
 - `stream-01.bin`: raw received bytes from RTU TX, wrapped in checksummed journal records.
-- `manifest.json`: serial port roles, UTC/Stopwatch time origin, per-direction record/byte counts, SHA256, error counts and capture completion status.
+- `manifest.json`: serial port roles, explicit baud/parity/data/stop framing, UTC/Stopwatch origin, per-direction record/byte counts, SHA256, error counts and capture completion status.
 - `manifest.pending` may be present if Windows/process terminated during manifest update. Never claim crash-interrupted capture is finalized.
 
 Each record is 40-byte header plus received payload: `APM1`, version, stream, flags, increasing sequence, Stopwatch ticks, raw stream offset, payload length, CRC32 of header prefix + payload. No byte is silently discarded by protocol framing. Timestamp is USB/Windows read-completion time, not a physical bit timestamp.
@@ -57,3 +57,7 @@ Automated regression tests cover two deterministic independent byte streams (inc
 **Physical acceptance remains pending**: real adapter driver behavior, electrically nonintrusive tapped wiring, COM read saturation and a multi-hour capture on the target field PC must be tested separately before live commissioning use.
 
 Sources: docs/IEC101_PASSIVE_MONITOR_PRD.md, docs/IEC101_PASSIVE_MONITOR_ARD.md in design PR #20.
+
+## CI bench artifact
+
+When all Windows CI gates pass, the same PR workflow publishes a **non-release** single-file, self-contained win-x64 CLI ZIP with SHA256SUMS.txt as an Actions artifact named `ARIEC60870-IEC101-PASSIVE-P0-win-x64`. This is for an isolated serial bench, **not** a certified field wiring validation or production deployment.

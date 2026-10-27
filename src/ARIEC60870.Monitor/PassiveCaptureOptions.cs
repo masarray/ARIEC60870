@@ -63,7 +63,11 @@ public sealed record CapturedStreamSummary(
     long Bytes,
     long DriverErrors,
     string File,
-    string RawSha256 = "");
+    string RawSha256 = "",
+    int BaudRate = 0,
+    string Parity = "",
+    int DataBits = 0,
+    string StopBits = "");
 
 public sealed record PassiveCaptureManifest
 {

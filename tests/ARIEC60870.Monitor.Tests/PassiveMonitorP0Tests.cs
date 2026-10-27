@@ -46,6 +46,11 @@ public sealed class PassiveMonitorP0Tests
             var result = await session.RunAsync(stop.Token);
             Assert.Equal("NoApplicationLossDetected", result.Manifest.Status);
             Assert.Equal(new long[] { a.Length, b.Length }, result.Manifest.Streams.Select(x => x.Bytes));
+            Assert.Equal(9600, result.Manifest.Streams[0].BaudRate);
+            Assert.Equal("Even", result.Manifest.Streams[0].Parity);
+            Assert.Equal(8, result.Manifest.Streams[1].DataBits);
+            Assert.Equal("One", result.Manifest.Streams[1].StopBits);
+            Assert.All(result.Manifest.Streams, x => Assert.Equal(64, x.RawSha256.Length));
             Assert.Equal(0, tapA.Writes);
             Assert.Equal(0, tapB.Writes);
             var audit = PassiveJournalVerifier.Verify(result.Directory);
