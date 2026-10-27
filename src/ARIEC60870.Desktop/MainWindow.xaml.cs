@@ -295,12 +295,6 @@ public partial class MainWindow : Window
 
     private void CloseSetupAndConnect_Click(object sender, RoutedEventArgs e)
     {
-        if (IsIec101PassiveMonitorSelected() && PassiveSafetyCheckBox.IsChecked != true)
-        {
-            ModernMessageBox.Show(this, "Verify the approved isolated RX-only tap, disconnected TXD/RTS/DTR and intact production handshake before recording.",
-                "Passive monitor safety", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
         SaveSetupPreferencesFromUi(silent: true);
         SetupOverlay.Visibility = Visibility.Collapsed;
         if (_sessionCancellation is null)

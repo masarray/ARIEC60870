@@ -116,9 +116,6 @@ public partial class MainWindow
 
     private PassiveCaptureOptions BuildPassiveCaptureOptions()
     {
-        if (PassiveSafetyCheckBox.IsChecked != true)
-            throw new InvalidOperationException("Confirm the approved isolated RX-only tap, disconnected monitor TXD/RTS/DTR, and intact production handshake before recording.");
-
         var first = (PortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
         var second = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
         var baud = ReadComboInt(BaudComboBox, "Baudrate");
@@ -180,7 +177,7 @@ public partial class MainWindow
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
         PassiveIntegrityText.Text = "Opening receivers...";
-        PassiveStatusMessageText.Text = "Preparing append-only journals. Raw bytes are saved independently of the GUI.";
+        PassiveStatusMessageText.Text = "Preparing capture…";
         PassiveCapturePathText.Text = options.OutputDirectory;
         PassiveSelectedRawText.Text = "Select a received raw-byte chunk.";
         PassiveVerifyButton.IsEnabled = false;
@@ -190,8 +187,8 @@ public partial class MainWindow
         UpdateSegmentedNav(false);
         SessionSubtitleText.Text = "Passive IEC-101 RX · " + options.ScadaTx.PortName + " (SCADA TX) + " +
             options.RtuTx.PortName + " (RTU TX)";
-        UpdateStableHeader("Passive RX", "Recording two physical transmitter directions without sending IEC-101 commands.");
-        AppendSessionLog("PASSIVE RX start: " + SessionSubtitleText.Text);
+        UpdateStableHeader("Recording", "Listening to both serial directions.");
+        AppendSessionLog("Passive recording started: " + SessionSubtitleText.Text);
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(160)
@@ -209,12 +206,12 @@ public partial class MainWindow
             PassiveCapturePathText.Text = result.Directory;
             PassiveIntegrityText.Text = result.Manifest.Status;
             PassiveStatusMessageText.Text = result.Manifest.Warnings.Length == 0
-                ? "Journal finalized. Verify CRC32 / SHA-256 to confirm preserved raw bytes."
+                ? "Recording saved. Select Verify to check the file."
                 : string.Join(" | ", result.Manifest.Warnings.Take(2));
             PassiveVerifyButton.IsEnabled = true;
             AppendSessionLog("Passive RX capture finalized: " + result.Manifest.Status + " · " + result.Directory);
             UpdateStableHeader(result.Manifest.Status == "NoApplicationLossDetected" ? "Recorded" : "Degraded",
-                "Passive raw journal " + result.Manifest.Status + "; verification available under Raw Trace.");
+                "Recording saved. Verification available in Passive Monitor.");
         }
         catch (Exception ex)
         {
@@ -237,8 +234,8 @@ public partial class MainWindow
     private void StopPassiveRecording()
     {
         if (_passiveMonitorSession is null || _sessionCancellation is null) return;
-        PassiveIntegrityText.Text = "Finalizing...";
-        UpdateStableHeader("Finalizing", "Stopping RX receivers and flushing original byte journals.");
+        PassiveIntegrityText.Text = "Saving…";
+        UpdateStableHeader("Saving", "Finishing capture.");
         _sessionCancellation.Cancel();
     }
 
@@ -297,15 +294,14 @@ public partial class MainWindow
     {
         if (_passiveCaptureResult is not { } result || _passiveMonitorSession is not null) return;
         PassiveVerifyButton.IsEnabled = false;
-        PassiveStatusMessageText.Text = "Verifying raw record CRC, source order and SHA-256...";
+        PassiveStatusMessageText.Text = "Checking capture integrity…";
         try
         {
             var audit = await Task.Run(() => PassiveJournalVerifier.Verify(result.Directory));
             PassiveIntegrityText.Text = audit.Complete ? "VERIFIED" : "INCOMPLETE";
             PassiveIntegrityText.Foreground = (Brush)FindResource(audit.Complete ? "GoodBrush" : "BadBrush");
             PassiveStatusMessageText.Text = audit.Complete
-                ? "Verified " + audit.Streams.Sum(x => x.RawBytes).ToString("N0") +
-                  " received bytes in two journals (not physical-layer zero-loss proof)."
+                ? "Verified " + audit.Streams.Sum(x => x.RawBytes).ToString("N0") + " bytes."
                 : "Audit failed: " + string.Join(" | ", audit.Problems.Take(3));
         }
         catch (Exception ex)
