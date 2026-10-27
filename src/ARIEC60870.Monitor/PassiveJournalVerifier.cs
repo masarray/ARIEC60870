@@ -17,8 +17,9 @@ public sealed record PassiveJournalAudit(
 /// <summary>Offline verification is read-only, bounded and independent of WPF/active Master.</summary>
 public static class PassiveJournalVerifier
 {
-    public static PassiveJournalAudit Verify(string sessionDirectory)
+    public static PassiveJournalAudit Verify(string sessionDirectory, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var problems = new List<string>();
         PassiveCaptureManifest? manifest = null;
         var manifestPath = Path.Combine(sessionDirectory, "manifest.json");
@@ -39,7 +40,8 @@ public static class PassiveJournalVerifier
         for (byte id = 0; id < 2; id++)
         {
             var file = Path.Combine(sessionDirectory, $"stream-{id:00}.bin");
-            audits[id] = VerifyStream(file, id);
+            cancellationToken.ThrowIfCancellationRequested();
+            audits[id] = VerifyStream(file, id, cancellationToken);
             if (!audits[id].Valid) problems.Add($"Stream {id}: {audits[id].Problem}");
             var declared = manifest?.Streams.FirstOrDefault(x => x.StreamId == id);
             if (declared is null) { problems.Add($"Stream {id}: missing manifest entry"); continue; }
@@ -60,7 +62,7 @@ public static class PassiveJournalVerifier
             audits, problems.ToArray());
     }
 
-    public static PassiveStreamAudit VerifyStream(string filePath, byte streamId)
+    public static PassiveStreamAudit VerifyStream(string filePath, byte streamId, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
             return new PassiveStreamAudit(streamId, 0, 0, "", false, "Journal file absent");
@@ -74,6 +76,7 @@ public static class PassiveJournalVerifier
         {
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var headRead = ReadUpTo(input, header.AsSpan());
                 if (headRead == 0) break;
                 if (headRead != header.Length)
