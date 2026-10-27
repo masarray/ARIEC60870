@@ -51,6 +51,7 @@ jobs:
           $projects = @(
             'tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj',
             'tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj',
+            'tests/ARIEC60870.Monitor.Tests/ARIEC60870.Monitor.Tests.csproj',
             'tests/ARIEC60870.Reporting.Tests/ARIEC60870.Reporting.Tests.csproj',
             'tests/ARIEC60870.Desktop.Tests/ARIEC60870.Desktop.Tests.csproj',
             'tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj'
@@ -74,3 +75,30 @@ jobs:
           name: ARIEC60870-test-results
           path: artifacts/test-results
           if-no-files-found: warn
+
+      - name: Package ARIEC60870 GUI with integrated Passive Monitor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publish = 'artifacts/passive-gui-publish'
+          $package = 'artifacts/passive-gui-package'
+          dotnet publish src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -o $publish
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop GUI publish failed.' }
+          $exe = Join-Path $publish 'ARIEC60870.Desktop.exe'
+          if (!(Test-Path $exe)) { throw 'Expected GUI executable missing.' }
+          # Instantiate actual WPF window and its resource dictionaries without opening any COM.
+          & $exe --passive-gui-smoke
+          if ($LASTEXITCODE -ne 0) { throw "Passive GUI smoke failed with exit code $LASTEXITCODE." }
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          $zip = Join-Path $package 'ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip'
+          Compress-Archive -Path (Join-Path $publish '*'), 'docs/IEC101_PASSIVE_MONITOR_P0_CAPTURE.md' -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
+
+      - name: Upload integrated P0 Windows GUI test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-Passive-Monitor-P0-GUI-win-x64
+          path: artifacts/passive-gui-package/
+          if-no-files-found: error
+          retention-days: 14

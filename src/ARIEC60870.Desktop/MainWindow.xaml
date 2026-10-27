@@ -46,6 +46,13 @@
                         <TextBlock Text="Setup" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="PassiveMonitorRailButton" Style="{StaticResource RailIconButton}" Click="OpenPassiveMonitor_Click"
+                        ToolTip="Passive IEC-101 RX-only monitor: observe SCADA and RTU over two serial COM receivers">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideMonitorUp}" Stroke="#059669" />
+                        <TextBlock Text="Sniff RX" Style="{StaticResource RailButtonCaption}" />
+                    </StackPanel>
+                </Button>
                 <Button x:Name="StartButton" Style="{StaticResource RailIconButton}" Click="ConnectToggle_Click" ToolTip="Connect and monitor continuously">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path x:Name="ConnectIconOn" Style="{StaticResource RailIconPath}" Data="{StaticResource LucideMonitorUp}" Stroke="#16A34A" />

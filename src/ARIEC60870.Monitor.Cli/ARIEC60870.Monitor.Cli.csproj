@@ -1,0 +1,13 @@
+<!-- Copyright 2026 Ari Sulistiono -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ARIEC60870.Monitor.Cli</AssemblyName>
+    <Description>Read-only two-port serial capture and offline verification utility.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ARIEC60870.Monitor\ARIEC60870.Monitor.csproj" />
+  </ItemGroup>
+</Project>

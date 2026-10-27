@@ -1,0 +1,215 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<Window x:Class="ARIEC60870.Desktop.PassiveMonitorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="IEC-101 Passive Monitor | ARIEC60870"
+        Width="1190" Height="850" MinWidth="920" MinHeight="710"
+        WindowStartupLocation="CenterOwner" Icon="Assets/Icons/ariec60870-icon.png"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        Loaded="Window_Loaded" Closing="Window_Closing">
+    <Window.Resources>
+        <Style x:Key="PassiveLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Ink600Brush}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style x:Key="PassiveValue" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
+        </Style>
+        <Style x:Key="PassiveGroup" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrongBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0" Style="{StaticResource PassiveGroup}" Padding="14,11" Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StartRecordingButton" Content="Start Recording" Padding="15,9" Margin="0,0,7,0" Click="StartRecording_Click"/>
+                    <Button x:Name="StopRecordingButton" Content="Stop &amp; Finalize" Padding="15,9" Margin="0,0,7,0" IsEnabled="False" Click="StopRecording_Click"/>
+                    <Button x:Name="VerifyButton" Content="Verify Capture" Padding="11,9" IsEnabled="False" Click="Verify_Click"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="IEC-101 Passive Monitor" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                    <TextBlock Text="RECEIVE ONLY · 2 COM for both directions of ONE RS-232 link · P0 raw capture" FontSize="11.5" Foreground="{StaticResource Ink600Brush}" Margin="0,4,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource PassiveGroup}" Background="#FFF8E8" BorderBrush="#EEDBAA" Margin="0,0,0,10" Padding="12,9">
+            <StackPanel>
+                <TextBlock FontSize="11.5" TextWrapping="Wrap" Foreground="#704F16" Text="SAFETY: Monitor adapter TXD / RTS / DTR must NOT connect to the live link. Use an approved isolated/high-impedance RS-232 RX tap; preserve SCADA↔RTU handshaking. Opening a USB COM port alone does not guarantee passive electrical behavior."/>
+                <CheckBox x:Name="SafeTapCheckBox" Margin="0,7,0,0" FontSize="11.5" Foreground="#704F16"
+                          Content="I verified RX-only wiring, correct RS-232 levels, ground reference, and intact production handshake."/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource PassiveGroup}" Margin="0,0,0,10">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,7">
+                    <Button DockPanel.Dock="Right" Content="Refresh COM ports" Padding="10,4" Click="RefreshPorts_Click"/>
+                    <TextBlock Text="Capture setup" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SCADA TX → RTU (monitor RX)" Style="{StaticResource PassiveLabel}"/>
+                        <ComboBox x:Name="ScadaPortCombo" IsEditable="True" Height="30" ToolTip="Select the COM physically listening to the SCADA TX wire"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="RTU TX → SCADA (monitor RX)" Style="{StaticResource PassiveLabel}"/>
+                        <ComboBox x:Name="RtuPortCombo" IsEditable="True" Height="30" ToolTip="Select the COM physically listening to the RTU TX wire"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Baud rate" Style="{StaticResource PassiveLabel}"/>
+                        <ComboBox x:Name="BaudCombo" IsEditable="True" Text="9600" Height="30">
+                            <ComboBoxItem Content="1200"/>
+                            <ComboBoxItem Content="2400"/>
+                            <ComboBoxItem Content="4800"/>
+                            <ComboBoxItem Content="9600"/>
+                            <ComboBoxItem Content="19200"/>
+                            <ComboBoxItem Content="38400"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="6">
+                        <TextBlock Text="Parity" Style="{StaticResource PassiveLabel}"/>
+                        <ComboBox x:Name="ParityCombo" SelectedIndex="1" Height="30">
+                            <ComboBoxItem Content="None"/>
+                            <ComboBoxItem Content="Even"/>
+                            <ComboBoxItem Content="Odd"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="8">
+                        <TextBlock Text="Data / Stop" Style="{StaticResource PassiveLabel}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="DataBitsCombo" Width="57" SelectedIndex="1" Height="30">
+                                <ComboBoxItem Content="7"/><ComboBoxItem Content="8"/>
+                            </ComboBox>
+                            <ComboBox x:Name="StopBitsCombo" Width="58" Margin="6,0,0,0" SelectedIndex="0" Height="30">
+                                <ComboBoxItem Content="1"/><ComboBoxItem Content="2"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="100"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Capture folder" Grid.Column="0" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" FontSize="11"/>
+                    <TextBox x:Name="OutputDirectoryTextBox" Grid.Column="1" Padding="6,5" IsReadOnly="True" VerticalContentAlignment="Center" FontSize="11"/>
+                    <Button x:Name="BrowseFolderButton" Grid.Column="2" Content="Browse..." Margin="8,0,0,0" Click="BrowseFolder_Click"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource PassiveGroup}">
+                <StackPanel>
+                    <TextBlock Text="CAPTURE STATE" Style="{StaticResource PassiveLabel}"/>
+                    <TextBlock x:Name="CaptureStateText" Text="Idle" Style="{StaticResource PassiveValue}"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource PassiveGroup}">
+                <StackPanel>
+                    <TextBlock Text="SCADA → RTU" Style="{StaticResource PassiveLabel}"/>
+                    <TextBlock x:Name="ScadaBytesText" Text="0 bytes" Style="{StaticResource PassiveValue}"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Style="{StaticResource PassiveGroup}">
+                <StackPanel>
+                    <TextBlock Text="RTU → SCADA" Style="{StaticResource PassiveLabel}"/>
+                    <TextBlock x:Name="RtuBytesText" Text="0 bytes" Style="{StaticResource PassiveValue}"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="6" Style="{StaticResource PassiveGroup}">
+                <StackPanel>
+                    <TextBlock Text="CAPTURE INTEGRITY" Style="{StaticResource PassiveLabel}"/>
+                    <TextBlock x:Name="IntegrityText" Text="Not recording" Style="{StaticResource PassiveValue}" FontSize="12.5"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="4" Style="{StaticResource PassiveGroup}" Padding="9">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Margin="5,1,5,8">
+                    <CheckBox x:Name="FreezeViewCheckBox" DockPanel.Dock="Right" Content="Freeze view (disk recording continues)" FontSize="11" VerticalAlignment="Center" />
+                    <StackPanel>
+                        <TextBlock Text="Live RX byte samples" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock Text="Recent serial read chunks, NOT decoded IEC-101 telegrams. Full raw bytes are recorded on disk." FontSize="10.5" Foreground="{StaticResource Ink600Brush}" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+                <DataGrid x:Name="TrafficGrid" Grid.Row="1" ItemsSource="{Binding RecentRxRows}" AutoGenerateColumns="False"
+                          IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          ScrollViewer.CanContentScroll="True" VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling" RowHeight="27"
+                          SelectionChanged="TrafficGrid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="UTC estimate" Binding="{Binding UtcText}" Width="142"/>
+                        <DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="148"/>
+                        <DataGridTextColumn Header="Seq" Binding="{Binding Sequence}" Width="72"/>
+                        <DataGridTextColumn Header="Bytes" Binding="{Binding ByteCount}" Width="65"/>
+                        <DataGridTextColumn Header="First bytes · HEX (max 48)" Binding="{Binding Hex}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Grid.Row="2" Margin="5,8,5,0">
+                    <TextBlock Text="Selected RX chunk" FontSize="10.5" Foreground="{StaticResource Ink600Brush}"/>
+                    <TextBlock x:Name="SelectedHexText" Text="Select a row to inspect received bytes." FontFamily="{StaticResource TraceMonoFont}"
+                               FontSize="11" TextWrapping="Wrap" MaxHeight="46" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="5" Style="{StaticResource PassiveGroup}" Padding="11,8" Margin="0,10,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" x:Name="OpenCaptureFolderButton" Content="Open Capture Folder" Padding="13,7"
+                        Click="OpenCaptureFolder_Click" IsEnabled="False"/>
+                <StackPanel>
+                    <TextBlock x:Name="CapturePathText" Text="No capture session yet." FontSize="10.7" Foreground="{StaticResource Ink700Brush}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="CaptureWarningText" Text="Receiver data is timestamped by Windows USB/serial read completion, not wire bit edges." FontSize="10.3"
+                               Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
