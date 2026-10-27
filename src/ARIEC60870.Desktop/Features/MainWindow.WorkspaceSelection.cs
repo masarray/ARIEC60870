@@ -90,6 +90,25 @@ public partial class MainWindow
         }
 
         var isDual101 = IsIec101DualLinkModeSelected();
+        var isPassive101 = IsIec101PassiveMonitorSelected();
+        NavFrameButton.Tag = isPassive101 ? "10" : "1";
+        if (isPassive101)
+        {
+            NavDualLinkButton.Visibility = Visibility.Collapsed;
+            NavFrameButton.Visibility = Visibility.Visible;
+            NavFrameButton.Content = "Raw Trace";
+            NavValueButton.Visibility = Visibility.Collapsed;
+            NavEventButton.Visibility = Visibility.Collapsed;
+            NavFindingsButton.Visibility = Visibility.Collapsed;
+            NavReportButton.Visibility = Visibility.Collapsed;
+            NavOperatorButton.Visibility = Visibility.Collapsed;
+            NavDiagnosticsButton.Visibility = Visibility.Collapsed;
+            NavNotesButton.Visibility = Visibility.Collapsed;
+            NavTriggersButton.Visibility = Visibility.Collapsed;
+            MainTabControl.SelectedIndex = 10;
+            UpdateSegmentedNav(false);
+            return;
+        }
 
         NavDualLinkButton.Content = "Redundancy";
         NavFrameButton.Content = "Trace";

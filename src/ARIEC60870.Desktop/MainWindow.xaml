@@ -46,13 +46,6 @@
                         <TextBlock Text="Setup" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="PassiveMonitorRailButton" Style="{StaticResource RailIconButton}" Click="OpenPassiveMonitor_Click"
-                        ToolTip="Passive IEC-101 RX-only monitor: observe SCADA and RTU over two serial COM receivers">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideMonitorUp}" Stroke="#059669" />
-                        <TextBlock Text="Sniff RX" Style="{StaticResource RailButtonCaption}" />
-                    </StackPanel>
-                </Button>
                 <Button x:Name="StartButton" Style="{StaticResource RailIconButton}" Click="ConnectToggle_Click" ToolTip="Connect and monitor continuously">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path x:Name="ConnectIconOn" Style="{StaticResource RailIconPath}" Data="{StaticResource LucideMonitorUp}" Stroke="#16A34A" />
@@ -1330,6 +1323,87 @@
                             </DataGrid>
                         </Grid>
                     </TabItem>
+                    <TabItem Header="Passive raw capture">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="13,10">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Open Folder" Style="{StaticResource SecondaryButton}" Click="PassiveOpenFolder_Click" Margin="8,0,0,0"/>
+                                    <StackPanel>
+                                        <TextBlock Text="IEC-101 PASSIVE MONITOR · RX ONLY" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock Text="Main Connect starts two-port raw recording; Disconnect finalizes the capture. No requests are sent." Style="{StaticResource SubtleText}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="11,8">
+                                    <StackPanel>
+                                        <TextBlock Text="SCADA TX → RTU" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock x:Name="PassiveScadaCountText" Text="0 bytes" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="11,8">
+                                    <StackPanel>
+                                        <TextBlock Text="RTU TX → SCADA" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock x:Name="PassiveRtuCountText" Text="0 bytes" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="4" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="11,8">
+                                    <StackPanel>
+                                        <TextBlock Text="ARCHIVE / INTEGRITY" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock x:Name="PassiveIntegrityText" Text="Not recording" FontSize="12.4" FontWeight="SemiBold" Foreground="{StaticResource Ink800Brush}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <Grid Grid.Row="4">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <DockPanel Margin="3,0,3,7">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Only pauses this table; raw bytes continue recording to disk." />
+                                        <Button x:Name="PassiveVerifyButton" Content="Verify archive" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="PassiveVerify_Click"/>
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="RECEIVED RAW BYTES" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock Text="Recent serial chunks; complete original bytes are saved to disk (no IEC-101 ASDU decode in P0)." Style="{StaticResource SubtleText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <DataGrid x:Name="PassiveRawGrid" Grid.Row="1" ItemsSource="{Binding PassiveRawRows}"
+                                          AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.CanContentScroll="True"
+                                          SelectionChanged="PassiveRawGrid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="UTC estimate" Binding="{Binding Utc}" Width="145" ElementStyle="{StaticResource GridCellText}"/>
+                                        <DataGridTextColumn Header="Direction" Binding="{Binding Direction}" Width="145" ElementStyle="{StaticResource GridCellText}"/>
+                                        <DataGridTextColumn Header="Seq" Binding="{Binding Sequence}" Width="70" ElementStyle="{StaticResource GridCellText}"/>
+                                        <DataGridTextColumn Header="Bytes" Binding="{Binding ByteCount}" Width="72" ElementStyle="{StaticResource GridCellText}"/>
+                                        <DataGridTextColumn Header="Raw HEX · sample max 48 bytes" Binding="{Binding Hex}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock x:Name="PassiveSelectedRawText" Grid.Row="2" Text="Select received chunk to inspect the HEX preview."
+                                           Style="{StaticResource SubtleText}" FontFamily="{StaticResource TraceMonoFont}" TextWrapping="Wrap" Margin="4,7,4,0"/>
+                            </Grid>
+                            <Border Grid.Row="5" Background="{StaticResource Panel75Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="10" Padding="10,7" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="PassiveCapturePathText" Text="Recording folder not selected yet" FontSize="10.5" Foreground="{StaticResource Ink700Brush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="PassiveStatusMessageText" Text="Ready to record; configure passive mode using Setup." FontSize="10.5" Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </TabItem>
 
 </TabControl>
                     </Grid>
@@ -1588,7 +1662,7 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button Content="Connect" Style="{StaticResource PrimaryButton}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
+                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource PrimaryButton}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
                             <Button Content="Close" Style="{StaticResource SecondaryButton}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
                         </StackPanel>
                     </Grid>
@@ -1606,6 +1680,7 @@
                                 <ComboBoxItem Content="IEC 60870-5-103 - Protection relay serial" />
                                 <ComboBoxItem Content="IEC 60870-5-101 - Telecontrol serial" />
                                 <ComboBoxItem Content="IEC 60870-5-101 - Dual link redundancy" />
+                                <ComboBoxItem Content="IEC 60870-5-101 - Passive Monitor (RX only)" />
                                 <ComboBoxItem Content="IEC 60870-5-104 - Telecontrol TCP/IP" />
                             </ComboBox>
 
@@ -1616,7 +1691,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="TARGET MODE" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
+                            <TextBlock x:Name="TargetModeLabel" Text="TARGET MODE" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
                             <ComboBox x:Name="TransportModeComboBox" SelectedIndex="0" Margin="0,0,0,12">
                                 <ComboBoxItem Content="Real device / server" />
                                 <ComboBoxItem Content="Built-in demo simulation" />
@@ -1655,6 +1730,7 @@
                                         </ComboBox>
                                     </StackPanel>
                                 </Grid>
+                                <StackPanel x:Name="ActiveSerialHandshakePanel">
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
@@ -1674,6 +1750,13 @@
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock Text="Use None for 3-wire RS232. RTS/CTS requires matching physical wiring; a valid TX/RX LED is not proof of an IEC-101 response." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="1,0,0,10" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
+                                <TextBlock Text="RTU TX → SCADA · MONITOR RX 2" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="PassiveRtuPortComboBox" ToolTip="Second receive-only COM, connected to RTU transmit wire through an approved isolated tap." Margin="0,0,0,8"/>
+                                <TextBlock Text="Monitor RX 1 (above) listens to SCADA TX. RX 2 listens to RTU TX. Two COM inputs cover one full-duplex link." Style="{StaticResource SubtleText}" TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <StackPanel x:Name="DualLinkBackupPanel" Visibility="Collapsed" Margin="0,0,0,14">
@@ -1711,6 +1794,27 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
+                            <StackPanel x:Name="PassiveSetupRightPanel" Visibility="Collapsed">
+                                <TextBlock Text="PASSIVE FORENSIC RECORDING" Style="{StaticResource EyebrowText}" Margin="0,0,0,9"/>
+                                <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Receive-only link observation" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" FontSize="12"/>
+                                        <TextBlock Text="Never sends GI, Class polls, reset, commands or serial modem control. Recording preserves all received bytes, including noise and malformed data." Margin="0,7,0,10" Style="{StaticResource SubtleText}" TextWrapping="Wrap"/>
+                                        <CheckBox x:Name="PassiveSafetyCheckBox" IsChecked="False" FontSize="11" Foreground="{StaticResource Ink800Brush}"
+                                                  Content="Approved RX-only isolated tap; TXD/RTS/DTR disconnected; SCADA/RTU handshake untouched."
+                                                  ToolTip="A checkbox is not proof of electrical safety. Check real wiring before recording."/>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Text="CAPTURE STORAGE" Style="{StaticResource EyebrowText}" Margin="2,0,0,6"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11" ToolTip="Every received byte is archived in checksummed per-direction journal files."/>
+                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"/>
+                                </Grid>
+                                <TextBlock Text="Capture runs continuously until Disconnect. Live Trace shows recent byte chunks; complete forensic raw data stays on disk. Verify after Stop." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,8"/>
+                                <TextBlock Text="2-COM passive mode cannot prove the role of an unmonitored redundant SCADA link. USB COM timestamps are read-completion estimates, not bit-level timing." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,8"/>
+                            </StackPanel>
+                            <StackPanel x:Name="ActiveSetupRightPanel">
                             <TextBlock Text="ADDRESSING" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
                             <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1850,6 +1954,7 @@
                             <StackPanel x:Name="Iec10xCommandPanel">
                                 <CheckBox x:Name="ClockSyncCheckBox" Content="Send clock sync on connect" />
                                 <CheckBox x:Name="GiCheckBox" Content="General interrogation on connect" IsChecked="True" />
+                            </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

@@ -53,7 +53,7 @@ public partial class MainWindow
 
         if (ConnectToggleCaption is not null)
         {
-            ConnectToggleCaption.Text = isRunning ? "Disconnect" : "Connect";
+            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected() ? (isRunning ? "Stop RX" : "Record RX") : (isRunning ? "Disconnect" : "Connect");
         }
 
         if (ConnectIconOn is not null)
@@ -66,16 +66,23 @@ public partial class MainWindow
             ConnectIconOff.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        StartButton.Background = (Brush)new BrushConverter().ConvertFromString("#F4F8FF")!;
+        StartButton.Background = (Brush)FindResource("AccentSoftBrush");
         StartButton.BorderBrush = Brushes.Transparent;
-        StartButton.Foreground = (Brush)new BrushConverter().ConvertFromString(isRunning ? "#B91C1C" : "#166534")!;
-        StartButton.ToolTip = isRunning ? "Disconnect and close transport" : "Connect and monitor continuously";
+        StartButton.Foreground = (Brush)FindResource(isRunning ? "BadBrush" : "GoodBrush");
+        StartButton.ToolTip = IsIec101PassiveMonitorSelected()
+            ? (isRunning ? "Stop receive-only capture and finalize archive" : "Start IEC-101 passive two-COM receive-only recording")
+            : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
     }
 
     private async void Start_Click(object sender, RoutedEventArgs e)
     {
         if (_sessionCancellation != null)
         {
+            return;
+        }
+        if (IsIec101PassiveMonitorSelected())
+        {
+            await RunPassiveRecordingAsync();
             return;
         }
 
@@ -217,6 +224,11 @@ public partial class MainWindow
 
     private async void Stop_Click(object sender, RoutedEventArgs e)
     {
+        if (_passiveMonitorSession is not null)
+        {
+            StopPassiveRecording();
+            return;
+        }
         if (_sessionCancellation is null)
         {
             SetRunUiState(isRunning: false);
@@ -609,7 +621,7 @@ public partial class MainWindow
         }
 
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
-        MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1;
+        MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 10 : IsIec101DualLinkModeSelected() ? 9 : 1;
         UpdateSegmentedNav(false);
     }
 
@@ -618,6 +630,7 @@ public partial class MainWindow
         var is103 = mode == Iec60870ProtocolMode.Iec103;
         var is101 = mode == Iec60870ProtocolMode.Iec101;
         var isDual101 = is101 && IsIec101DualLinkModeSelected();
+        var isPassive101 = is101 && IsIec101PassiveMonitorSelected();
         var is104 = mode == Iec60870ProtocolMode.Iec104;
         var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
@@ -636,6 +649,7 @@ public partial class MainWindow
 
         SetupTitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 passive serial monitor setup",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 dual link redundancy setup",
             Iec60870ProtocolMode.Iec101 => "IEC-101 telecontrol serial setup",
             Iec60870ProtocolMode.Iec104 => "IEC-104 telecontrol TCP/IP setup",
@@ -643,6 +657,7 @@ public partial class MainWindow
         };
         SetupSubtitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Two independent RX COM ports listen to SCADA TX and RTU TX of ONE live serial link, without transmitting.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Two independent serial links: active owns GI, commands and Class polling; standby is supervised without draining event queues.",
             Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
             Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
@@ -650,6 +665,7 @@ public partial class MainWindow
         };
         ProtocolSetupBadgeText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 · Passive Monitor (RX only)",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 · Dual Link Redundancy",
             Iec60870ProtocolMode.Iec101 => "IEC-101 · FT1.2 serial telecontrol",
             Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP telecontrol",
@@ -657,12 +673,13 @@ public partial class MainWindow
         };
         ProtocolSetupDescriptionText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen to both directions without taking ownership of the link. All received raw bytes are journaled to disk, independent of display filtering.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Use this workspace when the RTU/outstation exposes two IEC-101 serial paths with active/standby master ownership, failover evidence, and post-switch GI validation.",
             Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
             Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
             _ => "Use this profile for protection IED IEC-103 tests. Main addressing is FUN/INF; Class 1 carries events, Class 2 carries background data."
         };
-        SerialConnectionTitleText.Text = isDual101 ? "ACTIVE LINK A SERIAL CONNECTION" : is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
+        SerialConnectionTitleText.Text = isPassive101 ? "SCADA TX → RTU · MONITOR RX 1" : isDual101 ? "ACTIVE LINK A SERIAL CONNECTION" : is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
         PollingPolicyTitleText.Text = is101 ? "IEC-101 CLASS POLLING" : "IEC-103 CLASS POLLING";
         Class2IntervalLabelText.Text = is101 ? "Class 2 scan interval (ms)" : "Class 2 interval (ms)";
         MaxDrainLabelText.Text = is101 ? "Max Class 1 event drain" : "Max Class 1 drain";
@@ -706,16 +723,35 @@ public partial class MainWindow
         }
 
         SerialConnectionPanel.Visibility = serialVisibility;
+        TargetModeLabel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        TransportModeComboBox.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        PassiveSecondaryPortPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
+        if (isPassive101 && string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text))
+            PassiveCaptureFolderBox.Text = DefaultPassiveCaptureDirectory();
+        PassiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
+        ActiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        ActiveSerialHandshakePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        SetupConnectButton.Content = isPassive101 ? "Record RX" : "Connect";
+        ApplyCommandDockLayout();
+        UpdateConnectToggleVisual(_sessionCancellation is not null);
         DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
         TcpConnectionPanel.Visibility = tcpVisibility;
-        SerialPollingPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
+        SerialPollingPanel.Visibility = is104 || isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         Iec10xProfilePanel.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
         LinkAddressSizePanel.Visibility = is101 ? Visibility.Visible : Visibility.Collapsed;
         TransmissionModeComboBox.IsEnabled = is101;
         Iec104RuntimePanel.Visibility = tcpVisibility;
         Iec103OptionsPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
-        MappingProfilePanel.Visibility = Visibility.Visible;
+        MappingProfilePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        ExportReportButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        OpenCaptureButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        SaveCaptureRailButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        ExportTraceRailButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        AutoScrollLatestToggleButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        ClearButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        SignalListButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        HeaderIndicatorChip.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
 
         // Evidence Ledger is a distilled human-readable proof view. Keep protocol-heavy columns in Trace and the selected-row inspector.
         SetColumnVisibility(EvidenceClassColumn, Visibility.Collapsed);
@@ -753,6 +789,7 @@ public partial class MainWindow
 
         SessionSubtitleText.Text = mode switch
         {
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 passive RX mode: configure two COM receivers in Setup, then select Record RX.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: use Redundancy for link ownership, Values/Events for process data, Trace only when troubleshooting.",
             Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
             Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",
@@ -791,8 +828,9 @@ public partial class MainWindow
     private bool IsIec101DualLinkModeSelected()
     {
         var protocol = (ProtocolModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty;
-        return protocol.Contains("dual link", StringComparison.OrdinalIgnoreCase)
-               || protocol.Contains("redundancy", StringComparison.OrdinalIgnoreCase);
+        return !IsIec101PassiveMonitorSelected() &&
+            (protocol.Contains("dual link", StringComparison.OrdinalIgnoreCase)
+               || protocol.Contains("redundancy", StringComparison.OrdinalIgnoreCase));
     }
 
     private Iec60870ProtocolMode GetSelectedProtocolMode()

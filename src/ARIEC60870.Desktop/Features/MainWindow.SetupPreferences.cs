@@ -114,6 +114,13 @@ public partial class MainWindow
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
             SelectProtocolMode(prefs.ProtocolMode);
+            if (!string.IsNullOrWhiteSpace(prefs.PassiveRtuPortName))
+            {
+                EnsureComboItem(PassiveRtuPortComboBox, prefs.PassiveRtuPortName);
+                PassiveRtuPortComboBox.SelectedItem = prefs.PassiveRtuPortName;
+            }
+            PassiveCaptureFolderBox.Text = string.IsNullOrWhiteSpace(prefs.PassiveOutputDirectory)
+                ? DefaultPassiveCaptureDirectory() : prefs.PassiveOutputDirectory;
             SelectComboContent(TransportModeComboBox, prefs.UseSimulatedSlave ? "Built-in demo simulation" : "Real device / server");
 
             if (!string.IsNullOrWhiteSpace(prefs.PortName))
@@ -193,6 +200,11 @@ public partial class MainWindow
 
         try
         {
+            if (IsIec101PassiveMonitorSelected())
+            {
+                SavePassiveSetupPreferences(silent);
+                return;
+            }
             var settings = BuildSettingsFromUi();
             var duration = ReadInt(DurationBox, "Session timeout", 0, 86400);
             SaveSetupPreferences(settings, duration, silent);
@@ -213,6 +225,8 @@ public partial class MainWindow
             var prefs = new SetupPreferences
             {
                 ProtocolMode = settings.ProtocolMode.ToString(),
+                PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
+                PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
                 UseSimulatedSlave = settings.UseSimulatedSlave,
                 PortName = settings.PortName,
                 BaudRate = settings.BaudRate,
@@ -270,6 +284,15 @@ public partial class MainWindow
 
     private void SelectProtocolMode(string? protocolMode)
     {
+        if (protocolMode?.Contains("Passive", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            for (var i = 0; i < ProtocolModeComboBox.Items.Count; i++)
+                if ((ProtocolModeComboBox.Items[i] as ComboBoxItem)?.Content?.ToString()?.Contains("Passive Monitor", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    ProtocolModeComboBox.SelectedIndex = i;
+                    return;
+                }
+        }
         var needle = protocolMode?.Contains("104", StringComparison.OrdinalIgnoreCase) == true ? "104"
             : protocolMode?.Contains("101", StringComparison.OrdinalIgnoreCase) == true ? "101"
             : "103";
@@ -354,6 +377,8 @@ public partial class MainWindow
         public string ProtocolMode { get; set; } = nameof(Iec60870ProtocolMode.Iec103);
         public bool UseSimulatedSlave { get; set; }
         public string PortName { get; set; } = "COM1";
+        public string PassiveRtuPortName { get; set; } = string.Empty;
+        public string PassiveOutputDirectory { get; set; } = string.Empty;
         public int BaudRate { get; set; } = 9600;
         public string SerialMode { get; set; } = "8E1";
         public string SerialHandshake { get; set; } = "None";

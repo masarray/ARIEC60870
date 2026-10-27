@@ -14,17 +14,17 @@ Read-only observation of an existing IEC-101 RS-232 full-duplex connection using
 4. **Do not connect monitor TXD, RTS or DTR to either production endpoint.** A USB COM adapter/driver may toggle these outputs on open even when the software sets them false.
 5. Two COMs cover only both directions of ONE physical duplex link. To see both paths of redundant A/B, four RX inputs are needed (P3).
 
-## Main GUI workflow (preferred)
+## Main GUI workflow (no CLI, no separate window)
 
-1. Download the Windows x64 GUI test package from the PR's latest passing CI artifacts. Open `ARIEC60870.Desktop.exe` from its published folder (runtime bundled; no .NET SDK needed).
-2. Click **Sniff RX** on the main ARIEC60870 left toolbar. This opens a dedicated **IEC-101 Passive Monitor** window, not a Master/Command session.
-3. Select two different receiver ports: *SCADA TX → RTU* and *RTU TX → SCADA*; verify baud, parity, data and stop bits, and choose the recording directory.
-4. Confirm the electrical isolation checklist after physically verifying the RX-only tap.
-5. Click **Start Recording**. See cumulative byte counters from each direction and sampled raw HEX rows. The preview is bounded and intentionally may skip rows; actual journal raw byte capture is independent.
-6. Click **Stop & Finalize**. Use **Verify Capture** for CRC32, sequence, offsets and SHA-256. Use **Open Capture Folder** to access both binary journals and manifest.
-7. Switching to another window, freezing the view or scrolling does not interrupt the disk archive. Closing the monitor while recording requests Stop and waits for finalization.
+1. Open `ARIEC60870.Desktop.exe` on Windows. Click the **existing Setup** button.
+2. In the **existing Protocol Profile dropdown**, choose **IEC 60870-5-101 — Passive Monitor (RX only)**.
+3. The same Setup form now presents SCADA TX monitor RX-1 (existing COM field), RTU TX monitor RX-2, existing baud/serial fields, approved tap safety confirmation, and raw archive folder. Active command/polling, output modem line controls and dual-link failover settings are hidden in this mode.
+4. Click **Record RX** inside Setup, or close Setup and click the main left-rail **Record RX** (formerly Connect, mode-aware).
+5. The **existing Trace navigation** now shows the embedded, token-styled raw RX capture workspace with SCADA/RTU byte counters, bounded raw HEX chunk samples, disk status, capture folder and Verify action. No new window or new rail button is created.
+6. Click **Stop RX** from the same main left rail. All journal buffers are finalized. Then click **Verify archive** inside Trace and **Open Folder** to reach the evidence.
+7. Scrolling and Freeze view never affect the full raw journal; preview frames are sampled and may omit displayed chunks. The original bytes remain stored independently.
 
-P0 GUI shows raw UART sample chunks, **not yet fully framed and decoded IEC-101 telegrams**. P1 adds protocol parser, transaction pairing, timeline, and final `.ariec` export.
+Note: P0 displays received UART chunk HEX, **not yet IEC-101 FT1.2/ASDU decoded telegrams**. P1 covers actual protocol interpretation, transaction correlation and final `.ariec` V2.
 
 ## Internal CLI diagnostic (optional, not the user-facing app)
 
@@ -58,8 +58,8 @@ A passing audit verifies journal structure, per-direction sequence and raw offse
 
 ## Operational boundaries
 
-- This is an integrated GUI P0 capture. The existing WPF IEC-101 Master and Dual Link sessions remain unchanged; Sniff RX opens a separate receive-only window.
-- The GUI includes live raw-byte chunk preview, capture controls and verification. IEC-101 decoded telegrams, event correlation, failover detection, V2 .ariec ZIP export, and multi-link 4-COM capture are P1–P3.
+- This P0 capture is embedded in the existing MainWindow Setup dropdown, Connect/Stop control and Trace navigation. It preserves the IEC-101 Active Master and Dual Link workflows.
+- The integrated Trace workspace includes raw-byte chunk preview, capture health and verification; IEC-101 decoded telegrams, event correlation, failover detection and V2 `.ariec` export remain P1–P3.
 - `NoApplicationLossDetected` means no known application-layer drop; it is **not** hardware-grade lossless proof.
 - When one COM fails to open, the session is marked `Incomplete`, not silently reduced to one-direction observation.
 - Do not upload unsanitized customer/SCADA/RTU capture files to public GitHub.
@@ -74,4 +74,4 @@ Sources: docs/IEC101_PASSIVE_MONITOR_PRD.md, docs/IEC101_PASSIVE_MONITOR_ARD.md 
 
 ## CI bench artifact
 
-When all Windows CI gates pass, the PR workflow publishes a **non-release** self-contained win-x64 **ARIEC60870 Desktop GUI** ZIP with SHA256SUMS.txt as an Actions artifact named `ARIEC60870-Passive-Monitor-P0-GUI-win-x64`. This is a field/bench test artifact, **not** a certified production deployment.
+When all Windows CI gates pass, the PR workflow publishes a **non-release** self-contained win-x64 **ARIEC60870 Desktop GUI** ZIP with SHA256SUMS.txt as an Actions artifact named `ARIEC60870-Passive-Monitor-P0-GUI-win-x64`. A Windows GUI smoke probe opens the real main window, selects the passive option in the existing dropdown and verifies Trace/Setup routing. This is a field/bench test artifact, **not** a certified production deployment.
