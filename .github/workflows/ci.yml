@@ -51,6 +51,7 @@ jobs:
           $projects = @(
             'tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj',
             'tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj',
+            'tests/ARIEC60870.Monitor.Tests/ARIEC60870.Monitor.Tests.csproj',
             'tests/ARIEC60870.Reporting.Tests/ARIEC60870.Reporting.Tests.csproj',
             'tests/ARIEC60870.Desktop.Tests/ARIEC60870.Desktop.Tests.csproj',
             'tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj'
