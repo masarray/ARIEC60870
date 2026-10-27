@@ -63,6 +63,17 @@ public sealed class PassiveFt12ScannerTests
     }
 
     [Fact]
+    public void A2SingleCharacterIsValidNegativeReplyNotChecksumFailure()
+    {
+        var observed = new List<PassiveFt12Frame>();
+        new PassiveFt12Scanner().Feed(new byte[] { 0xA2 }, 33, observed.Add);
+        var reply = Assert.Single(observed);
+        Assert.Equal(33, reply.ByteOffset);
+        Assert.True(reply.ChecksumValid);
+        Assert.Equal(new byte[] { 0xA2 }, reply.RawBytes);
+    }
+
+    [Fact]
     public void BadLengthHeaderResynchronizesWithoutUnboundedBuffer()
     {
         var scanner = new PassiveFt12Scanner();

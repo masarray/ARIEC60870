@@ -35,6 +35,15 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
+    // Lightweight UI-only transaction summary. Complete derived evidence is on disk.
+    private readonly Channel<PassiveTransactionEvent> _transactionEvents =
+        Channel.CreateBounded<PassiveTransactionEvent>(new BoundedChannelOptions(512)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.DropOldest,
+            AllowSynchronousContinuations = false
+        });
     private readonly long[] _writtenBytes = new long[2];
     private readonly long[] _writtenChunks = new long[2];
     private readonly string[] _rawHashes = new string[2];
@@ -75,6 +84,10 @@ public sealed class PassiveMonitorSession
 
     /// <summary>Decoding feed for Trace/Values/Events. A slow UI cannot block archival.</summary>
     public bool TryReadFrame(out PassiveObservedFrame frame) => _frames.Reader.TryRead(out frame!);
+
+    /// <summary>Derived transaction alerts; full chronological output is in transactions.jsonl.</summary>
+    public bool TryReadTransaction(out PassiveTransactionEvent item) =>
+        _transactionEvents.Reader.TryRead(out item!);
 
     public async Task<(string Directory, PassiveCaptureManifest Manifest)> RunAsync(CancellationToken cancellationToken)
     {
@@ -218,6 +231,9 @@ public sealed class PassiveMonitorSession
         FileStream[]? files = null;
         FileStream? firstFile = null;
         StreamWriter[]? frameFiles = null;
+        StreamWriter? transactionFile = null;
+        var correlator = new PassiveIec101TransactionCorrelator(new PassiveTransactionOptions(
+            LinkAddressWidth: _options.LinkAddressWidth, LinkMode: _options.LinkMode));
         var scanners = new[]
         {
             new PassiveFt12Scanner(_options.LinkAddressWidth),
@@ -237,6 +253,9 @@ public sealed class PassiveMonitorSession
                 new StreamWriter(new FileStream(Path.Combine(root, "frames-01.jsonl"), FileMode.CreateNew,
                     FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8)
             };
+            transactionFile = new StreamWriter(new FileStream(
+                Path.Combine(root, "transactions.jsonl"), FileMode.CreateNew,
+                FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
             await foreach (var chunk in channel.Reader.ReadAllAsync().ConfigureAwait(false))
@@ -264,8 +283,11 @@ public sealed class PassiveMonitorSession
                         chunk.Length - PassiveJournalFormat.HeaderSize), rawOffset,
                         frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
                             frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid, frame.RawBytes)));
+                    var transactions = new List<PassiveTransactionEvent>();
                     foreach (var frame in observed)
                     {
+                        // Interpret the *lossless writer stream*, never the bounded WPF preview.
+                        correlator.Observe(frame, transactions.Add);
                         var line = System.Text.Json.JsonSerializer.Serialize(new
                         {
                             frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
@@ -273,6 +295,12 @@ public sealed class PassiveMonitorSession
                         });
                         await frameFiles[chunk.StreamId].WriteLineAsync(line).ConfigureAwait(false);
                         _frames.Writer.TryWrite(frame);
+                    }
+                    foreach (var entry in transactions)
+                    {
+                        await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry))
+                            .ConfigureAwait(false);
+                        _transactionEvents.Writer.TryWrite(entry);
                     }
                     // Small capped byte sample, copied while the writer still owns the pooled buffer.
                     var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
@@ -292,6 +320,7 @@ public sealed class PassiveMonitorSession
                         await files[1].FlushAsync().ConfigureAwait(false);
                         await frameFiles[0].FlushAsync().ConfigureAwait(false);
                         await frameFiles[1].FlushAsync().ConfigureAwait(false);
+                        await transactionFile.FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
                     }
@@ -312,11 +341,27 @@ public sealed class PassiveMonitorSession
                     observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
                 })).ConfigureAwait(false);
                 _frames.Writer.TryWrite(observedTail);
+                var tailEvents = new List<PassiveTransactionEvent>();
+                correlator.Observe(observedTail, tailEvents.Add);
+                foreach (var entry in tailEvents)
+                {
+                    await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
+                    _transactionEvents.Writer.TryWrite(entry);
+                }
+            }
+            var finalEvents = new List<PassiveTransactionEvent>();
+            correlator.AdvanceTime(DateTime.UtcNow, finalEvents.Add);
+            correlator.Complete(finalEvents.Add);
+            foreach (var entry in finalEvents)
+            {
+                await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
+                _transactionEvents.Writer.TryWrite(entry);
             }
             await files[0].FlushAsync().ConfigureAwait(false);
             await files[1].FlushAsync().ConfigureAwait(false);
             await frameFiles[0].FlushAsync().ConfigureAwait(false);
             await frameFiles[1].FlushAsync().ConfigureAwait(false);
+            await transactionFile.FlushAsync().ConfigureAwait(false);
             for (var i = 0; i < 2; i++) _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
         }
         catch (Exception ex)
@@ -331,6 +376,7 @@ public sealed class PassiveMonitorSession
             while (channel.Reader.TryRead(out var remaining)) ArrayPool<byte>.Shared.Return(remaining.Buffer);
             foreach (var hash in hashes) hash.Dispose();
             if (frameFiles is not null) foreach (var index in frameFiles) index.Dispose();
+            transactionFile?.Dispose();
             if (files is null) firstFile?.Dispose();
             if (files is not null)
                 foreach (var file in files)

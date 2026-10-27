@@ -44,6 +44,8 @@ public partial class MainWindow
         {
             ClearSessionView(clearLog: true);
             _passiveFrameSequence = 0;
+            _passiveTransactionNotes.Clear();
+            _passiveReplayCorrelator = null;
             _passiveCaptureResult = null;
             MainTabControl.SelectedIndex = PassiveTraceTabIndex;
             UpdateSegmentedNav(false);
@@ -70,6 +72,10 @@ public partial class MainWindow
                 Dispatcher.Invoke(() =>
                 {
                     _passiveLinkAddressWidth = manifest.LinkAddressWidth;
+                    _passiveReplayCorrelator = new PassiveIec101TransactionCorrelator(
+                        new PassiveTransactionOptions(
+                            LinkAddressWidth: manifest.LinkAddressWidth,
+                            LinkMode: manifest.LinkMode));
                     _passiveAsduDecoder = new ARIEC60870.Master.Protocol.Iec10x.Iec10xAsduDecoder(
                         manifest.CotWidth, manifest.CommonAddressWidth, manifest.InformationAddressWidth);
                     PassiveStatusMessageText.Text = "Reconstructing both directions…";
@@ -106,6 +112,10 @@ public partial class MainWindow
 
             var finalManifest = JsonSerializer.Deserialize<PassiveCaptureManifest>(
                 File.ReadAllText(manifestPath))!;
+            _passiveReplayCorrelator?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveTransactionEvent);
+            _passiveReplayCorrelator?.Complete(ApplyPassiveTransactionEvent);
+            FlushUiQueues();
+            _passiveReplayCorrelator = null;
             _passiveCaptureResult = (directory, finalManifest);
             PassiveScadaCountText.Text = finalManifest.Streams
                 .Where(x => x.StreamId == 0).Sum(x => x.Bytes).ToString("N0") + " bytes";
@@ -135,6 +145,7 @@ public partial class MainWindow
         finally
         {
             _passiveReplayWork = null;
+            _passiveReplayCorrelator = null;
             _passiveReplayCancellation = null;
             OpenCaptureButton.IsEnabled = true;
             SetupButton.IsEnabled = true;
