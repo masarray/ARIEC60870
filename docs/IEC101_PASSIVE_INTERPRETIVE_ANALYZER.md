@@ -27,7 +27,7 @@ No separate window, no separate nav button, no Master command engine instantiate
                                                                 ├─> Events
                                                                 └─> Values
 
-**Never decode the 48-byte preview sample**: variable FT1.2 frames may exceed a USB read chunk or the preview cap. A scanner must retain partial bytes across read boundaries and consume every written raw chunk, including E5/A2 ACK/NACK and corrupted/unknown bytes. The binary raw journal remains the only source guaranteeing byte preservation; UI frame feed is bounded for responsiveness. Frame index records are derived and can be recreated from the raw journal later.
+**Never decode the 48-byte preview sample**: variable FT1.2 frames may exceed a USB read chunk or the preview cap. A scanner must retain partial bytes across read boundaries and consume every written raw chunk, including context-sensitive E5 short response, prohibited A2 bytes, and corrupted/unknown bytes. The binary raw journal remains the only source guaranteeing byte preservation; UI frame feed is bounded for responsiveness. Frame index records are derived and can be recreated from the raw journal later.
 
 **Do not use the Core.Ft12Parser.Asdu decoder for IEC-101**: that parser is bound to the IEC-103 ASDU format. Derive FT1.2 boundaries from the independent passive stream scanner; pass user data to existing Master.Protocol.Iec10x.Iec10xAsduDecoder (pure decode) in the Desktop projection. Long term this pure decoder can be relocated to shared Core without creating two competing implementations.
 
