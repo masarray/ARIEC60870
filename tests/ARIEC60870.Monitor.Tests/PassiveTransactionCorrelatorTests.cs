@@ -35,7 +35,7 @@ public sealed class PassiveTransactionCorrelatorTests
     {
         var engine = new PassiveIec101TransactionCorrelator();
         var events = new List<PassiveTransactionEvent>();
-        engine.Observe(Frame(0, 0, 0, 0x49), events.Add);
+        engine.Observe(Frame(0, 0, 0, 0x40), events.Add); // FC0 Reset Remote Link confirmation
         engine.Observe(Single(1, 0, 20, 0xE5), events.Add);
         var shortAck = Assert.Single(events);
         Assert.Equal(PassiveTransactionKind.Matched, shortAck.Kind);
