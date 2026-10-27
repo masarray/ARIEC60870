@@ -338,11 +338,11 @@ public partial class MainWindow
 
         var serialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
         settings.DataBits = 8;
-        settings.StopBits = StopBits.One;
+        settings.StopBits = serialMode.EndsWith("2", StringComparison.Ordinal) ? StopBits.Two : StopBits.One;
         settings.Parity = serialMode switch
         {
-            "8N1" => Parity.None,
-            "8O1" => Parity.Odd,
+            "8N1" or "8N2" => Parity.None,
+            "8O1" or "8O2" => Parity.Odd,
             _ => Parity.Even
         };
         var flowControl = (SerialHandshakeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "None";
@@ -745,13 +745,25 @@ public partial class MainWindow
         Iec103OptionsPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         LinkAddressPanel.Visibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         MappingProfilePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        ExportReportButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        OpenCaptureButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        SaveCaptureRailButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        ExportTraceRailButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        AutoScrollLatestToggleButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        ClearButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        SignalListButton.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        // Passive is a transport mode, not a stripped application. Keep all existing
+        // collection/review/export tools visible just like Active Master.
+        ExportReportButton.Visibility = Visibility.Visible;
+        OpenCaptureButton.Visibility = Visibility.Visible;
+        SaveCaptureRailButton.Visibility = Visibility.Visible;
+        ExportTraceRailButton.Visibility = Visibility.Visible;
+        AutoScrollLatestToggleButton.Visibility = Visibility.Visible;
+        ClearButton.Visibility = Visibility.Visible;
+        SignalListButton.Visibility = Visibility.Visible;
+        OpenCaptureButton.ToolTip = isPassive101
+            ? "Open saved .ariec frame capture for offline review. Original passive raw journals are in Capture → Open Folder."
+            : "Open .ariec capture for offline review";
+        SaveCaptureRailButton.ToolTip = isPassive101
+            ? "Save selected decoded Trace rows as .ariec. Full two-COM raw recording is saved automatically in Capture."
+            : "Save selected Trace rows as .ariec capture";
+        SaveCaptureRailCaption.Text = isPassive101 ? "Save View" : "Save Cap";
+        ClearButton.ToolTip = isPassive101
+            ? "Clear visible decoded rows only; never deletes the passive raw capture journal"
+            : "Clear visible session rows";
         HeaderIndicatorChip.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
 
         // Evidence Ledger is a distilled human-readable proof view. Keep protocol-heavy columns in Trace and the selected-row inspector.

@@ -67,6 +67,37 @@ public partial class MainWindow
             NavTriggersButton.Tag?.ToString() != "10")
             throw new InvalidOperationException("Passive mode is not correctly embedded in Setup/Trace; active controls remain visible.");
 
+        // The entire existing evidence toolbox must remain on the left rail;
+        // this explicitly catches the regression that hid capture/export/Signals.
+        foreach (var tool in new System.Windows.Controls.Control[]
+        {
+            ExportReportButton, OpenCaptureButton, SaveCaptureRailButton,
+            ExportTraceRailButton, AutoScrollLatestToggleButton, ClearButton,
+            SignalListButton, HelpButton
+        })
+            if (tool.Visibility != Visibility.Visible)
+                throw new InvalidOperationException("Passive profile unexpectedly hid an existing field tool: " + tool.Name);
+        if (ActionRailScroll.Visibility != Visibility.Visible ||
+            !ActionRailScroll.IsMeasureValid)
+            throw new InvalidOperationException("Existing tool rail is not accessible.");
+
+        // Exercise the actual config builder with no physical COM opening.
+        PortComboBox.Items.Add("COM201");
+        PortComboBox.SelectedItem = "COM201";
+        PassiveRtuPortComboBox.Items.Add("COM202");
+        PassiveRtuPortComboBox.SelectedItem = "COM202";
+        BaudComboBox.Text = "1200";
+        SelectComboContent(SerialModeComboBox, "8E2");
+        PassiveFrameGapBox.Text = "1500";
+        SelectComboContent(PassiveLinkModeCombo, "Balanced");
+        PassiveCaptureFolderBox.Text = Path.GetTempPath();
+        var profile = BuildPassiveCaptureOptions();
+        if (profile.ScadaTx.PortName != "COM201" || profile.RtuTx.PortName != "COM202" ||
+            profile.ScadaTx.StopBits != StopBits.Two || profile.RtuTx.StopBits != StopBits.Two ||
+            profile.ScadaTx.Parity != Parity.Even || profile.FrameGapMilliseconds != 1500 ||
+            profile.LinkMode != "Balanced" || profile.ScadaTx.DataBits != 8)
+            throw new InvalidOperationException("IEC-101 passive serial/config profile was not applied.");
+
         // End-to-end GUI probe: real FT1.2 user-data frame → existing IEC-101
         // decoder → normal Frame Trace, Values, and Event Log. No hardware opened.
         var asdu = new byte[] { 1, 1, 3, 0, 1, 0, 7, 0, 0, 1 };
@@ -134,6 +165,8 @@ public partial class MainWindow
             prefs.PassiveCotWidth = ReadComboInt(PassiveCotWidthCombo, "Passive COT width");
             prefs.PassiveCaWidth = ReadComboInt(PassiveCaWidthCombo, "Passive CA width");
             prefs.PassiveIoaWidth = ReadComboInt(PassiveIoaWidthCombo, "Passive IOA width");
+            prefs.PassiveFrameGapMilliseconds = ReadInt(PassiveFrameGapBox, "Passive frame gap", 100, 10000);
+            prefs.PassiveLinkMode = (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto";
             if (int.TryParse(BaudComboBox.Text, out var baud)) prefs.BaudRate = baud;
             prefs.SerialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
             prefs.SavedUtc = DateTime.UtcNow;
@@ -156,23 +189,26 @@ public partial class MainWindow
         var serial = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";
         var parity = serial switch
         {
-            "8E1" => Parity.Even,
-            "8N1" => Parity.None,
-            "8O1" => Parity.Odd,
-            _ => throw new InvalidOperationException("Unsupported serial framing. Choose 8E1 / 8N1 / 8O1.")
+            "8E1" or "8E2" => Parity.Even,
+            "8N1" or "8N2" => Parity.None,
+            "8O1" or "8O2" => Parity.Odd,
+            _ => throw new InvalidOperationException("Choose a valid 8-bit serial mode: E/N/O parity, 1 or 2 stop bits.")
         };
+        var stopBits = serial.EndsWith("2", StringComparison.Ordinal) ? StopBits.Two : StopBits.One;
         var output = string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text)
             ? DefaultPassiveCaptureDirectory() : PassiveCaptureFolderBox.Text.Trim();
         static int Width(ComboBox combo) => int.Parse(
             (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "0",
             System.Globalization.CultureInfo.InvariantCulture);
         var options = new PassiveCaptureOptions(output,
-            new PassiveSerialSource(first, "SCADA TX -> RTU", baud, parity, 8, StopBits.One),
-            new PassiveSerialSource(second, "RTU TX -> SCADA", baud, parity, 8, StopBits.One),
+            new PassiveSerialSource(first, "SCADA TX -> RTU", baud, parity, 8, stopBits),
+            new PassiveSerialSource(second, "RTU TX -> SCADA", baud, parity, 8, stopBits),
             LinkAddressWidth: Width(PassiveLinkWidthCombo),
             CotWidth: Width(PassiveCotWidthCombo),
             CommonAddressWidth: Width(PassiveCaWidthCombo),
-            InformationAddressWidth: Width(PassiveIoaWidthCombo));
+            InformationAddressWidth: Width(PassiveIoaWidthCombo),
+            FrameGapMilliseconds: ReadInt(PassiveFrameGapBox, "Passive frame gap", 100, 10000),
+            LinkMode: (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto");
         options.Validate();
 
         var directory = Path.GetFullPath(output);
@@ -220,6 +256,7 @@ public partial class MainWindow
         _passiveAsduDecoder = new Iec10xAsduDecoder(
             options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
         _passiveLinkAddressWidth = options.LinkAddressWidth;
+        AppendSessionLog($"Passive IEC-101 profile: {options.LinkMode}; Link={options.LinkAddressWidth}, COT={options.CotWidth}, CA={options.CommonAddressWidth}, IOA={options.InformationAddressWidth}; gap={options.FrameGapMilliseconds} ms.");
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
         PassiveIntegrityText.Text = "Opening receivers...";

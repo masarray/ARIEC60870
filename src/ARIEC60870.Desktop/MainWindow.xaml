@@ -29,7 +29,10 @@
                     <GradientStop Color="#F0FFF9" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
-            <StackPanel VerticalAlignment="Stretch" HorizontalAlignment="Center">
+            <ScrollViewer x:Name="ActionRailScroll" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"
+                          CanContentScroll="True" Focusable="False">
+            <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center">
                 <Border Width="68" Height="70" CornerRadius="18" Margin="0,0,0,13" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" ClipToBounds="True">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -63,13 +66,13 @@
                 <Button x:Name="OpenCaptureButton" Style="{StaticResource RailIconButton}" Click="OpenCapture_Click" ToolTip="Open .ariec capture for offline review">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFolderOpenDot}" />
-                        <TextBlock Text="Open Pcap" Style="{StaticResource RailButtonCaption}" />
+                        <TextBlock Text="Open Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="SaveCaptureRailButton" Style="{StaticResource RailIconButton}" Click="SaveSelectedCapture_Click" ToolTip="Save selected Trace rows as .ariec capture">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideDownload}" />
-                        <TextBlock Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
+                        <TextBlock x:Name="SaveCaptureRailCaption" Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
                 <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
@@ -158,6 +161,7 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <Grid Grid.Row="0" Grid.Column="2">
@@ -1727,10 +1731,13 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Serial" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="SerialModeComboBox" SelectedIndex="0">
+                                        <ComboBox x:Name="SerialModeComboBox" SelectedIndex="0" ToolTip="IEC-101 FT1.2 uses 8 data bits. Choose parity and stop bits as configured on the live serial link.">
                                             <ComboBoxItem Content="8E1" />
                                             <ComboBoxItem Content="8N1" />
                                             <ComboBoxItem Content="8O1" />
+                                            <ComboBoxItem Content="8E2" />
+                                            <ComboBoxItem Content="8N2" />
+                                            <ComboBoxItem Content="8O2" />
                                         </ComboBox>
                                     </StackPanel>
                                 </Grid>
@@ -1801,7 +1808,8 @@
                                     <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"/>
                                 </Grid>
                                 <TextBlock Text="Saved automatically while recording." Style="{StaticResource SubtleText}" Margin="2,8,0,0"/>
-                                <Expander Header="IEC-101 field sizes" Margin="0,14,0,0" ToolTip="Set the four address/header field widths to match the RTU's IEC-101 interoperability profile.">
+                                <Expander Header="IEC-101 decoding &amp; timing" Margin="0,14,0,0" ToolTip="Optional decode profile: field widths and frame timeout. Does not send or filter raw data.">
+                                    <StackPanel>
                                     <Grid Margin="0,10,0,3">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -1830,6 +1838,24 @@
                                             </ComboBox>
                                         </StackPanel>
                                     </Grid>
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Link mode" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="PassiveLinkModeCombo" SelectedIndex="0"
+                                                      ToolTip="Observation label only: Auto does not assume which station controls the link. No active Master commands are sent.">
+                                                <ComboBoxItem Content="Auto"/>
+                                                <ComboBoxItem Content="Unbalanced"/>
+                                                <ComboBoxItem Content="Balanced"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Frame gap (ms)" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="PassiveFrameGapBox" Text="900"
+                                                     ToolTip="After this much silence on one RX input, an incomplete frame is marked partial. Range 100–10000 ms; raw recording is unaffected."/>
+                                        </StackPanel>
+                                    </Grid>
+                                    </StackPanel>
                                 </Expander>
                             </StackPanel>
                             <StackPanel x:Name="ActiveSetupRightPanel">

@@ -125,6 +125,9 @@ public partial class MainWindow
             SelectComboContent(PassiveCotWidthCombo, prefs.PassiveCotWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             SelectComboContent(PassiveCaWidthCombo, prefs.PassiveCaWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             SelectComboContent(PassiveIoaWidthCombo, prefs.PassiveIoaWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            PassiveFrameGapBox.Text = (prefs.PassiveFrameGapMilliseconds is >= 100 and <= 10000
+                ? prefs.PassiveFrameGapMilliseconds : 900).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            SelectComboContent(PassiveLinkModeCombo, string.IsNullOrWhiteSpace(prefs.PassiveLinkMode) ? "Auto" : prefs.PassiveLinkMode);
             SelectComboContent(TransportModeComboBox, prefs.UseSimulatedSlave ? "Built-in demo simulation" : "Real device / server");
 
             if (!string.IsNullOrWhiteSpace(prefs.PortName))
@@ -235,6 +238,8 @@ public partial class MainWindow
                 PassiveCotWidth = ReadComboInt(PassiveCotWidthCombo, "Passive COT width"),
                 PassiveCaWidth = ReadComboInt(PassiveCaWidthCombo, "Passive CA width"),
                 PassiveIoaWidth = ReadComboInt(PassiveIoaWidthCombo, "Passive IOA width"),
+                PassiveFrameGapMilliseconds = ReadInt(PassiveFrameGapBox, "Passive frame gap", 100, 10000),
+                PassiveLinkMode = (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto",
                 UseSimulatedSlave = settings.UseSimulatedSlave,
                 PortName = settings.PortName,
                 BaudRate = settings.BaudRate,
@@ -391,6 +396,8 @@ public partial class MainWindow
         public int PassiveCotWidth { get; set; } = 2;
         public int PassiveCaWidth { get; set; } = 2;
         public int PassiveIoaWidth { get; set; } = 3;
+        public int PassiveFrameGapMilliseconds { get; set; } = 900;
+        public string PassiveLinkMode { get; set; } = "Auto";
         public int BaudRate { get; set; } = 9600;
         public string SerialMode { get; set; } = "8E1";
         public string SerialHandshake { get; set; } = "None";
