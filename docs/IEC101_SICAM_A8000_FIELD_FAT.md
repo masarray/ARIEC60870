@@ -64,3 +64,30 @@ time of tests, firmware and wiring photo/diagram. Compare full rejected
 frame counts, validated secondary responses, GI completion and failover
 journal before and after each single-variable correction. No on-hardware
 interoperability claim is made by simulator/unit tests alone.
+
+## Post-P0/P1 field finding: COM open and GI are not proof of RTU data
+
+The application now makes three distinct claims:
+
+- **COM open:** Windows successfully opened the serial adapter. No evidence yet of a remote station.
+- **IEC-101 secondary link verified:** A checksum/length-valid secondary reply (PRM=0) arrived on the expected link address.
+- **GI verified:** A successful GI exchange followed by actual process ASDUs/ACTTERM. A TX GI frame alone does not prove this.
+
+For unverified serial links, the engine issues bounded **Request Link Status**
+probes and does **not** flood the outstation with GI or Class 1 traffic.
+Startup GI proceeds when a genuine secondary reply is seen. A silent GI
+or failed Class 1 response stops its drain instead of sending dozens of
+requests while Value Viewer stays empty.
+
+When troubleshooting a *real* SICAM:
+1. Export a **full** trace rather than selected rows.
+2. Check if `IEC101-LINK-UNVERIFIED` is present, then inspect `IEC101-RX-*`.
+3. Check for `IEC101-GI-UNCONFIRMED` when link proof succeeded but GI was
+   not positively acknowledged.
+4. If GI responds but no process values appear, inspect CA/COT/IOA profile
+   sizes, raw ASDUs and the actual GI data/ACTTERM evidence.
+5. Verify with the module's documented RS232 pinout and an isolated test
+   port, without disrupting a production SCADA channel.
+
+A simulated positive secondary test is necessary for software regression,
+but cannot certify the actual cable, SICAM module role, or GI configuration.

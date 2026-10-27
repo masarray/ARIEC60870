@@ -34,6 +34,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private int _lastFailoverLatencyMs;
     private long _sequence;
     private bool _switchInProgress;
+    private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
 
     public Iec101DualLinkRedundancySession(
@@ -188,15 +189,20 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         await _standby.RequestLinkStatusAsync("Initial standby health probe", cancellationToken).ConfigureAwait(false);
         _lastStandbySupervisionUtc = DateTime.UtcNow;
+        // COM-open is not a validated RTU link on either channel.
+        if (!_active.IsHealthy)
+            await _active.RequestLinkStatusAsync("Initial active IEC-101 secondary proof", cancellationToken).ConfigureAwait(false);
 
-        if (_options.BaseSettings.SendClockSyncOnConnect)
+        if (_options.BaseSettings.SendClockSyncOnConnect && _active.IsHealthy)
         {
             await _active.SendClockSyncAsync("Dual-link startup clock synchronization on active link", cancellationToken).ConfigureAwait(false);
             _counters.ClockSyncCommands++;
         }
 
-        if (_options.BaseSettings.SendGeneralInterrogationOnConnect)
+        _startupGiPending = _options.BaseSettings.SendGeneralInterrogationOnConnect;
+        if (_startupGiPending && _active.IsHealthy)
         {
+            _startupGiPending = false;
             SetControllerState(Iec101RedundancyControllerState.BootstrappingApplicationImage, "Bootstrapping IEC-101 application image", "General Interrogation is sent only on the active link.");
             await RunGeneralInterrogationLifecycleOnActiveAsync(
                 "Dual-link startup station interrogation",
@@ -270,6 +276,17 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 await TryFailoverAsync("Active link failed and standby has emergency rescue proof", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
                 return;
             }
+        }
+
+        if (_startupGiPending && _active.IsHealthy)
+        {
+            _startupGiPending = false;
+            await RunGeneralInterrogationLifecycleOnActiveAsync(
+                "Deferred startup GI after verified active secondary",
+                "Deferred dual-link startup GI",
+                "Deferred dual-link Class 2 verification",
+                commonAddress: null, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
         if (now - _lastClass2PollUtc >= TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
@@ -798,10 +815,34 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        if (!_active.IsHealthy)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-GI-LINK-UNVERIFIED",
+                "Dual-link GI deferred: active SICAM secondary not verified",
+                $"Active={_active.Name}; COM={_active.Endpoint.PortName}; Link={_active.Endpoint.LinkAddress}; " +
+                $"RX rejected={_active.LinkState.RejectedFrames}; verified secondary={_active.LinkState.LastGoodResponseUtc.HasValue}.",
+                "An open COM port or sent GI frame does not prove RTU reception.",
+                "Inspect both links' IEC101-RX-* diagnostics and correct actual cable/RTU role before GI.");
+            return;
+        }
+
         var effectiveCommonAddress = ResolveRuntimeCommonAddress(commonAddress);
         _imageTracker.MarkGiStarted(DateTime.UtcNow);
         _counters.GiCommands++;
         var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
+        if (response.TimedOut || response.Frame is null ||
+            (response.Asdu is null && !response.Succeeded))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-GI-UNCONFIRMED",
+                "Dual-link SICAM GI not confirmed",
+                $"Active={_active.Name}; CA={effectiveCommonAddress}; " +
+                $"RX rejected={_active.LinkState.RejectedFrames}; response timed out={response.TimedOut}.",
+                "A sent GI frame is not evidence of accepted GI or process values.",
+                "Inspect PRM, link address, and actual RX from active COM. Do not blind-drain Class 1.");
+            PublishApplicationImageMilestone();
+            return;
+        }
+
         if (IsNegativeConfirmation(response, expectedTypeId: 100))
         {
             var caText = FormatCommonAddress(effectiveCommonAddress);
@@ -919,6 +960,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             $"{reason}. Active={_active.Name}; background values may arrive after station/group interrogation.");
 
         var noDataStreak = 0;
+        var unansweredStreak = 0;
         var userDataBefore = _active.LinkState.UserDataResponses;
         var maxSweeps = Math.Clamp(_options.BaseSettings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
@@ -927,8 +969,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             var beforeUserData = _active.LinkState.UserDataResponses;
 
             _counters.Class2Requests++;
-            await _active.RequestClass2Async(reason, cancellationToken).ConfigureAwait(false);
+            var exchange = await _active.RequestClass2Async(reason, cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            unansweredStreak = exchange.TimedOut ? unansweredStreak + 1 : 0;
+            if (unansweredStreak >= 2)
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-POSTGI-RTU-SILENT",
+                    "Dual-link post-GI background verification stopped",
+                    $"Active={_active.Name}; two Class 2 polls got no valid secondary reply.",
+                    "Polling cannot prove an RTU data snapshot in the absence of responses.",
+                    "Inspect link diagnostics and RTU configuration, then retry GI on verified link.");
+                break;
+            }
 
             if (_active.LinkState.UserDataResponses > beforeUserData)
             {
