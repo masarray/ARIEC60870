@@ -52,6 +52,47 @@ public sealed class PassiveJournalReplayTests
     }
 
     [Fact]
+    public async Task LiveWriterTransactionJournalCanBeRecomputedFromFullRawOffline()
+    {
+        var folder = CreateTemp();
+        try
+        {
+            var request = new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 };
+            var options = new PassiveCaptureOptions(folder,
+                new PassiveSerialSource("COM201", "SCADA TX"),
+                new PassiveSerialSource("COM202", "RTU TX"), ReadChunkBytes: 128);
+            var session = new PassiveMonitorSession(options,
+                new ReplayTap("COM201", request, 1),
+                new ReplayTap("COM202", Array.Empty<byte>(), 1));
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(180));
+            var capture = await session.RunAsync(stop.Token);
+            Assert.True(PassiveJournalVerifier.Verify(capture.Directory).Complete);
+
+            var journal = Path.Combine(capture.Directory, "transactions.jsonl");
+            Assert.True(File.Exists(journal));
+            var saved = File.ReadAllLines(journal)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => System.Text.Json.JsonSerializer.Deserialize<PassiveTransactionEvent>(x)!)
+                .ToArray();
+            Assert.Single(saved);
+            Assert.Equal(PassiveTransactionKind.PendingAtEnd, saved[0].Kind);
+            Assert.Equal(0, saved[0].RequestOffset);
+
+            // The derived transaction file is disposable. Re-run from verified raw.
+            File.Delete(journal);
+            var rebuilt = new List<PassiveTransactionEvent>();
+            var corr = new PassiveIec101TransactionCorrelator();
+            foreach (var frame in PassiveJournalReplay.ReadVerifiedFrames(capture.Directory))
+                corr.Observe(frame, rebuilt.Add);
+            corr.AdvanceTime(capture.Manifest.EndUtc, rebuilt.Add);
+            corr.Complete(rebuilt.Add);
+            Assert.Equal(saved.Select(x => (x.Kind, x.LinkAddress, x.RequestOffset)),
+                rebuilt.Select(x => (x.Kind, x.LinkAddress, x.RequestOffset)));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
     public async Task RawCorruptionIsRejectedBeforeAnyDecodedFrameIsShown()
     {
         var folder = CreateTemp();

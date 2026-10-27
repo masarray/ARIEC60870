@@ -62,7 +62,9 @@ public sealed class PassiveFt12Scanner
             var first = _pending[0];
             if (first is 0xE5 or 0xA2)
             {
-                Emit(1, first == 0xE5, "Single", emit);
+                // E5 (ACK) and A2 (NACK) are both recognized single characters.
+                // Negative response is semantic, not a damaged frame checksum.
+                Emit(1, true, "Single", emit);
                 continue;
             }
             if (first != 0x10 && first != 0x68)

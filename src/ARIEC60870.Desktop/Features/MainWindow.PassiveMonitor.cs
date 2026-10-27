@@ -34,6 +34,12 @@ public partial class MainWindow
     private bool _closingAfterPassiveStop;
     private Iec10xAsduDecoder? _passiveAsduDecoder;
     private long _passiveFrameSequence;
+    private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
+    private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
+    // GUI-only aggregation; all events remain durable in transactions.jsonl.
+    private readonly Dictionary<(PassiveTransactionKind Kind, int? Address), DateTime> _passiveFindingLastShown = new();
+    private DateTime _passiveFindingWindowEndUtc = DateTime.MinValue;
+    private int _passiveFindingWindowCount;
     private int _passiveLinkAddressWidth;
 
     public ObservableCollection<PassiveRxRow> PassiveRawRows => _passiveRawRows;
@@ -115,6 +121,23 @@ public partial class MainWindow
             throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
         if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+        ClearSessionView(clearLog: true);
+
+        // P2B: an actual request/reply pair must be reflected in the same Frame
+        // Trace and interpreter, without spinning up a separate analyzer window.
+        _passiveReplayCorrelator = new PassiveIec101TransactionCorrelator(
+            new PassiveTransactionOptions(LinkMode: "Unbalanced"));
+        var now = DateTime.UtcNow;
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 0, now,
+            "Fixed", true, new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 }));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 0, now.AddMilliseconds(60),
+            "Fixed", true, new byte[] { 0x10, 0x0B, 0x69, 0x74, 0x16 }));
+        FlushUiQueues();
+        if (!FrameTraceRows.Any(x => x.Detail.Contains("Secondary link status response (FC11)",
+                StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Passive request/reply correlation did not reach the existing Frame Trace.");
+        _passiveReplayCorrelator = null;
+        _passiveTransactionNotes.Clear();
         ClearSessionView(clearLog: true);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
@@ -253,6 +276,11 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
+        _passiveReplayCorrelator = null;
+        _passiveTransactionNotes.Clear();
+        _passiveFindingLastShown.Clear();
+        _passiveFindingWindowEndUtc = DateTime.MinValue;
+        _passiveFindingWindowCount = 0;
         _passiveAsduDecoder = new Iec10xAsduDecoder(
             options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
         _passiveLinkAddressWidth = options.LinkAddressWidth;
@@ -337,6 +365,15 @@ public partial class MainWindow
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
 
+        // Lossless correlator runs in the journal writer. The UI receives only its
+        // bounded presentation events; the complete transaction trail is on disk.
+        var correlated = 0;
+        while (correlated < 240 && session.TryReadTransaction(out var entry))
+        {
+            ApplyPassiveTransactionEvent(entry);
+            correlated++;
+        }
+
         // Frame reconstruction is independent of the raw sample view and its Freeze flag.
         // Every observed frame is projected onto the EXISTING Evidence/Trace/Values/Event pipeline.
         var framed = 0;
@@ -365,6 +402,14 @@ public partial class MainWindow
 
     private void FeedPassiveFrameToExistingViews(PassiveObservedFrame seen)
     {
+        // Replay has a full, verified stream and re-derives the same findings here.
+        // Live capture derives findings upstream, before WPF's bounded frame queue.
+        _passiveReplayCorrelator?.Observe(seen, ApplyPassiveTransactionEvent);
+        _passiveTransactionNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var transaction);
+        _passiveTransactionNotes.Remove((seen.StreamId, seen.StreamOffset));
+        var txNote = transaction is null ? "" :
+            $" · {transaction.Meaning} · Req RX stream {transaction.RequestStream} offset {transaction.RequestOffset}" +
+            (transaction.HostDelayMilliseconds is { } ms ? $" · host Δ≈{ms:0} ms" : "");
         var raw = seen.RawBytes;
         var controlOffset = seen.Format == "Fixed" ? 1 : seen.Format == "Variable" ? 4 : -1;
         var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
@@ -411,7 +456,7 @@ public partial class MainWindow
             DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
             Summary = prefix + " · " + function,
-            Detail = meaning + $" · Link {address} · RX offset {seen.StreamOffset}" +
+            Detail = meaning + $" · Link {address} · RX offset {seen.StreamOffset}" + txNote +
                      (decode?.Issues.Count > 0 ? " · " + string.Join("; ", decode.Issues) : ""),
             OperatorMessage = meaning, ProtocolMeaning = meaning,
             OperatorAction = "Observed only; no commands transmitted",
@@ -476,6 +521,77 @@ public partial class MainWindow
                 });
             }
         }
+    }
+
+    private void ApplyPassiveTransactionEvent(PassiveTransactionEvent item)
+    {
+        if (item.Kind is PassiveTransactionKind.Matched or PassiveTransactionKind.NegativeReply)
+        {
+            if (_passiveTransactionNotes.Count >= 512)
+                _passiveTransactionNotes.Remove(_passiveTransactionNotes.Keys.First());
+            _passiveTransactionNotes[(item.ObservedStream, item.ObservedOffset)] = item;
+        }
+
+        // Preserve the existing calm operator UI: no finding for every normal poll,
+        // Class 1 access demand or standby Link Status. All transactions remain in
+        // the full raw/derived journals; only meaningful diagnostics enter Findings.
+        var severity = item.Kind switch
+        {
+            PassiveTransactionKind.ResponseTimeout or
+            PassiveTransactionKind.DfcBusy or
+            PassiveTransactionKind.IncompatibleReply or
+            PassiveTransactionKind.DirectionConflict or
+            PassiveTransactionKind.SourceOrderConflict or
+            PassiveTransactionKind.CapacityEviction => FindingSeverity.Warning,
+            PassiveTransactionKind.NegativeReply or
+            PassiveTransactionKind.RetryObserved or
+            PassiveTransactionKind.RequestSuperseded or
+            PassiveTransactionKind.ReusedConfirmedFcb or
+            PassiveTransactionKind.AmbiguousSingleReply or
+            PassiveTransactionKind.InvalidFrame => FindingSeverity.Info,
+            _ => (FindingSeverity?)null
+        };
+        if (severity is null) return;
+
+        // Protect the application's existing pending Findings queue from prolonged
+        // corrupt traffic or repeated timeouts. Emit at most 20 per wall-clock
+        // second and coalesce repeated (kind, link address) for 3 seconds.
+        // Neither rule suppresses the complete disk-backed transaction journal.
+        var now = DateTime.UtcNow;
+        if (now >= _passiveFindingWindowEndUtc)
+        {
+            _passiveFindingWindowEndUtc = now.AddSeconds(1);
+            _passiveFindingWindowCount = 0;
+        }
+        if (_passiveFindingWindowCount >= 20) return;
+        var key = (item.Kind, item.LinkAddress);
+        if (_passiveFindingLastShown.TryGetValue(key, out var last) &&
+            now - last < TimeSpan.FromSeconds(3)) return;
+        if (_passiveFindingLastShown.Count >= 128)
+            _passiveFindingLastShown.Clear();
+        _passiveFindingLastShown[key] = now;
+        _passiveFindingWindowCount++;
+        OnFindingRaised(this, new Iec103MasterFinding
+        {
+            TimestampUtc = item.EstimatedUtc,
+            Severity = severity.Value,
+            Id = "IEC101-PASSIVE-" + item.Kind.ToString().ToUpperInvariant(),
+            Title = item.Kind switch
+            {
+                PassiveTransactionKind.ResponseTimeout => "No IEC-101 reply observed within timeout",
+                PassiveTransactionKind.DfcBusy => "RTU reports link busy (DFC=1)",
+                PassiveTransactionKind.RetryObserved => "IEC-101 request retransmission observed",
+                PassiveTransactionKind.DirectionConflict => "Primary control direction differs from selected link mode",
+                _ => "IEC-101 passive observation: " + item.Kind
+            },
+            Evidence = item.Meaning +
+                $" | RX stream={item.ObservedStream} offset={item.ObservedOffset}" +
+                $" | Request stream={item.RequestStream?.ToString() ?? "-"} offset={item.RequestOffset?.ToString() ?? "-"}" +
+                $" | Link={item.LinkAddress?.ToString() ?? "unknown"}" +
+                $" | Primary FC={item.RequestFunction?.ToString() ?? "-"}; Secondary FC={item.ReplyFunction?.ToString() ?? "-"}",
+            Impact = "The passive trace supports this observation; the second redundant line is not observed by two COM inputs.",
+            Recommendation = "Open Frame Trace or the full raw journal and compare request/reply bytes, FCB/FCV, ACD/DFC and SCADA switching history."
+        });
     }
 
     private void PassiveRawGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
