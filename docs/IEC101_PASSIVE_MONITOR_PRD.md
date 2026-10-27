@@ -76,7 +76,7 @@ Clean-room rule: use published concepts and standard protocol rules to design ou
 
 ### FR-03 IEC-101 interpretation (P1)
 - Per-direction incremental FT1.2 reassembly; keep partial frames across reads, resynchronize on corruption without deleting raw.
-- Decode link functions, PRM, FCB, FCV, ACD, DFC and link address; decode ASDU Type/COT/CA/IOA/value/quality/timestamps using Core parser.
+- Decode link functions, PRM, FCB, FCV, ACD, DFC and link address; decode ASDU Type/COT/CA/IOA/value/quality/timestamps using a shared IEC-10x ASDU decoder migrated safely from Master to Core (not the existing IEC-103 Core.AsduDecoder).
 - Single-character ACK/NACK needs contextual direction and a qualified correlation; report “unpaired/ambiguous” when context insufficient.
 - Expose raw and decoded fields with byte offsets/highlighting, similar **in function** to ASE2000's linked data display.
 - Acceptance: valid/corrupt/short/back-to-back/noise stream fixtures have exact byte coverage; unsupported fields remain “unknown + hex”, never fabricated.
