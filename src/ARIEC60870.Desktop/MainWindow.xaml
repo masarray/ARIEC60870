@@ -1801,6 +1801,36 @@
                                     <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"/>
                                 </Grid>
                                 <TextBlock Text="Saved automatically while recording." Style="{StaticResource SubtleText}" Margin="2,8,0,0"/>
+                                <Expander Header="IEC-101 field sizes" Margin="0,14,0,0" ToolTip="Set the four address/header field widths to match the RTU's IEC-101 interoperability profile.">
+                                    <Grid Margin="0,10,0,3">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" Grid.Column="0">
+                                            <TextBlock Text="Link address" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="PassiveLinkWidthCombo" SelectedIndex="1">
+                                                <ComboBoxItem Content="0"/><ComboBoxItem Content="1"/><ComboBoxItem Content="2"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="2">
+                                            <TextBlock Text="COT" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="PassiveCotWidthCombo" SelectedIndex="1">
+                                                <ComboBoxItem Content="1"/><ComboBoxItem Content="2"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="0">
+                                            <TextBlock Text="Common address" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="PassiveCaWidthCombo" SelectedIndex="1">
+                                                <ComboBoxItem Content="1"/><ComboBoxItem Content="2"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="2">
+                                            <TextBlock Text="IOA" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="PassiveIoaWidthCombo" SelectedIndex="2">
+                                                <ComboBoxItem Content="1"/><ComboBoxItem Content="2"/><ComboBoxItem Content="3"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Grid>
+                                </Expander>
                             </StackPanel>
                             <StackPanel x:Name="ActiveSetupRightPanel">
                             <TextBlock Text="ADDRESSING" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />

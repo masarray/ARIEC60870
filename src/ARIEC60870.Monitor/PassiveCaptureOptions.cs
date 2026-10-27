@@ -20,7 +20,11 @@ public sealed record PassiveCaptureOptions(
     PassiveSerialSource ScadaTx,
     PassiveSerialSource RtuTx,
     int ChannelCapacity = 256,
-    int ReadChunkBytes = 4096)
+    int ReadChunkBytes = 4096,
+    int LinkAddressWidth = 1,
+    int CotWidth = 2,
+    int CommonAddressWidth = 2,
+    int InformationAddressWidth = 3)
 {
     public void Validate()
     {
@@ -39,6 +43,9 @@ public sealed record PassiveCaptureOptions(
         if (ScadaTx.BaudRate != RtuTx.BaudRate || ScadaTx.Parity != RtuTx.Parity ||
             ScadaTx.DataBits != RtuTx.DataBits || ScadaTx.StopBits != RtuTx.StopBits)
             throw new ArgumentException("Both directions of the same serial link must use matching UART framing.");
+        if (LinkAddressWidth is < 0 or > 2 || CotWidth is < 1 or > 2 ||
+            CommonAddressWidth is < 1 or > 2 || InformationAddressWidth is < 1 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(LinkAddressWidth), "Invalid IEC-101 interoperability field widths.");
         if (ChannelCapacity is < 16 or > 8192 || ReadChunkBytes is < 128 or > 16384)
             throw new ArgumentOutOfRangeException(nameof(ChannelCapacity), "Channel capacity or chunk length outside bounded limits.");
     }
@@ -79,6 +86,10 @@ public sealed record PassiveCaptureManifest
     public DateTime EndUtc { get; init; }
     public long StopwatchOriginTicks { get; init; }
     public long StopwatchFrequency { get; init; }
+    public int LinkAddressWidth { get; init; } = 1;
+    public int CotWidth { get; init; } = 2;
+    public int CommonAddressWidth { get; init; } = 2;
+    public int InformationAddressWidth { get; init; } = 3;
     public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at serial driver read completion; NOT per-byte wire timing.";
     public string IntegrityPolicy { get; init; } = "No application loss detected does not guarantee zero USB/OS/physical losses.";
     public CapturedStreamSummary[] Streams { get; init; } = Array.Empty<CapturedStreamSummary>();

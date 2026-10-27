@@ -251,8 +251,12 @@ public partial class MainWindow
         {
             var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
                                   && IsIec10xDigitalType(item.TypeId);
-            if (isIec10xDigital && !hasMeaningfulChange)
+            if (isIec10xDigital && !hasMeaningfulChange &&
+                !item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal))
             {
+                // Active Master: event log is a change journal; Passive Monitor:
+                // an observed spontaneous ASDU is itself a protocol event even when
+                // the first captured value has no prior baseline.
                 // Event Log is a change journal, not a value mirror. Ignore OFF->OFF,
                 // ON->ON, and first-observed states with no trustworthy before value.
                 return;
