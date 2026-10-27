@@ -95,7 +95,7 @@ public sealed class Iec101SicamNoDataRecoveryTests
             StandbySupervisionInterval = TimeSpan.FromMilliseconds(60)
         };
 
-        await using var session = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancySession(
+        var session = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancySession(
             options,
             new SelectiveSecondaryTransport(options.LinkA.ApplyTo(settings), respondToLinkStatus: false),
             new SelectiveSecondaryTransport(options.LinkB.ApplyTo(settings), respondToLinkStatus: false));
