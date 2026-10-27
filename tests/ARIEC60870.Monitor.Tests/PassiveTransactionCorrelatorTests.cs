@@ -57,7 +57,7 @@ public sealed class PassiveTransactionCorrelatorTests
         Assert.Equal(2, retry.Attempts);
         Assert.Equal(0, retry.RequestOffset);
         engine.Observe(Frame(1, 0, 280, 0x09), events.Add);
-        var matched = Assert.Single(events.Where(x => x.Kind == PassiveTransactionKind.Matched));
+        var matched = Assert.Single(events, x => x.Kind == PassiveTransactionKind.Matched);
         Assert.Equal(2, matched.Attempts);
         Assert.Equal(1, engine.Retries);
     }
