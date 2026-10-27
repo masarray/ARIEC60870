@@ -16,9 +16,20 @@ namespace ARIEC60870.Monitor;
 public static class PassiveJournalReplay
 {
     public static IEnumerable<PassiveObservedFrame> ReadVerifiedFrames(
-        string sessionDirectory, CancellationToken cancellationToken = default)
+        string sessionDirectory, CancellationToken cancellationToken = default) =>
+        ReadVerifiedFrames(sessionDirectory, replayProfile: null, cancellationToken);
+
+    /// <summary>
+    /// Replay with a deliberate, validated interpretation override. CRC/SHA and
+    /// original manifest remain authoritative and untouched. The override is
+    /// never written to the capture directory.
+    /// </summary>
+    public static IEnumerable<PassiveObservedFrame> ReadVerifiedFrames(
+        string sessionDirectory, PassiveReplayProfile? replayProfile,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionDirectory);
+        replayProfile?.Validate();
         cancellationToken.ThrowIfCancellationRequested();
         var audit = PassiveJournalVerifier.Verify(sessionDirectory, cancellationToken);
         if (!audit.Complete)
@@ -33,13 +44,16 @@ public static class PassiveJournalReplay
             manifest.StartUtc.Kind != DateTimeKind.Utc)
             throw new InvalidDataException("Capture manifest contains invalid replay timing or link settings.");
 
+        var effective = replayProfile ?? PassiveReplayProfile.FromManifest(manifest);
+        effective.Validate();
+
         using var scada = new StreamCursor(Path.Combine(sessionDirectory, "stream-00.bin"), 0);
         using var rtu = new StreamCursor(Path.Combine(sessionDirectory, "stream-01.bin"), 1);
-        var cursors = new[] { scada, rtu };
+        // One buffered cursor per direction: independent sequential disk reads.
         var scanners = new[]
         {
-            new PassiveFt12Scanner(manifest.LinkAddressWidth),
-            new PassiveFt12Scanner(manifest.LinkAddressWidth)
+            new PassiveFt12Scanner(effective.LinkAddressWidth),
+            new PassiveFt12Scanner(effective.LinkAddressWidth)
         };
         var lastTicks = new long[2];
         var lastUtc = new[] { manifest.StartUtc, manifest.StartUtc };
@@ -63,7 +77,7 @@ public static class PassiveJournalReplay
 
             if (lastTicks[sid] > 0 && 
                 (ticks - lastTicks[sid]) / (double)manifest.StopwatchFrequency * 1000.0 >
-                    manifest.FrameGapMilliseconds)
+                    effective.FrameGapMilliseconds)
             {
                 var partial = scanners[sid].ExpireIncomplete();
                 if (partial is not null)

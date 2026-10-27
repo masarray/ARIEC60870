@@ -16,6 +16,21 @@ public partial class MainWindow
     private CancellationTokenSource? _passiveReplayCancellation;
     private Task? _passiveReplayWork;
 
+    // Read only the decoder knobs. Do NOT validate or open COM ports here: an
+    // offline capture remains usable on a PC that has no serial adapters.
+    private PassiveReplayProfile ReadPassiveSetupReplayProfile()
+    {
+        var value = new PassiveReplayProfile(
+            ReadComboInt(PassiveLinkWidthCombo, "Link address width"),
+            ReadComboInt(PassiveCotWidthCombo, "COT width"),
+            ReadComboInt(PassiveCaWidthCombo, "Common address width"),
+            ReadComboInt(PassiveIoaWidthCombo, "IOA width"),
+            ReadInt(PassiveFrameGapBox, "Partial-frame gap", 100, 10000),
+            (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto");
+        value.Validate();
+        return value;
+    }
+
     private async Task OpenPassiveRawJournalAsync(string manifestPath)
     {
         if (_sessionCancellation is not null || _passiveReplayCancellation is not null)
@@ -34,6 +49,28 @@ public partial class MainWindow
             if (match is null) throw new InvalidOperationException("IEC-101 Passive Monitor profile unavailable.");
             ProtocolModeComboBox.SelectedItem = match;
         }
+
+        // Capture profile and current Setup can legitimately differ; present
+        // an explicit choice rather than silently trusting either value.
+        var originalManifest = JsonSerializer.Deserialize<PassiveCaptureManifest>(
+            File.ReadAllText(manifestPath)) ?? throw new InvalidDataException("Invalid capture manifest.");
+        var savedProfile = PassiveReplayProfile.FromManifest(originalManifest);
+        var setupProfile = ReadPassiveSetupReplayProfile();
+        var effectiveProfile = savedProfile;
+        if (setupProfile != savedProfile)
+        {
+            var choice = ModernMessageBox.Show(this,
+                "The saved IEC-101 field sizes differ from your current Setup.\n\n" +
+                "Saved capture: " + savedProfile.Describe() + "\n\n" +
+                "Current Setup: " + setupProfile.Describe() + "\n\n" +
+                "YES: Use saved capture profile (default).\n" +
+                "NO: Re-decode using current Setup (raw bytes and manifest remain untouched).\n" +
+                "CANCEL: Leave this capture unopened.",
+                "IEC-101 offline decode profile", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (choice == MessageBoxResult.Cancel) return;
+            if (choice == MessageBoxResult.No) effectiveProfile = setupProfile;
+        }
+        var isOverridden = effectiveProfile != savedProfile;
 
         using var cancel = new CancellationTokenSource();
         _passiveReplayCancellation = cancel;
@@ -74,18 +111,20 @@ public partial class MainWindow
 
                 Dispatcher.Invoke(() =>
                 {
-                    _passiveLinkAddressWidth = manifest.LinkAddressWidth;
+                    _passiveLinkAddressWidth = effectiveProfile.LinkAddressWidth;
                     _passiveReplayCorrelator = new PassiveIec101TransactionCorrelator(
                         new PassiveTransactionOptions(
-                            LinkAddressWidth: manifest.LinkAddressWidth,
-                            LinkMode: manifest.LinkMode));
+                            LinkAddressWidth: effectiveProfile.LinkAddressWidth,
+                            LinkMode: effectiveProfile.LinkMode));
                     _passiveAsduDecoder = new ARIEC60870.Master.Protocol.Iec10x.Iec10xAsduDecoder(
-                        manifest.CotWidth, manifest.CommonAddressWidth, manifest.InformationAddressWidth);
+                        effectiveProfile.CotWidth, effectiveProfile.CommonAddressWidth,
+                        effectiveProfile.InformationAddressWidth);
                     PassiveStatusMessageText.Text = "Reconstructing both directions…";
                 }, DispatcherPriority.Background);
 
                 var batch = new List<PassiveObservedFrame>(96);
-                foreach (var observed in PassiveJournalReplay.ReadVerifiedFrames(directory, cancel.Token))
+                foreach (var observed in PassiveJournalReplay.ReadVerifiedFrames(
+                    directory, effectiveProfile, cancel.Token))
                 {
                     batch.Add(observed);
                     if (batch.Count < 96) continue;
@@ -127,11 +166,22 @@ public partial class MainWindow
             PassiveVerifyButton.IsEnabled = true;
             PassiveIntegrityText.Text = "VERIFIED";
             PassiveStatusMessageText.Text = totalFrames.ToString("N0") +
-                " telegrams reconstructed from complete raw journals.";
+                " telegrams · " + (isOverridden ? "RE-DECODED (Setup profile)" : "original profile") +
+                " · raw journal verified.";
             UpdateStableHeader("Offline capture", totalFrames.ToString("N0") +
-                " telegrams from two receive-only directions · verified");
-            SessionSubtitleText.Text = "Offline Passive Monitor · " + finalManifest.SessionId;
+                " telegrams from two RX directions · verified · " +
+                (isOverridden ? "Decode override" : "Recorded profile"));
+            SessionSubtitleText.Text = "Offline Passive Monitor · " + finalManifest.SessionId +
+                (isOverridden ? " · RE-DECODE" : "");
             AppendSessionLog("Verified offline raw replay: " + totalFrames + " frames from " + directory);
+            AppendSessionLog("IEC-101 recorded profile: " + savedProfile.Describe());
+            AppendSessionLog("IEC-101 effective replay profile: " + effectiveProfile.Describe() +
+                (isOverridden ? " [NON-DESTRUCTIVE OVERRIDE; raw/manifest unchanged]" : " [saved]"));
+            AddUiDiagnostic("Info", "Capture", "IEC101-REPLAY-PROFILE",
+                isOverridden ? "IEC-101 capture interpreted with Setup override" : "IEC-101 capture interpreted with recorded profile",
+                "Original: " + savedProfile.Describe() + " | Effective: " + effectiveProfile.Describe() +
+                " | Raw integrity verified. This is a decode interpretation, not a change to original evidence.",
+                "Compare Frame Trace and Findings, adjust IEC-101 decoder sizes in Setup if necessary, then reopen the same manifest.");
         }
         catch (OperationCanceledException)
         {
