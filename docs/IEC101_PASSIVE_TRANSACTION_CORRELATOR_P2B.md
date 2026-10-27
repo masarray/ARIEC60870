@@ -8,7 +8,7 @@ IEC-101 Passive observes **both transmitter directions of one full-duplex serial
 
 - **Confirmed observations:** exact validated link-control bytes, PRM, FCB/FCV, ACD/DFC, request functions, response functions, raw direction+source offset, checksum/incomplete status.
 - **Correlated:** a request+compatible reply with matching link address and opposite physical direction, within an explicit host timestamp window; positive/negative reply, retry and timeout classification.
-- **Caution:** host receive timestamp delta is an estimate and may be unavailable for negative inter-port skew. E5 is **single-character ACK**, not a synonym for "no requested data" (secondary FC9).
+- **Caution:** host receive timestamp delta is an estimate and may be unavailable for negative inter-port skew. E5 is a **contextual short response**: it can stand for FC0 ACK after confirm, or FC9 no-data after Class 1/2 poll where permitted and ACD/DFC need not be carried. E5 has no physical function or address field.
 - **Hypotheses:** a ~30-second SCADA failover or repeated link-status polling may point to switching, but is NOT evidence of the unobserved alternate link's status. A 4-RX four-direction upgrade remains P3.
 
 ## Architecture: data plane separate from GUI
@@ -21,7 +21,7 @@ IEC-101 Passive observes **both transmitter directions of one full-duplex serial
 
 **Important:** correlate in the **writer**, not against visible WPF Frame Trace or its bounded 512-frame presentation queue. Raw journals remain authoritative and transaction JSONL is a recomputable derived index. GUI must never block real serial reads or disk capture.
 
-The correlator is a self-contained `ARIEC60870.Monitor` state machine (no Active Master dependency, no WPF and no transmit API). State uses a key `(primary transmitter stream, link address)`, bounded by a configurable maximum tracked link count. Only one outstanding request is tracked per link key under this first unbalanced/balanced-observation contract; second outstanding requests are classified as superseding or retry, not incorrectly paired. A2 and E5 single characters have no address, so they are **not matched arbitrarily** if more than one eligible pending request exists.
+The correlator is a self-contained `ARIEC60870.Monitor` state machine (no Active Master dependency, no WPF and no transmit API). State uses a key `(primary transmitter stream, link address)`, bounded by a configurable maximum tracked link count. Only one outstanding request is tracked per link key under this first unbalanced/balanced-observation contract; second outstanding requests are classified as superseding or retry, not incorrectly paired. E5 has no link address, so it is **not matched arbitrarily** if more than one eligible pending request exists. A2 is forbidden by IEC-101 and must never resolve a transaction.
 
 ## Protocol rules / acceptance
 
@@ -33,7 +33,8 @@ The correlator is a self-contained `ARIEC60870.Monitor` state machine (no Active
 | FC9 Request Link Status | Secondary FC11 Link Status, negative/service-error response |
 | FC10 Request Class 1 | Secondary FC8 User Data or FC9 No Requested Data; negative/service-error |
 | FC11 Request Class 2 | Same FC8/FC9 rules |
-| E5/A2 | Addressless ACK/NACK, associated only when one outstanding opposite-direction exchange exists |
+| E5 | Addressless short ACK or short FC9 no-data, meaning inferred only from one compatible opposite-direction pending request; not valid for FC9 link-status request |
+| A2 | Forbidden under IEC-101; retain exact byte and emit protocol violation, never accept as NACK |
 
 An ordinary standby Link Status request/response is **normal traffic**. ACD=1 and DFC=1 are reported accurately without equating ACD to a fault or DFC to a positive ACK. Requests with same FCV/FCB and identical raw bytes while still pending are explicitly classified as retries (original start time retained). Reused confirmed FCB without an observed reset is *cautionary*; capture may start mid-link session.
 
@@ -58,6 +59,6 @@ Any malformed/checksum-invalid frame, incorrect reply function or mismatched lin
 
 ## Gates / regression cases
 
-Required xUnit: fixed/variable and E5/A2, Link Address size 0/1/2, Class1/2, FC9 Link Status, ACD/DFC, valid/no-data/NACK/Busy, corrupt checksum, foreign link address, primary-role contradiction, duplicates/FCB/FCV reset, bounded capacity, explicit timestamp uncertainty, timeout and replay parity with optional derived index removed. Require Windows Release 0 warnings/errors, protocol smoke, real WPF startup, CodeQL/hygiene/dependency gates and portable self-contained artifact before merging.
+Required xUnit: fixed/variable, E5 context-specific FC0/FC9, forbidden A2, Link Address size 0/1/2, Class1/2, FC9 Link Status, ACD/DFC, valid/no-data/NACK/Busy, corrupt checksum, foreign link address, primary-role contradiction, duplicates/FCB/FCV reset, bounded capacity, explicit timestamp uncertainty, timeout and replay parity with optional derived index removed. Require Windows Release 0 warnings/errors, protocol smoke, real WPF startup, CodeQL/hygiene/dependency gates and portable self-contained artifact before merging.
 
 For physical validation: archive enough complete consecutive cycles on *both* directions of an isolated tap. If investigating redundant A/B switching, instrument both circuits with four RX ports and do not assume the alternate link's state from a single monitored cable.

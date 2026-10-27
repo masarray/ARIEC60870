@@ -31,18 +31,55 @@ public sealed class PassiveTransactionCorrelatorTests
     }
 
     [Fact]
-    public void E5IsAcknowledgementNotNoDataAndFc9IsNoData()
+    public void E5MeansShortAckOrShortNoDataAccordingToPendingRequest()
     {
         var engine = new PassiveIec101TransactionCorrelator();
         var events = new List<PassiveTransactionEvent>();
-        engine.Observe(Frame(0, 0, 0, 0x49), events.Add);
+        engine.Observe(Frame(0, 0, 0, 0x40), events.Add); // FC0 Reset Remote Link confirmation
         engine.Observe(Single(1, 0, 20, 0xE5), events.Add);
-        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.Matched &&
-            x.Meaning.Contains("not evidence of no requested data", StringComparison.Ordinal));
+        var shortAck = Assert.Single(events);
+        Assert.Equal(PassiveTransactionKind.Matched, shortAck.Kind);
+        Assert.Null(shortAck.ReplyFunction); // E5 carries no actual secondary control byte.
+        Assert.Contains("FC0 equivalent inferred", shortAck.Meaning, StringComparison.Ordinal);
+
         engine.Observe(Frame(0, 5, 40, 0x5B), events.Add);
-        engine.Observe(Frame(1, 1, 75, 0x09), events.Add);
-        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.Matched &&
+        engine.Observe(Single(1, 1, 75, 0xE5), events.Add);
+        var shortNoData = Assert.Single(events, x => x.RequestFunction == 11);
+        Assert.Equal(PassiveTransactionKind.Matched, shortNoData.Kind);
+        Assert.Null(shortNoData.ReplyFunction);
+        Assert.Contains("FC9 equivalent inferred", shortNoData.Meaning, StringComparison.Ordinal);
+
+        engine.Observe(Frame(0, 10, 90, 0x5A), events.Add);
+        engine.Observe(Frame(1, 2, 120, 0x09), events.Add);
+        Assert.Contains(events, x => x.ReplyFunction == 9 &&
             x.Meaning.Contains("no requested data (FC9)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A2IsNotPermittedIec101AndMustNeverSatisfyPendingLinkRequest()
+    {
+        var engine = new PassiveIec101TransactionCorrelator();
+        var output = new List<PassiveTransactionEvent>();
+        engine.Observe(Frame(0, 0, 0, 0x40), output.Add);
+        engine.Observe(Single(1, 0, 20, 0xA2), output.Add);
+        var invalid = Assert.Single(output);
+        Assert.Equal(PassiveTransactionKind.InvalidFrame, invalid.Kind);
+        Assert.Contains("not permitted", invalid.Meaning, StringComparison.Ordinal);
+        Assert.Equal(1, engine.PendingCount);
+        Assert.Equal(0, engine.Matched);
+    }
+
+    [Fact]
+    public void E5CannotReplaceMandatoryFc11LinkStatusResponse()
+    {
+        var engine = new PassiveIec101TransactionCorrelator();
+        var output = new List<PassiveTransactionEvent>();
+        engine.Observe(Frame(0, 0, 0, 0x49), output.Add); // primary FC9
+        engine.Observe(Single(1, 0, 30, 0xE5), output.Add);
+        Assert.Equal(PassiveTransactionKind.IncompatibleReply, Assert.Single(output).Kind);
+        Assert.Equal(1, engine.PendingCount);
+        engine.Observe(Frame(1, 1, 50, 0x0B), output.Add);
+        Assert.Equal(PassiveTransactionKind.Matched, output[^1].Kind);
     }
 
     [Fact]

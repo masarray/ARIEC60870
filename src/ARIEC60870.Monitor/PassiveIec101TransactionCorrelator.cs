@@ -130,7 +130,16 @@ public sealed class PassiveIec101TransactionCorrelator
                     "Unknown single character; cannot resolve an exchange.");
                 return;
             }
-            MatchSingle(frame, raw[0] == 0xA2, output);
+            if (raw[0] == 0xA2)
+            {
+                // IEC 60870-5-101:1995/AMD2:2001, table 10 explicitly forbids
+                // A2 as a secondary single-character NACK. Keep the raw observation
+                // visible without treating it as a successful link-layer reply.
+                Emit(output, PassiveTransactionKind.InvalidFrame, frame, null, null,
+                    "A2 single character is not permitted by IEC-101; no pending request was acknowledged.");
+                return;
+            }
+            MatchSingle(frame, output);
             return;
         }
 
@@ -282,7 +291,7 @@ public sealed class PassiveIec101TransactionCorrelator
                 "RTU secondary control reports ACD=1: Class 1 data may be pending. Not a fault by itself.");
     }
 
-    private void MatchSingle(PassiveObservedFrame frame, bool negative,
+    private void MatchSingle(PassiveObservedFrame frame,
         Action<PassiveTransactionEvent> output)
     {
         var candidates = _links.Where(x =>
@@ -290,13 +299,13 @@ public sealed class PassiveIec101TransactionCorrelator
         if (candidates.Length == 0)
         {
             Emit(output, PassiveTransactionKind.UnmatchedReply, frame, null, null,
-                "Single-character ACK/NACK without a tracked request; link address unavailable.");
+                "E5 short response without a tracked request; link address and meaning unavailable.");
             return;
         }
         if (candidates.Length != 1)
         {
             Emit(output, PassiveTransactionKind.AmbiguousSingleReply, frame, null, null,
-                "Addressless ACK/NACK could match multiple open exchanges; refusing to choose arbitrarily.");
+                "Addressless E5 short response could match multiple open exchanges; refusing to choose arbitrarily.");
             return;
         }
         var c = candidates[0];
@@ -307,9 +316,20 @@ public sealed class PassiveIec101TransactionCorrelator
                 "Single-character reply outside host timing window.");
             return;
         }
-        // E5 is ACK, not proof that a Class 1/Class 2 poll had no data. A2 is NACK.
+        // In IEC-101 unbalanced transmission, E5 can replace *either*
+        // secondary FC0 ACK or FC9 no-data (but not ACD=1 / DFC=1).
+        // Function is inferred from the outstanding request; E5 itself has no FC.
+        // A link-status request (FC9) requires secondary FC11, not E5.
+        if (pending.Function is not (0 or 1 or 3 or 7 or 10 or 11))
+        {
+            Emit(output, PassiveTransactionKind.IncompatibleReply, frame,
+                c.Key.LinkAddress, pending,
+                "E5 short response is not defined for this pending IEC-101 service; transaction remains open.");
+            return;
+        }
         CompleteMatch(frame, c.Key.LinkAddress, c.Value, pending,
-            negative ? 1 : 0, false, false, output, isSingle: true);
+            pending.Function is 10 or 11 ? 9 : 0, false, false,
+            output, isSingle: true);
     }
 
     private void CompleteMatch(PassiveObservedFrame response, int addr, LinkState slot,
@@ -320,7 +340,9 @@ public sealed class PassiveIec101TransactionCorrelator
         var delay = (response.EstimatedUtc - pending.Frame.EstimatedUtc).TotalMilliseconds;
         var code = negative ? PassiveTransactionKind.NegativeReply : PassiveTransactionKind.Matched;
         var description = isSingle
-            ? (negative ? "Single-character NACK (A2)" : "Single-character ACK (E5): not evidence of no requested data")
+            ? pending.Function is 10 or 11
+                ? "E5 short response: no requested Class 1/2 data (FC9 equivalent inferred from the preceding request; E5 has no FC/address/ACD/DFC)"
+                : "E5 short ACK (FC0 equivalent inferred from the preceding request; E5 has no FC/address/ACD/DFC)"
             : replyFc switch
             {
                 8 => "Secondary user data response",
@@ -333,7 +355,7 @@ public sealed class PassiveIec101TransactionCorrelator
             };
         Emit(output, code, response, addr, pending,
             description + "; timestamps are per-adapter host receive estimates, not wire-edge latency.",
-            replyFc, acd, dfc, delay < 0 ? null : delay);
+            isSingle ? null : replyFc, acd, dfc, delay < 0 ? null : delay);
         if (!negative && !dfc)
         {
             _matchedCount++;

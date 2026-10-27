@@ -62,8 +62,9 @@ public sealed class PassiveFt12Scanner
             var first = _pending[0];
             if (first is 0xE5 or 0xA2)
             {
-                // E5 (ACK) and A2 (NACK) are both recognized single characters.
-                // Negative response is semantic, not a damaged frame checksum.
+                // E5 and A2 byte patterns can be framed as single characters.
+                // IEC-101 permits E5 conditionally but forbids A2 (AMD2:2001).
+                // Keep A2 bytes observable; the IEC-101 correlator rejects it.
                 Emit(1, true, "Single", emit);
                 continue;
             }
