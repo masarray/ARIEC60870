@@ -81,6 +81,36 @@ public sealed class Iec101SicamNoDataRecoveryTests
         Assert.DoesNotContain(result.Findings, f => f.Id == "IEC101-GI-UNCONFIRMED");
     }
 
+    [Fact]
+    public async Task DualLinkBothComOpenWithoutSecondaryMustNotPerformStartupGi()
+    {
+        var settings = Settings();
+        var options = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new() { Name = "A", PortName = "COM-A", LinkAddress = 105 },
+            LinkB = new() { Name = "B", PortName = "COM-B", LinkAddress = 1 },
+            ActiveFailureThreshold = 2,
+            StandbyFailureThreshold = 1,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(60)
+        };
+
+        await using var session = new ARIEC60870.Master.Iec101.Redundancy.Iec101DualLinkRedundancySession(
+            options,
+            new SelectiveSecondaryTransport(options.LinkA.ApplyTo(settings), respondToLinkStatus: false),
+            new SelectiveSecondaryTransport(options.LinkB.ApplyTo(settings), respondToLinkStatus: false));
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(260), CancellationToken.None);
+        var snapshot = session.CreateSnapshot();
+
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.False(snapshot.LinkA.IsHealthy);
+        Assert.False(snapshot.LinkB.IsHealthy);
+        Assert.False(snapshot.LastFailoverCompleted);
+        Assert.Contains(result.Events, e => e.Summary.Contains("secondary response not verified",
+            StringComparison.OrdinalIgnoreCase));
+    }
+
     private sealed class SelectiveSecondaryTransport : IByteTransport
     {
         private readonly Ft12Parser _parser;
