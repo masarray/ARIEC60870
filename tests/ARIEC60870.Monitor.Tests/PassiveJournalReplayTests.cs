@@ -64,8 +64,22 @@ public sealed class PassiveJournalReplayTests
             var session = new PassiveMonitorSession(options,
                 new ReplayTap("COM201", request, 1),
                 new ReplayTap("COM202", Array.Empty<byte>(), 1));
-            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(180));
-            var capture = await session.RunAsync(stop.Token);
+            // Synchronize with the real archive writer, not a 180 ms wall-clock
+            // timer that can expire before Windows CI schedules the RX workers.
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var captureTask = session.RunAsync(stop.Token);
+            try
+            {
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (session.GetProgress().ScadaBytes < request.Length)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(5))
+                        throw new TimeoutException("Capture writer did not commit the expected source bytes.");
+                    await Task.Delay(15);
+                }
+            }
+            finally { stop.Cancel(); }
+            var capture = await captureTask;
             Assert.True(PassiveJournalVerifier.Verify(capture.Directory).Complete);
 
             var journal = Path.Combine(capture.Directory, "transactions.jsonl");
