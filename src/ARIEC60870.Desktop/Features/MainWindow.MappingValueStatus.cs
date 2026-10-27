@@ -714,7 +714,6 @@ public partial class MainWindow
         TcpPortBox.IsEnabled = !isRunning;
         PortComboBox.IsEnabled = !isRunning;
         PassiveRtuPortComboBox.IsEnabled = !isRunning;
-        PassiveSafetyCheckBox.IsEnabled = !isRunning;
         BackupPortComboBox.IsEnabled = !isRunning;
         BackupLinkAddressBox.IsEnabled = !isRunning;
         BaudComboBox.IsEnabled = !isRunning;

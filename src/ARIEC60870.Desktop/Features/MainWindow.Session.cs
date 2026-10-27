@@ -649,7 +649,7 @@ public partial class MainWindow
 
         SetupTitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 passive serial monitor setup",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 Passive Monitor",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 dual link redundancy setup",
             Iec60870ProtocolMode.Iec101 => "IEC-101 telecontrol serial setup",
             Iec60870ProtocolMode.Iec104 => "IEC-104 telecontrol TCP/IP setup",
@@ -657,7 +657,7 @@ public partial class MainWindow
         };
         SetupSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Two independent RX COM ports listen to SCADA TX and RTU TX of ONE live serial link, without transmitting.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Monitor both directions using two COM ports.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Two independent serial links: active owns GI, commands and Class polling; standby is supervised without draining event queues.",
             Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
             Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
@@ -665,7 +665,7 @@ public partial class MainWindow
         };
         ProtocolSetupBadgeText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 · Passive Monitor (RX only)",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 · Passive Monitor",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 · Dual Link Redundancy",
             Iec60870ProtocolMode.Iec101 => "IEC-101 · FT1.2 serial telecontrol",
             Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP telecontrol",
@@ -673,13 +673,13 @@ public partial class MainWindow
         };
         ProtocolSetupDescriptionText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen to both directions without taking ownership of the link. All received raw bytes are journaled to disk, independent of display filtering.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen and record both directions.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Use this workspace when the RTU/outstation exposes two IEC-101 serial paths with active/standby master ownership, failover evidence, and post-switch GI validation.",
             Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
             Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
             _ => "Use this profile for protection IED IEC-103 tests. Main addressing is FUN/INF; Class 1 carries events, Class 2 carries background data."
         };
-        SerialConnectionTitleText.Text = isPassive101 ? "SCADA TX → RTU · MONITOR RX 1" : isDual101 ? "ACTIVE LINK A SERIAL CONNECTION" : is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
+        SerialConnectionTitleText.Text = isPassive101 ? "SCADA TX · COM port" : isDual101 ? "ACTIVE LINK A SERIAL CONNECTION" : is101 ? "IEC-101 SERIAL CONNECTION" : "IEC-103 SERIAL CONNECTION";
         PollingPolicyTitleText.Text = is101 ? "IEC-101 CLASS POLLING" : "IEC-103 CLASS POLLING";
         Class2IntervalLabelText.Text = is101 ? "Class 2 scan interval (ms)" : "Class 2 interval (ms)";
         MaxDrainLabelText.Text = is101 ? "Max Class 1 event drain" : "Max Class 1 drain";
@@ -729,6 +729,7 @@ public partial class MainWindow
         if (isPassive101 && string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text))
             PassiveCaptureFolderBox.Text = DefaultPassiveCaptureDirectory();
         PassiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
+        ProtocolSetupDescriptionCard.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSerialHandshakePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         SetupConnectButton.Content = isPassive101 ? "Record RX" : "Connect";
@@ -789,7 +790,7 @@ public partial class MainWindow
 
         SessionSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 passive RX mode: configure two COM receivers in Setup, then select Record RX.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Passive Monitor · Two COM receivers",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: use Redundancy for link ownership, Values/Events for process data, Trace only when troubleshooting.",
             Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
             Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",
