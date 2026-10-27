@@ -63,7 +63,7 @@ public sealed class PassiveFt12ScannerTests
     }
 
     [Fact]
-    public void A2SingleCharacterIsValidNegativeReplyNotChecksumFailure()
+    public void A2IsRetainedAsSingleByteButIsNotAnIec101Reply()
     {
         var observed = new List<PassiveFt12Frame>();
         new PassiveFt12Scanner().Feed(new byte[] { 0xA2 }, 33, observed.Add);

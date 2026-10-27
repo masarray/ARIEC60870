@@ -411,6 +411,7 @@ public partial class MainWindow
             $" · {transaction.Meaning} · Req RX stream {transaction.RequestStream} offset {transaction.RequestOffset}" +
             (transaction.HostDelayMilliseconds is { } ms ? $" · host Δ≈{ms:0} ms" : "");
         var raw = seen.RawBytes;
+        var forbiddenSingleA2 = seen.Format == "Single" && raw.Length == 1 && raw[0] == 0xA2;
         var controlOffset = seen.Format == "Fixed" ? 1 : seen.Format == "Variable" ? 4 : -1;
         var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
         var linkWidth = _passiveLinkAddressWidth;
@@ -437,12 +438,16 @@ public partial class MainWindow
             LinkAddressSize = linkWidth, LinkControl = link,
             AsduBytes = asduRaw, IsChecksumValid = seen.ChecksumValid,
             IsLengthValid = true,
-            Issues = seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum." }
+            Issues = forbiddenSingleA2
+                ? new[] { "IEC-101 prohibits the A2 single-character response." }
+                : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum." }
         };
         var direction = seen.StreamId == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
         var prefix = seen.StreamId == 0 ? "SCADA → RTU" : "RTU → SCADA";
         var function = seen.Format == "Partial" ? "Incomplete frame" :
-            link?.FunctionName ?? (raw[0] == 0xE5 ? "ACK (E5)" : "NACK (A2)");
+            link?.FunctionName ?? (raw[0] == 0xE5
+                ? "E5 short response (ACK or no-data by request context)"
+                : "A2 single response (not permitted in IEC-101)");
         var meaning = decode?.ShortMeaning ?? function;
         if (!seen.ChecksumValid && seen.Format != "Partial")
             meaning = "Bad checksum · " + meaning;
@@ -452,7 +457,7 @@ public partial class MainWindow
         {
             SequenceNumber = ++_passiveFrameSequence,
             TimestampUtc = seen.EstimatedUtc, Direction = direction,
-            Category = seen.ChecksumValid ? "Passive Traffic" : "RX Warning",
+            Category = seen.ChecksumValid && !forbiddenSingleA2 ? "Passive Traffic" : "RX Warning",
             DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
             Summary = prefix + " · " + function,
