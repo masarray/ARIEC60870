@@ -1809,6 +1809,7 @@
                                 </Grid>
                                 <TextBlock Text="Saved automatically while recording." Style="{StaticResource SubtleText}" Margin="2,8,0,0"/>
                                 <Expander Header="IEC-101 decoding &amp; timing" Margin="0,14,0,0" ToolTip="Optional decode profile: field widths and frame timeout. Does not send or filter raw data.">
+                                    <StackPanel>
                                     <Grid Margin="0,10,0,3">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -1854,6 +1855,7 @@
                                                      ToolTip="After this much silence on one RX input, an incomplete frame is marked partial. Range 100–10000 ms; raw recording is unaffected."/>
                                         </StackPanel>
                                     </Grid>
+                                    </StackPanel>
                                 </Expander>
                             </StackPanel>
                             <StackPanel x:Name="ActiveSetupRightPanel">
