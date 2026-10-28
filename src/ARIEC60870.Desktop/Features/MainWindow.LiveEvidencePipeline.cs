@@ -754,6 +754,14 @@ public partial class MainWindow
 
     private bool ShouldShowInFrameTrace(Iec103MasterEvidenceEvent item, EvidenceRow row)
     {
+        // Multiple IOAs from one received ASDU are individually routed to Values
+        // and Event Log, but their shared physical telegram is displayed ONCE
+        // in Trace. The single block enumerates every decoded ASDU object.
+        if (item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+            item.AsduDetails is not null &&
+            item.InformationObjectDetails is { Index: > 1 })
+            return false;
+
         // Trace is the byte-for-byte communication line monitor, not a proof
         // summary. A valid TX/RX raw frame MUST be inspectable even if the user
         // is currently in Values, Events or Report. The bounded ring limits RAM.

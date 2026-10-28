@@ -84,7 +84,7 @@ public sealed partial class EvidenceRow
         ProtocolTraceTitle = narration?.Title ?? BuildProtocolTraceTitle();
         ProtocolTraceMeaning = narration?.Meaning ?? BuildProtocolTraceMeaning();
         ProtocolTraceRaw = BuildProtocolTraceRaw();
-        ProtocolTraceMeta = $"#{Sequence}  {Time}  {ProtocolName}";
+        ProtocolTraceMeta = narration is null ? $"#{Sequence}  {Time}  {ProtocolName}" : string.Empty;
         TrafficTone = ResolveTrafficTone();
     }
 
@@ -280,6 +280,27 @@ public sealed partial class EvidenceRow
     private string BuildProtocolTraceRaw()
     {
         var raw = CleanTracePart(RawHex);
+        if (ProtocolMode == "101")
+        {
+            // Raw bytes always come from captured frames. Passive replay keeps a
+            // compact hexadecimal string; normalize it once for readable byte groups.
+            if (raw != "-" && !raw.Contains(' ') && Source.Frame?.RawBytes is { Count: > 0 } bytes)
+            {
+                raw = string.Create(bytes.Count * 3 - 1, bytes, static (chars, source) =>
+                {
+                    const string digits = "0123456789ABCDEF";
+                    for (var i = 0; i < source.Count; i++)
+                    {
+                        var value = source[i];
+                        chars[i * 3] = digits[value >> 4];
+                        chars[i * 3 + 1] = digits[value & 15];
+                        if (i + 1 < source.Count) chars[i * 3 + 2] = ' ';
+                    }
+                });
+            }
+            return "Hex Frame: " + raw;
+        }
+
         var prefix = CleanTracePart(LinkFlags);
         var rawLine = raw == "-" ? "RAW -" : "RAW " + raw;
         return prefix == "-" ? rawLine : $"LINK {prefix}  ·  {rawLine}";
