@@ -400,6 +400,48 @@ public sealed class PassiveJournalReplayTests
         finally { Directory.Delete(folder, recursive: true); }
     }
 
+    [Fact]
+    public async Task VerifiedTimelineAnomalyResolvesExactOriginalNoiseBytes()
+    {
+        var folder = CreateTemp();
+        try
+        {
+            var wire = new byte[] { 0x00, 0x10, 0x49, 0x69, 0xB2, 0x16 };
+            var source = new PassiveCaptureOptions(folder,
+                new PassiveSerialSource("COM201", "SCADA TX"),
+                new PassiveSerialSource("COM202", "RTU TX"), ReadChunkBytes: 128);
+            var session = new PassiveMonitorSession(source,
+                new ReplayTap("COM201", wire, 2),
+                new ReplayTap("COM202", Array.Empty<byte>(), 1));
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var running = session.RunAsync(stop.Token);
+            try
+            {
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (session.GetProgress().ScadaBytes < wire.Length)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(5))
+                        throw new TimeoutException("Original noisy RX bytes were not journaled.");
+                    await Task.Delay(15);
+                }
+            }
+            finally { stop.Cancel(); }
+
+            var recorded = await running;
+            var navigator = PassiveTimelineEvidenceNavigator.OpenVerified(recorded.Directory);
+            var anomaly = Assert.Single(navigator.Search(new PassiveTimelineSearch()));
+            Assert.Equal(0, anomaly.PhysicalAnomalyStream);
+            Assert.Equal(0L, anomaly.Window.FirstAnomalyOffset);
+            var original = navigator.ReadVerifiedFrame(anomaly);
+            Assert.NotNull(original);
+            Assert.Equal("Noise", original.Format);
+            Assert.Equal(0, original.StreamId);
+            Assert.Equal(0L, original.StreamOffset);
+            Assert.Equal(new byte[] { 0x00 }, original.RawBytes);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
     private static async Task<(string Directory, PassiveCaptureManifest Manifest)> RecordAsync(string folder)
     {
         var options = new PassiveCaptureOptions(folder,
