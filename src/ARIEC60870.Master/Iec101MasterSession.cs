@@ -830,6 +830,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             SignalRawValue = asdu?.FirstObject?.ElementSummary ?? asdu?.ObjectSummary ?? string.Empty,
             QualityText = asdu?.FirstObject?.QualityText ?? string.Empty,
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
         AddAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
@@ -919,6 +920,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }

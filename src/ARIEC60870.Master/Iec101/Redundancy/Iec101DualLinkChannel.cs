@@ -494,6 +494,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             SignalDisplayValue = asdu?.FirstObject?.ShortValue ?? asdu?.ValueText ?? string.Empty,
             SignalRawValue = asdu?.FirstObject?.ElementSummary ?? asdu?.ObjectSummary ?? string.Empty,
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
         PublishAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
@@ -620,6 +621,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }

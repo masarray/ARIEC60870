@@ -358,6 +358,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             SignalRawValue = decoded.Asdu?.FirstObject?.ElementSummary ?? decoded.Asdu?.ObjectSummary ?? string.Empty,
             QualityText = decoded.Asdu?.FirstObject?.QualityText ?? string.Empty,
             RelayTimestampText = decoded.Asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = decoded.Asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = decoded.Asdu?.CauseName ?? string.Empty
         });
         AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds);
@@ -418,6 +419,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }

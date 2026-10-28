@@ -317,9 +317,11 @@ public partial class MainWindow
 
         if (bytes[0].Equals("E5", StringComparison.OrdinalIgnoreCase))
         {
-            yield return new ProtocolMapLine("envelope", "E5 short response",
-                "IEC-101 E5 has context-dependent meaning: link acknowledgement or NO DATA for a pending Class 1/2 request. " +
-                "Without an unambiguous matched request the application outcome is unknown; it does not prove command execution.", "E5");
+            var meaning = row.ProtocolMode == "101"
+                ? "IEC-101 E5 is contextual: link acknowledgement or NO DATA after a pending Class 1/2 poll. " +
+                  "Without an unambiguous matched request, the reply outcome remains unknown."
+                : "IEC-103 E5 single-character link acknowledgement; it does not prove an application command or physical operation succeeded.";
+            yield return new ProtocolMapLine("envelope", "E5 short response", meaning, "E5");
             yield break;
         }
 
