@@ -26,6 +26,8 @@ public sealed class Iec10xCommandForensicsTests
         Assert.Equal(3, sent.CommandDetails.QualifierValue);
         Assert.Equal(9, sent.CommandDetails.QualifierAsduOffset);
         Assert.Equal(9, sent.Objects[0].InformationElementOffset);
+        Assert.Null(sent.Objects[0].QualityDetails);
+        Assert.Contains("Quality=N/A", sent.Objects[0].ReadableSummary);
         Assert.Equal(6, sent.Objects[0].InformationObjectOffset);
         Assert.Equal((byte?)command[9], sent.CommandDetails.QualifierRaw);
 
