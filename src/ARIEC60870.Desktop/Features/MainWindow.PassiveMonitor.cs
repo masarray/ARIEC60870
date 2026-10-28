@@ -37,6 +37,7 @@ public partial class MainWindow
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
     private PassiveIec101GiTracker? _passiveReplayGiTracker;
     private PassiveIec101FailureTimeline? _passiveReplayTimeline;
+    private PassiveIec101FailureTimeline[]? _passiveReplayTimelines;
     private readonly Dictionary<(byte Stream, long Offset), PassiveGiEvent> _passiveGiNotes = new();
     private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
     // GUI-only aggregation; all events remain durable in transactions.jsonl.
@@ -106,6 +107,26 @@ public partial class MainWindow
             profile.ScadaTx.Parity != Parity.Even || profile.FrameGapMilliseconds != 1500 ||
             profile.LinkMode != "Balanced" || profile.ScadaTx.DataBits != 8)
             throw new InvalidOperationException("IEC-101 passive serial/config profile was not applied.");
+
+        // P3: select both redundant circuits within existing Setup. All
+        // four COM identities must survive the profile builder; legacy mode
+        // remains two RX ports when the option is unchecked.
+        PassiveLinkBScadaPortComboBox.Items.Add("COM203");
+        PassiveLinkBScadaPortComboBox.SelectedItem = "COM203";
+        PassiveLinkBRtuPortComboBox.Items.Add("COM204");
+        PassiveLinkBRtuPortComboBox.SelectedItem = "COM204";
+        PassiveLinkBEnabledCheckBox.IsChecked = true;
+        if (PassiveLinkBPortsPanel.Visibility != Visibility.Visible)
+            throw new InvalidOperationException("Four-RX Link B Setup controls are not visible.");
+        var four = BuildPassiveCaptureOptions();
+        if (four.StreamCount != 4 ||
+            four.Sources[2].PortName != "COM203" ||
+            four.Sources[3].PortName != "COM204")
+            throw new InvalidOperationException("P3 redundant receive-only configuration was not applied.");
+        PassiveLinkBEnabledCheckBox.IsChecked = false;
+        if (BuildPassiveCaptureOptions().StreamCount != 2 ||
+            PassiveLinkBPortsPanel.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Legacy two-RX mode was not restored.");
 
         // Verify the offline replay profile uses ONLY IEC-101 interpretation fields;
         // it does not require selected COM ports, Start or an active Master engine.
@@ -206,6 +227,13 @@ public partial class MainWindow
         ProtocolModeComboBox.SelectedIndex = index;
     }
 
+    private void PassiveLinkBSelectionChanged(object sender, RoutedEventArgs e)
+    {
+        if (PassiveLinkBPortsPanel is not null)
+            PassiveLinkBPortsPanel.Visibility =
+                PassiveLinkBEnabledCheckBox?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private bool IsIec101PassiveMonitorSelected() =>
         ((ProtocolModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? string.Empty)
             .Contains("Passive Monitor", StringComparison.OrdinalIgnoreCase);
@@ -239,6 +267,9 @@ public partial class MainWindow
             prefs.ProtocolMode = "Iec101Passive";
             prefs.PortName = (PortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
+            prefs.PassiveLinkBEnabled = PassiveLinkBEnabledCheckBox.IsChecked == true;
+            prefs.PassiveLinkBScadaPortName = (PassiveLinkBScadaPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
+            prefs.PassiveLinkBRtuPortName = (PassiveLinkBRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim();
             prefs.PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width");
             prefs.PassiveCotWidth = ReadComboInt(PassiveCotWidthCombo, "Passive COT width");
@@ -279,15 +310,22 @@ public partial class MainWindow
         static int Width(ComboBox combo) => int.Parse(
             (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "0",
             System.Globalization.CultureInfo.InvariantCulture);
+        var isLinkB = PassiveLinkBEnabledCheckBox.IsChecked == true;
+        var bScada = (PassiveLinkBScadaPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
+        var bRtu = (PassiveLinkBRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
+        if (isLinkB && (string.IsNullOrWhiteSpace(bScada) || string.IsNullOrWhiteSpace(bRtu)))
+            throw new InvalidOperationException("Select both Link B SCADA TX and RTU TX receiver COM ports.");
         var options = new PassiveCaptureOptions(output,
-            new PassiveSerialSource(first, "SCADA TX -> RTU", baud, parity, 8, stopBits),
-            new PassiveSerialSource(second, "RTU TX -> SCADA", baud, parity, 8, stopBits),
+            new PassiveSerialSource(first, "Link A SCADA TX -> RTU", baud, parity, 8, stopBits),
+            new PassiveSerialSource(second, "Link A RTU TX -> SCADA", baud, parity, 8, stopBits),
             LinkAddressWidth: Width(PassiveLinkWidthCombo),
             CotWidth: Width(PassiveCotWidthCombo),
             CommonAddressWidth: Width(PassiveCaWidthCombo),
             InformationAddressWidth: Width(PassiveIoaWidthCombo),
             FrameGapMilliseconds: ReadInt(PassiveFrameGapBox, "Passive frame gap", 100, 10000),
-            LinkMode: (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto");
+            LinkMode: (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto",
+            LinkBScadaTx: isLinkB ? new PassiveSerialSource(bScada, "Link B SCADA TX -> RTU", baud, parity, 8, stopBits) : null,
+            LinkBRtuTx: isLinkB ? new PassiveSerialSource(bRtu, "Link B RTU TX -> SCADA", baud, parity, 8, stopBits) : null);
         options.Validate();
 
         var directory = Path.GetFullPath(output);
@@ -325,8 +363,7 @@ public partial class MainWindow
         SavePassiveSetupPreferences(silent: true);
         _sessionCancellation = new CancellationTokenSource();
         var session = new PassiveMonitorSession(options,
-            new WindowsReadOnlySerialTap(options.ScadaTx),
-            new WindowsReadOnlySerialTap(options.RtuTx));
+            options.Sources.Select(x => (IReadOnlySerialTap)new WindowsReadOnlySerialTap(x)).ToArray());
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
         ClearSessionView(clearLog: true);
@@ -334,6 +371,8 @@ public partial class MainWindow
         _passiveFrameSequence = 0;
         _passiveReplayCorrelator = null;
         _passiveReplayGiTracker = null;
+        _passiveReplayTimeline = null;
+        _passiveReplayTimelines = null;
         _passiveGiNotes.Clear();
         _passiveTransactionNotes.Clear();
         _passiveFindingLastShown.Clear();
@@ -354,8 +393,9 @@ public partial class MainWindow
         SetRunUiState(isRunning: true);
         MainTabControl.SelectedIndex = PassiveTraceTabIndex;
         UpdateSegmentedNav(false);
-        SessionSubtitleText.Text = "Passive IEC-101 RX · " + options.ScadaTx.PortName + " (SCADA TX) + " +
-            options.RtuTx.PortName + " (RTU TX)";
+        SessionSubtitleText.Text = options.StreamCount == 4
+            ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
+            : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
         UpdateStableHeader("Recording", "Listening to both serial directions.");
         AppendSessionLog("Passive recording started: " + SessionSubtitleText.Text);
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
@@ -415,8 +455,10 @@ public partial class MainWindow
         var session = _passiveMonitorSession;
         if (session is null) return;
         var progress = session.GetProgress();
-        PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes";
-        PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes";
+        PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
+            (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
+        PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +
+            (progress.StreamCount == 4 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "No app loss detected" : progress.Status;
         PassiveIntegrityText.Foreground = (Brush)FindResource(progress.IntegrityWarning ? "BadBrush" : "Ink900Brush");
@@ -461,7 +503,8 @@ public partial class MainWindow
         {
             var row = new PassiveRxRow(
                 sample.EstimatedUtc.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
-                sample.StreamId == 0 ? "SCADA → RTU" : "RTU → SCADA",
+                (sample.StreamId < 2 ? "A " : "B ") +
+                ((sample.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA"),
                 sample.Sequence, sample.ByteCount, Convert.ToHexString(sample.FirstBytes));
             _passiveRawRows.Add(row);
             if (_passiveRawRows.Count > MaxVisiblePassiveRows)
@@ -476,15 +519,26 @@ public partial class MainWindow
     {
         // Replay has a full, verified stream and re-derives the same findings here.
         // Live capture derives findings upstream, before WPF's bounded frame queue.
-        _passiveReplayTimeline?.ObserveFrame(seen, ApplyPassiveTimelineWindow);
+        var replayTimeline = _passiveReplayTimelines is { } ts
+            ? ts[seen.StreamId / 2] : _passiveReplayTimeline;
+        var circuitId = seen.StreamId / 2;
+        replayTimeline?.ObserveFrame(seen with { StreamId = (byte)(seen.StreamId % 2) },
+            x => ApplyPassiveTimelineWindow(x with { CircuitId = circuitId }));
         _passiveReplayCorrelator?.Observe(seen, x =>
         {
-            _passiveReplayTimeline?.ObserveTransaction(x);
+            var txTimeline = _passiveReplayTimelines is { } all
+                ? all[x.ObservedStream / 2] : _passiveReplayTimeline;
+            txTimeline?.ObserveTransaction(x with
+            {
+                ObservedStream = (byte)(x.ObservedStream % 2)
+            });
             ApplyPassiveTransactionEvent(x);
         });
         _passiveReplayGiTracker?.Observe(seen, x =>
         {
-            _passiveReplayTimeline?.ObserveGi(x);
+            var giTimeline = _passiveReplayTimelines is { } all
+                ? all[x.StreamId / 2] : _passiveReplayTimeline;
+            giTimeline?.ObserveGi(x with { StreamId = (byte)(x.StreamId % 2) });
             ApplyPassiveGiEvent(x);
         });
         _passiveGiNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var giNote);
@@ -526,8 +580,9 @@ public partial class MainWindow
                 ? new[] { "IEC-101 prohibits the A2 single-character response." }
                 : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum." }
         };
-        var direction = seen.StreamId == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
-        var prefix = seen.StreamId == 0 ? "SCADA → RTU" : "RTU → SCADA";
+        var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
+        var prefix = (seen.StreamId < 2 ? "Link A · " : "Link B · ") +
+            ((seen.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA");
         var function = seen.Format == "Partial" ? "Incomplete frame" :
             link?.FunctionName ?? (raw[0] == 0xE5
                 ? "E5 short response (ACK or no-data by request context)"
@@ -564,13 +619,14 @@ public partial class MainWindow
             InformationObjectAddress = first?.InformationObjectAddress,
             ObjectSummary = decode?.ObjectSummary ?? "",
             QualityText = first?.QualityText ?? "",
-            IsRelayEdgeEvent = seen.ChecksumValid && seen.StreamId == 1 && first is not null &&
+            IsRelayEdgeEvent = seen.ChecksumValid && (seen.StreamId & 1) == 1 && first is not null &&
                 decode?.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-            IsRelayValue = seen.ChecksumValid && seen.StreamId == 1 && first is not null && decode is not null &&
+            IsRelayValue = seen.ChecksumValid && (seen.StreamId & 1) == 1 && first is not null && decode is not null &&
                 decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
-            SignalKey = first is null || decode is null ? "" : $"{decode.CommonAddress}:{first.InformationObjectAddress}",
+            SignalKey = first is null || decode is null ? "" :
+                $"L{seen.StreamId / 2}:{decode.CommonAddress}:{first.InformationObjectAddress}",
             SignalName = first is null ? "" : $"IOA {first.InformationObjectAddress}",
-            SignalGroup = "IEC-101",
+            SignalGroup = seen.StreamId < 2 ? "IEC-101 Link A" : "IEC-101 Link B",
             SignalType = decode?.TypeName ?? "",
             SignalDisplayValue = first?.ShortValue ?? "",
             SignalRawValue = first?.ValueText ?? "",
@@ -580,7 +636,7 @@ public partial class MainWindow
         OnEvidenceReceived(this, ev);
 
         // Multi-object ASDUs must update EVERY point, not only the first IOA.
-        if (seen.ChecksumValid && seen.StreamId == 1 && decode is not null &&
+        if (seen.ChecksumValid && (seen.StreamId & 1) == 1 && decode is not null &&
             decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
         {
             foreach (var obj in decode.Objects.Skip(1))
@@ -601,9 +657,9 @@ public partial class MainWindow
                     ObjectSummary = obj.ReadableSummary,
                     IsRelayValue = true,
                     IsRelayEdgeEvent = decode.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-                    SignalKey = $"{decode.CommonAddress}:{obj.InformationObjectAddress}",
+                    SignalKey = $"L{seen.StreamId / 2}:{decode.CommonAddress}:{obj.InformationObjectAddress}",
                     SignalName = $"IOA {obj.InformationObjectAddress}",
-                    SignalGroup = "IEC-101",
+                    SignalGroup = seen.StreamId < 2 ? "IEC-101 Link A" : "IEC-101 Link B",
                     SignalType = decode.TypeName,
                     SignalDisplayValue = obj.ShortValue,
                     SignalRawValue = obj.ValueText,
@@ -622,7 +678,8 @@ public partial class MainWindow
               $"Class1/2={item.Class1Polls}/{item.Class2Polls}, " +
               $"LinkStatus={item.LinkStatusPolls}, Retry={item.Retries}, Timeout={item.ResponseTimeouts}, " +
               $"GI={item.GiActivations}/{item.GiCompleted}";
-        PassiveStatusMessageText.Text = "IEC-101 " +
+        PassiveStatusMessageText.Text = "IEC-101 Link " +
+            (item.CircuitId == 0 ? "A" : "B") + " · " +
             item.StartUtc.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) +
             "–" + item.EndUtc.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) +
             " UTC · " + summary;

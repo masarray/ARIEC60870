@@ -26,16 +26,28 @@ public sealed record PassiveCaptureOptions(
     int CommonAddressWidth = 2,
     int InformationAddressWidth = 3,
     int FrameGapMilliseconds = 900,
-    string LinkMode = "Auto")
+    string LinkMode = "Auto",
+    PassiveSerialSource? LinkBScadaTx = null,
+    PassiveSerialSource? LinkBRtuTx = null)
 {
+    public int StreamCount => LinkBScadaTx is not null && LinkBRtuTx is not null ? 4 : 2;
+
+    public PassiveSerialSource[] Sources => StreamCount == 4
+        ? new[] { ScadaTx, RtuTx, LinkBScadaTx!, LinkBRtuTx! }
+        : new[] { ScadaTx, RtuTx };
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new ArgumentException("Capture output directory is required.");
         if (string.IsNullOrWhiteSpace(ScadaTx.PortName) || string.IsNullOrWhiteSpace(RtuTx.PortName))
             throw new ArgumentException("Both RX-only COM ports are required.");
-        if (string.Equals(ScadaTx.PortName.Trim(), RtuTx.PortName.Trim(), StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Choose two distinct monitor COM ports.");
-        foreach (var s in new[] { ScadaTx, RtuTx })
+        if ((LinkBScadaTx is null) != (LinkBRtuTx is null))
+            throw new ArgumentException("Link B requires both RX-only COM inputs; partial redundant capture is not supported.");
+        var sources = Sources;
+        if (sources.Any(s => string.IsNullOrWhiteSpace(s.PortName)) ||
+            sources.Select(s => s.PortName.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != sources.Length)
+            throw new ArgumentException("Choose distinct RX-only COM ports for every configured transmitter.");
+        foreach (var s in sources)
         {
             // IEC-101 is octet-oriented FT1.2, so 7-bit UART modes would corrupt
             // legitimate start/ACK bytes such as E5/A2; keep 8 data bits.
@@ -44,9 +56,14 @@ public sealed record PassiveCaptureOptions(
             if (!Enum.IsDefined(s.Parity) || !Enum.IsDefined(s.StopBits))
                 throw new ArgumentException("Unsupported serial mode for " + s.PortName);
         }
-        if (ScadaTx.BaudRate != RtuTx.BaudRate || ScadaTx.Parity != RtuTx.Parity ||
-            ScadaTx.DataBits != RtuTx.DataBits || ScadaTx.StopBits != RtuTx.StopBits)
-            throw new ArgumentException("Both directions of the same serial link must use matching UART framing.");
+        for (var i = 0; i < sources.Length; i += 2)
+        {
+            var a = sources[i];
+            var b = sources[i + 1];
+            if (a.BaudRate != b.BaudRate || a.Parity != b.Parity ||
+                a.DataBits != b.DataBits || a.StopBits != b.StopBits)
+                throw new ArgumentException("Both directions of each serial link must use matching UART framing.");
+        }
         if (LinkAddressWidth is < 0 or > 2 || CotWidth is < 1 or > 2 ||
             CommonAddressWidth is < 1 or > 2 || InformationAddressWidth is < 1 or > 3)
             throw new ArgumentOutOfRangeException(nameof(LinkAddressWidth), "Invalid IEC-101 interoperability field widths.");
@@ -103,9 +120,10 @@ public sealed record PassiveCaptureManifest
     public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at serial driver read completion; NOT per-byte wire timing.";
     public string IntegrityPolicy { get; init; } = "No application loss detected does not guarantee zero USB/OS/physical losses.";
     public CapturedStreamSummary[] Streams { get; init; } = Array.Empty<CapturedStreamSummary>();
+    public string[] CircuitNames { get; init; } = Array.Empty<string>();
     public string[] PhysicalSafetyLimitations { get; init; } = new[]
     {
-        "Two RX COMs observe two TX directions of ONE duplex RS-232 link, not both redundant SCADA links.",
+        "Two RX COMs observe one full-duplex link; four RX COMs observe two separately tapped full-duplex links.",
         "Monitor TXD/RTS/DTR must be physically disconnected from plant; software flags cannot guarantee non-interference.",
         "Use an electrically approved isolated/high-impedance tap and preserve original handshaking."
     };

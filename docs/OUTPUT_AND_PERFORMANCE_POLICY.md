@@ -130,3 +130,32 @@ operator presentation and **must not** be used to derive the definitive timeline
   derived indexes and WPF row retention.
 - Historical search/paging over many hours and four-COM redundant A/B
   supervision are subsequent milestones, not assumed complete here.
+
+## P3: Four-port IEC-101 Redundant Passive Capture
+
+The IEC-101 monitor supports either **two RX-only COM inputs for one full-duplex
+circuit**, or **four RX-only COM inputs for two independent circuits A/B**.
+The additional pair is strictly opt-in within the existing Setup.
+
+- Original `APM1` stream journal layout is preserved for compatibility.
+  Four sources write four independent authoritative raw `stream-XX.bin`
+  files; every file's CRC32/sequence/offset/SHA256 is independently verified
+  before offline replay may display any evidence. The saved manifest
+  identifies each COM port, physical transmitter, source and circuit.
+- One receive worker per COM, one bounded channel and one disk-journal writer.
+  Frames, transactions, GI state and operator summaries must never be derived
+  solely from the dropping GUI queues.
+- Link A streams 0/1 and Link B streams 2/3 **must not cross-correlate**
+  E5 responses, acknowledgements, COT7 ACTCON, or COT10 ACTTERM.
+  Per-circuit P2E timeline buckets are independent.
+- WPF presentation remains bounded. Source labels and value identities
+  include circuit A/B, so identical IOAs on redundant lines do not overwrite
+  each other silently.
+- The four-way offline merge is sorted by USB/Windows host read-completion
+  timestamps; it is **not** guaranteed wire-edge ordering between adapters.
+  No unsupported assertion of physical 33-bit idle timing or actual NUC
+  failover state is allowed.
+- Two-input captures continue working without migration. All stored bytes
+  and finalized hashes are immutable under decoder profile overrides.
+- This P3 implementation does not replace physical testing of tap loading,
+  UART handshaking, multi-hour lossless soak or electrical isolation.

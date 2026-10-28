@@ -268,6 +268,90 @@ public sealed class PassiveJournalReplayTests
     }
 
     [Fact]
+    public async Task FourReceiverCaptureValidatesBothRedundantDuplexCircuitsAndReplaysLosslessly()
+    {
+        var folder = CreateTemp();
+        try
+        {
+            var traffic = new[]
+            {
+                new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 },
+                new byte[] { 0x10, 0x0B, 0x69, 0x74, 0x16 },
+                new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 },
+                new byte[] { 0xE5 }
+            };
+            var ports = new[] { "COM201", "COM202", "COM203", "COM204" };
+            var options = new PassiveCaptureOptions(folder,
+                new PassiveSerialSource(ports[0], "A SCADA"),
+                new PassiveSerialSource(ports[1], "A RTU"), ChannelCapacity: 32,
+                ReadChunkBytes: 128,
+                LinkBScadaTx: new PassiveSerialSource(ports[2], "B SCADA"),
+                LinkBRtuTx: new PassiveSerialSource(ports[3], "B RTU"));
+            Assert.Equal(4, options.StreamCount);
+            var capture = new PassiveMonitorSession(options,
+                ports.Select((port, i) => (IReadOnlySerialTap)new ReplayTap(port, traffic[i], 1))
+                    .ToArray());
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var task = capture.RunAsync(cts.Token);
+            try
+            {
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (capture.GetProgress().ScadaBytes < traffic[0].Length ||
+                       capture.GetProgress().RtuBytes < traffic[1].Length ||
+                       capture.GetProgress().LinkBScadaBytes < traffic[2].Length ||
+                       capture.GetProgress().LinkBRtuBytes < traffic[3].Length)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(6))
+                        throw new TimeoutException("Four independent RX journals were not committed.");
+                    await Task.Delay(15);
+                }
+            }
+            finally { cts.Cancel(); }
+            var recorded = await task;
+            Assert.Equal("NoApplicationLossDetected", recorded.Manifest.Status);
+            var audit = PassiveJournalVerifier.Verify(recorded.Directory);
+            Assert.True(audit.Complete, string.Join(" | ", audit.Problems));
+            Assert.Equal(4, recorded.Manifest.Streams.Length);
+            Assert.Equal(new[] { "Link A", "Link B" }, recorded.Manifest.CircuitNames);
+            for (var i = 0; i < 4; i++)
+            {
+                Assert.Equal(traffic[i].Length, recorded.Manifest.Streams[i].Bytes);
+                Assert.True(File.Exists(Path.Combine(recorded.Directory, $"stream-{i:00}.bin")));
+                File.Delete(Path.Combine(recorded.Directory, $"frames-{i:00}.jsonl"));
+            }
+
+            var frames = PassiveJournalReplay.ReadVerifiedFrames(recorded.Directory).ToArray();
+            Assert.Equal(4, frames.Length);
+            for (byte stream = 0; stream < 4; stream++)
+            {
+                var observed = Assert.Single(frames, x => x.StreamId == stream);
+                Assert.True(observed.ChecksumValid);
+                Assert.Equal(traffic[stream], observed.RawBytes);
+                Assert.Equal(0, observed.StreamOffset);
+            }
+            Assert.True(PassiveJournalVerifier.Verify(recorded.Directory).Complete);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
+    public void PartialFourthReceiverConfigOrDuplicateComMustBeRejected()
+    {
+        var a = new PassiveSerialSource("COM201", "A SCADA");
+        var b = new PassiveSerialSource("COM202", "A RTU");
+        var baseConfig = new PassiveCaptureOptions("capture", a, b);
+        baseConfig.Validate();
+        Assert.Equal(2, baseConfig.StreamCount);
+        Assert.Throws<ArgumentException>(() =>
+            (baseConfig with { LinkBScadaTx = new PassiveSerialSource("COM203", "B SCADA") }).Validate());
+        Assert.Throws<ArgumentException>(() =>
+            (baseConfig with {
+                LinkBScadaTx = new PassiveSerialSource("COM203", "B SCADA"),
+                LinkBRtuTx = new PassiveSerialSource("com202", "B RTU")
+            }).Validate());
+    }
+
+    [Fact]
     public async Task RawCorruptionIsRejectedBeforeAnyDecodedFrameIsShown()
     {
         var folder = CreateTemp();

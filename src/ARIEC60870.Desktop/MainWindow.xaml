@@ -1709,8 +1709,24 @@
                                     <Button Grid.Column="2" Content="Refresh" Style="{StaticResource SecondaryButton}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                                    <TextBlock Text="RTU TX · COM port" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="PassiveRtuPortComboBox" ToolTip="Listen to RTU TX with a separate RX-only input."/>
+                                    <TextBlock Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                    <ComboBox x:Name="PassiveRtuPortComboBox" ToolTip="Listen to Link A RTU TX using a dedicated receive-only input."/>
+                                    <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Content="Also monitor redundant Link B (4 RX ports)"
+                                              Margin="0,12,0,6" Checked="PassiveLinkBSelectionChanged" Unchecked="PassiveLinkBSelectionChanged"
+                                              ToolTip="Capture both independent IEC-101 full-duplex circuits at the same time. All four COM inputs must be receiver-only."/>
+                                    <StackPanel x:Name="PassiveLinkBPortsPanel" Visibility="Collapsed" Margin="0,5,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Link B · SCADA TX" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="PassiveLinkBScadaPortComboBox" ToolTip="Separate receive-only tap on Link B SCADA transmitter."/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Link B · RTU TX" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="PassiveLinkBRtuPortComboBox" ToolTip="Separate receive-only tap on Link B RTU transmitter."/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
                                 </StackPanel>
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

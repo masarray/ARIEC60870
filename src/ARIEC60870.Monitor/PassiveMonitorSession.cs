@@ -17,6 +17,8 @@ public sealed class PassiveMonitorSession
 {
     private readonly PassiveCaptureOptions _options;
     private readonly IReadOnlySerialTap[] _taps;
+    private readonly PassiveSerialSource[] _sources;
+    private readonly int _streamCount;
     // UI-only feed: bounded; loss here never changes raw journal contents.
     private readonly Channel<PassiveChunkPreview> _previews =
         Channel.CreateBounded<PassiveChunkPreview>(new BoundedChannelOptions(256)
@@ -60,9 +62,9 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
-    private readonly long[] _writtenBytes = new long[2];
-    private readonly long[] _writtenChunks = new long[2];
-    private readonly string[] _rawHashes = new string[2];
+    private readonly long[] _writtenBytes;
+    private readonly long[] _writtenChunks;
+    private readonly string[] _rawHashes;
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> _warnings = new();
     private int _integrityUncertain;
     private int _fatal;
@@ -72,14 +74,22 @@ public sealed class PassiveMonitorSession
     private DateTime _utcOrigin;
     private long _timestampOrigin;
 
-    public PassiveMonitorSession(PassiveCaptureOptions options, IReadOnlySerialTap scadaTx, IReadOnlySerialTap rtuTx)
+    public PassiveMonitorSession(PassiveCaptureOptions options, params IReadOnlySerialTap[] taps)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(taps);
+        options.Validate();
         _options = options;
-        _taps = new[] { scadaTx, rtuTx };
-        _options.Validate();
-        if (!string.Equals(scadaTx.PortName, options.ScadaTx.PortName, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(rtuTx.PortName, options.RtuTx.PortName, StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Tap identities must match the declared physical capture roles.");
+        _sources = options.Sources;
+        _streamCount = _sources.Length;
+        if (taps.Length != _streamCount ||
+            taps.Where((tap, i) => tap is null ||
+                !string.Equals(tap.PortName, _sources[i].PortName, StringComparison.OrdinalIgnoreCase)).Any())
+            throw new ArgumentException("Provide exactly one RX-only tap per configured physical source in order.");
+        _taps = taps;
+        _writtenBytes = new long[_streamCount];
+        _writtenChunks = new long[_streamCount];
+        _rawHashes = new string[_streamCount];
     }
 
     /// <summary>Starts immediately; returns only after Stop/cancellation and durable archive finalization.</summary>
@@ -93,7 +103,10 @@ public sealed class PassiveMonitorSession
         Interlocked.Read(ref _writtenChunks[1]),
         _taps[0].DriverErrorCount,
         _taps[1].DriverErrorCount,
-        Volatile.Read(ref _integrityUncertain) != 0 || Volatile.Read(ref _fatal) != 0);
+        Volatile.Read(ref _integrityUncertain) != 0 || Volatile.Read(ref _fatal) != 0,
+        _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[2]) : 0,
+        _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0,
+        _streamCount);
 
     /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
@@ -134,7 +147,7 @@ public sealed class PassiveMonitorSession
             AllowSynchronousContinuations = false
         });
         Task? writerTask = null;
-        var opened = new List<IReadOnlySerialTap>(2);
+        var opened = new List<IReadOnlySerialTap>(_streamCount);
         try
         {
             // Both monitored directions must be armed before recording; never silently record just one.
@@ -142,11 +155,9 @@ public sealed class PassiveMonitorSession
             Volatile.Write(ref _captureStatus, "Recording");
 
             writerTask = Task.Run(() => WriteLoopAsync(root, channel, stop));
-            var reads = new[]
-            {
-                Task.Run(() => ReadLoopAsync(0, channel.Writer, stop)),
-                Task.Run(() => ReadLoopAsync(1, channel.Writer, stop))
-            };
+            var reads = Enumerable.Range(0, _streamCount)
+                .Select(i => Task.Run(() => ReadLoopAsync((byte)i, channel.Writer, stop)))
+                .ToArray();
             await Task.WhenAll(reads).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -255,32 +266,30 @@ public sealed class PassiveMonitorSession
         StreamWriter? transactionFile = null;
         StreamWriter? giFile = null;
         StreamWriter? timelineFile = null;
-        var timeline = new PassiveIec101FailureTimeline(_utcOrigin);
+        var timelines = Enumerable.Range(0, _streamCount / 2)
+            .Select(_ => new PassiveIec101FailureTimeline(_utcOrigin)).ToArray();
         var giTracker = new PassiveIec101GiTracker(new PassiveGiOptions(
             LinkAddressWidth: _options.LinkAddressWidth, CotWidth: _options.CotWidth,
             CommonAddressWidth: _options.CommonAddressWidth,
             InformationAddressWidth: _options.InformationAddressWidth));
         var correlator = new PassiveIec101TransactionCorrelator(new PassiveTransactionOptions(
             LinkAddressWidth: _options.LinkAddressWidth, LinkMode: _options.LinkMode));
-        var scanners = new[]
-        {
-            new PassiveFt12Scanner(_options.LinkAddressWidth),
-            new PassiveFt12Scanner(_options.LinkAddressWidth)
-        };
-        var lastSeenTicks = new long[2];
-        var hashes = new[] { IncrementalHash.CreateHash(HashAlgorithmName.SHA256), IncrementalHash.CreateHash(HashAlgorithmName.SHA256) };
+        var scanners = Enumerable.Range(0, _streamCount)
+            .Select(_ => new PassiveFt12Scanner(_options.LinkAddressWidth)).ToArray();
+        var lastSeenTicks = new long[_streamCount];
+        var hashes = Enumerable.Range(0, _streamCount)
+            .Select(_ => IncrementalHash.CreateHash(HashAlgorithmName.SHA256)).ToArray();
         try
         {
             firstFile = OpenJournal(root, 0);
-            var secondFile = OpenJournal(root, 1);
-            files = new[] { firstFile, secondFile };
-            frameFiles = new[]
-            {
-                new StreamWriter(new FileStream(Path.Combine(root, "frames-00.jsonl"), FileMode.CreateNew,
-                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8),
-                new StreamWriter(new FileStream(Path.Combine(root, "frames-01.jsonl"), FileMode.CreateNew,
-                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8)
-            };
+            files = new FileStream[_streamCount];
+            files[0] = firstFile;
+            for (byte i = 1; i < _streamCount; i++) files[i] = OpenJournal(root, i);
+            frameFiles = Enumerable.Range(0, _streamCount)
+                .Select(i => new StreamWriter(new FileStream(
+                    Path.Combine(root, $"frames-{i:00}.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8))
+                .ToArray();
             transactionFile = new StreamWriter(new FileStream(
                 Path.Combine(root, "transactions.jsonl"), FileMode.CreateNew,
                 FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
@@ -328,17 +337,29 @@ public sealed class PassiveMonitorSession
                             frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid, frame.RawBytes)));
                     foreach (var frame in observed)
                     {
-                        timeline.ObserveFrame(frame, timelineWindows.Add);
+                        timelines[frame.StreamId / 2].ObserveFrame(frame with
+                        {
+                            StreamId = (byte)(frame.StreamId % 2)
+                        }, window => timelineWindows.Add(window with
+                        {
+                            CircuitId = frame.StreamId / 2
+                        }));
                         // Interpret the *lossless writer stream*, never the bounded WPF preview.
                         correlator.Observe(frame, item =>
                         {
                             transactions.Add(item);
-                            timeline.ObserveTransaction(item);
+                            timelines[item.ObservedStream / 2].ObserveTransaction(item with
+                            {
+                                ObservedStream = (byte)(item.ObservedStream % 2)
+                            });
                         });
                         giTracker.Observe(frame, item =>
                         {
                             giEvents.Add(item);
-                            timeline.ObserveGi(item);
+                            timelines[item.StreamId / 2].ObserveGi(item with
+                            {
+                                StreamId = (byte)(item.StreamId % 2)
+                            });
                         });
                         var line = System.Text.Json.JsonSerializer.Serialize(new
                         {
@@ -380,10 +401,8 @@ public sealed class PassiveMonitorSession
                     bytesSinceFlush += chunk.Length;
                     if (bytesSinceFlush >= 262144 || Stopwatch.GetElapsedTime(lastFlush) >= TimeSpan.FromSeconds(2))
                     {
-                        await files[0].FlushAsync().ConfigureAwait(false);
-                        await files[1].FlushAsync().ConfigureAwait(false);
-                        await frameFiles[0].FlushAsync().ConfigureAwait(false);
-                        await frameFiles[1].FlushAsync().ConfigureAwait(false);
+                        foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);
+                        foreach (var index in frameFiles) await index.FlushAsync().ConfigureAwait(false);
                         await transactionFile.FlushAsync().ConfigureAwait(false);
                         await giFile.FlushAsync().ConfigureAwait(false);
                         await timelineFile.FlushAsync().ConfigureAwait(false);
@@ -395,7 +414,7 @@ public sealed class PassiveMonitorSession
             }
             // Preserve truncated tail candidates as explicit partial-frame observations
             // at EOF rather than silently suppressing them.
-            for (byte sid = 0; sid < 2; sid++)
+            for (byte sid = 0; sid < _streamCount; sid++)
             {
                 var partial = scanners[sid].ExpireIncomplete();
                 if (partial is null) continue;
@@ -425,7 +444,10 @@ public sealed class PassiveMonitorSession
             {
                 await giFile.WriteLineAsync(JsonSerializer.Serialize(gi)).ConfigureAwait(false);
                 _giEvents.Writer.TryWrite(gi);
-                timeline.ObserveGi(gi);
+                timelines[gi.StreamId / 2].ObserveGi(gi with
+                {
+                    StreamId = (byte)(gi.StreamId % 2)
+                });
             }
             var finalEvents = new List<PassiveTransactionEvent>();
             correlator.AdvanceTime(DateTime.UtcNow, finalEvents.Add);
@@ -434,25 +456,32 @@ public sealed class PassiveMonitorSession
             {
                 await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
                 _transactionEvents.Writer.TryWrite(entry);
-                timeline.ObserveTransaction(entry);
+                timelines[entry.ObservedStream / 2].ObserveTransaction(entry with
+                {
+                    ObservedStream = (byte)(entry.ObservedStream % 2)
+                });
             }
             var finalWindows = new List<PassiveTimelineWindow>();
-            timeline.AdvanceTime(DateTime.UtcNow, finalWindows.Add);
-            timeline.Complete(finalWindows.Add);
+            for (var circuit = 0; circuit < timelines.Length; circuit++)
+            {
+                var id = circuit;
+                timelines[circuit].AdvanceTime(DateTime.UtcNow,
+                    x => finalWindows.Add(x with { CircuitId = id }));
+                timelines[circuit].Complete(x => finalWindows.Add(x with { CircuitId = id }));
+            }
             foreach (var window in finalWindows)
             {
                 await timelineFile.WriteLineAsync(JsonSerializer.Serialize(window))
                     .ConfigureAwait(false);
                 _timelineWindows.Writer.TryWrite(window);
             }
-            await files[0].FlushAsync().ConfigureAwait(false);
-            await files[1].FlushAsync().ConfigureAwait(false);
-            await frameFiles[0].FlushAsync().ConfigureAwait(false);
-            await frameFiles[1].FlushAsync().ConfigureAwait(false);
+            foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);
+            foreach (var index in frameFiles) await index.FlushAsync().ConfigureAwait(false);
             await transactionFile.FlushAsync().ConfigureAwait(false);
             await giFile.FlushAsync().ConfigureAwait(false);
             await timelineFile.FlushAsync().ConfigureAwait(false);
-            for (var i = 0; i < 2; i++) _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
+            for (var i = 0; i < _streamCount; i++)
+                _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
         }
         catch (Exception ex)
         {
@@ -501,19 +530,13 @@ public sealed class PassiveMonitorSession
             InformationAddressWidth = _options.InformationAddressWidth,
             FrameGapMilliseconds = _options.FrameGapMilliseconds,
             LinkMode = _options.LinkMode,
-            Streams = new[]
-            {
-                new CapturedStreamSummary(0, _options.ScadaTx.PortName,
-                    _options.ScadaTx.PhysicalTransmitter, Interlocked.Read(ref _writtenChunks[0]),
-                    Interlocked.Read(ref _writtenBytes[0]), _taps[0].DriverErrorCount, "stream-00.bin", _rawHashes[0],
-                    _options.ScadaTx.BaudRate, _options.ScadaTx.Parity.ToString(),
-                    _options.ScadaTx.DataBits, _options.ScadaTx.StopBits.ToString()),
-                new CapturedStreamSummary(1, _options.RtuTx.PortName,
-                    _options.RtuTx.PhysicalTransmitter, Interlocked.Read(ref _writtenChunks[1]),
-                    Interlocked.Read(ref _writtenBytes[1]), _taps[1].DriverErrorCount, "stream-01.bin", _rawHashes[1],
-                    _options.RtuTx.BaudRate, _options.RtuTx.Parity.ToString(),
-                    _options.RtuTx.DataBits, _options.RtuTx.StopBits.ToString())
-            }
+            CircuitNames = _streamCount == 4 ? new[] { "Link A", "Link B" } : new[] { "Link A" },
+            Streams = _sources.Select((source, i) => new CapturedStreamSummary(
+                (byte)i, source.PortName, source.PhysicalTransmitter,
+                Interlocked.Read(ref _writtenChunks[i]), Interlocked.Read(ref _writtenBytes[i]),
+                _taps[i].DriverErrorCount, $"stream-{i:00}.bin", _rawHashes[i],
+                source.BaudRate, source.Parity.ToString(), source.DataBits,
+                source.StopBits.ToString())).ToArray()
         };
 
     private static void WriteManifest(string root, PassiveCaptureManifest manifest)
@@ -531,7 +554,10 @@ public sealed class PassiveMonitorSession
 public sealed record PassiveMonitorProgress(
     string Status, string CaptureDirectory, long ScadaBytes, long RtuBytes,
     long ScadaChunks, long RtuChunks, long ScadaDriverErrors, long RtuDriverErrors,
-    bool IntegrityWarning);
+    bool IntegrityWarning,
+    long LinkBScadaBytes = 0,
+    long LinkBRtuBytes = 0,
+    int StreamCount = 2);
 
 public sealed record PassiveChunkPreview(
     byte StreamId, long Sequence, DateTime EstimatedUtc, int ByteCount, byte[] FirstBytes);

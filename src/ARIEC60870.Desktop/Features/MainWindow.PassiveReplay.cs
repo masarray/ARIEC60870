@@ -88,6 +88,7 @@ public partial class MainWindow
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
             _passiveReplayTimeline = null;
+            _passiveReplayTimelines = null;
             _passiveGiNotes.Clear();
             _passiveCaptureResult = null;
             MainTabControl.SelectedIndex = PassiveTraceTabIndex;
@@ -121,7 +122,11 @@ public partial class MainWindow
                         new PassiveTransactionOptions(
                             LinkAddressWidth: effectiveProfile.LinkAddressWidth,
                             LinkMode: effectiveProfile.LinkMode));
-                    _passiveReplayTimeline = new PassiveIec101FailureTimeline(manifest.StartUtc);
+                    _passiveReplayTimeline = manifest.Streams.Length == 2
+                        ? new PassiveIec101FailureTimeline(manifest.StartUtc) : null;
+                    _passiveReplayTimelines = manifest.Streams.Length == 4
+                        ? new[] { new PassiveIec101FailureTimeline(manifest.StartUtc),
+                            new PassiveIec101FailureTimeline(manifest.StartUtc) } : null;
                     _passiveReplayGiTracker = new PassiveIec101GiTracker(
                         new PassiveGiOptions(LinkAddressWidth: effectiveProfile.LinkAddressWidth,
                             CotWidth: effectiveProfile.CotWidth,
@@ -175,35 +180,69 @@ public partial class MainWindow
                 File.ReadAllText(manifestPath))!;
             _passiveReplayCorrelator?.AdvanceTime(finalManifest.EndUtc, x =>
             {
-                _passiveReplayTimeline?.ObserveTransaction(x);
+                if (_passiveReplayTimelines is { } timelines)
+                    timelines[x.ObservedStream / 2].ObserveTransaction(x with
+                    {
+                        ObservedStream = (byte)(x.ObservedStream % 2)
+                    });
+                else _passiveReplayTimeline?.ObserveTransaction(x);
                 ApplyPassiveTransactionEvent(x);
             });
             _passiveReplayCorrelator?.Complete(x =>
             {
-                _passiveReplayTimeline?.ObserveTransaction(x);
+                if (_passiveReplayTimelines is { } timelines)
+                    timelines[x.ObservedStream / 2].ObserveTransaction(x with
+                    {
+                        ObservedStream = (byte)(x.ObservedStream % 2)
+                    });
+                else _passiveReplayTimeline?.ObserveTransaction(x);
                 ApplyPassiveTransactionEvent(x);
             });
             _passiveReplayGiTracker?.AdvanceTime(finalManifest.EndUtc, x =>
             {
-                _passiveReplayTimeline?.ObserveGi(x);
+                if (_passiveReplayTimelines is { } timelines)
+                    timelines[x.StreamId / 2].ObserveGi(x with
+                    {
+                        StreamId = (byte)(x.StreamId % 2)
+                    });
+                else _passiveReplayTimeline?.ObserveGi(x);
                 ApplyPassiveGiEvent(x);
             });
             _passiveReplayGiTracker?.Complete(x =>
             {
-                _passiveReplayTimeline?.ObserveGi(x);
+                if (_passiveReplayTimelines is { } timelines)
+                    timelines[x.StreamId / 2].ObserveGi(x with
+                    {
+                        StreamId = (byte)(x.StreamId % 2)
+                    });
+                else _passiveReplayTimeline?.ObserveGi(x);
                 ApplyPassiveGiEvent(x);
             });
             _passiveReplayTimeline?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveTimelineWindow);
             _passiveReplayTimeline?.Complete(ApplyPassiveTimelineWindow);
+            if (_passiveReplayTimelines is { } restored)
+                for (var i = 0; i < restored.Length; i++)
+                {
+                    var circuit = i;
+                    restored[i].AdvanceTime(finalManifest.EndUtc,
+                        x => ApplyPassiveTimelineWindow(x with { CircuitId = circuit }));
+                    restored[i].Complete(
+                        x => ApplyPassiveTimelineWindow(x with { CircuitId = circuit }));
+                }
             FlushUiQueues();
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
             _passiveReplayTimeline = null;
+            _passiveReplayTimelines = null;
             _passiveCaptureResult = (directory, finalManifest);
             PassiveScadaCountText.Text = finalManifest.Streams
-                .Where(x => x.StreamId == 0).Sum(x => x.Bytes).ToString("N0") + " bytes";
+                .Where(x => x.StreamId == 0).Sum(x => x.Bytes).ToString("N0") + " bytes" +
+                (finalManifest.Streams.Length == 4
+                    ? $" · B {finalManifest.Streams.Single(x => x.StreamId == 2).Bytes:N0}" : "");
             PassiveRtuCountText.Text = finalManifest.Streams
-                .Where(x => x.StreamId == 1).Sum(x => x.Bytes).ToString("N0") + " bytes";
+                .Where(x => x.StreamId == 1).Sum(x => x.Bytes).ToString("N0") + " bytes" +
+                (finalManifest.Streams.Length == 4
+                    ? $" · B {finalManifest.Streams.Single(x => x.StreamId == 3).Bytes:N0}" : "");
             PassiveVerifyButton.IsEnabled = true;
             PassiveIntegrityText.Text = "VERIFIED";
             PassiveStatusMessageText.Text = validatedFrames.ToString("N0") +
@@ -212,9 +251,11 @@ public partial class MainWindow
                 (isOverridden ? "RE-DECODED (Setup profile)" : "original profile") +
                 " · raw journal verified.";
             UpdateStableHeader("Offline capture", validatedFrames.ToString("N0") +
-                " IEC-101 frames from two RX directions · raw verified · " +
+                " IEC-101 frames from " + finalManifest.Streams.Length +
+                " RX directions · raw verified · " +
                 (isOverridden ? "Decode override" : "Recorded profile"));
-            SessionSubtitleText.Text = "Offline Passive Monitor · " + finalManifest.SessionId +
+            SessionSubtitleText.Text = (finalManifest.Streams.Length == 4
+                ? "Offline Passive Monitor A/B · " : "Offline Passive Monitor · ") + finalManifest.SessionId +
                 (isOverridden ? " · RE-DECODE" : "");
             AppendSessionLog("Verified offline raw replay: " + totalFrames + " frames from " + directory);
             AppendSessionLog("IEC-101 recorded profile: " + savedProfile.Describe());
@@ -252,6 +293,7 @@ public partial class MainWindow
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
             _passiveReplayTimeline = null;
+            _passiveReplayTimelines = null;
             _passiveReplayCancellation = null;
             OpenCaptureButton.IsEnabled = true;
             SetupButton.IsEnabled = true;

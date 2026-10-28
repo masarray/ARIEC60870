@@ -146,6 +146,27 @@ public sealed class PassiveGiTrackerTests
         Assert.Equal(0, tracker.PendingCount);
     }
 
+    [Fact]
+    public void RedundantLinksGiMustNotShareActivationOrTermination()
+    {
+        var tracker = new PassiveIec101GiTracker();
+        var events = new List<PassiveGiEvent>();
+        tracker.Observe(Frame(0, 0, 0, 100, 6, 1, 20), events.Add); // A activation
+        tracker.Observe(Frame(3, 0, 30, 100, 10, 1, 20), events.Add); // B orphan ACTTERM
+        Assert.Equal(PassiveGiKind.UnmatchedResponse, events[^1].Kind);
+        Assert.Equal(1, tracker.PendingCount);
+        tracker.Observe(Frame(2, 0, 40, 100, 6, 1, 20), events.Add); // B activation
+        tracker.Observe(Frame(3, 18, 60, 100, 7, 1, 20), events.Add);
+        tracker.Observe(Frame(3, 36, 90, 100, 10, 1, 20), events.Add);
+        Assert.Equal(PassiveGiKind.Completed, events[^1].Kind);
+        Assert.Equal((byte)2, events[^1].RequestStreamId);
+        Assert.Equal(1, tracker.PendingCount); // A still pending
+        tracker.Observe(Frame(1, 0, 120, 100, 10, 1, 20), events.Add);
+        Assert.Equal(PassiveGiKind.Completed, events[^1].Kind);
+        Assert.Equal((byte)0, events[^1].RequestStreamId);
+        Assert.Equal(0, tracker.PendingCount);
+    }
+
     private static PassiveObservedFrame Frame(byte stream, long offset, int ms,
         byte type, int cot, int ca, int qoi = 20, bool negative = false,
         bool valid = true, int linkWidth = 1, int cotWidth = 2, int caWidth = 2, int ioaWidth = 3)
@@ -155,7 +176,7 @@ public sealed class PassiveGiTrackerTests
         for (var i = 0; i < caWidth; i++) asdu.Add((byte)(ca >> (8 * i)));
         for (var i = 0; i < ioaWidth; i++) asdu.Add(0);
         asdu.Add(type == 100 ? (byte)qoi : (byte)1);
-        var payload = new List<byte> { (byte)(stream == 0 ? 0x53 : 0x08) };
+        var payload = new List<byte> { (byte)((stream & 1) == 0 ? 0x53 : 0x08) };
         for (var i = 0; i < linkWidth; i++) payload.Add((byte)(0x169 >> (8 * i)));
         payload.AddRange(asdu);
         var length = (byte)payload.Count;
