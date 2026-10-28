@@ -107,6 +107,81 @@ public sealed class PassiveJournalReplayTests
     }
 
     [Fact]
+    public async Task TwoOctetRawJournalCanBeReDecodedWithDifferentLinkWidthWithoutChangingEvidence()
+    {
+        var folder = CreateTemp();
+        try
+        {
+            var src0 = new byte[] { 0x10, 0x49, 0x69, 0x01, 0xB3, 0x16 };
+            var src1 = new byte[] { 0x10, 0x0B, 0x69, 0x01, 0x75, 0x16 };
+            var options = new PassiveCaptureOptions(folder,
+                new PassiveSerialSource("COM201", "SCADA TX"),
+                new PassiveSerialSource("COM202", "RTU TX"),
+                LinkAddressWidth: 2, ChannelCapacity: 32, ReadChunkBytes: 128);
+            var session = new PassiveMonitorSession(options,
+                new ReplayTap("COM201", src0, 1),
+                new ReplayTap("COM202", src1, 2));
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var work = session.RunAsync(stop.Token);
+            try
+            {
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (session.GetProgress().ScadaBytes < src0.Length ||
+                       session.GetProgress().RtuBytes < src1.Length)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(5))
+                        throw new TimeoutException("The two serial journals did not commit the expected bytes.");
+                    await Task.Delay(15);
+                }
+            }
+            finally { stop.Cancel(); }
+            var capture = await work;
+            Assert.True(PassiveJournalVerifier.Verify(capture.Directory).Complete);
+
+            var before = File.ReadAllBytes(Path.Combine(capture.Directory, "manifest.json"));
+            var original0 = File.ReadAllBytes(Path.Combine(capture.Directory, "stream-00.bin"));
+            var original1 = File.ReadAllBytes(Path.Combine(capture.Directory, "stream-01.bin"));
+            var saved = PassiveReplayProfile.FromManifest(capture.Manifest);
+            Assert.Equal(2, saved.LinkAddressWidth);
+
+            var correct = PassiveJournalReplay.ReadVerifiedFrames(capture.Directory).ToArray();
+            Assert.Equal(2, correct.Length);
+            Assert.All(correct, f => Assert.Equal("Fixed", f.Format));
+            Assert.All(correct, f => Assert.True(f.ChecksumValid));
+            Assert.Equal(src0, Assert.Single(correct, f => f.StreamId == 0).RawBytes);
+            Assert.Equal(src1, Assert.Single(correct, f => f.StreamId == 1).RawBytes);
+
+            var alternate = saved with { LinkAddressWidth = 1 };
+            var wrong = PassiveJournalReplay.ReadVerifiedFrames(capture.Directory, alternate).ToArray();
+            Assert.DoesNotContain(wrong, f => f.Format == "Fixed" && f.ChecksumValid);
+
+            var restored = PassiveJournalReplay.ReadVerifiedFrames(capture.Directory, saved).ToArray();
+            Assert.Equal(correct.Select(x => (x.StreamId, x.StreamOffset, x.Format, Convert.ToHexString(x.RawBytes))),
+                restored.Select(x => (x.StreamId, x.StreamOffset, x.Format, Convert.ToHexString(x.RawBytes))));
+
+            Assert.Equal(before, File.ReadAllBytes(Path.Combine(capture.Directory, "manifest.json")));
+            Assert.Equal(original0, File.ReadAllBytes(Path.Combine(capture.Directory, "stream-00.bin")));
+            Assert.Equal(original1, File.ReadAllBytes(Path.Combine(capture.Directory, "stream-01.bin")));
+            Assert.True(PassiveJournalVerifier.Verify(capture.Directory).Complete);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
+    public void ReplayOverrideValidatesAllIec101InteroperabilityWidths()
+    {
+        var original = new PassiveReplayProfile(2, 2, 2, 3, 900, "Auto");
+        original.Validate();
+        Assert.Equal(original, original with { });
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { LinkAddressWidth = 3 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { CotWidth = 0 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { CommonAddressWidth = 0 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { InformationAddressWidth = 4 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { FrameGapMilliseconds = 0 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { LinkMode = "Unknown" }).Validate());
+    }
+
+    [Fact]
     public async Task RawCorruptionIsRejectedBeforeAnyDecodedFrameIsShown()
     {
         var folder = CreateTemp();

@@ -104,6 +104,20 @@ public partial class MainWindow
             profile.LinkMode != "Balanced" || profile.ScadaTx.DataBits != 8)
             throw new InvalidOperationException("IEC-101 passive serial/config profile was not applied.");
 
+        // Verify the offline replay profile uses ONLY IEC-101 interpretation fields;
+        // it does not require selected COM ports, Start or an active Master engine.
+        SelectComboContent(PassiveLinkWidthCombo, "2");
+        SelectComboContent(PassiveCotWidthCombo, "1");
+        SelectComboContent(PassiveCaWidthCombo, "1");
+        SelectComboContent(PassiveIoaWidthCombo, "2");
+        var replayProfile = ReadPassiveSetupReplayProfile();
+        if (replayProfile.LinkAddressWidth != 2 || replayProfile.CotWidth != 1 ||
+            replayProfile.CommonAddressWidth != 1 ||
+            replayProfile.InformationAddressWidth != 2 ||
+            replayProfile.FrameGapMilliseconds != 1500 ||
+            replayProfile.LinkMode != "Balanced")
+            throw new InvalidOperationException("P2C offline decoder Setup profile is not wired correctly.");
+
         // End-to-end GUI probe: real FT1.2 user-data frame → existing IEC-101
         // decoder → normal Frame Trace, Values, and Event Log. No hardware opened.
         var asdu = new byte[] { 1, 1, 3, 0, 1, 0, 7, 0, 0, 1 };
