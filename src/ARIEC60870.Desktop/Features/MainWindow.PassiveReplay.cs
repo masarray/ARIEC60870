@@ -71,6 +71,8 @@ public partial class MainWindow
             if (choice == MessageBoxResult.No) effectiveProfile = setupProfile;
         }
         var isOverridden = effectiveProfile != savedProfile;
+        _passiveLastReplayProfile = effectiveProfile;
+        _passiveLastReplayDirectory = directory;
 
         using var cancel = new CancellationTokenSource();
         _passiveReplayCancellation = cancel;

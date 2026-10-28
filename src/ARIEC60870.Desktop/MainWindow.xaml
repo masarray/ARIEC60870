@@ -1377,6 +1377,16 @@
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Only pauses this table; raw bytes continue recording to disk." />
                                         <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="PassiveVerify_Click"/>
+                                        <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource SecondaryButton}"
+                                                Margin="6,0,0,0" Click="PassiveFindAnomalies_Click"
+                                                ToolTip="Browse verified capture anomalies in indexed pages; no extra monitoring COM or TX."/>
+                                        <ComboBox x:Name="PassiveAnomalyPicker" Width="355" Margin="6,0,0,0"
+                                                  DisplayMemberPath="Label" VerticalContentAlignment="Center"
+                                                  SelectionChanged="PassiveAnomalyPicker_SelectionChanged"
+                                                  ToolTip="Choose a five-second anomaly to inspect exact verified raw source bytes."/>
+                                        <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource SecondaryButton}"
+                                                Margin="6,0,0,0" IsEnabled="False" Click="PassiveOlderAnomalies_Click"
+                                                ToolTip="Load the previous page without keeping all timeline rows in the GUI."/>
                                     </StackPanel>
                                     <StackPanel>
                                         <TextBlock Text="RAW TRAFFIC" Style="{StaticResource EyebrowText}"/>

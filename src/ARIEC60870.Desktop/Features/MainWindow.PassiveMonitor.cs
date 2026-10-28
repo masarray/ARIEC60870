@@ -46,6 +46,20 @@ public partial class MainWindow
     private DateTime _passiveFindingWindowEndUtc = DateTime.MinValue;
     private int _passiveFindingWindowCount;
     private int _passiveLinkAddressWidth;
+    private PassiveTimelineEvidenceNavigator? _passiveAnomalyNavigator;
+    private string? _passiveAnomalyDirectory;
+    private long? _passiveAnomalyBeforeOffset;
+    private bool _passiveAnomalyLoading;
+    private bool _passiveAnomalyHasOlder;
+    private CancellationTokenSource? _passiveAnomalyReadCancellation;
+    private PassiveReplayProfile? _passiveLastReplayProfile;
+    private string? _passiveLastReplayDirectory;
+
+    private sealed record PassiveAnomalyChoice(PassiveTimelineHit Hit)
+    {
+        public string Label => Hit.Label;
+    }
+
 
     public ObservableCollection<PassiveRxRow> PassiveRawRows => _passiveRawRows;
 
@@ -864,6 +878,138 @@ public partial class MainWindow
             Impact = "The passive trace supports this observation; the second redundant line is not observed by two COM inputs.",
             Recommendation = "Open Frame Trace or the full raw journal and compare request/reply bytes, FCB/FCV, ACD/DFC and SCADA switching history."
         });
+    }
+
+    private async void PassiveFindAnomalies_Click(object sender, RoutedEventArgs e)
+    {
+        _passiveAnomalyBeforeOffset = null;
+        await LoadPassiveAnomaliesAsync();
+    }
+
+    private async void PassiveOlderAnomalies_Click(object sender, RoutedEventArgs e)
+    {
+        if (_passiveAnomalyHasOlder)
+            await LoadPassiveAnomaliesAsync();
+    }
+
+    /// <summary>
+    /// UI holds one page only. Sparse indexing and SHA verification run off the
+    /// Dispatcher; source bytes are never pulled from an untrusted JSONL row.
+    /// </summary>
+    private async Task LoadPassiveAnomaliesAsync()
+    {
+        if (_passiveAnomalyLoading) return;
+        if (_passiveMonitorSession is not null || _passiveReplayCancellation is not null)
+        {
+            PassiveStatusMessageText.Text =
+                "Finish the recording/replay before navigating verified historical anomalies.";
+            return;
+        }
+
+        var directory = _passiveCaptureResult?.Directory ??
+            (_passiveAnomalyDirectory is not null &&
+             string.Equals(PassiveCapturePathText.Text, _passiveAnomalyDirectory,
+                 StringComparison.OrdinalIgnoreCase)
+                ? _passiveAnomalyDirectory : PassiveCapturePathText.Text);
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory) ||
+            !File.Exists(Path.Combine(directory, "manifest.json")))
+        {
+            PassiveStatusMessageText.Text =
+                "Open a finalized passive manifest.json or complete a recording first.";
+            return;
+        }
+
+        _passiveAnomalyLoading = true;
+        PassiveFindAnomaliesButton.IsEnabled = false;
+        PassiveOlderAnomaliesButton.IsEnabled = false;
+        PassiveStatusMessageText.Text = "Verifying capture and indexing timeline...";
+        try
+        {
+            var cached = string.Equals(_passiveAnomalyDirectory, directory,
+                StringComparison.OrdinalIgnoreCase) ? _passiveAnomalyNavigator : null;
+            var navigator = await Task.Run(() => cached ??
+                PassiveTimelineEvidenceNavigator.OpenVerified(directory));
+            var cursor = _passiveAnomalyBeforeOffset;
+            var hits = await Task.Run(() => navigator.Search(
+                new PassiveTimelineSearch(Limit: 60, BeforeOffset: cursor)));
+            _passiveAnomalyNavigator = navigator;
+            _passiveAnomalyDirectory = directory;
+            _passiveAnomalyHasOlder = hits.Count == 60;
+            if (hits.Count > 0)
+                _passiveAnomalyBeforeOffset = hits[^1].FileOffset;
+            PassiveAnomalyPicker.ItemsSource = hits.Select(x => new PassiveAnomalyChoice(x)).ToArray();
+            PassiveAnomalyPicker.SelectedIndex = hits.Count > 0 ? 0 : -1;
+            PassiveStatusMessageText.Text = hits.Count == 0
+                ? "No more abnormal IEC-101 windows in this verified capture."
+                : "Indexed " + navigator.SparseBlockCount +
+                  " blocks · showing " + hits.Count +
+                  " abnormal windows. Select one for verified frame bytes; Older pages backwards.";
+        }
+        catch (Exception ex)
+        {
+            _passiveAnomalyHasOlder = false;
+            PassiveStatusMessageText.Text = "Anomaly navigation unavailable: " + ex.Message;
+            AddUiDiagnostic("Warning", "Capture", "IEC101-P4A-NAVIGATION",
+                "Unable to browse indexed passive capture",
+                ex.ToString(),
+                "Check manifest, raw SHA/CRC integrity and timeline-windows.jsonl; do not rely on unverified derived indexes.");
+        }
+        finally
+        {
+            _passiveAnomalyLoading = false;
+            PassiveFindAnomaliesButton.IsEnabled = true;
+            PassiveOlderAnomaliesButton.IsEnabled = _passiveAnomalyHasOlder;
+        }
+    }
+
+    private async void PassiveAnomalyPicker_SelectionChanged(
+        object sender, SelectionChangedEventArgs e)
+    {
+        _passiveAnomalyReadCancellation?.Cancel();
+        if (PassiveAnomalyPicker.SelectedItem is not PassiveAnomalyChoice choice ||
+            _passiveAnomalyNavigator is not { } navigator)
+            return;
+
+        var cancellation = new CancellationTokenSource();
+        _passiveAnomalyReadCancellation = cancellation;
+        var hit = choice.Hit;
+        PassiveSelectedRawText.Text = "Finding original RX frame by verified source byte offset...";
+        try
+        {
+            var profile = string.Equals(_passiveLastReplayDirectory, _passiveAnomalyDirectory,
+                StringComparison.OrdinalIgnoreCase) ? _passiveLastReplayProfile : null;
+            var frame = await Task.Run(
+                () => navigator.ReadVerifiedFrame(hit, profile, cancellation.Token),
+                cancellation.Token);
+            if (cancellation.IsCancellationRequested ||
+                PassiveAnomalyPicker.SelectedItem is not PassiveAnomalyChoice selected ||
+                selected.Hit.FileOffset != hit.FileOffset)
+                return;
+            PassiveSelectedRawText.Text = frame is null
+                ? hit.Label + " · RX " +
+                  (hit.PhysicalAnomalyStream?.ToString() ?? "-") + " offset " +
+                  (hit.Window.FirstAnomalyOffset?.ToString() ?? "-") +
+                  " · No exact decoded frame under the selected profile; re-decode or inspect the raw journal."
+                : "VERIFIED RAW · Link " + (hit.Window.CircuitId == 0 ? "A" : "B") +
+                  " · RX " + frame.StreamId + " byte offset " + frame.StreamOffset +
+                  " · " + frame.EstimatedUtc.ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'") +
+                  " · " + frame.Format + " · " + Convert.ToHexString(frame.RawBytes);
+        }
+        catch (OperationCanceledException)
+        {
+            // Changing the selected historical row is normal cancellation.
+        }
+        catch (Exception ex)
+        {
+            PassiveSelectedRawText.Text =
+                "Original frame could not be authenticated or located: " + ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_passiveAnomalyReadCancellation, cancellation))
+                _passiveAnomalyReadCancellation = null;
+            cancellation.Dispose();
+        }
     }
 
     private void PassiveRawGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
