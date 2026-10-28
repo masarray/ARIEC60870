@@ -35,6 +35,8 @@ public partial class MainWindow
     private Iec10xAsduDecoder? _passiveAsduDecoder;
     private long _passiveFrameSequence;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
+    private PassiveIec101GiTracker? _passiveReplayGiTracker;
+    private readonly Dictionary<(byte Stream, long Offset), PassiveGiEvent> _passiveGiNotes = new();
     private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
     // GUI-only aggregation; all events remain durable in transactions.jsonl.
     private readonly Dictionary<(PassiveTransactionKind Kind, int? Address), DateTime> _passiveFindingLastShown = new();
@@ -152,6 +154,31 @@ public partial class MainWindow
             throw new InvalidOperationException("Passive request/reply correlation did not reach the existing Frame Trace.");
         _passiveReplayCorrelator = null;
         _passiveTransactionNotes.Clear();
+        ClearSessionView(clearLog: true);
+
+        // P2D: GI Type 100 activation/confirmation/termination must appear in
+        // the EXISTING Frame Trace (no separate event window or simulated TX).
+        _passiveReplayGiTracker = new PassiveIec101GiTracker();
+        var giNow = DateTime.UtcNow;
+        static byte[] GiWire(byte control, byte cot)
+        {
+            var asdu = new byte[] { 100, 1, cot, 0, 1, 0, 0, 0, 0, 20 };
+            var body = new byte[] { control, 0x69 }.Concat(asdu).ToArray();
+            return new byte[] { 0x68, (byte)body.Length, (byte)body.Length, 0x68 }
+                .Concat(body)
+                .Concat(new byte[] { (byte)(body.Sum(x => x) & 0xFF), 0x16 }).ToArray();
+        }
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 0, giNow,
+            "Variable", true, GiWire(0x53, 6)));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 0, giNow.AddMilliseconds(40),
+            "Variable", true, GiWire(0x08, 7)));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 18, giNow.AddMilliseconds(100),
+            "Variable", true, GiWire(0x08, 10)));
+        FlushUiQueues();
+        if (!FrameTraceRows.Any(x => x.Detail.Contains("GI Completed", StringComparison.Ordinal)))
+            throw new InvalidOperationException("GI activation-to-ACTTERM lifecycle did not reach existing Frame Trace.");
+        _passiveReplayGiTracker = null;
+        _passiveGiNotes.Clear();
         ClearSessionView(clearLog: true);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
@@ -291,6 +318,8 @@ public partial class MainWindow
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
         _passiveReplayCorrelator = null;
+        _passiveReplayGiTracker = null;
+        _passiveGiNotes.Clear();
         _passiveTransactionNotes.Clear();
         _passiveFindingLastShown.Clear();
         _passiveFindingWindowEndUtc = DateTime.MinValue;
@@ -387,6 +416,12 @@ public partial class MainWindow
             ApplyPassiveTransactionEvent(entry);
             correlated++;
         }
+        var giCount = 0;
+        while (giCount < 96 && session.TryReadGiEvent(out var giEvent))
+        {
+            ApplyPassiveGiEvent(giEvent);
+            giCount++;
+        }
 
         // Frame reconstruction is independent of the raw sample view and its Freeze flag.
         // Every observed frame is projected onto the EXISTING Evidence/Trace/Values/Event pipeline.
@@ -419,6 +454,9 @@ public partial class MainWindow
         // Replay has a full, verified stream and re-derives the same findings here.
         // Live capture derives findings upstream, before WPF's bounded frame queue.
         _passiveReplayCorrelator?.Observe(seen, ApplyPassiveTransactionEvent);
+        _passiveReplayGiTracker?.Observe(seen, ApplyPassiveGiEvent);
+        _passiveGiNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var giNote);
+        _passiveGiNotes.Remove((seen.StreamId, seen.StreamOffset));
         _passiveTransactionNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var transaction);
         _passiveTransactionNotes.Remove((seen.StreamId, seen.StreamOffset));
         var txNote = transaction is null ? "" :
@@ -476,6 +514,7 @@ public partial class MainWindow
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
             Summary = prefix + " · " + function,
             Detail = meaning + $" · Link {address} · RX offset {seen.StreamOffset}" + txNote +
+                (giNote is null ? "" : $" · GI {giNote.Kind} (CA={giNote.CommonAddress}, QOI={giNote.Qualifier}, data={giNote.InterrogatedDataFrames}; request RX{giNote.RequestStreamId} offset {giNote.RequestOffset})") +
                      (decode?.Issues.Count > 0 ? " · " + string.Join("; ", decode.Issues) : ""),
             OperatorMessage = meaning, ProtocolMeaning = meaning,
             OperatorAction = "Observed only; no commands transmitted",
@@ -540,6 +579,61 @@ public partial class MainWindow
                 });
             }
         }
+    }
+
+    private void ApplyPassiveGiEvent(PassiveGiEvent item)
+    {
+        // Only the bounded UI annotations are cached. All phases are preserved
+        // losslessly in gi-events.jsonl (or reproducible by verified offline replay).
+        if (_passiveGiNotes.Count >= 256)
+            _passiveGiNotes.Remove(_passiveGiNotes.Keys.First());
+        _passiveGiNotes[(item.StreamId, item.StreamOffset)] = item;
+
+        var severity = item.Kind switch
+        {
+            PassiveGiKind.TimedOut or PassiveGiKind.NegativeConfirmation or
+            PassiveGiKind.Superseded or PassiveGiKind.CapacityEviction =>
+                FindingSeverity.Warning,
+            PassiveGiKind.UnmatchedResponse or PassiveGiKind.DataBeforeConfirmation or
+            PassiveGiKind.RepeatedActivation => FindingSeverity.Info,
+            _ => (FindingSeverity?)null
+        };
+        if (severity is null) return;
+
+        // Reuse the established UI backpressure policy without affecting disk.
+        var now = DateTime.UtcNow;
+        if (now >= _passiveFindingWindowEndUtc)
+        {
+            _passiveFindingWindowEndUtc = now.AddSeconds(1);
+            _passiveFindingWindowCount = 0;
+        }
+        if (_passiveFindingWindowCount >= 20) return;
+        var key = (PassiveTransactionKind.IncompatibleReply, (int?)item.CommonAddress);
+        if (_passiveFindingLastShown.TryGetValue(key, out var last) &&
+            now - last < TimeSpan.FromSeconds(3)) return;
+        if (_passiveFindingLastShown.Count >= 128) _passiveFindingLastShown.Clear();
+        _passiveFindingLastShown[key] = now;
+        _passiveFindingWindowCount++;
+
+        OnFindingRaised(this, new Iec103MasterFinding
+        {
+            TimestampUtc = item.EstimatedUtc,
+            Severity = severity.Value,
+            Id = "IEC101-PASSIVE-GI-" + item.Kind.ToString().ToUpperInvariant(),
+            Title = item.Kind switch
+            {
+                PassiveGiKind.TimedOut => "IEC-101 GI did not finish in the observation window",
+                PassiveGiKind.NegativeConfirmation => "IEC-101 GI activation rejected by RTU",
+                PassiveGiKind.Superseded => "Repeated GI activation interrupted an incomplete GI",
+                _ => "IEC-101 GI observation: " + item.Kind
+            },
+            Evidence = item.Meaning + $" | CA={item.CommonAddress} QOI={item.Qualifier}" +
+                $" | Observed RX={item.StreamId} offset={item.StreamOffset}" +
+                $" | GI activation RX={item.RequestStreamId} offset={item.RequestOffset}" +
+                $" | Interrogated data frames={item.InterrogatedDataFrames}",
+            Impact = "Only the monitored physical IEC-101 line is observed; GI does not prove NUC failover.",
+            Recommendation = "Review the Type 100 COT6/7/10 sequence in Frame Trace, compare full raw journals and NUC event timestamps."
+        });
     }
 
     private void ApplyPassiveTransactionEvent(PassiveTransactionEvent item)

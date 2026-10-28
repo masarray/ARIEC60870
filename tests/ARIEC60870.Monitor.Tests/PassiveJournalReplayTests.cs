@@ -182,6 +182,63 @@ public sealed class PassiveJournalReplayTests
     }
 
     [Fact]
+    public async Task FullGiEventJournalRebuildsExactlyFromVerifiedRawWithoutDerivedIndexes()
+    {
+        var folder = CreateTemp();
+        try
+        {
+            var asdu = new byte[] { 100, 1, 6, 0, 1, 0, 0, 0, 0, 20 };
+            var payload = new byte[] { 0x53, 0x69 }.Concat(asdu).ToArray();
+            var request = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+                .Concat(payload)
+                .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 }).ToArray();
+            var options = new PassiveCaptureOptions(folder,
+                new PassiveSerialSource("COM201", "SCADA TX"),
+                new PassiveSerialSource("COM202", "RTU TX"), ReadChunkBytes: 128);
+            var session = new PassiveMonitorSession(options,
+                new ReplayTap("COM201", request, 1),
+                new ReplayTap("COM202", Array.Empty<byte>(), 1));
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var writer = session.RunAsync(cancel.Token);
+            try
+            {
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (session.GetProgress().ScadaBytes < request.Length)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(5))
+                        throw new TimeoutException("GI fixture bytes not committed by raw writer.");
+                    await Task.Delay(15);
+                }
+            }
+            finally { cancel.Cancel(); }
+            var captured = await writer;
+            Assert.True(PassiveJournalVerifier.Verify(captured.Directory).Complete);
+            var derived = Path.Combine(captured.Directory, "gi-events.jsonl");
+            var saved = File.ReadAllLines(derived)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => System.Text.Json.JsonSerializer.Deserialize<PassiveGiEvent>(x)!)
+                .ToArray();
+            Assert.Equal(new[] { PassiveGiKind.Activation, PassiveGiKind.PendingAtCaptureEnd },
+                saved.Select(x => x.Kind));
+
+            // Delete ALL secondary indexes; raw + manifest remain the only source of truth.
+            File.Delete(derived);
+            File.Delete(Path.Combine(captured.Directory, "frames-00.jsonl"));
+            File.Delete(Path.Combine(captured.Directory, "frames-01.jsonl"));
+            var tracker = new PassiveIec101GiTracker();
+            var rebuilt = new List<PassiveGiEvent>();
+            foreach (var frame in PassiveJournalReplay.ReadVerifiedFrames(captured.Directory))
+                tracker.Observe(frame, rebuilt.Add);
+            tracker.AdvanceTime(captured.Manifest.EndUtc, rebuilt.Add);
+            tracker.Complete(rebuilt.Add);
+            Assert.Equal(saved.Select(x => (x.Kind, x.StreamId, x.StreamOffset, x.RequestOffset, x.Qualifier)),
+                rebuilt.Select(x => (x.Kind, x.StreamId, x.StreamOffset, x.RequestOffset, x.Qualifier)));
+            Assert.True(PassiveJournalVerifier.Verify(captured.Directory).Complete);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
     public async Task RawCorruptionIsRejectedBeforeAnyDecodedFrameIsShown()
     {
         var folder = CreateTemp();
