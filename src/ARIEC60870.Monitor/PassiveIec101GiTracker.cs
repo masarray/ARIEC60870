@@ -49,7 +49,7 @@ public sealed class PassiveIec101GiTracker
 {
     private readonly PassiveGiOptions _options;
     private readonly Dictionary<GiKey, GiPending> _pending = new();
-    private readonly long[] _lastOffset = { -1, -1 };
+    private readonly long[] _lastOffset = { -1, -1, -1, -1 };
     private DateTime _lastUtc = DateTime.MinValue;
 
     private readonly record struct GiKey(byte MasterStream, int CommonAddress, int Originator);
@@ -75,8 +75,8 @@ public sealed class PassiveIec101GiTracker
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(emit);
-        if (frame.StreamId > 1 || frame.EstimatedUtc.Kind != DateTimeKind.Utc)
-            throw new ArgumentException("GI tracker requires two physical RX streams and UTC timestamps.");
+        if (frame.StreamId > 3 || frame.EstimatedUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("GI tracker requires two or four RX streams with UTC timestamps.");
 
         // Respect original byte ordering within each source. Cross-USB host time
         // cannot establish exact wire-edge ordering between the two COM adapters.

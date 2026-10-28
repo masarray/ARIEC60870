@@ -33,11 +33,14 @@ public static class PassiveJournalVerifier
 
         if (manifest?.Status != "NoApplicationLossDetected")
             problems.Add("Capture is not finalized cleanly: " + (manifest?.Status ?? "Unknown"));
-        if (manifest?.Streams.Length != 2)
-            problems.Add("Missing or invalid two-direction stream declaration.");
+        var streamCount = manifest?.Streams.Length is 2 or 4
+            ? manifest.Streams.Length : 2;
+        if (manifest?.Streams.Length is not (2 or 4) ||
+            manifest.Streams.Select(x => x.StreamId).Distinct().Count() != streamCount)
+            problems.Add("Manifest requires exactly 2 or 4 unique, paired source declarations.");
 
-        var audits = new PassiveStreamAudit[2];
-        for (byte id = 0; id < 2; id++)
+        var audits = new PassiveStreamAudit[streamCount];
+        for (byte id = 0; id < streamCount; id++)
         {
             var file = Path.Combine(sessionDirectory, $"stream-{id:00}.bin");
             cancellationToken.ThrowIfCancellationRequested();

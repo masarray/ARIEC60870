@@ -58,7 +58,7 @@ public sealed class PassiveIec101TransactionCorrelator
 {
     private readonly PassiveTransactionOptions _options;
     private readonly Dictionary<LinkKey, LinkState> _links = new();
-    private readonly long[] _lastSourceOffset = { -1, -1 };
+    private readonly long[] _lastSourceOffset = { -1, -1, -1, -1 };
     private DateTime _latestUtc = DateTime.MinValue;
     private long _inputCount;
     private long _matchedCount;
@@ -101,8 +101,8 @@ public sealed class PassiveIec101TransactionCorrelator
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(output);
-        if (frame.StreamId > 1 || frame.EstimatedUtc.Kind != DateTimeKind.Utc)
-            throw new ArgumentException("Correlator requires stream 0/1 and UTC observation timestamps.");
+        if (frame.StreamId > 3 || frame.EstimatedUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Correlator requires stream 0..3 and UTC observation timestamps.");
         _inputCount++;
         if (frame.StreamOffset <= _lastSourceOffset[frame.StreamId])
         {
@@ -203,7 +203,7 @@ public sealed class PassiveIec101TransactionCorrelator
     private void ObservePrimary(PassiveObservedFrame frame, int addr, int fc, bool fcb,
         bool fcv, Action<PassiveTransactionEvent> output)
     {
-        if (_options.LinkMode == "Unbalanced" && frame.StreamId == 1)
+        if (_options.LinkMode == "Unbalanced" && (frame.StreamId & 1) == 1)
             Emit(output, PassiveTransactionKind.DirectionConflict, frame, addr, null,
                 "PRM=1 primary frame was observed on the configured RTU transmitter input; check tap labels, echo or link mode.");
 
@@ -295,7 +295,7 @@ public sealed class PassiveIec101TransactionCorrelator
         Action<PassiveTransactionEvent> output)
     {
         var candidates = _links.Where(x =>
-            x.Key.PrimaryStream != frame.StreamId && x.Value.Pending is not null).ToArray();
+            x.Key.PrimaryStream == (byte)(frame.StreamId ^ 1) && x.Value.Pending is not null).ToArray();
         if (candidates.Length == 0)
         {
             Emit(output, PassiveTransactionKind.UnmatchedReply, frame, null, null,

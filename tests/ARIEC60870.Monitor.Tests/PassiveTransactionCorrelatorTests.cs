@@ -212,6 +212,27 @@ public sealed class PassiveTransactionCorrelatorTests
         Assert.Equal(1, engine.Matched);
     }
 
+    [Fact]
+    public void FourStreamsNeverPairAddresslessE5OrFixedReplyAcrossCircuits()
+    {
+        var correlator = new PassiveIec101TransactionCorrelator();
+        var events = new List<PassiveTransactionEvent>();
+        correlator.Observe(Frame(0, 0, 0, 0x5B), events.Add); // A Class2 request
+        correlator.Observe(Single(3, 0, 30, 0xE5), events.Add); // B RTU E5
+        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.UnmatchedReply &&
+            x.ObservedStream == 3);
+        Assert.Equal(1, correlator.PendingCount); // A unchanged
+        correlator.Observe(Frame(2, 0, 50, 0x5B), events.Add); // B Class2 request
+        correlator.Observe(Single(3, 1, 80, 0xE5), events.Add); // B E5
+        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.Matched &&
+            x.ObservedStream == 3 && x.RequestStream == 2);
+        Assert.Equal(1, correlator.PendingCount); // A still unchanged
+        correlator.Observe(Frame(1, 0, 90, 0x09), events.Add); // A RTU fixed no-data
+        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.Matched &&
+            x.ObservedStream == 1 && x.RequestStream == 0);
+        Assert.Equal(0, correlator.PendingCount);
+    }
+
     private static PassiveObservedFrame Frame(byte stream, long offset, int ms, byte control,
         int address = 1, int width = 1, bool variable = false, bool valid = true)
     {

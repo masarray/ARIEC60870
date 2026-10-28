@@ -16,7 +16,7 @@ public sealed record PassiveTimelineWindow(
     long ServiceNotImplementedReplies, long Retries, long ResponseTimeouts,
     long UnmatchedReplies, long DfcBusy, long GiActivations, long GiCompleted,
     long GiExceptions, int? FirstAnomalyStream, long? FirstAnomalyOffset,
-    bool HostTimestampOrderUncertain, long CompressedEmptyWindows)
+    bool HostTimestampOrderUncertain, long CompressedEmptyWindows, int CircuitId = 0)
 {
     public bool HasAnomaly => InvalidFrames > 0 || UnknownPrimaryFunctions > 0 ||
         ServiceNotImplementedReplies > 0 || Retries > 0 || ResponseTimeouts > 0 ||

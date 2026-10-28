@@ -119,6 +119,19 @@ public partial class MainWindow
                 EnsureComboItem(PassiveRtuPortComboBox, prefs.PassiveRtuPortName);
                 PassiveRtuPortComboBox.SelectedItem = prefs.PassiveRtuPortName;
             }
+            PassiveLinkBEnabledCheckBox.IsChecked = prefs.PassiveLinkBEnabled;
+            if (!string.IsNullOrWhiteSpace(prefs.PassiveLinkBScadaPortName))
+            {
+                EnsureComboItem(PassiveLinkBScadaPortComboBox, prefs.PassiveLinkBScadaPortName);
+                PassiveLinkBScadaPortComboBox.SelectedItem = prefs.PassiveLinkBScadaPortName;
+            }
+            if (!string.IsNullOrWhiteSpace(prefs.PassiveLinkBRtuPortName))
+            {
+                EnsureComboItem(PassiveLinkBRtuPortComboBox, prefs.PassiveLinkBRtuPortName);
+                PassiveLinkBRtuPortComboBox.SelectedItem = prefs.PassiveLinkBRtuPortName;
+            }
+            PassiveLinkBPortsPanel.Visibility = prefs.PassiveLinkBEnabled
+                ? Visibility.Visible : Visibility.Collapsed;
             PassiveCaptureFolderBox.Text = string.IsNullOrWhiteSpace(prefs.PassiveOutputDirectory)
                 ? DefaultPassiveCaptureDirectory() : prefs.PassiveOutputDirectory;
             SelectComboContent(PassiveLinkWidthCombo, prefs.PassiveLinkWidth.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -391,6 +404,9 @@ public partial class MainWindow
         public bool UseSimulatedSlave { get; set; }
         public string PortName { get; set; } = "COM1";
         public string PassiveRtuPortName { get; set; } = string.Empty;
+        public bool PassiveLinkBEnabled { get; set; }
+        public string PassiveLinkBScadaPortName { get; set; } = string.Empty;
+        public string PassiveLinkBRtuPortName { get; set; } = string.Empty;
         public string PassiveOutputDirectory { get; set; } = string.Empty;
         public int PassiveLinkWidth { get; set; } = 1;
         public int PassiveCotWidth { get; set; } = 2;

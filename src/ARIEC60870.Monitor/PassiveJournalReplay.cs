@@ -47,63 +47,81 @@ public static class PassiveJournalReplay
         var effective = replayProfile ?? PassiveReplayProfile.FromManifest(manifest);
         effective.Validate();
 
-        using var scada = new StreamCursor(Path.Combine(sessionDirectory, "stream-00.bin"), 0);
-        using var rtu = new StreamCursor(Path.Combine(sessionDirectory, "stream-01.bin"), 1);
-        // One buffered cursor per direction: independent sequential disk reads.
-        var scanners = new[]
+        // The authoritative journal is 2-direction (legacy) or 4-direction
+        // (A/B circuits). Keep each source's order, choosing the next chunk
+        // by host read-completion ticks without inventing physical wire timing.
+        var count = manifest.Streams.Length;
+        var cursors = new StreamCursor[count];
+        try
         {
-            new PassiveFt12Scanner(effective.LinkAddressWidth),
-            new PassiveFt12Scanner(effective.LinkAddressWidth)
-        };
-        var lastTicks = new long[2];
-        var lastUtc = new[] { manifest.StartUtc, manifest.StartUtc };
-
-        scada.MoveNext();
-        rtu.MoveNext();
-        while (scada.HasRecord || rtu.HasRecord)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            // Cross-adapter timestamp order is only a host read-completion estimate.
-            // Per-direction journal order is exact; never claim bit-level sequencing.
-            var chosen = !rtu.HasRecord || (scada.HasRecord && scada.Ticks <= rtu.Ticks)
-                ? scada : rtu;
-            var sid = chosen.StreamId;
-            var ticks = chosen.Ticks;
-            var delta = (ticks - manifest.StopwatchOriginTicks) / (double)manifest.StopwatchFrequency;
-            if (!double.IsFinite(delta) || delta < -1 || delta > TimeSpan.FromDays(366).TotalSeconds)
-                throw new InvalidDataException("Raw journal contains out-of-range timestamp.");
-            var utc = manifest.StartUtc.AddSeconds(delta);
-            var emitted = new List<PassiveObservedFrame>();
-
-            if (lastTicks[sid] > 0 && 
-                (ticks - lastTicks[sid]) / (double)manifest.StopwatchFrequency * 1000.0 >
-                    effective.FrameGapMilliseconds)
+            for (byte i = 0; i < count; i++)
             {
-                var partial = scanners[sid].ExpireIncomplete();
-                if (partial is not null)
-                    emitted.Add(new PassiveObservedFrame(sid, partial.ByteOffset, utc,
-                        "Partial", false, partial.RawBytes));
+                cursors[i] = new StreamCursor(Path.Combine(sessionDirectory,
+                    $"stream-{i:00}.bin"), i);
+                cursors[i].MoveNext();
             }
-            lastTicks[sid] = ticks;
-            lastUtc[sid] = utc;
-            scanners[sid].Feed(chosen.Payload, chosen.Offset, frame =>
-                emitted.Add(new PassiveObservedFrame(sid, frame.ByteOffset, utc,
-                    frame.Format, frame.ChecksumValid, frame.RawBytes)));
-            foreach (var frame in emitted)
+            var scanners = Enumerable.Range(0, count)
+                .Select(_ => new PassiveFt12Scanner(effective.LinkAddressWidth)).ToArray();
+            var lastTicks = new long[count];
+            var lastUtc = Enumerable.Repeat(manifest.StartUtc, count).ToArray();
+
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                yield return frame;
-            }
-            chosen.MoveNext();
-        }
+                StreamCursor? chosen = null;
+                for (var i = 0; i < count; i++)
+                {
+                    var cursor = cursors[i];
+                    if (!cursor.HasRecord) continue;
+                    if (chosen is null || cursor.Ticks < chosen.Ticks)
+                        chosen = cursor;
+                }
+                if (chosen is null) break;
 
-        for (byte sid = 0; sid < 2; sid++)
+                var sid = chosen.StreamId;
+                var ticks = chosen.Ticks;
+                var delta = (ticks - manifest.StopwatchOriginTicks) /
+                    (double)manifest.StopwatchFrequency;
+                if (!double.IsFinite(delta) || delta < -1 ||
+                    delta > TimeSpan.FromDays(366).TotalSeconds)
+                    throw new InvalidDataException("Raw journal contains out-of-range timestamp.");
+                var utc = manifest.StartUtc.AddSeconds(delta);
+                var emitted = new List<PassiveObservedFrame>(4);
+                if (lastTicks[sid] > 0 &&
+                    (ticks - lastTicks[sid]) / (double)manifest.StopwatchFrequency * 1000.0 >
+                    effective.FrameGapMilliseconds)
+                {
+                    var partial = scanners[sid].ExpireIncomplete();
+                    if (partial is not null)
+                        emitted.Add(new PassiveObservedFrame(sid, partial.ByteOffset, utc,
+                            "Partial", false, partial.RawBytes));
+                }
+                lastTicks[sid] = ticks;
+                lastUtc[sid] = utc;
+                scanners[sid].Feed(chosen.Payload, chosen.Offset, frame =>
+                    emitted.Add(new PassiveObservedFrame(sid, frame.ByteOffset, utc,
+                        frame.Format, frame.ChecksumValid, frame.RawBytes)));
+                foreach (var frame in emitted)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return frame;
+                }
+                chosen.MoveNext();
+            }
+
+            for (byte sid = 0; sid < count; sid++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var tail = scanners[sid].ExpireIncomplete();
+                if (tail is not null)
+                    yield return new PassiveObservedFrame(sid, tail.ByteOffset, lastUtc[sid],
+                        "Partial", false, tail.RawBytes);
+            }
+        }
+        finally
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var tail = scanners[sid].ExpireIncomplete();
-            if (tail is not null)
-                yield return new PassiveObservedFrame(sid, tail.ByteOffset, lastUtc[sid],
-                    "Partial", false, tail.RawBytes);
+            foreach (var cursor in cursors)
+                cursor?.Dispose();
         }
     }
 

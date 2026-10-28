@@ -339,6 +339,18 @@ public partial class MainWindow : Window
         else if (PassiveRtuPortComboBox.Items.Count > 1)
             PassiveRtuPortComboBox.SelectedIndex = 1;
 
+        foreach (var combo in new[] { PassiveLinkBScadaPortComboBox, PassiveLinkBRtuPortComboBox })
+        {
+            var selected = combo.SelectedItem as string;
+            combo.Items.Clear();
+            foreach (var port in ports) combo.Items.Add(port);
+            if (!string.IsNullOrWhiteSpace(selected))
+            {
+                if (!combo.Items.Contains(selected)) combo.Items.Add(selected);
+                combo.SelectedItem = selected;
+            }
+        }
+
         if (BackupPortComboBox is not null)
         {
             var previousBackup = BackupPortComboBox.SelectedItem as string;
