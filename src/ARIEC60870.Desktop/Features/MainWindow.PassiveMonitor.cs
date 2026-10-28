@@ -36,6 +36,7 @@ public partial class MainWindow
     private long _passiveFrameSequence;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
     private PassiveIec101GiTracker? _passiveReplayGiTracker;
+    private PassiveIec101FailureTimeline? _passiveReplayTimeline;
     private readonly Dictionary<(byte Stream, long Offset), PassiveGiEvent> _passiveGiNotes = new();
     private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
     // GUI-only aggregation; all events remain durable in transactions.jsonl.
@@ -178,8 +179,20 @@ public partial class MainWindow
         if (!FrameTraceRows.Any(x => x.Detail.Contains("GI Completed", StringComparison.Ordinal)))
             throw new InvalidOperationException("GI activation-to-ACTTERM lifecycle did not reach existing Frame Trace.");
         _passiveReplayGiTracker = null;
+        _passiveReplayTimeline = null;
         _passiveGiNotes.Clear();
         ClearSessionView(clearLog: true);
+
+        // P2E WPF integration: existing Capture status receives a 5-second
+        // evidence summary without adding navigation or opening COM hardware.
+        var timelineProbe = new PassiveIec101FailureTimeline(giNow);
+        timelineProbe.ObserveFrame(new PassiveObservedFrame(0, 0, giNow,
+            "Fixed", true, new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 }),
+            ApplyPassiveTimelineWindow);
+        timelineProbe.AdvanceTime(giNow.AddSeconds(5), ApplyPassiveTimelineWindow);
+        timelineProbe.Complete(ApplyPassiveTimelineWindow);
+        if (!PassiveStatusMessageText.Text.Contains("LinkStatus=1", StringComparison.Ordinal))
+            throw new InvalidOperationException("P2E failure timeline did not reach the existing Capture view.");
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
         if (IsIec101PassiveMonitorSelected() ||
@@ -432,6 +445,14 @@ public partial class MainWindow
             framed++;
         }
 
+        // Dedicated five-second summaries, never per-frame rendering.
+        var summaryCount = 0;
+        while (summaryCount < 24 && session.TryReadTimelineWindow(out var window))
+        {
+            ApplyPassiveTimelineWindow(window);
+            summaryCount++;
+        }
+
         if (PassiveFreezeCheckBox.IsChecked == true) return;
         var count = 0;
         while (count < 65 && session.TryReadPreview(out var sample))
@@ -453,8 +474,17 @@ public partial class MainWindow
     {
         // Replay has a full, verified stream and re-derives the same findings here.
         // Live capture derives findings upstream, before WPF's bounded frame queue.
-        _passiveReplayCorrelator?.Observe(seen, ApplyPassiveTransactionEvent);
-        _passiveReplayGiTracker?.Observe(seen, ApplyPassiveGiEvent);
+        _passiveReplayTimeline?.ObserveFrame(seen, ApplyPassiveTimelineWindow);
+        _passiveReplayCorrelator?.Observe(seen, x =>
+        {
+            _passiveReplayTimeline?.ObserveTransaction(x);
+            ApplyPassiveTransactionEvent(x);
+        });
+        _passiveReplayGiTracker?.Observe(seen, x =>
+        {
+            _passiveReplayTimeline?.ObserveGi(x);
+            ApplyPassiveGiEvent(x);
+        });
         _passiveGiNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var giNote);
         _passiveGiNotes.Remove((seen.StreamId, seen.StreamOffset));
         _passiveTransactionNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var transaction);
@@ -579,6 +609,36 @@ public partial class MainWindow
                 });
             }
         }
+    }
+
+    private void ApplyPassiveTimelineWindow(PassiveTimelineWindow item)
+    {
+        var seconds = (int)(item.EndUtc - item.StartUtc).TotalSeconds;
+        var summary = item.CompressedEmptyWindows > 0
+            ? $"{item.CompressedEmptyWindows} consecutive {seconds / Math.Max(1L, item.CompressedEmptyWindows)}s windows without received frame observations (compressed)"
+            : $"RX SCADA={item.Source0Frames}, RTU={item.Source1Frames}, " +
+              $"Class1/2={item.Class1Polls}/{item.Class2Polls}, " +
+              $"LinkStatus={item.LinkStatusPolls}, Retry={item.Retries}, Timeout={item.ResponseTimeouts}, " +
+              $"GI={item.GiActivations}/{item.GiCompleted}";
+        PassiveStatusMessageText.Text = "IEC-101 " +
+            item.StartUtc.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) +
+            "–" + item.EndUtc.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) +
+            " UTC · " + summary;
+
+        // The full time-series is stored by the writer in timeline-windows.jsonl.
+        // Only exceptional windows get a bounded operator diagnostic here.
+        if (!item.HasAnomaly) return;
+        AddUiDiagnostic("Info", "Capture", "IEC101-FAILURE-TIMELINE",
+            "IEC-101 observation window contains unusual link behavior",
+            $"Host-estimated UTC {item.StartUtc:O} to {item.EndUtc:O} · " +
+            $"RX SCADA/RTU={item.Source0Frames}/{item.Source1Frames}; retry={item.Retries}; " +
+            $"timeouts={item.ResponseTimeouts}; DFC={item.DfcBusy}; unknown primary FC={item.UnknownPrimaryFunctions}; " +
+            $"FC15={item.ServiceNotImplementedReplies}; GI exceptions={item.GiExceptions}; invalid={item.InvalidFrames}. " +
+            $"First abnormal evidence RX={item.FirstAnomalyStream?.ToString() ?? "-"}, " +
+            $"offset={item.FirstAnomalyOffset?.ToString() ?? "-"}." +
+            (item.HostTimestampOrderUncertain ? " Cross-port host timestamp order uncertain." : ""),
+            "Open Frame Trace and compare complete raw journals around this time. " +
+            "This window is not proof of NUC switching or the health of an unobserved redundant link.");
     }
 
     private void ApplyPassiveGiEvent(PassiveGiEvent item)
