@@ -64,6 +64,9 @@ public static class PassiveJournalReplay
                 .Select(_ => new PassiveFt12Scanner(effective.LinkAddressWidth)).ToArray();
             var lastTicks = new long[count];
             var lastUtc = Enumerable.Repeat(manifest.StartUtc, count).ToArray();
+            // Iterator owns this scratch list; each pass fully yields entries
+            // before reuse. No list allocation per UART record.
+            var emitted = new List<PassiveObservedFrame>(8);
 
             while (true)
             {
@@ -86,7 +89,7 @@ public static class PassiveJournalReplay
                     delta > TimeSpan.FromDays(366).TotalSeconds)
                     throw new InvalidDataException("Raw journal contains out-of-range timestamp.");
                 var utc = manifest.StartUtc.AddSeconds(delta);
-                var emitted = new List<PassiveObservedFrame>(4);
+                emitted.Clear();
                 if (lastTicks[sid] > 0 &&
                     (ticks - lastTicks[sid]) / (double)manifest.StopwatchFrequency * 1000.0 >
                     effective.FrameGapMilliseconds)
@@ -98,7 +101,8 @@ public static class PassiveJournalReplay
                 }
                 lastTicks[sid] = ticks;
                 lastUtc[sid] = utc;
-                scanners[sid].Feed(chosen.Payload, chosen.Offset, frame =>
+                scanners[sid].Feed(chosen.Payload.AsSpan(0, chosen.PayloadLength),
+                    chosen.Offset, frame =>
                     emitted.Add(new PassiveObservedFrame(sid, frame.ByteOffset, utc,
                         frame.Format, frame.ChecksumValid, frame.RawBytes,
                         frame.DetectedLinkAddressWidth)));
@@ -145,7 +149,10 @@ public static class PassiveJournalReplay
         public bool HasRecord { get; private set; }
         public long Ticks { get; private set; }
         public long Offset { get; private set; }
-        public byte[] Payload { get; private set; } = Array.Empty<byte>();
+        // A single reusable buffer per physical source avoids creating an
+        // array on each record of multi-hour four-COM captures.
+        public byte[] Payload { get; } = new byte[PassiveJournalFormat.MaxPayload];
+        public int PayloadLength { get; private set; }
 
         public void MoveNext()
         {
@@ -157,10 +164,9 @@ public static class PassiveJournalReplay
             var len = BinaryPrimitives.ReadInt32LittleEndian(_header.AsSpan(32, 4));
             if (len is <= 0 or > PassiveJournalFormat.MaxPayload)
                 throw new InvalidDataException("Invalid raw journal payload size.");
-            var payload = new byte[len];
-            if (ReadExactlyOrEof(payload) != len)
+            if (ReadExactlyOrEof(Payload.AsSpan(0, len)) != len)
                 throw new InvalidDataException("Truncated raw journal payload.");
-            if (!PassiveJournalFormat.TryDecode(_header, payload, StreamId,
+            if (!PassiveJournalFormat.TryDecode(_header, Payload.AsSpan(0, len), StreamId,
                     _sequence + 1, _offset, out var reason))
                 throw new InvalidDataException("Raw journal record invalid: " + reason);
             var ticks = BinaryPrimitives.ReadInt64LittleEndian(_header.AsSpan(16, 8));
@@ -169,7 +175,7 @@ public static class PassiveJournalReplay
             _previousTicks = ticks;
             Ticks = ticks;
             Offset = _offset;
-            Payload = payload;
+            PayloadLength = len;
             HasRecord = true;
             _sequence++;
             _offset += len;

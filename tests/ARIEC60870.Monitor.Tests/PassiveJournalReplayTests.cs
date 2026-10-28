@@ -275,13 +275,19 @@ public sealed class PassiveJournalReplayTests
         var folder = CreateTemp();
         try
         {
-            var traffic = new[]
+            // 37 back-to-back frames per source force repeated record reads,
+            // exercising the reusable per-stream replay buffers across all
+            // four independent journals, including addressless short replies.
+            var frameBytes = new[]
             {
                 new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 },
                 new byte[] { 0x10, 0x0B, 0x69, 0x74, 0x16 },
                 new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 },
                 new byte[] { 0xE5 }
             };
+            const int repeated = 37;
+            var traffic = frameBytes.Select(frame =>
+                Enumerable.Range(0, repeated).SelectMany(_ => frame).ToArray()).ToArray();
             var ports = new[] { "COM201", "COM202", "COM203", "COM204" };
             var options = new PassiveCaptureOptions(folder,
                 new PassiveSerialSource(ports[0], "A SCADA"),
@@ -323,13 +329,18 @@ public sealed class PassiveJournalReplayTests
             }
 
             var frames = PassiveJournalReplay.ReadVerifiedFrames(recorded.Directory).ToArray();
-            Assert.Equal(4, frames.Length);
+            Assert.Equal(4 * repeated, frames.Length);
             for (byte stream = 0; stream < 4; stream++)
             {
-                var observed = Assert.Single(frames, x => x.StreamId == stream);
-                Assert.True(observed.ChecksumValid);
-                Assert.Equal(traffic[stream], observed.RawBytes);
-                Assert.Equal(0, observed.StreamOffset);
+                var source = frames.Where(x => x.StreamId == stream)
+                    .OrderBy(x => x.StreamOffset).ToArray();
+                Assert.Equal(repeated, source.Length);
+                for (var i = 0; i < repeated; i++)
+                {
+                    Assert.True(source[i].ChecksumValid);
+                    Assert.Equal(frameBytes[stream], source[i].RawBytes);
+                    Assert.Equal(i * frameBytes[stream].Length, source[i].StreamOffset);
+                }
             }
             Assert.True(PassiveJournalVerifier.Verify(recorded.Directory).Complete);
         }
