@@ -221,7 +221,10 @@ public sealed partial class EvidenceRow
 
     private string BuildProtocolTraceTitle()
     {
-        var direction = string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;
+        if (ProtocolMode == "101" && Source.Frame is not null)
+            return Iec101TraceNarrator.Describe(Source).Title;
+        var direction = Direction == "TX" ? "➤ TX" : Direction == "RX" ? "◀ RX" :
+            string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;
         var service = CleanTracePart(ProtocolService);
         var address = CleanTracePart(ProtocolAddress);
         var signal = CleanTracePart(SignalOrAddress);
@@ -256,6 +259,8 @@ public sealed partial class EvidenceRow
 
     private string BuildProtocolTraceMeaning()
     {
+        if (ProtocolMode == "101" && Source.Frame is not null)
+            return Iec101TraceNarrator.Describe(Source).Meaning;
         var meaning = CleanTracePart(ReadableMeaning);
         if (meaning == "-")
         {

@@ -93,6 +93,8 @@ public partial class MainWindow : Window
 
 
     private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
+    // One early dispatcher flush per Connect; normal traffic uses the bounded UI timer.
+    private int _initialLiveTraceFlushPending;
     private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
     private readonly Queue<string> _sessionLogLines = new();
     private readonly DispatcherTimer _uiFlushTimer;

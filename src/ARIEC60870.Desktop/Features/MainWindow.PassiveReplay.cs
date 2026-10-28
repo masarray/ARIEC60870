@@ -82,6 +82,7 @@ public partial class MainWindow
         try
         {
             ClearSessionView(clearLog: true);
+            PrepareLiveTraceForConnect();
             _passiveFrameSequence = 0;
             _passiveTransactionNotes.Clear();
             _passiveFindingLastShown.Clear();
