@@ -159,3 +159,12 @@ The additional pair is strictly opt-in within the existing Setup.
   and finalized hashes are immutable under decoder profile overrides.
 - This P3 implementation does not replace physical testing of tap loading,
   UART handshaking, multi-hour lossless soak or electrical isolation.
+
+
+## IEC-101 P4A historical evidence navigation (2026-10-28)
+
+- Never load multi-day timeline-windows.jsonl into a full GUI collection. Build a read-only sparse index (at most one block per 128 rows), use explicit 60-row UI pages, and keep actual file offsets as stable reverse-pagination cursors.
+- Run archive verification, index build, page scan and historical raw resolution away from the WPF Dispatcher. User selection must remain cancelable and must not mutate current Values/Event Log snapshots with historical observations.
+- Treat derived timeline entries only as navigation hints. Present raw HEX as **verified** only after matching the exact physical RX stream and original byte offset in CRC/SHA-verified APM1 journal replay. Reject incomplete captures and stale indexes. Never conflate local source 0/1 on Link B with physical RX0/RX1; map to RX2/RX3.
+- Historical selected-frame replays remain bounded in RAM but may be sequential in CPU/disk cost for large archives. Persisted random-access raw checkpoints require future FAT and benchmark proof. Do not claim physical timestamp precision, NUC switching, or loss-free electrical monitoring from USB receipt order.
+- Reference: docs/IEC101_PASSIVE_P4A_INDEXED_NAVIGATION.md.
