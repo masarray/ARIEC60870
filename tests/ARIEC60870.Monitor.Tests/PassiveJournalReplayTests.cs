@@ -183,6 +183,8 @@ public sealed class PassiveJournalReplayTests
             var alternate = saved with { LinkAddressWidth = 1 };
             var wrong = PassiveJournalReplay.ReadVerifiedFrames(capture.Directory, alternate).ToArray();
             Assert.DoesNotContain(wrong, f => f.Format == "Fixed" && f.ChecksumValid);
+            Assert.Equal(2, wrong.Count(f => f.Format == "LinkWidthMismatch" &&
+                f.ChecksumValid && f.DetectedLinkAddressWidth == 2));
 
             var restored = PassiveJournalReplay.ReadVerifiedFrames(capture.Directory, saved).ToArray();
             Assert.Equal(correct.Select(x => (x.StreamId, x.StreamOffset, x.Format, Convert.ToHexString(x.RawBytes))),

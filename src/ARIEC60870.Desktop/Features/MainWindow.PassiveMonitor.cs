@@ -34,6 +34,7 @@ public partial class MainWindow
     private bool _closingAfterPassiveStop;
     private Iec10xAsduDecoder? _passiveAsduDecoder;
     private long _passiveFrameSequence;
+    private long _passiveUndecodableShown;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
     private PassiveIec101GiTracker? _passiveReplayGiTracker;
     private PassiveIec101FailureTimeline? _passiveReplayTimeline;
@@ -217,6 +218,22 @@ public partial class MainWindow
             throw new InvalidOperationException("P2E failure timeline did not reach the existing Capture view.");
         timelineProbe.Complete(ApplyPassiveTimelineWindow);
 
+        // Regression: an unexpected serial byte sequence and a correct 2-octet
+        // Link Status observed under a 1-octet Setup MUST appear in Frame Trace.
+        // These are actual protocol evidence rows, not merely a raw-byte count.
+        _passiveLinkAddressWidth = 1;
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 0, giNow.AddMilliseconds(200),
+            "Noise", false, new byte[] { 0x99, 0x88 }));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 2, giNow.AddMilliseconds(220),
+            "LinkWidthMismatch", true,
+            new byte[] { 0x10, 0x49, 0x69, 0x01, 0xB3, 0x16 }, 2));
+        FlushUiQueues();
+        if (!FrameTraceRows.Any(x => x.Detail.Contains("Unrecognized serial bytes", StringComparison.Ordinal)) ||
+            !FrameTraceRows.Any(x => x.Detail.Contains("Link Address width mismatch", StringComparison.Ordinal)))
+            throw new InvalidOperationException(
+                "Passive malformed bytes / alternate-width Link Status are missing from Frame Trace.");
+        ClearSessionView(clearLog: true);
+
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
         if (IsIec101PassiveMonitorSelected() ||
             ActiveSetupRightPanel.Visibility != Visibility.Visible ||
@@ -369,6 +386,7 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
+        _passiveUndecodableShown = 0;
         _passiveReplayCorrelator = null;
         _passiveReplayGiTracker = null;
         _passiveReplayTimeline = null;
@@ -497,6 +515,12 @@ public partial class MainWindow
             summaryCount++;
         }
 
+        // The Passive Monitor owns its 160-ms refresh timer. Active-Master
+        // UI flushing is not guaranteed to run in this mode; without this,
+        // evidence accumulates but Frame Trace looks frozen despite RX bytes.
+        // Always flush, even when ONLY the raw sample table is frozen.
+        FlushUiQueues();
+
         if (PassiveFreezeCheckBox.IsChecked == true) return;
         var count = 0;
         while (count < 65 && session.TryReadPreview(out var sample))
@@ -550,9 +574,13 @@ public partial class MainWindow
             (transaction.HostDelayMilliseconds is { } ms ? $" · host Δ≈{ms:0} ms" : "");
         var raw = seen.RawBytes;
         var forbiddenSingleA2 = seen.Format == "Single" && raw.Length == 1 && raw[0] == 0xA2;
-        var controlOffset = seen.Format == "Fixed" ? 1 : seen.Format == "Variable" ? 4 : -1;
+        var profileMismatch = seen.Format == "LinkWidthMismatch";
+        var isNoise = seen.Format == "Noise";
+        if (profileMismatch || isNoise) _passiveUndecodableShown++;
+        var controlOffset = seen.Format is "Fixed" or "LinkWidthMismatch" ? 1 :
+            seen.Format == "Variable" ? 4 : -1;
         var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
-        var linkWidth = _passiveLinkAddressWidth;
+        var linkWidth = seen.DetectedLinkAddressWidth ?? _passiveLinkAddressWidth;
         var address = 0;
         if (control.HasValue)
             for (var i = 0; i < linkWidth; i++) address |= raw[controlOffset + 1 + i] << (8 * i);
@@ -566,7 +594,7 @@ public partial class MainWindow
         {
             "Fixed" => Ft12FrameFormat.FixedLength,
             "Variable" => Ft12FrameFormat.VariableLength,
-            "Partial" => Ft12FrameFormat.Malformed,
+            "Partial" or "Noise" or "LinkWidthMismatch" => Ft12FrameFormat.Malformed,
             _ => Ft12FrameFormat.SingleCharacter
         };
         var frame = new Ft12FrameDecode
@@ -576,17 +604,28 @@ public partial class MainWindow
             LinkAddressSize = linkWidth, LinkControl = link,
             AsduBytes = asduRaw, IsChecksumValid = seen.ChecksumValid,
             IsLengthValid = true,
-            Issues = forbiddenSingleA2
-                ? new[] { "IEC-101 prohibits the A2 single-character response." }
-                : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum." }
+            Issues = profileMismatch
+                ? new[] { $"IEC-101 Link Address width mismatch: Setup={_passiveLinkAddressWidth}, " +
+                    $"observed fixed frame has {linkWidth} octet(s). Check Setup or re-decode the raw capture." }
+                : isNoise
+                    ? new[] { "Unrecognized serial bytes; exact bytes preserved in raw journal. " +
+                        "Check baud/parity, source direction, RS-232 wiring and IEC-101 profile." }
+                    : forbiddenSingleA2
+                        ? new[] { "IEC-101 prohibits the A2 single-character response." }
+                        : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum or incomplete frame." }
         };
         var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
         var prefix = (seen.StreamId < 2 ? "Link A · " : "Link B · ") +
             ((seen.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA");
-        var function = seen.Format == "Partial" ? "Incomplete frame" :
-            link?.FunctionName ?? (raw[0] == 0xE5
+        var function = seen.Format switch
+        {
+            "Partial" => "Incomplete FT1.2 frame",
+            "Noise" => "Unrecognized serial bytes (raw preserved)",
+            "LinkWidthMismatch" => $"Fixed link frame · {linkWidth}-octet address detected; Setup={_passiveLinkAddressWidth}",
+            _ => link?.FunctionName ?? (raw[0] == 0xE5
                 ? "E5 short response (ACK or no-data by request context)"
-                : "A2 single response (not permitted in IEC-101)");
+                : "A2 single response (not permitted in IEC-101)")
+        };
         var meaning = decode?.ShortMeaning ?? function;
         if (!seen.ChecksumValid && seen.Format != "Partial")
             meaning = "Bad checksum · " + meaning;
@@ -596,7 +635,8 @@ public partial class MainWindow
         {
             SequenceNumber = ++_passiveFrameSequence,
             TimestampUtc = seen.EstimatedUtc, Direction = direction,
-            Category = seen.ChecksumValid && !forbiddenSingleA2 ? "Passive Traffic" : "RX Warning",
+            Category = seen.ChecksumValid && !forbiddenSingleA2 && !profileMismatch && !isNoise
+                ? "Passive Traffic" : "RX Warning",
             DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
             Summary = prefix + " · " + function,

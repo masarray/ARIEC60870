@@ -16,6 +16,9 @@ public sealed class PassiveFt12Scanner
     private int _count;
     private long _startOffset;
     private long _noiseBytes;
+    private readonly byte[] _noise = new byte[128];
+    private int _noiseCount;
+    private long _noiseStart;
 
     public PassiveFt12Scanner(int linkAddressWidth = 1)
     {
@@ -53,6 +56,9 @@ public sealed class PassiveFt12Scanner
             _pending[_count++] = incoming[i];
             Process(emit);
         }
+        // Surface discarded material in bounded chunks, including when there
+        // is no recognizable frame at all. Archive bytes remain authoritative.
+        FlushNoise(emit);
     }
 
     private void Process(Action<PassiveFt12Frame> emit)
@@ -62,27 +68,55 @@ public sealed class PassiveFt12Scanner
             var first = _pending[0];
             if (first is 0xE5 or 0xA2)
             {
-                // E5 and A2 byte patterns can be framed as single characters.
-                // IEC-101 permits E5 conditionally but forbids A2 (AMD2:2001).
-                // Keep A2 bytes observable; the IEC-101 correlator rejects it.
+                FlushNoise(emit);
+                // A2 is a recognized single byte on the wire, but invalid
+                // under IEC-101; the protocol interpreter flags it.
                 Emit(1, true, "Single", emit);
                 continue;
             }
             if (first != 0x10 && first != 0x68)
             {
-                ShiftOne();
+                ShiftOne(emit);
                 continue;
             }
+
             if (first == 0x10)
             {
-                var count = 4 + _addressWidth;
-                if (_count < count) return;
-                var endOk = _pending[count - 1] == 0x16;
-                if (!endOk) { ShiftOne(); continue; }
-                var checksum = _pending[2 + _addressWidth];
-                var sum = _pending[1];
-                for (var j = 0; j < _addressWidth; j++) sum += _pending[2 + j];
-                Emit(count, checksum == (byte)sum, "Fixed", emit);
+                var expected = 4 + _addressWidth;
+                // The selected profile is authoritative for interpretation.
+                // Still retain a structurally valid 0/1/2-octet *alternative*
+                // as a profile-mismatch candidate instead of discarding a
+                // real Link Status/ACK as random serial noise.
+                if (_count >= expected && _pending[expected - 1] == 0x16)
+                {
+                    var valid = FixedChecksum(_addressWidth);
+                    FlushNoise(emit);
+                    Emit(expected, valid, "Fixed", emit);
+                    continue;
+                }
+                var mismatchWidth = -1;
+                for (var width = 0; width <= 2; width++)
+                {
+                    if (width == _addressWidth) continue;
+                    var length = 4 + width;
+                    if (_count >= length && _pending[length - 1] == 0x16 &&
+                        FixedChecksum(width))
+                    {
+                        mismatchWidth = width;
+                        break;
+                    }
+                }
+                if (mismatchWidth >= 0)
+                {
+                    FlushNoise(emit);
+                    Emit(4 + mismatchWidth, true, "LinkWidthMismatch", emit,
+                        mismatchWidth);
+                    continue;
+                }
+                // Wait for a possible 2-octet frame before rejecting a 0/1
+                // octet interpretation. A short read is not a malformed frame.
+                if (_count < 6) return;
+                ShiftOne(emit);
                 continue;
             }
 
@@ -90,41 +124,64 @@ public sealed class PassiveFt12Scanner
             if (_pending[1] != _pending[2] || _pending[3] != 0x68 ||
                 _pending[1] < 1 + _addressWidth)
             {
-                ShiftOne();
+                ShiftOne(emit);
                 continue;
             }
             var size = 6 + _pending[1];
-            if (size > MaxFrameBytes) { ShiftOne(); continue; }
+            if (size > MaxFrameBytes) { ShiftOne(emit); continue; }
             if (_count < size) return;
-            if (_pending[size - 1] != 0x16) { ShiftOne(); continue; }
+            if (_pending[size - 1] != 0x16) { ShiftOne(emit); continue; }
             var calc = 0;
             for (var j = 4; j < 4 + _pending[1]; j++) calc += _pending[j];
+            FlushNoise(emit);
             Emit(size, _pending[size - 2] == (byte)calc, "Variable", emit);
         }
     }
 
-    private void Emit(int length, bool valid, string format, Action<PassiveFt12Frame> emit)
+    private bool FixedChecksum(int width)
+    {
+        var sum = _pending[1];
+        for (var j = 0; j < width; j++) sum += _pending[2 + j];
+        return _pending[2 + width] == (byte)sum;
+    }
+
+    private void Emit(int length, bool valid, string format, Action<PassiveFt12Frame> emit,
+        int? detectedWidth = null)
     {
         var raw = new byte[length];
         Array.Copy(_pending, raw, length);
-        emit(new PassiveFt12Frame(_startOffset, format, valid, raw));
+        emit(new PassiveFt12Frame(_startOffset, format, valid, raw, detectedWidth));
         if (_count > length)
             Array.Copy(_pending, length, _pending, 0, _count - length);
         _startOffset += length;
         _count -= length;
     }
 
-    private void ShiftOne()
+    private void ShiftOne(Action<PassiveFt12Frame> emit)
     {
         _noiseBytes++;
+        if (_noiseCount == 0) _noiseStart = _startOffset;
+        _noise[_noiseCount++] = _pending[0];
+        if (_noiseCount == _noise.Length) FlushNoise(emit);
         if (--_count > 0) Array.Copy(_pending, 1, _pending, 0, _count);
         _startOffset++;
     }
+
+    private void FlushNoise(Action<PassiveFt12Frame> emit)
+    {
+        if (_noiseCount == 0) return;
+        var raw = new byte[_noiseCount];
+        Array.Copy(_noise, raw, _noiseCount);
+        emit(new PassiveFt12Frame(_noiseStart, "Noise", false, raw));
+        _noiseCount = 0;
+    }
+
 }
 
 /// <summary>A frame candidate, not necessarily checksum-valid; serial direction is supplied by its source.</summary>
-public sealed record PassiveFt12Frame(long ByteOffset, string Format, bool ChecksumValid, byte[] RawBytes);
+public sealed record PassiveFt12Frame(long ByteOffset, string Format, bool ChecksumValid,
+    byte[] RawBytes, int? DetectedLinkAddressWidth = null);
 
 public sealed record PassiveObservedFrame(
     byte StreamId, long StreamOffset, DateTime EstimatedUtc, string Format,
-    bool ChecksumValid, byte[] RawBytes);
+    bool ChecksumValid, byte[] RawBytes, int? DetectedLinkAddressWidth = null);

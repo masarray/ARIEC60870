@@ -100,7 +100,8 @@ public static class PassiveJournalReplay
                 lastUtc[sid] = utc;
                 scanners[sid].Feed(chosen.Payload, chosen.Offset, frame =>
                     emitted.Add(new PassiveObservedFrame(sid, frame.ByteOffset, utc,
-                        frame.Format, frame.ChecksumValid, frame.RawBytes)));
+                        frame.Format, frame.ChecksumValid, frame.RawBytes,
+                        frame.DetectedLinkAddressWidth)));
                 foreach (var frame in emitted)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
