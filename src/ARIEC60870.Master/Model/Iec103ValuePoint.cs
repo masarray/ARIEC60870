@@ -6,6 +6,8 @@ namespace ARIEC60870.Master.Model;
 public sealed class Iec103ValuePoint
 {
     public string Key { get; init; } = string.Empty;
+    public string PhysicalSource { get; init; } = string.Empty;
+    public string EvidenceReference { get; init; } = string.Empty;
     public bool IsMapped { get; init; }
     public string SignalName { get; init; } = string.Empty;
     public string SignalGroup { get; init; } = "Unmapped";

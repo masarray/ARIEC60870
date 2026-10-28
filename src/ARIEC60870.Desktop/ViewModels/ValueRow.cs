@@ -15,6 +15,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     public ValueRow(Iec103ValuePoint item)
     {
         Key = item.Key;
+        PhysicalSource = item.PhysicalSource;
+        EvidenceReference = item.EvidenceReference;
         Protocol = item.ProtocolMode switch
         {
             Iec60870ProtocolMode.Iec101 => "101",
@@ -36,12 +38,16 @@ public sealed class ValueRow : INotifyPropertyChanged
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
-        Address = Protocol is "101" or "104" ? (IoAddress == "-" ? "-" : "IOA " + IoAddress) : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
+        Address = Protocol is "101" or "104"
+            ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
+            : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
     }
 
     public string Key { get; }
+    public string PhysicalSource { get; }
+    public string EvidenceReference { get; }
     public string Protocol { get; }
     public string Signal { get; }
     public string Group { get; }

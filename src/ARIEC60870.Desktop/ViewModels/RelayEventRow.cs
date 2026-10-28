@@ -11,6 +11,8 @@ public sealed class RelayEventRow
     public RelayEventRow(Iec103RelayEventLogEntry item)
     {
         Sequence = item.EvidenceSequenceNumber;
+        PhysicalSource = item.PhysicalSource;
+        EvidenceReference = item.EvidenceReference;
         Protocol = item.ProtocolMode switch
         {
             Iec60870ProtocolMode.Iec101 => "101",
@@ -30,13 +32,17 @@ public sealed class RelayEventRow
         Cot = item.CauseOfTransmission;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        Address = Protocol is "101" or "104" ? (IoAddress == "-" ? "-" : "IOA " + IoAddress) : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
+        Address = Protocol is "101" or "104"
+            ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
+            : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
     }
 
     public long Sequence { get; }
+    public string PhysicalSource { get; }
+    public string EvidenceReference { get; }
     public string Protocol { get; }
     public string RelayTime { get; }
     public string Signal { get; }

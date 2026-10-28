@@ -332,7 +332,7 @@ public partial class MainWindow
 
         var monitorPoints = _ioaProfile.Points
             .Where(IsMonitorPoint)
-            .GroupBy(x => BuildIoaValueKey(x.Ioa), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => BuildProfileGiKey(x), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToArray();
 
@@ -350,15 +350,15 @@ public partial class MainWindow
         }
 
         var missing = monitorPoints
-            .Where(point => !receivedKeys.Contains(BuildIoaValueKey(point.Ioa)))
+            .Where(point => !receivedKeys.Contains(BuildProfileGiKey(point)))
             .ToArray();
 
         var digitalExpected = monitorPoints.Count(point => IsIec10xDigitalType(point.TypeId));
-        var digitalReceived = monitorPoints.Count(point => IsIec10xDigitalType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+        var digitalReceived = monitorPoints.Count(point => IsIec10xDigitalType(point.TypeId) && receivedKeys.Contains(BuildProfileGiKey(point)));
         var analogExpected = monitorPoints.Count(point => IsAnalogMeasurementType(point.TypeId));
-        var analogReceived = monitorPoints.Count(point => IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+        var analogReceived = monitorPoints.Count(point => IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildProfileGiKey(point)));
         var otherExpected = Math.Max(0, monitorPoints.Length - digitalExpected - analogExpected);
-        var otherReceived = monitorPoints.Count(point => !IsIec10xDigitalType(point.TypeId) && !IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildIoaValueKey(point.Ioa)));
+        var otherReceived = monitorPoints.Count(point => !IsIec10xDigitalType(point.TypeId) && !IsAnalogMeasurementType(point.TypeId) && receivedKeys.Contains(BuildProfileGiKey(point)));
 
         _lastMonitorExpectedCount = monitorPoints.Length;
         _lastMonitorReceivedCount = Math.Max(0, monitorPoints.Length - missing.Length);
@@ -777,11 +777,12 @@ public partial class MainWindow
 
         foreach (var point in ordered)
         {
-            var key = BuildIoaValueKey(point.Ioa);
+            var key = BuildProfileGiKey(point);
             _giExpectedValueKeys.Add(key);
             UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
             {
-                Key = key,
+                Key = Iec10xObservationIdentity.ValueKey(protocolMode, null,
+                    point.Ca ?? _ioaProfile.CommonAddress, point.Ioa),
                 IsMapped = true,
                 SignalName = point.Name,
                 SignalGroup = string.IsNullOrWhiteSpace(point.Group) ? "Profile" : point.Group,
@@ -826,14 +827,26 @@ public partial class MainWindow
                || policy.Contains("Regulating", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildIoaValueKey(int ioa)
-        => "IOA:" + ioa.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private string BuildProfileGiKey(Iec10xPointMappingEntry point)
+        => BuildGiKey(point.Ca ?? _ioaProfile.CommonAddress, point.Ioa);
 
-    private void MarkGiValueReceived(string key)
+    private static string BuildGiKey(int? ca, int ioa)
+        => $"CA:{(ca?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*")}|IOA:{ioa}";
+
+    private void MarkGiValueReceived(Iec103MasterEvidenceEvent item)
     {
-        if (_giCompletenessWatchActive && _giExpectedValueKeys.Contains(key))
+        if (!_giCompletenessWatchActive || !item.InformationObjectAddress.HasValue ||
+            item.Direction != ARIEC60870.Core.Model.FrameDirection.SlaveToMaster ||
+            item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal))
+            return;
+
+        var observed = BuildGiKey(item.CommonAddressNumber, item.InformationObjectAddress.Value);
+        if (_giExpectedValueKeys.Contains(observed))
+            _giReceivedValueKeys.Add(observed);
+        else
         {
-            _giReceivedValueKeys.Add(key);
+            var wildcard = BuildGiKey(null, item.InformationObjectAddress.Value);
+            if (_giExpectedValueKeys.Contains(wildcard)) _giReceivedValueKeys.Add(wildcard);
         }
     }
 
@@ -964,16 +977,15 @@ public partial class MainWindow
     {
         foreach (var key in _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray())
         {
-            var ioa = ParseIoaFromValueKey(key);
-            if (ioa < 0)
-            {
-                continue;
-            }
-
-            var point = _ioaProfile.Points.FirstOrDefault(x => x.Ioa == ioa);
+            var point = _ioaProfile.Points.FirstOrDefault(x =>
+                string.Equals(BuildProfileGiKey(x), key, StringComparison.OrdinalIgnoreCase));
+            if (point is null) continue;
+            var ioa = point.Ioa;
+            var protocol = GetSelectedProtocolMode();
             UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
             {
-                Key = key,
+                Key = Iec10xObservationIdentity.ValueKey(protocol, null,
+                    point.Ca ?? _ioaProfile.CommonAddress, ioa),
                 IsMapped = true,
                 SignalName = point?.Name ?? $"IOA {ioa}",
                 SignalGroup = string.IsNullOrWhiteSpace(point?.Group) ? "Profile" : point!.Group,
@@ -993,14 +1005,4 @@ public partial class MainWindow
         }
     }
 
-    private static int ParseIoaFromValueKey(string key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return -1;
-        }
-
-        var normalized = key.StartsWith("IOA:", StringComparison.OrdinalIgnoreCase) ? key[4..] : key;
-        return int.TryParse(normalized, out var ioa) ? ioa : -1;
-    }
 }
