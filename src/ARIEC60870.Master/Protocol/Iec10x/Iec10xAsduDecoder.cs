@@ -270,31 +270,6 @@ public sealed class Iec10xAsduDecoder
         }
     }
 
-    private static string DecodeQualityText(byte type, byte[] data)
-    {
-        if (data.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        return type switch
-        {
-            1 or 2 or 30 => DecodeSiq(data[0]),
-            3 or 4 or 31 => DecodeDiq(data[0]),
-            5 or 32 => data.Length >= 2 ? DecodeQds(data[1]) : string.Empty,
-            6 => data.Length >= 2 ? DecodeQds(data[1]) : string.Empty,
-            7 or 33 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            8 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            9 or 11 or 34 or 35 => data.Length >= 3 ? DecodeQds(data[2]) : string.Empty,
-            10 or 12 => data.Length >= 3 ? DecodeQds(data[2]) : string.Empty,
-            13 or 36 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            14 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            15 or 37 => data.Length >= 5 ? DecodeBcrQuality(data[4]) : string.Empty,
-            16 => data.Length >= 5 ? DecodeBcrQuality(data[4]) : string.Empty,
-            _ => string.Empty
-        };
-    }
-
     private static string DecodeTimestampText(byte type, byte[] data)
     {
         return type switch
@@ -345,23 +320,6 @@ public sealed class Iec10xAsduDecoder
         return $"Double command={state}, {select}, QU={qualifier}";
     }
 
-    private static string DecodeSiq(byte q) => DecodeQualityFlags(q, hasOverflow: false);
-
-    private static string DecodeDiq(byte q) => DecodeQualityFlags(q, hasOverflow: false);
-
-    private static string DecodeQds(byte q) => DecodeQualityFlags(q, hasOverflow: true);
-
-    private static string DecodeQualityFlags(byte q, bool hasOverflow)
-    {
-        var flags = new List<string>();
-        if (hasOverflow && (q & 0x01) != 0) flags.Add("Overflow");
-        if ((q & 0x10) != 0) flags.Add("Blocked");
-        if ((q & 0x20) != 0) flags.Add("Substituted");
-        if ((q & 0x40) != 0) flags.Add("Not topical");
-        if ((q & 0x80) != 0) flags.Add("Invalid");
-        return flags.Count == 0 ? "Good" : string.Join(", ", flags);
-    }
-
     private static string DecodeBcrValue(byte[] data)
     {
         if (data.Length < 5)
@@ -373,15 +331,6 @@ public sealed class Iec10xAsduDecoder
         var flags = data[4];
         var sequence = flags & 0x1F;
         return $"Counter={counter}, sequence={sequence}";
-    }
-
-    private static string DecodeBcrQuality(byte q)
-    {
-        var flags = new List<string>();
-        if ((q & 0x20) != 0) flags.Add("Carry");
-        if ((q & 0x40) != 0) flags.Add("Adjusted");
-        if ((q & 0x80) != 0) flags.Add("Invalid");
-        return flags.Count == 0 ? "Good" : string.Join(", ", flags);
     }
 
     private static double ReadNormalized(byte[] data)
