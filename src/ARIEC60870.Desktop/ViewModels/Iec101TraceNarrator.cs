@@ -167,8 +167,9 @@ public static class Iec101TraceNarrator
     private static void AppendObject(StringBuilder builder, int type, Iec10xInformationObject obj)
     {
         var digital = type is 1 or 2 or 3 or 4 or 30 or 31;
-        var label = type is 1 or 2 or 30 ? "SI" :
-            type is 3 or 4 or 31 ? "DI" : "IOA";
+        // DI is the operator-facing Digital Input label for both SP and DP
+        // data points. The exact wire encoding remains identified by Type ID.
+        var label = digital ? "DI" : "IOA";
         string value;
         if (type is 1 or 2 or 30 && obj.RawBytes.Count > 0)
             value = (obj.RawBytes[0] & 1).ToString(CultureInfo.InvariantCulture);

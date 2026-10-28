@@ -119,7 +119,7 @@ public sealed class Iec101TraceNarratorTests
         Assert.Contains("ASDU: Type ID 30 <Single-point with date/time> Count 1", row.ProtocolTraceMeaning);
         Assert.Contains("Cause of transmission: 20 (interrogated by station interrogation) | Origin: 0", row.ProtocolTraceMeaning);
         Assert.Contains("Comm Addr 1", row.ProtocolTraceMeaning);
-        Assert.Contains("SI 8388716 1 [Valid] 10/28/26 20:39:28.460 [Valid time,Standard time]", row.ProtocolTraceMeaning);
+        Assert.Contains("DI 8388716 1 [Valid] 10/28/26 20:39:28.460 [Valid time,Standard time]", row.ProtocolTraceMeaning);
         Assert.StartsWith("Hex Frame: 68 13 13 68 28 69", row.ProtocolTraceRaw);
         Assert.EndsWith(" 16", row.ProtocolTraceRaw);
     }
@@ -146,8 +146,8 @@ public sealed class Iec101TraceNarratorTests
             AsduDetails = asdu
         };
         var block = Iec101TraceNarrator.Describe(e).Meaning;
-        Assert.Contains("SI 10 1 [Valid]", block);
-        Assert.Contains("SI 11 0 [Valid]", block);
+        Assert.Contains("DI 10 1 [Valid]", block);
+        Assert.Contains("DI 11 0 [Valid]", block);
     }
 
     [Fact]
