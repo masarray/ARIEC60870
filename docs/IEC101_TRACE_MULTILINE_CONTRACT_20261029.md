@@ -5,7 +5,7 @@ Screenshot/telegram-driven requirement: **one physical FT1.2 frame = one compact
 ## Examples, protocol-correct
 ```
 ⇧ [03:39:37] Class 2 request
-Data Link: Class 2 (Respond) [PRM:1,FCV:1] [FCB:0] Data Link Addr 105
+Data Link: Class 2 (Respond) [PRM:1,FCV:0] [FCB:0] Data Link Addr 105
 Hex Frame: 10 4B 69 B4 16
 
 ⇩ [03:39:37] Class 2 Data Not Available, Class 1 Data Available!
@@ -15,7 +15,7 @@ Hex Frame: 10 29 69 92 16
 
 For valid Type 30 data, present e.g. `ASDU: Type ID 30 <Single-point with date/time> Count 1`, `Cause of transmission: 20 (...) | Origin: 0`, `Comm Addr 1`, `SI 8388716 1 [Valid] 10/28/26 20:39:28.460 [Valid time,Standard time]` and the whole physical frame. Multiple IOAs all belong in that one frame block; object-specific Value/Event evidence still flows independently. Open the inspector to analyze individual bit/byte groups.
 
-**Strict integrity:** the provided example variable frame `68 14 14 68 ... 85 16` is 25 bytes long although L=20 requires 26. Its checksum does not match supplied bytes and `64 FC` in its CP56 milliseconds field exceeds 59,999 ms/minute. It MUST NOT be silently accepted as `[Valid]` just to mimic an example. Synthetic regression instead creates a valid Type 30 frame, correct checksum, CP56Time2a, QDS/SIQ, COT, origin and CA. Time-zone origin/genuine-status not encoded in CP56 alone; show validity and summer/standard flags only, never invent authenticity.
+**Bit-level correction:** control 0x4B (and 0x6B) has FCV bit 4 = 0, not 1. Source HEX takes precedence over a copied human label. Control 0x5A/0x7A for Class 1 has FCV=1.\n\n**Strict integrity:** the provided example variable frame `68 14 14 68 ... 85 16` is 25 bytes long although L=20 requires 26. Its checksum does not match supplied bytes and `64 FC` in its CP56 milliseconds field exceeds 59,999 ms/minute. It MUST NOT be silently accepted as `[Valid]` just to mimic an example. Synthetic regression instead creates a valid Type 30 frame, correct checksum, CP56Time2a, QDS/SIQ, COT, origin and CA. Time-zone origin/genuine-status not encoded in CP56 alone; show validity and summer/standard flags only, never invent authenticity.
 
 ## Architecture and performance
 - Pure `Iec101TraceNarrator` receives **already-decoded typed evidence**, formats exactly once per physical frame; no new regex parser, no serial I/O or history mutation.
