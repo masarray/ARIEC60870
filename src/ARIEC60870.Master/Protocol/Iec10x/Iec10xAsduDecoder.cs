@@ -57,6 +57,8 @@ public sealed class Iec10xAsduDecoder
 
         var objects = DecodeObjects(type, raw, offset, objectCount, sq, issues);
         var first = objects.FirstOrDefault();
+        var causeDetails = new Iec10xCauseDetails(cotRaw, cot, negative, test, _cotSize == 2 ? oa : null);
+        var commandDetails = Iec10xCommandDetails.Decode(type, first, causeDetails);
 
         return new Iec10xAsduDecode
         {
@@ -67,6 +69,8 @@ public sealed class Iec10xAsduDecoder
             IsSequence = sq,
             ObjectCount = objectCount,
             CauseOfTransmission = cot,
+            CauseDetails = causeDetails,
+            CommandDetails = commandDetails,
             CauseName = CauseName(cot),
             OriginatorAddress = oa,
             IsTest = test,
@@ -100,6 +104,7 @@ public sealed class Iec10xAsduDecoder
         int? sequenceBaseIoa = null;
         for (var i = 0; i < objectCount; i++)
         {
+            var objectOffset = sq && i > 0 ? -1 : offset;
             if (sq && i > 0)
             {
                 if (!sequenceBaseIoa.HasValue)
@@ -120,6 +125,7 @@ public sealed class Iec10xAsduDecoder
             }
 
             var ioa = sq ? sequenceBaseIoa!.Value + i : sequenceBaseIoa!.Value;
+            var elementOffset = offset;
             var remaining = raw.Length - offset;
             var take = dataLength >= 0 ? Math.Min(dataLength, Math.Max(0, remaining)) : Math.Max(0, remaining);
             var elementRaw = raw.Skip(offset).Take(take).ToArray();
@@ -128,7 +134,7 @@ public sealed class Iec10xAsduDecoder
                 if (remaining < dataLength)
                 {
                     var objectIssues = new[] { $"Information element too short. Expected={dataLength}, actual={remaining}." };
-                    objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectIssues));
+                    objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectOffset, elementOffset, objectIssues));
                     break;
                 }
 
@@ -139,7 +145,7 @@ public sealed class Iec10xAsduDecoder
                 offset += take;
             }
 
-            objects.Add(BuildObject(type, i + 1, ioa, elementRaw, Array.Empty<string>()));
+            objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectOffset, elementOffset, Array.Empty<string>()));
         }
 
         if (offset < raw.Length && dataLength >= 0)
@@ -150,17 +156,21 @@ public sealed class Iec10xAsduDecoder
         return objects;
     }
 
-    private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, IReadOnlyList<string> existingIssues)
+    private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, int objectOffset, int elementOffset, IReadOnlyList<string> existingIssues)
     {
         var issues = existingIssues.ToList();
         var value = DecodeValueText(type, data, issues);
-        var quality = DecodeQualityText(type, data);
+        var qualityDetails = Iec10xQualityDetails.Decode(type, data);
+        var quality = qualityDetails?.DisplayText ?? string.Empty;
         var time = DecodeTimestampText(type, data);
 
         return new Iec10xInformationObject
         {
             Index = index,
             InformationObjectAddress = ioa,
+            InformationObjectOffset = objectOffset,
+            InformationElementOffset = elementOffset,
+            QualityDetails = qualityDetails,
             ValueText = value,
             EngineeringValue = value,
             QualityText = quality,
