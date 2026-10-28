@@ -87,6 +87,7 @@ public partial class MainWindow
             _passiveFindingWindowCount = 0;
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
+            _passiveReplayTimeline = null;
             _passiveGiNotes.Clear();
             _passiveCaptureResult = null;
             MainTabControl.SelectedIndex = PassiveTraceTabIndex;
@@ -120,6 +121,7 @@ public partial class MainWindow
                         new PassiveTransactionOptions(
                             LinkAddressWidth: effectiveProfile.LinkAddressWidth,
                             LinkMode: effectiveProfile.LinkMode));
+                    _passiveReplayTimeline = new PassiveIec101FailureTimeline(manifest.StartUtc);
                     _passiveReplayGiTracker = new PassiveIec101GiTracker(
                         new PassiveGiOptions(LinkAddressWidth: effectiveProfile.LinkAddressWidth,
                             CotWidth: effectiveProfile.CotWidth,
@@ -171,13 +173,32 @@ public partial class MainWindow
 
             var finalManifest = JsonSerializer.Deserialize<PassiveCaptureManifest>(
                 File.ReadAllText(manifestPath))!;
-            _passiveReplayCorrelator?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveTransactionEvent);
-            _passiveReplayCorrelator?.Complete(ApplyPassiveTransactionEvent);
-            _passiveReplayGiTracker?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveGiEvent);
-            _passiveReplayGiTracker?.Complete(ApplyPassiveGiEvent);
+            _passiveReplayCorrelator?.AdvanceTime(finalManifest.EndUtc, x =>
+            {
+                _passiveReplayTimeline?.ObserveTransaction(x);
+                ApplyPassiveTransactionEvent(x);
+            });
+            _passiveReplayCorrelator?.Complete(x =>
+            {
+                _passiveReplayTimeline?.ObserveTransaction(x);
+                ApplyPassiveTransactionEvent(x);
+            });
+            _passiveReplayGiTracker?.AdvanceTime(finalManifest.EndUtc, x =>
+            {
+                _passiveReplayTimeline?.ObserveGi(x);
+                ApplyPassiveGiEvent(x);
+            });
+            _passiveReplayGiTracker?.Complete(x =>
+            {
+                _passiveReplayTimeline?.ObserveGi(x);
+                ApplyPassiveGiEvent(x);
+            });
+            _passiveReplayTimeline?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveTimelineWindow);
+            _passiveReplayTimeline?.Complete(ApplyPassiveTimelineWindow);
             FlushUiQueues();
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
+            _passiveReplayTimeline = null;
             _passiveCaptureResult = (directory, finalManifest);
             PassiveScadaCountText.Text = finalManifest.Streams
                 .Where(x => x.StreamId == 0).Sum(x => x.Bytes).ToString("N0") + " bytes";
@@ -230,6 +251,7 @@ public partial class MainWindow
             _passiveReplayWork = null;
             _passiveReplayCorrelator = null;
             _passiveReplayGiTracker = null;
+            _passiveReplayTimeline = null;
             _passiveReplayCancellation = null;
             OpenCaptureButton.IsEnabled = true;
             SetupButton.IsEnabled = true;

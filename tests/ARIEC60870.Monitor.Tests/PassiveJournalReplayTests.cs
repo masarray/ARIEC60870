@@ -102,6 +102,35 @@ public sealed class PassiveJournalReplayTests
             corr.Complete(rebuilt.Add);
             Assert.Equal(saved.Select(x => (x.Kind, x.LinkAddress, x.RequestOffset)),
                 rebuilt.Select(x => (x.Kind, x.LinkAddress, x.RequestOffset)));
+
+            // A derived 5-second timeline must be reproducible from original
+            // binary RX streams after its own index has been removed as well.
+            var index = Path.Combine(capture.Directory, "timeline-windows.jsonl");
+            var savedWindows = File.ReadAllLines(index)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => System.Text.Json.JsonSerializer.Deserialize<PassiveTimelineWindow>(x)!)
+                .ToArray();
+            Assert.NotEmpty(savedWindows);
+            Assert.Equal(1, savedWindows.Sum(x => x.Frames));
+            Assert.Equal(1, savedWindows.Sum(x => x.LinkStatusPolls));
+            File.Delete(index);
+
+            var timeline = new PassiveIec101FailureTimeline(capture.Manifest.StartUtc);
+            var windows = new List<PassiveTimelineWindow>();
+            var recreated = new PassiveIec101TransactionCorrelator();
+            foreach (var frame in PassiveJournalReplay.ReadVerifiedFrames(capture.Directory))
+            {
+                timeline.ObserveFrame(frame, windows.Add);
+                recreated.Observe(frame, timeline.ObserveTransaction);
+            }
+            recreated.AdvanceTime(capture.Manifest.EndUtc, timeline.ObserveTransaction);
+            recreated.Complete(timeline.ObserveTransaction);
+            timeline.AdvanceTime(capture.Manifest.EndUtc, windows.Add);
+            timeline.Complete(windows.Add);
+            Assert.Equal(savedWindows.Sum(x => x.Frames), windows.Sum(x => x.Frames));
+            Assert.Equal(savedWindows.Sum(x => x.LinkStatusPolls), windows.Sum(x => x.LinkStatusPolls));
+            Assert.Equal(savedWindows.Sum(x => x.ResponseTimeouts), windows.Sum(x => x.ResponseTimeouts));
+            Assert.True(PassiveJournalVerifier.Verify(capture.Directory).Complete);
         }
         finally { Directory.Delete(folder, recursive: true); }
     }

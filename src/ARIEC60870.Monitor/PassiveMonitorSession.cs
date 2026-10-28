@@ -52,6 +52,14 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
+    // Aggregated 5-second forensic windows; the full timeline stays on disk.
+    private readonly Channel<PassiveTimelineWindow> _timelineWindows =
+        Channel.CreateBounded<PassiveTimelineWindow>(new BoundedChannelOptions(64)
+        {
+            SingleReader = true, SingleWriter = true,
+            FullMode = BoundedChannelFullMode.DropOldest,
+            AllowSynchronousContinuations = false
+        });
     private readonly long[] _writtenBytes = new long[2];
     private readonly long[] _writtenChunks = new long[2];
     private readonly string[] _rawHashes = new string[2];
@@ -98,6 +106,9 @@ public sealed class PassiveMonitorSession
         _transactionEvents.Reader.TryRead(out item!);
 
     public bool TryReadGiEvent(out PassiveGiEvent item) => _giEvents.Reader.TryRead(out item!);
+
+    public bool TryReadTimelineWindow(out PassiveTimelineWindow item) =>
+        _timelineWindows.Reader.TryRead(out item!);
 
     public async Task<(string Directory, PassiveCaptureManifest Manifest)> RunAsync(CancellationToken cancellationToken)
     {
@@ -243,6 +254,8 @@ public sealed class PassiveMonitorSession
         StreamWriter[]? frameFiles = null;
         StreamWriter? transactionFile = null;
         StreamWriter? giFile = null;
+        StreamWriter? timelineFile = null;
+        var timeline = new PassiveIec101FailureTimeline(_utcOrigin);
         var giTracker = new PassiveIec101GiTracker(new PassiveGiOptions(
             LinkAddressWidth: _options.LinkAddressWidth, CotWidth: _options.CotWidth,
             CommonAddressWidth: _options.CommonAddressWidth,
@@ -274,8 +287,17 @@ public sealed class PassiveMonitorSession
             giFile = new StreamWriter(new FileStream(
                 Path.Combine(root, "gi-events.jsonl"), FileMode.CreateNew,
                 FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
+            timelineFile = new StreamWriter(new FileStream(
+                Path.Combine(root, "timeline-windows.jsonl"), FileMode.CreateNew,
+                FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
+            // One writer owns these scratch buffers; reuse them across serial
+            // reads to avoid four managed allocations on every read chunk.
+            var observed = new List<PassiveObservedFrame>(8);
+            var transactions = new List<PassiveTransactionEvent>(8);
+            var giEvents = new List<PassiveGiEvent>(4);
+            var timelineWindows = new List<PassiveTimelineWindow>(4);
             await foreach (var chunk in channel.Reader.ReadAllAsync().ConfigureAwait(false))
             {
                 try
@@ -287,7 +309,10 @@ public sealed class PassiveMonitorSession
                     var frameUtc = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, frameTicks);
                     // The journal is authoritative. Frame recognition is a passive projection
                     // of the COMPLETE chunk, not the bounded 48-byte UI preview.
-                    var observed = new List<PassiveObservedFrame>();
+                    observed.Clear();
+                    transactions.Clear();
+                    giEvents.Clear();
+                    timelineWindows.Clear();
                     if (lastSeenTicks[chunk.StreamId] > 0 &&
                         Stopwatch.GetElapsedTime(lastSeenTicks[chunk.StreamId], frameTicks) > TimeSpan.FromMilliseconds(_options.FrameGapMilliseconds))
                     {
@@ -301,13 +326,20 @@ public sealed class PassiveMonitorSession
                         chunk.Length - PassiveJournalFormat.HeaderSize), rawOffset,
                         frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
                             frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid, frame.RawBytes)));
-                    var transactions = new List<PassiveTransactionEvent>();
-                    var giEvents = new List<PassiveGiEvent>();
                     foreach (var frame in observed)
                     {
+                        timeline.ObserveFrame(frame, timelineWindows.Add);
                         // Interpret the *lossless writer stream*, never the bounded WPF preview.
-                        correlator.Observe(frame, transactions.Add);
-                        giTracker.Observe(frame, giEvents.Add);
+                        correlator.Observe(frame, item =>
+                        {
+                            transactions.Add(item);
+                            timeline.ObserveTransaction(item);
+                        });
+                        giTracker.Observe(frame, item =>
+                        {
+                            giEvents.Add(item);
+                            timeline.ObserveGi(item);
+                        });
                         var line = System.Text.Json.JsonSerializer.Serialize(new
                         {
                             frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
@@ -327,6 +359,12 @@ public sealed class PassiveMonitorSession
                         await giFile.WriteLineAsync(JsonSerializer.Serialize(gi))
                             .ConfigureAwait(false);
                         _giEvents.Writer.TryWrite(gi);
+                    }
+                    foreach (var window in timelineWindows)
+                    {
+                        await timelineFile.WriteLineAsync(JsonSerializer.Serialize(window))
+                            .ConfigureAwait(false);
+                        _timelineWindows.Writer.TryWrite(window);
                     }
                     // Small capped byte sample, copied while the writer still owns the pooled buffer.
                     var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
@@ -348,6 +386,7 @@ public sealed class PassiveMonitorSession
                         await frameFiles[1].FlushAsync().ConfigureAwait(false);
                         await transactionFile.FlushAsync().ConfigureAwait(false);
                         await giFile.FlushAsync().ConfigureAwait(false);
+                        await timelineFile.FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
                     }
@@ -386,6 +425,7 @@ public sealed class PassiveMonitorSession
             {
                 await giFile.WriteLineAsync(JsonSerializer.Serialize(gi)).ConfigureAwait(false);
                 _giEvents.Writer.TryWrite(gi);
+                timeline.ObserveGi(gi);
             }
             var finalEvents = new List<PassiveTransactionEvent>();
             correlator.AdvanceTime(DateTime.UtcNow, finalEvents.Add);
@@ -394,6 +434,16 @@ public sealed class PassiveMonitorSession
             {
                 await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
                 _transactionEvents.Writer.TryWrite(entry);
+                timeline.ObserveTransaction(entry);
+            }
+            var finalWindows = new List<PassiveTimelineWindow>();
+            timeline.AdvanceTime(DateTime.UtcNow, finalWindows.Add);
+            timeline.Complete(finalWindows.Add);
+            foreach (var window in finalWindows)
+            {
+                await timelineFile.WriteLineAsync(JsonSerializer.Serialize(window))
+                    .ConfigureAwait(false);
+                _timelineWindows.Writer.TryWrite(window);
             }
             await files[0].FlushAsync().ConfigureAwait(false);
             await files[1].FlushAsync().ConfigureAwait(false);
@@ -401,6 +451,7 @@ public sealed class PassiveMonitorSession
             await frameFiles[1].FlushAsync().ConfigureAwait(false);
             await transactionFile.FlushAsync().ConfigureAwait(false);
             await giFile.FlushAsync().ConfigureAwait(false);
+            await timelineFile.FlushAsync().ConfigureAwait(false);
             for (var i = 0; i < 2; i++) _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
         }
         catch (Exception ex)
@@ -417,6 +468,7 @@ public sealed class PassiveMonitorSession
             if (frameFiles is not null) foreach (var index in frameFiles) index.Dispose();
             transactionFile?.Dispose();
             giFile?.Dispose();
+            timelineFile?.Dispose();
             if (files is null) firstFile?.Dispose();
             if (files is not null)
                 foreach (var file in files)

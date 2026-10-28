@@ -102,3 +102,31 @@ Serial read code should not depend on unbounded asynchronous reads that ignore c
 ## Diagnostics pipeline note
 
 Runtime faults and recoverable transport exceptions are routed to Diagnostics rows. The UI must remain operator-safe: no unhandled serial timeout should block the Start/Stop workflow, and every exception worth escalating must be selectable/copyable from the Diagnostics tab.
+
+## IEC-101 Passive Forensic Timeline (P2E)
+
+The IEC-101 receive-only monitor archives both physical transmitter directions
+into original, independently verified binary journals. Frame Trace is bounded
+operator presentation and **must not** be used to derive the definitive timeline.
+
+- `PassiveIec101FailureTimeline` runs in the same serial journal writer,
+  observing all frames and independently derived transaction / GI lifecycle
+  events. It emits a compact `timeline-windows.jsonl` index for each observed
+  5-second window; default window size can be changed in code for diagnostics.
+- Windows describe **received traffic**, not a proven physical outage or
+  switching event. A standby FC9/FC11 Link Status cycle is normal. Keep
+  host cross-adapter timestamp uncertainty visible.
+- When no frames are received, represent the no-observation interval honestly.
+  Expand at most 12 individual empty windows for short pauses; compress longer
+  gaps to a single summary with exact omitted-window count.
+- Writer scratch lists are reused per read, and GUI presentation uses a
+  separate bounded dropping 64-window ring. **Only the GUI ring can drop**;
+  original raw journals and the complete timeline JSONL remain on disk.
+- The existing Capture status shows the recent traffic summary. Only anomalous
+  windows enter existing Diagnostics; do not flood Event Log/Findings with
+  routine polling or GUI fake indications.
+- Offline replay recomputes the same pure timeline from complete SHA/CRC
+  verified binary journals under the chosen decoder profile, independent of
+  derived indexes and WPF row retention.
+- Historical search/paging over many hours and four-COM redundant A/B
+  supervision are subsequent milestones, not assumed complete here.
