@@ -24,9 +24,12 @@ public sealed class Iec101TraceNarratorTests
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             TimestampUtc = PcTime,
             Direction = frame.LinkControl?.Prm == true
-                ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster,
-            Frame = frame, LinkAddress = frame.LinkAddress,
-            DataClass = dataClass, RawHex = hex
+                ? FrameDirection.MasterToSlave
+                : FrameDirection.SlaveToMaster,
+            Frame = frame,
+            LinkAddress = frame.LinkAddress,
+            DataClass = dataClass,
+            RawHex = hex
         };
     }
 
@@ -39,7 +42,9 @@ public sealed class Iec101TraceNarratorTests
         var (title, meaning) = Iec101TraceNarrator.Describe(f);
         Assert.Contains("⇧ [", title);
         Assert.EndsWith("Class 2 request", title);
-        Assert.Equal($"Data Link: Class 2 (Respond) [PRM:1,FCV:1] [{fcb}] Data Link Addr 105", meaning);
+        // The 4B and 6B control bytes have FCV bit 4 CLEAR (FCV=0).
+        // Preserve actual wire bits even if a pasted line-monitor example says FCV=1.
+        Assert.Equal($"Data Link: Class 2 (Respond) [PRM:1,FCV:0] [{fcb}] Data Link Addr 105", meaning);
         var row = new EvidenceRow(f);
         Assert.Equal("Hex Frame: " + hex, row.ProtocolTraceRaw);
         Assert.Empty(row.ProtocolTraceMeta);
@@ -109,7 +114,9 @@ public sealed class Iec101TraceNarratorTests
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             TimestampUtc = PcTime,
             Direction = FrameDirection.SlaveToMaster,
-            Frame = frame, LinkAddress = 105, AsduDetails = asdu,
+            Frame = frame,
+            LinkAddress = 105,
+            AsduDetails = asdu,
             RawHex = Convert.ToHexString(raw),
             DataClass = "Class 1"
         };
@@ -138,10 +145,18 @@ public sealed class Iec101TraceNarratorTests
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             TimestampUtc = PcTime,
             Direction = FrameDirection.SlaveToMaster,
-            Frame = new Ft12FrameDecode {
-                LinkControl = new LinkControlInfo {
-                    Prm = false, FunctionCode = 8, Acd = true, Dfc = false
-                }, LinkAddress = 105, IsChecksumValid = true, IsLengthValid = true
+            Frame = new Ft12FrameDecode
+            {
+                LinkControl = new LinkControlInfo
+                {
+                    Prm = false,
+                    FunctionCode = 8,
+                    Acd = true,
+                    Dfc = false
+                },
+                LinkAddress = 105,
+                IsChecksumValid = true,
+                IsLengthValid = true
             },
             AsduDetails = asdu
         };
@@ -158,9 +173,11 @@ public sealed class Iec101TraceNarratorTests
         Assert.Contains("Link ACK response", title.Title);
         Assert.Contains("not proven", title.Meaning);
 
-        var e5 = new Iec103MasterEvidenceEvent {
+        var e5 = new Iec103MasterEvidenceEvent
+        {
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            Direction = FrameDirection.SlaveToMaster, TimestampUtc = PcTime,
+            Direction = FrameDirection.SlaveToMaster,
+            TimestampUtc = PcTime,
             Frame = new Ft12Parser(1).Decode(new byte[] { 0xE5 })
         };
         var e5Text = Iec101TraceNarrator.Describe(e5);
@@ -175,8 +192,10 @@ public sealed class Iec101TraceNarratorTests
             "6814146808691E01140001006C00800164FCCD4B1E1A1A8516");
         var frame = new Ft12Parser(1).Decode(provided);
         Assert.False(frame.IsLengthValid && frame.IsChecksumValid);
-        var title = Iec101TraceNarrator.Describe(new Iec103MasterEvidenceEvent {
-            ProtocolMode = Iec60870ProtocolMode.Iec101, Frame = frame,
+        var title = Iec101TraceNarrator.Describe(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Frame = frame,
             Direction = FrameDirection.SlaveToMaster
         }).Title;
         Assert.Contains("Invalid FT1.2 frame", title);
