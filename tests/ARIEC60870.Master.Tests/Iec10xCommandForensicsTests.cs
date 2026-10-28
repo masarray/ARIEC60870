@@ -21,13 +21,13 @@ public sealed class Iec10xCommandForensicsTests
         Assert.NotNull(sent.CommandDetails);
         Assert.Equal(6, sent.CauseDetails!.Code);
         Assert.Equal(0, sent.CauseDetails.Raw & 0xC0);
-        Assert.True(sent.CommandDetails!.Select);
+        Assert.True(sent.CommandDetails!.Select == true);
         Assert.Equal("SELECT", sent.CommandDetails.Operation);
         Assert.Equal(3, sent.CommandDetails.QualifierValue);
         Assert.Equal(9, sent.CommandDetails.QualifierAsduOffset);
         Assert.Equal(9, sent.Objects[0].InformationElementOffset);
         Assert.Equal(6, sent.Objects[0].InformationObjectOffset);
-        Assert.Equal(command[9], sent.CommandDetails.QualifierRaw);
+        Assert.Equal((byte?)command[9], sent.CommandDetails.QualifierRaw);
 
         var positiveReply = (byte[])command.Clone();
         positiveReply[2] = 0x07; // COT 7 ACTCON
@@ -77,7 +77,7 @@ public sealed class Iec10xCommandForensicsTests
     {
         var cmd = Iec10xAsduBuilder.GeneralInterrogation(Settings());
         var decoded = _decoder.Decode(cmd);
-        Assert.Equal(20, decoded.CommandDetails!.QualifierRaw);
+        Assert.Equal((byte?)20, decoded.CommandDetails!.QualifierRaw);
         Assert.Equal("Station GI", decoded.CommandDetails.ValueMeaning);
 
         cmd[2] = 10;
@@ -97,7 +97,7 @@ public sealed class Iec10xCommandForensicsTests
 
         var qds = Iec10xQualityDetails.Decode(13, new byte[] { 0, 0, 0, 0, 0x81 });
         Assert.NotNull(qds);
-        Assert.True(qds!.Overflow);
+        Assert.True(qds!.Overflow == true);
         Assert.True(qds.Invalid);
         Assert.Equal(new[] { "INVALID", "OVF" }, qds.ActiveBadges);
     }
@@ -108,7 +108,7 @@ public sealed class Iec10xCommandForensicsTests
         var bcr = Iec10xQualityDetails.Decode(15, new byte[] { 1, 2, 3, 4, 0xA5 });
         Assert.NotNull(bcr);
         Assert.Null(bcr!.Overflow);
-        Assert.True(bcr.Carry);
+        Assert.True(bcr.Carry == true);
         Assert.Equal(5, bcr.CounterSequence);
         Assert.Contains("CARRY", bcr.ActiveBadges);
         Assert.DoesNotContain("OVF", bcr.ActiveBadges);
