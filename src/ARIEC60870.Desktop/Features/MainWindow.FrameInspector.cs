@@ -171,6 +171,13 @@ public partial class MainWindow
             parts.Add($"Value: {row.SemanticState}.");
         }
 
+        if (row.Source.CauseDetails is { } cot)
+            parts.Add("COT / RTU response: " + cot.Detail);
+        if (row.Source.CommandDetails is { } cmd)
+            parts.Add("Command / response: " + cmd.Detail);
+        if (row.Source.QualityDetails is { } quality)
+            parts.Add("Quality bits: " + quality.BitDetails);
+
         parts.Add(row.ProtocolMode switch
         {
             "104" => $"Protocol: IEC-104 {row.Direction}, APCI={row.ApciFormat}, NS={row.SendSequence}, NR={row.ReceiveSequence}, Type ID={row.TypeIdName}, COT={row.CotDisplay}, CA={row.CommonAddress}, IOA={row.IoAddress}.",
@@ -262,6 +269,8 @@ public partial class MainWindow
             {
                 yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 6)))));
                 yield return new ProtocolMapLine("object", "CA / IOA", BuildSignalAddressMeaning(row), row.ProtocolAddress);
+            if (row.Source.CommandDetails is { } cmd104)
+                yield return new ProtocolMapLine("command", "Command / RTU response", cmd104.Detail, CommandEvidence(row, bytes, 6));
                 if (!string.IsNullOrWhiteSpace(row.SemanticState))
                 {
                     yield return new ProtocolMapLine("payload", "Information element", BuildPayloadMeaning(row), row.SemanticState);
@@ -276,6 +285,8 @@ public partial class MainWindow
             yield return new ProtocolMapLine("control", "Link control", BuildControlMeaning(row), BuildControlEvidence(row, string.Join(" ", bytes.Skip(4).Take(2))));
             yield return new ProtocolMapLine("asdu", "ASDU header", BuildAsduHeaderMeaning(row), string.Join(" ", bytes.Skip(6).Take(Math.Min(6, Math.Max(0, bytes.Length - 8)))));
             yield return new ProtocolMapLine("object", "Information object address", BuildSignalAddressMeaning(row), row.ProtocolAddress);
+            if (row.Source.CommandDetails is { } cmd101)
+                yield return new ProtocolMapLine("command", "Command / RTU response", cmd101.Detail, CommandEvidence(row, bytes, 5 + (row.Source.Frame?.LinkAddressSize ?? 1)));
             if (!string.IsNullOrWhiteSpace(row.SemanticState))
             {
                 yield return new ProtocolMapLine("payload", "Information element", BuildPayloadMeaning(row), row.SemanticState);
@@ -324,6 +335,14 @@ public partial class MainWindow
         yield return new ProtocolMapLine("raw", $"Raw {row.ProtocolName} bytes", "The analyzer preserved this frame as raw evidence, but it could not classify it into the expected protocol structure.", string.Join(" ", bytes));
     }
 
+    private static string CommandEvidence(EvidenceRow row, string[] bytes, int asduStart)
+    {
+        var cmd = row.Source.CommandDetails;
+        if (cmd?.QualifierAsduOffset is int offset && asduStart + offset < bytes.Length)
+            return bytes[asduStart + offset];
+        return cmd?.QualifierRaw is byte raw ? $"0x{raw:X2}" : "No qualifier byte";
+    }
+
     private static string BuildControlEvidence(EvidenceRow row, string rawControl)
     {
         var flags = row.LinkFlags == "-" ? string.Empty : " · " + row.LinkFlags;
@@ -343,6 +362,10 @@ public partial class MainWindow
 
         if (row.Direction == "RX")
         {
+            if (row.Source.Frame?.LinkControl is { Prm: false, FunctionCode: 9 })
+                return "Secondary FC=9: NO REQUESTED DATA; not an application command confirmation.";
+            if (row.Source.Frame?.LinkControl is { Prm: false, FunctionCode: 0 })
+                return "Secondary FC=0: link-layer ACK, not proof that the physical command operated.";
             if (row.Acd == "1")
             {
                 return "Relay response indicates ACD=1, meaning Class 1 data is pending and the master may drain event data.";
@@ -368,7 +391,8 @@ public partial class MainWindow
                 return "No IEC-10x ASDU payload is present in this frame.";
             }
 
-            return $"Type ID={row.TypeIdName}, VSQ={row.Vsq}, COT={row.CotDisplay}, CA={row.CommonAddress}. These fields define the telecontrol data class, cause, station/common address, and object addressing context.";
+            var detail = row.Source.CauseDetails?.Detail ?? $"COT={row.CotDisplay}";
+            return $"Type ID={row.TypeIdName}, VSQ={row.Vsq}, {detail} CA={row.CommonAddress}.";
         }
 
         if (row.AsduType == "-" && row.Cot == "-")
@@ -404,6 +428,8 @@ public partial class MainWindow
         var time = string.IsNullOrWhiteSpace(row.RelayTime) || row.RelayTime == "-" ? "No field timestamp decoded." : $"Field timestamp: {row.RelayTime}.";
         var typeText = row.ProtocolMode is "101" or "104" ? row.TypeIdName : row.AsduType;
 
+        if (row.Source.CommandDetails is { } command) return command.Detail;
+
         if (typeText.Contains("Measur", StringComparison.OrdinalIgnoreCase))
         {
             return $"Measurement payload. Decoded value/state: {state}. Quality: {row.Quality}. {time}";
@@ -423,10 +449,18 @@ public partial class MainWindow
 
     private static string[] SplitHexBytes(string rawHex)
     {
-        return rawHex
-            .Split(new[] { ' ', '|', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x) && x != "-")
-            .ToArray();
+        // Master uses spaced HEX; Passive Monitor/archives may use compact HEX.
+        // This executes only upon selection, not in the receive loop.
+        var tokens = rawHex.Split(new[] { ' ', '|', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var bytes = new List<string>(tokens.Length);
+        foreach (var token in tokens)
+        {
+            if (token == "-") continue;
+            if (token.Length > 2 && (token.Length & 1) == 0 && token.All(Uri.IsHexDigit))
+                for (var i = 0; i < token.Length; i += 2) bytes.Add(token.Substring(i, 2));
+            else bytes.Add(token);
+        }
+        return bytes.ToArray();
     }
 
     private static IEnumerable<HexSegment> BuildHexSegments(EvidenceRow row)
