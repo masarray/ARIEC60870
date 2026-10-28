@@ -139,7 +139,7 @@ public sealed class Iec10xCommandForensicsTests
         Assert.Equal("SELECT", decodedSetpoint.CommandDetails!.Operation);
         Assert.Equal(9, decodedSetpoint.CommandDetails.QualifierValue);
         Assert.Equal(11, decodedSetpoint.CommandDetails.QualifierAsduOffset);
-        Assert.Equal(setpoint[11], decodedSetpoint.CommandDetails.QualifierRaw);
+        Assert.Equal((byte?)setpoint[11], decodedSetpoint.CommandDetails.QualifierRaw);
 
         byte[] bitstring =
         {
