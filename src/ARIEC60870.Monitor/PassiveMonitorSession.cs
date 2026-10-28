@@ -334,7 +334,8 @@ public sealed class PassiveMonitorSession
                     scanners[chunk.StreamId].Feed(chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize,
                         chunk.Length - PassiveJournalFormat.HeaderSize), rawOffset,
                         frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
-                            frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid, frame.RawBytes)));
+                            frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid,
+                            frame.RawBytes, frame.DetectedLinkAddressWidth)));
                     foreach (var frame in observed)
                     {
                         timelines[frame.StreamId / 2].ObserveFrame(frame with
