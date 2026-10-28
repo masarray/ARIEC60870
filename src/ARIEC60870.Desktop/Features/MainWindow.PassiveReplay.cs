@@ -86,6 +86,8 @@ public partial class MainWindow
             _passiveFindingWindowEndUtc = DateTime.MinValue;
             _passiveFindingWindowCount = 0;
             _passiveReplayCorrelator = null;
+            _passiveReplayGiTracker = null;
+            _passiveGiNotes.Clear();
             _passiveCaptureResult = null;
             MainTabControl.SelectedIndex = PassiveTraceTabIndex;
             UpdateSegmentedNav(false);
@@ -118,6 +120,11 @@ public partial class MainWindow
                         new PassiveTransactionOptions(
                             LinkAddressWidth: effectiveProfile.LinkAddressWidth,
                             LinkMode: effectiveProfile.LinkMode));
+                    _passiveReplayGiTracker = new PassiveIec101GiTracker(
+                        new PassiveGiOptions(LinkAddressWidth: effectiveProfile.LinkAddressWidth,
+                            CotWidth: effectiveProfile.CotWidth,
+                            CommonAddressWidth: effectiveProfile.CommonAddressWidth,
+                            InformationAddressWidth: effectiveProfile.InformationAddressWidth));
                     _passiveAsduDecoder = new ARIEC60870.Master.Protocol.Iec10x.Iec10xAsduDecoder(
                         effectiveProfile.CotWidth, effectiveProfile.CommonAddressWidth,
                         effectiveProfile.InformationAddressWidth);
@@ -166,8 +173,11 @@ public partial class MainWindow
                 File.ReadAllText(manifestPath))!;
             _passiveReplayCorrelator?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveTransactionEvent);
             _passiveReplayCorrelator?.Complete(ApplyPassiveTransactionEvent);
+            _passiveReplayGiTracker?.AdvanceTime(finalManifest.EndUtc, ApplyPassiveGiEvent);
+            _passiveReplayGiTracker?.Complete(ApplyPassiveGiEvent);
             FlushUiQueues();
             _passiveReplayCorrelator = null;
+            _passiveReplayGiTracker = null;
             _passiveCaptureResult = (directory, finalManifest);
             PassiveScadaCountText.Text = finalManifest.Streams
                 .Where(x => x.StreamId == 0).Sum(x => x.Bytes).ToString("N0") + " bytes";
@@ -219,6 +229,7 @@ public partial class MainWindow
         {
             _passiveReplayWork = null;
             _passiveReplayCorrelator = null;
+            _passiveReplayGiTracker = null;
             _passiveReplayCancellation = null;
             OpenCaptureButton.IsEnabled = true;
             SetupButton.IsEnabled = true;
