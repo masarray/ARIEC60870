@@ -91,7 +91,7 @@ public sealed class Iec101FrameByteInspectorTests
         Assert.Equal("6C 00 80", fields.Single(x => x.Key == "object-1").Hex);
         var value = fields.Single(x => x.Key == "value-1");
         Assert.Equal("01 2C 6F 27 14 1C 0A 1A", value.Hex);
-        Assert.Contains("IOA 8388716 = ON", value.Meaning);
+        Assert.Contains("IOA 8388716 = SP=ON", value.Meaning);
         Assert.Contains("2026-10-28 20:39:28.460", value.Meaning);
         Assert.All(fields.Where(x => x.Count > 0), f =>
             Assert.Equal(string.Join(" ", raw.Skip(f.Offset).Take(f.Count).Select(b => b.ToString("X2"))), f.Hex));
