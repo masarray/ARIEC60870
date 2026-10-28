@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Master.Model;
 
@@ -58,6 +59,9 @@ public sealed class Iec103MasterEvidenceEvent
     public int? InformationObjectAddress { get; init; }
     public string ObjectSummary { get; init; } = string.Empty;
     public string QualityText { get; init; } = string.Empty;
+    public Iec10xCauseDetails? CauseDetails { get; init; }
+    public Iec10xQualityDetails? QualityDetails { get; init; }
+    public Iec10xCommandDetails? CommandDetails { get; init; }
 
     public bool? Acd => Frame?.LinkControl?.Acd;
     public bool? Dfc => Frame?.LinkControl?.Dfc;
