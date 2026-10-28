@@ -82,8 +82,12 @@ public partial class MainWindow
         SelectedRawText.Text = row.RawHex;
         _selectedFrameExplanation = explanation;
         SelectedLineSummaryText.Text = "Hover or click a protocol group. The panel stays stable; linked raw/meaning groups are highlighted without rewriting the inspector.";
-        SelectedLineDirectionText.Text = BuildLineMonitorTitle(row);
-        SelectedLineSummaryText.Text = BuildLineMonitorSummary(row);
+        SelectedLineDirectionText.Text = row.ProtocolMode == "101"
+            ? row.ProtocolTraceTitle
+            : BuildLineMonitorTitle(row);
+        SelectedLineSummaryText.Text = row.ProtocolMode == "101"
+            ? row.ProtocolTraceMeaning.Split('\n')[0]
+            : BuildLineMonitorSummary(row);
         UpdateFrameInterpreterTone(row);
         RebuildProtocolMap(row);
         ActivateDefaultProtocolMapGroup(row);
@@ -102,8 +106,9 @@ public partial class MainWindow
         {
             "104" when row.ApciFormat == "I" && row.IoAddress != "-" => "object",
             "104" => "apci",
-            "101" when row.IoAddress != "-" => "object",
-            "101" when row.TypeId != "-" => "asdu",
+            "101" when row.Source.AsduDetails?.Objects.Count > 0 => "value-1",
+            "101" when row.Source.AsduDetails is not null => "asdu-type",
+            "101" => "control",
             "103" when row.FunInf != "-" => "asdu",
             _ => "raw"
         };
@@ -121,6 +126,8 @@ public partial class MainWindow
             "asdu" => "ASDU header selected",
             "cot" => "COT and flags selected",
             "object" => "object address selected",
+            _ when key.StartsWith("object-", StringComparison.OrdinalIgnoreCase) => "IOA bytes selected",
+            _ when key.StartsWith("value-", StringComparison.OrdinalIgnoreCase) => "value bytes selected",
             "payload" => "payload selected",
             "value" => "value selected",
             "check" => "integrity selected",
@@ -138,20 +145,10 @@ public partial class MainWindow
         }
 
         var tone = row?.TrafficTone ?? string.Empty;
-        var background = tone switch
-        {
-            "Tx" => Color.FromRgb(245, 250, 255),
-            "Rx" => Color.FromRgb(244, 255, 249),
-            "Error" => Color.FromRgb(255, 245, 245),
-            _ => Color.FromRgb(248, 251, 255)
-        };
-        var border = tone switch
-        {
-            "Tx" => Color.FromRgb(191, 219, 254),
-            "Rx" => Color.FromRgb(187, 247, 208),
-            "Error" => Color.FromRgb(254, 202, 202),
-            _ => Color.FromRgb(226, 232, 240)
-        };
+        // Neutral inspector surface: meaning is conveyed by exact byte groups,
+        // not a full-height green/blue panel whose color competes with the text.
+        var background = tone == "Error" ? Color.FromRgb(255, 249, 249) : Color.FromRgb(255, 255, 255);
+        var border = tone == "Error" ? Color.FromRgb(254, 202, 202) : Color.FromRgb(226, 232, 240);
 
         FrameInterpreterPanel.Background = new SolidColorBrush(background);
         FrameInterpreterPanel.BorderBrush = new SolidColorBrush(border);
@@ -249,6 +246,25 @@ public partial class MainWindow
     {
         SelectedProtocolMapLines.Clear();
         SelectedHexSegments.Clear();
+
+        // IEC-101: one exact offset/range SSOT for BOTH decoded field rows and
+        // linked raw HEX groups. No made-up "L=...,CA=..." as a HEX segment.
+        if (row.ProtocolMode == "101")
+        {
+            var fields = Iec101FrameByteInspector.Explain(row.Source);
+            if (fields.Count > 0)
+            {
+                foreach (var field in fields)
+                {
+                    SelectedProtocolMapLines.Add(new ProtocolMapLine(field.Key,
+                        field.Title, field.Meaning, field.Hex));
+                    if (field.Count > 0)
+                        SelectedHexSegments.Add(new HexSegment(field.Key,
+                            field.Hex, field.Title, field.Meaning));
+                }
+                return;
+            }
+        }
 
         foreach (var line in BuildProtocolMapLines(row))
         {
@@ -672,7 +688,15 @@ public partial class MainWindow
 
         var builder = new StringBuilder();
         builder.AppendLine($"Frame #{_selectedFrameRow.Sequence} {BuildLineMonitorTitle(_selectedFrameRow)}");
-        builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
+        if (_selectedFrameRow.ProtocolMode == "101")
+        {
+            foreach (var field in Iec101FrameByteInspector.Explain(_selectedFrameRow.Source))
+                builder.AppendLine($"{field.Hex}  →  {field.Title}: {field.Meaning}");
+        }
+        else
+        {
+            builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
+        }
         builder.AppendLine();
         builder.AppendLine("Raw: " + _selectedFrameRow.RawHex);
         Clipboard.SetText(builder.ToString());
