@@ -76,7 +76,8 @@ public sealed class Iec10xInformationObject
     {
         get
         {
-            var quality = string.IsNullOrWhiteSpace(QualityText) ? "Quality=Good" : $"Quality={QualityText}";
+            // A command without a quality field is NOT known-good process data.
+            var quality = QualityDetails is null ? "Quality=N/A (not present)" : $"Quality={QualityDetails.DisplayText}";
             var time = string.IsNullOrWhiteSpace(TimestampText) ? string.Empty : $", Time={TimestampText}";
             return $"IOA={InformationObjectAddress}, Value={ShortValue}, {quality}{time}";
         }
