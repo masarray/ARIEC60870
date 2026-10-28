@@ -131,6 +131,46 @@ public sealed class Iec10xCommandForensicsTests
         Assert.Equal(-1, d.Objects[1].InformationObjectOffset); // SQ1: no additional IOA on wire
     }
 
+    [Fact]
+    public void SetpointSelectQualifierAndBitstringCommandRemainDecoded()
+    {
+        var setpoint = Iec10xAsduBuilder.SetpointNormalizedCommand(Settings(), ioa: 100, normalizedValue: 0.25, select: true, qualifier: 9);
+        var decodedSetpoint = _decoder.Decode(setpoint);
+        Assert.Equal("SELECT", decodedSetpoint.CommandDetails!.Operation);
+        Assert.Equal(9, decodedSetpoint.CommandDetails.QualifierValue);
+        Assert.Equal(11, decodedSetpoint.CommandDetails.QualifierAsduOffset);
+        Assert.Equal(setpoint[11], decodedSetpoint.CommandDetails.QualifierRaw);
+
+        byte[] bitstring =
+        {
+            51, 1, 6, 0, 1, 0, 123, 0, 0,
+            0x78, 0x56, 0x34, 0x12
+        };
+        var decodedBits = _decoder.Decode(bitstring);
+        Assert.Empty(decodedBits.Issues);
+        Assert.NotNull(decodedBits.CommandDetails);
+        Assert.Null(decodedBits.CommandDetails!.QualifierRaw);
+        Assert.Contains("0x12345678", decodedBits.CommandDetails.ValueMeaning);
+        Assert.Null(decodedBits.Objects[0].QualityDetails);
+    }
+
+    [Fact]
+    public void TimeTaggedBitstringCommandCarriesCp56WithoutFalseQuality()
+    {
+        byte[] asdu =
+        {
+            64, 1, 7, 0, 1, 0, 5, 0, 0,
+            0x78, 0x56, 0x34, 0x12, // 32-bit command
+            0x7B, 0x00, 0x04, 0x0B, 0x1C, 0x0A, 0x1A // CP56Time2a
+        };
+        var decoded = _decoder.Decode(asdu);
+        Assert.Empty(decoded.Issues);
+        Assert.NotNull(decoded.CommandDetails);
+        Assert.Equal(7, decoded.CauseDetails!.Code);
+        Assert.Contains("2026-10-28", decoded.Objects[0].TimestampText);
+        Assert.Contains("Quality=N/A", decoded.Objects[0].ReadableSummary);
+    }
+
     private static Iec103MasterSettings Settings() => new()
     {
         ProtocolMode = Iec60870ProtocolMode.Iec101,
