@@ -190,9 +190,11 @@ public partial class MainWindow
             "Fixed", true, new byte[] { 0x10, 0x49, 0x69, 0xB2, 0x16 }),
             ApplyPassiveTimelineWindow);
         timelineProbe.AdvanceTime(giNow.AddSeconds(5), ApplyPassiveTimelineWindow);
-        timelineProbe.Complete(ApplyPassiveTimelineWindow);
+        // The first interval contains FC9; the newly started second interval
+        // is intentionally empty. Assert before flushing that empty tail.
         if (!PassiveStatusMessageText.Text.Contains("LinkStatus=1", StringComparison.Ordinal))
             throw new InvalidOperationException("P2E failure timeline did not reach the existing Capture view.");
+        timelineProbe.Complete(ApplyPassiveTimelineWindow);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
         if (IsIec101PassiveMonitorSelected() ||
