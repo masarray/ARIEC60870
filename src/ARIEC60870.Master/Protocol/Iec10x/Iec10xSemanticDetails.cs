@@ -133,7 +133,7 @@ public sealed record Iec10xCommandDetails(
             48 or 61 => "C_SE normalized setpoint (QOS)",
             49 or 62 => "C_SE scaled setpoint (QOS)",
             50 or 63 => "C_SE float setpoint (QOS)",
-            51 or 64 => "C_BO 32-bit bitstring command"
+            51 or 64 => "C_BO 32-bit bitstring command",
             100 => "C_IC general interrogation (QOI)",
             101 => "C_CI counter interrogation (QCC)",
             102 => "C_RD read command",
