@@ -291,7 +291,10 @@ public sealed class PassiveJournalReplayTests
             var ports = new[] { "COM201", "COM202", "COM203", "COM204" };
             var options = new PassiveCaptureOptions(folder,
                 new PassiveSerialSource(ports[0], "A SCADA"),
-                new PassiveSerialSource(ports[1], "A RTU"), ChannelCapacity: 32,
+                // This verifies lossless four-source replay, not FIFO saturation.
+                // All 592 one-byte records fit without scheduler-dependent
+                // >250ms queue backpressure (covered separately).
+                new PassiveSerialSource(ports[1], "A RTU"), ChannelCapacity: 1024,
                 ReadChunkBytes: 128,
                 LinkBScadaTx: new PassiveSerialSource(ports[2], "B SCADA"),
                 LinkBRtuTx: new PassiveSerialSource(ports[3], "B RTU"));
