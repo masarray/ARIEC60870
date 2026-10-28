@@ -178,6 +178,21 @@ public partial class MainWindow
             parts.Add("Command / response: " + cmd.Detail);
         if (row.Source.QualityDetails is { } quality)
             parts.Add("Quality bits: " + quality.BitDetails);
+        if (row.Source.InformationObjectDetails is { } selectedObject)
+            parts.Add($"Object #{selectedObject.Index} IOA={selectedObject.InformationObjectAddress}; " +
+                $"ASDU IOA offset={(selectedObject.InformationObjectOffset < 0 ? "implicit SQ" : selectedObject.InformationObjectOffset.ToString())}; " +
+                $"element byte offset={selectedObject.InformationElementOffset}; length={selectedObject.RawBytes.Count}.");
+        if (row.Source.AsduDetails is { Objects.Count: > 1 } parsed &&
+            row.Source.InformationObjectDetails?.Index == 1)
+        {
+            // Lazy, bounded selected-frame inspection. The complete decoded object array
+            // stays available as one shared source, without adding UI grid columns.
+            foreach (var obj in parsed.Objects.Take(16))
+                parts.Add($"#{obj.Index} IOA={obj.InformationObjectAddress}: {obj.ShortValue}; " +
+                    $"quality={obj.QualityDetails?.DisplayText ?? "N/A"}; element byte={obj.InformationElementOffset}.");
+            if (parsed.Objects.Count > 16)
+                parts.Add($"+{parsed.Objects.Count - 16} more objects retained in the decoded ASDU.");
+        }
 
         parts.Add(row.ProtocolMode switch
         {
@@ -302,7 +317,9 @@ public partial class MainWindow
 
         if (bytes[0].Equals("E5", StringComparison.OrdinalIgnoreCase))
         {
-            yield return new ProtocolMapLine("envelope", "Single char ACK", "IEC FT1.2 single-character acknowledgement. The relay accepted the previous link/action frame.", "E5");
+            yield return new ProtocolMapLine("envelope", "E5 short response",
+                "IEC-101 E5 has context-dependent meaning: link acknowledgement or NO DATA for a pending Class 1/2 request. " +
+                "Without an unambiguous matched request the application outcome is unknown; it does not prove command execution.", "E5");
             yield break;
         }
 

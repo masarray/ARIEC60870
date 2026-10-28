@@ -62,6 +62,9 @@ public sealed class Iec103MasterEvidenceEvent
     public Iec10xCauseDetails? CauseDetails { get; init; }
     public Iec10xQualityDetails? QualityDetails { get; init; }
     public Iec10xCommandDetails? CommandDetails { get; init; }
+    // Shared references: no duplicate decoder or per-object raw buffer.
+    public Iec10xAsduDecode? AsduDetails { get; init; }
+    public Iec10xInformationObject? InformationObjectDetails { get; init; }
 
     public bool? Acd => Frame?.LinkControl?.Acd;
     public bool? Dfc => Frame?.LinkControl?.Dfc;

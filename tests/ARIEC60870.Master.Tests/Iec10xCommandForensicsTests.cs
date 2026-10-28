@@ -171,6 +171,53 @@ public sealed class Iec10xCommandForensicsTests
         Assert.Contains("Quality=N/A", decoded.Objects[0].ReadableSummary);
     }
 
+
+    [Fact]
+    public void Cp56DayOfWeekHighBitMustNotBecomeInvalidFlag()
+    {
+        // On-wire DOW=4 lives in the high three bits of the day octet.
+        var timestamp = Iec10xAsduDecoder.DecodeCp56Time2a(
+            new byte[] { 0, 0, 30, 12, 0x9C, 10, 26 });
+        Assert.Contains("2026-10-28", timestamp);
+        Assert.DoesNotContain("invalid-time", timestamp);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0x80, 12, 28, 10, 26)]
+    [InlineData(0, 0, 60, 12, 28, 10, 26)]
+    [InlineData(0, 0, 30, 24, 28, 10, 26)]
+    [InlineData(0, 0, 30, 12, 31, 2, 26)]
+    [InlineData(0x60, 0xEA, 30, 12, 28, 10, 26)]
+    public void Cp56FlagsOrOutOfRangeCalendarRemainInvalid(
+        byte msLow, byte msHigh, byte minute, byte hour, byte day, byte month, byte year)
+    {
+        var timestamp = Iec10xAsduDecoder.DecodeCp56Time2a(
+            new byte[] { msLow, msHigh, minute, hour, day, month, year });
+        Assert.Contains("invalid-time", timestamp);
+    }
+
+    [Fact]
+    public void Sq0MultipleIoasHaveIndependentQualityAndExactOffsets()
+    {
+        byte[] asdu =
+        {
+            9, 2, 0x83, 0, 5, 0, // Type9, VSQ2, spontaneous TEST, CA5
+            42, 0, 0, 0x10, 0, 0x00, // IOA42 quality Good
+            43, 0, 0, 0x20, 0, 0x81  // IOA43 quality IV+OV
+        };
+        var d = _decoder.Decode(asdu);
+        Assert.Equal(2, d.Objects.Count);
+        Assert.True(d.CauseDetails!.Test);
+        Assert.Equal(42, d.Objects[0].InformationObjectAddress);
+        Assert.Equal(43, d.Objects[1].InformationObjectAddress);
+        Assert.Equal(9, d.Objects[0].InformationElementOffset);
+        Assert.Equal(15, d.Objects[1].InformationElementOffset);
+        Assert.Equal(12, d.Objects[1].InformationObjectOffset);
+        Assert.Equal("Good", d.Objects[0].QualityDetails!.DisplayText);
+        Assert.True(d.Objects[1].QualityDetails!.Invalid);
+        Assert.True(d.Objects[1].QualityDetails!.Overflow == true);
+    }
+
     private static Iec103MasterSettings Settings() => new()
     {
         ProtocolMode = Iec60870ProtocolMode.Iec101,

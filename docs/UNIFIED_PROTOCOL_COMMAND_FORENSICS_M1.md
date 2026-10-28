@@ -35,3 +35,11 @@ Test C_SC SELECT, ACTCON positive, C_DC EXECUTE negative P/N, TEST and COT47 err
 
 ## Engineering guardrails
 Do not alter scheduling/FCB state-machine behavior in M1, and never add TX code to Passive Monitor. Parser work must be pure, bounded and independent of WPF. Never infer actual switchgear movement without later process-state evidence. Raw capture evidence is private and must not be committed to public fixtures.
+
+## M1 continuation — typed per-object source and timestamp correctness
+
+- Retain a shared decoded ASDU and selected information-object reference in every IEC-101/104 Active Master, IEC-101 redundant and IEC-101 Passive event. Reuse one source record rather than parsing from WPF strings or copying decoded raw bytes per object.
+- Secondary objects preserve their own typed COT, command, quality and exact ASDU-relative object/element byte offsets, even for SQ1 implicit IOAs. The inspector shows the selected object's metadata and a bounded first-page overview of an ASDU's objects.
+- IEC-101 E5 in the inspector is contextual (link ACK versus Class 1/2 no-data), never proof of successful application command.
+- CP56Time2a day-of-week high bits must not be treated as invalid-time. Clock/calendar bounds and minute IV are checked. CP24 hourless clock ranges are checked. Public regression fixtures cover valid DOW and invalid ranges.
+- Passive multi-object projection encodes HEX once per frame instead of once per IOA. Full command transaction pairing, completed premium badge templates and report/capture SSOT remain M2/M3; no field-device FAT is implied.
