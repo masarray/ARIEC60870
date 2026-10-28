@@ -398,6 +398,7 @@ public partial class MainWindow
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
         ClearSessionView(clearLog: true);
+        PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
         _passiveUndecodableShown = 0;

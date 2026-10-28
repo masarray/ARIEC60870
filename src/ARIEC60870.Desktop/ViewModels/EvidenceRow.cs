@@ -75,8 +75,14 @@ public sealed partial class EvidenceRow
         ProtocolAddress = BuildProtocolAddress();
         ProtocolService = BuildProtocolService();
         ReadableMeaning = BuildReadableMeaning(item);
-        ProtocolTraceTitle = BuildProtocolTraceTitle();
-        ProtocolTraceMeaning = BuildProtocolTraceMeaning();
+        // Render the already-decoded IEC-101 frame once, reusing its compact
+        // narration for both line title and explanation (no duplicate formatting).
+        (string Title, string Meaning)? narration =
+            item.ProtocolMode == Iec60870ProtocolMode.Iec101 && item.Frame is not null
+                ? Iec101TraceNarrator.Describe(item)
+                : null;
+        ProtocolTraceTitle = narration?.Title ?? BuildProtocolTraceTitle();
+        ProtocolTraceMeaning = narration?.Meaning ?? BuildProtocolTraceMeaning();
         ProtocolTraceRaw = BuildProtocolTraceRaw();
         ProtocolTraceMeta = $"#{Sequence}  {Time}  {ProtocolName}";
         TrafficTone = ResolveTrafficTone();
@@ -221,7 +227,8 @@ public sealed partial class EvidenceRow
 
     private string BuildProtocolTraceTitle()
     {
-        var direction = string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;
+        var direction = Direction == "TX" ? "➤ TX" : Direction == "RX" ? "◀ RX" :
+            string.IsNullOrWhiteSpace(Direction) ? "STATE" : Direction;
         var service = CleanTracePart(ProtocolService);
         var address = CleanTracePart(ProtocolAddress);
         var signal = CleanTracePart(SignalOrAddress);

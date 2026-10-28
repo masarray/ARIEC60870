@@ -101,6 +101,7 @@ public partial class MainWindow
         }
 
         ClearSessionView(clearLog: false);
+        PrepareLiveTraceForConnect();
         SeedValueViewerFromIoaProfile(settings.ProtocolMode);
         _stopRequested = false;
         _operatorDisconnectInProgress = false;

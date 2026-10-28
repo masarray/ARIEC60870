@@ -221,6 +221,17 @@ public partial class MainWindow
         }
 
         _pendingEvidence.Enqueue(item);
+
+        // First event after Connect gets one prompt dispatcher flush; normal traffic
+        // continues on the 75ms bounded timer. Never queue a UI callback per telegram.
+        if (System.Threading.Interlocked.Exchange(ref _initialLiveTraceFlushPending, 0) == 1 &&
+            !Dispatcher.HasShutdownStarted)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_pendingEvidence.Count > 0) FlushUiQueues();
+            }), DispatcherPriority.Background);
+        }
     }
 
     private void OnFindingRaised(object? sender, Iec103MasterFinding finding)
@@ -526,7 +537,7 @@ public partial class MainWindow
         return IsLineMonitorHoldRequested()
                || _isProtocolTraceDragSelecting
                || _isProtocolTraceSelectionBatching
-               || (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0
+               || (_protocolTraceSelectionAnchorIndex >= 0 && (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0)
                || FrameTraceGrid?.ContextMenu?.IsOpen == true;
     }
 
@@ -573,6 +584,30 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// A new connection must never inherit a stale Hold/selection state from a
+    /// previous session. Trace remains live without forcing navigation to another tab.
+    /// </summary>
+    private void PrepareLiveTraceForConnect()
+    {
+        _initialLiveTraceFlushPending = 1;
+        _protocolTraceSelectionAnchorIndex = -1;
+        _evidenceSummarySelectionAnchorIndex = -1;
+        _isProtocolTraceDragSelecting = false;
+        _isProtocolTraceSelectionBatching = false;
+        _isEvidenceSummaryDragSelecting = false;
+        _pendingProtocolTraceSelectionInspectorRefresh = false;
+        _protocolTraceViewDirtyWhileFrozen = false;
+        _evidenceSummaryViewDirtyWhileFrozen = false;
+        _protocolTraceRowsDeferredWhileFrozen = 0;
+        _evidenceSummaryRowsDeferredWhileFrozen = 0;
+        FrameTraceGrid?.SelectedItems.Clear();
+        EvidenceSummaryList?.SelectedItems.Clear();
+        if (AutoScrollLatestToggleButton is not null)
+            AutoScrollLatestToggleButton.IsChecked = true;
+        UpdateAutoScrollLatestRailVisual();
+    }
+
     private void FlushVisibleUiBatches()
     {
         var batchRows = _pendingEvidenceSummaryUiRows.Count
@@ -613,8 +648,25 @@ public partial class MainWindow
             else
             {
                 ApplyDeferredProtocolTraceSnapshotIfNeeded();
-                FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
-                _pendingProtocolTraceUiRows.Clear();
+                if (FrameTraceRows.Count == 0)
+                {
+                    // WPF ListBox can retain an unrealized empty viewport when an
+                    // existing ItemsSource was cleared while the session changed.
+                    // Reconcile the first batch from the authoritative bounded ring,
+                    // once, instead of waiting for a tab switch to force a rebind.
+                    FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+                    _pendingProtocolTraceUiRows.Clear();
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (IsProtocolTraceTabActive())
+                            FrameTraceGrid?.InvalidateMeasure();
+                    }), DispatcherPriority.Loaded);
+                }
+                else
+                {
+                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+                    _pendingProtocolTraceUiRows.Clear();
+                }
                 _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
                 ScrollLatestProtocolTraceIfAutoScroll();
             }
@@ -702,56 +754,13 @@ public partial class MainWindow
 
     private bool ShouldShowInFrameTrace(Iec103MasterEvidenceEvent item, EvidenceRow row)
     {
-        // Monitor mode must show real SCADA↔RTU traffic, including routine polls,
-        // independently of the Active Master Balanced/Proof trace suppression rules.
-        if (item.PollingReason == "PASSIVE-IEC101") return true;
-        if (row.RawHex == "-" ||
-            (!row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) &&
-             !row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
-
-        var mode = GetTraceVerbosityMode();
-        if (mode == TraceVerbosityMode.Full)
-        {
-            return true;
-        }
-
-        if (IsProtectedTraceEvidence(item, row))
-        {
-            return true;
-        }
-
-        var combined = string.Join(" ", item.Category, item.State, item.Summary, item.Detail, item.OperatorMessage, item.OperatorAction, item.ProtocolMeaning, item.DataClass, row.ReadableMeaning);
-        var routinePoll = ContainsAny(combined, "Request Class 1", "Request Class 2", "Class 2 poll", "background poll", "no data", "ACK", "single-character ACK");
-        var supervisory = ContainsAny(combined, "TESTFR", "S-frame", "STARTDT", "STOPDT");
-
-        if (mode == TraceVerbosityMode.Proof)
-        {
-            if (routinePoll || supervisory)
-            {
-                CountTraceVerbositySuppression(routinePoll ? "routine" : "supervisory");
-                return false;
-            }
-        }
-
-        if (mode == TraceVerbosityMode.Balanced)
-        {
-            if (supervisory)
-            {
-                CountTraceVerbositySuppression("supervisory");
-                return false;
-            }
-
-            if (routinePoll && !IsProtocolTraceTabActive())
-            {
-                CountTraceVerbositySuppression("routine");
-                return false;
-            }
-        }
-
-        return true;
+        // Trace is the byte-for-byte communication line monitor, not a proof
+        // summary. A valid TX/RX raw frame MUST be inspectable even if the user
+        // is currently in Values, Events or Report. The bounded ring limits RAM.
+        // UI queue backpressure remains a separate, explicitly counted safeguard.
+        return row.RawHex != "-" &&
+               (row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) ||
+                row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsProtectedTraceEvidence(Iec103MasterEvidenceEvent item, EvidenceRow row)
