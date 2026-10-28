@@ -19,6 +19,8 @@ P2C must let the operator **re-decode the very same full raw journal** with anot
 4. The existing Frame Trace / Events / Values / Findings views are repopulated from a fully verified two-direction binary journal. The Capture status and session log state whether the **saved** or **override** decoder was used, and show the exact profile string.
 5. Compare by changing Setup and reopening the same `manifest.json`. The source remains unchanged and independently verifiable after every pass. No serial ports are opened for replay.
 
+The GUI independently counts fully recognized IEC-101 frame candidates versus invalid/incomplete fragments. A journal may be cryptographically verified while **zero IEC-101 frames are recognized** under a wrong Link Address width; it raises a diagnostic with concrete options to try, not a misleading success claim.
+
 The operator must understand the difference between **raw evidence** and **decoded inference**. No metadata is silently changed in the original capture; a profile override is for investigation, not proof of the device's configured sizes.
 
 ## Engine boundaries

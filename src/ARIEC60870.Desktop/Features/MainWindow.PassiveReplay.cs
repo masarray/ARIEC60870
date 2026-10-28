@@ -98,6 +98,8 @@ public partial class MainWindow
             // per dispatcher batch; no large List of the entire field capture and
             // no Dispatcher.Invoke per byte/frame.
             long totalFrames = 0;
+            long validatedFrames = 0;
+            long malformedFrames = 0;
             _passiveReplayWork = Task.Run(() =>
             {
                 // Integrity verification happens before the first frame is displayed.
@@ -126,6 +128,14 @@ public partial class MainWindow
                 foreach (var observed in PassiveJournalReplay.ReadVerifiedFrames(
                     directory, effectiveProfile, cancel.Token))
                 {
+                    // Raw integrity and FT1.2 interpretation are distinct.
+                    // Incomplete/invalid frame candidates are not valid telegrams.
+                    if (observed.ChecksumValid && observed.Format != "Partial" &&
+                        !(observed.Format == "Single" && observed.RawBytes.Length == 1 &&
+                          observed.RawBytes[0] == 0xA2))
+                        validatedFrames++;
+                    else
+                        malformedFrames++;
                     batch.Add(observed);
                     if (batch.Count < 96) continue;
                     PublishBatch(batch);
@@ -165,11 +175,13 @@ public partial class MainWindow
                 .Where(x => x.StreamId == 1).Sum(x => x.Bytes).ToString("N0") + " bytes";
             PassiveVerifyButton.IsEnabled = true;
             PassiveIntegrityText.Text = "VERIFIED";
-            PassiveStatusMessageText.Text = totalFrames.ToString("N0") +
-                " telegrams · " + (isOverridden ? "RE-DECODED (Setup profile)" : "original profile") +
+            PassiveStatusMessageText.Text = validatedFrames.ToString("N0") +
+                " recognized IEC-101 frames, " + malformedFrames.ToString("N0") +
+                " invalid/incomplete candidates · " +
+                (isOverridden ? "RE-DECODED (Setup profile)" : "original profile") +
                 " · raw journal verified.";
-            UpdateStableHeader("Offline capture", totalFrames.ToString("N0") +
-                " telegrams from two RX directions · verified · " +
+            UpdateStableHeader("Offline capture", validatedFrames.ToString("N0") +
+                " IEC-101 frames from two RX directions · raw verified · " +
                 (isOverridden ? "Decode override" : "Recorded profile"));
             SessionSubtitleText.Text = "Offline Passive Monitor · " + finalManifest.SessionId +
                 (isOverridden ? " · RE-DECODE" : "");
@@ -177,6 +189,14 @@ public partial class MainWindow
             AppendSessionLog("IEC-101 recorded profile: " + savedProfile.Describe());
             AppendSessionLog("IEC-101 effective replay profile: " + effectiveProfile.Describe() +
                 (isOverridden ? " [NON-DESTRUCTIVE OVERRIDE; raw/manifest unchanged]" : " [saved]"));
+            if (validatedFrames == 0 && finalManifest.Streams.Sum(x => x.Bytes) > 0)
+                AddUiDiagnostic("Warning", "Capture", "IEC101-REPLAY-NO-VALID-FRAMES",
+                    "Verified raw capture but no valid IEC-101 frames under this profile",
+                    "The original serial data passed integrity verification, but the selected " +
+                    "IEC-101 interpretation found no complete valid frames. Recorded profile: " +
+                    savedProfile.Describe() + " | Effective profile: " + effectiveProfile.Describe(),
+                    "Verify Link Address width (try 1 versus 2 octets), baud/parity of original RX acquisition " +
+                    "and the real device interoperability list; reopen manifest to re-decode. The raw bytes remain unchanged.");
             AddUiDiagnostic("Info", "Capture", "IEC101-REPLAY-PROFILE",
                 isOverridden ? "IEC-101 capture interpreted with Setup override" : "IEC-101 capture interpreted with recorded profile",
                 "Original: " + savedProfile.Describe() + " | Effective: " + effectiveProfile.Describe() +
