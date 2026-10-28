@@ -42,6 +42,32 @@ public sealed class Iec10xObservationIdentityTests
     }
 
     [Fact]
+    public void GiSnapshotOnlyEntersSoeForKnownChangeAndNeverForTx()
+    {
+        var receivedGi = new Iec103MasterEvidenceEvent {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 31, InformationObjectAddress = 77,
+            CommonAddressNumber = 105, CauseOfTransmission = 20
+        };
+        Assert.False(Iec10xObservationIdentity.ShouldRecordDigitalEvent(receivedGi, false));
+        Assert.True(Iec10xObservationIdentity.ShouldRecordDigitalEvent(receivedGi, true));
+        var sentGi = new Iec103MasterEvidenceEvent {
+            Direction = FrameDirection.MasterToSlave,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 31, InformationObjectAddress = 77, CauseOfTransmission = 20
+        };
+        Assert.False(Iec10xObservationIdentity.ShouldRecordDigitalEvent(sentGi, true));
+
+        var spontaneous = new Iec103MasterEvidenceEvent {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            TypeId = 31, InformationObjectAddress = 77, CauseOfTransmission = 3
+        };
+        Assert.True(Iec10xObservationIdentity.ShouldRecordDigitalEvent(spontaneous, false));
+    }
+
+    [Fact]
     public void CommandAndOutboundEventsAreNotFabricatedAsSpontaneous()
     {
         foreach (var direction in new[] { FrameDirection.MasterToSlave, FrameDirection.Unknown }) {

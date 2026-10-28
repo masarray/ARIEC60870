@@ -28,3 +28,9 @@ For active IEC-101/104 without a separately identified redundant channel, source
 ## Remaining M2/M3 scope
 
 Full durable Frame→ASDU→Object ID persistence across `.ariec`, command SELECT/EXECUTE/ACTCON/ACTTERM pairing, command feedback proof, stable historical drill-down, and identical report fields are follow-ups. Do not describe this physical identity/SOE checkpoint as full forensics parity with IEC-Test.
+
+## Final M2 UI guard
+
+A profile-seeded SINGLE placeholder is removed when a source-qualified or wildcard-CA physical observation satisfies that exact configured point. The actual Link A/B records remain independent. A wrong-CA or wrong-Type observation cannot clear the placeholder or count toward expected GI coverage.
+
+An actual RX GI/cyclic digital state transition (a known previous state and a new different state) may enter SOE, but an unchanged GI snapshot may not. A valid spontaneous RX event enters SOE even without that transition. TX events are never promoted to SOE as digital observations.

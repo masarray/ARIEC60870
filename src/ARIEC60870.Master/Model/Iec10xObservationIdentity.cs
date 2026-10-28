@@ -39,6 +39,17 @@ public static class Iec10xObservationIdentity
             && item.Frame?.IsChecksumValid != false
             && !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Preserve actual spontaneous observations, and known GI/cyclic state
+    /// transitions. Never make SOE events from TX, unknown, or unchanged snapshots.</summary>
+    public static bool ShouldRecordDigitalEvent(Iec103MasterEvidenceEvent item, bool changed)
+        => IsReceivedDigitalEvent(item) ||
+           (changed && item.Direction == FrameDirection.SlaveToMaster &&
+            (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) &&
+            item.TypeId is 1 or 2 or 3 or 4 or 30 or 31 &&
+            item.InformationObjectAddress.HasValue &&
+            item.Frame?.IsChecksumValid != false &&
+            !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase));
+
     public static string EventReason(Iec103MasterEvidenceEvent item, bool hasBaseline, bool changed)
     {
         var cause = item.CauseDetails?.Phase ?? item.CauseName;

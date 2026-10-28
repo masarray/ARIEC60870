@@ -174,7 +174,25 @@ public partial class MainWindow
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
         if (shouldShowValue)
         {
-            MarkGiValueReceived(item);
+            // Only a point compatible with the configured CA/Type can satisfy GI.
+            if (ioaPoint is not null) MarkGiValueReceived(item);
+            // In dual-link mode (or wildcard-CA mapping) an actual physical point
+            // has a different key than the seeded SINGLE placeholder. Remove the
+            // stale placeholder without merging Link A/B process snapshots.
+            if (ioaPoint is not null && item.InformationObjectAddress.HasValue)
+            {
+                var pendingKey = Iec10xObservationIdentity.ValueKey(item.ProtocolMode, null,
+                    ioaPoint.Ca ?? _ioaProfile.CommonAddress, item.InformationObjectAddress.Value);
+                if (!string.Equals(pendingKey, key, StringComparison.OrdinalIgnoreCase) &&
+                    _valueRowsByKey.TryGetValue(pendingKey, out var pending) &&
+                    string.IsNullOrWhiteSpace(pending.EvidenceReference))
+                {
+                    _valueRowsByKey.Remove(pendingKey);
+                    _lastDisplayedValueByKey.Remove(pendingKey);
+                    _valueHighlightExpiryByKey.Remove(pendingKey);
+                    _valueRowsDirty = true;
+                }
+            }
         }
         ReportGiCompletenessIfReady(item);
 
@@ -246,16 +264,14 @@ public partial class MainWindow
             }
         }
 
-        if (shouldShowEdgeEvent)
+        var recordIec10xDigital = Iec10xObservationIdentity.ShouldRecordDigitalEvent(item, hasMeaningfulChange);
+        if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xDigital))
         {
             var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
                                   && IsIec10xDigitalType(item.TypeId);
-            // A received spontaneous/return-information digital ASDU is an event
-            // FACT even when repeated or first seen. Cyclic and GI snapshots must
-            // still represent a known transition before entering SOE.
-            if (isIec10xDigital && !hasMeaningfulChange &&
-                !Iec10xObservationIdentity.IsReceivedDigitalEvent(item))
-                return;
+            // A protocol edge flag on invalid/unknown digital evidence must never
+            // overrule the source-backed event classification.
+            if (isIec10xDigital && !recordIec10xDigital) return;
 
             var relayEventRow = new RelayEventRow(new Iec103RelayEventLogEntry
             {
