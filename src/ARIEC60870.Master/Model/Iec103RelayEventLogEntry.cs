@@ -11,6 +11,8 @@ namespace ARIEC60870.Master.Model;
 public sealed class Iec103RelayEventLogEntry
 {
     public long EvidenceSequenceNumber { get; init; }
+    public string PhysicalSource { get; init; } = string.Empty;
+    public string EvidenceReference { get; init; } = string.Empty;
     public string RelayTimeText { get; init; } = string.Empty;
     public bool RelayTimeInvalid { get; init; }
     public DateTime ArrivalTimeUtc { get; init; } = DateTime.UtcNow;

@@ -79,3 +79,12 @@ They should enter Relay Event Log only when:
 - the value represents a state change compared with previous known state
 - the frame is explicitly event-like/spontaneous
 - user enables a debug option to log GI snapshots
+
+## M2 — received spontaneous event vs state transition (2026-10-29)
+
+- For valid RX IEC-101/104 digital ASDU, COT 3 (spontaneous) and 11/12 (return information) each represent an **observed protocol event**, even when the reported state repeats or was not known previously. The event reason identifies `first observation`, `repeat observation`, or `state change`; these are not synonymous.
+- GI/cyclic digital snapshots enter SOE only with a known state transition. Repeated unchanged GI values must not create synthetic events.
+- IEC-101/104 Values identity is protocol + physical channel + Common Address + IOA, **not IOA alone**. Mapping requires compatible CA/Type or an explicit wildcard; mismatch stays visible and diagnostic.
+- GI completion tracks configured CA+IOA independently of physical channel; other CA must not satisfy expected coverage.
+- Original RX tap stream/byte offset and object index remain available as a capture-local source reference. Derived references never imply verified raw integrity on their own.
+- Refer to `docs/IEC10X_M2_PHYSICAL_IDENTITY_SOE.md` for limitations and tests.

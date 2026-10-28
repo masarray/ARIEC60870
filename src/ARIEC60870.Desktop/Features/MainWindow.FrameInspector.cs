@@ -178,6 +178,10 @@ public partial class MainWindow
             parts.Add("Command / response: " + cmd.Detail);
         if (row.Source.QualityDetails is { } quality)
             parts.Add("Quality bits: " + quality.BitDetails);
+        if (row.Source.InformationObjectDetails is not null &&
+            !string.IsNullOrWhiteSpace(row.Source.EvidenceReference))
+            parts.Add("Evidence reference (session-local): " + row.Source.EvidenceReference +
+                ". For passive captures, verify against the original journal before claiming raw integrity.");
         if (row.Source.InformationObjectDetails is { } selectedObject)
             parts.Add($"Object #{selectedObject.Index} IOA={selectedObject.InformationObjectAddress}; " +
                 $"ASDU IOA offset={(selectedObject.InformationObjectOffset < 0 ? "implicit SQ" : selectedObject.InformationObjectOffset.ToString())}; " +

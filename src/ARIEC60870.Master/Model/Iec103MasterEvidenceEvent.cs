@@ -27,6 +27,12 @@ public sealed class Iec103MasterEvidenceEvent
     public string ProtocolMeaning { get; init; } = string.Empty;
     public string OperatorAction { get; init; } = string.Empty;
     public string RawHex { get; init; } = string.Empty;
+    /// <summary>Physical observation source, independent of user signal mapping.</summary>
+    public string PhysicalSource { get; init; } = string.Empty;
+    /// <summary>Original RX journal provenance. Null for active master frames.</summary>
+    public int? PhysicalStreamId { get; init; }
+    public long? RawStreamOffset { get; init; }
+    public string EvidenceReference => Iec10xObservationIdentity.EvidenceReference(this);
 
     /// <summary>
     /// Exception metadata is captured as diagnostic evidence, not thrown to the UI thread.

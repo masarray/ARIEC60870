@@ -132,20 +132,17 @@ public partial class MainWindow
             return null;
         }
 
-        var exact = _ioaProfile.Resolve(item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId);
-        if (exact is not null || !item.InformationObjectAddress.HasValue)
-        {
-            return exact;
-        }
-
-        // Field devices sometimes answer with a live ASDU CA that differs from the configured
-        // FAT/SAT profile CA. The Values workspace is an operator view, so keep mapping by IOA
-        // when the runtime CA is different; the dedicated runtime CA warning explains the mismatch.
-        // Without this fallback, real values appear as a second unmapped row while the profile row
-        // remains stuck in the old "waiting for GI" placeholder state.
-        return _ioaProfile.Points.FirstOrDefault(point =>
-            point.Ioa == item.InformationObjectAddress.Value &&
-            (!point.TypeId.HasValue || !item.TypeId.HasValue || point.TypeId.Value == item.TypeId.Value));
+        // No inferred IOA-only mapping on a CA mismatch. A differently addressed
+        // station is a different physical point; it remains visible but unmapped.
+        if (!item.InformationObjectAddress.HasValue) return null;
+        return _ioaProfile.Points
+            .Where(p => p.Ioa == item.InformationObjectAddress.Value &&
+                (!(p.Ca ?? _ioaProfile.CommonAddress).HasValue ||
+                    (p.Ca ?? _ioaProfile.CommonAddress) == item.CommonAddressNumber) &&
+                (!p.TypeId.HasValue || p.TypeId == item.TypeId))
+            .OrderByDescending(p => p.Ca.HasValue)
+            .ThenByDescending(p => p.TypeId.HasValue)
+            .FirstOrDefault();
     }
 
     private static string ExtractSimpleStateToken(string value)
@@ -177,7 +174,7 @@ public partial class MainWindow
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
         if (shouldShowValue)
         {
-            MarkGiValueReceived(key);
+            MarkGiValueReceived(item);
         }
         ReportGiCompletenessIfReady(item);
 
@@ -210,6 +207,8 @@ public partial class MainWindow
             var valueRow = new ValueRow(new Iec103ValuePoint
             {
                 Key = key,
+                PhysicalSource = item.PhysicalSource,
+                EvidenceReference = item.EvidenceReference,
                 IsMapped = item.IsMappedSignal || ioaPoint is not null,
                 SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
@@ -251,16 +250,12 @@ public partial class MainWindow
         {
             var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
                                   && IsIec10xDigitalType(item.TypeId);
+            // A received spontaneous/return-information digital ASDU is an event
+            // FACT even when repeated or first seen. Cyclic and GI snapshots must
+            // still represent a known transition before entering SOE.
             if (isIec10xDigital && !hasMeaningfulChange &&
-                !item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal))
-            {
-                // Active Master: event log is a change journal; Passive Monitor:
-                // an observed spontaneous ASDU is itself a protocol event even when
-                // the first captured value has no prior baseline.
-                // Event Log is a change journal, not a value mirror. Ignore OFF->OFF,
-                // ON->ON, and first-observed states with no trustworthy before value.
+                !Iec10xObservationIdentity.IsReceivedDigitalEvent(item))
                 return;
-            }
 
             var relayEventRow = new RelayEventRow(new Iec103RelayEventLogEntry
             {
@@ -276,7 +271,13 @@ public partial class MainWindow
                 InformationNumber = item.InformationNumber,
                 PreviousValue = string.IsNullOrWhiteSpace(previousValue) ? string.Empty : previousValue,
                 NewValue = displayValue,
-                EdgeReason = string.IsNullOrWhiteSpace(item.EdgeReason) ? (item.Cot ?? string.Empty) : item.EdgeReason,
+                EdgeReason = isIec10xDigital
+                    ? Iec10xObservationIdentity.EventReason(item,
+                        !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
+                        hasMeaningfulChange)
+                    : string.IsNullOrWhiteSpace(item.EdgeReason) ? (item.Cot ?? string.Empty) : item.EdgeReason,
+                PhysicalSource = item.PhysicalSource,
+                EvidenceReference = item.EvidenceReference,
                 CauseOfTransmission = item.Cot ?? string.Empty,
                 AsduType = item.AsduType ?? string.Empty,
                 RawHex = item.RawHex,
@@ -431,11 +432,9 @@ public partial class MainWindow
     {
         if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
         {
-            // IEC-101/104 operator values must be keyed by IOA so seeded profile placeholders
-            // and live RX process values update the same row even when live CA differs from the
-            // configured profile CA or the decoder supplies a richer SignalKey.
             return item.InformationObjectAddress.HasValue
-                ? BuildIoaValueKey(item.InformationObjectAddress.Value)
+                ? Iec10xObservationIdentity.ValueKey(item.ProtocolMode,
+                    item.PhysicalSource, item.CommonAddressNumber, item.InformationObjectAddress.Value)
                 : $"{item.ProtocolMode}:IOA-";
         }
 
