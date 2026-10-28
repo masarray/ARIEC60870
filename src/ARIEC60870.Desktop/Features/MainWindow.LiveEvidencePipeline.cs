@@ -1185,7 +1185,10 @@ public partial class MainWindow
             }
         }
 
-        if (item.Summary.Contains("NO DATA", StringComparison.OrdinalIgnoreCase) || item.Detail.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
+        // Use numeric IEC-101 secondary FC9, not message wording, for the NO DATA counter.
+        if (item.ProtocolMode == Iec60870ProtocolMode.Iec101
+            ? item.Frame?.LinkControl is { Prm: false, FunctionCode: 9 }
+            : item.Summary.Contains("NO DATA", StringComparison.OrdinalIgnoreCase) || item.Detail.Contains("NO DATA", StringComparison.OrdinalIgnoreCase))
         {
             _noDataCount++;
         }
