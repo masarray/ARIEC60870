@@ -105,7 +105,8 @@ public sealed class PassiveMonitorSession
         _taps[1].DriverErrorCount,
         Volatile.Read(ref _integrityUncertain) != 0 || Volatile.Read(ref _fatal) != 0,
         _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[2]) : 0,
-        _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0);
+        _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0,
+        _streamCount);
 
     /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
@@ -555,7 +556,8 @@ public sealed record PassiveMonitorProgress(
     long ScadaChunks, long RtuChunks, long ScadaDriverErrors, long RtuDriverErrors,
     bool IntegrityWarning,
     long LinkBScadaBytes = 0,
-    long LinkBRtuBytes = 0);
+    long LinkBRtuBytes = 0,
+    int StreamCount = 2);
 
 public sealed record PassiveChunkPreview(
     byte StreamId, long Sequence, DateTime EstimatedUtc, int ByteCount, byte[] FirstBytes);

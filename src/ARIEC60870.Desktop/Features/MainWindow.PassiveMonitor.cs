@@ -456,9 +456,9 @@ public partial class MainWindow
         if (session is null) return;
         var progress = session.GetProgress();
         PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
-            (progress.LinkBScadaBytes > 0 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
+            (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
         PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +
-            (progress.LinkBRtuBytes > 0 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
+            (progress.StreamCount == 4 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "No app loss detected" : progress.Status;
         PassiveIntegrityText.Foreground = (Brush)FindResource(progress.IntegrityWarning ? "BadBrush" : "Ink900Brush");
