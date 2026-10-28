@@ -57,6 +57,8 @@ public sealed class Iec10xAsduDecoder
 
         var objects = DecodeObjects(type, raw, offset, objectCount, sq, issues);
         var first = objects.FirstOrDefault();
+        var causeDetails = new Iec10xCauseDetails(cotRaw, cot, negative, test, _cotSize == 2 ? oa : null);
+        var commandDetails = Iec10xCommandDetails.Decode(type, first, causeDetails);
 
         return new Iec10xAsduDecode
         {
@@ -67,6 +69,8 @@ public sealed class Iec10xAsduDecoder
             IsSequence = sq,
             ObjectCount = objectCount,
             CauseOfTransmission = cot,
+            CauseDetails = causeDetails,
+            CommandDetails = commandDetails,
             CauseName = CauseName(cot),
             OriginatorAddress = oa,
             IsTest = test,
@@ -100,6 +104,7 @@ public sealed class Iec10xAsduDecoder
         int? sequenceBaseIoa = null;
         for (var i = 0; i < objectCount; i++)
         {
+            var objectOffset = sq && i > 0 ? -1 : offset;
             if (sq && i > 0)
             {
                 if (!sequenceBaseIoa.HasValue)
@@ -120,15 +125,16 @@ public sealed class Iec10xAsduDecoder
             }
 
             var ioa = sq ? sequenceBaseIoa!.Value + i : sequenceBaseIoa!.Value;
+            var elementOffset = offset;
             var remaining = raw.Length - offset;
             var take = dataLength >= 0 ? Math.Min(dataLength, Math.Max(0, remaining)) : Math.Max(0, remaining);
-            var elementRaw = raw.Skip(offset).Take(take).ToArray();
+            var elementRaw = raw.AsSpan(offset, take).ToArray();
             if (dataLength >= 0)
             {
                 if (remaining < dataLength)
                 {
                     var objectIssues = new[] { $"Information element too short. Expected={dataLength}, actual={remaining}." };
-                    objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectIssues));
+                    objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectOffset, elementOffset, objectIssues));
                     break;
                 }
 
@@ -139,7 +145,7 @@ public sealed class Iec10xAsduDecoder
                 offset += take;
             }
 
-            objects.Add(BuildObject(type, i + 1, ioa, elementRaw, Array.Empty<string>()));
+            objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectOffset, elementOffset, Array.Empty<string>()));
         }
 
         if (offset < raw.Length && dataLength >= 0)
@@ -150,17 +156,21 @@ public sealed class Iec10xAsduDecoder
         return objects;
     }
 
-    private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, IReadOnlyList<string> existingIssues)
+    private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, int objectOffset, int elementOffset, IReadOnlyList<string> existingIssues)
     {
         var issues = existingIssues.ToList();
         var value = DecodeValueText(type, data, issues);
-        var quality = DecodeQualityText(type, data);
+        var qualityDetails = Iec10xQualityDetails.Decode(type, data);
+        var quality = qualityDetails?.DisplayText ?? string.Empty;
         var time = DecodeTimestampText(type, data);
 
         return new Iec10xInformationObject
         {
             Index = index,
             InformationObjectAddress = ioa,
+            InformationObjectOffset = objectOffset,
+            InformationElementOffset = elementOffset,
+            QualityDetails = qualityDetails,
             ValueText = value,
             EngineeringValue = value,
             QualityText = quality,
@@ -201,9 +211,11 @@ public sealed class Iec10xAsduDecoder
         45 or 46 or 47 => 1,
         48 or 49 => 3,
         50 => 5,
+        51 => 4,
         58 or 59 or 60 => 8,
         61 or 62 => 10,
         63 => 12,
+        64 => 11,
         100 or 101 or 105 => 1,
         102 => 0,
         103 => 7,
@@ -243,6 +255,7 @@ public sealed class Iec10xAsduDecoder
                 48 or 61 => data.Length >= 2 ? $"Setpoint normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
                 49 or 62 => data.Length >= 2 ? $"Setpoint scaled={BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2))}" : string.Empty,
                 50 or 63 => data.Length >= 4 ? $"Setpoint float={BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(0, 4)).ToString("0.###", CultureInfo.InvariantCulture)}" : string.Empty,
+                51 or 64 => data.Length >= 4 ? $"Bitstring command=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 100 => data.Length >= 1 ? $"Interrogation qualifier QOI={data[0]}" : string.Empty,
                 101 => data.Length >= 1 ? $"Counter interrogation qualifier QCC=0x{data[0]:X2}" : string.Empty,
                 102 => "Read command",
@@ -255,31 +268,6 @@ public sealed class Iec10xAsduDecoder
             issues.Add("Value decode warning: " + ex.Message);
             return data.Length > 0 ? $"Payload={ToHex(data)}" : string.Empty;
         }
-    }
-
-    private static string DecodeQualityText(byte type, byte[] data)
-    {
-        if (data.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        return type switch
-        {
-            1 or 2 or 30 => DecodeSiq(data[0]),
-            3 or 4 or 31 => DecodeDiq(data[0]),
-            5 or 32 => data.Length >= 2 ? DecodeQds(data[1]) : string.Empty,
-            6 => data.Length >= 2 ? DecodeQds(data[1]) : string.Empty,
-            7 or 33 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            8 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            9 or 11 or 34 or 35 => data.Length >= 3 ? DecodeQds(data[2]) : string.Empty,
-            10 or 12 => data.Length >= 3 ? DecodeQds(data[2]) : string.Empty,
-            13 or 36 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            14 => data.Length >= 5 ? DecodeQds(data[4]) : string.Empty,
-            15 or 37 => data.Length >= 5 ? DecodeBcrQuality(data[4]) : string.Empty,
-            16 => data.Length >= 5 ? DecodeBcrQuality(data[4]) : string.Empty,
-            _ => string.Empty
-        };
     }
 
     private static string DecodeTimestampText(byte type, byte[] data)
@@ -299,6 +287,7 @@ public sealed class Iec10xAsduDecoder
             58 or 59 or 60 => data.Length >= 8 ? DecodeCp56Time2a(data.AsSpan(1, 7)) : string.Empty,
             61 or 62 => data.Length >= 10 ? DecodeCp56Time2a(data.AsSpan(3, 7)) : string.Empty,
             63 => data.Length >= 12 ? DecodeCp56Time2a(data.AsSpan(5, 7)) : string.Empty,
+            64 => data.Length >= 11 ? DecodeCp56Time2a(data.AsSpan(4, 7)) : string.Empty,
             103 => data.Length >= 7 ? DecodeCp56Time2a(data.AsSpan(0, 7)) : string.Empty,
             _ => string.Empty
         };
@@ -331,23 +320,6 @@ public sealed class Iec10xAsduDecoder
         return $"Double command={state}, {select}, QU={qualifier}";
     }
 
-    private static string DecodeSiq(byte q) => DecodeQualityFlags(q, hasOverflow: false);
-
-    private static string DecodeDiq(byte q) => DecodeQualityFlags(q, hasOverflow: false);
-
-    private static string DecodeQds(byte q) => DecodeQualityFlags(q, hasOverflow: true);
-
-    private static string DecodeQualityFlags(byte q, bool hasOverflow)
-    {
-        var flags = new List<string>();
-        if (hasOverflow && (q & 0x01) != 0) flags.Add("Overflow");
-        if ((q & 0x10) != 0) flags.Add("Blocked");
-        if ((q & 0x20) != 0) flags.Add("Substituted");
-        if ((q & 0x40) != 0) flags.Add("Not topical");
-        if ((q & 0x80) != 0) flags.Add("Invalid");
-        return flags.Count == 0 ? "Good" : string.Join(", ", flags);
-    }
-
     private static string DecodeBcrValue(byte[] data)
     {
         if (data.Length < 5)
@@ -359,15 +331,6 @@ public sealed class Iec10xAsduDecoder
         var flags = data[4];
         var sequence = flags & 0x1F;
         return $"Counter={counter}, sequence={sequence}";
-    }
-
-    private static string DecodeBcrQuality(byte q)
-    {
-        var flags = new List<string>();
-        if ((q & 0x20) != 0) flags.Add("Carry");
-        if ((q & 0x40) != 0) flags.Add("Adjusted");
-        if ((q & 0x80) != 0) flags.Add("Invalid");
-        return flags.Count == 0 ? "Good" : string.Join(", ", flags);
     }
 
     private static double ReadNormalized(byte[] data)
@@ -384,7 +347,7 @@ public sealed class Iec10xAsduDecoder
         var millisecond = ms % 1000;
         var minuteInvalid = (data[2] & 0x80) != 0;
         var minute = data[2] & 0x3F;
-        var invalid = minuteInvalid ? " invalid-time" : string.Empty;
+        var invalid = minuteInvalid || minute > 59 || ms >= 60000 ? " invalid-time" : string.Empty;
         return $"CP24 minute={minute:00}, second={second:00}.{millisecond:000}{invalid}";
     }
 
@@ -399,11 +362,14 @@ public sealed class Iec10xAsduDecoder
         var minuteInvalid = (data[2] & 0x80) != 0;
         var minute = data[2] & 0x3F;
         var hour = data[3] & 0x1F;
-        var dayInvalid = (data[4] & 0x80) != 0;
+        // CP56 day-of-week occupies day octet bits 5..7: bit 7 is NOT invalid.
         var day = data[4] & 0x1F;
         var month = data[5] & 0x0F;
         var year = 2000 + (data[6] & 0x7F);
-        var invalid = minuteInvalid || dayInvalid ? " invalid-time" : string.Empty;
+        var validDate = month is >= 1 and <= 12 && day >= 1 &&
+            day <= DateTime.DaysInMonth(year, Math.Clamp(month, 1, 12));
+        var invalid = minuteInvalid || minute > 59 || ms >= 60000 || hour > 23 || !validDate
+            ? " invalid-time" : string.Empty;
         return $"{year:0000}-{month:00}-{day:00} {hour:00}:{minute:00}:{second:00}.{millisecond:000}{invalid}";
     }
 
@@ -438,12 +404,14 @@ public sealed class Iec10xAsduDecoder
         48 => "C_SE_NA_1 setpoint normalized",
         49 => "C_SE_NB_1 setpoint scaled",
         50 => "C_SE_NC_1 setpoint short float",
+        51 => "C_BO_NA_1 bitstring command",
         58 => "C_SC_TA_1 single command with CP56Time2a",
         59 => "C_DC_TA_1 double command with CP56Time2a",
         60 => "C_RC_TA_1 regulating step with CP56Time2a",
         61 => "C_SE_TA_1 setpoint normalized with CP56Time2a",
         62 => "C_SE_TB_1 setpoint scaled with CP56Time2a",
         63 => "C_SE_TC_1 setpoint short float",
+        64 => "C_BO_TA_1 bitstring command with CP56Time2a",
         100 => "C_IC_NA_1 interrogation command",
         101 => "C_CI_NA_1 counter interrogation",
         102 => "C_RD_NA_1 read command",

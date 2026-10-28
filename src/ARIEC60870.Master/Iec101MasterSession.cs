@@ -681,6 +681,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = asdu?.IsSequence,
             ObjectCount = asdu?.ObjectCount,
             CauseOfTransmission = asdu?.CauseOfTransmission,
+            CauseDetails = asdu?.CauseDetails,
+            CommandDetails = asdu?.CommandDetails,
+            AsduDetails = asdu,
+            InformationObjectDetails = asdu?.FirstObject,
+            QualityDetails = asdu?.FirstObject?.QualityDetails,
             CauseName = asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = asdu?.OriginatorAddress,
             CommonAddressNumber = asdu?.CommonAddress,
@@ -805,6 +810,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = asdu?.IsSequence,
             ObjectCount = asdu?.ObjectCount,
             CauseOfTransmission = asdu?.CauseOfTransmission,
+            CauseDetails = asdu?.CauseDetails,
+            CommandDetails = asdu?.CommandDetails,
+            AsduDetails = asdu,
+            InformationObjectDetails = asdu?.FirstObject,
+            QualityDetails = asdu?.FirstObject?.QualityDetails,
             CauseName = asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = asdu?.OriginatorAddress,
             CommonAddressNumber = asdu?.CommonAddress,
@@ -820,6 +830,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             SignalRawValue = asdu?.FirstObject?.ElementSummary ?? asdu?.ObjectSummary ?? string.Empty,
             QualityText = asdu?.FirstObject?.QualityText ?? string.Empty,
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
         AddAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
@@ -889,6 +900,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 IsSequenceAsdu = asdu.IsSequence,
                 ObjectCount = asdu.ObjectCount,
                 CauseOfTransmission = asdu.CauseOfTransmission,
+                CauseDetails = asdu.CauseDetails,
+                CommandDetails = Iec10xCommandDetails.Decode(asdu.TypeId, obj, asdu.CauseDetails!),
+                AsduDetails = asdu,
+                InformationObjectDetails = obj,
+                QualityDetails = obj.QualityDetails,
                 CauseName = asdu.CotNameWithFlags,
                 OriginatorAddress = asdu.OriginatorAddress,
                 CommonAddressNumber = asdu.CommonAddress,
@@ -904,6 +920,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }
@@ -1076,6 +1093,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = item.IsSequenceAsdu,
             ObjectCount = item.ObjectCount,
             CauseOfTransmission = item.CauseOfTransmission,
+            CauseDetails = item.CauseDetails,
+            CommandDetails = item.CommandDetails,
+            AsduDetails = item.AsduDetails,
+            InformationObjectDetails = item.InformationObjectDetails,
+            QualityDetails = item.QualityDetails,
             CauseName = item.CauseName,
             OriginatorAddress = item.OriginatorAddress,
             CommonAddressNumber = item.CommonAddressNumber,

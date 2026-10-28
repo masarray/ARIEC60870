@@ -358,6 +358,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             IsSequenceAsdu = asdu?.IsSequence,
             ObjectCount = asdu?.ObjectCount,
             CauseOfTransmission = asdu?.CauseOfTransmission,
+            CauseDetails = asdu?.CauseDetails,
+            CommandDetails = asdu?.CommandDetails,
+            AsduDetails = asdu,
+            InformationObjectDetails = asdu?.FirstObject,
+            QualityDetails = asdu?.FirstObject?.QualityDetails,
             CauseName = asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = asdu?.OriginatorAddress,
             CommonAddressNumber = asdu?.CommonAddress,
@@ -469,6 +474,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             IsSequenceAsdu = asdu?.IsSequence,
             ObjectCount = asdu?.ObjectCount,
             CauseOfTransmission = asdu?.CauseOfTransmission,
+            CauseDetails = asdu?.CauseDetails,
+            CommandDetails = asdu?.CommandDetails,
+            AsduDetails = asdu,
+            InformationObjectDetails = asdu?.FirstObject,
+            QualityDetails = asdu?.FirstObject?.QualityDetails,
             CauseName = asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = asdu?.OriginatorAddress,
             CommonAddressNumber = asdu?.CommonAddress,
@@ -484,6 +494,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             SignalDisplayValue = asdu?.FirstObject?.ShortValue ?? asdu?.ValueText ?? string.Empty,
             SignalRawValue = asdu?.FirstObject?.ElementSummary ?? asdu?.ObjectSummary ?? string.Empty,
             RelayTimestampText = asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
         PublishAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
@@ -590,6 +601,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
                 IsSequenceAsdu = asdu.IsSequence,
                 ObjectCount = asdu.ObjectCount,
                 CauseOfTransmission = asdu.CauseOfTransmission,
+                CauseDetails = asdu.CauseDetails,
+                CommandDetails = Iec10xCommandDetails.Decode(asdu.TypeId, obj, asdu.CauseDetails!),
+                AsduDetails = asdu,
+                InformationObjectDetails = obj,
+                QualityDetails = obj.QualityDetails,
                 CauseName = asdu.CotNameWithFlags,
                 OriginatorAddress = asdu.OriginatorAddress,
                 CommonAddressNumber = asdu.CommonAddress,
@@ -605,6 +621,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }

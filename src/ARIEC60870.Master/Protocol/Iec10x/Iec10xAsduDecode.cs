@@ -11,6 +11,8 @@ public sealed class Iec10xAsduDecode
     public bool IsSequence { get; init; }
     public int ObjectCount { get; init; }
     public int CauseOfTransmission { get; init; }
+    public Iec10xCauseDetails? CauseDetails { get; init; }
+    public Iec10xCommandDetails? CommandDetails { get; init; }
     public string CauseName { get; init; } = string.Empty;
     public int OriginatorAddress { get; init; }
     public bool IsTest { get; init; }
@@ -60,6 +62,9 @@ public sealed class Iec10xInformationObject
     public string ValueText { get; init; } = string.Empty;
     public string EngineeringValue { get; init; } = string.Empty;
     public string QualityText { get; init; } = string.Empty;
+    public Iec10xQualityDetails? QualityDetails { get; init; }
+    public int InformationObjectOffset { get; init; } = -1;
+    public int InformationElementOffset { get; init; } = -1;
     public string TimestampText { get; init; } = string.Empty;
     public string ElementSummary { get; init; } = string.Empty;
     public IReadOnlyList<byte> RawBytes { get; init; } = Array.Empty<byte>();
@@ -71,7 +76,8 @@ public sealed class Iec10xInformationObject
     {
         get
         {
-            var quality = string.IsNullOrWhiteSpace(QualityText) ? "Quality=Good" : $"Quality={QualityText}";
+            // A command without a quality field is NOT known-good process data.
+            var quality = QualityDetails is null ? "Quality=N/A (not present)" : $"Quality={QualityDetails.DisplayText}";
             var time = string.IsNullOrWhiteSpace(TimestampText) ? string.Empty : $", Time={TimestampText}";
             return $"IOA={InformationObjectAddress}, Value={ShortValue}, {quality}{time}";
         }

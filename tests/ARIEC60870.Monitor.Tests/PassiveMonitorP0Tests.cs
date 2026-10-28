@@ -67,7 +67,10 @@ public sealed class PassiveMonitorP0Tests
         {
             var tapA = new ReplayTap("COM7", a, 71);
             var tapB = new ReplayTap("COM8", b, 43);
-            var opts = Options(folder);
+            // This verifies byte-for-byte archival, not artificial writer-queue
+            // saturation: all 701 one-chunk records fit the bounded fixture FIFO.
+            // Separate backpressure tests still assert IntegrityUncertain.
+            var opts = Options(folder) with { ChannelCapacity = 2048 };
             using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
             var session = new PassiveMonitorSession(opts, tapA, tapB);
             var result = await session.RunAsync(stop.Token);

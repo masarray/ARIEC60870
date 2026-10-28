@@ -644,6 +644,7 @@ public partial class MainWindow
         if (!seen.ChecksumValid && seen.Format != "Partial")
             meaning = "Bad checksum · " + meaning;
         var first = decode?.FirstObject;
+        var rawHexOnce = Convert.ToHexString(raw);
 
         var ev = new Iec103MasterEvidenceEvent
         {
@@ -659,7 +660,7 @@ public partial class MainWindow
                      (decode?.Issues.Count > 0 ? " · " + string.Join("; ", decode.Issues) : ""),
             OperatorMessage = meaning, ProtocolMeaning = meaning,
             OperatorAction = "Observed only; no commands transmitted",
-            RawHex = Convert.ToHexString(raw),
+            RawHex = rawHexOnce,
             Frame = frame, LinkAddress = control.HasValue ? address : null,
             TypeId = decode?.TypeId,
             TypeName = decode?.TypeName ?? "",
@@ -667,6 +668,11 @@ public partial class MainWindow
             IsSequenceAsdu = decode?.IsSequence,
             ObjectCount = decode?.ObjectCount,
             CauseOfTransmission = decode?.CauseOfTransmission,
+            CauseDetails = decode?.CauseDetails,
+            CommandDetails = decode?.CommandDetails,
+            AsduDetails = decode,
+            InformationObjectDetails = first,
+            QualityDetails = first?.QualityDetails,
             CauseName = decode?.CauseName ?? "",
             OriginatorAddress = decode?.OriginatorAddress,
             CommonAddressNumber = decode?.CommonAddress,
@@ -703,9 +709,15 @@ public partial class MainWindow
                     ProtocolMode = Iec60870ProtocolMode.Iec101,
                     Category = "Passive Point",
                     PollingReason = "PASSIVE-POINT",
-                    RawHex = Convert.ToHexString(raw),
+                    RawHex = rawHexOnce,
                     TypeId = decode.TypeId, TypeName = decode.TypeName,
                     CauseOfTransmission = decode.CauseOfTransmission,
+                    CauseDetails = decode.CauseDetails,
+                    AsduDetails = decode,
+                    InformationObjectDetails = obj,
+                    QualityDetails = obj.QualityDetails,
+                    CommandDetails = Iec10xCommandDetails.Decode(decode.TypeId, obj, decode.CauseDetails!),
+                    QualityText = obj.QualityText,
                     CauseName = decode.CauseName, CommonAddressNumber = decode.CommonAddress,
                     InformationObjectAddress = obj.InformationObjectAddress,
                     ObjectSummary = obj.ReadableSummary,
@@ -717,7 +729,8 @@ public partial class MainWindow
                     SignalType = decode.TypeName,
                     SignalDisplayValue = obj.ShortValue,
                     SignalRawValue = obj.ValueText,
-                    RelayTimestampText = obj.TimestampText
+                    RelayTimestampText = obj.TimestampText,
+                    RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase)
                 });
             }
         }

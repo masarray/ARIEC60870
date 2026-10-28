@@ -256,6 +256,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = decoded.Asdu?.IsSequence,
             ObjectCount = decoded.Asdu?.ObjectCount,
             CauseOfTransmission = decoded.Asdu?.CauseOfTransmission,
+            CauseDetails = decoded.Asdu?.CauseDetails,
+            CommandDetails = decoded.Asdu?.CommandDetails,
+            AsduDetails = decoded.Asdu,
+            InformationObjectDetails = decoded.Asdu?.FirstObject,
+            QualityDetails = decoded.Asdu?.FirstObject?.QualityDetails,
             CauseName = decoded.Asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = decoded.Asdu?.OriginatorAddress,
             CommonAddressNumber = decoded.Asdu?.CommonAddress,
@@ -333,6 +338,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = decoded.Asdu?.IsSequence,
             ObjectCount = decoded.Asdu?.ObjectCount,
             CauseOfTransmission = decoded.Asdu?.CauseOfTransmission,
+            CauseDetails = decoded.Asdu?.CauseDetails,
+            CommandDetails = decoded.Asdu?.CommandDetails,
+            AsduDetails = decoded.Asdu,
+            InformationObjectDetails = decoded.Asdu?.FirstObject,
+            QualityDetails = decoded.Asdu?.FirstObject?.QualityDetails,
             CauseName = decoded.Asdu?.CotNameWithFlags ?? string.Empty,
             OriginatorAddress = decoded.Asdu?.OriginatorAddress,
             CommonAddressNumber = decoded.Asdu?.CommonAddress,
@@ -348,6 +358,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             SignalRawValue = decoded.Asdu?.FirstObject?.ElementSummary ?? decoded.Asdu?.ObjectSummary ?? string.Empty,
             QualityText = decoded.Asdu?.FirstObject?.QualityText ?? string.Empty,
             RelayTimestampText = decoded.Asdu?.FirstObject?.TimestampText ?? string.Empty,
+            RelayTimestampInvalid = decoded.Asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = decoded.Asdu?.CauseName ?? string.Empty
         });
         AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds);
@@ -388,6 +399,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 IsSequenceAsdu = asdu.IsSequence,
                 ObjectCount = asdu.ObjectCount,
                 CauseOfTransmission = asdu.CauseOfTransmission,
+                CauseDetails = asdu.CauseDetails,
+                CommandDetails = Iec10xCommandDetails.Decode(asdu.TypeId, obj, asdu.CauseDetails!),
+                AsduDetails = asdu,
+                InformationObjectDetails = obj,
+                QualityDetails = obj.QualityDetails,
                 CauseName = asdu.CotNameWithFlags,
                 OriginatorAddress = asdu.OriginatorAddress,
                 CommonAddressNumber = asdu.CommonAddress,
@@ -403,6 +419,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 SignalDisplayValue = obj.ShortValue,
                 SignalRawValue = obj.ElementSummary,
                 RelayTimestampText = obj.TimestampText,
+                RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
                 EdgeReason = asdu.CauseName
             });
         }
@@ -528,6 +545,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             IsSequenceAsdu = item.IsSequenceAsdu,
             ObjectCount = item.ObjectCount,
             CauseOfTransmission = item.CauseOfTransmission,
+            CauseDetails = item.CauseDetails,
+            CommandDetails = item.CommandDetails,
+            AsduDetails = item.AsduDetails,
+            InformationObjectDetails = item.InformationObjectDetails,
+            QualityDetails = item.QualityDetails,
             CauseName = item.CauseName,
             OriginatorAddress = item.OriginatorAddress,
             CommonAddressNumber = item.CommonAddressNumber,
