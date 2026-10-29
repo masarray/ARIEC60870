@@ -29,13 +29,17 @@ public sealed class RelayEventRow
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Type = item.SignalType;
-        Cot = item.CauseOfTransmission;
+        Cot = ProtocolStatusBadges.CotText(item.CauseDetails, item.CauseOfTransmission);
+        CotBadges = ProtocolStatusBadges.ForCot(item.CauseDetails);
+        CotDetail = ProtocolStatusBadges.CotDetail(item.CauseDetails, item.CauseOfTransmission);
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Address = Protocol is "101" or "104"
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
+        QualityBadges = ProtocolStatusBadges.ForQuality(item.QualityDetails, Quality);
+        QualityDetail = ProtocolStatusBadges.QualityDetail(item.QualityDetails, Quality);
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
     }
@@ -55,10 +59,14 @@ public sealed class RelayEventRow
     public string TypeId { get; }
     public string Type { get; }
     public string Cot { get; }
+    public IReadOnlyList<ProtocolStatusBadge> CotBadges { get; }
+    public string CotDetail { get; }
     public string CommonAddress { get; }
     public string IoAddress { get; }
     public string Address { get; }
     public string Quality { get; }
+    public IReadOnlyList<ProtocolStatusBadge> QualityBadges { get; }
+    public string QualityDetail { get; }
     public string Mapped { get; }
     public string RawHex { get; }
 
