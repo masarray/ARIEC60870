@@ -62,6 +62,15 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
+    // Derived before WPF preview can drop frames; full history is controls.jsonl
+    // when recording. This channel alone is intentionally bounded.
+    private readonly Channel<PassiveControlEvidence> _controlEvents =
+        Channel.CreateBounded<PassiveControlEvidence>(new BoundedChannelOptions(512)
+        {
+            SingleReader = true, SingleWriter = true,
+            FullMode = BoundedChannelFullMode.DropOldest,
+            AllowSynchronousContinuations = false
+        });
     private readonly long[] _writtenBytes;
     private readonly long[] _writtenChunks;
     private readonly string[] _rawHashes;
@@ -117,6 +126,10 @@ public sealed class PassiveMonitorSession
     /// <summary>Derived transaction alerts; full chronological output is in transactions.jsonl.</summary>
     public bool TryReadTransaction(out PassiveTransactionEvent item) =>
         _transactionEvents.Reader.TryRead(out item!);
+
+    /// <summary>Source-qualified command notes, generated before GUI frame sampling.</summary>
+    public bool TryReadControl(out PassiveControlEvidence item) =>
+        _controlEvents.Reader.TryRead(out item!);
 
     public bool TryReadGiEvent(out PassiveGiEvent item) => _giEvents.Reader.TryRead(out item!);
 
@@ -269,12 +282,16 @@ public sealed class PassiveMonitorSession
         StreamWriter? transactionFile = null;
         StreamWriter? giFile = null;
         StreamWriter? timelineFile = null;
+        StreamWriter? controlFile = null;
         var timelines = Enumerable.Range(0, _streamCount / 2)
             .Select(_ => new PassiveIec101FailureTimeline(_utcOrigin)).ToArray();
         var giTracker = new PassiveIec101GiTracker(new PassiveGiOptions(
             LinkAddressWidth: _options.LinkAddressWidth, CotWidth: _options.CotWidth,
             CommonAddressWidth: _options.CommonAddressWidth,
             InformationAddressWidth: _options.InformationAddressWidth));
+        var controlIndexer = new PassiveIec101ControlIndexer(
+            _options.LinkAddressWidth, _options.CotWidth,
+            _options.CommonAddressWidth, _options.InformationAddressWidth);
         var correlator = new PassiveIec101TransactionCorrelator(new PassiveTransactionOptions(
             LinkAddressWidth: _options.LinkAddressWidth, LinkMode: _options.LinkMode));
         var scanners = Enumerable.Range(0, _streamCount)
@@ -302,6 +319,9 @@ public sealed class PassiveMonitorSession
                     FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
             timelineFile = new StreamWriter(_options.RecordFullSession
                 ? new FileStream(Path.Combine(root, "timeline-windows.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
+            controlFile = new StreamWriter(_options.RecordFullSession
+                ? new FileStream(Path.Combine(root, "controls.jsonl"), FileMode.CreateNew,
                     FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
@@ -378,6 +398,15 @@ public sealed class PassiveMonitorSession
                             });
                             await frameFiles[chunk.StreamId].WriteLineAsync(line).ConfigureAwait(false);
                         }
+                        // The complete writer sequence, not GUI's 512-frame ring,
+                        // owns control stage correlation and optional durable index.
+                        if (controlIndexer.TryObserve(frame, out var control) && control is not null)
+                        {
+                            if (_options.RecordFullSession)
+                                await controlFile.WriteLineAsync(JsonSerializer.Serialize(control))
+                                    .ConfigureAwait(false);
+                            _controlEvents.Writer.TryWrite(control);
+                        }
                         _frames.Writer.TryWrite(frame);
                     }
                     foreach (var entry in transactions)
@@ -421,6 +450,8 @@ public sealed class PassiveMonitorSession
                         await transactionFile.FlushAsync().ConfigureAwait(false);
                         await giFile.FlushAsync().ConfigureAwait(false);
                         await timelineFile.FlushAsync().ConfigureAwait(false);
+                await controlFile.FlushAsync().ConfigureAwait(false);
+                        await controlFile.FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
                     }
@@ -519,6 +550,7 @@ public sealed class PassiveMonitorSession
             transactionFile?.Dispose();
             giFile?.Dispose();
             timelineFile?.Dispose();
+            controlFile?.Dispose();
             if (files is null) firstFile?.Dispose();
             if (files is not null)
                 foreach (var file in files)
