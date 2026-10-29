@@ -45,6 +45,10 @@ public sealed class Iec103MasterSettings
 
     public bool UseSimulatedSlave { get; set; }
     public string TargetProfile { get; set; } = "IEC-103 protection relay";
+    // Versioned, explicit protocol interpretation provenance; distinct from IOA mapping.
+    public string InteroperabilityProfileId { get; set; } = "generic-iec103";
+    public string InteroperabilityProfileEdition { get; set; } = "generic-v1";
+    public string InteroperabilityProfileFingerprint { get; set; } = string.Empty;
     public string MappingProfilePath { get; set; } = string.Empty;
 
     public int ResponseTimeoutMs { get; set; } = 1500;
