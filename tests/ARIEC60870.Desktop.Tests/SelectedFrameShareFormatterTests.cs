@@ -49,6 +49,32 @@ public sealed class SelectedFrameShareFormatterTests
     }
 
     [Fact]
+    public void MultipleSelectedFramesCopyAsOneOrderedPasteReadyText()
+    {
+        EvidenceRow Row(long number, string hex) => new(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = number,
+            TimestampUtc = DateTime.UtcNow,
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            RawHex = hex,
+            Summary = "Observed IEC-101 frame"
+        });
+        var result = SelectedFrameShareFormatter.Format(new[]
+        {
+            Row(30, "10 29 69 92 16"),
+            Row(12, "E5")
+        });
+        Assert.Contains("Selected frames: 2", result);
+        Assert.Contains("## Frame 12", result);
+        Assert.Contains("## Frame 30", result);
+        Assert.Contains("E5", result);
+        Assert.Contains("10 29 69 92 16", result);
+        Assert.True(result.IndexOf("## Frame 12", StringComparison.Ordinal) <
+            result.IndexOf("## Frame 30", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void EmptySelectionIsExplicitAndCannotInventFrames()
     {
         var result = SelectedFrameShareFormatter.Format(Array.Empty<EvidenceRow>());

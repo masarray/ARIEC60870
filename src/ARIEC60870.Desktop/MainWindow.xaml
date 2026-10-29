@@ -378,7 +378,8 @@
                                 <ListBox.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
-                                            <MenuItem Header="Copy Selected Frames for AI / Sharing" Click="CopySelectedCaptureForAi_Click" />
+                                            <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
+                                                      ToolTip="Copy this frame, or all Ctrl/Shift-selected frames, as plain text to the clipboard." />
                                         <MenuItem Header="Export Selected Evidence Text..." Click="ExportSelectedTrace_Click" />
                                         <Separator />
                                         <MenuItem Header="Select All Visible Evidence Rows" Click="SelectAllEvidenceSummaryRows_Click" />
@@ -550,7 +551,8 @@
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
-                                            <MenuItem Header="Copy Selected Frames for AI / Sharing" Click="CopySelectedCaptureForAi_Click" />
+                                            <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
+                                                      ToolTip="Copy this frame, or all Ctrl/Shift-selected frames, as plain text to the clipboard." />
                                             <MenuItem Header="Export Selected Trace Text..." Click="ExportSelectedTrace_Click" />
                                             <Separator />
                                             <MenuItem Header="Select All Visible Trace Rows" Click="SelectAllVisibleTraceRows_Click" />
