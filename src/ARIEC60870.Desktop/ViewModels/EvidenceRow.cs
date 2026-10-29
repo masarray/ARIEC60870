@@ -144,6 +144,27 @@ public sealed partial class EvidenceRow
     public string ReadableMeaning { get; }
     public string ProtocolTraceTitle { get; }
     public string ProtocolTraceMeaning { get; }
+    // Compact high-volume list projection only. Full typed explanation is
+    // retained in ProtocolTraceMeaning, Inspector, copy and report exports.
+    private string? _compactTraceMeaning;
+    public string ProtocolTraceCompactMeaning => _compactTraceMeaning ??= CompactTraceMeaning();
+    private string CompactTraceMeaning()
+    {
+        if (ProtocolMode != "101" || Source.CommandDetails is not { } cmd ||
+            cmd.TypeId is not (>= 45 and <= 51 or >= 58 and <= 64))
+            return ProtocolTraceMeaning;
+
+        var cause = Source.CauseDetails ?? cmd.Cause;
+        var stage = cause.Test ? "TEST" :
+            cause.Negative ? "NEG" :
+            cause.Code == 7 ? "ACTCON +" :
+            cause.Code == 10 ? "ACTTERM" :
+            cause.Code is >= 44 and <= 47 ? "COT ERROR" :
+            cause.Code == 9 ? "DEACTCON" : "COMMAND";
+        return stage + "  ·  " + cmd.Operation + "  ·  COT " +
+            cause.Code.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            "  ·  CA " + CommonAddress + " / IOA " + IoAddress;
+    }
     public string ProtocolTraceRaw { get; }
     public string ProtocolTraceMeta { get; }
 
