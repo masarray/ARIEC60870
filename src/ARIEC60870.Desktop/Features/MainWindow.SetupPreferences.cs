@@ -114,7 +114,20 @@ public partial class MainWindow
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
             SelectProtocolMode(prefs.ProtocolMode);
-            InteroperabilityConventionComboBox.SelectedIndex = prefs.HistoricalInteroperabilityConvention ? 1 : 0;
+            if (!string.IsNullOrWhiteSpace(prefs.CustomInteroperabilityProfileJson))
+            {
+                try { _projectInteroperabilityProfile = Iec10xInteroperabilityProfile.ImportProject(prefs.CustomInteroperabilityProfileJson); }
+                catch (InvalidDataException ex)
+                {
+                    _projectInteroperabilityProfile = null;
+                    AddUiDiagnostic("Warning", "Setup", "ARIEC-PROFILE-SAVED-INVALID",
+                        "Saved custom profile was rejected", ex.Message,
+                        "Import a valid project interoperability profile before connecting.");
+                }
+            }
+            InteroperabilityConventionComboBox.SelectedIndex =
+                prefs.SelectedInteroperabilitySource == "Project" && _projectInteroperabilityProfile is not null
+                    ? 2 : prefs.HistoricalInteroperabilityConvention ? 1 : 0;
             if (!string.IsNullOrWhiteSpace(prefs.PassiveRtuPortName))
             {
                 EnsureComboItem(PassiveRtuPortComboBox, prefs.PassiveRtuPortName);
@@ -201,6 +214,7 @@ public partial class MainWindow
             }
             _commandDockExpanded = prefs.CommandDockExpanded;
             ApplyCommandDockLayout();
+            UpdateInteroperabilityProfilePreview();
         }
         catch (Exception ex)
         {
@@ -226,7 +240,9 @@ public partial class MainWindow
                 SavePassiveSetupPreferences(silent);
                 return;
             }
-            var settings = BuildSettingsFromUi();
+            // Saving an imported profile is allowed even before fields are reconciled.
+            // Active Connect still invokes full ValidateActive and blocks mismatches.
+            var settings = BuildSettingsFromUi(validateActiveProfile: false);
             var duration = ReadInt(DurationBox, "Session timeout", 0, 86400);
             SaveSetupPreferences(settings, duration, silent);
         }
@@ -247,6 +263,9 @@ public partial class MainWindow
             {
                 ProtocolMode = settings.ProtocolMode.ToString(),
                 HistoricalInteroperabilityConvention = InteroperabilityConventionComboBox?.SelectedIndex == 1,
+                SelectedInteroperabilitySource = InteroperabilityConventionComboBox?.SelectedIndex == 2 ? "Project"
+                    : InteroperabilityConventionComboBox?.SelectedIndex == 1 ? "Historical" : "Generic",
+                CustomInteroperabilityProfileJson = _projectInteroperabilityProfile?.Export() ?? string.Empty,
                 PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
                 PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
                 PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width"),
@@ -404,6 +423,8 @@ public partial class MainWindow
     {
         public string ProtocolMode { get; set; } = nameof(Iec60870ProtocolMode.Iec103);
         public bool HistoricalInteroperabilityConvention { get; set; }
+        public string SelectedInteroperabilitySource { get; set; } = "Generic";
+        public string CustomInteroperabilityProfileJson { get; set; } = string.Empty;
         public bool UseSimulatedSlave { get; set; }
         public string PortName { get; set; } = "COM1";
         public string PassiveRtuPortName { get; set; } = string.Empty;

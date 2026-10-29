@@ -1759,11 +1759,20 @@
 
                             <TextBlock Text="INTEROPERABILITY CONVENTION" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"
                                        ToolTip="An explicit interpretation edition; historical conventions are references, not universal IEC requirements or certification claims." />
-                            <ComboBox x:Name="InteroperabilityConventionComboBox" SelectedIndex="0" Margin="0,0,0,12"
-                                      ToolTip="Generic IEC by default. Historical NUC is an optional profile; selected field widths are not silently overridden.">
+                            <ComboBox x:Name="InteroperabilityConventionComboBox" SelectedIndex="0" Margin="0,0,0,6"
+                                      SelectionChanged="InteroperabilityConventionComboBox_SelectionChanged"
+                                      ToolTip="Imported profiles do not modify field widths or enable transmission automatically.">
                                 <ComboBoxItem Content="Generic IEC · project field widths" />
                                 <ComboBoxItem Content="Historical NUC reference · optional" />
+                                <ComboBoxItem Content="Project custom · imported JSON" />
                             </ComboBox>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <Button Content="Import profile" Style="{StaticResource SecondaryButton}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
+                                <Button Content="Export profile" Style="{StaticResource SecondaryButton}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
+                            </StackPanel>
+                            <TextBlock x:Name="InteroperabilityProfilePreviewText" Style="{StaticResource SubtleText}"
+                                       TextWrapping="Wrap" Margin="0,0,0,12"
+                                       Text="Generic IEC · current field widths" />
 
                             <Border x:Name="ProtocolSetupDescriptionCard" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,14">
                                 <StackPanel>
@@ -1976,7 +1985,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel x:Name="LinkAddressSizePanel" Grid.Column="0">
                                         <TextBlock x:Name="LinkAddressSizeLabelText" Text="Link length" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" ToolTip="IEC-101 FT1.2 link address size. 0 octet is supported only for profiles that explicitly use no link address; most utility/RTU links use 1 or 2.">
+                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" SelectionChanged="InteroperabilityWidth_SelectionChanged" ToolTip="IEC-101 FT1.2 link address size. 0 octet is supported only for profiles that explicitly use no link address; most utility/RTU links use 1 or 2.">
                                             <ComboBoxItem Content="0" />
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />
@@ -1994,21 +2003,21 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock x:Name="CotSizeLabelText" Text="COT size" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="CotSizeComboBox" SelectedIndex="1">
+                                        <ComboBox x:Name="CotSizeComboBox" SelectedIndex="1" SelectionChanged="InteroperabilityWidth_SelectionChanged">
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock x:Name="CaSizeLabelText" Text="CA size" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="CaSizeComboBox" SelectedIndex="1">
+                                        <ComboBox x:Name="CaSizeComboBox" SelectedIndex="1" SelectionChanged="InteroperabilityWidth_SelectionChanged">
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />
                                         </ComboBox>
                                     </StackPanel>
                                     <StackPanel Grid.Column="4">
                                         <TextBlock x:Name="IoaSizeLabelText" Text="IOA size" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="IoaSizeComboBox" SelectedIndex="2">
+                                        <ComboBox x:Name="IoaSizeComboBox" SelectedIndex="2" SelectionChanged="InteroperabilityWidth_SelectionChanged">
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />
                                             <ComboBoxItem Content="3" />
