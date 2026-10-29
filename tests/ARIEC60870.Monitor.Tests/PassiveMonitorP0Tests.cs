@@ -252,7 +252,17 @@ public sealed class PassiveMonitorP0Tests
             Assert.True(File.Exists(indexPath));
             var stored = File.ReadLines(indexPath).Count(line => line.Contains(
                 "\"Explanation\"", StringComparison.Ordinal));
-            Assert.Equal(count, stored);
+            var physical = File.ReadLines(Path.Combine(result.Directory, "frames-00.jsonl")).Count();
+            var scanned = 0;
+            var scanner = new PassiveFt12Scanner();
+            scanner.Feed(master, 0, frame =>
+            {
+                if (frame.Format == "Variable" && frame.ChecksumValid) scanned++;
+            });
+            Assert.True(stored == count,
+                $"Expected {count} control stages; index={stored}, physical={physical}, " +
+                $"scanner={scanned}, scadaBytes={session.GetProgress().ScadaBytes}, " +
+                $"status={session.GetProgress().Status}.");
 
             var shown = 0;
             while (session.TryReadFrame(out _)) shown++;
