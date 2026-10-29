@@ -10,12 +10,12 @@
     <Color x:Key="Ink700">#374151</Color>
     <Color x:Key="Ink600">#475467</Color>
     <Color x:Key="Ink500">#667085</Color>
-    <Color x:Key="Line200">#ECF1F8</Color>
-    <Color x:Key="Line300">#DEE8F4</Color>
-    <Color x:Key="Panel50">#F5F7FB</Color>
-    <Color x:Key="Panel75">#F8FAFF</Color>
-    <Color x:Key="Panel100">#EEF3FF</Color>
-    <Color x:Key="Surface">#FFFFFF</Color>
+    <Color x:Key="Line200">#DDE6ED</Color>
+    <Color x:Key="Line300">#CFDBE5</Color>
+    <Color x:Key="Panel50">#EAF0F4</Color>
+    <Color x:Key="Panel75">#F0F4F7</Color>
+    <Color x:Key="Panel100">#E4EBF2</Color>
+    <Color x:Key="Surface">#F8FAFC</Color>
     <Color x:Key="Accent600">#2563EB</Color>
     <Color x:Key="Accent700">#1D4ED8</Color>
     <Color x:Key="AccentSoft">#EAF1FF</Color>
@@ -41,7 +41,7 @@
     <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource Warn600}" />
     <SolidColorBrush x:Key="BadBrush" Color="{StaticResource Bad600}" />
 
-    <FontFamily x:Key="AppFont">Aptos, Segoe UI Variable Text, Segoe UI, Calibri</FontFamily>
+    <FontFamily x:Key="AppFont">pack://application:,,,/ARIEC60870.Desktop;component/Assets/Fonts/#Inter</FontFamily>
     <DropShadowEffect x:Key="CardShadow" BlurRadius="30" ShadowDepth="10" Opacity="0.055" Color="#172033" />
     <DropShadowEffect x:Key="SoftShadow" BlurRadius="20" ShadowDepth="5" Opacity="0.055" Color="#172033" />
     <DropShadowEffect x:Key="ButtonShadow" BlurRadius="18" ShadowDepth="5" Opacity="0.16" Color="#2563EB" />
@@ -51,9 +51,9 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#F7FAFF" Offset="0" />
-                    <GradientStop Color="#F2F5FA" Offset="0.55" />
-                    <GradientStop Color="#EEF3FF" Offset="1" />
+                    <GradientStop Color="#E8EFF5" Offset="0" />
+                    <GradientStop Color="#E5ECF2" Offset="0.55" />
+                    <GradientStop Color="#DCE6EE" Offset="1" />
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
@@ -756,7 +756,7 @@
         <Setter Property="VirtualizingPanel.CacheLength" Value="1" />
         <Setter Property="VirtualizingPanel.CacheLengthUnit" Value="Page" />
         <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="False" />
-        <Setter Property="AlternatingRowBackground" Value="#FBFCFF" />
+        <Setter Property="AlternatingRowBackground" Value="#EFF4F8" />
         <Setter Property="FontSize" Value="11.8" />
     </Style>
 
@@ -812,7 +812,7 @@
 
 
     <Style x:Key="ProtocolTraceListBox" TargetType="ListBox">
-        <Setter Property="Background" Value="#F8FBFF" />
+        <Setter Property="Background" Value="#EDF3F7" />
         <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="8" />
@@ -854,11 +854,11 @@
                         </Trigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">
                             <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#F5FAFF" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF3FC" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Rx">
                             <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#F4FFF9" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#E8F4F0" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Error">
                             <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
@@ -1035,8 +1035,8 @@
     </Style>
 
     <Style x:Key="EvidenceFollowToggle" TargetType="ToggleButton">
-        <Setter Property="Width" Value="40"/>
-        <Setter Property="Height" Value="34"/>
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="28"/>
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="BorderBrush" Value="#C7D3E3"/>
         <Setter Property="Foreground" Value="#334155"/>
@@ -1047,11 +1047,12 @@
                 <ControlTemplate TargetType="ToggleButton">
                     <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                            CornerRadius="10" Padding="6">
+                            CornerRadius="8" Padding="4">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
                             <Setter TargetName="Chrome" Property="Background" Value="#E6F0FF"/>
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="#3B82F6"/>
                         </Trigger>
