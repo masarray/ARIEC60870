@@ -51,17 +51,20 @@ public partial class MainWindow
         Add("Link address", row.LinkAddress);
         Add("Link function", row.Source.Frame?.LinkControl?.FunctionName);
         Add("Link flags", row.LinkFlags);
-        Add("Type ID", row.TypeId == "-" ? row.AsduType : $"TI {row.TypeId} · {row.TypeIdName}");
+        Add("Type", row.TypeId == "-" ? row.AsduType : $"TI {row.TypeId} · {row.AsduType}", row.TypeIdName);
         Add("VSQ", row.Vsq, row.SequenceMode);
         Add("COT", row.CotDisplay, row.Source.CauseDetails?.Detail);
-        Add("COT flags", row.Source.CauseDetails?.Detail);
+        if (row.Source.CauseDetails is { } cot &&
+            (cot.Negative || cot.Test || cot.OriginatorAddress is > 0))
+            Add("COT flags", cot.Detail);
         Add("Common address", row.CommonAddress);
         Add("IOA", row.IoAddress);
         Add("FUN / INF", row.FunInf);
         Add("Object count", row.ObjectCount);
         Add("Value", row.SemanticState);
         Add("Quality", row.Quality, row.Source.QualityDetails?.BitDetails);
-        Add("Quality bits", row.Source.QualityDetails?.BitDetails);
+        if (!string.Equals(row.Quality, "Good", StringComparison.OrdinalIgnoreCase))
+            Add("Quality bits", row.Source.QualityDetails?.BitDetails);
         Add("IED / RTU time", row.RelayTime);
         Add("Command", row.Source.CommandDetails?.Detail);
         Add("APCI", row.ApciFormat == "-" ? null : row.ApciFormat + " · NS=" + row.SendSequence + " · NR=" + row.ReceiveSequence);
@@ -131,9 +134,7 @@ public partial class MainWindow
         SelectedRawText.Text = row.RawHex;
         _selectedFrameExplanation = explanation;
         SelectedLineSummaryText.Text = "Hover or click a protocol group. The panel stays stable; linked raw/meaning groups are highlighted without rewriting the inspector.";
-        SelectedLineDirectionText.Text = row.ProtocolMode == "101"
-            ? row.ProtocolTraceTitle
-            : BuildLineMonitorTitle(row);
+        SelectedLineDirectionText.Text = row.ProtocolTraceHeader;
         SelectedLineSummaryText.Text = row.ProtocolMode == "101"
             ? row.ProtocolTraceMeaning.Split('\n')[0]
             : BuildLineMonitorSummary(row);
@@ -195,8 +196,8 @@ public partial class MainWindow
         var tone = row?.TrafficTone ?? string.Empty;
         // Neutral inspector surface: meaning is conveyed by exact byte groups,
         // not a full-height green/blue panel whose color competes with the text.
-        var background = tone == "Error" ? Color.FromRgb(255, 249, 249) : Color.FromRgb(255, 255, 255);
-        var border = tone == "Error" ? Color.FromRgb(254, 202, 202) : Color.FromRgb(226, 232, 240);
+        var background = tone == "Error" ? Color.FromRgb(251, 238, 238) : Color.FromRgb(242, 246, 249);
+        var border = tone == "Error" ? Color.FromRgb(242, 185, 185) : Color.FromRgb(215, 226, 234);
 
         FrameInterpreterPanel.Background = new SolidColorBrush(background);
         FrameInterpreterPanel.BorderBrush = new SolidColorBrush(border);
