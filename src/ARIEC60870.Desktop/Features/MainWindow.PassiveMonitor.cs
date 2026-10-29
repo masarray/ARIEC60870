@@ -940,7 +940,7 @@ public partial class MainWindow
         if (_passiveMonitorSession is not null || _passiveReplayCancellation is not null)
         {
             PassiveStatusMessageText.Text =
-                "Finish the recording/replay before navigating verified historical anomalies.";
+                "Stop the current monitor/replay before navigating a saved raw journal.";
             return;
         }
 
@@ -953,7 +953,7 @@ public partial class MainWindow
             !File.Exists(Path.Combine(directory, "manifest.json")))
         {
             PassiveStatusMessageText.Text =
-                "Open a finalized passive manifest.json or complete a recording first.";
+                "Open a finalized raw journal manifest.json. Live-only monitoring does not create one.";
             return;
         }
 
@@ -1119,7 +1119,7 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            AppendSessionLog("Passive capture close warning: " + ex.Message);
+            AppendSessionLog("Passive monitor close warning: " + ex.Message);
         }
         finally
         {
