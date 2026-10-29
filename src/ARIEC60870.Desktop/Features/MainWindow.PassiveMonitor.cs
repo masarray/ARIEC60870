@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 namespace ARIEC60870.Desktop;
 
-/// <summary>Passive RX capture lives in existing Setup, Connect and Trace workspaces.</summary>
+/// <summary>Passive live RX monitoring; full raw journaling is explicit opt-in.</summary>
 public partial class MainWindow
 {
     private const int PassiveTraceTabIndex = 1;
@@ -356,12 +356,14 @@ public partial class MainWindow
             FrameGapMilliseconds: ReadInt(PassiveFrameGapBox, "Passive frame gap", 100, 10000),
             LinkMode: (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto",
             LinkBScadaTx: isLinkB ? new PassiveSerialSource(bScada, "Link B SCADA TX -> RTU", baud, parity, 8, stopBits) : null,
-            LinkBRtuTx: isLinkB ? new PassiveSerialSource(bRtu, "Link B RTU TX -> SCADA", baud, parity, 8, stopBits) : null);
+            LinkBRtuTx: isLinkB ? new PassiveSerialSource(bRtu, "Link B RTU TX -> SCADA", baud, parity, 8, stopBits) : null,
+            RecordFullSession: PassiveFullRecordingCheckBox.IsChecked == true);
         options.Validate();
 
         var directory = Path.GetFullPath(output);
         var diskRoot = Path.GetPathRoot(directory)!;
-        if (Directory.Exists(diskRoot) && new DriveInfo(diskRoot).AvailableFreeSpace < 200L * 1024 * 1024)
+        if (options.RecordFullSession && Directory.Exists(diskRoot) &&
+            new DriveInfo(diskRoot).AvailableFreeSpace < 200L * 1024 * 1024)
             throw new IOException("Capture drive has less than 200 MB available.");
         return options;
     }
@@ -380,7 +382,7 @@ public partial class MainWindow
     }
 
     /// <summary>The existing main Connect/Stop action, explicitly isolated from active IEC-101 Master.</summary>
-    private async Task RunPassiveRecordingAsync()
+    private async Task RunPassiveMonitorAsync()
     {
         if (_sessionCancellation is not null) return;
         PassiveCaptureOptions options;
@@ -418,8 +420,10 @@ public partial class MainWindow
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
         PassiveIntegrityText.Text = "Opening receivers...";
-        PassiveStatusMessageText.Text = "Preparing capture…";
-        PassiveCapturePathText.Text = options.OutputDirectory;
+        PassiveStatusMessageText.Text = options.RecordFullSession
+            ? "Opening monitor with full raw journal…" : "Opening live monitor · recording OFF";
+        PassiveCapturePathText.Text = options.RecordFullSession
+            ? options.OutputDirectory : "Live monitor · no recording";
         PassiveSelectedRawText.Text = "Select a received raw-byte chunk.";
         PassiveVerifyButton.IsEnabled = false;
         PassiveFreezeCheckBox.IsChecked = false;
@@ -429,8 +433,10 @@ public partial class MainWindow
         SessionSubtitleText.Text = options.StreamCount == 4
             ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
             : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
-        UpdateStableHeader("Recording", "Listening to both serial directions.");
-        AppendSessionLog("Passive recording started: " + SessionSubtitleText.Text);
+        UpdateStableHeader("Monitoring", options.RecordFullSession
+            ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
+        AppendSessionLog("Passive monitor started: " + SessionSubtitleText.Text +
+            (options.RecordFullSession ? " · full raw journal ON" : " · live-only, no files created"));
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(160)
@@ -445,22 +451,27 @@ public partial class MainWindow
             var result = await _passiveCaptureTask;
             _passiveCaptureResult = result;
             RefreshPassiveUi();
-            PassiveCapturePathText.Text = result.Directory;
+            PassiveCapturePathText.Text = options.RecordFullSession
+                ? result.Directory : "Live monitor · no recording";
             PassiveIntegrityText.Text = result.Manifest.Status;
-            PassiveStatusMessageText.Text = result.Manifest.Warnings.Length == 0
-                ? "Recording saved. Select Verify to check the file."
-                : string.Join(" | ", result.Manifest.Warnings.Take(2));
-            PassiveVerifyButton.IsEnabled = true;
-            AppendSessionLog("Passive RX capture finalized: " + result.Manifest.Status + " · " + result.Directory);
-            UpdateStableHeader(result.Manifest.Status == "NoApplicationLossDetected" ? "Recorded" : "Degraded",
-                "Recording saved. Verification available in Passive Monitor.");
+            PassiveStatusMessageText.Text = result.Manifest.Warnings.Length > 0
+                ? string.Join(" | ", result.Manifest.Warnings.Take(2))
+                : options.RecordFullSession ? "Full journal saved. Select Verify to check it."
+                : "Monitor stopped · no session recording was created. Save selected Trace frames separately.";
+            PassiveVerifyButton.IsEnabled = options.RecordFullSession;
+            AppendSessionLog(options.RecordFullSession
+                ? "Passive raw journal finalized: " + result.Manifest.Status + " · " + result.Directory
+                : "Passive live monitor stopped without automatic session recording: " + result.Manifest.Status);
+            UpdateStableHeader(result.Manifest.Status is "MonitorStopped" or "NoApplicationLossDetected"
+                    ? "Stopped" : "Degraded",
+                options.RecordFullSession ? "Full journal saved · verification available." : "Live monitoring ended · no automatic recording.");
         }
         catch (Exception ex)
         {
-            PassiveIntegrityText.Text = "Capture failed";
+            PassiveIntegrityText.Text = "Monitor failed";
             PassiveStatusMessageText.Text = ex.Message;
-            UpdateStableHeader("Faulted", "Passive recorder failed: " + ex.Message);
-            AppendSessionLog("Passive RX recorder failed: " + ex.Message);
+            UpdateStableHeader("Faulted", "Passive monitor failed: " + ex.Message);
+            AppendSessionLog("Passive RX monitor failed: " + ex.Message);
         }
         finally
         {
@@ -473,11 +484,11 @@ public partial class MainWindow
         }
     }
 
-    private void StopPassiveRecording()
+    private void StopPassiveMonitor()
     {
         if (_passiveMonitorSession is null || _sessionCancellation is null) return;
-        PassiveIntegrityText.Text = "Saving…";
-        UpdateStableHeader("Saving", "Finishing capture.");
+        PassiveIntegrityText.Text = "Stopping…";
+        UpdateStableHeader("Stopping", "Disconnecting passive receivers and finalizing optional journal.");
         _sessionCancellation.Cancel();
     }
 
@@ -493,7 +504,8 @@ public partial class MainWindow
         PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
         PassiveIntegrityText.Text = progress.IntegrityWarning
-            ? "Integrity warning" : progress.Status == "Recording" ? "No app loss detected" : progress.Status;
+            ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
+            : progress.Status == "Monitoring" ? "Live only · no disk recording" : progress.Status;
         PassiveIntegrityText.Foreground = (Brush)FindResource(progress.IntegrityWarning ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
