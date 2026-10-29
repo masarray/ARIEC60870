@@ -329,7 +329,7 @@
                                     </LinearGradientBrush>
                                 </Border.Background>
                                 <Grid>
-                                    <Border x:Name="SegmentSlider" Height="34" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
+                                    <Border x:Name="SegmentSlider" Height="40" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
                                         <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
                                         <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
                                     </Border>
@@ -527,7 +527,14 @@
                                 </Grid.RowDefinitions>
                                 <DockPanel>
                                     <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
-                                    <TextBlock Text="Inspector →" ToolTip="Select a row to inspect its decoded content. Save/Open capture actions are on the left rail." Style="{StaticResource EyebrowText}" Foreground="{StaticResource Ink500Brush}" HorizontalAlignment="Right" DockPanel.Dock="Right" />
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="AUTO-SCROLL" FontSize="11.5" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                                        <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
+                                                      IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
+                                                      ToolTip="Follow latest Trace frames. Mouse wheel or selection turns this OFF. Click to resume.">
+                                            <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="22" Height="22" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                        </ToggleButton>
+                                    </StackPanel>
                                 </DockPanel>
                                 <ListBox x:Name="FrameTraceGrid"
                                          Grid.Row="2"
@@ -539,6 +546,7 @@
                                          PreviewMouseMove="FrameTraceGrid_PreviewMouseMove"
                                          PreviewMouseLeftButtonUp="FrameTraceGrid_PreviewMouseLeftButtonUp"
                                          PreviewMouseRightButtonDown="FrameTraceGrid_PreviewMouseRightButtonDown"
+                                         PreviewMouseWheel="TraceScroll_PreviewMouseWheel"
                                          FontFamily="{StaticResource AppFont}"
                                          TextOptions.TextFormattingMode="Ideal"
                                          TextOptions.TextRenderingMode="ClearType"
@@ -601,7 +609,7 @@
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding ProtocolTraceCompactMeaning, Mode=OneWay}"
                                                            FontFamily="{StaticResource AppFont}"
-                                                           FontSize="12.2"
+                                                           FontSize="13.4"
                                                            LineHeight="18"
                                                            Foreground="{StaticResource Ink800Brush}"
                                                            TextWrapping="Wrap"
@@ -615,7 +623,7 @@
                                                 <TextBlock Grid.Row="2"
                                                            Text="{Binding ProtocolTraceRaw, Mode=OneWay}"
                                                            FontFamily="Cascadia Mono, Consolas"
-                                                           FontSize="11.6"
+                                                           FontSize="12.4"
                                                            LineHeight="17"
                                                            Foreground="{StaticResource Ink700Brush}"
                                                            TextWrapping="Wrap"
@@ -723,9 +731,15 @@
                                         <ComboBoxItem Content="Digital status" />
                                         <ComboBoxItem Content="Analog" />
                                     </ComboBox>
+                                    <TextBlock Text="AUTO-SCROLL" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="20,0,9,0"/>
+                                    <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}" IsChecked="True"
+                                                  Checked="EventsAutoScroll_Changed" Unchecked="EventsAutoScroll_Changed"
+                                                  ToolTip="Follow latest Events. Mouse wheel turns OFF; click again to jump to latest.">
+                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="22" Height="22" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                    </ToggleButton>
                                 </StackPanel>
                             </DockPanel>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="13" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="150" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
