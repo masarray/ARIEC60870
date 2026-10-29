@@ -89,7 +89,7 @@ public sealed class PassiveMonitorSession
         _taps = taps;
         _writtenBytes = new long[_streamCount];
         _writtenChunks = new long[_streamCount];
-        _rawHashes = new string[_streamCount];
+        _rawHashes = Enumerable.Repeat(string.Empty, _streamCount).ToArray();
     }
 
     /// <summary>Starts RX-only monitoring; optional journal is finalized at Stop.</summary>
@@ -315,7 +315,8 @@ public sealed class PassiveMonitorSession
             {
                 try
                 {
-                    await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
+                    if (_options.RecordFullSession)
+                        await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
                     if (_options.RecordFullSession)
                         hashes[chunk.StreamId].AppendData(chunk.Buffer, PassiveJournalFormat.HeaderSize,
                             chunk.Length - PassiveJournalFormat.HeaderSize);
@@ -368,30 +369,36 @@ public sealed class PassiveMonitorSession
                                 StreamId = (byte)(item.StreamId % 2)
                             });
                         });
-                        var line = System.Text.Json.JsonSerializer.Serialize(new
+                        if (_options.RecordFullSession)
                         {
-                            frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
-                            frame.Format, frame.ChecksumValid, Length = frame.RawBytes.Length
-                        });
-                        await frameFiles[chunk.StreamId].WriteLineAsync(line).ConfigureAwait(false);
+                            var line = JsonSerializer.Serialize(new
+                            {
+                                frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
+                                frame.Format, frame.ChecksumValid, Length = frame.RawBytes.Length
+                            });
+                            await frameFiles[chunk.StreamId].WriteLineAsync(line).ConfigureAwait(false);
+                        }
                         _frames.Writer.TryWrite(frame);
                     }
                     foreach (var entry in transactions)
                     {
-                        await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry))
-                            .ConfigureAwait(false);
+                        if (_options.RecordFullSession)
+                            await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry))
+                                .ConfigureAwait(false);
                         _transactionEvents.Writer.TryWrite(entry);
                     }
                     foreach (var gi in giEvents)
                     {
-                        await giFile.WriteLineAsync(JsonSerializer.Serialize(gi))
-                            .ConfigureAwait(false);
+                        if (_options.RecordFullSession)
+                            await giFile.WriteLineAsync(JsonSerializer.Serialize(gi))
+                                .ConfigureAwait(false);
                         _giEvents.Writer.TryWrite(gi);
                     }
                     foreach (var window in timelineWindows)
                     {
-                        await timelineFile.WriteLineAsync(JsonSerializer.Serialize(window))
-                            .ConfigureAwait(false);
+                        if (_options.RecordFullSession)
+                            await timelineFile.WriteLineAsync(JsonSerializer.Serialize(window))
+                                .ConfigureAwait(false);
                         _timelineWindows.Writer.TryWrite(window);
                     }
                     // Small capped byte sample, copied while the writer still owns the pooled buffer.
@@ -406,7 +413,8 @@ public sealed class PassiveMonitorSession
                     Interlocked.Increment(ref _writtenChunks[chunk.StreamId]);
                     Interlocked.Add(ref _writtenBytes[chunk.StreamId], chunk.Length - PassiveJournalFormat.HeaderSize);
                     bytesSinceFlush += chunk.Length;
-                    if (bytesSinceFlush >= 262144 || Stopwatch.GetElapsedTime(lastFlush) >= TimeSpan.FromSeconds(2))
+                    if (_options.RecordFullSession &&
+                        (bytesSinceFlush >= 262144 || Stopwatch.GetElapsedTime(lastFlush) >= TimeSpan.FromSeconds(2)))
                     {
                         foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);
                         foreach (var index in frameFiles) await index.FlushAsync().ConfigureAwait(false);
@@ -427,11 +435,12 @@ public sealed class PassiveMonitorSession
                 if (partial is null) continue;
                 var observedTail = new PassiveObservedFrame(sid, partial.ByteOffset,
                     DateTime.UtcNow, "Partial", false, partial.RawBytes);
-                await frameFiles[sid].WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
-                    observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
-                })).ConfigureAwait(false);
+                if (_options.RecordFullSession)
+                    await frameFiles[sid].WriteLineAsync(JsonSerializer.Serialize(new
+                    {
+                        observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
+                        observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
+                    })).ConfigureAwait(false);
                 _frames.Writer.TryWrite(observedTail);
                 var tailEvents = new List<PassiveTransactionEvent>();
                 correlator.Observe(observedTail, tailEvents.Add);
@@ -482,11 +491,14 @@ public sealed class PassiveMonitorSession
                     .ConfigureAwait(false);
                 _timelineWindows.Writer.TryWrite(window);
             }
-            foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);
-            foreach (var index in frameFiles) await index.FlushAsync().ConfigureAwait(false);
-            await transactionFile.FlushAsync().ConfigureAwait(false);
-            await giFile.FlushAsync().ConfigureAwait(false);
-            await timelineFile.FlushAsync().ConfigureAwait(false);
+            if (_options.RecordFullSession)
+            {
+                foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);
+                foreach (var index in frameFiles) await index.FlushAsync().ConfigureAwait(false);
+                await transactionFile.FlushAsync().ConfigureAwait(false);
+                await giFile.FlushAsync().ConfigureAwait(false);
+                await timelineFile.FlushAsync().ConfigureAwait(false);
+            }
             if (_options.RecordFullSession)
                 for (var i = 0; i < _streamCount; i++)
                     _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
