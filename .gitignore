@@ -74,6 +74,9 @@ landing/**
 **/coverage/**
 **/TestResults/**
 
+# The Inter font is pinned and fetched by scripts/prepare-inter-font.ps1; do not commit generated binaries.
+/src/ARIEC60870.Desktop/Assets/Fonts/*.ttf
+
 # .NET / Visual Studio local state
 *.user
 *.suo
