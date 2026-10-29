@@ -115,13 +115,22 @@ public sealed class Iec10xObservedControlTimeline
             : " · matching Master request not observed in this preview";
         var phaseMismatch = hasRequest && pending!.Select != command.Select.Value;
         if (phaseMismatch || (hasRequest && pending!.Ambiguous))
-            return $"RTU command response COT={cot.Code}, {location}: " +
-                   (phaseMismatch ? "SELECT/EXECUTE echo differs from observed request" :
-                       "overlapping/retried commands make matching ambiguous") +
-                   "; no acceptance verdict." + reference;
+        {
+            var observed = cot.Negative
+                ? $"RTU NEGATIVE CONFIRMATION (P/N=1, COT={cot.Code}, {cot.Phase}), {location}; "
+                : cot.Code is >= 44 and <= 47
+                    ? $"RTU APPLICATION ERROR COT={cot.Code} ({cot.Phase}), {location}; "
+                    : $"RTU command response COT={cot.Code}, {location}: ";
+            return observed + (pending!.Ambiguous
+                ? "overlapping or changed-target requests make matching ambiguous"
+                : "SELECT/EXECUTE echo differs from observed request") +
+                "; no unique acceptance verdict." + reference;
+        }
 
         if (hasRequest && !string.Equals(pending!.RequestedValue, expected, StringComparison.Ordinal))
-            return $"RTU response target differs from Master request, {location}: " +
+            return (cot.Negative
+                ? $"RTU NEGATIVE CONFIRMATION (P/N=1, COT={cot.Code}, {cot.Phase}), {location}; "
+                : $"RTU response target differs from Master request, {location}: ") +
                    $"requested={pending.RequestedValue}; echoed={expected}. " +
                    "No matched positive command acceptance can be inferred." + reference;
 
