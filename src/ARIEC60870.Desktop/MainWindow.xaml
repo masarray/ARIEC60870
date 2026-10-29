@@ -9,6 +9,36 @@
         Icon="Assets/Icons/ariec60870-icon.png"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="{StaticResource AppFont}">
+    <Window.Resources>
+        <DataTemplate x:Key="ProtocolStatusChipTemplate">
+            <Border Background="{Binding Background}" CornerRadius="4" Padding="5,1"
+                    Margin="0,0,3,0" SnapsToDevicePixels="True" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Text}" Foreground="{Binding Foreground}"
+                           FontSize="10.5" FontWeight="SemiBold" TextOptions.TextFormattingMode="Ideal" />
+            </Border>
+        </DataTemplate>
+        <DataTemplate x:Key="ProtocolQualityCellTemplate">
+            <ItemsControl ItemsSource="{Binding QualityBadges}"
+                          ItemTemplate="{StaticResource ProtocolStatusChipTemplate}"
+                          ToolTip="{Binding QualityDetail}" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DataTemplate>
+        <DataTemplate x:Key="ProtocolCotCellTemplate">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding CotDetail}">
+                <TextBlock Text="{Binding Cot}" FontSize="11.5" Foreground="#34465C"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <ItemsControl ItemsSource="{Binding CotBadges}" Margin="5,0,0,0"
+                              ItemTemplate="{StaticResource ProtocolStatusChipTemplate}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -693,10 +723,10 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2.5*" MinWidth="260" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="1.05*" MinWidth="120" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="0.95*" MinWidth="115" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ProtocolQualityCellTemplate}" Width="0.95*" MinWidth="115" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="1.1*" MinWidth="130" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ProtocolCotCellTemplate}" Width="1.35*" MinWidth="170" />
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn x:Name="ValueGroupColumn" Header="Group" Binding="{Binding Group}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
@@ -733,9 +763,9 @@
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Before" Binding="{Binding Previous}" Width="108" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="After" Binding="{Binding NewValue}" Width="108" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Cause" Binding="{Binding Cot}" Width="135" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTemplateColumn Header="Cause" CellTemplate="{StaticResource ProtocolCotCellTemplate}" Width="172" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="125" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ProtocolQualityCellTemplate}" Width="142" />
                                     <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
