@@ -31,6 +31,11 @@ public sealed class CaptureFrameSnapshot
     public string ResponseTime { get; set; } = string.Empty;
     public string Meaning { get; set; } = string.Empty;
     public string Detail { get; set; } = string.Empty;
+    public int? LinkWidth { get; set; }
+    public int? CotWidth { get; set; }
+    public int? CaWidth { get; set; }
+    public int? IoaWidth { get; set; }
+    public string DecoderSchema { get; set; } = string.Empty;
     public string RawHex { get; set; } = string.Empty;
     public string ProtocolTraceTitle { get; set; } = string.Empty;
     public string ProtocolTraceMeaning { get; set; } = string.Empty;

@@ -4,6 +4,8 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using ARIEC60870.Core.Mapping;
+using ARIEC60870.Core.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Desktop.ViewModels;
@@ -149,24 +151,7 @@ public sealed partial class EvidenceRow
 
     public EvidenceRow(CaptureFrameSnapshot capture)
     {
-        Source = new Iec103MasterEvidenceEvent
-        {
-            SequenceNumber = capture.Sequence,
-            TimestampUtc = DateTime.UtcNow,
-            Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category,
-            DataClass = capture.DataClass,
-            Summary = capture.ProtocolTraceTitle,
-            Detail = capture.Detail,
-            OperatorMessage = capture.ProtocolTraceMeaning,
-            ProtocolMeaning = capture.Meaning,
-            RawHex = capture.RawHex,
-            ProtocolMode = capture.ProtocolMode switch
-            {
-                "101" or "IEC-101" => Iec60870ProtocolMode.Iec101,
-                "104" or "IEC-104" => Iec60870ProtocolMode.Iec104,
-                _ => Iec60870ProtocolMode.Iec103
-            }
-        };
+        Source = RestoreCaptureSource(capture);
 
         Sequence = capture.Sequence;
         Time = string.IsNullOrWhiteSpace(capture.Time) ? "-" : capture.Time;
@@ -191,20 +176,22 @@ public sealed partial class EvidenceRow
         AsduType = string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
         TypeId = string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
         TypeIdName = TypeId == "-" ? AsduType : $"{TypeId} · {AsduType}";
-        Vsq = "-";
-        CotCode = string.IsNullOrWhiteSpace(capture.CotCode) ? "-" : capture.CotCode;
+        Vsq = Source.AsduDetails is { } asdu ? $"0x{asdu.VariableStructureQualifier:X2}" : "-";
+        CotCode = Source.CauseDetails is { } cause ? cause.Code.ToString(CultureInfo.InvariantCulture) :
+            string.IsNullOrWhiteSpace(capture.CotCode) ? "-" : capture.CotCode;
         Cot = string.IsNullOrWhiteSpace(capture.Cot) ? "-" : capture.Cot;
         CotDisplay = CotCode == "-" ? Cot : $"{CotCode} · {Cot}";
         LinkAddress = string.IsNullOrWhiteSpace(capture.LinkAddress) ? "-" : capture.LinkAddress;
         CommonAddress = string.IsNullOrWhiteSpace(capture.CommonAddress) ? "-" : capture.CommonAddress;
         IoAddress = string.IsNullOrWhiteSpace(capture.Ioa) ? "-" : capture.Ioa;
-        ApciFormat = "-";
+        ApciFormat = string.IsNullOrWhiteSpace(Source.ApciFormat) ? "-" : Source.ApciFormat;
         SendSequence = "-";
         ReceiveSequence = "-";
         UFormatName = "-";
-        ObjectCount = "-";
-        SequenceMode = "-";
-        Quality = string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality;
+        ObjectCount = Source.AsduDetails?.ObjectCount.ToString(CultureInfo.InvariantCulture) ?? "-";
+        SequenceMode = Source.AsduDetails is { } decoded ? (decoded.IsSequence ? "SQ=1" : "SQ=0") : "-";
+        Quality = Source.QualityDetails?.DisplayText ?? (Source.Frame is { IsChecksumValid: false } ? "Invalid frame" :
+            string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality);
         Fun = "-";
         Inf = "-";
         FunInf = "-";
@@ -223,6 +210,81 @@ public sealed partial class EvidenceRow
         ProtocolTraceMeaning = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeaning) ? ReadableMeaning : capture.ProtocolTraceMeaning;
         ProtocolTraceRaw = string.IsNullOrWhiteSpace(capture.ProtocolTraceRaw) ? (RawHex == "-" ? "RAW -" : "RAW " + RawHex) : capture.ProtocolTraceRaw;
         ProtocolTraceMeta = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeta) ? $"#{Sequence}  {Time}  {ProtocolName}" : capture.ProtocolTraceMeta;
+    }
+
+    private static Iec103MasterEvidenceEvent RestoreCaptureSource(CaptureFrameSnapshot capture)
+    {
+        var mode = capture.ProtocolMode switch
+        {
+            "101" or "IEC-101" => Iec60870ProtocolMode.Iec101,
+            "104" or "IEC-104" => Iec60870ProtocolMode.Iec104,
+            _ => Iec60870ProtocolMode.Iec103
+        };
+
+        // Older captures have raw bytes but no authoritative decoder profile.
+        // Never guess COT/CA/IOA field widths to make an inspector look populated.
+        Iec10xArchivedDecode? decoded = null;
+        if (capture.DecoderSchema == "IEC10X-OBJECT-V1" &&
+            capture.CotWidth is >= 1 and <= 2 &&
+            capture.CaWidth is >= 1 and <= 2 &&
+            capture.IoaWidth is >= 1 and <= 3 &&
+            (mode == Iec60870ProtocolMode.Iec104 || capture.LinkWidth is >= 0 and <= 2) &&
+            !string.IsNullOrWhiteSpace(capture.RawHex))
+        {
+            try
+            {
+                var hex = string.Concat(capture.RawHex.Where(Uri.IsHexDigit));
+                var raw = Convert.FromHexString(hex);
+                decoded = Iec10xArchivedFrameDecoder.Decode(mode, raw, capture.LinkWidth,
+                    capture.CotWidth, capture.CaWidth, capture.IoaWidth);
+            }
+            catch (FormatException)
+            {
+                // Malformed capture remains viewable as raw historical evidence.
+            }
+        }
+
+        var asdu = decoded?.Asdu;
+        var first = asdu?.FirstObject;
+        return new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = capture.Sequence,
+            TimestampUtc = DateTime.UtcNow, // Reload time only; PC capture time is the separate Time label.
+            Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category,
+            DataClass = capture.DataClass,
+            Summary = capture.ProtocolTraceTitle,
+            Detail = capture.Detail,
+            OperatorMessage = capture.ProtocolTraceMeaning,
+            ProtocolMeaning = capture.Meaning,
+            RawHex = capture.RawHex,
+            ProtocolMode = mode,
+            Direction = capture.Direction == "RX" ? FrameDirection.SlaveToMaster :
+                capture.Direction == "TX" ? FrameDirection.MasterToSlave : FrameDirection.Unknown,
+            Frame = decoded?.SerialFrame,
+            AsduDetails = asdu,
+            InformationObjectDetails = first,
+            ApciFormat = decoded?.TcpFrame?.Format ?? string.Empty,
+            SendSequence = decoded?.TcpFrame?.SendSequence,
+            ReceiveSequence = decoded?.TcpFrame?.ReceiveSequence,
+            UFormatName = decoded?.TcpFrame?.UFormatName ?? string.Empty,
+            TypeId = asdu?.TypeId,
+            TypeName = asdu?.TypeName ?? capture.AsduType,
+            VariableStructureQualifier = asdu?.VariableStructureQualifier,
+            IsSequenceAsdu = asdu?.IsSequence,
+            ObjectCount = asdu?.ObjectCount,
+            CauseOfTransmission = asdu?.CauseOfTransmission,
+            CauseName = asdu?.CotNameWithFlags ?? capture.Cot,
+            CauseDetails = asdu?.CauseDetails,
+            CommandDetails = asdu?.CommandDetails,
+            CommonAddressNumber = asdu?.CommonAddress,
+            OriginatorAddress = asdu?.OriginatorAddress,
+            InformationObjectAddress = first?.InformationObjectAddress,
+            QualityDetails = first?.QualityDetails,
+            QualityText = first?.QualityText ?? capture.Quality,
+            RelayTimestampText = first?.TimestampText ?? capture.RelayTime,
+            IsRelayValue = asdu?.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
+            SignalDisplayValue = first?.ShortValue ?? capture.Value
+        };
     }
 
     private string BuildProtocolTraceTitle()

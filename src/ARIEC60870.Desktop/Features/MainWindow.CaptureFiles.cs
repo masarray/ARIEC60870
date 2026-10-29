@@ -114,6 +114,19 @@ public partial class MainWindow
             throw new InvalidOperationException("Capture file does not contain frames.jsonl.");
         }
 
+        // Authenticated logical source before rendering; a captured preview must never
+        // silently accept edited frames.jsonl while retaining the original manifest hash.
+        var manifestText = ReadZipTextEntry(archive, "manifest.json");
+        if (!string.IsNullOrWhiteSpace(manifestText))
+        {
+            var manifest = JsonSerializer.Deserialize<CaptureManifest>(manifestText);
+            if (!string.IsNullOrWhiteSpace(manifest?.FramesSha256) &&
+                !string.Equals(manifest.FramesSha256, ComputeSha256(framesText), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Capture integrity failure: frames.jsonl SHA-256 differs from the manifest.");
+            }
+        }
+
         var rows = new List<EvidenceRow>();
         foreach (var line in framesText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
         {
@@ -560,6 +573,11 @@ public partial class MainWindow
         public string ResponseTime { get; set; } = string.Empty;
         public string Meaning { get; set; } = string.Empty;
         public string Detail { get; set; } = string.Empty;
+        public int? LinkWidth { get; set; }
+        public int? CotWidth { get; set; }
+        public int? CaWidth { get; set; }
+        public int? IoaWidth { get; set; }
+        public string DecoderSchema { get; set; } = string.Empty;
         public string RawHex { get; set; } = string.Empty;
         public string ProtocolTraceTitle { get; set; } = string.Empty;
         public string ProtocolTraceMeaning { get; set; } = string.Empty;
@@ -595,12 +613,35 @@ public partial class MainWindow
                 ResponseTime = row.ResponseTime,
                 Meaning = row.ReadableMeaning,
                 Detail = row.Detail,
+                LinkWidth = row.Source.Frame?.LinkAddressSize,
+                CotWidth = row.Source.AsduDetails?.CauseDetails?.OriginatorAddress.HasValue == true ? 2 :
+                    row.Source.AsduDetails is not null ? 1 : null,
+                CaWidth = GetCaptureCaWidth(row.Source),
+                IoaWidth = GetCaptureIoaWidth(row.Source),
+                DecoderSchema = row.Source.AsduDetails is null ? string.Empty : "IEC10X-OBJECT-V1",
                 RawHex = row.RawHex,
                 ProtocolTraceTitle = row.ProtocolTraceTitle,
                 ProtocolTraceMeaning = row.ProtocolTraceMeaning,
                 ProtocolTraceRaw = row.ProtocolTraceRaw,
                 ProtocolTraceMeta = row.ProtocolTraceMeta
             };
+
+        private static int? GetCaptureCaWidth(Iec103MasterEvidenceEvent e)
+        {
+            var o = e.AsduDetails?.FirstObject;
+            var cotSize = e.AsduDetails?.CauseDetails?.OriginatorAddress.HasValue == true ? 2 : 1;
+            if (o is null || o.InformationObjectOffset < 0) return null;
+            var width = o.InformationObjectOffset - 2 - cotSize;
+            return width is 1 or 2 ? width : null;
+        }
+
+        private static int? GetCaptureIoaWidth(Iec103MasterEvidenceEvent e)
+        {
+            var o = e.AsduDetails?.FirstObject;
+            if (o is null || o.InformationObjectOffset < 0) return null;
+            var width = o.InformationElementOffset - o.InformationObjectOffset;
+            return width is >= 1 and <= 3 ? width : null;
+        }
     }
 
 }
