@@ -74,7 +74,7 @@ public sealed class CaptureArchiveReaderTests
     [Fact]
     public void OversizedJsonlFrameIsRejectedBeforeAllocatingLargeRows()
     {
-        var frames = new string('A', 600 * 1024) + "\n";
+        var frames = Convert.ToBase64String(RandomNumberGenerator.GetBytes(450 * 1024)) + "\n";
         var path = CreateCapture(frames, hash: null, rowCount: null);
         try
         {
