@@ -733,9 +733,10 @@ public partial class MainWindow
         ExportReportButton.IsEnabled = true;
         // Switching to an offline .ariec archive clears the current evidence view;
         // do not let it replace a live passive trace in the middle of recording.
-        // The original raw journal is always available from Capture → Open Folder.
+        // A full raw journal exists only if the operator opted in before Start Monitor.
         OpenCaptureButton.IsEnabled = !isRunning || !IsIec101PassiveMonitorSelected();
         ProtocolModeComboBox.IsEnabled = !isRunning;
+        PassiveFullRecordingCheckBox.IsEnabled = !isRunning;
         TransportModeComboBox.IsEnabled = !isRunning;
         TcpHostBox.IsEnabled = !isRunning;
         TcpPortBox.IsEnabled = !isRunning;

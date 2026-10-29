@@ -28,7 +28,8 @@ public sealed record PassiveCaptureOptions(
     int FrameGapMilliseconds = 900,
     string LinkMode = "Auto",
     PassiveSerialSource? LinkBScadaTx = null,
-    PassiveSerialSource? LinkBRtuTx = null)
+    PassiveSerialSource? LinkBRtuTx = null,
+    bool RecordFullSession = true)
 {
     public int StreamCount => LinkBScadaTx is not null && LinkBRtuTx is not null ? 4 : 2;
 
@@ -38,7 +39,8 @@ public sealed record PassiveCaptureOptions(
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(OutputDirectory)) throw new ArgumentException("Capture output directory is required.");
+        if (RecordFullSession && string.IsNullOrWhiteSpace(OutputDirectory))
+            throw new ArgumentException("Recording output directory is required only when full-session recording is enabled.");
         if (string.IsNullOrWhiteSpace(ScadaTx.PortName) || string.IsNullOrWhiteSpace(RtuTx.PortName))
             throw new ArgumentException("Both RX-only COM ports are required.");
         if ((LinkBScadaTx is null) != (LinkBRtuTx is null))

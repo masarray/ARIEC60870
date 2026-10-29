@@ -58,6 +58,48 @@ public sealed class PassiveMonitorP0Tests
     }
 
     [Fact]
+    public async Task LiveMonitoringReceivesAndDecodesWithoutCreatingAnyCaptureDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ariec-live-monitor-" + Guid.NewGuid().ToString("N"));
+        var tx = new byte[] { 0x10, 0x4B, 0x69, 0xB4, 0x16 };
+        var rx = new byte[] { 0x10, 0x29, 0x69, 0x92, 0x16 };
+        Assert.False(Directory.Exists(root));
+        var opts = Options(root) with { RecordFullSession = false };
+        opts.Validate();
+        var tapA = new ReplayTap("COM7", tx, tx.Length);
+        var tapB = new ReplayTap("COM8", rx, rx.Length);
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(180));
+        var session = new PassiveMonitorSession(opts, tapA, tapB);
+        var result = await session.RunAsync(stop.Token);
+
+        Assert.False(Directory.Exists(root));
+        Assert.Equal(string.Empty, result.Directory);
+        Assert.Equal("MonitorStopped", result.Manifest.Status);
+        Assert.Equal("MonitorStopped", session.GetProgress().Status);
+        Assert.Equal(tx.Length, session.GetProgress().ScadaBytes);
+        Assert.Equal(rx.Length, session.GetProgress().RtuBytes);
+        Assert.True(tapA.WasClosed && tapB.WasClosed);
+        Assert.Equal(0, tapA.Writes + tapB.Writes);
+        var received = new List<PassiveObservedFrame>();
+        while (session.TryReadFrame(out var frame)) received.Add(frame);
+        Assert.Contains(received, frame => frame.StreamId == 0 && frame.RawBytes.SequenceEqual(tx));
+        Assert.Contains(received, frame => frame.StreamId == 1 && frame.RawBytes.SequenceEqual(rx));
+        Assert.All(result.Manifest.Streams, stream =>
+        {
+            Assert.Equal(string.Empty, stream.File);
+            Assert.Equal(string.Empty, stream.RawSha256);
+        });
+    }
+
+    [Fact]
+    public void LiveModeDoesNotRequireOrValidateAnArchiveFolder()
+    {
+        var opts = Options(string.Empty) with { RecordFullSession = false };
+        opts.Validate();
+        Assert.Throws<ArgumentException>(() => (opts with { RecordFullSession = true }).Validate());
+    }
+
+    [Fact]
     public async Task TwoDirectionsAreArchivedByteExactAndShaVerified()
     {
         var folder = CreateTemp();
