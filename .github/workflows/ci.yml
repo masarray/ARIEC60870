@@ -91,7 +91,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Passive GUI smoke failed with exit code $LASTEXITCODE." }
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           $zip = Join-Path $package 'ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip'
-          Compress-Archive -Path (Join-Path $publish '*'), 'docs/IEC101_PASSIVE_MONITOR_P0_CAPTURE.md' -DestinationPath $zip -Force
+          # Package the current live-first operator workflow, not the retired record-first P0 guide.
+          Copy-Item 'docs/IEC101_LIVE_MONITOR_SELECTIVE_CAPTURE_20261029.md' (Join-Path $publish 'START_HERE_MONITOR.md') -Force
+          Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -Force
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
