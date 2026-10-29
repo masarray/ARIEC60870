@@ -1,3 +1,5 @@
+> **2026-10-29 current design authority:** [IEC 101/103/104 Interoperability PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [Interoperability ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md), and [NUC research](IEC10X_NUC_RESEARCH_20261029.md). This file retains historical implementation context; any older status, scope or convention assumption that conflicts with these design documents is superseded for **future requirements**. Merged master code and exact CI remain the authority for what is already implemented. Do not treat a new design target as completed capability.
+
 # ARD — IEC-101 Passive Serial Sniffer (2/4 COM), Loss-Aware Forensic Pipeline
 
 Status: Approved-for-implementation proposal; **design only, no code yet**  
