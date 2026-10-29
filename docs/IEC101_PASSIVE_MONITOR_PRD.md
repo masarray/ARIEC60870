@@ -2,7 +2,7 @@
 
 # PRD — IEC-101 Passive Serial Monitor & Forensic Investigation Workspace
 
-Status: Design baseline / not implemented  
+Status: Historical initial design baseline — implementation has advanced; consult current master and the canonical 2026-10-29 Interoperability PRD/ARD  
 Date: 2026-10-27  
 Repository baseline: master 52777a7858d28b53c0739112219ac7685008ec84  
 Owner issue: #19  
