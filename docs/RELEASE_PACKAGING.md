@@ -105,3 +105,8 @@ A complete user package must not include batch launchers or multiple executable 
 ```powershell
 pwsh ./scripts/generate-sbom-lite.ps1 -Version 3.6.5 -OutputPath artifacts/release/ARIEC60870-v3.6.5-sbom.spdx.json
 ```
+
+## Embedded Inter font acquisition
+
+Windows builds run `pwsh ./scripts/prepare-inter-font.ps1` **before restore/build/publish**. It downloads the unmodified Inter variable TTF from the official Google Fonts repository into the ignored `Assets/Fonts/Inter.ttf` working-tree path, rejects an unexpected Git blob SHA and embeds the verified resource in the WPF executable. It is not a Windows installed-font dependency. The SIL OFL 1.1 notice is included beside the application; do not remove the notice from ZIP generation. Offline source builds require running the script while connected once; subsequent builds reuse and verify the local font.
+
