@@ -1,4 +1,4 @@
-# IEC-101 Frame Trace — contract: exact ASE-style multilines (2026-10-29)
+# IEC-101 Frame Trace — contract: exact engineer-readable multilines (2026-10-29)
 
 Screenshot/telegram-driven requirement: **one physical FT1.2 frame = one compact four-part block**. Do not regress to a one-line summary. 1. `⇧/⇩ [PC time] human-friendly event name`; 2. `Data Link:` service, all defined bit flags and link address (+ L for variable); 3. when a decoded ASDU exists, separate `ASDU:`, `Cause of transmission:`, `Comm Addr`, and one line per information object; 4. `Hex Frame:` all original bytes.
 

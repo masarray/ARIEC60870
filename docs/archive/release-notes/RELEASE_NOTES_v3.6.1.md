@@ -40,7 +40,7 @@ This makes automatic trigger captures discoverable and reviewable, instead of si
 
 ## Improved
 
-### ASE-style trigger workflow direction
+### engineer-readable trigger workflow direction
 
 Trigger capture is now a visible workflow:
 

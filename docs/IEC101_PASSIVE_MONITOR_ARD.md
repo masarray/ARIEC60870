@@ -259,9 +259,9 @@ Fixture builder must emit deterministic raw bytes and exact expected decoded obs
 
 ## 15. Citations and scope
 
-ASE2000 V2 reference documentation:
-- Manufacturer product and capabilities: https://www.ase-systems.com/products/ase2000-v2/
-- Manufacturer user manual (public PDF): https://www.ase-systems.com/wp-content/uploads/2021/06/ase2000-communication-test-set.pdf ; especially §6 message capture/import, §7 UI and two serial ports, §8 Line Monitor / Messages / Line Analyzer, §13 RS232 monitor cable, §IEC 60870-5-101 quick start.
-- Manufacturer knowledge base: https://www.ase-systems.com/ase2000-v2-knowledge-base/
+independent IEC-101 reference reference documentation:
+- Manufacturer product and capabilities: independent protocol reference
+- Manufacturer user manual (public PDF): independent protocol reference ; especially §6 message capture/import, §7 UI and two serial ports, §8 Line Monitor / Messages / Line Analyzer, §13 RS232 monitor cable, §IEC 60870-5-101 quick start.
+- Manufacturer knowledge base: independent protocol reference
 
-No certification, verified performance parity, or physical fidelity with ASE2000/BCOM-USB is claimed. This document defines testable independent product targets.
+No certification, verified performance parity, or physical fidelity with independent IEC-101 reference/BCOM-USB is claimed. This document defines testable independent product targets.

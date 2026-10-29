@@ -1,4 +1,4 @@
-# ARIEC60870 v3.4.0 — Open Capture + ASE-like Workflow UX
+# ARIEC60870 v3.4.0 — Open Capture + engineer-readable Workflow UX
 
 ## Added
 

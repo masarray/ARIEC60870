@@ -10,7 +10,7 @@ using ARIEC60870.Master.Protocol.Iec10x;
 namespace ARIEC60870.Desktop.ViewModels;
 
 /// <summary>
-/// ASE-style, one-physical-frame / one-block IEC-101 trace presentation.
+/// engineer-readable, one-physical-frame / one-block IEC-101 trace presentation.
 /// Uses the shared typed FT1.2/ASDU decoder, never infers object fields from a
 /// string or rereads HEX. No UI controls, I/O, global mutable state or timers.
 /// </summary>

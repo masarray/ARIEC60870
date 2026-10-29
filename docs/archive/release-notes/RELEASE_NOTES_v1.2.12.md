@@ -1,4 +1,4 @@
-# ARIEC60870 v1.2.12 — ASE-Style Hex Group Map + Sidebar Safe Margins
+# ARIEC60870 v1.2.12 — engineer-readable Hex Group Map + Sidebar Safe Margins
 
 ## Fixed
 

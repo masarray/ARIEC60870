@@ -56,4 +56,4 @@ New diagnostics:
 
 ## Why
 
-This starts ASE2000-like capture behaviour: select a block from Line Monitor, save it as portable evidence, then build re-open/print/report features on top of the capture file model in the next phase.
+This starts independent IEC-101 reference-like capture behaviour: select a block from Line Monitor, save it as portable evidence, then build re-open/print/report features on top of the capture file model in the next phase.

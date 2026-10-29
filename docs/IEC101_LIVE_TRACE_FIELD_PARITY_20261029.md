@@ -17,8 +17,8 @@ Active IEC-101 TX/RX counters and LED traffic are live, but the Trace workspace 
 3. Switch to Values/Events while polling, then back to Trace: ring snapshot must show recent traffic from the inactive period.
 4. In Trace select one row: deliberate Hold preserves inspection; choose Auto or new Connect to resume live. Prior session Hold must never freeze the next session.
 5. FC9 with ACD=1/DFC=0 prints that requested class has no data but Class 1 pending. Never conflate it with RTU application error.
-6. Run same capture alongside ASE2000 V2 and compare FC, COT, CA, IOA, quality and CP56Time2a. Verify linked selected raw field highlights and command lifecycle separately.
+6. Run same capture alongside independent IEC-101 reference and compare FC, COT, CA, IOA, quality and CP56Time2a. Verify linked selected raw field highlights and command lifecycle separately.
 7. Run stress 4-COM passive and long duration Windows integrated sessions; verify no unbounded RAM/GUI repaint. CI does not substitute real-device FAT.
 
 ## Scope
-This milestone corrects initial WPF Trace rendering and per-frame human-readable decoding for IEC-101. It does not redesign the rest of the GUI, implement a complete bidirectional byte-field highlight for every IEC-104/103 frame, or claim full ASE2000 V2 parity yet.
+This milestone corrects initial WPF Trace rendering and per-frame human-readable decoding for IEC-101. It does not redesign the rest of the GUI, implement a complete bidirectional byte-field highlight for every IEC-104/103 frame, or claim full independent IEC-101 reference parity yet.

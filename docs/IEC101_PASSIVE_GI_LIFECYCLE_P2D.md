@@ -4,7 +4,7 @@ Date: 2026-10-28. Based on merged P0/P1/P2A/P2B/P2C in `master` `943bd87d88cf83f
 
 ## Objective
 
-An ASE2000-class IEC-101 passive observer must show the **sequence** of General Interrogation, not just a decoded ASDU Type ID and a rolling trace. A field engineer needs to see whether an RTU confirmed GI, sent interrogated data and terminated it, without confusing a missing capture fragment with a proven failure.
+An independent IEC-101 reference-class IEC-101 passive observer must show the **sequence** of General Interrogation, not just a decoded ASDU Type ID and a rolling trace. A field engineer needs to see whether an RTU confirmed GI, sent interrogated data and terminated it, without confusing a missing capture fragment with a proven failure.
 
 P2D adds a deterministic bounded GI lifecycle state machine that uses exact raw-frame source offsets, stores every lifecycle event to disk, and integrates into the **existing** Frame Trace and Findings. No new window/tab/toolbar; no requests/transmits/port ownership.
 

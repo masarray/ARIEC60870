@@ -24,7 +24,7 @@ The correction is in the pure Monitor correlator, GUI evidence labels and focuse
 
 ## Reference documents (independent summary, no vendor code/assets)
 - IEC 60870-5-101:1995 Amendment 2:2001, section 6.2.1.1, Table 10: https://cdn.standards.iteh.ai/samples/9463/ec043d834e884211a2edc6ef9bfed5bc/IEC-60870-5-101-1995-AMD2-2001.pdf
-- ASE2000 V2 User Manual, IEC 60870-5-101 Interoperability Options / Short Ack Class Response: https://www.ase-systems.com/wp-content/uploads/2021/06/ase2000-communication-test-set.pdf
+- independent IEC-101 reference User Manual, IEC 60870-5-101 Interoperability Options / Short Ack Class Response: independent protocol reference
 
 ### Follow-on engineering needs
 - Link-width detect/override in *offline replay*, with confidence measure; never silently change stored raw capture, and preserve original manifest profile as captured.

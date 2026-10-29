@@ -246,7 +246,9 @@ public partial class MainWindow
                 CommonAddress = item.CommonAddressNumber,
                 InformationObjectAddress = item.InformationObjectAddress,
                 TypeId = item.TypeId,
-                QualityText = ExtractQualityTextFromEvidence(item)
+                QualityText = ExtractQualityTextFromEvidence(item),
+                QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
+                CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
             })
             {
                 IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
@@ -301,7 +303,9 @@ public partial class MainWindow
                 CommonAddress = item.CommonAddressNumber,
                 InformationObjectAddress = item.InformationObjectAddress,
                 TypeId = item.TypeId,
-                QualityText = ExtractQualityTextFromEvidence(item)
+                QualityText = ExtractQualityTextFromEvidence(item),
+                QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
+                CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
             });
 
             _relayEventStore.Add(relayEventRow);

@@ -1,4 +1,4 @@
-# IEC-101 Passive Monitor — Interpretive Analysis Architecture (ASE2000 V2 benchmark)
+# IEC-101 Passive Monitor — Interpretive Analysis Architecture (independent IEC-101 reference benchmark)
 
 Status: implementation PR baseline · 2026-10-28. Related issue #19 and passive P0 engine.
 
@@ -49,10 +49,10 @@ No separate window, no separate nav button, no Master command engine instantiate
 2. Release build and existing Master regression must stay green.
 3. Windows GUI smoke opens actual MainWindow, changes passive→active→passive and verifies Trace, Events, Values, Messages and Capture still navigable, with command dock hidden in passive.
 4. Device FAT: capture both TX lines through verified non-intrusive RS-232 taps, compare telegrams to a trusted reference, verify ASDU field width profile; observe multiple ~30 s cycles.
-5. Offline exact reprocessing of archived raw journals and deeper request-response correlation are still tracked improvements. Do not claim full ASE2000 equivalence or a physically verified zero-loss capture from simulated tests.
+5. Offline exact reprocessing of archived raw journals and deeper request-response correlation are still tracked improvements. Do not claim full independent IEC-101 reference equivalence or a physically verified zero-loss capture from simulated tests.
 
-## ASE2000 V2 manufacturer benchmark, independent implementation
+## independent IEC-101 reference manufacturer benchmark, independent implementation
 
-- https://www.ase-systems.com/products/ase2000-v2/ — Line Monitoring supports interpretive/raw styles, Messages View and Point Values.
-- https://www.ase-systems.com/wp-content/uploads/2021/06/ase2000-communication-test-set.pdf — §§6, 7, 8.4 Line Monitor, 8.5 Messages View, 8.6 Event Log, 8.2 Point List. The manual distinguishes the live communication source from the viewing modes.
+- independent protocol reference — Line Monitoring supports interpretive/raw styles, Messages View and Point Values.
+- independent protocol reference — §§6, 7, 8.4 Line Monitor, 8.5 Messages View, 8.6 Event Log, 8.2 Point List. The manual distinguishes the live communication source from the viewing modes.
 - Do not copy vendor source, design assets or screenshots. Generic USB UART COMs do not reproduce proprietary Line Analyzer electrical timing capability.

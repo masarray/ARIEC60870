@@ -22,6 +22,6 @@ This release changes the Frame Trace page into a true line-monitor workflow:
 
 ## Product rule reinforced
 
-ARIEC60870 should follow the IEC_TEST / ASE2000 line-monitor concept, but with a cleaner and more readable engineering workflow:
+ARIEC60870 should follow the IEC_TEST / independent IEC-101 reference line-monitor concept, but with a cleaner and more readable engineering workflow:
 
 > traffic on the left, selected frame interpretation on the right, raw evidence visible but not dominant.
