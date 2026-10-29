@@ -110,7 +110,7 @@ public sealed class Iec10xCommandCasebook
         // A checksum-invalid / malformed / TEST telegram is preserved in the raw trace
         // but must not alter an operational case, even when it has plausible header values.
         if (item.Frame?.IsChecksumValid == false ||
-            item.AsduDetails?.Issues.Count > 0 || item.AsduDetails?.ObjectCount > 1 ||
+            item.AsduDetails?.Issues.Count > 0 || item.AsduDetails?.ObjectCount is > 1 or 0 ||
             string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase) ||
             cot.Test)
             return false;
