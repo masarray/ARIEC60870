@@ -15,9 +15,9 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class CaptureArchiveReader
 {
-    public const int DefaultPreviewLimit = 1200;
+    public const int DefaultPreviewLimit = 600;
     private const long MaxFramesBytes = 1024L * 1024 * 1024;
-    private const int MaxLineBytes = 512 * 1024;
+    private const int MaxLineBytes = 128 * 1024;
     private const int MaxManifestBytes = 128 * 1024;
     private const long MaxFrameCount = 4_000_000;
 
