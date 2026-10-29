@@ -377,7 +377,8 @@
                                 </ListBox.ItemContainerStyle>
                                 <ListBox.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Export Selected Capture File..." Click="SaveSelectedCapture_Click" />
+                                        <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
+                                            <MenuItem Header="Copy Selected Frames for AI / Sharing" Click="CopySelectedCaptureForAi_Click" />
                                         <MenuItem Header="Export Selected Evidence Text..." Click="ExportSelectedTrace_Click" />
                                         <Separator />
                                         <MenuItem Header="Select All Visible Evidence Rows" Click="SelectAllEvidenceSummaryRows_Click" />
@@ -548,7 +549,8 @@
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Export Selected Capture File..." Click="SaveSelectedCapture_Click" />
+                                            <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
+                                            <MenuItem Header="Copy Selected Frames for AI / Sharing" Click="CopySelectedCaptureForAi_Click" />
                                             <MenuItem Header="Export Selected Trace Text..." Click="ExportSelectedTrace_Click" />
                                             <Separator />
                                             <MenuItem Header="Select All Visible Trace Rows" Click="SelectAllVisibleTraceRows_Click" />
@@ -1864,14 +1866,19 @@
 
                         <StackPanel Grid.Column="2">
                             <StackPanel x:Name="PassiveSetupRightPanel" Visibility="Collapsed">
-                                <TextBlock Text="CAPTURE FOLDER" Style="{StaticResource EyebrowText}" Margin="0,0,0,8"/>
+                                <TextBlock Text="OPTIONAL FULL SESSION RECORDING" Style="{StaticResource EyebrowText}" Margin="0,0,0,8"/>
+                                <CheckBox x:Name="PassiveFullRecordingCheckBox" Content="Record entire raw session to disk" IsChecked="False" Margin="0,0,0,8"
+                                          ToolTip="Default OFF: Start Monitor only listens and displays live frames. Enable before connecting only when a complete raw journal is required." />
+                                <TextBlock Text="Normally monitor live, select frames in Trace, then save a portable .ariec file." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,9" />
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11"
-                                             ToolTip="Full raw data from both ports is saved here while recording."/>
-                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"/>
+                                             IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"
+                                             ToolTip="Used only when optional full-session recording is enabled before connecting."/>
+                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"
+                                            IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"/>
                                 </Grid>
-                                <TextBlock Text="Saved automatically while recording." Style="{StaticResource SubtleText}" Margin="2,8,0,0"/>
+                                <TextBlock Text="Live monitoring creates no files. Save selected frames from Trace; full journaling is optional." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,8,0,0"/>
                                 <Expander Header="IEC-101 decoding &amp; timing" Margin="0,14,0,0" ToolTip="Optional decode profile: field widths and frame timeout. Does not send or filter raw data.">
                                     <StackPanel>
                                     <Grid Margin="0,10,0,3">
