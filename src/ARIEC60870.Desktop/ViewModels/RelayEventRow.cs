@@ -51,6 +51,7 @@ public sealed class RelayEventRow
     public string EvidenceReference { get; }
     public string Protocol { get; }
     public string RelayTime { get; }
+    public string DisplayRelayTime => RelayTime == "no timestamp" ? "—" : RelayTime;
     public string Signal { get; }
     public string Previous { get; }
     public string NewValue { get; }
