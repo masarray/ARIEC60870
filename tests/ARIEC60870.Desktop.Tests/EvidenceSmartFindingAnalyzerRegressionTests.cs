@@ -137,7 +137,7 @@ public sealed class EvidenceSmartFindingAnalyzerRegressionTests
                 message: "RTU link NACK / no data; not an application rejection")
         };
         var finding = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(rows,
-            Array.Empty<FindingRow>(), Setup()).Where(x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK"));
+            Array.Empty<FindingRow>(), Setup()), x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
         Assert.Equal(EvidenceSmartFindingSeverity.Warning, finding.Severity);
         Assert.DoesNotContain("rejected or negatively confirmed", finding.Problem);
     }
@@ -150,14 +150,14 @@ public sealed class EvidenceSmartFindingAnalyzerRegressionTests
             negative: true, source: "Link B");
         var notOurReply = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(
             new[] { tx, otherLinkNegative }, Array.Empty<FindingRow>(), Setup())
-            .Where(x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK"));
+            , x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
         Assert.Equal(EvidenceSmartFindingSeverity.Warning, notOurReply.Severity);
 
         var matchingNegative = TypedControl(3, FrameDirection.SlaveToMaster, 46, 7,
             negative: true);
         var actual = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(
             new[] { tx, otherLinkNegative, matchingNegative }, Array.Empty<FindingRow>(), Setup())
-            .Where(x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK"));
+            , x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
         Assert.Equal(EvidenceSmartFindingSeverity.Error, actual.Severity);
         Assert.Contains("rejected or negatively confirmed", actual.Problem);
     }
