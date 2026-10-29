@@ -10,8 +10,8 @@ using System.Threading.Channels;
 namespace ARIEC60870.Monitor;
 
 /// <summary>
-/// Owns a two-port raw recording. Both I/O streams are independent and never transmit.
-/// This P0 engine deliberately does not decode or infer the ETERA controller state.
+/// Owns receive-only serial monitoring, with an optional full raw journal.
+/// Both I/O streams are independent and never transmit.
 /// </summary>
 public sealed class PassiveMonitorSession
 {
@@ -92,7 +92,7 @@ public sealed class PassiveMonitorSession
         _rawHashes = new string[_streamCount];
     }
 
-    /// <summary>Starts immediately; returns only after Stop/cancellation and durable archive finalization.</summary>
+    /// <summary>Starts RX-only monitoring; optional journal is finalized at Stop.</summary>
     /// <summary>Thread-safe UI polling; never accesses COM drivers from WPF.</summary>
     public PassiveMonitorProgress GetProgress() => new(
         Volatile.Read(ref _captureStatus),
@@ -126,17 +126,19 @@ public sealed class PassiveMonitorSession
     public async Task<(string Directory, PassiveCaptureManifest Manifest)> RunAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) != 0) throw new InvalidOperationException("One session cannot be reused.");
-        Directory.CreateDirectory(_options.OutputDirectory);
+        if (_options.RecordFullSession) Directory.CreateDirectory(_options.OutputDirectory);
         var id = "ARIEC-PASSIVE-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" + Guid.NewGuid().ToString("N")[..8];
-        var root = Path.Combine(Path.GetFullPath(_options.OutputDirectory), id);
-        Directory.CreateDirectory(root);
+        var root = _options.RecordFullSession
+            ? Path.Combine(Path.GetFullPath(_options.OutputDirectory), id) : string.Empty;
+        if (_options.RecordFullSession) Directory.CreateDirectory(root);
         var startUtc = DateTime.UtcNow;
         var origin = Stopwatch.GetTimestamp();
         _utcOrigin = startUtc;
         _timestampOrigin = origin;
         Volatile.Write(ref _captureDirectory, root);
         Volatile.Write(ref _captureStatus, "Starting");
-        WriteManifest(root, Snapshot(id, "Recording", startUtc, startUtc, origin));
+        if (_options.RecordFullSession)
+            WriteManifest(root, Snapshot(id, "Recording", startUtc, startUtc, origin));
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var channel = Channel.CreateBounded<OwnedCaptureRecord>(new BoundedChannelOptions(_options.ChannelCapacity)
@@ -150,9 +152,9 @@ public sealed class PassiveMonitorSession
         var opened = new List<IReadOnlySerialTap>(_streamCount);
         try
         {
-            // Both monitored directions must be armed before recording; never silently record just one.
+            // Every configured direction must be armed before streaming; never monitor only one.
             foreach (var tap in _taps) { tap.Open(); opened.Add(tap); }
-            Volatile.Write(ref _captureStatus, "Recording");
+            Volatile.Write(ref _captureStatus, _options.RecordFullSession ? "Recording" : "Monitoring");
 
             writerTask = Task.Run(() => WriteLoopAsync(root, channel, stop));
             var reads = Enumerable.Range(0, _streamCount)
@@ -194,9 +196,10 @@ public sealed class PassiveMonitorSession
                 _warnings.Enqueue(tap.PortName + " reported " + tap.DriverErrorCount + " UART driver error notification(s).");
             }
             var status = Volatile.Read(ref _fatal) != 0 ? "Incomplete" :
-                Volatile.Read(ref _integrityUncertain) != 0 ? "IntegrityUncertain" : "NoApplicationLossDetected";
+                Volatile.Read(ref _integrityUncertain) != 0 ? "IntegrityUncertain" :
+                _options.RecordFullSession ? "NoApplicationLossDetected" : "MonitorStopped";
             var completed = Snapshot(id, status, startUtc, DateTime.UtcNow, origin);
-            WriteManifest(root, completed);
+            if (_options.RecordFullSession) WriteManifest(root, completed);
             Volatile.Write(ref _captureStatus, status);
             Result = (root, completed);
         }
@@ -260,7 +263,7 @@ public sealed class PassiveMonitorSession
 
     private async Task WriteLoopAsync(string root, Channel<OwnedCaptureRecord> channel, CancellationTokenSource stop)
     {
-        FileStream[]? files = null;
+        Stream[]? files = null;
         FileStream? firstFile = null;
         StreamWriter[]? frameFiles = null;
         StreamWriter? transactionFile = null;
@@ -281,24 +284,25 @@ public sealed class PassiveMonitorSession
             .Select(_ => IncrementalHash.CreateHash(HashAlgorithmName.SHA256)).ToArray();
         try
         {
-            firstFile = OpenJournal(root, 0);
-            files = new FileStream[_streamCount];
-            files[0] = firstFile;
-            for (byte i = 1; i < _streamCount; i++) files[i] = OpenJournal(root, i);
+            if (_options.RecordFullSession) firstFile = OpenJournal(root, 0);
+            files = new Stream[_streamCount];
+            files[0] = firstFile ?? Stream.Null;
+            for (byte i = 1; i < _streamCount; i++)
+                files[i] = _options.RecordFullSession ? OpenJournal(root, i) : Stream.Null;
             frameFiles = Enumerable.Range(0, _streamCount)
-                .Select(i => new StreamWriter(new FileStream(
-                    Path.Combine(root, $"frames-{i:00}.jsonl"), FileMode.CreateNew,
-                    FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8))
+                .Select(i => new StreamWriter(_options.RecordFullSession
+                    ? new FileStream(Path.Combine(root, $"frames-{i:00}.jsonl"), FileMode.CreateNew,
+                        FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8))
                 .ToArray();
-            transactionFile = new StreamWriter(new FileStream(
-                Path.Combine(root, "transactions.jsonl"), FileMode.CreateNew,
-                FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
-            giFile = new StreamWriter(new FileStream(
-                Path.Combine(root, "gi-events.jsonl"), FileMode.CreateNew,
-                FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
-            timelineFile = new StreamWriter(new FileStream(
-                Path.Combine(root, "timeline-windows.jsonl"), FileMode.CreateNew,
-                FileAccess.Write, FileShare.Read, 65536), System.Text.Encoding.UTF8);
+            transactionFile = new StreamWriter(_options.RecordFullSession
+                ? new FileStream(Path.Combine(root, "transactions.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
+            giFile = new StreamWriter(_options.RecordFullSession
+                ? new FileStream(Path.Combine(root, "gi-events.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
+            timelineFile = new StreamWriter(_options.RecordFullSession
+                ? new FileStream(Path.Combine(root, "timeline-windows.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
             // One writer owns these scratch buffers; reuse them across serial
@@ -312,7 +316,9 @@ public sealed class PassiveMonitorSession
                 try
                 {
                     await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
-                    hashes[chunk.StreamId].AppendData(chunk.Buffer, PassiveJournalFormat.HeaderSize, chunk.Length - PassiveJournalFormat.HeaderSize);
+                    if (_options.RecordFullSession)
+                        hashes[chunk.StreamId].AppendData(chunk.Buffer, PassiveJournalFormat.HeaderSize,
+                            chunk.Length - PassiveJournalFormat.HeaderSize);
                     var rawOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(24, 8));
                     var frameTicks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
                     var frameUtc = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, frameTicks);
@@ -481,13 +487,15 @@ public sealed class PassiveMonitorSession
             await transactionFile.FlushAsync().ConfigureAwait(false);
             await giFile.FlushAsync().ConfigureAwait(false);
             await timelineFile.FlushAsync().ConfigureAwait(false);
-            for (var i = 0; i < _streamCount; i++)
-                _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
+            if (_options.RecordFullSession)
+                for (var i = 0; i < _streamCount; i++)
+                    _rawHashes[i] = Convert.ToHexString(hashes[i].GetHashAndReset());
         }
         catch (Exception ex)
         {
             Interlocked.Exchange(ref _fatal, 1);
-            _warnings.Enqueue("Disk journal write failed: " + ex.GetType().Name + ": " + ex.Message);
+            _warnings.Enqueue((_options.RecordFullSession ? "Disk journal" : "Live monitor pipeline") +
+                " failed: " + ex.GetType().Name + ": " + ex.Message);
             channel.Writer.TryComplete(ex);
             stop.Cancel();
         }
@@ -535,7 +543,8 @@ public sealed class PassiveMonitorSession
             Streams = _sources.Select((source, i) => new CapturedStreamSummary(
                 (byte)i, source.PortName, source.PhysicalTransmitter,
                 Interlocked.Read(ref _writtenChunks[i]), Interlocked.Read(ref _writtenBytes[i]),
-                _taps[i].DriverErrorCount, $"stream-{i:00}.bin", _rawHashes[i],
+                _taps[i].DriverErrorCount,
+                _options.RecordFullSession ? $"stream-{i:00}.bin" : string.Empty, _rawHashes[i],
                 source.BaudRate, source.Parity.ToString(), source.DataBits,
                 source.StopBits.ToString())).ToArray()
         };
