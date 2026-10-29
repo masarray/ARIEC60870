@@ -189,30 +189,11 @@ public partial class MainWindow : Window
     private int _lastMissingMonitorCount;
     private string _lastMissingMonitorPreview = "-";
     private readonly Dictionary<string, DateTime> _scanHealthLastDiagnosticUtcByCode = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, CommandLedgerEntry> _commandLedgerByKey = new(StringComparer.OrdinalIgnoreCase);
-
-    private sealed class CommandLedgerEntry
-    {
-        public string Key { get; init; } = string.Empty;
-        public int? CommonAddress { get; init; }
-        public Iec60870ProtocolMode ProtocolMode { get; init; }
-        public string PhysicalSource { get; init; } = string.Empty;
-        public bool SelectPhase { get; init; }
-        public bool SelectConfirmed { get; init; }
-        public int CommandIoa { get; init; }
-        public int? CommandTypeId { get; init; }
-        public int? FeedbackIoa { get; init; }
-        public string Summary { get; init; } = string.Empty;
-        public string Stage { get; set; } = "issued";
-        public DateTime StartedUtc { get; init; } = DateTime.UtcNow;
-        public DateTime LastUpdateUtc { get; set; } = DateTime.UtcNow;
-        public bool ActConSeen { get; set; }
-        public bool ActTermSeen { get; set; }
-        public bool FeedbackSeen { get; set; }
-        public bool NegativeSeen { get; set; }
-        public bool Ambiguous { get; init; }
-        public bool TimeoutReported { get; set; }
-    }
+    // Session-scoped, bounded source-qualified control evidence. Replaces the
+    // previous WPF-only last-wins command ledger and its fixed 8-second timeout.
+    private readonly ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook _commandCasebook = new();
+    private bool _commandCasesDirty;
+    public ObservableRangeCollection<ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook.CommandCase> ControlCaseRows { get; } = new();
 
     public MainWindow()
     {
