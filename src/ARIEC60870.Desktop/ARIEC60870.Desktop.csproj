@@ -21,6 +21,7 @@
     <Resource Include="Assets\Icons\iec101-icon.png" />
     <Resource Include="Assets\Icons\iec103-icon.png" />
     <Resource Include="Assets\Icons\iec104-icon.png" />
+    <Resource Include="Assets\Fonts\Inter.ttf" />
   </ItemGroup>
 
   <ItemGroup>
