@@ -1034,17 +1034,50 @@
         </Setter>
     </Style>
 
+    <Style x:Key="EvidenceFollowToggle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Background" Value="#FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#C7D3E3"/>
+        <Setter Property="Foreground" Value="#334155"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                            CornerRadius="10" Padding="6">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="#E6F0FF"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#3B82F6"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#2563EB"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="SegmentedNavButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{StaticResource Ink600Brush}" />
-        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="Padding" Value="19,0" />
         <Setter Property="Margin" Value="3,0" />
         <Setter Property="MinWidth" Value="104" />
-        <Setter Property="Height" Value="34" />
+        <Setter Property="Height" Value="42" />
         <Setter Property="FontWeight" Value="Normal" />
-        <Setter Property="FontSize" Value="12.2" />
+        <Setter Property="FontSize" Value="14.0" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>

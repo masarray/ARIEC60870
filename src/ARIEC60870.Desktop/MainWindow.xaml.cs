@@ -125,6 +125,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, ValueRow> _valueRowsByKey = new(StringComparer.OrdinalIgnoreCase);
     private bool _valueRowsDirty;
     private bool _relayEventRowsDirty;
+    private bool _eventRowsDeferredWhileManualScroll;
     private long _backpressureDroppedEvents;
     private long _backpressureDroppedAckNoData;
     private long _backpressureDroppedBackgroundPoll;
@@ -282,6 +283,7 @@ public partial class MainWindow : Window
     public ObservableCollection<AssessmentRow> AssessmentRows { get; } = new();
     public ObservableRangeCollection<DiagnosticRow> DiagnosticRows { get; } = new();
     public ObservableCollection<ProtocolMapLine> SelectedProtocolMapLines { get; } = new();
+    public ObservableCollection<FrameInspectorProperty> SelectedFrameProperties { get; } = new();
     public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
     public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
     public ObservableCollection<TriggerCaptureRow> TriggerCaptureRows { get; } = new();

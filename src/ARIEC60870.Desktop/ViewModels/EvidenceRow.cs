@@ -143,6 +143,13 @@ public sealed partial class EvidenceRow
     public string ProtocolService { get; }
     public string ReadableMeaning { get; }
     public string ProtocolTraceTitle { get; }
+    // Trace has a dedicated millisecond timestamp and direction icon; retain the
+    // original verbose title for exports and evidence ledgers.
+    public string ProtocolTraceHeader =>
+        ProtocolMode == "101" && ProtocolTraceTitle.Length > 2 &&
+        (ProtocolTraceTitle[0] is '⇧' or '⇩' or '•') &&
+        ProtocolTraceTitle.IndexOf("] ", StringComparison.Ordinal) is var end && end > 0
+            ? ProtocolTraceTitle[(end + 2)..] : ProtocolTraceTitle;
     public string ProtocolTraceMeaning { get; }
     // Compact high-volume list projection only. Full typed explanation is
     // retained in ProtocolTraceMeaning, Inspector, copy and report exports.

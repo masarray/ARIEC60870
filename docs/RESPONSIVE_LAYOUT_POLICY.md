@@ -97,3 +97,12 @@ Layout and rendering must not become the bottleneck during polling:
 - Do not replace clean Lucide-style command icons with custom geometry icons unless the replacement is visually reviewed at 68 px rail size and 32 px taskbar size.
 - The WPF window logo should use `Assets/Icons/ariec60870-icon.png`; the executable icon should use `Assets\Icons\ariec60870-app.ico`.
 
+## 2026-10-29 Trace/Events observation usability (UX-01)
+
+- Every physical Trace row must visibly show host-local TX/RX time at millisecond precision (`HH:mm:ss.fff`) next to a strong direction icon. This is a Windows/adapter receive or transmit observation time, **not** a calibrated wire-edge timestamp or proof of RTU response latency.
+- Decode the selected frame into a stable, virtualized **Properties** grid: label/value columns, subtle alternating row background, normal readable font, Type ID plus engineering name, COT and P/N/TEST flags, CA/IOA, link address/function, quality, RTU time, integrity and multi-object details. Hover must never mutate the inspector's selected-frame data or continually rewrite its layout.
+- Main Values / Events / Trace / Findings / Report navigation buttons are primary observation workspaces, not miniature metadata chips; target 14 pt-equivalent WPF font and >=40 px-height touch/click targets.
+- Auto-follow is a **per-workspace operator decision**. Trace header toggle shares the established bounded Trace Hold/Resume state with the left rail. Wheel or manual selection disables Trace follow immediately; incoming data still flows to authoritative bounded stores. Events header toggle is independent; wheel in Events turns auto-follow off, freezes **only** its visible SOE grid while its bounded event store keeps advancing, and one explicit Resume rebuilds from the newest current snapshot. Never falsely claim that a held historical viewport is live.
+- Use the approved solid up/down arrow geometry in individual Trace rows, and the down-into-lines follow icon in both Events and Trace headers. Make toggled state visibly different without a noisy animation or full-panel color change.
+- Manual GUI FAT must inspect Trace and Events at 100%, 125% and 150% Windows DPI, scroll-wheel behavior under live traffic, stable inspector without hover flicker, narrow window/wrapping, multi-select clipboard and all existing raw capture/replay paths. CI compile success is not a visual FAT certificate.
+

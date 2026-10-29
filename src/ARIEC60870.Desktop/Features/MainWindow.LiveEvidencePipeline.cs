@@ -288,6 +288,44 @@ public partial class MainWindow
 
 
 
+    private bool IsEventsTabActive() => MainTabControl?.SelectedIndex == 3;
+
+    private void TraceScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        // User-driven wheel navigation must stop following the tail immediately.
+        // Do not mark Handled: WPF still performs its normal scrolling.
+        if (e.Delta != 0 && IsProtocolTraceTabActive())
+            EnterLineMonitorHoldForUserSelection();
+    }
+
+    private void EventsScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if (e.Delta != 0 && IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == true)
+            EventsAutoScrollButton.IsChecked = false;
+    }
+
+    private void EventsAutoScroll_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || EventsAutoScrollButton?.IsChecked != true) return;
+
+        // The bounded SOE ring continues collecting while the view is held.
+        // Reconcile it once when the user explicitly resumes auto-scroll.
+        if (_eventRowsDeferredWhileManualScroll || _relayEventRowsDirty)
+        {
+            ApplyRelayEventFilter();
+            _relayEventRowsDirty = false;
+            _eventRowsDeferredWhileManualScroll = false;
+        }
+        ScrollLatestEventIfAutoScroll();
+    }
+
+    private void ScrollLatestEventIfAutoScroll()
+    {
+        if (!IsEventsTabActive() || EventsAutoScrollButton?.IsChecked != true || RelayEventRows.Count == 0)
+            return;
+        RelayEventGrid?.ScrollIntoView(RelayEventRows[RelayEventRows.Count - 1]);
+    }
+
     private bool IsFollowLiveEnabled()
         => AutoScrollLatestToggleButton is null || AutoScrollLatestToggleButton.IsChecked == true;
 
@@ -685,9 +723,20 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            ApplyRelayEventFilter();
-            batchRows += RelayEventRows.Count;
-            _relayEventRowsDirty = false;
+            if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
+            {
+                // Preserve the scrolled viewport and selection; bounded SOE storage
+                // remains authoritative until follow is explicitly resumed.
+                _eventRowsDeferredWhileManualScroll = true;
+            }
+            else
+            {
+                ApplyRelayEventFilter();
+                batchRows += RelayEventRows.Count;
+                _relayEventRowsDirty = false;
+                _eventRowsDeferredWhileManualScroll = false;
+                ScrollLatestEventIfAutoScroll();
+            }
         }
 
         if (_pendingFindingUiRows.Count > 0)
