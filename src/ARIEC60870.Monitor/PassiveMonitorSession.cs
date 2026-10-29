@@ -450,7 +450,6 @@ public sealed class PassiveMonitorSession
                         await transactionFile.FlushAsync().ConfigureAwait(false);
                         await giFile.FlushAsync().ConfigureAwait(false);
                         await timelineFile.FlushAsync().ConfigureAwait(false);
-                await controlFile.FlushAsync().ConfigureAwait(false);
                         await controlFile.FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
