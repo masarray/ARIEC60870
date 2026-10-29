@@ -76,7 +76,13 @@ public partial class MainWindow
             {
                 _protocolTraceStore.Add(row);
                 _evidenceSummaryStore.Add(row);
+                // Offline analysis is strictly read-only. Consume the same typed
+                // evidence recovered from verified raw capture; never issue TX.
+                _commandCasebook.Observe(row.Source,
+                    IsIec10xCommandType(row.Source.TypeId) ? ResolveFeedbackIoaForCommand(row.Source) : null);
             }
+            _commandCasebook.EndObservation();
+            _commandCasesDirty = true;
 
             FrameTraceRows.ReplaceRange(rows);
             EvidenceRows.ReplaceRange(rows);
