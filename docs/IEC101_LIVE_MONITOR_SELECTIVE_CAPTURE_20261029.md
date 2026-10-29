@@ -6,7 +6,7 @@
 2. Leave **Record entire raw session to disk** **unchecked** (default). Press **Start Monitor**.
 3. The existing **Trace**, **Values**, **Events** and **Findings** show received traffic. No directory, manifest, binary journal, or JSONL files are created in this live-only mode.
 4. In **Trace**, click a row or use **Shift/Ctrl** to select a contiguous block or multiple frames. The selected frames remain inspectable with their raw bytes and decoded semantics.
-5. Right-click **Save Selected Frames (.ariec)** or click **Save Frames**. For direct clipboard transfer, select **Copy Selected Frames for AI / Sharing**.
+5. Right-click a frame in **Trace**: choose **Copy Selected Frame** to place readable text directly on the clipboard (ready to paste), or **Save Selected Frames (.ariec)** to create a file that ARIEC60870 can reopen. Right-clicking within an existing Ctrl/Shift selection copies the entire selection without clearing it. The **Save Frames** rail action also exports the selected file.
 6. Press **Stop Monitor** to close read-only COM ports. The visible ring remains available for selecting and exporting retained frames.
 
 ## When full serial recording is required
