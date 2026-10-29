@@ -69,10 +69,10 @@ public sealed class Iec10xObservedControlTimelineTests
     }
 
     [Theory]
-    [InlineData(44, "Unknown Type")]
-    [InlineData(45, "Unknown Cause")]
-    [InlineData(46, "Unknown Common")]
-    [InlineData(47, "Unknown Information")]
+    [InlineData(44, "Unknown Type ID")]
+    [InlineData(45, "Unknown COT")]
+    [InlineData(46, "Unknown common address")]
+    [InlineData(47, "Unknown information object address")]
     public void ProtocolErrorCauseIsExplainedAsProtocolErrorNotInterlock(int cot, string reason)
     {
         var timeline = new Iec10xObservedControlTimeline();
@@ -80,6 +80,7 @@ public sealed class Iec10xObservedControlTimelineTests
         var result = Rtu(timeline, cot: cot);
         Assert.Contains("RTU APPLICATION ERROR", result);
         Assert.Contains("COT=" + cot, result);
+        Assert.Contains(reason, result);
         // IEC names vary across installations; numeric cause and source are authoritative.
         Assert.Contains("profile", result);
         Assert.DoesNotContain("physical position confirmed", result);
@@ -132,6 +133,29 @@ public sealed class Iec10xObservedControlTimelineTests
             Decode(7, test: true), "Link A", 80, true));
         Assert.Equal(1, timeline.PendingCount);
         Assert.Contains("POSITIVE ACTCON", Rtu(timeline));
+    }
+
+    [Fact]
+    public void EchoWithDifferentDcsTargetIsNotAMatchedActcon()
+    {
+        var timeline = new Iec10xObservedControlTimeline();
+        Master(timeline, qualifier: 0x82);
+        var wrong = Rtu(timeline, qualifier: 0x81);
+        Assert.Contains("target differs", wrong);
+        Assert.DoesNotContain("application accepted", wrong);
+        Assert.Equal(1, timeline.PendingCount);
+        Assert.Contains("POSITIVE ACTCON", Rtu(timeline, qualifier: 0x82));
+    }
+
+    [Fact]
+    public void ExecuteChangingConfirmedSelectTargetIsAmbiguous()
+    {
+        var timeline = new Iec10xObservedControlTimeline();
+        Master(timeline, qualifier: 0x82);
+        Rtu(timeline, qualifier: 0x82);
+        var wrong = Master(timeline, qualifier: 0x01);
+        Assert.Contains("target differs", wrong);
+        Assert.Contains("ambiguous", Rtu(timeline, qualifier: 0x01));
     }
 
     [Fact]
