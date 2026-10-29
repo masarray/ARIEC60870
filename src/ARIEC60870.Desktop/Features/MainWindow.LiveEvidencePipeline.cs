@@ -264,8 +264,9 @@ public partial class MainWindow
 
         EvaluateGiCollectionWindow();
         EvaluateScanHealthWindow();
-        EvaluateCommandLedgerTimeouts();
+        // A partial capture alone cannot establish a hardware/RTU timeout.
         FlushVisibleUiBatches();
+        RefreshControlCasesIfVisible();
         EmitBackpressureNoticeIfNeeded();
 
         stopwatch.Stop();

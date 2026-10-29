@@ -41,7 +41,9 @@ public partial class MainWindow
         _scanHealthAcdSinceUtc = DateTime.MinValue;
         ResetProtocolProofState();
         _scanHealthLastDiagnosticUtcByCode.Clear();
-        _commandLedgerByKey.Clear();
+        _commandCasebook.Reset();
+        _commandCasesDirty = true;
+        ControlCaseRows.Clear();
     }
 
     private void ResetProtocolProofState()
@@ -487,221 +489,24 @@ public partial class MainWindow
 
     private void ObserveCommandBehaviour(Iec103MasterEvidenceEvent item)
     {
-        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
-        {
-            return;
-        }
-
-        if (item.Direction == FrameDirection.MasterToSlave && IsIec10xCommandType(item.TypeId) && item.InformationObjectAddress.HasValue)
-        {
-            RegisterPendingCommand(item);
-            return;
-        }
-
-        if (item.Direction != FrameDirection.SlaveToMaster)
-        {
-            return;
-        }
-
-        if (IsIec10xCommandType(item.TypeId) && item.InformationObjectAddress.HasValue)
-        {
-            ObserveCommandAsduResponse(item);
-            return;
-        }
-
-        if (item.IsRelayValue || item.InformationObjectAddress.HasValue)
-        {
-            ObserveCommandFeedback(item);
-        }
-    }
-
-    private void RegisterPendingCommand(Iec103MasterEvidenceEvent item)
-    {
-        var key = Iec10xCommandProofRules.CorrelationKey(item);
-        if (key.Length == 0 || !item.InformationObjectAddress.HasValue) return;
-
-        var select = item.CommandDetails?.Select == true;
-        _commandLedgerByKey.TryGetValue(key, out var prior);
-        var selectConfirmed = !select && prior is { SelectPhase: true, ActConSeen: true };
-        var overlap = prior is not null && !selectConfirmed && !prior.ActTermSeen && !prior.NegativeSeen;
-        if (overlap)
-        {
-            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-OVERLAPPING-TX",
-                "New command overlaps an unresolved request on the same source/CA/IOA/Type",
-                $"Previous phase={prior?.Stage ?? "unknown"}; new phase={(select ? "SELECT" : "EXECUTE")}; " +
-                $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
-                "Request/response pairing is ambiguous until the old exchange is resolved; inspect raw order and avoid claiming operation success.");
-        }
-        var feedbackIoa = ResolveFeedbackIoaForCommand(item);
-        var now = DateTime.UtcNow;
-
-        _commandLedgerByKey[key] = new CommandLedgerEntry
-        {
-            Key = key,
-            ProtocolMode = item.ProtocolMode,
-            PhysicalSource = item.PhysicalSource,
-            CommonAddress = item.CommonAddressNumber,
-            CommandIoa = item.InformationObjectAddress.Value,
-            CommandTypeId = item.TypeId,
-            FeedbackIoa = feedbackIoa,
-            SelectPhase = select,
-            SelectConfirmed = selectConfirmed,
-            Ambiguous = overlap,
-            Summary = string.IsNullOrWhiteSpace(item.Summary)
-                ? $"Command IOA {item.InformationObjectAddress.Value}" : item.Summary,
-            Stage = select ? "TX SELECT" : "TX EXECUTE",
-            StartedUtc = now,
-            LastUpdateUtc = now
-        };
-
-        AddRateLimitedDiagnostic("IEC10X-COMMAND-TX", "Info", item.ProtocolMode.ToString(),
-            select ? "SELECT command transmitted" : "EXECUTE command transmitted",
-            $"{item.Summary}; source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}; " +
-            $"select previously confirmed={selectConfirmed}; feedback IOA={(feedbackIoa.HasValue ? feedbackIoa.Value.ToString() : "not mapped")}.",
-            "Wait for application response COT7 or negative P/N; link ACK alone is not a command verdict.",
-            TimeSpan.FromSeconds(1));
-    }
-
-    private void ObserveCommandAsduResponse(Iec103MasterEvidenceEvent item)
-    {
-        var key = Iec10xCommandProofRules.CorrelationKey(item);
-        if (key.Length == 0 || !_commandLedgerByKey.TryGetValue(key, out var ledger)) return;
-
-        var phase = Iec10xCommandProofRules.ClassifyResponse(item);
-        if (phase is Iec10xCommandResponsePhase.NotApplicable or Iec10xCommandResponsePhase.Unverified)
+        var isCommand = IsIec10xCommandType(item.TypeId);
+        var feedbackIoa = isCommand ? ResolveFeedbackIoaForCommand(item) : null;
+        if (!_commandCasebook.Observe(item, feedbackIoa))
             return;
 
-        if (ledger.Ambiguous)
+        _commandCasesDirty = true;
+        var newest = _commandCasebook.Snapshot().LastOrDefault();
+        if (newest is null) return;
+
+        // Surface the exact observed uncertainty; never turn a link ACK, ACTCON,
+        // ACTTERM, or arbitrary process IOA into an operational success verdict.
+        if (newest.Status is "RTU rejected" or "Ambiguous" or "Feedback mismatch" or "Unmatched response")
         {
-            AddRateLimitedDiagnostic("IEC10X-COMMAND-AMBIGUOUS-REPLY", "Warning", item.ProtocolMode.ToString(),
-                "RTU response cannot be assigned to a unique command",
-                $"Overlapping requests on {item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}; COT={item.CauseOfTransmission}.",
-                "Inspect the chronological wire trace. Do not treat this response as an accepted operation.",
-                TimeSpan.FromSeconds(2));
-            return;
-        }
-
-        // A device may echo S/E. A response for the other phase is ambiguous, not positive evidence.
-        if ((phase is Iec10xCommandResponsePhase.ActivationConfirmed or
-            Iec10xCommandResponsePhase.ActivationTerminated or
-            Iec10xCommandResponsePhase.DeactivationConfirmed) &&
-            Iec10xCommandProofRules.HasEchoPhaseMismatch(ledger.SelectPhase, item))
-        {
-            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-PHASE-MISMATCH",
-                "RTU command response S/E does not match pending command",
-                $"Pending {(ledger.SelectPhase ? "SELECT" : "EXECUTE")}, response={item.CommandDetails?.Operation}; " +
-                $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
-                "Check command ordering, response echo, interlocks and concurrent master requests.");
-            return;
-        }
-
-        if (!Iec10xCommandProofRules.HasVerifiedApplicationSequence(ledger.ActConSeen, phase))
-        {
-            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-UNMATCHED-ACTTERM",
-                "RTU ACTTERM received without prior matching ACTCON",
-                $"{ledger.Summary}; source={item.PhysicalSource}; CA={item.CommonAddressNumber}; " +
-                $"IOA={item.InformationObjectAddress}; ACTCON={ledger.ActConSeen}.",
-                "Inspect missing/out-of-order command confirmations and the original COT bytes; do not report command completion.");
-            return;
-        }
-
-        ledger.LastUpdateUtc = DateTime.UtcNow;
-        if (phase is Iec10xCommandResponsePhase.NegativeConfirmation or Iec10xCommandResponsePhase.ProtocolError)
-        {
-            ledger.NegativeSeen = true;
-            _commandLedgerByKey.Remove(key);
-            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(),
-                phase == Iec10xCommandResponsePhase.NegativeConfirmation
-                    ? "IEC10X-COMMAND-NEGATIVE-CONFIRMATION" : "IEC10X-COMMAND-PROTOCOL-ERROR",
-                "RTU rejected or reported an invalid command",
-                $"{ledger.Summary}; {item.CauseDetails?.Detail}; source={item.PhysicalSource}; " +
-                $"CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
-                "Check command qualifier, interlocks, matching CA/IOA/Type and RTU configuration.");
-            return;
-        }
-
-        if (phase == Iec10xCommandResponsePhase.ActivationConfirmed)
-        {
-            ledger.ActConSeen = true;
-            ledger.Stage = ledger.SelectPhase ? "SELECT ACTCON" : "EXECUTE ACTCON";
-            AddRateLimitedDiagnostic("IEC10X-COMMAND-ACTCON", "Info", item.ProtocolMode.ToString(),
-                ledger.SelectPhase ? "RTU accepted SELECT" : "RTU accepted EXECUTE activation",
-                $"{ledger.Summary}; typed COT7/P-N=0; source={item.PhysicalSource}; select phase={ledger.SelectPhase}.",
-                ledger.SelectPhase
-                    ? "A SELECT acceptance does not prove EXECUTE or a process change."
-                    : "ACTCON does not prove switchgear operation; wait for ACTTERM and independent process feedback.",
-                TimeSpan.FromSeconds(1));
-        }
-        else if (phase == Iec10xCommandResponsePhase.ActivationTerminated)
-        {
-            ledger.ActTermSeen = true;
-            ledger.Stage = ledger.SelectPhase ? "SELECT termination" : "EXECUTE ACTTERM";
-            AddRateLimitedDiagnostic("IEC10X-COMMAND-ACTTERM", "Info", item.ProtocolMode.ToString(),
-                "RTU activation termination observed",
-                $"{ledger.Summary}; source={item.PhysicalSource}; SELECT={ledger.SelectPhase}; " +
-                $"ACTCON={ledger.ActConSeen}; feedback observed={ledger.FeedbackSeen}.",
-                "Termination is application-phase evidence, not verified physical output state.",
-                TimeSpan.FromSeconds(1));
-
-            if (!ledger.SelectPhase && (!ledger.FeedbackIoa.HasValue || ledger.FeedbackSeen))
-                _commandLedgerByKey.Remove(key);
-        }
-        else if (phase == Iec10xCommandResponsePhase.DeactivationConfirmed)
-        {
-            ledger.Stage = "DEACTCON";
-            _commandLedgerByKey.Remove(key);
-            AddRateLimitedDiagnostic("IEC10X-COMMAND-DEACTCON", "Info", item.ProtocolMode.ToString(),
-                "RTU deactivation confirmed", $"{ledger.Summary}; {item.CauseDetails?.Detail}",
-                "This confirms cancellation, not operation.", TimeSpan.FromSeconds(1));
-        }
-    }
-
-    private void ObserveCommandFeedback(Iec103MasterEvidenceEvent item)
-    {
-        if (!item.InformationObjectAddress.HasValue) return;
-
-        foreach (var ledger in _commandLedgerByKey.Values.ToArray())
-        {
-            if (!ledger.FeedbackIoa.HasValue || ledger.SelectPhase || ledger.Ambiguous || !ledger.ActConSeen ||
-                !Iec10xCommandProofRules.MatchesFeedback(item, ledger.ProtocolMode, ledger.PhysicalSource,
-                    ledger.CommonAddress, ledger.FeedbackIoa.Value))
-                continue;
-
-            ledger.FeedbackSeen = true;
-            ledger.LastUpdateUtc = DateTime.UtcNow;
-            if (ledger.ActTermSeen) _commandLedgerByKey.Remove(ledger.Key);
-
-            AddUiDiagnostic("Info", item.ProtocolMode.ToString(), "IEC10X-COMMAND-FEEDBACK-OBSERVED",
-                "Source-matched RTU feedback observed (not physical-state proof)",
-                $"{ledger.Summary}; feedback IOA={ledger.FeedbackIoa}, value={item.SignalDisplayValue}; " +
-                $"source={item.PhysicalSource}, CA={item.CommonAddressNumber}, ACTCON={ledger.ActConSeen}, ACTTERM={ledger.ActTermSeen}.",
-                "Compare feedback against the expected command target and baseline state before claiming physical operation.");
-            AppendSessionLog($"Command validator: source-matched feedback observed for {ledger.Summary}.");
-            break;
-        }
-    }
-
-    private void EvaluateCommandLedgerTimeouts()
-    {
-        if (_commandLedgerByKey.Count == 0) return;
-
-        var now = DateTime.UtcNow;
-        foreach (var ledger in _commandLedgerByKey.Values.ToArray())
-        {
-            if (ledger.TimeoutReported || (now - ledger.StartedUtc).TotalSeconds < 8) continue;
-
-            ledger.TimeoutReported = true;
-            _commandLedgerByKey.Remove(ledger.Key);
-
-            // A completed SELECT phase can legitimately wait indefinitely for operator EXECUTE.
-            if (ledger.SelectPhase && ledger.ActConSeen) continue;
-
-            AddUiDiagnostic("Warning", "IEC-101/104", "IEC10X-COMMAND-VERDICT-TIMEOUT",
-                "Command application verdict incomplete",
-                $"{ledger.Summary}; phase={ledger.Stage}; SELECT={ledger.SelectPhase}; select preconfirmed={ledger.SelectConfirmed}; " +
-                $"ACTCON={ledger.ActConSeen}; ACTTERM={ledger.ActTermSeen}; feedback={ledger.FeedbackSeen}; " +
-                $"source={ledger.PhysicalSource}, CA={ledger.CommonAddress}, IOA={ledger.CommandIoa}.",
-                "Inspect source-matched RTU response COT, command echo, possible rejection, ACTTERM and feedback mapping.");
+            AddUiDiagnostic("Warning", newest.Protocol, "IEC10X-CONTROL-CASE-" +
+                newest.Status.Replace(' ', '-').ToUpperInvariant(),
+                newest.Status + " — " + newest.Address,
+                newest.Interpretation + " Source=" + newest.Source + "; case #" + newest.CaseId + ".",
+                "Review Control Cases and open the source telegram in Trace; verify the RTU response COT, qualifier and configured feedback IOA.");
         }
     }
 

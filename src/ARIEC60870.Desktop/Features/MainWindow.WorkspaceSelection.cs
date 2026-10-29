@@ -50,6 +50,7 @@ public partial class MainWindow
         {
             RefreshFindingsWorkspace(force: true);
         }
+        RefreshControlCasesIfVisible(force: true);
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
     }
@@ -75,6 +76,7 @@ public partial class MainWindow
             NavValueButton,
             NavEventButton,
             NavFindingsButton,
+            NavControlCasesButton,
             NavReportButton,
             NavOperatorButton,
             NavDiagnosticsButton,
@@ -108,6 +110,7 @@ public partial class MainWindow
             NavOperatorButton.Visibility = Visibility.Visible;
             NavTriggersButton.Visibility = Visibility.Visible;
             NavFindingsButton.Visibility = Visibility.Visible;
+            NavControlCasesButton.Visibility = Visibility.Visible;
             NavReportButton.Visibility = Visibility.Visible;
             NavDiagnosticsButton.Visibility = Visibility.Collapsed;
             NavNotesButton.Visibility = Visibility.Collapsed;
@@ -131,6 +134,8 @@ public partial class MainWindow
         NavValueButton.Visibility = Visibility.Visible;
         NavEventButton.Visibility = Visibility.Visible;
         NavFindingsButton.Visibility = Visibility.Visible;
+        NavControlCasesButton.Visibility = GetSelectedProtocolMode() is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            ? Visibility.Visible : Visibility.Collapsed;
         NavReportButton.Visibility = Visibility.Visible;
 
         // Advanced/supporting workspaces remain available in code and export logic,

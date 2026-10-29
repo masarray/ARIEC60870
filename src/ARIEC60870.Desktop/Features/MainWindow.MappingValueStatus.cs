@@ -799,6 +799,10 @@ public partial class MainWindow
     {
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
+        _commandCasebook.Reset();
+        ControlCaseRows.Clear();
+        ControlCaseStages.Clear();
+        _commandCasesDirty = false;
         _evidenceSummaryStore.Clear();
         _protocolTraceStore.Clear();
         _pendingEvidenceSummaryUiRows.Clear();
