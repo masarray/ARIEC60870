@@ -213,12 +213,20 @@ public static class EvidenceSmartFindingAnalyzer
         }
 
         var window = rows.Where(row => row.Sequence >= commandTx.Sequence).Take(80).ToArray();
-        var hasActCon = window.Any(row => IsRx(row) && IsActivationConfirmation(row));
-        var hasActTerm = window.Any(row => IsRx(row) && IsActivationTermination(row));
-        var hasFeedback = window.Any(row => IsLikelyControlFeedback(row, commandTx));
-        var hasNegative = window.Any(row => IsNegative(row));
+        // Application replies must be typed and matched by physical source,
+        // Type, CA and IOA. A link NACK, a different point, or a text label
+        // containing "negative" cannot reject this command.
+        var matchingReplies = window.Where(row => IsMatchedCommandReply(row, commandTx)).ToArray();
+        var hasActCon = matchingReplies.Any(row => row.Source.CauseDetails is { Code: 7, Negative: false });
+        var hasActTerm = matchingReplies.Any(row => row.Source.CauseDetails is { Code: 10, Negative: false });
+        var hasNegative = matchingReplies.Any(row => row.Source.CauseDetails is { } cot &&
+            (cot.Negative || cot.Code is >= 44 and <= 47));
+        var hasFeedback = window.Any(row =>
+            IsRx(row) && SamePhysicalCa(row, commandTx) && IsLikelyControlFeedback(row, commandTx));
 
-        if ((hasActCon || hasActTerm || hasFeedback) && !hasNegative)
+        // A generic process-value row is at most a feedback candidate;
+        // it cannot substitute for missing application confirmation.
+        if ((hasActCon || hasActTerm) && !hasNegative)
         {
             return;
         }
@@ -629,7 +637,29 @@ public static class EvidenceSmartFindingAnalyzer
 
     private static bool IsActivationConfirmation(EvidenceRow row) => IsCotCode(row, 7) || ContainsAny(SearchText(row), "activation confirmation", "actcon", "act_con");
     private static bool IsActivationTermination(EvidenceRow row) => IsCotCode(row, 10) || ContainsAny(SearchText(row), "activation termination", "actterm", "act_term");
-    private static bool IsNegative(EvidenceRow row) => ContainsAny(SearchText(row), "negative", "nack", "failed", "reject", "not accepted");
+    private static bool IsMatchedCommandReply(EvidenceRow reply, EvidenceRow request)
+    {
+        if (!IsRx(reply) || reply.Source.CauseDetails is not { Test: false } replyCot ||
+            !SamePhysicalCa(reply, request) ||
+            ParsePositiveInt(reply.TypeId) != ParsePositiveInt(request.TypeId) ||
+            ParsePositiveInt(reply.IoAddress) != ParsePositiveInt(request.IoAddress) ||
+            ParsePositiveInt(request.TypeId) is null ||
+            ParsePositiveInt(request.IoAddress) is null)
+            return false;
+        var originalOa = request.Source.CauseDetails?.OriginatorAddress;
+        return !replyCot.OriginatorAddress.HasValue || !originalOa.HasValue ||
+               replyCot.OriginatorAddress == originalOa;
+    }
+
+    private static bool SamePhysicalCa(EvidenceRow observed, EvidenceRow command)
+        => observed.ProtocolMode == command.ProtocolMode &&
+           string.Equals(
+               string.IsNullOrWhiteSpace(observed.Source.PhysicalSource) ? "SINGLE" : observed.Source.PhysicalSource.Trim(),
+               string.IsNullOrWhiteSpace(command.Source.PhysicalSource) ? "SINGLE" : command.Source.PhysicalSource.Trim(),
+               StringComparison.OrdinalIgnoreCase) &&
+           ParsePositiveInt(observed.CommonAddress) == ParsePositiveInt(command.CommonAddress) &&
+           ParsePositiveInt(command.CommonAddress) is not null;
+
     private static bool IsCotCode(EvidenceRow row, int expected) => ParsePositiveInt(row.CotCode) == expected;
     private static bool IsTypeId(EvidenceRow row, int expected) => ParsePositiveInt(row.TypeId) == expected;
     private static bool IsClassOne(EvidenceRow row) => ContainsAny(SearchText(row), "class 1", "class1", "data class 1", "class=1");
