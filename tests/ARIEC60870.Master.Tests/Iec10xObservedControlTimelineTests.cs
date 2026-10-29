@@ -123,6 +123,19 @@ public sealed class Iec10xObservedControlTimelineTests
     }
 
     [Fact]
+    public void NegativeActconRemainsVisibleEvenWhenOverlappingRequestsAreAmbiguous()
+    {
+        var timeline = new Iec10xObservedControlTimeline();
+        Master(timeline);
+        Assert.Contains("ambiguous", Master(timeline));
+        var result = Rtu(timeline, negative: true);
+        Assert.Contains("RTU NEGATIVE CONFIRMATION", result);
+        Assert.Contains("matching ambiguous", result);
+        Assert.DoesNotContain("application accepted", result);
+        Assert.Equal(1, timeline.PendingCount);
+    }
+
+    [Fact]
     public void CorruptOrTestFramesCannotConfirmOrChangePendingState()
     {
         var timeline = new Iec10xObservedControlTimeline();
