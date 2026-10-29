@@ -22,6 +22,7 @@
     <Resource Include="Assets\Icons\iec103-icon.png" />
     <Resource Include="Assets\Icons\iec104-icon.png" />
     <Resource Include="Assets\Fonts\Inter.ttf" />
+    <Content Include="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
