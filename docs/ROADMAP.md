@@ -41,7 +41,7 @@ This keeps the public message honest while still making the project useful to pr
 | Offline capture review | Medium | should rebuild all relevant workspaces from one source of truth |
 | Native PDF evidence report | Implemented baseline | built-in clean-room PDF engine is available; future work is PDF/A, richer typography, branding, and appendix controls |
 | Release automation | Medium-high | single-file Windows ZIP, checksum, SBOM, and provenance workflow are in place |
-| Passive monitor / dual-link evidence | Planned (IEC-101 field priority) | start with 2-COM read-only IEC-101 serial forensic capture per #19, then decoding/analysis; IEC-104 PCAP remains later |
+| Passive monitor / dual-link evidence | Implemented baseline; physical FAT pending | 2/4-RX IEC-101 raw journal, replay, timeline and integrated WPF exist; archive/report parity and field verification remain open |
 | RTU/slave simulation | Future | useful later, but not required for the current public positioning |
 
 ## Public-show strategy
