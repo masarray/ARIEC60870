@@ -47,7 +47,7 @@ The IEC101MasterTester reference implementation shows a useful product pattern:
 - Class 1 should be prioritized only when ACD=1
 - Class 2 is the normal/background polling path
 
-For ARIEC60870 we keep this pattern, but we remove:
+Historical reference-study note (superseded by subsequently merged dual-link and simulator work; do not treat these historical omissions as current feature requirements):
 
 - dual redundancy
 - IEC-101 Dual Link Redundancy workspace
