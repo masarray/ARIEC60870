@@ -34,7 +34,7 @@ public partial class MainWindow
     private async Task OpenPassiveRawJournalAsync(string manifestPath)
     {
         if (_sessionCancellation is not null || _passiveReplayCancellation is not null)
-            throw new InvalidOperationException("Stop the current recording/replay before opening a capture.");
+            throw new InvalidOperationException("Stop the current monitor/replay before opening a capture.");
         if (!Path.GetFileName(manifestPath).Equals("manifest.json", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Select the manifest.json inside an ARIEC passive capture folder.");
         var directory = Path.GetDirectoryName(Path.GetFullPath(manifestPath))
