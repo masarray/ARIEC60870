@@ -59,7 +59,7 @@ public partial class MainWindow
             UpdateStableHeader("Opening capture", "Verifying raw evidence…");
             var imported = await Task.Run(() => CaptureArchiveReader.Read(dialog.FileName));
             var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
-            if (rows.Count == 0)
+            if (rows.Length == 0)
             {
                 ModernMessageBox.Show(this,
                     "The capture file does not contain frame rows.",
