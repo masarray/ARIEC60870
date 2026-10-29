@@ -24,6 +24,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Prepare pinned Inter font
+        shell: pwsh
+        run: ./scripts/prepare-inter-font.ps1
+
       - name: Restore
         run: dotnet restore ARIEC60870.sln
 
