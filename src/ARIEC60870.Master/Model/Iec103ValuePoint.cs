@@ -1,6 +1,8 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Master.Protocol.Iec10x;
+
 namespace ARIEC60870.Master.Model;
 
 public sealed class Iec103ValuePoint
@@ -29,4 +31,6 @@ public sealed class Iec103ValuePoint
     public int? InformationObjectAddress { get; init; }
     public int? TypeId { get; init; }
     public string QualityText { get; init; } = string.Empty;
+    public Iec10xQualityDetails? QualityDetails { get; init; }
+    public Iec10xCauseDetails? CauseDetails { get; init; }
 }
