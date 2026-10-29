@@ -2,7 +2,7 @@
 
 # ARD — IEC-101 Passive Serial Sniffer (2/4 COM), Loss-Aware Forensic Pipeline
 
-Status: Approved-for-implementation proposal; **design only, no code yet**  
+Status: Historical initial design proposal — implementation has advanced; consult current master and the canonical 2026-10-29 Interoperability PRD/ARD  
 Date: 2026-10-27  
 Baseline: master 52777a7858d28b53c0739112219ac7685008ec84  
 Companions: IEC101_PASSIVE_MONITOR_PRD.md; IEC101_PASSIVE_MONITOR_UX.md; issue #19.
