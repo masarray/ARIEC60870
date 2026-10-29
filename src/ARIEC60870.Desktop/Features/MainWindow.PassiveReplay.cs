@@ -85,7 +85,7 @@ public partial class MainWindow
             // Raw passive journals carry their own saved decode widths. Never allow a
             // previous active session or selected-frame ZIP profile to contaminate
             // the identity of evidence imported through this separate path.
-            _evidenceProtocolMode = Iec60870ProtocolMode.Iec101.ToString();
+            _evidenceProtocolMode = GetSelectedProtocolMode().ToString();
             _evidenceProfileId = string.Empty;
             _evidenceProfileEdition = string.Empty;
             _evidenceProfileFingerprint = string.Empty;
