@@ -528,7 +528,7 @@ public partial class MainWindow
         {
             AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-OVERLAPPING-TX",
                 "New command overlaps an unresolved request on the same source/CA/IOA/Type",
-                $"Previous phase={prior.Stage}; new phase={(select ? "SELECT" : "EXECUTE")}; " +
+                $"Previous phase={prior?.Stage ?? "unknown"}; new phase={(select ? "SELECT" : "EXECUTE")}; " +
                 $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
                 "Request/response pairing is ambiguous until the old exchange is resolved; inspect raw order and avoid claiming operation success.");
         }
