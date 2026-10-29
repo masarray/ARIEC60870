@@ -154,6 +154,21 @@ public partial class MainWindow
     }
 
 
+    private void CopySelectedCaptureForAi_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = GetSelectedRowsForUnifiedEvidenceCapture(out _);
+        if (rows.Count == 0)
+        {
+            ModernMessageBox.Show(this,
+                "Select one or more Trace frames using Shift/Ctrl, then copy them for analysis.",
+                "Copy selected frames", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        Clipboard.SetText(SelectedFrameShareFormatter.Format(rows));
+        AppendSessionLog($"Copied {rows.Count} selected protocol frames as AI-readable text. No data was uploaded.");
+    }
+
     private void SaveSelectedCapture_Click(object sender, RoutedEventArgs e)
     {
         var rows = GetSelectedRowsForUnifiedEvidenceCapture(out var sourceWorkspace);
@@ -305,6 +320,7 @@ public partial class MainWindow
         var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
         var retentionJson = JsonSerializer.Serialize(BuildCaptureRetentionSnapshot(sourceWorkspace), new JsonSerializerOptions { WriteIndented = true });
         var reportMarkdown = BuildSelectedCaptureMarkdownReport(manifest, rows, framesSha256);
+        var analysisMarkdown = SelectedFrameShareFormatter.Format(rows);
 
         var target = Path.GetFullPath(fileName);
         var parent = Path.GetDirectoryName(target);
@@ -323,6 +339,15 @@ public partial class MainWindow
         WriteZipTextEntry(archive, "frames.jsonl", framesJsonl);
         WriteZipTextEntry(archive, "retention.json", retentionJson);
         WriteZipTextEntry(archive, "report.md", reportMarkdown);
+        WriteZipTextEntry(archive, "analysis.md", analysisMarkdown);
+        WriteZipTextEntry(archive, "README.md",
+            "# ARIEC60870 selected frame evidence\\n\\n" +
+            "Open this .ariec file with ARIEC60870 > Open Capture.\\n" +
+            "For AI or human review, read analysis.md first; report.md is the compact summary.\\n" +
+            "frames.jsonl holds each selected row including original raw bytes and decoder profile;\\n" +
+            "manifest.json records its SHA-256 integrity value.\\n" +
+            "The selection is NOT a complete continuous serial recording.\\n" +
+            "Do not infer missing frames, frame timing precision, or physical command results.\\n");
         WriteZipTextEntry(archive, "hash.txt", $"frames.jsonl sha256 {framesSha256}{Environment.NewLine}");
     }
 
