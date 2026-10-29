@@ -42,6 +42,11 @@ public static class Iec10xCommandProofRules
             reply.TypeId is not (45 or 46 or 47 or 48 or 49 or 50 or 51 or 58 or 59 or 60 or 61 or 62 or 63 or 64))
             return Iec10xCommandResponsePhase.NotApplicable;
 
+        // A corrupt frame or decoder warning must never confirm an operation.
+        if (reply.Frame?.IsChecksumValid == false ||
+            string.Equals(reply.Category, "RX Warning", StringComparison.OrdinalIgnoreCase))
+            return Iec10xCommandResponsePhase.Unverified;
+
         var cause = reply.CauseDetails;
         if (cause is null) return Iec10xCommandResponsePhase.Unverified;
         if (cause.Negative) return Iec10xCommandResponsePhase.NegativeConfirmation;
@@ -55,6 +60,11 @@ public static class Iec10xCommandProofRules
         };
     }
 
+    /// <summary>ACTTERM without a prior, source-matched ACTCON is incomplete evidence.</summary>
+    public static bool HasVerifiedApplicationSequence(bool actConSeen,
+        Iec10xCommandResponsePhase phase)
+        => phase != Iec10xCommandResponsePhase.ActivationTerminated || actConSeen;
+
     public static bool HasEchoPhaseMismatch(bool selectPhase, Iec103MasterEvidenceEvent reply)
         => reply.CommandDetails?.Select is bool echoedSelect && echoedSelect != selectPhase;
 
@@ -64,9 +74,12 @@ public static class Iec10xCommandProofRules
         return feedback.Direction == FrameDirection.SlaveToMaster &&
                feedback.ProtocolMode == protocol &&
                feedback.IsRelayValue &&
+               feedback.Frame?.IsChecksumValid != false &&
+               !string.Equals(feedback.Category, "RX Warning", StringComparison.OrdinalIgnoreCase) &&
                feedback.CommonAddressNumber == ca &&
                feedback.InformationObjectAddress == feedbackIoa &&
-               feedback.QualityDetails?.Invalid != true &&
+               feedback.QualityDetails is { Invalid: false } quality &&
+               quality.Blocked != true && quality.Substituted != true && quality.NotTopical != true &&
                string.Equals(NormalizeSource(feedback.PhysicalSource), NormalizeSource(physicalSource),
                    StringComparison.Ordinal);
     }
