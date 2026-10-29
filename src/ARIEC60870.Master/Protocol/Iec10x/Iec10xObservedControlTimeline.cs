@@ -79,6 +79,14 @@ public sealed class Iec10xObservedControlTimeline
             if (_pending.TryGetValue(key, out var previous))
             {
                 // A confirmed SELECT can legitimately be followed by an EXECUTE.
+                if (previous.Select && previous.ActConSeen && !command.Select.Value &&
+                    !string.Equals(previous.RequestedValue, expected, StringComparison.Ordinal))
+                {
+                    previous.Ambiguous = true;
+                    return $"MASTER EXECUTE target differs from accepted SELECT, {location}: " +
+                           $"SELECT={previous.RequestedValue}, EXECUTE={expected}. " +
+                           "Do not claim a valid select-before-operate sequence.";
+                }
                 if (!(previous.Select && previous.ActConSeen && !command.Select.Value))
                 {
                     previous.Ambiguous = true;
@@ -111,6 +119,11 @@ public sealed class Iec10xObservedControlTimeline
                    (phaseMismatch ? "SELECT/EXECUTE echo differs from observed request" :
                        "overlapping/retried commands make matching ambiguous") +
                    "; no acceptance verdict." + reference;
+
+        if (hasRequest && !string.Equals(pending!.RequestedValue, expected, StringComparison.Ordinal))
+            return $"RTU response target differs from Master request, {location}: " +
+                   $"requested={pending.RequestedValue}; echoed={expected}. " +
+                   "No matched positive command acceptance can be inferred." + reference;
 
         if (cot.Code is >= 44 and <= 47)
         {
