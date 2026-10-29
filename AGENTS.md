@@ -1,10 +1,12 @@
+> **CURRENT CROSS-THREAD DESIGN AUTHORITY — 2026-10-29.** Before modifying this public repository, read [docs/IEC10X_INTEROPERABILITY_PRD_20261029.md](docs/IEC10X_INTEROPERABILITY_PRD_20261029.md), [docs/IEC10X_INTEROPERABILITY_ARD_20261029.md](docs/IEC10X_INTEROPERABILITY_ARD_20261029.md) and [docs/IEC10X_NUC_RESEARCH_20261029.md](docs/IEC10X_NUC_RESEARCH_20261029.md). These are canonical **future product/design targets** for IEC-101/103/104; latest master, open PRs and exact CI remain implementation truth. The older introductory IEC-103-only/single-connection wording below is historical and MUST NOT cancel already-merged IEC-101/104, passive 2/4-RX, active dual-link or unified forensic work. IEC-101 balanced-mode support is **not implied** by unbalanced dual-link. NUC convention profiles are opt-in and only apply where selected by the project; a NUC technical source title may be used in research/engineering documentation, but public marketing/product UI remain vendor-neutral. Never confuse NUC101 optional post-switch GI with project-specific NUC104 frontend GI behavior. Before every PR refresh master and current workstreams; choose one PRD requirement ID, preserve raw evidence/protocol correctness, keep WPF thin, add negative tests, and never overwrite concurrent PR changes or private logs.
+
 # AGENTS.md — ARIEC60870 Engineering Guardrails
 
 This file is the operating contract for every future coding agent, assistant, or maintainer that modifies ARIEC60870.
 
 ## Product Identity
 
-ARIEC60870 is an **Apache-2.0 clean-room IEC 60870-5-103 Active Master Tester + Analyzer**.
+ARIEC60870 is an **Apache-2.0 clean-room IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 Active Master Tester + Forensic Evidence Analyzer**, with a separate RX-only IEC-101 Passive Monitor.
 
 It connects to protection relays / IEDs acting as IEC-103 slaves, runs controlled master polling, decodes the response, updates Value Viewer and Relay Event Log, and exports deep engineering evidence.
 
@@ -18,12 +20,15 @@ ARIEC60870 is **not**:
 
 ## Product Non-Negotiables
 
-1. **Active master first**
-   - The main product is a master tester that actively connects to IEC-103 slave relays.
-   - Offline decoder is a supporting mode for troubleshooting traces.
+1. **Protocol-aware active and passive paths**
+   - Preserve independently tested IEC-101/103/104 active sessions and IEC-101 Passive Monitor; avoid broad product pivots or a new GUI.
+   - Active mode only transmits explicitly authorized test operations; Passive Monitor must remain strictly RX-only.
+   - Offline replay is a first-class evidence review mode; original raw journal integrity is authoritative.
 
-2. **Single connection baseline**
-   - Dual-link redundancy and active/standby architecture may be added only when explicitly requested; keep the wording protocol-neutral and avoid customer- or country-specific convention labels in public files.
+2. **Existing single-link and dual-link support**
+   - IEC-101 dual-link A/B unbalanced, single-link operation and 2/4-RX passive capture are already implemented baselines, not future scope to be re-created.
+   - IEC-101 balanced redundancy requires separate mode-specific architecture and tests before active TX; NUC is an opt-in interoperability convention, not a universal default.
+   - Public product messaging remains vendor-neutral; technical standards/research documents may identify historical Norwegian User Conventions by name and revision.
 
 3. **Controlled polling**
    - Class 2 is normal/background polling.

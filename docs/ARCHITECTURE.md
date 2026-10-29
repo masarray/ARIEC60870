@@ -1,3 +1,5 @@
+> **2026-10-29 current design authority:** [IEC 101/103/104 Interoperability PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [Interoperability ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md), and [NUC research](IEC10X_NUC_RESEARCH_20261029.md). This file retains historical implementation context; any older status, scope or convention assumption that conflicts with these design documents is superseded for **future requirements**. Merged master code and exact CI remain the authority for what is already implemented. Do not treat a new design target as completed capability.
+
 # ARIEC60870 Evidence Analyzer Architecture
 
 ## Product Role
@@ -45,7 +47,7 @@ The IEC101MasterTester reference implementation shows a useful product pattern:
 - Class 1 should be prioritized only when ACD=1
 - Class 2 is the normal/background polling path
 
-For ARIEC60870 we keep this pattern, but we remove:
+Historical reference-study note (superseded by subsequently merged dual-link and simulator work; do not treat these historical omissions as current feature requirements):
 
 - dual redundancy
 - IEC-101 Dual Link Redundancy workspace
