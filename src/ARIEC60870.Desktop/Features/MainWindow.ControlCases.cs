@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using ARIEC60870.Master.Protocol.Iec10x;
