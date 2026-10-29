@@ -571,42 +571,31 @@
 
                                                 <Grid Grid.Row="0">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="34"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding ProtocolTraceTitle, Mode=OneWay}"
-                                                               FontFamily="{StaticResource AppFont}"
-                                                               FontSize="12.8"
-                                                               FontWeight="Medium"
-                                                               LineHeight="18"
-                                                               TextWrapping="Wrap"
-                                                               TextTrimming="None"
-                                                               TextOptions.TextFormattingMode="Ideal"
-                                                               TextOptions.TextRenderingMode="ClearType">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="{x:Type TextBlock}">
-                                                                <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding Direction}" Value="TX">
-                                                                        <Setter Property="Foreground" Value="#2563EB" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding Direction}" Value="RX">
-                                                                        <Setter Property="Foreground" Value="#059669" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding ProtocolTraceMeta, Mode=OneWay}"
-                                                               FontFamily="{StaticResource AppFont}"
-                                                               FontSize="10.8"
-                                                               Foreground="{StaticResource Ink600Brush}"
-                                                               Margin="12,1,0,0"
-                                                               VerticalAlignment="Top"
-                                                               TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               MaxWidth="150" />
+                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm200-160v-280H200l280-360 280 360H600v280H360Zm80-80h80v-280h76L480-750 364-600h76v280Zm40-280Z" Width="24" Height="24" Stretch="Uniform" Fill="#2563EB" Margin="0,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                        <Path.Style><Style TargetType="Path">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers><DataTrigger Binding="{Binding Direction}" Value="TX"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                                        </Style></Path.Style>
+                                                    </Path>
+                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm320-160L200-600h160v-280h240v280h160L480-240Zm0-130 116-150h-76v-280h-80v280h-76l116 150Zm0-150Z" Width="24" Height="24" Stretch="Uniform" Fill="#059669" Margin="0,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                        <Path.Style><Style TargetType="Path">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers><DataTrigger Binding="{Binding Direction}" Value="RX"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                                        </Style></Path.Style>
+                                                    </Path>
+                                                    <TextBlock Grid.Column="1" Text="{Binding ProtocolTraceHeader, Mode=OneWay}"
+                                                               FontFamily="{StaticResource AppFont}" FontSize="14.2" FontWeight="SemiBold"
+                                                               LineHeight="20" TextWrapping="Wrap" TextOptions.TextFormattingMode="Ideal"
+                                                               Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                        <TextBlock Text="{Binding Direction}" FontSize="12.4" FontWeight="SemiBold" Foreground="{StaticResource Ink700Brush}" Margin="0,0,7,0"/>
+                                                        <TextBlock Text="{Binding Time}" FontFamily="Cascadia Mono, Consolas" FontSize="13.2" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource Ink900Brush}" ToolTip="Host frame timestamp, HH:mm:ss.fff (local); not calibrated wire timing"/>
+                                                    </StackPanel>
                                                 </Grid>
 
                                                 <TextBlock Grid.Row="1"
@@ -641,103 +630,55 @@
                                 </ListBox>
                             </Grid>
 
-                            <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="{StaticResource Panel75Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="10">
+                            <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="10" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="10" />
-                                        <RowDefinition Height="*" />
-                                        <RowDefinition Height="10" />
-                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="9"/>
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-
-                                    <Grid Grid.Row="0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel>
-                                            <TextBlock Text="Frame interpreter" Style="{StaticResource EyebrowText}" />
-                                            <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,4,0,0" TextWrapping="Wrap" TextTrimming="None" />
-                                            <TextBlock x:Name="SelectedLineSummaryText" Text="Click a TX/RX frame to inspect its actual bytes." FontSize="11.8" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" MaxHeight="54" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10,0,0,0">
-                                            <TextBlock x:Name="ActiveProtocolMapText"
-                                                       Text="linked highlight"
-                                                       Style="{StaticResource SubtleText}"
-                                                       FontSize="10.4"
-                                                       Foreground="{StaticResource Ink500Brush}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxWidth="150" />
-                                            <CheckBox x:Name="PinProtocolMapCheckBox" Visibility="Collapsed" />
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <Border Grid.Row="2" Background="Transparent" BorderThickness="0" CornerRadius="0" Padding="4">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="6" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <DockPanel>
-                                                <TextBlock Text="Raw HEX groups" FontSize="11.5" FontWeight="Medium" Foreground="{StaticResource Ink800Brush}" DockPanel.Dock="Left" />
-                                                <TextBlock x:Name="RawFrameGroupingHintText" Text="click group to pin" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
-                                            </DockPanel>
-                                            <ItemsControl Grid.Row="2" ItemsSource="{Binding SelectedHexSegments}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="Frame properties" FontSize="15.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                                        <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
+                                                   Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                                        <TextBlock x:Name="SelectedLineSummaryText" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
+                                                   Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" MaxHeight="46" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <DataGrid Grid.Row="2" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
+                                              IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
+                                              CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
+                                              EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                              RowHeight="Auto" MinRowHeight="32" FontSize="12.9"
+                                              HeadersVisibility="Column" ColumnHeaderHeight="34"
+                                              RowBackground="#FFFFFF" AlternatingRowBackground="#F3F7FC" AlternationCount="2"
+                                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
+                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              BorderThickness="1" BorderBrush="#E2E8F0" Background="White">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="PROPERTY" Width="140" MinWidth="116" CanUserResize="True">
+                                                <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <Border Style="{StaticResource HexChipBorder}" ToolTip="{Binding Meaning}" MouseEnter="HexSegment_MouseEnter" MouseLeave="HexSegment_MouseLeave" MouseLeftButtonDown="HexSegment_MouseLeftButtonDown">
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding Title}" FontSize="10.7" Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Text="{Binding Hex}" Style="{StaticResource HexChipText}" />
-                                                            </StackPanel>
-                                                        </Border>
+                                                        <TextBlock Text="{Binding Field}" FontSize="12.7" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center" Margin="9,6,6,6"/>
                                                     </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </Grid>
-                                    </Border>
-
-                                    <Border Grid.Row="4" Background="Transparent" BorderThickness="0" CornerRadius="0" Padding="4">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="8" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <DockPanel>
-                                                <TextBlock Text="Byte → field → value" FontSize="11.5" FontWeight="Medium" Foreground="{StaticResource Ink800Brush}" DockPanel.Dock="Left" />
-                                                <TextBlock Text="linked to raw group" Style="{StaticResource SubtleText}" FontSize="10.2" DockPanel.Dock="Right" HorizontalAlignment="Right" />
-                                            </DockPanel>
-                                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                                <ItemsControl ItemsSource="{Binding SelectedProtocolMapLines}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Style="{StaticResource ProtocolMapLineBorder}" MouseEnter="ProtocolMapLine_MouseEnter" MouseLeave="ProtocolMapLine_MouseLeave" MouseLeftButtonDown="ProtocolMapLine_MouseLeftButtonDown">
-                                                                <StackPanel>
-                                                                    <DockPanel LastChildFill="True">
-                                                                        <TextBlock Text="{Binding Title}" FontSize="12.2" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}" Margin="0,0,9,0" DockPanel.Dock="Left" />
-                                                                        <TextBlock Text="{Binding Evidence}" FontFamily="Cascadia Mono, Consolas" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" />
-                                                                    </DockPanel>
-                                                                    <TextBlock Text="{Binding Meaning}" FontSize="11.9" Foreground="{StaticResource Ink700Brush}" TextWrapping="Wrap" Margin="0,3,0,0" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </ScrollViewer>
-                                        </Grid>
-                                    </Border>
-
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="VALUE / MEANING" Width="*" MinWidth="128">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Value}" ToolTip="{Binding Detail}" FontSize="12.9"
+                                                                   Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center" Margin="9,6,8,6"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <StackPanel Visibility="Collapsed">
+                                        <TextBlock x:Name="ActiveProtocolMapText"/>
+                                        <CheckBox x:Name="PinProtocolMapCheckBox"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </Grid>
