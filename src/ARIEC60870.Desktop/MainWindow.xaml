@@ -526,13 +526,13 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
-                                    <TextBlock Text="Raw protocol trace" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
+                                    <TextBlock Text="Frame timeline" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="AUTO-SCROLL" FontSize="11.5" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                                        <TextBlock Text="RESUME" Visibility="{Binding Visibility, ElementName=TraceAutoScrollButton}" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0"/>
                                         <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
                                                       IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
                                                       ToolTip="Follow latest Trace frames. Mouse wheel or selection turns this OFF. Click to resume.">
-                                            <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="22" Height="22" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                            <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
                                         </ToggleButton>
                                     </StackPanel>
                                 </DockPanel>
@@ -579,17 +579,17 @@
 
                                                 <Grid Grid.Row="0">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="34"/>
+                                                        <ColumnDefinition Width="24"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm200-160v-280H200l280-360 280 360H600v280H360Zm80-80h80v-280h76L480-750 364-600h76v280Zm40-280Z" Width="24" Height="24" Stretch="Uniform" Fill="#2563EB" Margin="0,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm200-160v-280H200l280-360 280 360H600v280H360Zm80-80h80v-280h76L480-750 364-600h76v280Zm40-280Z" Width="16" Height="16" Stretch="Uniform" Fill="#2563EB" Margin="0,0,6,0" VerticalAlignment="Center" IsHitTestVisible="False">
                                                         <Path.Style><Style TargetType="Path">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                             <Style.Triggers><DataTrigger Binding="{Binding Direction}" Value="TX"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
                                                         </Style></Path.Style>
                                                     </Path>
-                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm320-160L200-600h160v-280h240v280h160L480-240Zm0-130 116-150h-76v-280h-80v280h-76l116 150Zm0-150Z" Width="24" Height="24" Stretch="Uniform" Fill="#059669" Margin="0,0,10,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                    <Path Grid.Column="0" Data="M160-80v-80h640v80H160Zm320-160L200-600h160v-280h240v280h160L480-240Zm0-130 116-150h-76v-280h-80v280h-76l116 150Zm0-150Z" Width="16" Height="16" Stretch="Uniform" Fill="#059669" Margin="0,0,6,0" VerticalAlignment="Center" IsHitTestVisible="False">
                                                         <Path.Style><Style TargetType="Path">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                             <Style.Triggers><DataTrigger Binding="{Binding Direction}" Value="RX"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
@@ -600,8 +600,8 @@
                                                                LineHeight="20" TextWrapping="Wrap" TextOptions.TextFormattingMode="Ideal"
                                                                Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                                                        <TextBlock Text="{Binding Direction}" FontSize="12.4" FontWeight="SemiBold" Foreground="{StaticResource Ink700Brush}" Margin="0,0,7,0"/>
-                                                        <TextBlock Text="{Binding Time}" FontFamily="Cascadia Mono, Consolas" FontSize="13.2" FontWeight="SemiBold"
+                                                        <TextBlock Text="{Binding Direction}" FontFamily="{StaticResource AppFont}" FontSize="12.8" FontWeight="SemiBold" Foreground="{StaticResource Ink700Brush}" Margin="0,0,7,0"/>
+                                                        <TextBlock Text="{Binding Time}" FontFamily="{StaticResource AppFont}" FontSize="12.8" FontWeight="SemiBold"
                                                                    Foreground="{StaticResource Ink900Brush}" ToolTip="Host frame timestamp, HH:mm:ss.fff (local); not calibrated wire timing"/>
                                                     </StackPanel>
                                                 </Grid>
@@ -638,7 +638,7 @@
                                 </ListBox>
                             </Grid>
 
-                            <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+                            <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -649,7 +649,7 @@
                                         <TextBlock Text="Frame properties" FontSize="15.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
                                         <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
                                                    Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                        <TextBlock x:Name="SelectedLineSummaryText" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
+                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Collapsed" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
                                                    Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" MaxHeight="46" Margin="0,3,0,0"/>
                                     </StackPanel>
                                     <DataGrid Grid.Row="2" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
@@ -658,10 +658,10 @@
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"
                                               MinRowHeight="32" FontSize="12.9"
                                               HeadersVisibility="Column" ColumnHeaderHeight="34"
-                                              RowBackground="#FFFFFF" AlternatingRowBackground="#F3F7FC" AlternationCount="2"
+                                              RowBackground="#F8FAFC" AlternatingRowBackground="#EAF1F6" AlternationCount="2"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                              BorderThickness="1" BorderBrush="#E2E8F0" Background="White">
+                                              BorderThickness="1" BorderBrush="#D7E2EA" Background="#F8FAFC">
                                         <DataGrid.Columns>
                                             <DataGridTemplateColumn Header="PROPERTY" Width="0.95*" MinWidth="84" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
@@ -724,7 +724,7 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <DockPanel>
-                                <TextBlock Text="Change events only" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
+                                <TextBlock Text="Status changes" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="16,0,0,0">
                                     <TextBlock Text="Filter" Style="{StaticResource EyebrowText}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                     <ComboBox x:Name="EventLogFilterComboBox" Width="132" SelectedIndex="0" SelectionChanged="EventLogFilter_SelectionChanged" ToolTip="Filter event log by signal class">
@@ -732,24 +732,24 @@
                                         <ComboBoxItem Content="Digital status" />
                                         <ComboBoxItem Content="Analog" />
                                     </ComboBox>
-                                    <TextBlock Text="AUTO-SCROLL" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="20,0,9,0"/>
+                                    <TextBlock Text="RESUME" Visibility="{Binding Visibility, ElementName=EventsAutoScrollButton}" FontSize="11.3" FontWeight="SemiBold" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="20,0,7,0"/>
                                     <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}" IsChecked="True"
                                                   Checked="EventsAutoScroll_Changed" Unchecked="EventsAutoScroll_Changed"
                                                   ToolTip="Follow latest Events. Mouse wheel turns OFF; click again to jump to latest.">
-                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="22" Height="22" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
                                     </ToggleButton>
                                 </StackPanel>
                             </DockPanel>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="13" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="150" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="IED/RTU time" Binding="{Binding DisplayRelayTime}" Width="150" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Before" Binding="{Binding Previous}" Width="108" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="After" Binding="{Binding NewValue}" Width="108" ElementStyle="{StaticResource GridCellText}" />
+                                    
+                                    <DataGridTextColumn Header="Value" Binding="{Binding DisplayValue}" Width="175" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="200" />
-                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Source / address" Binding="{Binding Address}" Width="155" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="148" />
-                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" ElementStyle="{StaticResource GridCellText}" />
+                                    
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventIoaColumn" Header="IOA" Binding="{Binding IoAddress}" Width="76" Visibility="Collapsed" />
@@ -1413,7 +1413,7 @@
                             <Border Grid.Row="5" Background="{StaticResource Panel75Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="10" Padding="10,7" Margin="0,10,0,0">
                                 <StackPanel>
                                     <TextBlock x:Name="PassiveCapturePathText" Text="Capture folder: —" FontSize="10.5" Foreground="{StaticResource Ink700Brush}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock x:Name="PassiveStatusMessageText" Text="Choose ports in Setup, then select Record RX." FontSize="10.5" Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                    <TextBlock x:Name="PassiveStatusMessageText" Text="Configure receive-only ports, then select Start Monitor." FontSize="10.5" Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
                                 </StackPanel>
                             </Border>
                         </Grid>

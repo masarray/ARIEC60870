@@ -26,6 +26,7 @@ try {
         "LICENSE",
         "NOTICE",
         "THIRD_PARTY_NOTICES.md",
+        "Inter-OFL.txt",
         "docs/USER_GUIDE.md",
         "docs/QUICK_START.md",
         "docs/TROUBLESHOOTING.md",

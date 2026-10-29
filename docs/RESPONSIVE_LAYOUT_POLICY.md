@@ -106,3 +106,12 @@ Layout and rendering must not become the bottleneck during polling:
 - Use the approved solid up/down arrow geometry in individual Trace rows, and the down-into-lines follow icon in both Events and Trace headers. Make toggled state visibly different without a noisy animation or full-panel color change.
 - Manual GUI FAT must inspect Trace and Events at 100%, 125% and 150% Windows DPI, scroll-wheel behavior under live traffic, stable inspector without hover flicker, narrow window/wrapping, multi-select clipboard and all existing raw capture/replay paths. CI compile success is not a visual FAT certificate.
 
+## 2026-10-29 Premium readability revision
+
+- Default UI typography uses **embedded, verified, SIL-OFL Inter** from a bundled WPF resource; only original raw HEX and literal byte dumps use the existing monospaced stack. Download/verification is an explicit version-pinned build step, not a runtime font dependency. License stays accessible in packaged output.
+- Trace arrow icons reduced from 24 to 16 WPF px; TX/RX and host timestamp are the same Inter size and baseline, with consistent weight. Never use a monospaced font for time labels just because they contain digits.
+- The Follow button on Trace and Events is a small **resume-only** affordance: it is invisible while auto-follow is ON and visible after wheel/selection Hold. Trace and Events continue accumulating separately in bounded source stores.
+- Data surfaces are soft mist/slate blue-gray instead of pervasive pure white, keeping high legibility, restrained accent blue/green, and low contrast fatigue. Avoid saturated full-panel backgrounds, oversized toolbar icons or decorative animations.
+- Properties inspector omits repetitive routine COT/quality bit rows and duplicate TI numbers; the raw typed bits remain available through tooltips and original capture.
+- Event Log foreground shows one semantically explained Value field, removes Before/After and repeated reason from the grid, but keeps original before/after/reason evidence for report and export. Newest visible SOE is at bottom for standard follow-to-end behavior.
+

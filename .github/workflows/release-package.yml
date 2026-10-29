@@ -131,6 +131,7 @@ jobs:
       - name: Run full xUnit regression gate
         shell: pwsh
         run: |
+          ./scripts/prepare-inter-font.ps1
           dotnet restore ARIEC60870.sln
           dotnet build ARIEC60870.sln --configuration Release --no-restore -p:Version=${{ needs.resolve.outputs.version }} -p:TreatWarningsAsErrors=true
           dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build
