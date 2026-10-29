@@ -70,6 +70,7 @@ public partial class MainWindow
             }
 
             ClearSessionView(clearLog: false);
+            _evidenceProtocolMode = imported.CapturedProtocolMode;
             _evidenceProfileId = imported.CapturedProfileId;
             _evidenceProfileEdition = imported.CapturedProfileEdition;
             _evidenceProfileFingerprint = imported.CapturedProfileFingerprint;
@@ -345,7 +346,8 @@ public partial class MainWindow
             SourceWorkspace = sourceWorkspace,
             CreatedUtc = createdUtc,
             Application = "ARIEC60870 Evidence Analyzer",
-            ProtocolMode = GetSelectedProtocolMode().ToString(),
+            ProtocolMode = string.IsNullOrWhiteSpace(_evidenceProtocolMode)
+                ? "Unknown (not recorded)" : _evidenceProtocolMode,
             InteroperabilityProfileId = _evidenceProfileId,
             InteroperabilityProfileEdition = _evidenceProfileEdition,
             InteroperabilityProfileFingerprint = _evidenceProfileFingerprint,

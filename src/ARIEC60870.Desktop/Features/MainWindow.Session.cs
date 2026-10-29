@@ -86,6 +86,7 @@ public partial class MainWindow
             _evidenceProfileEdition = string.Empty;
             _evidenceProfileFingerprint = string.Empty;
             _evidenceProfileSource = "Passive monitor: decoder profile not recorded";
+            _evidenceProtocolMode = Iec60870ProtocolMode.Iec101.ToString();
             await RunPassiveMonitorAsync();
             return;
         }
@@ -101,6 +102,7 @@ public partial class MainWindow
             _evidenceProfileEdition = settings.InteroperabilityProfileEdition;
             _evidenceProfileFingerprint = settings.InteroperabilityProfileFingerprint;
             _evidenceProfileSource = "Active session";
+            _evidenceProtocolMode = settings.ProtocolMode.ToString();
         }
         catch (Exception ex)
         {
@@ -264,7 +266,7 @@ public partial class MainWindow
     private void Clear_Click(object sender, RoutedEventArgs e) => ClearSessionView(clearLog: true);
 
 
-    private Iec103MasterSettings BuildSettingsFromUi()
+    private Iec103MasterSettings BuildSettingsFromUi(bool validateActiveProfile = true)
     {
         var port = (PortComboBox.SelectedItem as string)?.Trim();
 
@@ -366,7 +368,8 @@ public partial class MainWindow
 
         // Custom profile widths are NEVER silently rewritten to match GUI inputs.
         var profile = ResolveInteroperabilityProfile(settings);
-        profile.ValidateActive(settings);
+        if (validateActiveProfile)
+            profile.ValidateActive(settings);
         settings.InteroperabilityProfileId = profile.Id;
         settings.InteroperabilityProfileEdition = profile.Edition;
         settings.InteroperabilityProfileFingerprint = profile.Fingerprint;

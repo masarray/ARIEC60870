@@ -240,7 +240,9 @@ public partial class MainWindow
                 SavePassiveSetupPreferences(silent);
                 return;
             }
-            var settings = BuildSettingsFromUi();
+            // Saving an imported profile is allowed even before fields are reconciled.
+            // Active Connect still invokes full ValidateActive and blocks mismatches.
+            var settings = BuildSettingsFromUi(validateActiveProfile: false);
             var duration = ReadInt(DurationBox, "Session timeout", 0, 86400);
             SaveSetupPreferences(settings, duration, silent);
         }

@@ -25,6 +25,7 @@ public static class CaptureArchiveReader
     public sealed record Result(IReadOnlyList<CaptureFrameSnapshot> Rows,
         long TotalRows, bool IntegrityVerified, string TrustDescription)
     {
+        public string CapturedProtocolMode { get; init; } = string.Empty;
         public string CapturedProfileId { get; init; } = string.Empty;
         public string CapturedProfileEdition { get; init; } = string.Empty;
         public string CapturedProfileFingerprint { get; init; } = string.Empty;
@@ -44,6 +45,7 @@ public static class CaptureArchiveReader
         var manifest = UniqueEntry(archive, "manifest.json");
         string? requiredHash = null;
         int? manifestCount = null;
+        string capturedProtocolMode = string.Empty;
         string capturedProfileId = string.Empty;
         string capturedProfileEdition = string.Empty;
         string capturedProfileFingerprint = string.Empty;
@@ -67,6 +69,7 @@ public static class CaptureArchiveReader
             var root = json.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 throw new InvalidDataException("Invalid capture manifest.");
+            capturedProtocolMode = ReadProfileDeclaration(root, "ProtocolMode");
             capturedProfileId = ReadProfileDeclaration(root, "InteroperabilityProfileId");
             capturedProfileEdition = ReadProfileDeclaration(root, "InteroperabilityProfileEdition");
             capturedProfileFingerprint = ReadProfileDeclaration(root, "InteroperabilityProfileFingerprint");
@@ -129,6 +132,7 @@ public static class CaptureArchiveReader
             !string.IsNullOrWhiteSpace(requiredHash),
             string.IsNullOrWhiteSpace(requiredHash) ? "LEGACY · hash not available" : "SHA-256 VERIFIED")
         {
+            CapturedProtocolMode = capturedProtocolMode,
             CapturedProfileId = capturedProfileId,
             CapturedProfileEdition = capturedProfileEdition,
             CapturedProfileFingerprint = capturedProfileFingerprint

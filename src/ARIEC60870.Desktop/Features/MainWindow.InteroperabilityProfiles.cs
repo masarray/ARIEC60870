@@ -13,6 +13,7 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private Iec10xInteroperabilityProfile? _projectInteroperabilityProfile;
+    private string _evidenceProtocolMode = string.Empty;
     private string _evidenceProfileId = string.Empty;
     private string _evidenceProfileEdition = string.Empty;
     private string _evidenceProfileFingerprint = string.Empty;

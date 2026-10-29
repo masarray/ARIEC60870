@@ -48,7 +48,7 @@ public sealed class CaptureArchiveReaderTests
                 Add(archive, "frames.jsonl", frames);
                 Add(archive, "manifest.json", JsonSerializer.Serialize(new
                 {
-                    FramesSha256 = Sha(frames), RowCount = 1,
+                    FramesSha256 = Sha(frames), RowCount = 1, ProtocolMode = "Iec101",
                     InteroperabilityProfileId = "project-bay-a",
                     InteroperabilityProfileEdition = "revision-2",
                     InteroperabilityProfileFingerprint = "project-bay-a@revision-2"
@@ -56,6 +56,7 @@ public sealed class CaptureArchiveReaderTests
             }
             var read = CaptureArchiveReader.Read(path);
             Assert.True(read.IntegrityVerified);
+            Assert.Equal("Iec101", read.CapturedProtocolMode);
             Assert.Equal("project-bay-a", read.CapturedProfileId);
             Assert.Equal("revision-2", read.CapturedProfileEdition);
         }
