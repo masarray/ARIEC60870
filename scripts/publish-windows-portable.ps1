@@ -98,6 +98,7 @@ try {
     New-Item -ItemType Directory -Force -Path $DocsOut, $SamplesOut, $ProfilesOut | Out-Null
 
     Copy-Item LICENSE, NOTICE, THIRD_PARTY_NOTICES.md, README.md, CHANGELOG.md -Destination $StagingRoot -Force
+    Copy-Item src/ARIEC60870.Desktop/Assets/Fonts/OFL.txt -Destination (Join-Path $StagingRoot "Inter-OFL.txt") -Force
     Copy-Item docs/USER_GUIDE.md, docs/QUICK_START.md, docs/TROUBLESHOOTING.md, docs/VALIDATION_MATRIX.md, docs/RELEASE_PACKAGING.md -Destination $DocsOut -Force
     Copy-Item samples/mapping-profiles -Destination $SamplesOut -Recurse -Force
     if (Test-Path profiles) {
