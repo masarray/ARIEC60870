@@ -88,3 +88,10 @@ They should enter Relay Event Log only when:
 - GI completion tracks configured CA+IOA independently of physical channel; other CA must not satisfy expected coverage.
 - Original RX tap stream/byte offset and object index remain available as a capture-local source reference. Derived references never imply verified raw integrity on their own.
 - Refer to `docs/IEC10X_M2_PHYSICAL_IDENTITY_SOE.md` for limitations and tests.
+
+## Operator Event timeline UX (2026-10-29)
+
+Events must show **one Value column** rather than separate Before/After columns. Values originating from typed IEC-101/104 single/double points render clearly as `Single Point ON`, `Single Point OFF`, `Double Point ON`, or `Double Point OFF`. Unrecognized or analog values remain raw (never guessed). The original PreviousValue/NewValue remain intact in evidence/archives and tests; text translation is presentation-only.
+
+The visible Events timeline is chronological oldest-to-newest, so ordinary `ScrollIntoView(last)` follows the latest event at the **bottom**, consistent with Trace. The bounded SOE store remains authoritative; manual scrolling freezes only visible Events rows without disabling acquisition. Resume is a small button shown **only when auto-follow is OFF**. When auto-follow is enabled the header control is hidden to reduce visual noise. The WPF list should append bounded batches rather than resetting all visible rows whenever possible.
+
