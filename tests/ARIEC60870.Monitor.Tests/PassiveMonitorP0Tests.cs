@@ -229,6 +229,39 @@ public sealed class PassiveMonitorP0Tests
             0, 1, 0, out _));
     }
 
+    [Fact]
+    public async Task FullJournalRetainsEveryControlEventEvenWhenGuiPreviewDropsOlderFrames()
+    {
+        var folder = CreateTemp();
+        const int count = 620; // more than the 512-frame GUI preview ring
+        var master = Enumerable.Range(0, count)
+            .SelectMany(i => PassiveIec101ControlIndexerTests.Frame(0, i * 18, 6, 0x82).RawBytes)
+            .ToArray();
+        try
+        {
+            var opts = Options(folder) with { ChannelCapacity = 1024, ReadChunkBytes = 256 };
+            var session = new PassiveMonitorSession(opts,
+                new ReplayTap("COM7", master, 256),
+                new ReplayTap("COM8", new byte[] { 0xE5 }, 1));
+            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(450));
+            var result = await session.RunAsync(stop.Token);
+            Assert.Equal("NoApplicationLossDetected", result.Manifest.Status);
+            Assert.True(PassiveJournalVerifier.Verify(result.Directory).Complete);
+
+            var indexPath = Path.Combine(result.Directory, "controls.jsonl");
+            Assert.True(File.Exists(indexPath));
+            var stored = File.ReadLines(indexPath).Count(line => line.Contains(
+                "\"Explanation\"", StringComparison.Ordinal));
+            Assert.Equal(count, stored);
+
+            var shown = 0;
+            while (session.TryReadFrame(out _)) shown++;
+            Assert.True(shown <= 512);
+            Assert.True(shown < stored); // durability is independent of WPF ring
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
     private static PassiveCaptureOptions Options(string folder) => new(folder,
         new PassiveSerialSource("COM7", "SCADA TX -> RTU"),
         new PassiveSerialSource("COM8", "RTU TX -> SCADA"), ChannelCapacity: 32,
