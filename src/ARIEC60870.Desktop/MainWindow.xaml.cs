@@ -194,6 +194,10 @@ public partial class MainWindow : Window
     {
         public string Key { get; init; } = string.Empty;
         public int? CommonAddress { get; init; }
+        public Iec60870ProtocolMode ProtocolMode { get; init; }
+        public string PhysicalSource { get; init; } = string.Empty;
+        public bool SelectPhase { get; init; }
+        public bool SelectConfirmed { get; init; }
         public int CommandIoa { get; init; }
         public int? CommandTypeId { get; init; }
         public int? FeedbackIoa { get; init; }
