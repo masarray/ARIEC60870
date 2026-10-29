@@ -127,6 +127,65 @@ public sealed class EvidenceSmartFindingAnalyzerRegressionTests
         Assert.Contains(smartFindings, finding => finding.Code.Equals("ARIEC-SMART-REMOTE-CLOSED", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void LinkNackIsNotNegativeCommandConfirmationInSmartPdfFinding()
+    {
+        var rows = new[]
+        {
+            TypedControl(1, FrameDirection.MasterToSlave, 46, 6),
+            TypedControl(2, FrameDirection.SlaveToMaster, null, null,
+                message: "RTU link NACK / no data; not an application rejection")
+        };
+        var finding = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(rows,
+            Array.Empty<FindingRow>(), Setup()), x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
+        Assert.Equal(EvidenceSmartFindingSeverity.Warning, finding.Severity);
+        Assert.DoesNotContain("rejected or negatively confirmed", finding.Problem);
+    }
+
+    [Fact]
+    public void TypedPnnNegativeActconIsAnErrorOnlyForMatchedPhysicalSource()
+    {
+        var tx = TypedControl(1, FrameDirection.MasterToSlave, 46, 6);
+        var otherLinkNegative = TypedControl(2, FrameDirection.SlaveToMaster, 46, 7,
+            negative: true, source: "Link B");
+        var notOurReply = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(
+            new[] { tx, otherLinkNegative }, Array.Empty<FindingRow>(), Setup())
+            , x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
+        Assert.Equal(EvidenceSmartFindingSeverity.Warning, notOurReply.Severity);
+
+        var matchingNegative = TypedControl(3, FrameDirection.SlaveToMaster, 46, 7,
+            negative: true);
+        var actual = Assert.Single(EvidenceSmartFindingAnalyzer.Analyze(
+            new[] { tx, otherLinkNegative, matchingNegative }, Array.Empty<FindingRow>(), Setup())
+            , x => x.Code == "ARIEC-SMART-COMMAND-FEEDBACK");
+        Assert.Equal(EvidenceSmartFindingSeverity.Error, actual.Severity);
+        Assert.Contains("rejected or negatively confirmed", actual.Problem);
+    }
+
+    private static EvidenceRow TypedControl(long sequence, FrameDirection direction,
+        int? type, int? cot, bool negative = false, string source = "Link A",
+        string message = "Control observation")
+        => new(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = sequence,
+            TimestampUtc = new DateTime(2026, 10, 29, 10, 0, 0, DateTimeKind.Utc),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = direction,
+            PhysicalSource = source,
+            TypeId = type,
+            CommonAddressNumber = type.HasValue ? 1 : null,
+            InformationObjectAddress = type.HasValue ? 123 : null,
+            CauseOfTransmission = cot,
+            CauseDetails = cot.HasValue
+                ? new ARIEC60870.Master.Protocol.Iec10x.Iec10xCauseDetails(
+                    (byte)(cot.Value | (negative ? 0x40 : 0)), cot.Value, negative, false, 0)
+                : null,
+            Summary = message,
+            ProtocolMeaning = message,
+            RawHex = "68 00 00 68 16",
+            Category = "Passive Traffic"
+        });
+
     private static IReadOnlyList<KeyValuePair<string, string>> Setup()
         => new[]
         {

@@ -26,6 +26,8 @@ public sealed class Iec103MasterEvidenceEvent
     public string OperatorMessage { get; init; } = string.Empty;
     public string ProtocolMeaning { get; init; } = string.Empty;
     public string OperatorAction { get; init; } = string.Empty;
+    /// <summary>Source-qualified passive command interpretation; not physical execution proof.</summary>
+    public string ControlObservation { get; init; } = string.Empty;
     public string RawHex { get; init; } = string.Empty;
     /// <summary>Physical observation source, independent of user signal mapping.</summary>
     public string PhysicalSource { get; init; } = string.Empty;

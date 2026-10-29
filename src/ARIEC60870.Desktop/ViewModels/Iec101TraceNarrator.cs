@@ -97,6 +97,19 @@ public static class Iec101TraceNarrator
                 AppendAsdu(builder, asdu);
             else
                 builder.Append('\n').Append("ASDU: Not decoded; check COT, CA, IOA and link-width settings.");
+            if (!string.IsNullOrWhiteSpace(item.ControlObservation))
+                builder.Append('\n').Append("Control sequence: ").Append(item.ControlObservation);
+            if (asdu?.IsControlCommand == true)
+                title = asdu.IsNegativeConfirm
+                    ? "Control NEGATIVE reply (P/N=1)"
+                    : asdu.CauseOfTransmission switch
+                    {
+                        7 => "Control ACTCON reply",
+                        10 => "Control ACTTERM reply",
+                        9 => "Control DEACTCON reply",
+                        >= 44 and <= 47 => "Control protocol error reply",
+                        _ => "Control response"
+                    };
             return (prefix + title, builder.ToString());
         }
 
@@ -140,6 +153,13 @@ public static class Iec101TraceNarrator
             var builder = new StringBuilder(meaning);
             AppendAsdu(builder, extra);
             meaning = builder.ToString();
+        }
+        if (!string.IsNullOrWhiteSpace(item.ControlObservation))
+        {
+            label = item.AsduDetails?.IsControlCommand == true && link.Prm
+                ? "Control request · " + (item.CommandDetails?.Operation ?? "activation")
+                : label;
+            meaning += "\nControl sequence: " + item.ControlObservation;
         }
         return (prefix + label, meaning);
     }

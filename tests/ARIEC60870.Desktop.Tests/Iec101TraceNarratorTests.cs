@@ -186,6 +186,34 @@ public sealed class Iec101TraceNarratorTests
     }
 
     [Fact]
+    public void PassiveNegativeControlShowsCauseAndSourceInTraceWithoutReparsingHex()
+    {
+        var asduBytes = new byte[] { 46, 1, 0x47, 0, 1, 0, 123, 0, 0, 0x82 };
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(asduBytes);
+        var raw = MakeVariableFrame(0x08, 0x69, asduBytes);
+        var frame = new Ft12Parser(1).Decode(raw);
+        Assert.True(frame.IsChecksumValid);
+        var item = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            TimestampUtc = PcTime,
+            PhysicalSource = "Link A",
+            Frame = frame,
+            LinkAddress = 105,
+            AsduDetails = asdu,
+            CommandDetails = asdu.CommandDetails,
+            ControlObservation = "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7)"
+        };
+        var row = new EvidenceRow(item);
+        Assert.Contains("Control NEGATIVE reply", row.ProtocolTraceTitle);
+        Assert.Contains("Cause of transmission: 7", row.ProtocolTraceMeaning);
+        Assert.Contains("Control sequence: RTU NEGATIVE CONFIRMATION", row.ProtocolTraceMeaning);
+        Assert.Contains("Hex Frame:", row.ProtocolTraceRaw);
+        Assert.DoesNotContain("physical operation confirmed", row.ProtocolTraceMeaning);
+    }
+
+    [Fact]
     public void MalformedUserSampleMustNotBeFalselyMarkedValid()
     {
         var provided = Convert.FromHexString(
