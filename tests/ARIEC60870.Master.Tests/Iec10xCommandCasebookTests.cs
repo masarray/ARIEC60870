@@ -67,7 +67,7 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal(6, c.Stages.Count);
         Assert.Equal(0, b.ActiveCount);
         Assert.Contains("HEX:", c.ToEvidenceText());
-        Assert.Contains("original", c.ToEvidenceText(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Source: A", c.ToEvidenceText());
     }
 
     [Fact]
