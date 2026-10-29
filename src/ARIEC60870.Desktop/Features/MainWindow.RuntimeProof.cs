@@ -523,6 +523,14 @@ public partial class MainWindow
         var select = item.CommandDetails?.Select == true;
         _commandLedgerByKey.TryGetValue(key, out var prior);
         var selectConfirmed = !select && prior is { SelectPhase: true, ActConSeen: true };
+        if (prior is not null && !selectConfirmed && !prior.ActTermSeen && !prior.NegativeSeen)
+        {
+            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-OVERLAPPING-TX",
+                "New command overlaps an unresolved request on the same source/CA/IOA/Type",
+                $"Previous phase={prior.Stage}; new phase={(select ? "SELECT" : "EXECUTE")}; " +
+                $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
+                "Request/response pairing is ambiguous until the old exchange is resolved; inspect raw order and avoid claiming operation success.");
+        }
         var feedbackIoa = ResolveFeedbackIoaForCommand(item);
         var now = DateTime.UtcNow;
 
@@ -562,7 +570,9 @@ public partial class MainWindow
             return;
 
         // A device may echo S/E. A response for the other phase is ambiguous, not positive evidence.
-        if (phase == Iec10xCommandResponsePhase.ActivationConfirmed &&
+        if (phase is Iec10xCommandResponsePhase.ActivationConfirmed or
+            Iec10xCommandResponsePhase.ActivationTerminated or
+            Iec10xCommandResponsePhase.DeactivationConfirmed &&
             Iec10xCommandProofRules.HasEchoPhaseMismatch(ledger.SelectPhase, item))
         {
             AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-PHASE-MISMATCH",
@@ -570,6 +580,16 @@ public partial class MainWindow
                 $"Pending {(ledger.SelectPhase ? "SELECT" : "EXECUTE")}, response={item.CommandDetails?.Operation}; " +
                 $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
                 "Check command ordering, response echo, interlocks and concurrent master requests.");
+            return;
+        }
+
+        if (!Iec10xCommandProofRules.HasVerifiedApplicationSequence(ledger.ActConSeen, phase))
+        {
+            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-UNMATCHED-ACTTERM",
+                "RTU ACTTERM received without prior matching ACTCON",
+                $"{ledger.Summary}; source={item.PhysicalSource}; CA={item.CommonAddressNumber}; " +
+                $"IOA={item.InformationObjectAddress}; ACTCON={ledger.ActConSeen}.",
+                "Inspect missing/out-of-order command confirmations and the original COT bytes; do not report command completion.");
             return;
         }
 
