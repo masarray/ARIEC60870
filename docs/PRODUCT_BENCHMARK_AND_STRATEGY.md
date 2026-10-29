@@ -1,3 +1,5 @@
+> **Historical early product strategy:** this file predates the merged IEC-101/104 and passive/dual-link work. For current cross-thread requirements use [Interoperability PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md) and [research](IEC10X_NUC_RESEARCH_20261029.md). Do not apply old IEC-103-only exclusions to current master.
+
 # Product Benchmark and Strategy
 
 ## Purpose
