@@ -656,7 +656,7 @@
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                                              RowHeight="Auto" MinRowHeight="32" FontSize="12.9"
+                                              MinRowHeight="32" FontSize="12.9"
                                               HeadersVisibility="Column" ColumnHeaderHeight="34"
                                               RowBackground="#FFFFFF" AlternatingRowBackground="#F3F7FC" AlternationCount="2"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
@@ -685,6 +685,7 @@
                                     </DataGrid>
                                     <StackPanel Visibility="Collapsed">
                                         <TextBlock x:Name="ActiveProtocolMapText"/>
+                                        <TextBlock x:Name="RawFrameGroupingHintText"/>
                                         <CheckBox x:Name="PinProtocolMapCheckBox"/>
                                     </StackPanel>
                                 </Grid>
