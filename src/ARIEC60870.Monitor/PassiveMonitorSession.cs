@@ -170,8 +170,14 @@ public sealed class PassiveMonitorSession
             Volatile.Write(ref _captureStatus, _options.RecordFullSession ? "Recording" : "Monitoring");
 
             writerTask = Task.Run(() => WriteLoopAsync(root, channel, stop));
+            // SerialPort.Read is blocking and can hold a worker for its full timeout.
+            // Use one dedicated reader per RX port, not a scarce ThreadPool worker.
+            // Continuations may still flow through the asynchronous bounded writer.
             var reads = Enumerable.Range(0, _streamCount)
-                .Select(i => Task.Run(() => ReadLoopAsync((byte)i, channel.Writer, stop)))
+                .Select(i => Task.Factory.StartNew(
+                    () => ReadLoopAsync((byte)i, channel.Writer, stop),
+                    CancellationToken.None, TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default).Unwrap())
                 .ToArray();
             await Task.WhenAll(reads).ConfigureAwait(false);
         }
