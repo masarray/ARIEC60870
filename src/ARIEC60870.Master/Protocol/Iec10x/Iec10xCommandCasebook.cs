@@ -255,7 +255,7 @@ public sealed class Iec10xCommandCasebook
     private bool ObserveDigitalFeedback(Iec103MasterEvidenceEvent item)
     {
         if (item.TypeId is not (1 or 3 or 30 or 31) ||
-            item.AsduDetails is not { Issues.Count: 0 } asdu || asdu.CauseDetails?.Test == true ||
+            item.AsduDetails is not { Issues: { Count: 0 } } asdu || asdu.CauseDetails?.Test == true ||
             item.Frame?.IsChecksumValid == false || item.CauseDetails?.Test == true)
             return false;
 
