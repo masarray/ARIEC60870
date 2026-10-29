@@ -80,6 +80,7 @@ public static class Iec10xCommandProofRules
                feedback.InformationObjectAddress == feedbackIoa &&
                feedback.QualityDetails is { Invalid: false } quality &&
                quality.Blocked != true && quality.Substituted != true && quality.NotTopical != true &&
+               quality.Overflow != true && quality.Carry != true && quality.Adjusted != true &&
                string.Equals(NormalizeSource(feedback.PhysicalSource), NormalizeSource(physicalSource),
                    StringComparison.Ordinal);
     }
