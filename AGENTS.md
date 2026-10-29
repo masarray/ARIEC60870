@@ -47,6 +47,7 @@ ARIEC60870 is **not**:
    - No copied code from external protocol stacks, packet dissectors, vendor SDKs, or commercial protocol stacks.
    - Public docs and standards can guide behavior, but code must be independently written.
    - Do not paste vendor manual tables into the repo unless the user explicitly confirms legal permission.
+   - Public source, docs, templates, issues and PR descriptions must use vendor-neutral engineering language; do not identify commercial comparison products by name. Keep competitive benchmarking private and use independently authored, IEC-standard acceptance criteria.
 
 8. **Apache-2.0 repository hygiene**
    - Keep source code, docs, landing page, sanitized samples, workflows, and legal files.
