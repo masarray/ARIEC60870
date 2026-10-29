@@ -65,14 +65,14 @@ public static class SelectedFrameShareFormatter
             sb.AppendLine("Decoded Trace:");
             sb.AppendLine("~~~text");
             sb.AppendLine(Plain(row.ProtocolTraceTitle));
-            sb.AppendLine(Plain(row.ProtocolTraceMeaning));
+            sb.AppendLine(TraceText(row.ProtocolTraceMeaning));
             sb.AppendLine("~~~");
             sb.AppendLine();
             sb.AppendLine("Original raw HEX:");
             sb.AppendLine("~~~text");
             var bytes = row.Source.Frame?.RawBytes;
             sb.AppendLine(bytes is { Count: > 0 }
-                ? Convert.ToHexString(bytes.ToArray(), 0, bytes.Count)
+                ? string.Join(" ", bytes.Select(value => value.ToString("X2", CultureInfo.InvariantCulture)))
                 : Plain(row.RawHex));
             sb.AppendLine("~~~");
             sb.AppendLine();
@@ -82,6 +82,11 @@ public static class SelectedFrameShareFormatter
 
     private static void Field(StringBuilder sb, string name, string? value)
         => sb.Append("- ").Append(name).Append(": ").AppendLine(Plain(value));
+
+    private static string TraceText(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" :
+            value.Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace("~~~", "~ ~ ~", StringComparison.Ordinal).Trim();
 
     private static string Plain(string? value)
         => string.IsNullOrWhiteSpace(value) ? "-" :
