@@ -53,8 +53,13 @@ public partial class MainWindow
                 return;
             }
 
-            var rows = ReadCaptureRows(dialog.FileName);
-            if (rows.Count == 0)
+            // No UI mutation until the entire source has passed bounded streaming
+            // validation, including the manifest SHA-256 when present.
+            OpenCaptureButton.IsEnabled = false;
+            UpdateStableHeader("Opening capture", "Verifying raw evidence…");
+            var imported = await Task.Run(() => CaptureArchiveReader.Read(dialog.FileName));
+            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
+            if (rows.Length == 0)
             {
                 ModernMessageBox.Show(this,
                     "The capture file does not contain frame rows.",
@@ -77,15 +82,23 @@ public partial class MainWindow
             EvidenceRows.ReplaceRange(rows);
             MainTabControl.SelectedIndex = 1;
             UpdateSegmentedNav(false);
-            UpdateStableHeader("Offline Capture Review", $"{rows.Count} unified evidence rows loaded from {Path.GetFileName(dialog.FileName)}.");
+            UpdateStableHeader("Offline Capture Review",
+                $"{rows.Length:N0}/{imported.TotalRows:N0} frames · {imported.TrustDescription}");
             AddUiDiagnostic(
                 "Info",
                 "Capture",
                 "ARIEC-CAPTURE-OPENED",
                 "ARIEC capture opened for offline review",
-                $"Loaded {rows.Count} unified evidence rows from {dialog.FileName}. Trace and Evidence Ledger are rebuilt from the same frames.jsonl truth.",
+                $"Stream-checked {imported.TotalRows:N0} raw JSONL rows; latest {rows.Length:N0} in Trace · " +
+                imported.TrustDescription + ". Original ZIP remains unchanged.",
                 "Use Trace or Evidence Ledger selection, frame interpreter, export data, or save another selected capture block.");
-            AppendSessionLog($"Offline capture opened: {rows.Count} rows <- {dialog.FileName}");
+            AppendSessionLog($"Offline capture: {rows.Length:N0}/{imported.TotalRows:N0} preview · " +
+                imported.TrustDescription + " · " + dialog.FileName);
+            if (!imported.IntegrityVerified)
+                AddUiDiagnostic("Warning", "Capture", "ARIEC-CAPTURE-LEGACY-NO-HASH",
+                    "Older capture has no verifiable frame hash",
+                    "The ZIP was safely parsed but its original bytes have no trusted integrity reference.",
+                    "Use as historical evidence only; do not claim that frame integrity has been proven.");
         }
         catch (Exception ex)
         {
@@ -103,56 +116,8 @@ public partial class MainWindow
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+        finally { OpenCaptureButton.IsEnabled = true; }
     }
-
-    private IReadOnlyList<EvidenceRow> ReadCaptureRows(string fileName)
-    {
-        using var archive = ZipFile.OpenRead(fileName);
-        var framesText = ReadZipTextEntry(archive, "frames.jsonl");
-        if (string.IsNullOrWhiteSpace(framesText))
-        {
-            throw new InvalidOperationException("Capture file does not contain frames.jsonl.");
-        }
-
-        // Authenticated logical source before rendering; a captured preview must never
-        // silently accept edited frames.jsonl while retaining the original manifest hash.
-        var manifestText = ReadZipTextEntry(archive, "manifest.json");
-        if (!string.IsNullOrWhiteSpace(manifestText))
-        {
-            var manifest = JsonSerializer.Deserialize<CaptureManifest>(manifestText);
-            if (!string.IsNullOrWhiteSpace(manifest?.FramesSha256) &&
-                !string.Equals(manifest.FramesSha256, ComputeSha256(framesText), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException("Capture integrity failure: frames.jsonl SHA-256 differs from the manifest.");
-            }
-        }
-
-        var rows = new List<EvidenceRow>();
-        foreach (var line in framesText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var snapshot = JsonSerializer.Deserialize<CaptureFrameSnapshot>(line);
-            if (snapshot is not null)
-            {
-                rows.Add(new EvidenceRow(snapshot));
-            }
-        }
-
-        return rows.OrderBy(row => row.Sequence).ToArray();
-    }
-
-    private static string ReadZipTextEntry(ZipArchive archive, string entryName)
-    {
-        var entry = archive.GetEntry(entryName);
-        if (entry is null)
-        {
-            return string.Empty;
-        }
-
-        using var stream = entry.Open();
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-        return reader.ReadToEnd();
-    }
-
 
     private void CopySelectedCaptureForAi_Click(object sender, RoutedEventArgs e)
     {

@@ -85,6 +85,7 @@ public partial class MainWindow
             PrepareLiveTraceForConnect();
             _passiveFrameSequence = 0;
             _passiveControlTimeline.Reset();
+            _passiveControlNotes.Clear();
             _passiveTransactionNotes.Clear();
             _passiveFindingLastShown.Clear();
             _passiveFindingWindowEndUtc = DateTime.MinValue;

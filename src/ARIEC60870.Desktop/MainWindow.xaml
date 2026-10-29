@@ -610,13 +610,14 @@
                                                 </Grid>
 
                                                 <TextBlock Grid.Row="1"
-                                                           Text="{Binding ProtocolTraceMeaning, Mode=OneWay}"
+                                                           Text="{Binding ProtocolTraceCompactMeaning, Mode=OneWay}"
                                                            FontFamily="{StaticResource AppFont}"
                                                            FontSize="12.2"
                                                            LineHeight="18"
                                                            Foreground="{StaticResource Ink800Brush}"
                                                            TextWrapping="Wrap"
-                                                           TextTrimming="None"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxHeight="36"
                                                            TextOptions.TextFormattingMode="Ideal"
                                                            TextOptions.TextRenderingMode="ClearType"
                                                            Margin="0,3,0,0" />
@@ -629,7 +630,8 @@
                                                            LineHeight="17"
                                                            Foreground="{StaticResource Ink700Brush}"
                                                            TextWrapping="Wrap"
-                                                           TextTrimming="None"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxHeight="34"
                                                            TextOptions.TextFormattingMode="Ideal"
                                                            TextOptions.TextRenderingMode="ClearType"
                                                            Margin="0,5,0,2" />

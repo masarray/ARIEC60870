@@ -42,6 +42,7 @@ public partial class MainWindow
     private PassiveIec101FailureTimeline? _passiveReplayTimeline;
     private PassiveIec101FailureTimeline[]? _passiveReplayTimelines;
     private readonly Dictionary<(byte Stream, long Offset), PassiveGiEvent> _passiveGiNotes = new();
+    private readonly Dictionary<(byte Stream, long Offset), PassiveControlEvidence> _passiveControlNotes = new();
     private readonly Dictionary<(byte Stream, long Offset), PassiveTransactionEvent> _passiveTransactionNotes = new();
     // GUI-only aggregation; all events remain durable in transactions.jsonl.
     private readonly Dictionary<(PassiveTransactionKind Kind, int? Address), DateTime> _passiveFindingLastShown = new();
@@ -438,6 +439,7 @@ public partial class MainWindow
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
         _passiveControlTimeline.Reset();
+        _passiveControlNotes.Clear();
         _passiveUndecodableShown = 0;
         _passiveReplayCorrelator = null;
         _passiveReplayGiTracker = null;
@@ -560,6 +562,24 @@ public partial class MainWindow
             giCount++;
         }
 
+        // The writer emits every command stage BEFORE the bounded frame preview.
+        // UI events remain bounded, but full recording keeps controls.jsonl.
+        var controlCount = 0;
+        while (controlCount < 240 && session.TryReadControl(out var controlNote))
+        {
+            if (_passiveControlNotes.Count >= 512)
+                _passiveControlNotes.Remove(_passiveControlNotes.Keys.First());
+            _passiveControlNotes[(controlNote.StreamId, controlNote.StreamOffset)] = controlNote;
+            if (controlNote.NeedsAttention)
+                AddRateLimitedDiagnostic("IEC101-PASSIVE-CONTROL-REJECTED", "Warning", "IEC-101",
+                    "RTU control response needs investigation",
+                    controlNote.Explanation +
+                    $" · RX{controlNote.StreamId}, offset {controlNote.StreamOffset}.",
+                    "Inspect matching Master request, Type, COT P/N, CA, IOA and S/E.",
+                    TimeSpan.FromSeconds(1));
+            controlCount++;
+        }
+
         // Frame reconstruction is independent of the raw sample view and its Freeze flag.
         // Every observed frame is projected onto the EXISTING Evidence/Trace/Values/Event pipeline.
         var framed = 0;
@@ -677,9 +697,15 @@ public partial class MainWindow
                         : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum or incomplete frame." }
         };
         var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
-        var controlAnalysis = _passiveControlTimeline.Observe(direction, decode,
-            seen.StreamId < 2 ? "Link A" : "Link B", seen.StreamOffset,
-            seen.ChecksumValid && !profileMismatch && !forbiddenSingleA2 && !isNoise);
+        // Live is writer-owned, so a skipped WPF preview cannot produce a
+        // fabricated match. Offline replay reconstructs the same typed stages.
+        _passiveControlNotes.Remove((seen.StreamId, seen.StreamOffset), out var upstream);
+        var controlAnalysis = _passiveMonitorSession is not null
+            ? upstream?.Explanation ?? string.Empty
+            : _passiveControlTimeline.Observe(direction, decode,
+                seen.StreamId < 2 ? "Link A" : "Link B", seen.StreamOffset,
+                seen.ChecksumValid && !profileMismatch && !forbiddenSingleA2 && !isNoise,
+                control.HasValue ? address : null);
         var prefix = (seen.StreamId < 2 ? "Link A · " : "Link B · ") +
             ((seen.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA");
         var function = seen.Format switch
@@ -749,8 +775,9 @@ public partial class MainWindow
             RelayTimestampInvalid = first?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true
         };
         OnEvidenceReceived(this, ev);
-        if (controlAnalysis.StartsWith("RTU NEGATIVE CONFIRMATION", StringComparison.Ordinal) ||
-            controlAnalysis.StartsWith("RTU APPLICATION ERROR", StringComparison.Ordinal))
+        if (_passiveMonitorSession is null &&
+            (controlAnalysis.StartsWith("RTU NEGATIVE CONFIRMATION", StringComparison.Ordinal) ||
+             controlAnalysis.StartsWith("RTU APPLICATION ERROR", StringComparison.Ordinal)))
             AddRateLimitedDiagnostic("IEC101-PASSIVE-CONTROL-REJECTED", "Warning", "IEC-101",
                 "RTU control response needs investigation",
                 controlAnalysis + $" · Link {(seen.StreamId < 2 ? "A" : "B")} RX{seen.StreamId} offset {seen.StreamOffset}.",

@@ -15,8 +15,8 @@ public sealed class Iec10xObservedControlTimeline
     private readonly Dictionary<ControlKey, Pending> _pending = new();
     private const int MaxPending = 128;
 
-    private readonly record struct ControlKey(string Source, int CommonAddress, int Ioa,
-        byte TypeId, int? Originator);
+    private readonly record struct ControlKey(string Source, int? LinkAddress, int CommonAddress,
+        int Ioa, byte TypeId, int? Originator);
 
     private sealed class Pending
     {
@@ -33,7 +33,7 @@ public sealed class Iec10xObservedControlTimeline
     /// <returns>A short, evidence-qualified explanation for the physical frame,
     /// or empty when this ASDU is unrelated to an IEC-10x control.</returns>
     public string Observe(FrameDirection direction, Iec10xAsduDecode? asdu,
-        string physicalSource, long? rawStreamOffset, bool trusted)
+        string physicalSource, long? rawStreamOffset, bool trusted, int? linkAddress = null)
     {
         if (asdu is null || !IsControl(asdu.TypeId)) return string.Empty;
 
@@ -53,7 +53,7 @@ public sealed class Iec10xObservedControlTimeline
 
         var source = string.IsNullOrWhiteSpace(physicalSource)
             ? "SINGLE" : physicalSource.Trim().ToUpperInvariant();
-        var key = new ControlKey(source, asdu.CommonAddress, obj.InformationObjectAddress,
+        var key = new ControlKey(source, linkAddress, asdu.CommonAddress, obj.InformationObjectAddress,
             asdu.TypeId, cot.OriginatorAddress);
         var location = $"Type={asdu.TypeId}, CA={key.CommonAddress}, IOA={key.Ioa}";
         var step = command.Select.Value ? "SELECT" : "EXECUTE";
