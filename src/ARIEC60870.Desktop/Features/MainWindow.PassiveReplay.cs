@@ -82,6 +82,16 @@ public partial class MainWindow
         try
         {
             ClearSessionView(clearLog: true);
+            // Raw passive journals carry their own saved decode widths. Never allow a
+            // previous active session or selected-frame ZIP profile to contaminate
+            // the identity of evidence imported through this separate path.
+            _evidenceProtocolMode = Iec60870ProtocolMode.Iec101.ToString();
+            _evidenceProfileId = string.Empty;
+            _evidenceProfileEdition = string.Empty;
+            _evidenceProfileFingerprint = string.Empty;
+            _evidenceProfileSource = isOverridden
+                ? "Passive raw journal · explicit read-only Setup decode override; no project profile declared"
+                : "Passive raw journal · original manifest decode widths; no project profile declared";
             PrepareLiveTraceForConnect();
             _passiveFrameSequence = 0;
             _passiveControlTimeline.Reset();

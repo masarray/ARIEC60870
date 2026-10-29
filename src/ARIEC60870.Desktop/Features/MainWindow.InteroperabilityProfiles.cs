@@ -116,8 +116,11 @@ public partial class MainWindow
             UpdateInteroperabilityProfilePreview();
             AppendSessionLog($"Project profile imported: {profile.Id}@{profile.Edition}; Setup widths unchanged.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException)
         {
+            AddUiDiagnostic("Warning", "Setup", "ARIEC-PROFILE-IMPORT-REJECTED",
+                "Invalid project interoperability profile", ex.Message,
+                "Check schema v1, project- Id, supported protocol, field widths and JSON file size.", ex);
             ModernMessageBox.Show(this, ex.Message, "Profile import rejected",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
@@ -141,8 +144,11 @@ public partial class MainWindow
             File.WriteAllText(dialog.FileName, profile.Export(), new UTF8Encoding(false));
             AppendSessionLog($"Profile exported: {profile.Id}@{profile.Edition}.");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
+            AddUiDiagnostic("Warning", "Setup", "ARIEC-PROFILE-EXPORT-REJECTED",
+                "Interoperability profile export rejected", ex.Message,
+                "Correct the profile and configuration before exporting.", ex);
             ModernMessageBox.Show(this, ex.Message, "Cannot export profile",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
