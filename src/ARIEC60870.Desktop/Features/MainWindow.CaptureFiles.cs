@@ -578,6 +578,12 @@ public partial class MainWindow
         public int? CaWidth { get; set; }
         public int? IoaWidth { get; set; }
         public string DecoderSchema { get; set; } = string.Empty;
+        public DateTime? CaptureArrivalUtc { get; set; }
+        public string PhysicalSource { get; set; } = string.Empty;
+        public int? PhysicalStreamId { get; set; }
+        public long? RawStreamOffset { get; set; }
+        public int? SelectedObjectIndex { get; set; }
+
         public string RawHex { get; set; } = string.Empty;
         public string ProtocolTraceTitle { get; set; } = string.Empty;
         public string ProtocolTraceMeaning { get; set; } = string.Empty;
@@ -619,6 +625,11 @@ public partial class MainWindow
                 CaWidth = GetCaptureCaWidth(row.Source),
                 IoaWidth = GetCaptureIoaWidth(row.Source),
                 DecoderSchema = row.Source.AsduDetails is null ? string.Empty : "IEC10X-OBJECT-V1",
+                CaptureArrivalUtc = row.Source.PollingReason == "offline-capture" ? null : row.Source.TimestampUtc,
+                PhysicalSource = row.Source.PhysicalSource,
+                PhysicalStreamId = row.Source.PhysicalStreamId,
+                RawStreamOffset = row.Source.RawStreamOffset,
+                SelectedObjectIndex = row.Source.InformationObjectDetails?.Index,
                 RawHex = row.RawHex,
                 ProtocolTraceTitle = row.ProtocolTraceTitle,
                 ProtocolTraceMeaning = row.ProtocolTraceMeaning,

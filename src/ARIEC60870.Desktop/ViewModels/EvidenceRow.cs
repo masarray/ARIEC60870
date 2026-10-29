@@ -245,11 +245,13 @@ public sealed partial class EvidenceRow
         }
 
         var asdu = decoded?.Asdu;
-        var first = asdu?.FirstObject;
+        var first = capture.SelectedObjectIndex.HasValue
+            ? asdu?.Objects.FirstOrDefault(o => o.Index == capture.SelectedObjectIndex.Value)
+            : asdu?.FirstObject;
         return new Iec103MasterEvidenceEvent
         {
             SequenceNumber = capture.Sequence,
-            TimestampUtc = DateTime.UtcNow, // Reload time only; PC capture time is the separate Time label.
+            TimestampUtc = capture.CaptureArrivalUtc ?? DateTime.UnixEpoch, // Historical V1: unknown UTC; never invent reload time.
             Category = string.IsNullOrWhiteSpace(capture.Category) ? "Capture" : capture.Category,
             DataClass = capture.DataClass,
             Summary = capture.ProtocolTraceTitle,
@@ -257,6 +259,10 @@ public sealed partial class EvidenceRow
             OperatorMessage = capture.ProtocolTraceMeaning,
             ProtocolMeaning = capture.Meaning,
             RawHex = capture.RawHex,
+            PollingReason = "offline-capture",
+            PhysicalSource = capture.PhysicalSource,
+            PhysicalStreamId = capture.PhysicalStreamId,
+            RawStreamOffset = capture.RawStreamOffset,
             ProtocolMode = mode,
             Direction = capture.Direction == "RX" ? FrameDirection.SlaveToMaster :
                 capture.Direction == "TX" ? FrameDirection.MasterToSlave : FrameDirection.Unknown,

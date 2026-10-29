@@ -16,6 +16,8 @@ public sealed class ArchivedEvidenceRowTests
         var row = new EvidenceRow(new CaptureFrameSnapshot
         {
             Sequence = 7, ProtocolMode = "101", Direction = "RX",
+            CaptureArrivalUtc = new DateTime(2026, 10, 29, 7, 0, 0, DateTimeKind.Utc),
+            PhysicalSource = "Link A", PhysicalStreamId = 1, RawStreamOffset = 149, SelectedObjectIndex = 1,
             RawHex = Convert.ToHexString(raw),
             DecoderSchema = "IEC10X-OBJECT-V1",
             LinkWidth = 1, CotWidth = 2, CaWidth = 2, IoaWidth = 3,
@@ -23,6 +25,9 @@ public sealed class ArchivedEvidenceRowTests
         });
 
         Assert.Equal("0x01", row.Vsq);
+        Assert.Equal("Link A", row.Source.PhysicalSource);
+        Assert.Equal(149, row.Source.RawStreamOffset);
+        Assert.Equal(2026, row.Source.TimestampUtc.Year);
         Assert.Equal("1", row.ObjectCount);
         Assert.Equal("3", row.CotCode);
         Assert.NotNull(row.Source.AsduDetails);
@@ -43,6 +48,7 @@ public sealed class ArchivedEvidenceRowTests
             CotCode = "-", ProtocolTraceTitle = "Legacy frame"
         });
         Assert.Null(row.Source.AsduDetails);
+        Assert.Equal(DateTime.UnixEpoch, row.Source.TimestampUtc);
         Assert.Equal("-", row.Vsq);
         Assert.Equal("-", row.ObjectCount);
         Assert.Equal("10 29 69 92 16", row.RawHex);
