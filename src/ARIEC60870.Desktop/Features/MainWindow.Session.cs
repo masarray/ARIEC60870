@@ -53,7 +53,7 @@ public partial class MainWindow
 
         if (ConnectToggleCaption is not null)
         {
-            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected() ? (isRunning ? "Stop RX" : "Record RX") : (isRunning ? "Disconnect" : "Connect");
+            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected() ? (isRunning ? "Stop Monitor" : "Start Monitor") : (isRunning ? "Disconnect" : "Connect");
         }
 
         if (ConnectIconOn is not null)
@@ -70,7 +70,7 @@ public partial class MainWindow
         StartButton.BorderBrush = Brushes.Transparent;
         StartButton.Foreground = (Brush)FindResource(isRunning ? "BadBrush" : "GoodBrush");
         StartButton.ToolTip = IsIec101PassiveMonitorSelected()
-            ? (isRunning ? "Stop receive-only capture and finalize archive" : "Start IEC-101 passive two-COM receive-only recording")
+            ? (isRunning ? "Stop receive-only monitoring (finalize optional full journal)" : "Start IEC-101 receive-only monitoring; recording is OFF unless enabled in Setup")
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
     }
 
@@ -82,7 +82,7 @@ public partial class MainWindow
         }
         if (IsIec101PassiveMonitorSelected())
         {
-            await RunPassiveRecordingAsync();
+            await RunPassiveMonitorAsync();
             return;
         }
 
@@ -227,7 +227,7 @@ public partial class MainWindow
     {
         if (_passiveMonitorSession is not null)
         {
-            StopPassiveRecording();
+            StopPassiveMonitor();
             return;
         }
         if (_sessionCancellation is null)
@@ -674,7 +674,7 @@ public partial class MainWindow
         };
         ProtocolSetupDescriptionText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen and record both directions.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen to both IEC-101 directions. Full recording is optional; select Trace frames to save/share.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Use this workspace when the RTU/outstation exposes two IEC-101 serial paths with active/standby master ownership, failover evidence, and post-switch GI validation.",
             Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
             Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
@@ -733,7 +733,7 @@ public partial class MainWindow
         ProtocolSetupDescriptionCard.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSerialHandshakePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        SetupConnectButton.Content = isPassive101 ? "Record RX" : "Connect";
+        SetupConnectButton.Content = isPassive101 ? "Start Monitor" : "Connect";
         ApplyCommandDockLayout();
         UpdateConnectToggleVisual(_sessionCancellation is not null);
         DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
@@ -756,14 +756,14 @@ public partial class MainWindow
         ClearButton.Visibility = Visibility.Visible;
         SignalListButton.Visibility = Visibility.Visible;
         OpenCaptureButton.ToolTip = isPassive101
-            ? "Open saved .ariec frame capture for offline review. Original passive raw journals are in Capture → Open Folder."
+            ? "Open a selected-frame .ariec file for offline review, or a full raw journal manifest.json."
             : "Open .ariec capture for offline review";
         SaveCaptureRailButton.ToolTip = isPassive101
-            ? "Save selected decoded Trace rows as .ariec. Full two-COM raw recording is saved automatically in Capture."
+            ? "Save selected decoded Trace rows as .ariec. Live-only monitoring does not record automatically; full journaling is optional in Setup."
             : "Save selected Trace rows as .ariec capture";
-        SaveCaptureRailCaption.Text = isPassive101 ? "Save View" : "Save Cap";
+        SaveCaptureRailCaption.Text = isPassive101 ? "Save Frames" : "Save Cap";
         ClearButton.ToolTip = isPassive101
-            ? "Clear visible decoded rows only; never deletes the passive raw capture journal"
+            ? "Clear visible decoded rows only; does not save or delete any optional raw journal"
             : "Clear visible session rows";
         HeaderIndicatorChip.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
 
