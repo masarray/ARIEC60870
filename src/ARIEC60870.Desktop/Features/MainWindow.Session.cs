@@ -360,6 +360,8 @@ public partial class MainWindow
         // Generic and optional historical convention do NOT force the COT/CA/IOA
         // field widths; the actual engineering selection is recorded explicitly.
         var isHistorical = InteroperabilityConventionComboBox?.SelectedIndex == 1;
+        if (isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec103)
+            throw new InvalidOperationException("Historical NUC reference in this build is defined for IEC-101/104 only. Select Generic IEC for IEC-103.");
         var profile = (isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec101
                 ? Iec10xInteroperabilityProfile.HistoricalNuc101()
                 : isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec104
