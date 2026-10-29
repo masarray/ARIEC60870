@@ -117,6 +117,12 @@ public partial class MainWindow
         SelectComboContent(PassiveLinkModeCombo, "Balanced");
         PassiveCaptureFolderBox.Text = Path.GetTempPath();
         var profile = BuildPassiveCaptureOptions();
+        if (profile.RecordFullSession)
+            throw new InvalidOperationException("Passive Start Monitor must be live-only by default.");
+        PassiveFullRecordingCheckBox.IsChecked = true;
+        if (!BuildPassiveCaptureOptions().RecordFullSession)
+            throw new InvalidOperationException("Explicit full raw session recording option did not reach engine.");
+        PassiveFullRecordingCheckBox.IsChecked = false;
         if (profile.ScadaTx.PortName != "COM201" || profile.RtuTx.PortName != "COM202" ||
             profile.ScadaTx.StopBits != StopBits.Two || profile.RtuTx.StopBits != StopBits.Two ||
             profile.ScadaTx.Parity != Parity.Even || profile.FrameGapMilliseconds != 1500 ||
