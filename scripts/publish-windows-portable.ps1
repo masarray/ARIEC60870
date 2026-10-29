@@ -60,6 +60,7 @@ try {
 
     New-Item -ItemType Directory -Force -Path $StagingRoot, $PublishOut | Out-Null
 
+    & (Join-Path $PSScriptRoot "prepare-inter-font.ps1")
     dotnet restore ARIEC60870.sln
     dotnet build ARIEC60870.sln --configuration $Configuration --no-restore -p:Version=$Version -p:TreatWarningsAsErrors=true
 
