@@ -23,7 +23,12 @@ public static class CaptureArchiveReader
     private const long MaxFrameCount = 4_000_000;
 
     public sealed record Result(IReadOnlyList<CaptureFrameSnapshot> Rows,
-        long TotalRows, bool IntegrityVerified, string TrustDescription);
+        long TotalRows, bool IntegrityVerified, string TrustDescription)
+    {
+        public string CapturedProfileId { get; init; } = string.Empty;
+        public string CapturedProfileEdition { get; init; } = string.Empty;
+        public string CapturedProfileFingerprint { get; init; } = string.Empty;
+    }
 
     public static Result Read(string fileName, int previewLimit = DefaultPreviewLimit,
         CancellationToken cancellationToken = default)
@@ -39,6 +44,9 @@ public static class CaptureArchiveReader
         var manifest = UniqueEntry(archive, "manifest.json");
         string? requiredHash = null;
         int? manifestCount = null;
+        string capturedProfileId = string.Empty;
+        string capturedProfileEdition = string.Empty;
+        string capturedProfileFingerprint = string.Empty;
         if (manifest is not null)
         {
             ValidateSize(manifest, MaxManifestBytes);
@@ -59,6 +67,9 @@ public static class CaptureArchiveReader
             var root = json.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 throw new InvalidDataException("Invalid capture manifest.");
+            capturedProfileId = ReadProfileDeclaration(root, "InteroperabilityProfileId");
+            capturedProfileEdition = ReadProfileDeclaration(root, "InteroperabilityProfileEdition");
+            capturedProfileFingerprint = ReadProfileDeclaration(root, "InteroperabilityProfileFingerprint");
             if (root.TryGetProperty("FramesSha256", out var hashElement))
                 requiredHash = hashElement.GetString();
             if (root.TryGetProperty("RowCount", out var countElement)
@@ -116,7 +127,12 @@ public static class CaptureArchiveReader
             throw new InvalidDataException("Capture row count does not match the signed manifest metadata.");
         return new Result(retained.OrderBy(x => x.Sequence).ToArray(), rowsSeen,
             !string.IsNullOrWhiteSpace(requiredHash),
-            string.IsNullOrWhiteSpace(requiredHash) ? "LEGACY · hash not available" : "SHA-256 VERIFIED");
+            string.IsNullOrWhiteSpace(requiredHash) ? "LEGACY · hash not available" : "SHA-256 VERIFIED")
+        {
+            CapturedProfileId = capturedProfileId,
+            CapturedProfileEdition = capturedProfileEdition,
+            CapturedProfileFingerprint = capturedProfileFingerprint
+        };
 
         void AcceptLine(ReadOnlySpan<byte> raw)
         {
@@ -142,6 +158,18 @@ public static class CaptureArchiveReader
             if (retained.Count == previewLimit) retained.Dequeue();
             retained.Enqueue(snapshot);
         }
+    }
+
+    private static string ReadProfileDeclaration(JsonElement root, string key)
+    {
+        if (!root.TryGetProperty(key, out var element) || element.ValueKind == JsonValueKind.Null)
+            return string.Empty;
+        if (element.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException("Invalid capture profile declaration: " + key);
+        var value = element.GetString() ?? string.Empty;
+        if (value.Length > 1024 || value.Any(char.IsControl))
+            throw new InvalidDataException("Unsafe capture profile declaration: " + key);
+        return value;
     }
 
     private static ZipArchiveEntry? UniqueEntry(ZipArchive zip, string name)

@@ -111,6 +111,23 @@ public sealed class Iec10xInteroperabilityProfileTests
     }
 
     [Fact]
+    public void ProjectImportDiffAndActiveGateAreSeparate()
+    {
+        var generic = Iec10xInteroperabilityProfile.Generic(Iec60870ProtocolMode.Iec101);
+        var project = generic with { Id = "project-bay-a", Edition = "revision-2",
+            Convention = "Project A", LinkWidth = 2, CotWidth = 1 };
+        var imported = Iec10xInteroperabilityProfile.ImportProject(project.Export());
+        Assert.Equal(project, imported);
+        Assert.Contains("Link width: 1 → 2", imported.DifferencesFrom(generic));
+        Assert.Contains("COT width: 2 → 1", imported.DifferencesFrom(generic));
+        Assert.Equal(1, generic.LinkWidth);
+        Assert.Throws<InvalidOperationException>(() => imported.ValidateActive(Session(Iec60870ProtocolMode.Iec101)));
+        Assert.Throws<InvalidDataException>(() => Iec10xInteroperabilityProfile.ImportProject(generic.Export()));
+        Assert.Throws<InvalidDataException>(() => Iec10xInteroperabilityProfile.ImportProject(
+            Iec10xInteroperabilityProfile.HistoricalNuc101().Export()));
+    }
+
+    [Fact]
     public void ReportSnapshotRetainsAuditableEdition()
     {
         var p = Iec10xInteroperabilityProfile.HistoricalNuc101();

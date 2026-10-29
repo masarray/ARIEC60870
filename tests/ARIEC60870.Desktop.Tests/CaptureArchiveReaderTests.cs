@@ -37,6 +37,32 @@ public sealed class CaptureArchiveReaderTests
     }
 
     [Fact]
+    public void ProfileProvenanceSurvivesVerifiedCaptureReopen()
+    {
+        var frames = JsonSerializer.Serialize(new CaptureFrameSnapshot { Sequence = 1, RawHex = "E5" }) + "\n";
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".ariec");
+        try
+        {
+            using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+            {
+                Add(archive, "frames.jsonl", frames);
+                Add(archive, "manifest.json", JsonSerializer.Serialize(new
+                {
+                    FramesSha256 = Sha(frames), RowCount = 1,
+                    InteroperabilityProfileId = "project-bay-a",
+                    InteroperabilityProfileEdition = "revision-2",
+                    InteroperabilityProfileFingerprint = "project-bay-a@revision-2"
+                }));
+            }
+            var read = CaptureArchiveReader.Read(path);
+            Assert.True(read.IntegrityVerified);
+            Assert.Equal("project-bay-a", read.CapturedProfileId);
+            Assert.Equal("revision-2", read.CapturedProfileEdition);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void ChangedArchiveBytesCannotBeRenderedAsVerifiedRows()
     {
         var frames = JsonSerializer.Serialize(new CaptureFrameSnapshot

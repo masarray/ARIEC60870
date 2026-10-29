@@ -80,6 +80,36 @@ public sealed record Iec10xInteroperabilityProfile
 
     public string Export() => JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
 
+    /// <summary>Custom profiles must have explicit project ownership; never impersonate a convention.</summary>
+    public static Iec10xInteroperabilityProfile ImportProject(string json)
+    {
+        var profile = Import(json);
+        if (!profile.Id.StartsWith("project-", StringComparison.Ordinal) ||
+            profile.IsHistoricalNationalConvention)
+            throw new InvalidDataException("Project profile Id must begin 'project-' without a historical convention claim.");
+        return profile;
+    }
+
+    /// <summary>Pure before/after preview: never changes active settings or raw interpretation.</summary>
+    public IReadOnlyList<string> DifferencesFrom(Iec10xInteroperabilityProfile current)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        var changes = new List<string>();
+        void Compare<T>(string field, T before, T after) where T : notnull
+        {
+            if (!EqualityComparer<T>.Default.Equals(before, after))
+                changes.Add($"{field}: {before} → {after}");
+        }
+        Compare("Protocol", current.Protocol, Protocol);
+        Compare("Link width", current.LinkWidth, LinkWidth);
+        Compare("COT width", current.CotWidth, CotWidth);
+        Compare("CA width", current.CaWidth, CaWidth);
+        Compare("IOA width", current.IoaWidth, IoaWidth);
+        Compare("Link mode", current.LinkMode, LinkMode);
+        Compare("GI policy", current.GiAfterSwitch, GiAfterSwitch);
+        return changes;
+    }
+
     public void ValidateDefinition()
     {
         if (SchemaVersion != CurrentSchemaVersion)

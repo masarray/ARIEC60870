@@ -70,6 +70,11 @@ public partial class MainWindow
             }
 
             ClearSessionView(clearLog: false);
+            _evidenceProfileId = imported.CapturedProfileId;
+            _evidenceProfileEdition = imported.CapturedProfileEdition;
+            _evidenceProfileFingerprint = imported.CapturedProfileFingerprint;
+            _evidenceProfileSource = string.IsNullOrWhiteSpace(imported.CapturedProfileId)
+                ? "Not recorded in source capture" : "Reopened capture: original declaration";
             _protocolTraceStore.Clear();
             _evidenceSummaryStore.Clear();
             foreach (var row in rows)
@@ -100,6 +105,12 @@ public partial class MainWindow
                 "Use Trace or Evidence Ledger selection, frame interpreter, export data, or save another selected capture block.");
             AppendSessionLog($"Offline capture: {rows.Length:N0}/{imported.TotalRows:N0} preview · " +
                 imported.TrustDescription + " · " + dialog.FileName);
+            if (!string.IsNullOrWhiteSpace(imported.CapturedProfileId))
+                AddUiDiagnostic("Info", "Capture", "ARIEC-CAPTURE-PROFILE-DECLARED",
+                    "Original profile declaration retained",
+                    $"{imported.CapturedProfileId}@{imported.CapturedProfileEdition} · {imported.CapturedProfileFingerprint}. " +
+                    "Capture metadata is declared, not digitally signed; current Setup is unchanged.",
+                    "Review original capture widths before interpreting historic bytes.");
             if (!imported.IntegrityVerified)
                 AddUiDiagnostic("Warning", "Capture", "ARIEC-CAPTURE-LEGACY-NO-HASH",
                     "Older capture has no verifiable frame hash",
@@ -335,6 +346,10 @@ public partial class MainWindow
             CreatedUtc = createdUtc,
             Application = "ARIEC60870 Evidence Analyzer",
             ProtocolMode = GetSelectedProtocolMode().ToString(),
+            InteroperabilityProfileId = _evidenceProfileId,
+            InteroperabilityProfileEdition = _evidenceProfileEdition,
+            InteroperabilityProfileFingerprint = _evidenceProfileFingerprint,
+            InteroperabilityProfileSource = _evidenceProfileSource,
             TraceVerbosityMode = GetTraceVerbosityMode().ToString(),
             RowCount = rows.Count,
             FirstSequence = first.Sequence,
@@ -445,6 +460,9 @@ public partial class MainWindow
         builder.AppendLine($"- Source workspace: `{manifest.SourceWorkspace}`");
         builder.AppendLine($"- Created UTC: `{manifest.CreatedUtc:O}`");
         builder.AppendLine($"- Protocol mode: `{manifest.ProtocolMode}`");
+        builder.AppendLine($"- Declared profile: `{manifest.InteroperabilityProfileId}@{manifest.InteroperabilityProfileEdition}`");
+        builder.AppendLine($"- Profile fingerprint: `{manifest.InteroperabilityProfileFingerprint}`");
+        builder.AppendLine($"- Profile source: `{manifest.InteroperabilityProfileSource}` (declaration, not digital signature)");
         builder.AppendLine($"- Trace mode: `{manifest.TraceVerbosityMode}`");
         builder.AppendLine($"- Rows: `{manifest.RowCount}`");
         builder.AppendLine($"- Sequence range: `{manifest.FirstSequence}` → `{manifest.LastSequence}`");
@@ -511,6 +529,10 @@ public partial class MainWindow
         public DateTime CreatedUtc { get; set; }
         public string Application { get; set; } = string.Empty;
         public string ProtocolMode { get; set; } = string.Empty;
+        public string InteroperabilityProfileId { get; set; } = string.Empty;
+        public string InteroperabilityProfileEdition { get; set; } = string.Empty;
+        public string InteroperabilityProfileFingerprint { get; set; } = string.Empty;
+        public string InteroperabilityProfileSource { get; set; } = "Not recorded";
         public string TraceVerbosityMode { get; set; } = string.Empty;
         public int RowCount { get; set; }
         public long FirstSequence { get; set; }
