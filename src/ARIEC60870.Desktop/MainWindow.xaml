@@ -339,6 +339,8 @@
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click"
+                                                ToolTip="Source-qualified Master command, RTU confirmation and process feedback casebook" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavDiagnosticsButton" Content="System Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
@@ -1416,6 +1418,63 @@
                                     <TextBlock x:Name="PassiveStatusMessageText" Text="Configure receive-only ports, then select Start Monitor." FontSize="10.5" Foreground="{StaticResource Ink600Brush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
                                 </StackPanel>
                             </Border>
+                        </Grid>
+                    </TabItem>
+
+                    <TabItem Header="Control Cases">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="2*"/>
+                                <RowDefinition Height="9"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="18,0,0,0">
+                                    <Button Content="Copy Case for Analysis" Style="{StaticResource SecondaryButton}"
+                                            Click="ControlCaseCopy_Click" Margin="0,0,8,0"
+                                            ToolTip="Copy exact observed stages, original raw HEX and source references to clipboard; no upload."/>
+                                    <Button Content="Open Source Frame" Style="{StaticResource SecondaryButton}"
+                                            Click="ControlCaseJump_Click"
+                                            ToolTip="Open the selected command stage in Trace, if retained in the bounded preview."/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Control cases" FontSize="15.4" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                                    <TextBlock Text="Observed Master → RTU stages · negative confirmations · target feedback · incomplete evidence"
+                                               Style="{StaticResource SubtleText}" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <DataGrid x:Name="ControlCasesGrid" Grid.Row="2" ItemsSource="{Binding ControlCaseRows}"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                      FontSize="12.5" RowHeight="34" SelectionChanged="ControlCases_SelectionChanged"
+                                      EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Case" Binding="{Binding CaseId}" Width="62"/>
+                                    <DataGridTextColumn Header="Host time" Binding="{Binding FirstTime}" Width="114"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="184"/>
+                                    <DataGridTextColumn Header="Physical source" Binding="{Binding Source}" Width="115"/>
+                                    <DataGridTextColumn Header="CA / IOA / TI" Binding="{Binding Address}" Width="195"/>
+                                    <DataGridTextColumn Header="Requested target" Binding="{Binding Target}" Width="165"/>
+                                    <DataGridTextColumn Header="Evidence-based meaning" Binding="{Binding Interpretation}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <DataGrid x:Name="ControlCaseStagesGrid" Grid.Row="4" ItemsSource="{Binding ControlCaseStages}"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" FontSize="12.5"
+                                      EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Host UTC" Binding="{Binding HostUtc, StringFormat={}{0:HH:mm:ss.fff}}" Width="123"/>
+                                    <DataGridTextColumn Header="TX / RX" Binding="{Binding Direction}" Width="66"/>
+                                    <DataGridTextColumn Header="Stage" Binding="{Binding Phase}" Width="210"/>
+                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="60"/>
+                                    <DataGridTextColumn Header="Frame #" Binding="{Binding Sequence}" Width="82"/>
+                                    <DataGridTextColumn Header="Original reference" Binding="{Binding EvidenceReference}" Width="210"/>
+                                    <DataGridTextColumn Header="Interpretation" Binding="{Binding Explanation}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock x:Name="ControlCaseDetailsBox" Grid.Row="5" Text="Select a command case." TextWrapping="Wrap"
+                                       Foreground="{StaticResource Ink600Brush}" FontSize="12.3" Margin="4,9,4,2"/>
                         </Grid>
                     </TabItem>
 
