@@ -14,16 +14,16 @@ public partial class MainWindow
 
     private void RefreshControlCasesIfVisible(bool force = false)
     {
-        if (MainTabControl?.SelectedIndex != 11 || (!_commandCasesDirty && !force)) return;
+        if (MainTabControl?.SelectedIndex != 11 || ControlCasesGrid is null || (!_commandCasesDirty && !force)) return;
 
-        var id = (ControlCasesGrid?.SelectedItem as Iec10xCommandCasebook.CommandCase)?.CaseId;
+        var id = (ControlCasesGrid.SelectedItem as Iec10xCommandCasebook.CommandCase)?.CaseId;
         ControlCaseRows.ReplaceRange(_commandCasebook.Snapshot().Reverse().ToArray());
         _commandCasesDirty = false;
 
         // Preserve the operator's selection while the bounded case index updates.
         var match = id.HasValue ? ControlCaseRows.FirstOrDefault(c => c.CaseId == id.Value) : null;
         if (match is not null) ControlCasesGrid.SelectedItem = match;
-        else if (ControlCasesGrid?.SelectedItem is null && ControlCaseRows.Count > 0)
+        else if (ControlCasesGrid.SelectedItem is null && ControlCaseRows.Count > 0)
             ControlCasesGrid.SelectedItem = ControlCaseRows[0];
     }
 
