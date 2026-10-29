@@ -341,13 +341,13 @@ public partial class MainWindow
         WriteZipTextEntry(archive, "report.md", reportMarkdown);
         WriteZipTextEntry(archive, "analysis.md", analysisMarkdown);
         WriteZipTextEntry(archive, "README.md",
-            "# ARIEC60870 selected frame evidence\\n\\n" +
-            "Open this .ariec file with ARIEC60870 > Open Capture.\\n" +
-            "For AI or human review, read analysis.md first; report.md is the compact summary.\\n" +
-            "frames.jsonl holds each selected row including original raw bytes and decoder profile;\\n" +
-            "manifest.json records its SHA-256 integrity value.\\n" +
-            "The selection is NOT a complete continuous serial recording.\\n" +
-            "Do not infer missing frames, frame timing precision, or physical command results.\\n");
+            "# ARIEC60870 selected frame evidence\n\n" +
+            "Open this .ariec file with ARIEC60870 > Open Capture.\n" +
+            "For AI or human review, read analysis.md first; report.md is the compact summary.\n" +
+            "frames.jsonl holds each selected row including original raw bytes and decoder profile;\n" +
+            "manifest.json records its SHA-256 integrity value.\n" +
+            "The selection is NOT a complete continuous serial recording.\n" +
+            "Do not infer missing frames, frame timing precision, or physical command results.\n");
         WriteZipTextEntry(archive, "hash.txt", $"frames.jsonl sha256 {framesSha256}{Environment.NewLine}");
     }
 
