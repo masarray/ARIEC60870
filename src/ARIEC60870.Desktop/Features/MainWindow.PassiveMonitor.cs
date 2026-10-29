@@ -33,6 +33,8 @@ public partial class MainWindow
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
     private bool _closingAfterPassiveStop;
     private Iec10xAsduDecoder? _passiveAsduDecoder;
+    // Typed, bounded operator interpretation. Never drives TX or the raw journal.
+    private readonly Iec10xObservedControlTimeline _passiveControlTimeline = new();
     private long _passiveFrameSequence;
     private long _passiveUndecodableShown;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
@@ -409,6 +411,7 @@ public partial class MainWindow
         PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
+        _passiveControlTimeline.Reset();
         _passiveUndecodableShown = 0;
         _passiveReplayCorrelator = null;
         _passiveReplayGiTracker = null;
@@ -648,6 +651,9 @@ public partial class MainWindow
                         : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum or incomplete frame." }
         };
         var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
+        var controlAnalysis = _passiveControlTimeline.Observe(direction, decode,
+            seen.StreamId < 2 ? "Link A" : "Link B", seen.StreamOffset,
+            seen.ChecksumValid && !profileMismatch && !forbiddenSingleA2 && !isNoise);
         var prefix = (seen.StreamId < 2 ? "Link A · " : "Link B · ") +
             ((seen.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA");
         var function = seen.Format switch
@@ -679,6 +685,7 @@ public partial class MainWindow
                      (decode?.Issues.Count > 0 ? " · " + string.Join("; ", decode.Issues) : ""),
             OperatorMessage = meaning, ProtocolMeaning = meaning,
             OperatorAction = "Observed only; no commands transmitted",
+            ControlObservation = controlAnalysis,
             RawHex = rawHexOnce,
             PhysicalSource = seen.StreamId < 2 ? "Link A" : "Link B",
             PhysicalStreamId = seen.StreamId,
@@ -716,6 +723,13 @@ public partial class MainWindow
             RelayTimestampInvalid = first?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true
         };
         OnEvidenceReceived(this, ev);
+        if (controlAnalysis.StartsWith("RTU NEGATIVE CONFIRMATION", StringComparison.Ordinal) ||
+            controlAnalysis.StartsWith("RTU APPLICATION ERROR", StringComparison.Ordinal))
+            AddRateLimitedDiagnostic("IEC101-PASSIVE-CONTROL-REJECTED", "Warning", "IEC-101",
+                "RTU control response needs investigation",
+                controlAnalysis + $" · Link {(seen.StreamId < 2 ? "A" : "B")} RX{seen.StreamId} offset {seen.StreamOffset}.",
+                "Select this RTU frame in Trace, inspect the preceding Master command and compare Type, COT P/N, CA, IOA, S/E and QOC.",
+                TimeSpan.FromSeconds(1));
 
         // Multi-object ASDUs must update EVERY point, not only the first IOA.
         if (seen.ChecksumValid && (seen.StreamId & 1) == 1 && decode is not null &&
