@@ -322,12 +322,15 @@ public partial class MainWindow
         var row = FrameTraceRows[index];
         if (!listBox.SelectedItems.Contains(row))
         {
+            // Right-clicking an unselected frame targets that one frame.
             listBox.SelectedItems.Clear();
             listBox.SelectedItems.Add(row);
             _protocolTraceSelectionAnchorIndex = index;
+            FocusProtocolTraceContainer(listBox, index);
         }
-
-        FocusProtocolTraceContainer(listBox, index);
+        // Right-clicking any already-selected frame preserves the entire
+        // Ctrl/Shift selection. Do not move item focus: doing so may collapse
+        // multi-selection before the context menu handler reads SelectedItems.
     }
 
     private void BeginProtocolTraceSelectionBatch()
