@@ -39,7 +39,7 @@ public sealed class PassiveIec101ControlIndexerTests
     public void BadChecksumTestBitAndMiswiredDirectionNeverBecomeVerifiedControl()
     {
         Assert.False(_index.TryObserve(Frame(0, 0, 6, 0x82) with { ChecksumValid = false }, out _));
-        Assert.False(_index.TryObserve(Frame(1, 0, 6, 0x82), out _)); // master PRM on RTU tap
+        Assert.False(_index.TryObserve(Frame(0, 0, 6, 0x82) with { StreamId = 1 }, out _)); // master PRM on RTU tap
         Assert.True(_index.TryObserve(Frame(0, 1, 0x86, 0x82), out var test));
         Assert.Contains("TEST bit set", test!.Explanation);
         Assert.Equal(0, _index.PendingCount);
