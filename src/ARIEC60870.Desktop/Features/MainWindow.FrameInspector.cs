@@ -31,6 +31,54 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    public sealed record FrameInspectorProperty(string Field, string Value, string Detail);
+
+    private void PopulateFrameProperties(EvidenceRow row)
+    {
+        SelectedFrameProperties.Clear();
+        void Add(string field, string? value, string? detail = null)
+        {
+            if (!string.IsNullOrWhiteSpace(value) && value != "-")
+                SelectedFrameProperties.Add(new FrameInspectorProperty(field, value, detail ?? string.Empty));
+        }
+
+        Add("Host time (local)", row.Time, "Host observation time; not a calibrated on-wire timestamp.");
+        Add("Direction", row.Direction, row.Direction == "TX" ? "Master to device" : "Device to master");
+        Add("Protocol", row.ProtocolName);
+        Add("Source", row.Source.PhysicalSource);
+        Add("Stream", row.Source.PhysicalStreamId?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Add("Source offset", row.Source.RawStreamOffset?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Add("Link address", row.LinkAddress);
+        Add("Link function", row.Source.Frame?.LinkControl?.FunctionName);
+        Add("Link flags", row.LinkFlags);
+        Add("Type ID", row.TypeId == "-" ? row.AsduType : $"TI {row.TypeId} · {row.TypeIdName}");
+        Add("VSQ", row.Vsq, row.SequenceMode);
+        Add("COT", row.CotDisplay, row.Source.CauseDetails?.Detail);
+        Add("COT flags", row.Source.CauseDetails?.Detail);
+        Add("Common address", row.CommonAddress);
+        Add("IOA", row.IoAddress);
+        Add("FUN / INF", row.FunInf);
+        Add("Object count", row.ObjectCount);
+        Add("Value", row.SemanticState);
+        Add("Quality", row.Quality, row.Source.QualityDetails?.BitDetails);
+        Add("Quality bits", row.Source.QualityDetails?.BitDetails);
+        Add("IED / RTU time", row.RelayTime);
+        Add("Command", row.Source.CommandDetails?.Detail);
+        Add("APCI", row.ApciFormat == "-" ? null : row.ApciFormat + " · NS=" + row.SendSequence + " · NR=" + row.ReceiveSequence);
+        Add("Integrity", row.Source.Frame is null ? "Not verified" :
+            row.Source.Frame.IsChecksumValid ? "Checksum valid" : "Checksum invalid",
+            "A valid link checksum does not prove command execution.");
+
+        if (row.Source.AsduDetails is { Objects.Count: > 1 } asdu)
+        {
+            foreach (var obj in asdu.Objects.Take(24))
+                Add($"Object {obj.Index} · IOA {obj.InformationObjectAddress}", obj.ShortValue,
+                    obj.QualityDetails?.BitDetails);
+            if (asdu.Objects.Count > 24)
+                Add("Additional objects", $"+{asdu.Objects.Count - 24} decoded; select raw ASDU for all.");
+        }
+    }
+
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isProtocolTraceSelectionBatching && ReferenceEquals(sender, FrameTraceGrid))
@@ -62,6 +110,7 @@ public partial class MainWindow
             SelectedLineSummaryText.Text = "The selected IEC 60870 frame will be decoded into transport/link layer, ASDU/APCI fields, address, value/time, and integrity groups.";
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();
+            SelectedFrameProperties.Clear();
             UpdateFrameInterpreterTone(null);
             if (ActiveProtocolMapText is not null)
             {
@@ -89,8 +138,7 @@ public partial class MainWindow
             ? row.ProtocolTraceMeaning.Split('\n')[0]
             : BuildLineMonitorSummary(row);
         UpdateFrameInterpreterTone(row);
-        RebuildProtocolMap(row);
-        ActivateDefaultProtocolMapGroup(row);
+        PopulateFrameProperties(row);
     }
 
 
