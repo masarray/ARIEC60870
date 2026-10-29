@@ -523,6 +523,15 @@ public partial class MainWindow
         var select = item.CommandDetails?.Select == true;
         _commandLedgerByKey.TryGetValue(key, out var prior);
         var selectConfirmed = !select && prior is { SelectPhase: true, ActConSeen: true };
+        var overlap = prior is not null && !selectConfirmed && !prior.ActTermSeen && !prior.NegativeSeen;
+        if (overlap)
+        {
+            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-OVERLAPPING-TX",
+                "New command overlaps an unresolved request on the same source/CA/IOA/Type",
+                $"Previous phase={prior?.Stage ?? "unknown"}; new phase={(select ? "SELECT" : "EXECUTE")}; " +
+                $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
+                "Request/response pairing is ambiguous until the old exchange is resolved; inspect raw order and avoid claiming operation success.");
+        }
         var feedbackIoa = ResolveFeedbackIoaForCommand(item);
         var now = DateTime.UtcNow;
 
@@ -537,6 +546,7 @@ public partial class MainWindow
             FeedbackIoa = feedbackIoa,
             SelectPhase = select,
             SelectConfirmed = selectConfirmed,
+            Ambiguous = overlap,
             Summary = string.IsNullOrWhiteSpace(item.Summary)
                 ? $"Command IOA {item.InformationObjectAddress.Value}" : item.Summary,
             Stage = select ? "TX SELECT" : "TX EXECUTE",
@@ -561,8 +571,20 @@ public partial class MainWindow
         if (phase is Iec10xCommandResponsePhase.NotApplicable or Iec10xCommandResponsePhase.Unverified)
             return;
 
+        if (ledger.Ambiguous)
+        {
+            AddRateLimitedDiagnostic("IEC10X-COMMAND-AMBIGUOUS-REPLY", "Warning", item.ProtocolMode.ToString(),
+                "RTU response cannot be assigned to a unique command",
+                $"Overlapping requests on {item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}; COT={item.CauseOfTransmission}.",
+                "Inspect the chronological wire trace. Do not treat this response as an accepted operation.",
+                TimeSpan.FromSeconds(2));
+            return;
+        }
+
         // A device may echo S/E. A response for the other phase is ambiguous, not positive evidence.
-        if (phase == Iec10xCommandResponsePhase.ActivationConfirmed &&
+        if ((phase is Iec10xCommandResponsePhase.ActivationConfirmed or
+            Iec10xCommandResponsePhase.ActivationTerminated or
+            Iec10xCommandResponsePhase.DeactivationConfirmed) &&
             Iec10xCommandProofRules.HasEchoPhaseMismatch(ledger.SelectPhase, item))
         {
             AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-PHASE-MISMATCH",
@@ -570,6 +592,16 @@ public partial class MainWindow
                 $"Pending {(ledger.SelectPhase ? "SELECT" : "EXECUTE")}, response={item.CommandDetails?.Operation}; " +
                 $"source={item.PhysicalSource}; CA={item.CommonAddressNumber}; IOA={item.InformationObjectAddress}.",
                 "Check command ordering, response echo, interlocks and concurrent master requests.");
+            return;
+        }
+
+        if (!Iec10xCommandProofRules.HasVerifiedApplicationSequence(ledger.ActConSeen, phase))
+        {
+            AddUiDiagnostic("Warning", item.ProtocolMode.ToString(), "IEC10X-COMMAND-UNMATCHED-ACTTERM",
+                "RTU ACTTERM received without prior matching ACTCON",
+                $"{ledger.Summary}; source={item.PhysicalSource}; CA={item.CommonAddressNumber}; " +
+                $"IOA={item.InformationObjectAddress}; ACTCON={ledger.ActConSeen}.",
+                "Inspect missing/out-of-order command confirmations and the original COT bytes; do not report command completion.");
             return;
         }
 
@@ -630,7 +662,7 @@ public partial class MainWindow
 
         foreach (var ledger in _commandLedgerByKey.Values.ToArray())
         {
-            if (!ledger.FeedbackIoa.HasValue || ledger.SelectPhase || !ledger.ActConSeen ||
+            if (!ledger.FeedbackIoa.HasValue || ledger.SelectPhase || ledger.Ambiguous || !ledger.ActConSeen ||
                 !Iec10xCommandProofRules.MatchesFeedback(item, ledger.ProtocolMode, ledger.PhysicalSource,
                     ledger.CommonAddress, ledger.FeedbackIoa.Value))
                 continue;

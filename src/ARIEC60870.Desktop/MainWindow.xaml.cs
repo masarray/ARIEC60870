@@ -209,6 +209,7 @@ public partial class MainWindow : Window
         public bool ActTermSeen { get; set; }
         public bool FeedbackSeen { get; set; }
         public bool NegativeSeen { get; set; }
+        public bool Ambiguous { get; init; }
         public bool TimeoutReported { get; set; }
     }
 

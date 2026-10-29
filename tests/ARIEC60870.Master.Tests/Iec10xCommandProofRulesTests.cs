@@ -94,4 +94,101 @@ public sealed class Iec10xCommandProofRulesTests
         };
         Assert.Equal(Iec10xCommandResponsePhase.NotApplicable, Iec10xCommandProofRules.ClassifyResponse(ack));
     }
+    [Fact]
+    public void RxWarningsAreNeverPositiveApplicationConfirmations()
+    {
+        var suspicious = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Category = "RX Warning",
+            TypeId = 46,
+            CommonAddressNumber = 5,
+            InformationObjectAddress = 123,
+            CauseDetails = new Iec10xCauseDetails(7, 7, false, false, 0)
+        };
+        Assert.Equal(Iec10xCommandResponsePhase.Unverified,
+            Iec10xCommandProofRules.ClassifyResponse(suspicious));
+    }
+
+    [Theory]
+    [InlineData(0x00, true)]  // Healthy SIQ
+    [InlineData(0x10, false)] // BL
+    [InlineData(0x20, false)] // SB
+    [InlineData(0x40, false)] // NT
+    [InlineData(0x80, false)] // IV
+    public void FeedbackEvidenceRequiresHealthyDecodedQuality(byte bits, bool expected)
+    {
+        var response = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "Link A",
+            CommonAddressNumber = 5,
+            InformationObjectAddress = 211,
+            TypeId = 1,
+            IsRelayValue = true,
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Siq, bits)
+        };
+        Assert.Equal(expected, Iec10xCommandProofRules.MatchesFeedback(response,
+            Iec60870ProtocolMode.Iec101, "Link A", 5, 211));
+    }
+
+    [Fact]
+    public void MissingQualityAndBadFrameCannotBecomeCommandFeedback()
+    {
+        var noQuality = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "Link A", CommonAddressNumber = 5,
+            InformationObjectAddress = 211, TypeId = 1, IsRelayValue = true
+        };
+        Assert.False(Iec10xCommandProofRules.MatchesFeedback(noQuality,
+            Iec60870ProtocolMode.Iec101, "Link A", 5, 211));
+        var rxWarning = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Category = "RX Warning",
+            PhysicalSource = "Link A", CommonAddressNumber = 5,
+            InformationObjectAddress = 211, TypeId = 1, IsRelayValue = true,
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Siq, 0)
+        };
+        Assert.False(Iec10xCommandProofRules.MatchesFeedback(rxWarning,
+            Iec60870ProtocolMode.Iec101, "Link A", 5, 211));
+    }
+
+    [Fact]
+    public void OverflowCounterCarryAndAdjustedAreNotCleanFeedback()
+    {
+        var bcr = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            CommonAddressNumber = 1, InformationObjectAddress = 10,
+            TypeId = 15, IsRelayValue = true,
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Bcr, 0x20)
+        };
+        Assert.False(Iec10xCommandProofRules.MatchesFeedback(bcr,
+            Iec60870ProtocolMode.Iec104, "SINGLE", 1, 10));
+        Assert.False(Iec10xCommandProofRules.MatchesFeedback(new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            CommonAddressNumber = 1, InformationObjectAddress = 10,
+            TypeId = 13, IsRelayValue = true,
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Qds, 0x01)
+        }, Iec60870ProtocolMode.Iec104, "SINGLE", 1, 10));
+    }
+
+    [Fact]
+    public void ActtermWithoutPriorActconIsNotCompleteTransaction()
+    {
+        Assert.False(Iec10xCommandProofRules.HasVerifiedApplicationSequence(false,
+            Iec10xCommandResponsePhase.ActivationTerminated));
+        Assert.True(Iec10xCommandProofRules.HasVerifiedApplicationSequence(true,
+            Iec10xCommandResponsePhase.ActivationTerminated));
+    }
+
 }
