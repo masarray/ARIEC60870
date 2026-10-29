@@ -663,7 +663,7 @@
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               BorderThickness="1" BorderBrush="#E2E8F0" Background="White">
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="PROPERTY" Width="140" MinWidth="116" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="PROPERTY" Width="0.95*" MinWidth="84" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Field}" FontSize="12.7" FontWeight="SemiBold"
@@ -672,7 +672,7 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="VALUE / MEANING" Width="*" MinWidth="128">
+                                            <DataGridTemplateColumn Header="VALUE" Width="1.55*" MinWidth="90">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}" ToolTip="{Binding Detail}" FontSize="12.9"
