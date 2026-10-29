@@ -4,7 +4,7 @@ Status: implementation branch, **hardware not yet qualified**. Tracking: issue #
 
 ## Purpose
 
-Read-only observation of an existing IEC-101 RS-232 full-duplex connection using **two monitor COM ports**. COM monitor #1 listens to the SCADA transmitter, COM monitor #2 listens to the SICAM RTU transmitter. It does not issue GI, Class 1/2, Link Status or any control. P0 is the **capture substrate only**, not full ASE2000-style protocol decoding, GUI, or packaged .ariec V2. P1 adds interpretation and shareable .ariec export. Do not misrepresent P0 raw journal as a complete .ariec investigation package.
+Read-only observation of an existing IEC-101 RS-232 full-duplex connection using **two monitor COM ports**. COM monitor #1 listens to the SCADA transmitter, COM monitor #2 listens to the SICAM RTU transmitter. It does not issue GI, Class 1/2, Link Status or any control. P0 is the **capture substrate only**, not full independent IEC-101 reference-style protocol decoding, GUI, or packaged .ariec V2. P1 adds interpretation and shareable .ariec export. Do not misrepresent P0 raw journal as a complete .ariec investigation package.
 
 ## Physical prerequisites
 

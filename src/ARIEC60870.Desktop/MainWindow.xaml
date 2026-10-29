@@ -9,6 +9,57 @@
         Icon="Assets/Icons/ariec60870-icon.png"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="{StaticResource AppFont}">
+    <Window.Resources>
+        <!-- Small semantic chips: decoded flags remain authoritative; no separate flag columns. -->
+        <DataTemplate x:Key="ForensicFlagChipTemplate">
+            <Border x:Name="Chip" CornerRadius="5" Padding="5,1" Margin="0,0,3,0"
+                    Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1"
+                    VerticalAlignment="Center" SnapsToDevicePixels="True">
+                <TextBlock x:Name="ChipText" Text="{Binding Text}" FontSize="10.5"
+                           FontWeight="SemiBold" Foreground="#475569"
+                           TextOptions.TextFormattingMode="Ideal" />
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Tone}" Value="Critical">
+                    <Setter TargetName="Chip" Property="Background" Value="#FEF2F2" />
+                    <Setter TargetName="Chip" Property="BorderBrush" Value="#FECACA" />
+                    <Setter TargetName="ChipText" Property="Foreground" Value="#991B1B" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Warning">
+                    <Setter TargetName="Chip" Property="Background" Value="#FFFBEB" />
+                    <Setter TargetName="Chip" Property="BorderBrush" Value="#FDE68A" />
+                    <Setter TargetName="ChipText" Property="Foreground" Value="#92400E" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Good">
+                    <Setter TargetName="Chip" Property="Background" Value="#F0FDF4" />
+                    <Setter TargetName="Chip" Property="BorderBrush" Value="#BBF7D0" />
+                    <Setter TargetName="ChipText" Property="Foreground" Value="#166534" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+        <DataTemplate x:Key="ForensicQualityCellTemplate">
+            <ItemsControl ItemsSource="{Binding QualityChips}" ToolTip="{Binding QualityDetail}"
+                          Focusable="False" VerticalAlignment="Center"
+                          ItemTemplate="{StaticResource ForensicFlagChipTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DataTemplate>
+        <DataTemplate x:Key="ForensicCotCellTemplate">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                        ToolTip="{Binding CotDetail}">
+                <TextBlock Text="{Binding CotLabel}" Foreground="#334155" FontSize="11.8"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,5,0" />
+                <ItemsControl ItemsSource="{Binding CotChips}" Focusable="False"
+                              ItemTemplate="{StaticResource ForensicFlagChipTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -421,7 +472,7 @@
                                     <DataGridTextColumn Header="Address" Binding="{Binding ProtocolAddress}" Width="1.0*" MinWidth="124" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn x:Name="EvidenceSignalColumn" Header="Signal" Binding="{Binding SignalOrAddress}" Width="1.35*" MinWidth="180" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Value" Binding="{Binding SemanticState}" Width="0.95*" MinWidth="118" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="148" />
                                     <DataGridTextColumn x:Name="EvidenceRelayTimeColumn" Header="IED/RTU time" Binding="{Binding RelayTime}" Width="128" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Meaning" Binding="{Binding ReadableMeaning}" Width="2.0*" MinWidth="260" ElementStyle="{StaticResource GridCellMeaningText}" />
 
@@ -693,10 +744,10 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2.5*" MinWidth="260" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="1.05*" MinWidth="120" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="0.95*" MinWidth="115" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.1*" MinWidth="146" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="1.1*" MinWidth="130" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.5*" MinWidth="185" />
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn x:Name="ValueGroupColumn" Header="Group" Binding="{Binding Group}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
@@ -733,9 +784,9 @@
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Before" Binding="{Binding Previous}" Width="108" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="After" Binding="{Binding NewValue}" Width="108" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Cause" Binding="{Binding Cot}" Width="135" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="200" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="125" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="125" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="148" />
                                     <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />

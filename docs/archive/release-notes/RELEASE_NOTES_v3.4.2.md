@@ -4,7 +4,7 @@
 
 ### Protocol Trace block selection
 
-Protocol Trace now supports a more ASE-like line monitor selection workflow:
+Protocol Trace now supports a more engineer-readable line monitor selection workflow:
 
 - click row to select,
 - Shift-click to select a range,

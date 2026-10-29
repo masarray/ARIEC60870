@@ -5,7 +5,7 @@ Snapshot: **2026-10-28, Asia/Jakarta**. Scope: **professional IEC 60870-5-101 pa
 
 ## 1. User objective and non-negotiables
 
-Professional passive IEC-101 monitoring/diagnostics comparable to the useful ASE2000 V2 workflow, without borrowing vendor code or inventing electrical timing. Real case: two redundant RS-232 IEC-101 links between NUC/SCADA ETERA and Siemens SICAM A8000; communication established on both paths, but active side reportedly pauses for several seconds and alternates around every 30 seconds. Purpose is evidence-led investigation, not to assume a known root cause.
+Professional passive IEC-101 monitoring/diagnostics comparable to the useful independent IEC-101 reference workflow, without borrowing vendor code or inventing electrical timing. Real case: two redundant RS-232 IEC-101 links between NUC/SCADA ETERA and Siemens SICAM A8000; communication established on both paths, but active side reportedly pauses for several seconds and alternates around every 30 seconds. Purpose is evidence-led investigation, not to assume a known root cause.
 
 - SMART/optimized from the start; reliable, lightweight, maintainable, fast/stable; no naive patches or repeated trial/error. Prefer real milestones with verified CI and portable Windows GUI artifact.
 - Preserve **Active Master** IEC-103/101/104 and existing premium calm WPF design tokens. **Do not create a separate monitor window, new navigation rail or redundant action button.** Use existing Setup protocol dropdown -> IEC-101 Passive Monitor, Frame Trace, Event Logs, Values, Findings, Capture, export and operator tools.

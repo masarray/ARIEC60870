@@ -201,7 +201,7 @@ Revised milestone order:
 Safety:
 - Serial passive mode is read-only. Physical tap must be electrically approved (RS-232 vs RS-485, loading, ground reference, handshake retention).
 - Two COM cannot prove which of two unobserved redundant lines becomes active; four COM needed for full A/B directional traffic.
-- RS-232 USB COM captures UART bytes with OS/driver timing uncertainty, not ASE2000 BCOM-USB bit-level/line-carrier oscilloscope equivalence.
+- RS-232 USB COM captures UART bytes with OS/driver timing uncertainty, not independent IEC-101 reference BCOM-USB bit-level/line-carrier oscilloscope equivalence.
 - Do not claim live-field qualification until tested on appropriate hardware.
 
 ## Later roadmap

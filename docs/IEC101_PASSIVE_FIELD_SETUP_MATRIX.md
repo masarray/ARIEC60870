@@ -48,4 +48,4 @@ Two receive-only COMs cover **both directions of one full-duplex serial circuit*
 5. Warnings-as-errors Windows Release build, xUnit suite, 19 protocol smoke, CodeQL and Windows portable GUI publish PASS.
 6. Physical RS232 tap non-interference, USB adapter wiring, long recording endurance, offline raw-journal replay remain separate uncompleted field gates.
 
-Do not claim this is a full ASE2000 V2 or a physically proven zero-loss analyzer. Monitor software intentionally does not assert outgoing modem control wires, but USB devices may toggle them on open; physical isolation remains required.
+Do not claim this is a full independent IEC-101 reference or a physically proven zero-loss analyzer. Monitor software intentionally does not assert outgoing modem control wires, but USB devices may toggle them on open; physical isolation remains required.

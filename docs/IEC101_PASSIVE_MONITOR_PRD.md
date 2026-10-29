@@ -12,11 +12,11 @@ Field investigation: SICAM A8000 ↔ ETERA SCADA over IEC 60870-5-101 serial wit
 
 **Success is not just “messages appear.”** It is an unmodified production exchange captured with raw evidence, directional decoding, observed request/response pairing, error history and a defensible before/after timeline around a switching event, saved to an analysis bundle that another engineer can reopen.
 
-## 2. Reference benchmark: ASE2000 Version 2
+## 2. Reference benchmark: independent IEC-101 reference
 
 Publicly documented capabilities to benchmark independently, **not** code/assets/UI to copy:
 
-| ASE2000 V2 public behavior | ARIEC60870 product requirement | Scope |
+| independent IEC-101 reference public behavior | ARIEC60870 product requirement | Scope |
 |---|---|---|
 | Line Monitoring uses both serial COM ports to listen to master/RTU directions | Physical direction mapping with two receive-only COMs | P0 |
 | Line Monitor raw+interpretive and clickable linked fields | Combined decoded trace + inspectable byte/field spans | P1 |
@@ -29,9 +29,9 @@ Publicly documented capabilities to benchmark independently, **not** code/assets
 | Line Analyzer carrier/bit waveform with vendor hardware | **Not equivalent** using ordinary COM adapters; no invented carrier timing | Excluded unless suitable hardware |
 
 Sources (behavior/reference only):
-- Manufacturer: https://www.ase-systems.com/products/ase2000-v2/
-- Manufacturer V2 manual: https://www.ase-systems.com/wp-content/uploads/2021/06/ase2000-communication-test-set.pdf (sections 6, 7.3, 8, 13, IEC-101 Quick Start).
-- Manufacturer knowledge base: https://www.ase-systems.com/ase2000-v2-knowledge-base/
+- Manufacturer: independent protocol reference
+- Manufacturer V2 manual: independent protocol reference (sections 6, 7.3, 8, 13, IEC-101 Quick Start).
+- Manufacturer knowledge base: independent protocol reference
 
 Clean-room rule: use published concepts and standard protocol rules to design our own algorithms. Do not copy ASE GUI layouts, algorithms, manuals, screenshots, or proprietary capture formats into the project.
 
@@ -78,7 +78,7 @@ Clean-room rule: use published concepts and standard protocol rules to design ou
 - Per-direction incremental FT1.2 reassembly; keep partial frames across reads, resynchronize on corruption without deleting raw.
 - Decode link functions, PRM, FCB, FCV, ACD, DFC and link address; decode ASDU Type/COT/CA/IOA/value/quality/timestamps using a shared IEC-10x ASDU decoder migrated safely from Master to Core (not the existing IEC-103 Core.AsduDecoder).
 - Single-character ACK/NACK needs contextual direction and a qualified correlation; report “unpaired/ambiguous” when context insufficient.
-- Expose raw and decoded fields with byte offsets/highlighting, similar **in function** to ASE2000's linked data display.
+- Expose raw and decoded fields with byte offsets/highlighting, similar **in function** to independent IEC-101 reference's linked data display.
 - Acceptance: valid/corrupt/short/back-to-back/noise stream fixtures have exact byte coverage; unsupported fields remain “unknown + hex”, never fabricated.
 
 ### FR-04 Evidence table and view filtering (P1)
@@ -132,7 +132,7 @@ Default density must prioritize the telegram list: avoid giant cards, oversized 
 - No automatic changes to A8000 configuration or SCADA settings.
 - No inference of RTS/CTS/DTR/DSR/DCD from RXD alone.
 - No bit waveform, electrical noise amplitude, modem carrier plot, or sub-millisecond physical timing claim from generic USB COM.
-- Not a claimed full ASE2000 replacement for other protocols or its proprietary BCOM-USB hardware diagnostics.
+- Not a claimed full independent IEC-101 reference replacement for other protocols or its proprietary BCOM-USB hardware diagnostics.
 - No exposure of business/project-specific ETERA assumptions as IEC normative requirements.
 
 ## 8. Release gates / completion

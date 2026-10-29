@@ -33,11 +33,16 @@ public sealed class ValueRow : INotifyPropertyChanged
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
+        CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
+        CotChips = ProtocolFlagPresentation.Cot(item.CauseDetails);
+        CotDetail = item.CauseDetails?.Detail ?? Cot;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
+        QualityChips = ProtocolFlagPresentation.Quality(item.QualityDetails, Quality, Protocol is "101" or "104");
+        QualityDetail = item.QualityDetails?.BitDetails ?? Quality;
         Address = Protocol is "101" or "104"
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
@@ -60,11 +65,16 @@ public sealed class ValueRow : INotifyPropertyChanged
     public int TypeSortKey { get; }
     public string Type { get; }
     public string Cot { get; }
+    public string CotLabel { get; }
+    public string CotDetail { get; }
+    public IReadOnlyList<ProtocolFlagChip> CotChips { get; }
     public string CommonAddress { get; }
     public string IoAddress { get; }
     public int IoaSortKey { get; }
     public string Address { get; }
     public string Quality { get; }
+    public string QualityDetail { get; }
+    public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }
     public string RawHex { get; }
 

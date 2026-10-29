@@ -54,4 +54,4 @@ Disk remains authoritative; the live WPF rows are only a bounded preview. Reopen
 
 ## Explicitly outstanding
 
-The full ASE2000 V2 comparison requires more than this feature: intelligent width recognition with confidence and errors, GI Type100/COT6–10 lifecycle, unknown link-function policy, searchable transaction journal over multi-day captures, simultaneous 4 RX monitoring of both redundant A/B links, and field non-interference/2-hour endurance tests. Those are subsequent milestones, **not claims made by P2C re-decode**.
+The full independent IEC-101 reference comparison requires more than this feature: intelligent width recognition with confidence and errors, GI Type100/COT6–10 lifecycle, unknown link-function policy, searchable transaction journal over multi-day captures, simultaneous 4 RX monitoring of both redundant A/B links, and field non-interference/2-hour endurance tests. Those are subsequent milestones, **not claims made by P2C re-decode**.

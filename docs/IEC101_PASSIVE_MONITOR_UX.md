@@ -80,7 +80,7 @@ This is a purpose-built workspace, not the current dual-link *active* Redundancy
 - Provide “Show adjacent 30 s”, “Copy frame & context”, and “Pin as investigation marker” actions in context menu.
 - “No traffic yet” empty state explicitly says COM open is not IEC-101 link proof and shows wiring role checklist.
 
-## 5. Raw Trace (ASE2000 function parity, modern compact presentation)
+## 5. Raw Trace (independent IEC-101 reference function parity, modern compact presentation)
 
 - Monospace hex field and decoded field hierarchy visible simultaneously via resizable splitter; not a duplicate grid with a giant scrollable text block.
 - Selecting a decoded control field highlights the exact raw byte(s); selecting raw byte highlights parsed field when known. Invalid/noise spans highlight their origin rather than invent interpretation.

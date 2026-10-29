@@ -47,7 +47,7 @@ Any malformed/checksum-invalid frame, incorrect reply function or mismatched lin
 - GUI coalesces repeated (kind, link address) findings over 3 seconds and caps at 20 displayed findings per second, preventing the shared Findings queue from growing under noisy traffic; **no events are discarded from the derived on-disk journal by GUI throttling**.
 - Existing Findings (not a new window) shows actionable anomalies with exact RX stream and raw byte offsets; regular successful polls do not flood the Findings view.
 - Read-only offline replay builds findings again from full verified journal, with the exact field widths and link mode recorded in the capture manifest.
-- No proprietary ASE2000 V2 code or resources are copied. UI continues using existing ARIEC60870 design tokens.
+- No proprietary independent IEC-101 reference code or resources are copied. UI continues using existing ARIEC60870 design tokens.
 
 ## Caveats / next hardening
 

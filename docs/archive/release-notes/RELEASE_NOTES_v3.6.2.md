@@ -43,7 +43,7 @@ The detail includes:
 
 `Messages` reads from the same `FrameTraceRows` current evidence buffer used by `Protocol Trace`.
 
-This creates a cleaner ASE-style split:
+This creates a cleaner engineer-readable split:
 
 - `Messages` = compact browse/search surface
 - `Protocol Trace` = detailed reading surface
