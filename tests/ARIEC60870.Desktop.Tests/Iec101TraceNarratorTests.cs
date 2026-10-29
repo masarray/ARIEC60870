@@ -203,6 +203,11 @@ public sealed class Iec101TraceNarratorTests
             LinkAddress = 105,
             AsduDetails = asdu,
             CommandDetails = asdu.CommandDetails,
+            TypeId = asdu.TypeId,
+            CauseOfTransmission = asdu.CauseOfTransmission,
+            CauseDetails = asdu.CauseDetails,
+            CommonAddressNumber = asdu.CommonAddress,
+            InformationObjectAddress = asdu.FirstObject?.InformationObjectAddress,
             ControlObservation = "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7)"
         };
         var row = new EvidenceRow(item);
