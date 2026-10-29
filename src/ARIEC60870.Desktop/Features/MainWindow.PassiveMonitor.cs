@@ -227,6 +227,32 @@ public partial class MainWindow
         _passiveGiNotes.Clear();
         ClearSessionView(clearLog: true);
 
+        // R1: actual typed Master SELECT and RTU negative ACTCON must explain
+        // the failed control directly in the existing Trace (no extra window).
+        _passiveControlTimeline.Reset();
+        static byte[] ControlWire(byte control, byte cot, byte qualifier)
+        {
+            var asdu = new byte[] { 46, 1, cot, 0, 1, 0, 123, 0, 0, qualifier };
+            var body = new byte[] { control, 0x69 }.Concat(asdu).ToArray();
+            return new byte[] { 0x68, (byte)body.Length, (byte)body.Length, 0x68 }
+                .Concat(body)
+                .Concat(new byte[] { (byte)(body.Sum(x => x) & 0xFF), 0x16 }).ToArray();
+        }
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 0, giNow.AddMilliseconds(300),
+            "Variable", true, ControlWire(0x53, 6, 0x82)));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 100, giNow.AddMilliseconds(340),
+            "Variable", true, ControlWire(0x08, 0x47, 0x82)));
+        FlushUiQueues();
+        if (!FrameTraceRows.Any(x => x.ProtocolTraceMeaning.Contains(
+                "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7", StringComparison.Ordinal) &&
+            x.ProtocolTraceTitle.Contains("Control NEGATIVE reply", StringComparison.Ordinal)))
+            throw new InvalidOperationException("Passive control negative ACTCON was not explained in Frame Trace.");
+        if (!FrameTraceRows.Any(x => x.ProtocolTraceMeaning.Contains(
+                "MASTER SELECT COT=6", StringComparison.Ordinal)))
+            throw new InvalidOperationException("Passive Master SELECT command sequence was not explained.");
+        _passiveControlTimeline.Reset();
+        ClearSessionView(clearLog: true);
+
         // P2E WPF integration: existing Capture status receives a 5-second
         // evidence summary without adding navigation or opening COM hardware.
         var timelineProbe = new PassiveIec101FailureTimeline(giNow);
