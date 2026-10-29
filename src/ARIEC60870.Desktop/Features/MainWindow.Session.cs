@@ -356,6 +356,28 @@ public partial class MainWindow
         settings.SerialRtsEnable = SerialRtsCheckBox.IsChecked == true;
         settings.SerialDtrEnable = SerialDtrCheckBox.IsChecked == true;
 
+        // One versioned profile gate before any active IEC-10x transport opens/TX.
+        // Generic and optional historical convention do NOT force the COT/CA/IOA
+        // field widths; the actual engineering selection is recorded explicitly.
+        var isHistorical = InteroperabilityConventionComboBox?.SelectedIndex == 1;
+        if (isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec103)
+            throw new InvalidOperationException("Historical NUC reference in this build is defined for IEC-101/104 only. Select Generic IEC for IEC-103.");
+        var profile = (isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec101
+                ? Iec10xInteroperabilityProfile.HistoricalNuc101()
+                : isHistorical && settings.ProtocolMode == Iec60870ProtocolMode.Iec104
+                    ? Iec10xInteroperabilityProfile.HistoricalNuc104()
+                    : Iec10xInteroperabilityProfile.Generic(settings.ProtocolMode)) with
+        {
+            LinkWidth = settings.ProtocolMode == Iec60870ProtocolMode.Iec104 ? 0 : settings.LinkAddressSize,
+            CotWidth = settings.CauseOfTransmissionSize,
+            CaWidth = settings.CommonAddressSize,
+            IoaWidth = settings.InformationObjectAddressSize,
+            LinkMode = settings.ProtocolMode == Iec60870ProtocolMode.Iec104 ? "Tcp" : settings.TransmissionMode
+        };
+        profile.ValidateActive(settings);
+        settings.InteroperabilityProfileId = profile.Id;
+        settings.InteroperabilityProfileEdition = profile.Edition;
+        settings.InteroperabilityProfileFingerprint = profile.Fingerprint;
         return settings;
     }
 

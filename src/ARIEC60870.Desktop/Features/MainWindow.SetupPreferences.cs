@@ -114,6 +114,7 @@ public partial class MainWindow
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
             SelectProtocolMode(prefs.ProtocolMode);
+            InteroperabilityConventionComboBox.SelectedIndex = prefs.HistoricalInteroperabilityConvention ? 1 : 0;
             if (!string.IsNullOrWhiteSpace(prefs.PassiveRtuPortName))
             {
                 EnsureComboItem(PassiveRtuPortComboBox, prefs.PassiveRtuPortName);
@@ -245,6 +246,7 @@ public partial class MainWindow
             var prefs = new SetupPreferences
             {
                 ProtocolMode = settings.ProtocolMode.ToString(),
+                HistoricalInteroperabilityConvention = InteroperabilityConventionComboBox?.SelectedIndex == 1,
                 PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
                 PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
                 PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width"),
@@ -401,6 +403,7 @@ public partial class MainWindow
     private sealed class SetupPreferences
     {
         public string ProtocolMode { get; set; } = nameof(Iec60870ProtocolMode.Iec103);
+        public bool HistoricalInteroperabilityConvention { get; set; }
         public bool UseSimulatedSlave { get; set; }
         public string PortName { get; set; } = "COM1";
         public string PassiveRtuPortName { get; set; } = string.Empty;

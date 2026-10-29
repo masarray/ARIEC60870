@@ -1757,6 +1757,14 @@
                                 <ComboBoxItem Content="IEC 60870-5-104 - Telecontrol TCP/IP" />
                             </ComboBox>
 
+                            <TextBlock Text="INTEROPERABILITY CONVENTION" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"
+                                       ToolTip="An explicit interpretation edition; historical conventions are references, not universal IEC requirements or certification claims." />
+                            <ComboBox x:Name="InteroperabilityConventionComboBox" SelectedIndex="0" Margin="0,0,0,12"
+                                      ToolTip="Generic IEC by default. Historical NUC is an optional profile; selected field widths are not silently overridden.">
+                                <ComboBoxItem Content="Generic IEC · project field widths" />
+                                <ComboBoxItem Content="Historical NUC reference · optional" />
+                            </ComboBox>
+
                             <Border x:Name="ProtocolSetupDescriptionCard" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,14">
                                 <StackPanel>
                                     <TextBlock x:Name="ProtocolSetupBadgeText" Text="IEC-103 · FT1.2 serial protection" Style="{StaticResource EyebrowText}" />
