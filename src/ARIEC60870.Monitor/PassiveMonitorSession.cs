@@ -121,6 +121,25 @@ public sealed class PassiveMonitorSession
     /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
     public PassiveSessionTraceHistory? TraceHistory { get; private set; }
 
+    private void TryAppendSessionHistory(PassiveObservedFrame frame)
+    {
+        var history = TraceHistory;
+        if (history is null) return;
+        try { history.Append(frame); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A full optional raw journal must not stop merely because the
+            // navigation cache hit a disk quota or lost write permission.
+            TraceHistory = null;
+            Interlocked.Exchange(ref _integrityUncertain, 1);
+            _warnings.Enqueue("Temporary session Trace disabled: " + ex.Message +
+                ". RX processing continues; use explicit full raw recording for durable history.");
+            try { history.Dispose(); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
 
@@ -420,7 +439,7 @@ public sealed class PassiveMonitorSession
                         }
                         // The full session index is populated on this single
                         // capture writer BEFORE the lossy WPF frame channel.
-                        TraceHistory?.Append(frame);
+                        TryAppendSessionHistory(frame);
                         _frames.Writer.TryWrite(frame);
                     }
                     foreach (var entry in transactions)
@@ -485,7 +504,7 @@ public sealed class PassiveMonitorSession
                         observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
                         observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
                     })).ConfigureAwait(false);
-                TraceHistory?.Append(observedTail);
+                TryAppendSessionHistory(observedTail);
                 _frames.Writer.TryWrite(observedTail);
                 var tailEvents = new List<PassiveTransactionEvent>();
                 correlator.Observe(observedTail, tailEvents.Add);
