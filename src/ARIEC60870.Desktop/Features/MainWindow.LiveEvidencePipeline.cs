@@ -340,6 +340,11 @@ public partial class MainWindow
 
         _protocolTraceViewDirtyWhileFrozen = true;
         _evidenceSummaryViewDirtyWhileFrozen = true;
+        if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
+        {
+            TraceOlderButton.Visibility = Visibility.Visible;
+            TraceNewerButton.Visibility = Visibility.Visible;
+        }
         UpdateLineMonitorStatus();
     }
 
@@ -429,6 +434,11 @@ public partial class MainWindow
         {
             _protocolTraceViewDirtyWhileFrozen = true;
             _evidenceSummaryViewDirtyWhileFrozen = true;
+            if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
+            {
+                TraceOlderButton.Visibility = Visibility.Visible;
+                TraceNewerButton.Visibility = Visibility.Visible;
+            }
             UpdateLineMonitorStatus();
         }
     }
