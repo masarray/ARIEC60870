@@ -182,8 +182,7 @@ public partial class MainWindow
             _giCasesDirty = true;
             AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone));
         }
-        else if (item.AsduDetails?.CauseDetails?.Code is >= 20 and <= 36 &&
-                 item.AsduDetails?.TypeId != 100)
+        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
             _giCasesDirty = true;
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
