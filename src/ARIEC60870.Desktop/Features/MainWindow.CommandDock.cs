@@ -38,16 +38,19 @@ public partial class MainWindow
             return;
         }
 
-        if (IsIec101PassiveMonitorSelected())
+        var canIssueCommands = !IsIec101PassiveMonitorSelected();
+        if (WorkspaceCommandButton is not null)
         {
-            CommandDockColumn.Width = new GridLength(0);
-            CommandDockPanel.Visibility = Visibility.Collapsed;
-            CommandDockMiniButton.Visibility = Visibility.Collapsed;
-            return;
+            WorkspaceCommandButton.Visibility = canIssueCommands ? Visibility.Visible : Visibility.Collapsed;
+            WorkspaceCommandButton.Content = _commandDockExpanded ? "Close commands" : "Commands";
         }
-        CommandDockColumn.Width = _commandDockExpanded ? new GridLength(320) : new GridLength(42);
-        CommandDockPanel.Visibility = _commandDockExpanded ? Visibility.Visible : Visibility.Collapsed;
-        CommandDockMiniButton.Visibility = _commandDockExpanded ? Visibility.Collapsed : Visibility.Visible;
+        // The old 42px mini rail is redundant: the navigation toolbar owns the
+        // accessible command action. Zero width gives every observation table
+        // all available pixels, even at 1366x768.
+        var show = canIssueCommands && _commandDockExpanded;
+        CommandDockColumn.Width = show ? new GridLength(310) : new GridLength(0);
+        CommandDockPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        CommandDockMiniButton.Visibility = Visibility.Collapsed;
 
         if (CommandDockToggleIcon is not null)
         {

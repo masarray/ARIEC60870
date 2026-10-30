@@ -47,7 +47,7 @@ public partial class MainWindow : Window
     private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
     private IProtocolControlCommandSession? _activeControlSession;
     private Iec101DualLinkRedundancySession? _activeDualLinkSession;
-    private bool _commandDockExpanded = true;
+    private bool _commandDockExpanded; // observation-first default: never reserve 320px for idle commands
     private readonly BoundedRingBuffer<RelayEventRow> _relayEventStore = new(MaxVisibleRelayEventRows);
     private IByteTransport? _activeTransport;
     private IByteTransport? _activeBackupTransport;
