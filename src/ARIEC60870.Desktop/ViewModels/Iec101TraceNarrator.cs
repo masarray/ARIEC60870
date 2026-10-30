@@ -255,6 +255,13 @@ public static class Iec101TraceNarrator
         }
         if (asdu.TypeId is >= 45 and <= 51 or >= 58 and <= 64)
         {
+            if (asdu.CauseDetails?.Test == true)
+                return "TEST · non-operational command ASDU · COT " +
+                    cause.ToString(CultureInfo.InvariantCulture);
+            if (!fromMaster && cause == 6)
+                return "Unexpected secondary command activation · COT 6 (not ACTCON)";
+            if (fromMaster && cause == 7)
+                return "Unexpected Master command confirmation · COT 7 (not RTU ACTCON)";
             if (cause is >= 44 and <= 47)
                 return "Command protocol error · COT " + cause.ToString(CultureInfo.InvariantCulture);
             if (negative && cause == 7) return "Command rejected · negative ACTCON";

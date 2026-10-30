@@ -121,3 +121,8 @@ For case stage navigation, exact source-qualified Event evidence can provide the
 **Primary field navigation:** Values, Event Log, Frame Trace, Controls, GI, Report, and optional Redundancy. The redundant Messages/Evidence Ledger, Smart Findings and Capture *navigation buttons* are hidden in Passive mode; their protocol/diagnostic/evidence and raw recording capabilities are not deleted. Full recording remains in Setup and Open Capture/Save Frames/Trace TXT remain in the left rail. Underlying internal tab IDs are intentionally stable to avoid breaking source navigation and existing commands. Neither first-use UI nor protocol-mode switch should select the hidden Capture workspace.
 
 **GUI acceptance:** on the actual WPF window, produce a real decoded IEC-101 Event, evict its source from the active Trace ring, click Open Frame and assert exact physical identity, selected frame, Trace focus and Hold state, followed by Resume. No COM hardware and no second wire decoder needed for the regression. Physical COM/FAT still required.
+
+
+## R3-E command semantic qualification (2026-10-30)
+
+A secondary-direction control ASDU with COT=6 is an unexpected direction/COT combination rather than an RTU ACTCON; valid FT1.2 checksum is not sufficient. Such a frame remains visible and may be reported as a separate protocol anomaly but does not consume a pending SELECT. A command ASDU with COT TEST flag never produces an unqualified operator-facing `Command accepted` title. When the command casebook discards older stages beyond its 24-stage bound, copied evidence explicitly states that the history is truncated. The true RTU internal cause cannot be inferred from IEC-101 negative ACTCON alone. See `docs/R3E_VERIFIED_HISTORICAL_COMMAND_FORENSICS_20261030.md`.

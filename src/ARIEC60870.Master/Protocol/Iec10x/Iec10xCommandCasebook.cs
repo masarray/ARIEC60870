@@ -49,6 +49,7 @@ public sealed class Iec10xCommandCasebook
         long FirstSequence, long LastSequence, DateTime FirstUtc,
         IReadOnlyList<CommandStage> Stages, int? FeedbackIoa)
     {
+        public bool StagesTruncated { get; init; }
         public string Address => $"CA {CommonAddress} · IOA {Ioa} · TI {TypeId}";
         public string CaseLabel => $"#{CaseId} · {Address}";
         public string FirstTime => FirstUtc.ToLocalTime().ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
@@ -60,6 +61,8 @@ public sealed class Iec10xCommandCasebook
             b.AppendLine($"Type: {TypeId} | CA: {CommonAddress} | IOA: {Ioa} | Target: {Target}");
             b.AppendLine($"Feedback IOA: {FeedbackIoa?.ToString() ?? "not configured"}");
             b.AppendLine($"Meaning: {Interpretation}");
+            if (StagesTruncated)
+                b.AppendLine("EVIDENCE LIMITED: older command stages were evicted from the bounded casebook; use original raw journal.");
             b.AppendLine("Evidence stages (observed, host timestamps; not calibrated wire-edge time):");
             foreach (var s in Stages)
             {
@@ -188,6 +191,19 @@ public sealed class Iec10xCommandCasebook
             if (feedbackIoa.HasValue) state.FeedbackIoa = feedbackIoa;
             Update(state, item, "EXECUTE sent", "Following accepted SELECT; awaiting EXECUTE ACTCON.",
                 "EXECUTE sent", "SELECT acceptance does not prove operation.");
+            return true;
+        }
+
+        // IEC-101/104 command ACTivation (COT=6) is a Master request, not an
+        // application confirmation from the secondary station. Preserve the
+        // anomalous original frame without consuming a valid pending SELECT.
+        if (item.Direction == FrameDirection.SlaveToMaster &&
+            cot.Code is not (7 or 9 or 10 or >= 44 and <= 47))
+        {
+            _ = NewCase(item, key, target, feedbackIoa, "Unexpected RTU command COT",
+                $"Secondary command ASDU COT={cot.Code} is not a standard ACTCON/DEACTCON/ACTTERM. " +
+                "Inspect physical source, PRM and original HEX; no command verdict is inferred.",
+                "Protocol anomaly");
             return true;
         }
 
@@ -343,11 +359,13 @@ public sealed class Iec10xCommandCasebook
         string explanation, string status, string meaning)
     {
         var current = state.Current;
-        var stages = current.Stages.Count < 24
+        var didTruncate = current.Stages.Count >= 24;
+        var stages = !didTruncate
             ? current.Stages.Append(Stage(item, phase, explanation)).ToArray()
             : current.Stages.Skip(1).Append(Stage(item, phase, explanation)).ToArray();
         Replace(state, current with { Status = status, Interpretation = meaning,
-            LastSequence = item.SequenceNumber, Stages = stages });
+            LastSequence = item.SequenceNumber, Stages = stages,
+            StagesTruncated = current.StagesTruncated || didTruncate });
     }
 
     private void Replace(State state, CommandCase next)

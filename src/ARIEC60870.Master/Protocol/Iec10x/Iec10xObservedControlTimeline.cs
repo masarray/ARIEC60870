@@ -109,6 +109,11 @@ public sealed class Iec10xObservedControlTimeline
 
         if (direction != FrameDirection.SlaveToMaster) return string.Empty;
 
+        if (cot.Code == 6)
+            return $"RTU DIRECTION/COT ANOMALY: secondary control activation COT=6, {location}, {step}; " +
+                   "this is not ACTCON (COT=7), regardless of a valid checksum. " +
+                   "Check source wiring, PRM and original raw bytes. Pending command remains unresolved.";
+
         var hasRequest = _pending.TryGetValue(key, out var pending);
         var reference = hasRequest
             ? $" · preceding request RX offset={pending!.RequestOffset?.ToString() ?? "unknown"}"

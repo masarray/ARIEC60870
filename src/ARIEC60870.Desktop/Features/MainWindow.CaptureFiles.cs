@@ -70,6 +70,8 @@ public partial class MainWindow
             }
 
             ClearSessionView(clearLog: false);
+            _lastOpenedAriecFile = dialog.FileName;
+            _traceArchivePage = 0;
             _evidenceProtocolMode = imported.CapturedProtocolMode;
             _evidenceProfileId = imported.CapturedProfileId;
             _evidenceProfileEdition = imported.CapturedProfileEdition;

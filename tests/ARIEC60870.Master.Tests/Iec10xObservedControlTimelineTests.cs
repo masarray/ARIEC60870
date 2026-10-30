@@ -184,4 +184,15 @@ public sealed class Iec10xObservedControlTimelineTests
             }), "Link A", 220, true));
         Assert.Equal(0, timeline.PendingCount);
     }
+    [Fact]
+    public void UnexpectedSecondaryActivationNeverCountsAsAcceptedSelect()
+    {
+        var t = new Iec10xObservedControlTimeline();
+        Assert.Contains("MASTER SELECT", Master(t));
+        var unusual = Rtu(t, cot: 6);
+        Assert.Contains("DIRECTION/COT ANOMALY", unusual);
+        Assert.Contains("not ACTCON", unusual);
+        Assert.Contains("POSITIVE ACTCON", Rtu(t, cot: 7));
+    }
+
 }
