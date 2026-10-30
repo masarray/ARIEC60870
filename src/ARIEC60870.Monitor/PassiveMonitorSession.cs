@@ -121,22 +121,22 @@ public sealed class PassiveMonitorSession
     /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
     public PassiveSessionTraceHistory? TraceHistory { get; private set; }
 
+    private bool _traceHistoryWriteDisabled;
+
     private void TryAppendSessionHistory(PassiveObservedFrame frame)
     {
         var history = TraceHistory;
-        if (history is null) return;
+        if (_traceHistoryWriteDisabled || history is null) return;
         try { history.Append(frame); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A full optional raw journal must not stop merely because the
             // navigation cache hit a disk quota or lost write permission.
-            TraceHistory = null;
+            _traceHistoryWriteDisabled = true;
             Interlocked.Exchange(ref _integrityUncertain, 1);
-            _warnings.Enqueue("Temporary session Trace disabled: " + ex.Message +
-                ". RX processing continues; use explicit full raw recording for durable history.");
-            try { history.Dispose(); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            _warnings.Enqueue("Temporary session Trace stopped growing: " + ex.Message +
+                ". Existing indexed frames are retained for browsing until session cleanup; " +
+                "RX processing continues. Use full raw recording for durable history.");
         }
     }
 
