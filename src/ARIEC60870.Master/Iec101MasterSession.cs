@@ -801,7 +801,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             else if (decoded.LinkControl.FunctionCode == 8 || asdu is not null) _counters.UserDataResponses++;
         }
 
-        if (asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
+        // COT10 is also used by ordinary controls: only TI100 terminates a GI.
+        if (asdu?.TypeId == 100 && asdu.CauseOfTransmission == 10)
+            _counters.GiEndResponses++;
         if (asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
         AddEvent(new Iec103MasterEvidenceEvent
         {
