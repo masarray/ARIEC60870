@@ -338,7 +338,7 @@
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click"
                                                 ToolTip="Source-qualified Master command, RTU confirmation and process feedback casebook" />
                                         <Button x:Name="NavGiCasesButton" Content="GI" Style="{StaticResource SegmentedNavButton}" Tag="12" Click="SegmentedNav_Click"
