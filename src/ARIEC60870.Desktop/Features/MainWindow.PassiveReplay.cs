@@ -93,6 +93,7 @@ public partial class MainWindow
                 ? "Passive raw journal · explicit read-only Setup decode override; no project profile declared"
                 : "Passive raw journal · original manifest decode widths; no project profile declared";
             PrepareLiveTraceForConnect();
+            ReleaseSessionTraceHistory();
             _passiveFrameSequence = 0;
             _passiveControlTimeline.Reset();
             _passiveControlNotes.Clear();
