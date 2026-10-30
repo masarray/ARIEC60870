@@ -451,6 +451,9 @@ public partial class MainWindow
         }
 
         SavePassiveSetupPreferences(silent: true);
+        // Each new session removes the previous session's temporary disk cache.
+        // Full raw recording, when opted in, is separately preserved.
+        ReleaseSessionTraceHistory();
         _sessionCancellation = new CancellationTokenSource();
         var session = new PassiveMonitorSession(options,
             options.Sources.Select(x => (IReadOnlySerialTap)new WindowsReadOnlySerialTap(x)).ToArray());
@@ -507,6 +510,7 @@ public partial class MainWindow
         try
         {
             _passiveCaptureTask = session.RunAsync(_sessionCancellation.Token);
+            _passiveFrameHistory = session.TraceHistory;
             var result = await _passiveCaptureTask;
             _passiveCaptureResult = result;
             RefreshPassiveUi();
