@@ -231,7 +231,7 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             ApplyProtocolUxProfile(GetSelectedProtocolMode());
-            MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 10 : IsIec101DualLinkModeSelected() ? 9 : 1;
+            MainTabControl.SelectedIndex = IsIec101DualLinkModeSelected() ? 9 : 1; // primary Trace; capture tools stay in the rail/Setup
             UpdateSegmentedNav(false);
             UpdateResponsiveHeaderLayout();
             UpdateAutoScrollLatestRailVisual();

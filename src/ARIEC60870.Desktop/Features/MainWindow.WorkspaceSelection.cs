@@ -41,6 +41,8 @@ public partial class MainWindow
         }
 
         RefreshActiveTraceSnapshot();
+        if (!IsProtocolTraceTabActive() && FrameTimelineCaption is not null)
+            FrameTimelineCaption.Text = "Frame timeline";
         if (IsReportPreviewTabActive())
         {
             PrepareReportPreviewForDeferredReveal();
@@ -109,9 +111,9 @@ public partial class MainWindow
             NavFrameButton.Visibility = Visibility.Visible;
             NavValueButton.Visibility = Visibility.Visible;
             NavEventButton.Visibility = Visibility.Visible;
-            NavOperatorButton.Visibility = Visibility.Visible;
-            NavTriggersButton.Visibility = Visibility.Visible;
-            NavFindingsButton.Visibility = Visibility.Visible;
+            NavOperatorButton.Visibility = Visibility.Collapsed;
+            NavTriggersButton.Visibility = Visibility.Collapsed;
+            NavFindingsButton.Visibility = Visibility.Collapsed;
             NavControlCasesButton.Visibility = Visibility.Visible;
             NavGiCasesButton.Visibility = Visibility.Visible;
             NavReportButton.Visibility = Visibility.Visible;
@@ -136,7 +138,7 @@ public partial class MainWindow
         NavFrameButton.Visibility = Visibility.Visible;
         NavValueButton.Visibility = Visibility.Visible;
         NavEventButton.Visibility = Visibility.Visible;
-        NavFindingsButton.Visibility = Visibility.Visible;
+        NavFindingsButton.Visibility = Visibility.Collapsed;
         NavControlCasesButton.Visibility = GetSelectedProtocolMode() is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
             ? Visibility.Visible : Visibility.Collapsed;
         NavGiCasesButton.Visibility = GetSelectedProtocolMode() is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104

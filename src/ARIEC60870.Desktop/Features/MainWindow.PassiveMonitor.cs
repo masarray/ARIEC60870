@@ -15,6 +15,7 @@ using System.Windows.Threading;
 using ARIEC60870.Monitor;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
+using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 using Microsoft.Win32;
@@ -91,8 +92,9 @@ public partial class MainWindow
             NavFrameButton.Tag?.ToString() != "1" ||
             NavEventButton.Visibility != Visibility.Visible ||
             NavValueButton.Visibility != Visibility.Visible ||
-            NavOperatorButton.Visibility != Visibility.Visible ||
-            NavTriggersButton.Tag?.ToString() != "10")
+            NavOperatorButton.Visibility != Visibility.Collapsed ||
+            NavTriggersButton.Visibility != Visibility.Collapsed ||
+            NavFindingsButton.Visibility != Visibility.Collapsed)
             throw new InvalidOperationException("Passive mode is not correctly embedded in Setup/Trace; active controls remain visible.");
 
         // The entire existing evidence toolbox must remain on the left rail;
@@ -183,6 +185,26 @@ public partial class MainWindow
             throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
         if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+        // Regression for real field screenshots: a selected Event must still
+        // open its exact original frame even AFTER the bounded Trace rolls over.
+        // The Event retains the typed evidence, and the Trace pin is read-only.
+        var sourceEvent = RelayEventRows.FirstOrDefault(row => row.OriginalFrameEvidence is not null);
+        if (sourceEvent is null)
+            throw new InvalidOperationException("Event has no original frame evidence.");
+        var originalReference = sourceEvent.EvidenceReference;
+        _protocolTraceStore.Clear(); // simulate old frame evicted by routine polling
+        MainTabControl.SelectedIndex = 3;
+        RelayEventGrid.SelectedItem = sourceEvent;
+        EventOpenFrame_Click(this, new RoutedEventArgs());
+        if (MainTabControl.SelectedIndex != PassiveTraceTabIndex ||
+            FrameTraceGrid.SelectedItem is not EvidenceRow pinned ||
+            !Iec10xObservationIdentity.SamePhysicalFrame(pinned.Source,
+                originalReference, sourceEvent.PhysicalSource,
+                Iec60870ProtocolMode.Iec101, sourceEvent.Sequence) ||
+            AutoScrollLatestToggleButton.IsChecked != false)
+            throw new InvalidOperationException(
+                "Event Open Frame did not pin the exact original after Trace eviction.");
+        ResumeLiveViews(clearSelection: true, followLive: true);
         ClearSessionView(clearLog: true);
 
         // P2B: an actual request/reply pair must be reflected in the same Frame
