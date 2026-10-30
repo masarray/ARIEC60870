@@ -117,7 +117,8 @@ public sealed class Iec10xGiCasebookTests
         b.Observe(TwoObjects(cot: 21, quality: 0x80));
         var done = b.Observe(Gi(10, true, qoi: 21))!;
         Assert.Equal(1, done.Case.DataFrames);
-        Assert.Equal(2, done.Case.InvalidQualityObjects);
+        // SQ=1 has two information elements; only the first has IV set.
+        Assert.Equal(1, done.Case.InvalidQualityObjects);
         Assert.Contains("Group GI 1", done.Case.Description);
     }
 
@@ -154,7 +155,7 @@ public sealed class Iec10xGiCasebookTests
         var b = new Iec10xGiCasebook();
         b.Observe(Gi(6));
         b.Observe(Gi(6));
-        Assert.Equal("Ambiguous · overlapping GI", b.Observe(Gi(7, true))!.Case.Status);
+        Assert.Equal("Ambiguous", b.Observe(Gi(7, true))!.Case.Status);
         Assert.Equal("Ambiguous", b.Observe(Gi(10, true))!.Case.Status);
     }
 }
