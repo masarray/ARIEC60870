@@ -691,7 +691,7 @@ public partial class MainWindow
         var forbiddenSingleA2 = seen.Format == "Single" && raw.Length == 1 && raw[0] == 0xA2;
         var profileMismatch = seen.Format == "LinkWidthMismatch";
         var isNoise = seen.Format == "Noise";
-        if (profileMismatch || isNoise) _passiveUndecodableShown++;
+        if (!inspectionOnly && (profileMismatch || isNoise)) _passiveUndecodableShown++;
         var controlOffset = seen.Format is "Fixed" or "LinkWidthMismatch" ? 1 :
             seen.Format == "Variable" ? 4 : -1;
         var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
