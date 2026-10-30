@@ -37,6 +37,24 @@ public sealed class Iec10xSourceFrameNavigationTests
     }
 
     [Fact]
+    public void ActiveSiblingObjectUsesOriginalPhysicalFrameSequenceNotObjectEventSequence()
+    {
+        var physical = Frame(Iec60870ProtocolMode.Iec101, "Link A", 200);
+        var sibling = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101, PhysicalSource = "Link A",
+            SequenceNumber = 201, PhysicalFrameSequenceNumber = 200,
+            Direction = ARIEC60870.Core.Model.FrameDirection.SlaveToMaster
+        };
+        Assert.Contains("|seq:200|", sibling.EvidenceReference);
+        Assert.True(Iec10xObservationIdentity.SamePhysicalFrame(physical, sibling.EvidenceReference,
+            sibling.PhysicalSource, sibling.ProtocolMode, sibling.SequenceNumber));
+        Assert.False(Iec10xObservationIdentity.SamePhysicalFrame(
+            Frame(Iec60870ProtocolMode.Iec101, "Link A", 201),
+            sibling.EvidenceReference, sibling.PhysicalSource, sibling.ProtocolMode, sibling.SequenceNumber));
+    }
+
+    [Fact]
     public void ActiveSequenceMustMatchEvenIfAddressOrRawBytesWouldMatch()
     {
         var original = Frame(Iec60870ProtocolMode.Iec104, "", 100);

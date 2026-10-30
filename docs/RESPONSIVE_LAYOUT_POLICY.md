@@ -115,3 +115,7 @@ Layout and rendering must not become the bottleneck during polling:
 - Properties inspector omits repetitive routine COT/quality bit rows and duplicate TI numbers; the raw typed bits remain available through tooltips and original capture.
 - Event Log foreground shows one semantically explained Value field, removes Before/After and repeated reason from the grid, but keeps original before/after/reason evidence for report and export. Newest visible SOE is at bottom for standard follow-to-end behavior.
 
+
+
+## R3-D — Compact GI workspace and Event evidence actions (2026-10-30)
+The primary navigation includes a short **GI** segment adjacent to Controls inside its existing horizontally scrollable segmented bar, never an Auto-sized frame-status header. GI conversation and stage DataGrids use virtualization and recycling; they refresh from the shared 75ms UI flush **only while selected and dirty**. Event top toolbar provides small secondary **Open Frame** / **Open Case** actions, without a new side dock. Narrow windows may scroll the navigation segments horizontally. Source navigation temporarily holds only Trace display, not transport, data receipt, or raw journal. Test manually at Windows DPI 100/125/150%, smaller windows, selection persistence and long capture; compilation alone does not prove visual DPI correctness.

@@ -27,7 +27,7 @@ public static class Iec10xObservationIdentity
         var index = item.InformationObjectDetails?.Index ?? 0;
         return item.PhysicalStreamId is int stream && item.RawStreamOffset is long offset
             ? $"{(int)item.ProtocolMode}|stream:{stream}|byte:{offset}|object:{index}"
-            : $"{(int)item.ProtocolMode}|seq:{item.SequenceNumber}|object:{index}";
+            : $"{(int)item.ProtocolMode}|seq:{item.PhysicalFrameSequenceNumber ?? item.SequenceNumber}|object:{index}";
     }
 
     /// <summary>Match a clicked event or transaction stage to the ORIGINAL physical
@@ -46,10 +46,10 @@ public static class Iec10xObservationIdentity
         var frameRef = FrameRoot(frame.EvidenceReference);
         var soughtRef = FrameRoot(evidenceRef);
         if (!string.Equals(frameRef, soughtRef, StringComparison.Ordinal)) return false;
-        // Active sequence is a frame identity. Passive stream+offset is stronger;
-        // per-object projection sequence can differ from the physical frame event.
-        return soughtRef.Contains("|stream:", StringComparison.Ordinal) ||
-            frame.SequenceNumber == sequence;
+        // Both roots refer to one original physical telegram. Active sibling RX
+        // object projections carry their original frame sequence as the reference
+        // root, even though their own event sequence legitimately differs.
+        return true;
     }
 
     private static string FrameRoot(string reference)

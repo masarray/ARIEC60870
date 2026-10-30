@@ -267,6 +267,7 @@ public partial class MainWindow
         // A partial capture alone cannot establish a hardware/RTU timeout.
         FlushVisibleUiBatches();
         RefreshControlCasesIfVisible();
+        RefreshGiCasesIfVisible();
         EmitBackpressureNoticeIfNeeded();
 
         stopwatch.Stop();

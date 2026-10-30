@@ -850,7 +850,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
-        AddAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
+        AddAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
         return decoded;
     }
 
@@ -886,7 +886,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             "Inspect the raw RX and last TX on each COM channel, then verify SICAM link mode/address and the physical serial path.");
     }
 
-    private void AddAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)
+    private void AddAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs, long physicalFrameSequence)
     {
         if (asdu is null || asdu.Objects.Count <= 1)
         {
@@ -900,6 +900,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 Direction = FrameDirection.SlaveToMaster,
                 State = _state,
                 Category = decoded.IsChecksumValid ? "RX Object" : "RX Warning",
+                PhysicalFrameSequenceNumber = physicalFrameSequence,
                 DataClass = dataClass,
                 PollingReason = reason,
                 Summary = $"{asdu.TypeName}, IOA={obj.InformationObjectAddress}, {obj.ShortValue}",
@@ -1099,6 +1100,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             PhysicalSource = item.PhysicalSource,
             PhysicalStreamId = item.PhysicalStreamId,
             RawStreamOffset = item.RawStreamOffset,
+            PhysicalFrameSequenceNumber = item.PhysicalFrameSequenceNumber,
             ResponseTimeMs = item.ResponseTimeMs,
             Frame = item.Frame,
             ProtocolMode = Iec60870ProtocolMode.Iec101,

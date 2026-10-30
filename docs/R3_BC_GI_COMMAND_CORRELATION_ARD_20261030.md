@@ -44,3 +44,7 @@ Open Capture clears previous state, validates source archive, then processes the
 
 ### Source archive decoded link and time uncertainty
 Reopened `.ariec` rows can only reconstruct the IEC101 LinkAddress from validated `Iec10xArchivedFrameDecoder` FT1.2 bytes, not by confusing CA or reading a presentation label. Legacy captures without recorded arrival UTC explicitly display `PC time unavailable (legacy capture)`; no fabricated year-1970 host event.
+
+
+### Original active frame identity for multi-object ASDU navigation
+First RX frame event sequence is captured and supplied as `PhysicalFrameSequenceNumber` to additional per-object RX events in IEC101 and IEC104. Active evidence references now use this immutable physical frame sequence root even if the object's event sequence differs. Matching still requires protocol/source and exact physical evidence root, never IOA/HEX similarity. GI workspace refresh is called from the bounded periodic UI flush only when selected/dirty.

@@ -34,6 +34,9 @@ public sealed class Iec103MasterEvidenceEvent
     /// <summary>Original RX journal provenance. Null for active master frames.</summary>
     public int? PhysicalStreamId { get; init; }
     public long? RawStreamOffset { get; init; }
+    /// <summary>Original physical-frame sequence for additional RX Object projections.
+    /// An object's own event sequence must not replace its parent frame identity.</summary>
+    public long? PhysicalFrameSequenceNumber { get; init; }
     public string EvidenceReference => Iec10xObservationIdentity.EvidenceReference(this);
 
     /// <summary>
