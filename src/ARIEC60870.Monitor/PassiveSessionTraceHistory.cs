@@ -15,6 +15,8 @@ public sealed class PassiveSessionTraceHistory : IDisposable
     private const int IndexBytes = 24; // stream byte offset, UTC ticks, payload file position
     private const int HeaderBytes = 22;
     private const int MaxWireBytes = 4096;
+    private const long MaxSessionHistoryBytes = 2L * 1024 * 1024 * 1024;
+    private long _storedBytes;
     private readonly object _gate = new();
     private readonly FileStream[] _data;
     private readonly FileStream[] _indices;
@@ -72,6 +74,10 @@ public sealed class PassiveSessionTraceHistory : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (frame.StreamId >= _data.Length) throw new ArgumentOutOfRangeException(nameof(frame));
+            if (_storedBytes + HeaderBytes + IndexBytes + frame.RawBytes.Length >
+                MaxSessionHistoryBytes)
+                throw new IOException("Temporary Trace history reached its 2 GiB session limit; " +
+                    "live RX continues but earlier history requires full raw recording.");
             var sid = frame.StreamId;
             var data = _data[sid];
             var index = _indices[sid];
@@ -96,6 +102,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
             BinaryPrimitives.WriteInt64LittleEndian(ix[16..], position);
             index.Write(ix);
             _counts[sid]++;
+            _storedBytes += HeaderBytes + IndexBytes + frame.RawBytes.Length;
         }
     }
 
@@ -138,7 +145,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             using var index = ReadIndex(sid);
             using var data = new FileStream(DataPath(sid), FileMode.Open, FileAccess.Read,
-                FileShare.ReadWrite, 65536, FileOptions.RandomAccess);
+                FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.RandomAccess);
             var center = sid == streamId ? exact :
                 LowerBound(index, counts[sid], target.UtcTicks, byTime: true);
             var start = Math.Max(0, center - before - 20);
@@ -173,11 +180,11 @@ public sealed class PassiveSessionTraceHistory : IDisposable
     }
 
     private FileStream ReadIndex(byte sid) => new(IndexPath(sid), FileMode.Open,
-        FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.RandomAccess);
+        FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.RandomAccess);
     private string DataPath(byte sid) => Path.Combine(DirectoryPath, $"frames-{sid:00}.bin");
     private string IndexPath(byte sid) => Path.Combine(DirectoryPath, $"frames-{sid:00}.idx");
     private static FileStream Open(string path) => new(path, FileMode.CreateNew,
-        FileAccess.Write, FileShare.ReadWrite, 65536, FileOptions.SequentialScan);
+        FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.SequentialScan);
     private static long LowerBound(FileStream index, long count, long value, bool byTime)
     {
         long lo = 0, hi = count;
