@@ -28,7 +28,8 @@ public static class SelectedFrameShareFormatter
                 .AppendLine(row.ProtocolTraceHeader);
             if (!string.IsNullOrWhiteSpace(row.ProtocolTraceCompactMeaning))
                 sb.AppendLine(row.ProtocolTraceCompactMeaning.Trim());
-            sb.Append("Hex Frame: ").Append(row.RawHex);
+            sb.Append(row.ProtocolTraceRaw.StartsWith("Hex Frame:", StringComparison.Ordinal)
+                ? row.ProtocolTraceRaw : "Hex Frame: " + row.RawHex);
         }
         return sb.ToString();
     }

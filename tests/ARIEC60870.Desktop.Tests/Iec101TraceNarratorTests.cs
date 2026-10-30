@@ -212,7 +212,7 @@ public sealed class Iec101TraceNarratorTests
             ControlObservation = "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7)"
         };
         var row = new EvidenceRow(item);
-        Assert.Contains("Control NEGATIVE reply", row.ProtocolTraceTitle);
+        Assert.Contains("Command rejected · negative ACTCON", row.ProtocolTraceTitle);
         Assert.Equal("NEG  ·  SELECT  ·  COT 7  ·  CA 1 / IOA 123", row.ProtocolTraceCompactMeaning);
         Assert.Contains("Cause of transmission: 7", row.ProtocolTraceMeaning);
         Assert.Contains("Control sequence: RTU NEGATIVE CONFIRMATION", row.ProtocolTraceMeaning);

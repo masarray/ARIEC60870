@@ -238,15 +238,21 @@ public static class Iec101TraceNarrator
         var negative = asdu.IsNegativeConfirm || asdu.CauseDetails?.Negative == true;
         var fromMaster = direction == FrameDirection.MasterToSlave;
         if (asdu.TypeId == 100)
+        {
+            var qoi = asdu.CommandDetails?.QualifierValue;
+            var giKind = qoi is >= 21 and <= 36
+                ? "Group " + (qoi.Value - 20).ToString(CultureInfo.InvariantCulture) + " Interrogation"
+                : "General Interrogation";
             return cause switch
             {
-                6 when fromMaster => "Send General Interrogation",
+                6 when fromMaster => "Send " + giKind,
                 6 => "GI activation observed",
                 7 when negative => "GI rejected · negative ACTCON",
                 7 => "GI accepted · ACTCON",
                 10 => "GI terminated · ACTTERM",
-                _ => "General Interrogation · " + asdu.CauseName
+                _ => giKind + " · " + asdu.CauseName
             };
+        }
         if (asdu.TypeId is >= 45 and <= 51 or >= 58 and <= 64)
         {
             if (cause is >= 44 and <= 47)

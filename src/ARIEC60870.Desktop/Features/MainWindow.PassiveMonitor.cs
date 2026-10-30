@@ -246,7 +246,7 @@ public partial class MainWindow
         FlushUiQueues();
         if (!FrameTraceRows.Any(x => x.ProtocolTraceMeaning.Contains(
                 "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7", StringComparison.Ordinal) &&
-            x.ProtocolTraceTitle.Contains("Control NEGATIVE reply", StringComparison.Ordinal)))
+            x.ProtocolTraceTitle.Contains("Command rejected · negative ACTCON", StringComparison.Ordinal)))
             throw new InvalidOperationException("Passive control negative ACTCON was not explained in Frame Trace.");
         if (!FrameTraceRows.Any(x => x.ProtocolTraceMeaning.Contains(
                 "MASTER SELECT COT=6", StringComparison.Ordinal)))

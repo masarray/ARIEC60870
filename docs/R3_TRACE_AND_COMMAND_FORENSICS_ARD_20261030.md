@@ -28,3 +28,8 @@ Fix top EVENT counter to reflect real event facts not every measurement frame; d
 - 2/4-RX passive may lack full history: mark unknown rather than fabricated failure.
 
 Synthetic tests must pass before merge; physical field and UI manual FAT are separate.
+
+## Regression upgrade after first Windows CI
+- Original smoke and xUnit assertion for the intentionally replaced negative-control title updated to the new operator-readable wording.
+- Copy explicitly reuses the existing formatted Trace HEX line (spaced bytes), including passive raw frames.
+- Group interrogation QOI21–36 gets group-specific send title; QOI20 remains station GI.
