@@ -12,6 +12,28 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class SelectedFrameShareFormatter
 {
+    /// <summary>Exactly the operator-facing Trace lines; not the forensic archive report.</summary>
+    public static string FormatForClipboard(IReadOnlyList<EvidenceRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        var sb = new StringBuilder(Math.Max(256, rows.Count * 160));
+        foreach (var row in rows.OrderBy(x => x.Sequence))
+        {
+            if (sb.Length > 0) sb.AppendLine().AppendLine();
+            var stamp = row.Source.TimestampUtc.Year >= 2000
+                ? row.Source.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd ", CultureInfo.InvariantCulture) + row.Time
+                : row.Time;
+            var arrow = row.Direction == "TX" ? "↑ TX" : row.Direction == "RX" ? "↓ RX" : row.Direction;
+            sb.Append(stamp).Append("  ").Append(arrow).Append("  ")
+                .AppendLine(row.ProtocolTraceHeader);
+            if (!string.IsNullOrWhiteSpace(row.ProtocolTraceCompactMeaning))
+                sb.AppendLine(row.ProtocolTraceCompactMeaning.Trim());
+            sb.Append(row.ProtocolTraceRaw.StartsWith("Hex Frame:", StringComparison.Ordinal)
+                ? row.ProtocolTraceRaw : "Hex Frame: " + row.RawHex);
+        }
+        return sb.ToString();
+    }
+
     public static string Format(IReadOnlyList<EvidenceRow> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);

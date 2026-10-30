@@ -486,6 +486,21 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var maxSweeps = Math.Clamp(_settings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            // An ACD=1 response means Class 1 is pending even if Class 2 returned
+            // FC9. Never continue a post-GI Class 2 sweep while ignoring that signal.
+            if (_acd)
+            {
+                await DrainClass1Async("ACD=1 during post-GI verification", stopWhenGiEnds: false,
+                    cancellationToken).ConfigureAwait(false);
+                if (_acd)
+                {
+                    SetState(Iec103MasterState.Class1EventDrain,
+                        "Post-GI Class 2 sweep yielded to Class 1",
+                        "RTU still indicates ACD=1 after bounded drain. Further Class 2 sweep deferred; inspect Class 1 reply/ACD and capture window.",
+                        dataClass: "Class 1");
+                    break;
+                }
+            }
             var beforeNoData = _counters.NoDataResponses;
             var beforeUserData = _counters.UserDataResponses;
             var beforeValidResponses = _counters.TimedResponses;
@@ -786,7 +801,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             else if (decoded.LinkControl.FunctionCode == 8 || asdu is not null) _counters.UserDataResponses++;
         }
 
-        if (asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
+        // COT10 is also used by ordinary controls: only TI100 terminates a GI.
+        if (asdu?.TypeId == 100 && asdu.CauseOfTransmission == 10)
+            _counters.GiEndResponses++;
         if (asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
         AddEvent(new Iec103MasterEvidenceEvent
         {

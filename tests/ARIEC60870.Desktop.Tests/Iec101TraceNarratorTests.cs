@@ -56,8 +56,9 @@ public sealed class Iec101TraceNarratorTests
         var f = LinkFrame("10 29 69 92 16", "Class 2");
         var (title, meaning) = Iec101TraceNarrator.Describe(f);
         Assert.Contains("⇩ [", title);
-        Assert.EndsWith("Class 2 Data Not Available, Class 1 Data Available!", title);
-        Assert.Equal("Data Link: Nack (Data Not Available) [PRM:0,ACD:1,DFC:0] Data Link Addr 105", meaning);
+        Assert.EndsWith("Class 2 empty · Class 1 pending", title);
+        Assert.Contains("No requested data (FC9, not link NACK)", meaning);
+        Assert.Contains("Class 1 pending", meaning);
     }
 
     [Fact]
@@ -75,8 +76,8 @@ public sealed class Iec101TraceNarratorTests
     public void UnknownPollContextMustNotFabricateClass()
     {
         var title = Iec101TraceNarrator.Describe(LinkFrame("10 29 69 92 16", "-")).Title;
-        Assert.Contains("Requested Data Not Available", title);
-        Assert.DoesNotContain("Class 2 Data Not Available", title);
+        Assert.Contains("No requested data", title);
+        Assert.DoesNotContain("Class 2 empty", title);
     }
 
     private static byte[] MakeVariableFrame(byte linkControl, byte linkAddress, byte[] asdu)
@@ -121,7 +122,7 @@ public sealed class Iec101TraceNarratorTests
             DataClass = "Class 1"
         };
         var row = new EvidenceRow(e);
-        Assert.EndsWith("Single Point with Date/Time response", row.ProtocolTraceTitle);
+        Assert.EndsWith("GI data · Single-point with date/time", row.ProtocolTraceTitle);
         Assert.Contains("Data Link: User Data [PRM:0,ACD:1,DFC:0] Length 19 Data Link Addr 105", row.ProtocolTraceMeaning);
         Assert.Contains("ASDU: Type ID 30 <Single-point with date/time> Count 1", row.ProtocolTraceMeaning);
         Assert.Contains("Cause of transmission: 20 (interrogated by station interrogation) | Origin: 0", row.ProtocolTraceMeaning);
@@ -211,7 +212,7 @@ public sealed class Iec101TraceNarratorTests
             ControlObservation = "RTU NEGATIVE CONFIRMATION (P/N=1, COT=7)"
         };
         var row = new EvidenceRow(item);
-        Assert.Contains("Control NEGATIVE reply", row.ProtocolTraceTitle);
+        Assert.Contains("Command rejected · negative ACTCON", row.ProtocolTraceTitle);
         Assert.Equal("NEG  ·  SELECT  ·  COT 7  ·  CA 1 / IOA 123", row.ProtocolTraceCompactMeaning);
         Assert.Contains("Cause of transmission: 7", row.ProtocolTraceMeaning);
         Assert.Contains("Control sequence: RTU NEGATIVE CONFIRMATION", row.ProtocolTraceMeaning);

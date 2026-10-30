@@ -148,7 +148,7 @@ public partial class MainWindow
             return;
         }
 
-        Clipboard.SetText(SelectedFrameShareFormatter.Format(rows));
+        Clipboard.SetText(SelectedFrameShareFormatter.FormatForClipboard(rows));
         AppendSessionLog($"Copied {rows.Count} selected protocol frames as AI-readable text. No data was uploaded.");
     }
 
