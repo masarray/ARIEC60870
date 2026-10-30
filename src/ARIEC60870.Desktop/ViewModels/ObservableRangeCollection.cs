@@ -109,7 +109,7 @@ public sealed class ObservableRangeCollection<T> : ObservableCollection<T>
                 for (var i = 0; i < prepend; i++) Insert(i, desired[i]);
         }
         var common = Math.Min(Count, desired.Count);
-        for (var i = 0; i < common; i++
+        for (var i = 0; i < common; i++)
         {
             if (!comparer.Equals(key(this[i]), key(desired[i])))
             {
