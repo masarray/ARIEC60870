@@ -66,30 +66,19 @@ public static class Iec101TraceNarrator
         if (!link.Prm && link.FunctionCode == 9)
         {
             var which = GetRequestedClass(item.DataClass);
-            var title = which + " Data Not Available";
-            title += link.Acd switch
-            {
-                true => ", Class 1 Data Available!",
-                false => ", No Class 1 Data Indicated",
-                _ => ", Class 1 Availability Unknown"
-            };
+            var title = which == "Requested" ? "No requested data" :
+                which + " empty" + (link.Acd == true ? " · Class 1 pending" : "");
             var flow = link.Dfc == true ? " [DFC busy]" : "";
             return (prefix + title,
-                $"Data Link: Nack (Data Not Available) {secondary}{flow}{addressSuffix}");
+                $"Data Link: No requested data (FC9, not link NACK) {secondary}{flow}{addressSuffix}" +
+                (link.Acd == true ? " · Class 1 pending; master should prioritize a bounded Class 1 drain." : ""));
         }
 
         if (!link.Prm && link.FunctionCode == 8)
         {
             var asdu = item.AsduDetails;
-            var title = asdu?.TypeId switch
-            {
-                30 => "Single Point with Date/Time response",
-                31 => "Double Point with Date/Time response",
-                1 => "Single Point response",
-                3 => "Double Point response",
-                100 => "Interrogation response",
-                _ => asdu is not null ? $"{GetTypeLabel(asdu)} response" : "User Data response"
-            };
+            var title = asdu is null ? "User data received" :
+                ApplicationTitle(asdu, item.Direction);
             var builder = new StringBuilder(220);
             builder.Append("Data Link: User Data ").Append(secondary)
                 .Append(declaredLength).Append(addressSuffix);
@@ -99,17 +88,6 @@ public static class Iec101TraceNarrator
                 builder.Append('\n').Append("ASDU: Not decoded; check COT, CA, IOA and link-width settings.");
             if (!string.IsNullOrWhiteSpace(item.ControlObservation))
                 builder.Append('\n').Append("Control sequence: ").Append(item.ControlObservation);
-            if (asdu?.IsControlCommand == true)
-                title = asdu.IsNegativeConfirm
-                    ? "Control NEGATIVE reply (P/N=1)"
-                    : asdu.CauseOfTransmission switch
-                    {
-                        7 => "Control ACTCON reply",
-                        10 => "Control ACTTERM reply",
-                        9 => "Control DEACTCON reply",
-                        >= 44 and <= 47 => "Control protocol error reply",
-                        _ => "Control response"
-                    };
             return (prefix + title, builder.ToString());
         }
 
@@ -117,9 +95,10 @@ public static class Iec101TraceNarrator
         string label;
         if (!link.Prm && link.FunctionCode == 0)
         {
-            label = "Link ACK response";
+            label = link.Acd == true ? "Link ACK · Class 1 pending" : "Link ACK response";
             meaning = $"Data Link: ACK {secondary}{addressSuffix} " +
-                "(link confirmation only; physical command operation not proven)";
+                "(link confirmation only; physical command operation not proven)" +
+                (link.Acd == true ? " · RTU signals pending Class 1 data; no payload delivered by this ACK." : "");
         }
         else if (!link.Prm && link.FunctionCode == 1)
         {
@@ -150,6 +129,7 @@ public static class Iec101TraceNarrator
 
         if (item.AsduDetails is { } extra)
         {
+            label = ApplicationTitle(extra, item.Direction);
             var builder = new StringBuilder(meaning);
             AppendAsdu(builder, extra);
             meaning = builder.ToString();
@@ -250,13 +230,66 @@ public static class Iec101TraceNarrator
     private static bool HasCp56Time(int type, IReadOnlyList<byte> data) =>
         type is >= 30 and <= 37 or >= 58 and <= 64 or 103 && data.Count >= 7;
 
+    /// <summary>Typed application meaning for Trace and the command/event projection.</summary>
+    public static string ApplicationTitle(Iec10xAsduDecode asdu, FrameDirection direction)
+    {
+        ArgumentNullException.ThrowIfNull(asdu);
+        var cause = asdu.CauseOfTransmission;
+        var negative = asdu.IsNegativeConfirm || asdu.CauseDetails?.Negative == true;
+        var fromMaster = direction == FrameDirection.MasterToSlave;
+        if (asdu.TypeId == 100)
+            return cause switch
+            {
+                6 when fromMaster => "Send General Interrogation",
+                6 => "GI activation observed",
+                7 when negative => "GI rejected · negative ACTCON",
+                7 => "GI accepted · ACTCON",
+                10 => "GI terminated · ACTTERM",
+                _ => "General Interrogation · " + asdu.CauseName
+            };
+        if (asdu.TypeId is >= 45 and <= 51 or >= 58 and <= 64)
+        {
+            if (cause is >= 44 and <= 47)
+                return "Command protocol error · COT " + cause.ToString(CultureInfo.InvariantCulture);
+            if (cause == 7 && negative) return "Command rejected · negative ACTCON";
+            if (cause == 7) return "Command accepted · ACTCON";
+            if (cause == 10) return "Command terminated · ACTTERM";
+            if (cause == 9) return "Command deactivation confirmed · DEACTCON";
+            if (cause == 6 && fromMaster)
+                return "Send " + (asdu.CommandDetails?.Operation ?? "command") +
+                    " · " + GetTypeLabel(asdu);
+            return "Command " + (negative ? "negative reply" : "reply") +
+                " · " + GetTypeLabel(asdu);
+        }
+        if (asdu.TypeId == 101) return cause == 6 && fromMaster ? "Send Counter Interrogation" : "Counter interrogation · " + asdu.CauseName;
+        if (asdu.TypeId == 102) return cause == 6 && fromMaster ? "Send Read Command" : "Read response · " + asdu.CauseName;
+        if (asdu.TypeId == 103) return cause == 6 && fromMaster ? "Send Clock Synchronization" : "Clock synchronization · " + asdu.CauseName;
+        if (cause is >= 20 and <= 36)
+            return "GI data · " + GetTypeLabel(asdu);
+        if (cause == 3 && !fromMaster)
+            return GetTypeLabel(asdu) + " · spontaneous";
+        if (cause is 11 or 12 && !fromMaster)
+            return "Process feedback · " + GetTypeLabel(asdu);
+        return GetTypeLabel(asdu) + (fromMaster ? " request" : " response");
+    }
+
     private static string GetTypeLabel(Iec10xAsduDecode asdu) => asdu.TypeId switch
     {
         1 => "Single-point",
         3 => "Double-point",
         30 => "Single-point with date/time",
         31 => "Double-point with date/time",
-        100 => "Interrogation command",
+        9 => "Normalized measurement",
+        11 => "Scaled measurement",
+        13 => "Floating measurement",
+        45 or 58 => "Single command",
+        46 or 59 => "Double command",
+        47 or 60 => "Regulating step",
+        48 or 61 => "Normalized setpoint",
+        49 or 62 => "Scaled setpoint",
+        50 or 63 => "Floating setpoint",
+        51 or 64 => "Bitstring command",
+        100 => "General interrogation",
         _ => asdu.TypeName
     };
 

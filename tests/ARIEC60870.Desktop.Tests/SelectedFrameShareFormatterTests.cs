@@ -74,6 +74,44 @@ public sealed class SelectedFrameShareFormatterTests
             result.IndexOf("## Frame 30", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void ClipboardMatchesTraceWithoutForensicReportNoise()
+    {
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 11,
+            TimestampUtc = new DateTime(2026, 10, 30, 0, 35, 57, DateTimeKind.Utc),
+            Direction = FrameDirection.MasterToSlave,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            RawHex = "10 5A 69 C3 16",
+            Summary = "Class 1 request",
+            DataClass = "Class 1"
+        });
+        var copy = SelectedFrameShareFormatter.FormatForClipboard(new[] { row });
+        Assert.Contains("TX", copy);
+        Assert.Contains("2026-10-30", copy);
+        Assert.Contains("Hex Frame: 10 5A 69 C3 16", copy);
+        Assert.DoesNotContain("COT bits:", copy);
+        Assert.DoesNotContain("Selected Protocol Frames", copy);
+        Assert.DoesNotContain("not calibrated", copy);
+    }
+
+    [Fact]
+    public void CompactClipboardKeepsMultipleFramesChronological()
+    {
+        EvidenceRow Row(long seq, string hex) => new(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = seq,
+            TimestampUtc = new DateTime(2026, 10, 30, 0, 35, 57, DateTimeKind.Utc),
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            RawHex = hex, Summary = "Response"
+        });
+        var copy = SelectedFrameShareFormatter.FormatForClipboard(new[] { Row(9,"E5"), Row(2,"10 29 69 92 16") });
+        Assert.True(copy.IndexOf("10 29 69 92 16", StringComparison.Ordinal) <
+            copy.IndexOf("E5", StringComparison.Ordinal));
+    }
     [Fact]
     public void EmptySelectionIsExplicitAndCannotInventFrames()
     {

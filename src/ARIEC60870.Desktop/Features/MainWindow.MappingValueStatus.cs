@@ -167,6 +167,14 @@ public partial class MainWindow
 
     private void UpdateValueAndEventViews(Iec103MasterEvidenceEvent item)
     {
+        // Every actual typed TX/RX application command is an event fact, independently
+        // of whether a process value changed. No fabricated RTU success on ACTCON.
+        var commandStage = Iec10xCommandEventProjection.Project(item);
+        if (commandStage is not null)
+        {
+            _relayEventStore.Add(new RelayEventRow(commandStage));
+            _relayEventRowsDirty = true;
+        }
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
@@ -536,6 +544,8 @@ public partial class MainWindow
 
     private static bool ShouldIncludeRelayEvent(RelayEventRow row, string filter)
     {
+        if (filter.Equals("Commands", StringComparison.OrdinalIgnoreCase))
+            return row.Type == "Command";
         if (filter.Equals("Digital status", StringComparison.OrdinalIgnoreCase))
         {
             return IsDigitalEvent(row);

@@ -59,7 +59,7 @@ public partial class MainWindow
             Add("COT flags", cot.Detail);
         Add("Common address", row.CommonAddress);
         Add("IOA", row.IoAddress);
-        Add("FUN / INF", row.FunInf);
+        if (row.ProtocolMode == "103") Add("FUN / INF", row.FunInf);
         Add("Object count", row.ObjectCount);
         Add("Value", row.SemanticState);
         Add("Quality", row.Quality, row.Source.QualityDetails?.BitDetails);
