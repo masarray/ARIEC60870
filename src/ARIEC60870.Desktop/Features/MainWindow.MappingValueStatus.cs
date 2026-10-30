@@ -172,7 +172,7 @@ public partial class MainWindow
         var commandCase = _commandCasebook.FindByEvidence(item);
         var commandStage = Iec10xCommandEventProjection.Project(item, commandCase?.CaseId);
         if (commandStage is not null)
-            AppendProtocolEvent(commandStage);
+            AppendProtocolEvent(commandStage, item);
 
         // Application semantics live in Master; the WPF projection only receives typed
         // milestones. Interrogated data updates GI counters, not one SOE row per value.
@@ -180,7 +180,7 @@ public partial class MainWindow
         if (giMilestone is not null)
         {
             _giCasesDirty = true;
-            AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone));
+            AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone), item);
         }
         else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
             _giCasesDirty = true;
@@ -323,7 +323,7 @@ public partial class MainWindow
                 QualityText = ExtractQualityTextFromEvidence(item),
                 QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
-            });
+            }, item);
 
             _relayEventStore.Add(relayEventRow);
             _relayEventRowsDirty = true;
@@ -552,9 +552,10 @@ public partial class MainWindow
         RelayEventRows.ReplaceRange(rows);
     }
 
-    private void AppendProtocolEvent(Iec103RelayEventLogEntry entry)
+    private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
+        Iec103MasterEvidenceEvent? originalFrameEvidence = null)
     {
-        _relayEventStore.Add(new RelayEventRow(entry));
+        _relayEventStore.Add(new RelayEventRow(entry, originalFrameEvidence));
         _relayEventRowsDirty = true;
         RegisterActualEventFact();
     }
