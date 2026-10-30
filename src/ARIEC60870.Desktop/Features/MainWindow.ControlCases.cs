@@ -1,7 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using ARIEC60870.Master.Protocol.Iec10x;
@@ -10,32 +9,44 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    public ObservableCollection<Iec10xCommandCasebook.CommandStage> ControlCaseStages { get; } = new();
+    public ARIEC60870.Desktop.ViewModels.ObservableRangeCollection<Iec10xCommandCasebook.CommandStage> ControlCaseStages { get; } = new();
+    private bool _restoringControlCaseSelection;
 
     private void RefreshControlCasesIfVisible(bool force = false)
     {
         if (MainTabControl?.SelectedIndex != 11 || ControlCasesGrid is null || (!_commandCasesDirty && !force)) return;
 
         var id = (ControlCasesGrid.SelectedItem as Iec10xCommandCasebook.CommandCase)?.CaseId;
-        ControlCaseRows.ReplaceRange(_commandCasebook.Snapshot().Reverse().ToArray());
-        _commandCasesDirty = false;
-
-        // Preserve the operator's selection while the bounded case index updates.
-        var match = id.HasValue ? ControlCaseRows.FirstOrDefault(c => c.CaseId == id.Value) : null;
-        if (match is not null) ControlCasesGrid.SelectedItem = match;
-        else if (ControlCasesGrid.SelectedItem is null && ControlCaseRows.Count > 0)
-            ControlCasesGrid.SelectedItem = ControlCaseRows[0];
+        _restoringControlCaseSelection = true;
+        try
+        {
+            ControlCaseRows.ReconcileByKey(_commandCasebook.Snapshot().Reverse().ToArray(),
+                row => (row.Protocol, row.Source, row.CaseId));
+            _commandCasesDirty = false;
+            var match = id.HasValue ? ControlCaseRows.FirstOrDefault(c => c.CaseId == id.Value) : null;
+            if (match is not null) ControlCasesGrid.SelectedItem = match;
+            else if (ControlCasesGrid.SelectedItem is null && ControlCaseRows.Count > 0)
+                ControlCasesGrid.SelectedItem = ControlCaseRows[0];
+        }
+        finally { _restoringControlCaseSelection = false; }
+        RefreshSelectedControlCaseStages();
     }
 
     private void ControlCases_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        ControlCaseStages.Clear();
+        if (_restoringControlCaseSelection) return;
+        RefreshSelectedControlCaseStages();
+    }
+
+    private void RefreshSelectedControlCaseStages()
+    {
         if (ControlCasesGrid?.SelectedItem is not Iec10xCommandCasebook.CommandCase c)
         {
+            if (ControlCaseStages.Count > 0) ControlCaseStages.Clear();
             if (ControlCaseDetailsBox is not null) ControlCaseDetailsBox.Text = "Select a command case.";
             return;
         }
-        foreach (var stage in c.Stages) ControlCaseStages.Add(stage);
+        ControlCaseStages.ReconcileByKey(c.Stages, stage => (stage.Sequence, stage.EvidenceReference));
         if (ControlCaseDetailsBox is not null)
             ControlCaseDetailsBox.Text = c.Interpretation +
                 "  ·  Observation means protocol evidence, not independently verified physical operation.";

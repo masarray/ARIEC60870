@@ -268,6 +268,7 @@ public partial class MainWindow
         FlushVisibleUiBatches();
         RefreshControlCasesIfVisible();
         RefreshGiCasesIfVisible();
+        UpdateQuickFindCounts();
         EmitBackpressureNoticeIfNeeded();
 
         stopwatch.Stop();
@@ -499,7 +500,7 @@ public partial class MainWindow
 
     private void ApplyEvidenceSummarySnapshotNow()
     {
-        EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
+        EvidenceRows.ReconcileTail(_evidenceSummaryStore.Snapshot());
         _pendingEvidenceSummaryUiRows.Clear();
         _evidenceSummaryViewDirtyWhileFrozen = false;
         _evidenceSummaryRowsDeferredWhileFrozen = 0;
@@ -508,7 +509,7 @@ public partial class MainWindow
     private void ApplyProtocolTraceSnapshotNow()
     {
         _historicalTraceViewActive = false;
-        FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
         _pendingProtocolTraceUiRows.Clear();
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
@@ -570,7 +571,7 @@ public partial class MainWindow
             return;
         }
 
-        EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
+        EvidenceRows.ReconcileTail(_evidenceSummaryStore.Snapshot());
         _evidenceSummaryViewDirtyWhileFrozen = false;
         _evidenceSummaryRowsDeferredWhileFrozen = 0;
     }
@@ -607,7 +608,7 @@ public partial class MainWindow
             return;
         }
 
-        FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
     }
@@ -729,7 +730,7 @@ public partial class MainWindow
                     // existing ItemsSource was cleared while the session changed.
                     // Reconcile the first batch from the authoritative bounded ring,
                     // once, instead of waiting for a tab switch to force a rebind.
-                    FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+                    FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
                     _pendingProtocolTraceUiRows.Clear();
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
@@ -753,7 +754,8 @@ public partial class MainWindow
 
         if (_valueRowsDirty)
         {
-            ValueRows.ReplaceRange(GetSortedValueRowsSnapshot());
+            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
+                StringComparer.OrdinalIgnoreCase);
             batchRows += ValueRows.Count;
             _valueRowsDirty = false;
         }
@@ -792,26 +794,20 @@ public partial class MainWindow
 
     private void RefreshActiveTraceSnapshot()
     {
-        if (IsEvidenceSummaryTabActive())
+        // Changing tabs is not a capture reset; preserve inactive rows and
+        // the selected historical/archive window until explicit Resume/Clear.
+        if (IsEvidenceSummaryTabActive() && !IsEvidenceSummaryViewFrozen())
         {
-            EvidenceRows.ReplaceRange(_evidenceSummaryStore.Snapshot());
-        }
-        else if (EvidenceRows.Count > 0)
-        {
-            EvidenceRows.Clear();
-        }
-
-        if (IsProtocolTraceTabActive())
-        {
-            FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
-        }
-        else if (FrameTraceRows.Count > 0)
-        {
-            FrameTraceRows.Clear();
+            EvidenceRows.ReconcileTail(_evidenceSummaryStore.Snapshot());
+            _pendingEvidenceSummaryUiRows.Clear();
         }
 
-        _pendingEvidenceSummaryUiRows.Clear();
-        _pendingProtocolTraceUiRows.Clear();
+        if (IsProtocolTraceTabActive() && !_historicalTraceViewActive &&
+            !_recordedArchiveViewActive && !IsProtocolTraceViewFrozen())
+        {
+            FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+            _pendingProtocolTraceUiRows.Clear();
+        }
         UpdateLineMonitorStatus();
     }
 
@@ -1352,7 +1348,8 @@ public partial class MainWindow
                 _valueRowsByKey[row.Key] = row;
             }
 
-            ValueRows.ReplaceRange(GetSortedValueRowsSnapshot());
+            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
+                StringComparer.OrdinalIgnoreCase);
             _valueRowsDirty = false;
         }
 

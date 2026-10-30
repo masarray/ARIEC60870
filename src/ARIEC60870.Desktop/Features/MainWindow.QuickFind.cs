@@ -13,6 +13,7 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private bool _quickFindReady;
+    private bool _quickCountQueued;
     private readonly DispatcherTimer _quickFindDebounce = new(DispatcherPriority.Background)
     { Interval = TimeSpan.FromMilliseconds(180) };
     private string _traceQuickQuery = "";
@@ -36,8 +37,25 @@ public partial class MainWindow
             o => o is Iec10xCommandCasebook.CommandCase row && QuickFindMatcher.MatchesControl(row,_controlsQuickQuery);
         CollectionViewSource.GetDefaultView(GiCaseRows).Filter =
             o => o is Iec10xGiCasebook.GiCase row && QuickFindMatcher.MatchesGi(row,_giQuickQuery);
+        FrameTraceRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
+        ValueRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
+        ControlCaseRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
+        GiCaseRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
         ApplyQuickFind();
+        UpdateQuickFindCounts();
     }
+
+    private void QueueQuickFindCountRefresh()
+    {
+        if (!_quickFindReady || _quickCountQueued) return;
+        _quickCountQueued = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _quickCountQueued = false;
+            UpdateQuickFindCounts();
+        }), DispatcherPriority.Background);
+    }
+
     private void QuickFindTextChanged(object sender, TextChangedEventArgs e)
     {
         if (!_quickFindReady) return;
@@ -73,19 +91,18 @@ public partial class MainWindow
     private void ApplyQuickFind()
     {
         if (!_quickFindReady) return;
-        _traceQuickQuery = TraceQuickFindBox.Text.Trim();
-        _eventsQuickQuery = EventsQuickFindBox.Text.Trim();
-        _valuesQuickQuery = ValuesQuickFindBox.Text.Trim();
-        _controlsQuickQuery = ControlsQuickFindBox.Text.Trim();
-        _giQuickQuery = GiQuickFindBox.Text.Trim();
-        RefreshQuickFindView(FrameTraceRows);
-        RefreshQuickFindView(ValueRows);
-        RefreshQuickFindView(ControlCaseRows);
-        RefreshQuickFindView(GiCaseRows);
-        ApplyRelayEventFilter();
+        // A search in one workspace must not invalidate unrelated WPF views.
+        var trace = TraceQuickFindBox.Text.Trim();
+        var events = EventsQuickFindBox.Text.Trim();
+        var values = ValuesQuickFindBox.Text.Trim();
+        var controls = ControlsQuickFindBox.Text.Trim();
+        var gi = GiQuickFindBox.Text.Trim();
+        if (_traceQuickQuery != trace) { _traceQuickQuery = trace; RefreshQuickFindView(FrameTraceRows); }
+        if (_eventsQuickQuery != events) { _eventsQuickQuery = events; ApplyRelayEventFilter(); }
+        if (_valuesQuickQuery != values) { _valuesQuickQuery = values; RefreshQuickFindView(ValueRows); }
+        if (_controlsQuickQuery != controls) { _controlsQuickQuery = controls; RefreshQuickFindView(ControlCaseRows); }
+        if (_giQuickQuery != gi) { _giQuickQuery = gi; RefreshQuickFindView(GiCaseRows); }
         UpdateQuickFindCounts();
-        ScrollLatestProtocolTraceIfAutoScroll();
-        ScrollLatestEventIfAutoScroll();
     }
     private static void RefreshQuickFindView(IEnumerable source) =>
         CollectionViewSource.GetDefaultView(source)?.Refresh();
@@ -106,5 +123,6 @@ public partial class MainWindow
         _traceQuickQuery = "";
         _traceQuickScope = "All frames";
         RefreshQuickFindView(FrameTraceRows);
+        UpdateQuickFindCounts();
     }
 }

@@ -1,7 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,29 +13,43 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    public ObservableCollection<Iec10xGiCasebook.GiStage> GiCaseStages { get; } = new();
+    public ARIEC60870.Desktop.ViewModels.ObservableRangeCollection<Iec10xGiCasebook.GiStage> GiCaseStages { get; } = new();
+    private bool _restoringGiCaseSelection;
 
     private void RefreshGiCasesIfVisible(bool force = false)
     {
         if (MainTabControl?.SelectedIndex != 12 || GiCasesGrid is null || (!_giCasesDirty && !force)) return;
         var selected = (GiCasesGrid.SelectedItem as Iec10xGiCasebook.GiCase)?.CaseId;
-        GiCaseRows.ReplaceRange(_giCasebook.Snapshot().Reverse().ToArray());
-        _giCasesDirty = false;
-        var match = selected.HasValue ? GiCaseRows.FirstOrDefault(x => x.CaseId == selected.Value) : null;
-        if (match is not null) GiCasesGrid.SelectedItem = match;
-        else if (GiCasesGrid.SelectedItem is null && GiCaseRows.Count > 0)
-            GiCasesGrid.SelectedItem = GiCaseRows[0];
+        _restoringGiCaseSelection = true;
+        try
+        {
+            GiCaseRows.ReconcileByKey(_giCasebook.Snapshot().Reverse().ToArray(),
+                row => (row.Protocol, row.Source, row.CaseId));
+            _giCasesDirty = false;
+            var match = selected.HasValue ? GiCaseRows.FirstOrDefault(x => x.CaseId == selected.Value) : null;
+            if (match is not null) GiCasesGrid.SelectedItem = match;
+            else if (GiCasesGrid.SelectedItem is null && GiCaseRows.Count > 0)
+                GiCasesGrid.SelectedItem = GiCaseRows[0];
+        }
+        finally { _restoringGiCaseSelection = false; }
+        RefreshSelectedGiCaseStages();
     }
 
     private void GiCases_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        GiCaseStages.Clear();
+        if (_restoringGiCaseSelection) return;
+        RefreshSelectedGiCaseStages();
+    }
+
+    private void RefreshSelectedGiCaseStages()
+    {
         if (GiCasesGrid?.SelectedItem is not Iec10xGiCasebook.GiCase c)
         {
+            if (GiCaseStages.Count > 0) GiCaseStages.Clear();
             if (GiCaseDetailsBox is not null) GiCaseDetailsBox.Text = "Select a GI conversation.";
             return;
         }
-        foreach (var s in c.Stages) GiCaseStages.Add(s);
+        GiCaseStages.ReconcileByKey(c.Stages, stage => (stage.Sequence, stage.EvidenceReference));
         if (GiCaseDetailsBox is not null)
             GiCaseDetailsBox.Text = c.Summary + " · " + c.Coverage +
                 " · Class1 requests " + c.Class1Requests + ". ACTTERM is not process-point verification.";

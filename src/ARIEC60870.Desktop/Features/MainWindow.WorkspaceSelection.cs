@@ -40,14 +40,9 @@ public partial class MainWindow
             return;
         }
 
-        if (!IsProtocolTraceTabActive())
-        {
-            _historyNavigationGeneration++;
-            _historicalTraceViewActive = false;
-            if (TraceOlderButton is not null) TraceOlderButton.Visibility = Visibility.Collapsed;
-            if (TraceNewerButton is not null) TraceNewerButton.Visibility = Visibility.Collapsed;
-            if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
-        }
+        // Invalidate an in-flight disk read when the operator navigates away,
+        // but retain an already selected held/history/archive window and anchor.
+        if (!IsProtocolTraceTabActive()) _historyNavigationGeneration++;
         RefreshActiveTraceSnapshot();
         if (IsReportPreviewTabActive())
         {
@@ -60,6 +55,7 @@ public partial class MainWindow
         }
         RefreshControlCasesIfVisible(force: true);
         RefreshGiCasesIfVisible(force: true);
+        UpdateQuickFindCounts();
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
     }
