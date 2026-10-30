@@ -212,7 +212,9 @@ public partial class MainWindow
             {
                 TryLoadMappingProfile(savedMappingPath, showMessage: false);
             }
-            _commandDockExpanded = prefs.CommandDockExpanded;
+            // Migrate pre-OBS UI preferences: old default was always expanded.
+            // Only a preference explicitly saved by the new observation UX may reopen it.
+            _commandDockExpanded = prefs.ObservationDockPreferenceVersion >= 1 && prefs.CommandDockExpanded;
             ApplyCommandDockLayout();
             UpdateInteroperabilityProfilePreview();
         }
@@ -308,6 +310,7 @@ public partial class MainWindow
                 SendGeneralInterrogationOnConnect = settings.SendGeneralInterrogationOnConnect,
                 MappingProfilePath = SanitizeSavedMappingProfilePath(settings.MappingProfilePath),
                 CommandDockExpanded = _commandDockExpanded,
+                ObservationDockPreferenceVersion = 1,
                 DurationSeconds = durationSeconds,
                 SavedUtc = DateTime.UtcNow
             };
@@ -469,7 +472,8 @@ public partial class MainWindow
         public bool SendClockSyncOnConnect { get; set; }
         public bool SendGeneralInterrogationOnConnect { get; set; } = true;
         public string MappingProfilePath { get; set; } = string.Empty;
-        public bool CommandDockExpanded { get; set; } = true;
+        public bool CommandDockExpanded { get; set; }
+        public int ObservationDockPreferenceVersion { get; set; }
         public int DurationSeconds { get; set; }
         public DateTime SavedUtc { get; set; }
     }

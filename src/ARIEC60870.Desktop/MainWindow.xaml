@@ -232,7 +232,7 @@
         <Grid Grid.Row="0" Grid.Column="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition x:Name="CommandDockColumn" Width="304" />
+                <ColumnDefinition x:Name="CommandDockColumn" Width="0" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -366,7 +366,7 @@
                                 </Grid>
                             </Border>
                         </ScrollViewer>
-
+                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center" ToolTip="Show/hide active-master test actions (passive mode remains receive-only)"/>
                     </Grid>
 
                     <Grid Grid.Row="1" ClipToBounds="True">
@@ -532,16 +532,15 @@
                     <TabItem Header="Trace">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.45*" MinWidth="300" />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="0.85*" MinWidth="210" />
+                                <ColumnDefinition Width="*" MinWidth="300" />
+                                <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="6" />
+                                <ColumnDefinition x:Name="TraceInspectorColumn" Width="300" MinWidth="0" />
                             </Grid.ColumnDefinitions>
 
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" /><RowDefinition Height="6" />
-                                    <RowDefinition Height="Auto" /><RowDefinition Height="5" />
-                                    <RowDefinition Height="Auto" /><RowDefinition Height="8" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="6" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
@@ -553,6 +552,7 @@
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,10,0" Padding="9,4" ToolTip="Read newer original frames from this session's temporary history"/>
+                                        <Button x:Name="TraceInspectorToggle" Content="Hide details" Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click" Padding="8,3" Margin="0,0,8,0" ToolTip="Toggle decoded frame inspector"/>
                                         <TextBlock Text="AUTO" Visibility="{Binding Visibility, ElementName=TraceAutoScrollButton}" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0"/>
                                         <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
                                                       IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
@@ -561,8 +561,9 @@
                                         </ToggleButton>
                                     </StackPanel>
                                 </DockPanel>
-                                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border Width="242" Height="32" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window">
+                                <Grid Grid.Row="2" MinHeight="32">
+                                <StackPanel x:Name="TraceWindowSearchBar" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="270" Height="31" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window">
                                     <DockPanel LastChildFill="True" Margin="6,0,2,0">
                                         <Button DockPanel.Dock="Right" Tag="Trace" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
                                             <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
@@ -582,12 +583,16 @@
                                         <ComboBoxItem Content="GI"/><ComboBoxItem Content="Negative / errors"/>
                                     </ComboBox>
                                     <TextBlock x:Name="TraceQuickCountText" Text="Current window" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
+                                    <Button x:Name="TraceArchiveModeButton" Content="Archive…" Click="TraceArchiveMode_Click"
+                                            Style="{StaticResource SecondaryButton}" Padding="7,3" Margin="7,0,0,0"
+                                            ToolTip="Search original .ariec archive without changing the active source"/>
                                 </StackPanel>
-                                <!-- R3-E portable archive: independent of R4 Live Quick Find and session history. -->
-                                <StackPanel Grid.Row="4" Margin="0,0,0,2">
+                                <StackPanel x:Name="TraceArchiveSearchBar" Visibility="Collapsed" Margin="0,0,0,2">
                                     <DockPanel LastChildFill="True">
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
-                                            <Button x:Name="TraceRecordedFindButton" Content="Find .ariec" Click="TraceRecordedFind_Click"
+                                            <Button Content="Current" Click="TraceCurrentMode_Click" Style="{StaticResource SecondaryButton}"
+                                                    Padding="7,3" Margin="0,0,5,0" ToolTip="Return to current Trace search"/>
+                                            <Button x:Name="TraceRecordedFindButton" Content="Find" Click="TraceRecordedFind_Click"
                                                     Style="{StaticResource SecondaryButton}" Padding="7,3" FontSize="11" Margin="0,0,4,0"
                                                     ToolTip="Search entire portable .ariec, not the current live window"/>
                                             <Button x:Name="TraceRecordedPrevButton" Content="‹" Width="27" Click="TraceRecordedPrev_Click"
@@ -605,12 +610,13 @@
                                                  ToolTip="Full archive filters: ioa, ca, ti, cot, source, direction, time, hex, neg, test."/>
                                     </DockPanel>
                                     <TextBlock x:Name="TraceRecordedStatusText"
-                                               Text="Archive: separate from window Quick Find · hash status appears after scan"
+                                               Text="Archive · select a portable .ariec capture"
                                                Foreground="{StaticResource Ink600Brush}" FontSize="10.7"
                                                TextTrimming="CharacterEllipsis" Margin="1,3,0,0"/>
                                 </StackPanel>
+                                </Grid>
                                 <ListBox x:Name="FrameTraceGrid"
-                                         Grid.Row="6"
+                                         Grid.Row="4"
                                          ItemsSource="{Binding FrameTraceRows}"
                                          Style="{StaticResource ProtocolTraceListBox}"
                                          SelectionChanged="EvidenceGrid_SelectionChanged"
@@ -669,8 +675,8 @@
                                                         </Style></Path.Style>
                                                     </Path>
                                                     <TextBlock Grid.Column="1" Text="{Binding ProtocolTraceHeader, Mode=OneWay}"
-                                                               FontFamily="{StaticResource AppFont}" FontSize="14.2" FontWeight="SemiBold"
-                                                               LineHeight="20" TextWrapping="Wrap" TextOptions.TextFormattingMode="Ideal"
+                                                               FontFamily="{StaticResource AppFont}" FontSize="12.6" FontWeight="Medium"
+                                                               LineHeight="17" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" TextOptions.TextFormattingMode="Ideal"
                                                                Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                                                         <TextBlock Text="{Binding Direction}" FontFamily="{StaticResource AppFont}" FontSize="12.8" FontWeight="SemiBold" Foreground="{StaticResource Ink700Brush}" Margin="0,0,7,0"/>
@@ -682,36 +688,48 @@
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding ProtocolTraceCompactMeaning, Mode=OneWay}"
                                                            FontFamily="{StaticResource AppFont}"
-                                                           FontSize="13.4"
-                                                           LineHeight="18"
+                                                           FontSize="11.8"
+                                                           LineHeight="15"
                                                            Foreground="{StaticResource Ink800Brush}"
-                                                           TextWrapping="Wrap"
+                                                           TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"
-                                                           MaxHeight="36"
+                                                           MaxHeight="17"
                                                            TextOptions.TextFormattingMode="Ideal"
                                                            TextOptions.TextRenderingMode="ClearType"
-                                                           Margin="0,3,0,0" />
+                                                           Margin="0,1,0,0" />
 
                                                 <!-- One compact HEX line per physical frame, not another card. -->
                                                 <TextBlock Grid.Row="2"
                                                            Text="{Binding ProtocolTraceRaw, Mode=OneWay}"
                                                            FontFamily="Cascadia Mono, Consolas"
-                                                           FontSize="12.4"
-                                                           LineHeight="17"
+                                                           FontSize="11.1"
+                                                           LineHeight="14"
                                                            Foreground="{StaticResource Ink700Brush}"
-                                                           TextWrapping="Wrap"
+                                                           TextWrapping="NoWrap"
                                                            TextTrimming="CharacterEllipsis"
-                                                           MaxHeight="34"
+                                                           MaxHeight="16"
                                                            TextOptions.TextFormattingMode="Ideal"
                                                            TextOptions.TextRenderingMode="ClearType"
-                                                           Margin="0,5,0,2" />
+                                                           Margin="0,2,0,1">
+                                                     <TextBlock.Style>
+                                                         <Style TargetType="TextBlock">
+                                                             <Setter Property="Visibility" Value="Collapsed"/>
+                                                             <Style.Triggers>
+                                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                                     <Setter Property="Visibility" Value="Visible"/>
+                                                                 </DataTrigger>
+                                                             </Style.Triggers>
+                                                         </Style>
+                                                     </TextBlock.Style>
+                                                 </TextBlock>
                                             </Grid>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </Grid>
 
-                            <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+                            <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True" ToolTip="Resize decoded inspector"/>
+                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -719,7 +737,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="Frame properties" FontSize="15.2" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
+                                        <TextBlock Text="Frame details" FontSize="13.2" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}"/>
                                         <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
                                                    Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
                                         <TextBlock x:Name="SelectedLineSummaryText" Visibility="Collapsed" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
@@ -729,8 +747,8 @@
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                                              MinRowHeight="32" FontSize="12.9"
-                                              HeadersVisibility="Column" ColumnHeaderHeight="34"
+                                              MinRowHeight="25" FontSize="11.9"
+                                              HeadersVisibility="Column" ColumnHeaderHeight="28"
                                               RowBackground="#F8FAFC" AlternatingRowBackground="#EAF1F6" AlternationCount="2"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
@@ -789,12 +807,12 @@
                             </StackPanel>
                             <DataGrid Grid.Row="2" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2.5*" MinWidth="260" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2.5*" MinWidth="174" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="1.05*" MinWidth="120" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.1*" MinWidth="146" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.1*" MinWidth="96" />
                                     <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="1.1*" MinWidth="130" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.5*" MinWidth="185" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" Visibility="Collapsed" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.5*" MinWidth="124" />
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn x:Name="ValueGroupColumn" Header="Group" Binding="{Binding Group}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
@@ -1583,10 +1601,10 @@
                                     <DataGridTextColumn Header="Case" Binding="{Binding CaseId}" Width="62"/>
                                     <DataGridTextColumn Header="Host time" Binding="{Binding FirstTime}" Width="114"/>
                                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="184"/>
-                                    <DataGridTextColumn Header="Physical source" Binding="{Binding Source}" Width="115"/>
+                                    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
                                     <DataGridTextColumn Header="CA / IOA / TI" Binding="{Binding Address}" Width="195"/>
                                     <DataGridTextColumn Header="Requested target" Binding="{Binding Target}" Width="165"/>
-                                    <DataGridTextColumn Header="Evidence-based meaning" Binding="{Binding Interpretation}" Width="*"/>
+                                    <DataGridTextColumn Header="Evidence meaning" Binding="{Binding Interpretation}" Width="*" MinWidth="150"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                             <DataGrid x:Name="ControlCaseStagesGrid" Grid.Row="4" ItemsSource="{Binding ControlCaseStages}"
@@ -1598,7 +1616,7 @@
                                     <DataGridTextColumn Header="Stage" Binding="{Binding Phase}" Width="210"/>
                                     <DataGridTextColumn Header="COT" Binding="{Binding Cot}" Width="60"/>
                                     <DataGridTextColumn Header="Frame #" Binding="{Binding Sequence}" Width="82"/>
-                                    <DataGridTextColumn Header="Original reference" Binding="{Binding EvidenceReference}" Width="210"/>
+                                    <DataGridTextColumn Header="Original reference" Binding="{Binding EvidenceReference}" Width="210" Visibility="Collapsed"/>
                                     <DataGridTextColumn Header="Interpretation" Binding="{Binding Explanation}" Width="*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
@@ -1662,7 +1680,7 @@
                                     <DataGridTextColumn Header="Invalid" Binding="{Binding InvalidQualityObjects}" Width="70"/>
                                     <DataGridTextColumn Header="C1 polls" Binding="{Binding Class1Requests}" Width="77"/>
                                     <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
-                                    <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*"/>
+                                    <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                             <DataGrid x:Name="GiStagesGrid" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
@@ -1674,7 +1692,7 @@
                                     <DataGridTextColumn Header="TX/RX" Binding="{Binding Direction}" Width="65"/>
                                     <DataGridTextColumn Header="GI stage" Binding="{Binding Phase}" Width="240"/>
                                     <DataGridTextColumn Header="Frame #" Binding="{Binding Sequence}" Width="90"/>
-                                    <DataGridTextColumn Header="Original evidence reference" Binding="{Binding EvidenceReference}" Width="*"/>
+                                    <DataGridTextColumn Header="Original evidence reference" Binding="{Binding EvidenceReference}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                             <TextBlock x:Name="GiCaseDetailsBox" Grid.Row="5" Text="Select GI conversation. ACTTERM never proves complete point coverage."
