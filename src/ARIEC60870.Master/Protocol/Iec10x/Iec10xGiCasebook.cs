@@ -30,6 +30,9 @@ public sealed class Iec10xGiCasebook
         public required GiCase Current { get; set; }
         public readonly HashSet<int> UniqueIoas = new();
         public readonly HashSet<(long Sequence, string Reference)> Seen = new();
+        // Multi-object signal projections from one physical ASDU share the same
+        // decoded instance even when they have different application event sequences.
+        public readonly HashSet<Iec10xAsduDecode> SeenDecodedAsdus = new();
         public int DataFrames;
         public int DataObjects;
         public int InvalidQuality;
@@ -148,7 +151,9 @@ public sealed class Iec10xGiCasebook
         }
 
         var state = matches[0];
-        if (state.Ambiguous || !RecordOnce(state, item)) return null;
+        if (state.Ambiguous || state.SeenDecodedAsdus.Contains(asdu) ||
+            !RecordOnce(state, item)) return null;
+        state.SeenDecodedAsdus.Add(asdu);
         state.DataFrames++;
         state.DataObjects += asdu.Objects.Count;
         foreach (var obj in asdu.Objects)

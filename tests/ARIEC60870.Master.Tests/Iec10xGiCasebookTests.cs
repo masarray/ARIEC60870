@@ -52,6 +52,21 @@ public sealed class Iec10xGiCasebookTests
         var data = TwoObjects();
         Assert.Null(b.Observe(data));
         Assert.Null(b.Observe(data)); // same physical frame twice must not inflate counts
+        // The active Master may emit one additional event per information object.
+        // Those events share the decoder instance but can have fresh sequence numbers.
+        var child = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = data.TimestampUtc,
+            ProtocolMode = data.ProtocolMode,
+            Direction = data.Direction,
+            PhysicalSource = data.PhysicalSource,
+            LinkAddress = data.LinkAddress,
+            TypeId = data.TypeId,
+            AsduDetails = data.AsduDetails,
+            RawHex = data.RawHex
+        };
+        Assert.Null(b.Observe(child));
         var done = b.Observe(Gi(10, true))!;
         Assert.Equal("ACTTERM observed · coverage unknown", done.Case.Status);
         Assert.Equal(1, done.Case.DataFrames);
