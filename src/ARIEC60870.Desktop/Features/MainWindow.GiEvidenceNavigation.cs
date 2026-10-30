@@ -130,6 +130,8 @@ public partial class MainWindow
     private async void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
         Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null)
     {
+        // Direct navigation must reveal the original despite a previous quick filter.
+        ClearTraceQuickFindForNavigation();
         // Prefer the session-wide disk index, which is fed before the lossy
         // GUI preview. This works for Controls/GI stages without an Event row.
         if (await TryOpenHistoryWindowAsync(evidenceRef, physicalSource, protocol))

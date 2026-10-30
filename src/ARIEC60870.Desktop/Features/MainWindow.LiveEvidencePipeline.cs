@@ -531,7 +531,9 @@ public partial class MainWindow
             return;
         }
 
-        FrameTraceGrid?.ScrollIntoView(FrameTraceRows[FrameTraceRows.Count - 1]);
+        // Follow latest matching row in the filtered view.
+        if (FrameTraceGrid is { Items.Count: > 0 } list)
+            list.ScrollIntoView(list.Items[list.Items.Count - 1]);
     }
 
     private void ScrollActiveWorkspaceToLatest()
@@ -755,20 +757,12 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
-            {
-                // Preserve the scrolled viewport and selection; bounded SOE storage
-                // remains authoritative until follow is explicitly resumed.
-                _eventRowsDeferredWhileManualScroll = true;
-            }
-            else
-            {
-                ApplyRelayEventFilter();
-                batchRows += RelayEventRows.Count;
-                _relayEventRowsDirty = false;
-                _eventRowsDeferredWhileManualScroll = false;
-                ScrollLatestEventIfAutoScroll();
-            }
+            // FOLLOW OFF stops auto-scroll, not additions to the Event Log.
+            ApplyRelayEventFilter();
+            batchRows += RelayEventRows.Count;
+            _relayEventRowsDirty = false;
+            _eventRowsDeferredWhileManualScroll = false;
+            ScrollLatestEventIfAutoScroll();
         }
 
         if (_pendingFindingUiRows.Count > 0)
