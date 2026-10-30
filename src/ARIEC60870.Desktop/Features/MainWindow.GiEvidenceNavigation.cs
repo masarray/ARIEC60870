@@ -170,6 +170,8 @@ public partial class MainWindow
         {
             FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
         }
+        FrameTimelineCaption.Text = pinned ? "Original event frame · historical snapshot" :
+            "Frame timeline · original selected";
         FrameTraceGrid.SelectedItems.Clear();
         FrameTraceGrid.SelectedItem = frame;
         FrameTraceGrid.ScrollIntoView(frame);
