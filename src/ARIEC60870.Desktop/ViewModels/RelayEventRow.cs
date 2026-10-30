@@ -8,8 +8,15 @@ namespace ARIEC60870.Desktop.ViewModels;
 
 public sealed class RelayEventRow
 {
-    public RelayEventRow(Iec103RelayEventLogEntry item)
+    /// <summary>Exact typed original frame for the lifetime of this bounded Event row.
+    /// Keeps Event -> Frame navigation valid after the 1200-row Trace preview rolls over.
+    /// Never matched by address alone and never reinterpreted from display text.</summary>
+    public Iec103MasterEvidenceEvent? OriginalFrameEvidence { get; }
+
+    public RelayEventRow(Iec103RelayEventLogEntry item,
+        Iec103MasterEvidenceEvent? originalFrameEvidence = null)
     {
+        OriginalFrameEvidence = originalFrameEvidence;
         Sequence = item.EvidenceSequenceNumber;
         PhysicalSource = item.PhysicalSource;
         EvidenceReference = item.EvidenceReference;
