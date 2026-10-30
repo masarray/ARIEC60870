@@ -132,6 +132,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
         var candidate = new List<PassiveObservedFrame>((before + after + 25) * counts.Length);
         // Read a bounded time neighborhood from every source, not just RTU RX.
         // That keeps SELECT/EXECUTE and ACTCON visible together in one window.
+        Span<byte> hdr = stackalloc byte[HeaderBytes];
         for (byte sid = 0; sid < counts.Length; sid++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -142,7 +143,6 @@ public sealed class PassiveSessionTraceHistory : IDisposable
                 LowerBound(index, counts[sid], target.UtcTicks, byTime: true);
             var start = Math.Max(0, center - before - 20);
             var end = Math.Min(counts[sid], center + after + 21);
-            Span<byte> hdr = stackalloc byte[HeaderBytes];
             for (var i = start; i < end; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
