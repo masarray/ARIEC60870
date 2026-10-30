@@ -61,6 +61,28 @@ public sealed class EventOriginalFrameRetentionTests
     }
 
     [Fact]
+    public void CompactCommandAndGiRowsKeepFullEvidenceWithoutNoisyCellText()
+    {
+        var command = new RelayEventRow(new Iec103RelayEventLogEntry
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TransactionKind = "Command",
+            NewValue = "Command rejected · negative ACTCON · Case #2 · DCS=1 (OFF)"
+        });
+        Assert.Equal("Command observed", command.CompactDisplayValue);
+        Assert.Contains("negative ACTCON · Case #2", command.DisplayValue);
+
+        var gi = new RelayEventRow(new Iec103RelayEventLogEntry
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TransactionKind = "GI",
+            NewValue = "GI ACTTERM · coverage unknown · 6 frames / 24 objects / 24 IOAs"
+        });
+        Assert.Equal("GI observation", gi.CompactDisplayValue);
+        Assert.Contains("24 objects", gi.DisplayValue);
+    }
+
+    [Fact]
     public void MultiObjectEventKeepsItsPhysicalParentIdentity()
     {
         var original = new Iec103MasterEvidenceEvent
