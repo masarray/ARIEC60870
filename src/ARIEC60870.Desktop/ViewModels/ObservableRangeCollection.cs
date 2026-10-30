@@ -85,38 +85,50 @@ public sealed class ObservableRangeCollection<T> : ObservableCollection<T>
         ArgumentNullException.ThrowIfNull(key);
         comparer ??= EqualityComparer<TKey>.Default;
         if (Count == 0) { ReplaceRange(desired); return; }
-        // Newest-first casebooks often prepend a small number of cases while
-        // evicting the oldest. Keep the common sequence and avoid a WPF Reset.
-        var eqKey = comparer;
-        if (desired.Count > 0 && Count > 0 &&
-            !eqKey.Equals(key(this[0]), key(desired[0])))
+
+        if (!AreKeysAligned(desired, key, comparer))
+            PrependMatchingCasePrefix(desired, key, comparer);
+        if (!AreKeysAligned(desired, key, comparer))
         {
-            var prepend = -1;
-            for (var j = 1; j < desired.Count; j++)
-            {
-                if (!eqKey.Equals(key(this[0]), key(desired[j]))) continue;
-                var matching = Math.Min(Count, desired.Count - j);
-                var aligned = true;
-                for (var k = 0; k < matching; k++)
-                {
-                    if (eqKey.Equals(key(this[k]), key(desired[j + k]))) continue;
-                    aligned = false;
-                    break;
-                }
-                if (aligned) { prepend = j; break; }
-            }
-            if (prepend > 0)
-                for (var i = 0; i < prepend; i++) Insert(i, desired[i]);
+            ReplaceRange(desired);
+            return;
         }
+        ApplyAlignedChanges(desired);
+    }
+
+    private bool AreKeysAligned<TKey>(IReadOnlyList<T> desired,
+        Func<T, TKey> key, IEqualityComparer<TKey> comparer) where TKey : notnull
+    {
+        for (var i = 0; i < Math.Min(Count, desired.Count); i++)
+            if (!comparer.Equals(key(this[i]), key(desired[i]))) return false;
+        return true;
+    }
+
+    private void PrependMatchingCasePrefix<TKey>(IReadOnlyList<T> desired,
+        Func<T, TKey> key, IEqualityComparer<TKey> comparer) where TKey : notnull
+    {
+        // Newest-first casebooks prepend new cases; do not reset 240 rows.
+        if (desired.Count == 0 || Count == 0) return;
+        for (var start = 1; start < desired.Count; start++)
+        {
+            if (!comparer.Equals(key(this[0]), key(desired[start]))) continue;
+            var common = Math.Min(Count, desired.Count - start);
+            var matches = true;
+            for (var i = 0; i < common; i++)
+            {
+                if (comparer.Equals(key(this[i]), key(desired[start + i]))) continue;
+                matches = false;
+                break;
+            }
+            if (!matches) continue;
+            for (var i = 0; i < start; i++) Insert(i, desired[i]);
+            return;
+        }
+    }
+
+    private void ApplyAlignedChanges(IReadOnlyList<T> desired)
+    {
         var common = Math.Min(Count, desired.Count);
-        for (var i = 0; i < common; i++)
-        {
-            if (!comparer.Equals(key(this[i]), key(desired[i])))
-            {
-                ReplaceRange(desired);
-                return;
-            }
-        }
         for (var i = 0; i < common; i++)
             if (!EqualityComparer<T>.Default.Equals(this[i], desired[i]))
                 this[i] = desired[i];

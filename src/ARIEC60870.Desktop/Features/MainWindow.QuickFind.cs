@@ -97,8 +97,18 @@ public partial class MainWindow
         var values = ValuesQuickFindBox.Text.Trim();
         var controls = ControlsQuickFindBox.Text.Trim();
         var gi = GiQuickFindBox.Text.Trim();
-        if (_traceQuickQuery != trace) { _traceQuickQuery = trace; RefreshQuickFindView(FrameTraceRows); }
-        if (_eventsQuickQuery != events) { _eventsQuickQuery = events; ApplyRelayEventFilter(); }
+        if (_traceQuickQuery != trace)
+        {
+            _traceQuickQuery = trace;
+            RefreshQuickFindView(FrameTraceRows);
+            ScrollLatestProtocolTraceIfAutoScroll();
+        }
+        if (_eventsQuickQuery != events)
+        {
+            _eventsQuickQuery = events;
+            ApplyRelayEventFilter();
+            ScrollLatestEventIfAutoScroll();
+        }
         if (_valuesQuickQuery != values) { _valuesQuickQuery = values; RefreshQuickFindView(ValueRows); }
         if (_controlsQuickQuery != controls) { _controlsQuickQuery = controls; RefreshQuickFindView(ControlCaseRows); }
         if (_giQuickQuery != gi) { _giQuickQuery = gi; RefreshQuickFindView(GiCaseRows); }
