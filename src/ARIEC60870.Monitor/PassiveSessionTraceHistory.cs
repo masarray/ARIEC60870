@@ -18,6 +18,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
     private const long MaxSessionHistoryBytes = 2L * 1024 * 1024 * 1024;
     private long _storedBytes;
     private readonly object _gate = new();
+    private readonly FileStream? _sessionLock;
     private readonly FileStream[] _data;
     private readonly FileStream[] _indices;
     private readonly long[] _counts;
@@ -35,14 +36,24 @@ public sealed class PassiveSessionTraceHistory : IDisposable
             {
                 var info = new DirectoryInfo(old);
                 if ((info.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                    info.Name.StartsWith("session-", StringComparison.Ordinal) &&
                     info.CreationTimeUtc < DateTime.UtcNow.AddDays(-1))
+                {
+                    // Never clean another instance's still-running, multi-day
+                    // field session. Its exclusive lock remains open until close.
+                    var lockPath = Path.Combine(old, "session.lock");
+                    using (new FileStream(lockPath, FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite, FileShare.None)) { }
                     info.Delete(recursive: true);
+                }
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
         DirectoryPath = Path.Combine(parent, "session-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(DirectoryPath);
+        _sessionLock = new FileStream(Path.Combine(DirectoryPath, "session.lock"),
+            FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
         _data = new FileStream[streams];
         _indices = new FileStream[streams];
         _counts = new long[streams];
@@ -58,6 +69,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
         {
             foreach (var file in _data) file?.Dispose();
             foreach (var file in _indices) file?.Dispose();
+            _sessionLock?.Dispose();
             Directory.Delete(DirectoryPath, recursive: true);
             throw;
         }
@@ -215,6 +227,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
             _disposed = true;
             foreach (var file in _data) file?.Dispose();
             foreach (var file in _indices) file?.Dispose();
+            _sessionLock?.Dispose();
         }
         // The temp cache never survives the owner session's final disposal.
         if (Directory.Exists(DirectoryPath)) Directory.Delete(DirectoryPath, recursive: true);
