@@ -20,3 +20,8 @@ Single authoritative ASDU decoder; `Iec10xGiCasebook` in Master, WPF projection 
 
 ## R3-B/C remaining
 Full source-scoped command correlation including OA, response phase, approved mapping feedback and case navigation is present in `Iec10xCommandCasebook`, but automation-grade proof remains subject to explicit configuration and physical FAT. Implement exact event→case deep links, a dedicated GI details view or inspector, source-verified coverage percentage only after approved mapping, capture-roundtrip parity and more long-soak evidence in #60. Do not mark these complete from synthetic tests.
+
+## External cross-checks (research only, not copied code)
+- IEC 60870-5-101: secondary ACD=1 indicates access demand Class1, independent of FC9 NO REQUESTED DATA; primary polls Class2 and drains Class1 when pending. Engineering reference: https://library.e.abb.com/public/b4ee801d21d685b5c1257b1300569705/rec523_IECprotENd.pdf
+- IEC 60870-5-104 implementation flow diagram: SELECT COT6 → ACTCON COT7; EXECUTE COT6 → ACTCON COT7 → ACTTERM COT10; deactivation COT8/9. This is a project PID example, not an IEC conformance certificate: https://www.e-redes.pt/sites/eredes/files/normative_docs/DEF-C98-422N.pdf (Figure 3.3, page 25).
+- The licensed IEC normative text is not embedded in this repository. Selective, independently authored tests cover wire-type semantics and uncertainty labels; optional NUC requirements remain profile-specific.

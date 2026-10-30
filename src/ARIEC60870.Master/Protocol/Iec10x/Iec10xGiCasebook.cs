@@ -106,10 +106,10 @@ public sealed class Iec10xGiCasebook
         if (asdu.TypeId == 100 && cot.Code is 6 or 7 or 10)
         {
             var qoi = asdu.CommandDetails?.QualifierValue;
-            if (qoi is not >= 20 and <= 36) return null;
+            if (qoi is null || qoi.Value < 20 || qoi.Value > 36) return null;
             var key = new GiKey(item.ProtocolMode, source, link, asdu.CommonAddress,
                 cot.OriginatorAddress ?? asdu.OriginatorAddress, qoi.Value);
-            if (cot.Code == 6 && item.Direction == FrameDirection.MasterToSlave)
+            if (cot.Code == 6 && item.Direction == FrameDirection.MasterToSlave && !cot.Negative)
                 return Begin(item, key);
             if (item.Direction != FrameDirection.SlaveToMaster) return null;
             if (!_active.TryGetValue(key, out var existing))

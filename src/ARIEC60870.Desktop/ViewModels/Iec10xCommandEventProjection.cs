@@ -20,7 +20,9 @@ public static class Iec10xCommandEventProjection
             item.Frame is { IsChecksumValid: false })
             return null;
         var asdu = item.AsduDetails;
-        if (asdu is null || asdu.Issues.Count > 0 ||
+        // TI100 GI belongs exclusively to the GI milestone projection, avoiding
+        // duplicate command+GI rows for the same on-wire application fact.
+        if (asdu is null || asdu.Issues.Count > 0 || asdu.TypeId == 100 ||
             asdu.TypeId is not (>= 45 and <= 51 or >= 58 and <= 64 or >= 100 and <= 107))
             return null;
 
