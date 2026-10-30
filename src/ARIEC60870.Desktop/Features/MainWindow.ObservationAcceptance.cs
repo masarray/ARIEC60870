@@ -172,7 +172,7 @@ public partial class MainWindow
         }
         MainTabControl.SelectedIndex = 1;
         testStart.Stop();
-        File.WriteAllText(Path.Combine(outputDirectory, "metrics.json"),
+        File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new
             {
                 baselineMaster = "OBS-P0 Stage C acceptance",
@@ -204,7 +204,7 @@ public partial class MainWindow
         frame.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(frame));
-        using var file = File.Create(Path.Combine(output, filename));
+        using var file = File.Create(Path.Join(output, filename));
         encoder.Save(file);
     }
 }
