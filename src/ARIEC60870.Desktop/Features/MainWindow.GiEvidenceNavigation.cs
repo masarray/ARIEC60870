@@ -127,51 +127,79 @@ public partial class MainWindow
         "Use the original capture/Trace evidence; no other case was substituted.",
         "Transaction not retained", MessageBoxButton.OK, MessageBoxImage.Information);
 
-    private void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
+    private async void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
         Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null)
     {
-        // Event rows keep their exact typed frame for as long as the Event itself
-        // is retained. A busy Class 2 poll can evict Trace without destroying
-        // the event's immutable evidence, so NEVER substitute by IOA or time.
+        // Direct navigation must reveal the original despite a previous quick filter.
+        ClearTraceQuickFindForNavigation();
+        // Prefer the session-wide disk index, which is fed before the lossy
+        // GUI preview. This works for Controls/GI stages without an Event row.
+        if (await TryOpenHistoryWindowAsync(evidenceRef, physicalSource, protocol))
+            return;
+
+        // For active IEC-101/104 and legacy non-indexed sources, use the exact
+        // physical-frame matcher. No same-IOA/timestamp substitution.
         var frame = _protocolTraceStore.Snapshot().FirstOrDefault(x =>
             Iec10xObservationIdentity.SamePhysicalFrame(x.Source, evidenceRef, physicalSource, protocol, sequence));
-        var pinned = false;
-        if (frame is null && retainedOriginal is not null &&
-            Iec10xObservationIdentity.SamePhysicalFrame(retainedOriginal,
-                evidenceRef, physicalSource, protocol, sequence) &&
-            !string.IsNullOrWhiteSpace(retainedOriginal.RawHex))
+        var fromEvent = false;
+        if (frame is null)
         {
-            frame = new EvidenceRow(retainedOriginal, ResolveIoaPoint(retainedOriginal));
-            pinned = true;
+            var original = retainedOriginal ?? _relayEventStore.Snapshot()
+                .FirstOrDefault(ev => ev.OriginalFrameEvidence is not null &&
+                    Iec10xObservationIdentity.SamePhysicalFrame(ev.OriginalFrameEvidence,
+                        evidenceRef, physicalSource, protocol, sequence))
+                ?.OriginalFrameEvidence;
+            if (original is not null && original.RawHex.Length > 0 &&
+                Iec10xObservationIdentity.SamePhysicalFrame(original,
+                    evidenceRef, physicalSource, protocol, sequence))
+            {
+                frame = new EvidenceRow(original, ResolveIoaPoint(original));
+                fromEvent = true;
+            }
         }
         if (frame is null)
         {
             ModernMessageBox.Show(this,
-                "The original raw frame is not held by the current session. " +
-                "Use a full raw recording to recover older traffic; no unrelated frame was substituted. " +
-                "Reference: " + evidenceRef,
+                "The exact original frame is not available in this session. " +
+                "If the temporary history was already cleaned, a full raw " +
+                "recording is required for older frames. Reference: " + evidenceRef,
                 "Original frame unavailable", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        // Switching tabs refreshes the live ring. Set HOLD first, then focus the
-        // exact historic frame without modifying the bounded live source ring.
         MainTabControl.SelectedIndex = 1;
         EnterLineMonitorHoldForUserSelection();
-        if (pinned)
+        if (fromEvent)
         {
-            // A single-frame forensic snapshot, not a false continuous timeline.
-            // RESUME restores the live ring while capture continues independently.
-            FrameTraceRows.ReplaceRange(new[] { frame });
-            AppendSessionLog("Pinned original Event frame from retained event evidence: " + evidenceRef +
-                " (single-frame view; Resume restores live Trace).");
+            // Legacy in-memory fallback: retain the nearby source-qualified
+            // Event frames instead of silently substituting unrelated frames.
+            var ordered = _relayEventStore.Snapshot()
+                .Where(ev => ev.OriginalFrameEvidence is { RawHex.Length: > 0 } &&
+                    ev.OriginalFrameEvidence.ProtocolMode == protocol)
+                .Select(ev => ev.OriginalFrameEvidence!)
+                .DistinctBy(ev => Iec10xObservationIdentity.EvidenceReference(ev).Split("|object:")[0])
+                .OrderBy(ev => ev.TimestampUtc).ToArray();
+            var idx = Array.FindIndex(ordered, ev =>
+                Iec10xObservationIdentity.SamePhysicalFrame(ev, evidenceRef, physicalSource, protocol, sequence));
+            var range = idx >= 0
+                ? ordered.Skip(Math.Max(0, idx - 40)).Take(81)
+                    .Select(ev => new EvidenceRow(ev, ResolveIoaPoint(ev))).ToArray()
+                : new[] { frame };
+            FrameTraceRows.ReplaceRange(range);
+            frame = FrameTraceRows.FirstOrDefault(x =>
+                Iec10xObservationIdentity.SamePhysicalFrame(x.Source, evidenceRef, physicalSource, protocol, sequence))
+                ?? frame;
+            _historicalTraceViewActive = true;
+            FrameTimelineCaption.Text = $"Retained Event frames · {range.Length} (partial)";
         }
         else
         {
+            _historicalTraceViewActive = false;
             FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
+            FrameTimelineCaption.Text = "Frame timeline · original selected";
         }
-        FrameTimelineCaption.Text = pinned ? "Original event frame · historical snapshot" :
-            "Frame timeline · original selected";
+        TraceOlderButton.Visibility = Visibility.Collapsed;
+        TraceNewerButton.Visibility = Visibility.Collapsed;
         FrameTraceGrid.SelectedItems.Clear();
         FrameTraceGrid.SelectedItem = frame;
         FrameTraceGrid.ScrollIntoView(frame);

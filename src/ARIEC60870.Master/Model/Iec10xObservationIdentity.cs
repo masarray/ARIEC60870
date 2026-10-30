@@ -30,6 +30,29 @@ public static class Iec10xObservationIdentity
             : $"{(int)item.ProtocolMode}|seq:{item.PhysicalFrameSequenceNumber ?? item.SequenceNumber}|object:{index}";
     }
 
+    /// <summary>Parse an exact passive physical-frame identity. The wildcard
+    /// is a legal frame-level SELECT reference, never a wildcard for stream
+    /// or byte offset. A numeric object index identifies the same frame.</summary>
+    public static bool TryParsePassiveFrameReference(string? reference, out byte stream, out long offset)
+    {
+        stream = 0;
+        offset = 0;
+        if (string.IsNullOrWhiteSpace(reference)) return false;
+        var parts = reference.Split('|');
+        if (parts.Length != 4 || parts[0] != "101" ||
+            !parts[1].StartsWith("stream:", StringComparison.Ordinal) ||
+            !byte.TryParse(parts[1]["stream:".Length..], NumberStyles.None,
+                CultureInfo.InvariantCulture, out stream) || stream >= 4 ||
+            !parts[2].StartsWith("byte:", StringComparison.Ordinal) ||
+            !long.TryParse(parts[2]["byte:".Length..], NumberStyles.None,
+                CultureInfo.InvariantCulture, out offset) ||
+            !parts[3].StartsWith("object:", StringComparison.Ordinal))
+            return false;
+        var objectPart = parts[3]["object:".Length..];
+        return objectPart == "*" || (int.TryParse(objectPart, NumberStyles.None,
+            CultureInfo.InvariantCulture, out var objectIndex) && objectIndex >= 0);
+    }
+
     /// <summary>Match a clicked event or transaction stage to the ORIGINAL physical
     /// frame, never by IOA or display row index. Passive sibling objects use the
     /// same stream/byte offset; active events must retain the exact frame sequence.</summary>

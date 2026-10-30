@@ -8,11 +8,9 @@ using Microsoft.Win32;
 
 namespace ARIEC60870.Desktop;
 
-/// <summary>
-/// Read-only paged full-file search. SHA validation, streaming and filtering run
-/// outside the Dispatcher; the live bounded ring and active transport are never
-/// overwritten. Each page is at most 150 frame rows in the existing Trace.
-/// </summary>
+/// <summary>Independent, bounded read-only archive page navigation. No transport
+/// or casebook mutations: each request verifies the original portable bytes
+/// before the Dispatcher exposes at most 150 results.</summary>
 public partial class MainWindow
 {
     private const int RecordedTracePageSize = 150;
@@ -20,50 +18,80 @@ public partial class MainWindow
     private string _traceArchiveQuery = string.Empty;
     private int _traceArchivePage;
     private bool _traceArchiveFinding;
+    private bool _recordedArchiveViewActive;
+    private long _recordedArchiveGeneration;
+    private CancellationTokenSource? _recordedArchiveCancellation;
 
     private async void TraceRecordedFind_Click(object sender, RoutedEventArgs e)
-    {
-        _traceArchiveQuery = TraceRecordedQueryBox.Text.Trim();
-        _traceArchivePage = 0;
-        await ShowRecordedArchivePageAsync();
-    }
+        => await ShowRecordedArchivePageAsync(0, TraceRecordedQueryBox.Text.Trim());
 
     private async void TraceRecordedNext_Click(object sender, RoutedEventArgs e)
-    {
-        if (_traceArchiveFinding) return;
-        _traceArchivePage++;
-        await ShowRecordedArchivePageAsync();
-    }
+        => await ShowRecordedArchivePageAsync(_traceArchivePage + 1, _traceArchiveQuery);
 
     private async void TraceRecordedPrev_Click(object sender, RoutedEventArgs e)
     {
-        if (_traceArchiveFinding || _traceArchivePage == 0) return;
-        _traceArchivePage--;
-        await ShowRecordedArchivePageAsync();
+        if (_traceArchivePage > 0)
+            await ShowRecordedArchivePageAsync(_traceArchivePage - 1, _traceArchiveQuery);
     }
 
-    private async Task ShowRecordedArchivePageAsync()
+    private void TraceRecordedCancel_Click(object sender, RoutedEventArgs e)
     {
-        if (_traceArchiveFinding) return;
-        // Historical capture navigation must not mutate a running field session
-        // or co-exist with its active RX/replay producers.
+        CancelRecordedArchiveSearch();
+        TraceRecordedStatusText.Text = "Archive scan canceled. Previous Trace evidence is unchanged.";
+    }
+
+    private void CancelRecordedArchiveSearch()
+    {
+        _recordedArchiveGeneration++;
+        _recordedArchiveCancellation?.Cancel();
+    }
+
+    private void ResetRecordedArchiveSource()
+    {
+        CancelRecordedArchiveSearch();
+        _lastOpenedAriecFile = null;
+        _traceArchivePage = 0;
+        _traceArchiveQuery = string.Empty;
+        _recordedArchiveViewActive = false;
+        if (TraceRecordedNextButton is not null) TraceRecordedNextButton.IsEnabled = false;
+        if (TraceRecordedPrevButton is not null) TraceRecordedPrevButton.IsEnabled = false;
+        if (TraceRecordedStatusText is not null)
+            TraceRecordedStatusText.Text = "Archive: select .ariec for complete capture search";
+    }
+
+    private void ExitRecordedArchiveView()
+    {
+        if (!_recordedArchiveViewActive) return;
+        CancelRecordedArchiveSearch();
+        _recordedArchiveViewActive = false;
+        TraceRecordedNextButton.IsEnabled = false;
+        TraceRecordedPrevButton.IsEnabled = false;
+        TraceRecordedStatusText.Text = "Archive results closed · Trace returned to recent session/capture preview.";
+    }
+
+    private async Task ShowRecordedArchivePageAsync(int requestedPage, string requestedQuery)
+    {
+        if (_traceArchiveFinding || requestedPage < 0) return;
         if (_sessionCancellation is not null ||
             _passiveMonitorSession is not null ||
             _passiveReplayCancellation is not null)
         {
-            TraceRecordedStatusText.Text = "Stop the active session/replay before searching a recorded archive.";
+            TraceRecordedStatusText.Text =
+                "Stop the active session/replay before opening a portable archive.";
             return;
         }
 
+        using var cancellation = new CancellationTokenSource();
+        var generation = ++_recordedArchiveGeneration;
         try
         {
-            var query = CaptureArchiveQuery.Parse(_traceArchiveQuery);
+            var query = CaptureArchiveQuery.Parse(requestedQuery);
             if (string.IsNullOrWhiteSpace(_lastOpenedAriecFile) ||
                 !File.Exists(_lastOpenedAriecFile))
             {
                 var chooser = new OpenFileDialog
                 {
-                    Title = "Find frames in verified portable .ariec capture",
+                    Title = "Find original frames in portable .ariec capture",
                     Filter = "ARIEC portable capture (*.ariec;*.zip)|*.ariec;*.zip",
                     CheckFileExists = true
                 };
@@ -72,51 +100,79 @@ public partial class MainWindow
             }
 
             _traceArchiveFinding = true;
+            _recordedArchiveCancellation = cancellation;
             TraceRecordedFindButton.IsEnabled = false;
             TraceRecordedPrevButton.IsEnabled = false;
             TraceRecordedNextButton.IsEnabled = false;
-            TraceRecordedStatusText.Text = "Verifying original archive SHA-256 and scanning all frames…";
+            TraceRecordedCancelButton.IsEnabled = true;
+            TraceRecordedStatusText.Text = "Reading all recorded frames and checking archive integrity…";
 
             var path = _lastOpenedAriecFile!;
-            var page = _traceArchivePage;
             var result = await Task.Run(() => CaptureArchiveReader.Search(path, query,
-                skipMatching: (long)page * RecordedTracePageSize,
-                pageSize: RecordedTracePageSize));
+                skipMatching: (long)requestedPage * RecordedTracePageSize,
+                pageSize: RecordedTracePageSize, cancellationToken: cancellation.Token),
+                cancellation.Token);
 
+            // Opening another capture/session or pressing Cancel invalidates
+            // the old request, even if it finished while the user changed scope.
+            if (cancellation.IsCancellationRequested ||
+                generation != _recordedArchiveGeneration ||
+                _sessionCancellation is not null || _passiveMonitorSession is not null ||
+                _passiveReplayCancellation is not null) return;
+
+            ClearTraceQuickFindForNavigation();
             var rows = result.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
             EnterLineMonitorHoldForUserSelection();
+            _historicalTraceViewActive = true;
+            _recordedArchiveViewActive = true;
+            TraceOlderButton.Visibility = Visibility.Collapsed;
+            TraceNewerButton.Visibility = Visibility.Collapsed;
             FrameTraceRows.ReplaceRange(rows);
-            if (rows.Length > 0)
-            {
-                FrameTraceGrid.SelectedItem = rows[0];
-                FrameTraceGrid.ScrollIntoView(rows[0]);
-                ApplySelectedEvidenceRowToInspector(rows[0]);
-            }
-            else
-            {
-                FrameTraceGrid.SelectedItem = null;
-                ApplySelectedEvidenceRowToInspector(null);
-            }
-            FrameTimelineCaption.Text = "Recorded .ariec · search results";
-            var first = rows.Length == 0 ? 0 : (long)page * RecordedTracePageSize + 1;
-            var last = (long)page * RecordedTracePageSize + rows.Length;
+            FrameTraceGrid.SelectedItems.Clear();
+            var selected = rows.FirstOrDefault();
+            FrameTraceGrid.SelectedItem = selected;
+            if (selected is not null) FrameTraceGrid.ScrollIntoView(selected);
+            ApplySelectedEvidenceRowToInspector(selected);
+
+            _traceArchivePage = requestedPage;
+            _traceArchiveQuery = requestedQuery;
+            FrameTimelineCaption.Text = "Portable .ariec · full-archive search";
+            var first = rows.Length == 0 ? 0 : (long)requestedPage * RecordedTracePageSize + 1;
+            var last = (long)requestedPage * RecordedTracePageSize + rows.Length;
+            var trust = result.IntegrityVerified
+                ? "SHA-256 matches manifest (integrity; not digital signature)"
+                : "LEGACY UNVERIFIED · manifest hash unavailable";
             TraceRecordedStatusText.Text =
-                $"Matches {first:N0}–{last:N0} of {result.MatchingRows:N0} · scanned {result.TotalRows:N0} records · " +
-                result.TrustDescription + " · read-only; RESUME restores recent live Trace";
-            TraceRecordedPrevButton.IsEnabled = page > 0;
+                $"Matches {first:N0}–{last:N0} / {result.MatchingRows:N0} · {result.TotalRows:N0} scanned · " +
+                trust + " · full ZIP rescan per page";
+            TraceRecordedPrevButton.IsEnabled = requestedPage > 0;
             TraceRecordedNextButton.IsEnabled = last < result.MatchingRows;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            TraceRecordedStatusText.Text = "Archive search failed: " + ex.Message;
-            AddUiDiagnostic("Warning", "Capture", "ARIEC-ARCHIVE-SEARCH-FAILED",
-                "Cannot search original .ariec archive", ex.Message,
-                "Check filter grammar, portable capture integrity and recorded profile.", ex);
+            if (generation == _recordedArchiveGeneration)
+                TraceRecordedStatusText.Text = "Archive search canceled; existing evidence preserved.";
         }
+        catch (IOException ex) { ReportArchiveSearchFailure(ex, generation); }
+        catch (UnauthorizedAccessException ex) { ReportArchiveSearchFailure(ex, generation); }
+        catch (FormatException ex) { ReportArchiveSearchFailure(ex, generation); }
+        catch (ArgumentException ex) { ReportArchiveSearchFailure(ex, generation); }
         finally
         {
+            if (ReferenceEquals(_recordedArchiveCancellation, cancellation))
+                _recordedArchiveCancellation = null;
             _traceArchiveFinding = false;
             TraceRecordedFindButton.IsEnabled = true;
+            TraceRecordedCancelButton.IsEnabled = false;
         }
+    }
+
+    private void ReportArchiveSearchFailure(Exception error, long generation)
+    {
+        if (generation != _recordedArchiveGeneration) return;
+        TraceRecordedStatusText.Text = "Archive search failed: " + error.Message;
+        AddUiDiagnostic("Warning", "Capture", "ARIEC-ARCHIVE-SEARCH-FAILED",
+            "Unable to read original portable archive", error.Message,
+            "Verify ZIP structure, manifest integrity, search syntax and original field widths.", error);
     }
 }

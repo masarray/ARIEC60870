@@ -7,7 +7,7 @@ namespace ARIEC60870.Desktop;
 
 public partial class App : Application
 {
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         if (e.Args.Contains("--passive-gui-smoke", StringComparer.OrdinalIgnoreCase))
         {
@@ -19,6 +19,7 @@ public partial class App : Application
                 var window = new MainWindow();
                 window.Show();
                 window.RunPassiveGuiSmokeProbe();
+                await window.RunPassiveHistoryGuiSmokeProbeAsync();
                 window.Close();
                 Shutdown(0);
             }

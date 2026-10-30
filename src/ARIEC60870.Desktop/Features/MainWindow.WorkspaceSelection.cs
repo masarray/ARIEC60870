@@ -40,9 +40,15 @@ public partial class MainWindow
             return;
         }
 
+        if (!IsProtocolTraceTabActive())
+        {
+            _historyNavigationGeneration++;
+            _historicalTraceViewActive = false;
+            if (TraceOlderButton is not null) TraceOlderButton.Visibility = Visibility.Collapsed;
+            if (TraceNewerButton is not null) TraceNewerButton.Visibility = Visibility.Collapsed;
+            if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
+        }
         RefreshActiveTraceSnapshot();
-        if (!IsProtocolTraceTabActive() && FrameTimelineCaption is not null)
-            FrameTimelineCaption.Text = "Frame timeline";
         if (IsReportPreviewTabActive())
         {
             PrepareReportPreviewForDeferredReveal();

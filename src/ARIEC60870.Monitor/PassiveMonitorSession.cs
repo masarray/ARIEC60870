@@ -117,6 +117,29 @@ public sealed class PassiveMonitorSession
         _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0,
         _streamCount);
 
+    /// <summary>Temporary full frame index, available while live and after Stop
+    /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
+    public PassiveSessionTraceHistory? TraceHistory { get; private set; }
+
+    private bool _traceHistoryWriteDisabled;
+
+    private void TryAppendSessionHistory(PassiveObservedFrame frame)
+    {
+        var history = TraceHistory;
+        if (_traceHistoryWriteDisabled || history is null) return;
+        try { history.Append(frame); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A full optional raw journal must not stop merely because the
+            // navigation cache hit a disk quota or lost write permission.
+            _traceHistoryWriteDisabled = true;
+            Interlocked.Exchange(ref _integrityUncertain, 1);
+            _warnings.Enqueue("Temporary session Trace stopped growing: " + ex.Message +
+                ". Existing indexed frames are retained for browsing until session cleanup; " +
+                "RX processing continues. Use full raw recording for durable history.");
+        }
+    }
+
     /// <summary>UI-only sampled byte chunks; may omit samples under UI pressure.</summary>
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
 
@@ -144,6 +167,14 @@ public sealed class PassiveMonitorSession
         var root = _options.RecordFullSession
             ? Path.Combine(Path.GetFullPath(_options.OutputDirectory), id) : string.Empty;
         if (_options.RecordFullSession) Directory.CreateDirectory(root);
+        try { TraceHistory = new PassiveSessionTraceHistory(_streamCount); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TraceHistory = null;
+            Interlocked.Exchange(ref _integrityUncertain, 1);
+            _warnings.Enqueue("Temporary Trace history unavailable: " + ex.Message +
+                ". RX capture continues; enable full raw recording for durable evidence.");
+        }
         var startUtc = DateTime.UtcNow;
         var origin = Stopwatch.GetTimestamp();
         _utcOrigin = startUtc;
@@ -413,6 +444,9 @@ public sealed class PassiveMonitorSession
                                     .ConfigureAwait(false);
                             _controlEvents.Writer.TryWrite(control);
                         }
+                        // The full session index is populated on this single
+                        // capture writer BEFORE the lossy WPF frame channel.
+                        TryAppendSessionHistory(frame);
                         _frames.Writer.TryWrite(frame);
                     }
                     foreach (var entry in transactions)
@@ -477,6 +511,7 @@ public sealed class PassiveMonitorSession
                         observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
                         observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
                     })).ConfigureAwait(false);
+                TryAppendSessionHistory(observedTail);
                 _frames.Writer.TryWrite(observedTail);
                 var tailEvents = new List<PassiveTransactionEvent>();
                 correlator.Observe(observedTail, tailEvents.Add);

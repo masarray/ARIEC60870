@@ -340,6 +340,11 @@ public partial class MainWindow
 
         _protocolTraceViewDirtyWhileFrozen = true;
         _evidenceSummaryViewDirtyWhileFrozen = true;
+        if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
+        {
+            TraceOlderButton.Visibility = Visibility.Visible;
+            TraceNewerButton.Visibility = Visibility.Visible;
+        }
         UpdateLineMonitorStatus();
     }
 
@@ -429,12 +434,22 @@ public partial class MainWindow
         {
             _protocolTraceViewDirtyWhileFrozen = true;
             _evidenceSummaryViewDirtyWhileFrozen = true;
+            if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
+            {
+                TraceOlderButton.Visibility = Visibility.Visible;
+                TraceNewerButton.Visibility = Visibility.Visible;
+            }
             UpdateLineMonitorStatus();
         }
     }
 
     private void ResumeLiveViews(bool clearSelection, bool followLive)
     {
+        ExitRecordedArchiveView();
+        _historicalTraceViewActive = false;
+        _historyNavigationGeneration++;
+        if (TraceOlderButton is not null) TraceOlderButton.Visibility = Visibility.Collapsed;
+        if (TraceNewerButton is not null) TraceNewerButton.Visibility = Visibility.Collapsed;
         if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
         if (AutoScrollLatestToggleButton is not null)
         {
@@ -492,6 +507,7 @@ public partial class MainWindow
 
     private void ApplyProtocolTraceSnapshotNow()
     {
+        _historicalTraceViewActive = false;
         FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
         _pendingProtocolTraceUiRows.Clear();
         _protocolTraceViewDirtyWhileFrozen = false;
@@ -516,7 +532,9 @@ public partial class MainWindow
             return;
         }
 
-        FrameTraceGrid?.ScrollIntoView(FrameTraceRows[FrameTraceRows.Count - 1]);
+        // Follow latest matching row in the filtered view.
+        if (FrameTraceGrid is { Items.Count: > 0 } list)
+            list.ScrollIntoView(list.Items[list.Items.Count - 1]);
     }
 
     private void ScrollActiveWorkspaceToLatest()
@@ -584,7 +602,7 @@ public partial class MainWindow
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
     {
-        if (!_protocolTraceViewDirtyWhileFrozen || !IsProtocolTraceTabActive() || IsProtocolTraceViewFrozen())
+        if (!_protocolTraceViewDirtyWhileFrozen || _historicalTraceViewActive || !IsProtocolTraceTabActive() || IsProtocolTraceViewFrozen())
         {
             return;
         }
@@ -631,6 +649,8 @@ public partial class MainWindow
     /// </summary>
     private void PrepareLiveTraceForConnect()
     {
+        // A new live session invalidates an in-flight offline archive search.
+        ResetRecordedArchiveSource();
         _initialLiveTraceFlushPending = 1;
         _protocolTraceSelectionAnchorIndex = -1;
         _evidenceSummarySelectionAnchorIndex = -1;
@@ -682,8 +702,22 @@ public partial class MainWindow
         {
             if (IsProtocolTraceViewFrozen())
             {
-                _protocolTraceViewDirtyWhileFrozen = true;
-                _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                if (_historicalTraceViewActive)
+                {
+                    // Preserve a browsed historical disk window; the capture writer
+                    // continues indexing all fresh frames, independent of WPF.
+                    _protocolTraceViewDirtyWhileFrozen = true;
+                    _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                }
+                else
+                {
+                    // HOLD means stop following the tail, NOT stop updating Trace.
+                    // Append incrementally and keep the WPF window bounded.
+                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+                    _protocolTraceViewDirtyWhileFrozen = false;
+                    _protocolTraceRowsDeferredWhileFrozen = 0;
+                }
                 _pendingProtocolTraceUiRows.Clear();
             }
             else
@@ -726,20 +760,12 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
-            {
-                // Preserve the scrolled viewport and selection; bounded SOE storage
-                // remains authoritative until follow is explicitly resumed.
-                _eventRowsDeferredWhileManualScroll = true;
-            }
-            else
-            {
-                ApplyRelayEventFilter();
-                batchRows += RelayEventRows.Count;
-                _relayEventRowsDirty = false;
-                _eventRowsDeferredWhileManualScroll = false;
-                ScrollLatestEventIfAutoScroll();
-            }
+            // FOLLOW OFF stops auto-scroll, not additions to the Event Log.
+            ApplyRelayEventFilter();
+            batchRows += RelayEventRows.Count;
+            _relayEventRowsDirty = false;
+            _eventRowsDeferredWhileManualScroll = false;
+            ScrollLatestEventIfAutoScroll();
         }
 
         if (_pendingFindingUiRows.Count > 0)

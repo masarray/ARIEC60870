@@ -2,6 +2,10 @@
 
 # ARIEC60870 Product Roadmap
 
+
+### Reconciled implementation checkpoint — October 30, 2026
+R3-A/B/C/D (#59/#61/#62) and R4 session Trace history/true HOLD (#65) plus current-window Quick Find/independent Event follow (#67) are merged on master `a9e5cd6` with 324/324 xUnit, 19/19 protocol smoke, Windows Release, WPF smoke and CodeQL passing. **These are already implemented and must not be re-created.** PR #66 owns a distinct portable `.ariec` whole-file search with source/ASDU-integrity gates and IEC101 direction/COT anomaly handling; integration into current R4 master must pass combined CI before it is considered shipped. Live temporary session history is a disposable navigation cache, not the operator's cryptographically verified saved archive. Real multi-vendor FAT, 2/4-RX hardware, signed evidence and approved IOA-mapping GI coverage are still open.
+
 ARIEC60870 is a focused IEC 60870 Evidence Analyzer for authorized relay, RTU, gateway, FAT, SAT, commissioning, and troubleshooting workflows.
 
 The product direction is evidence-first: run or reopen an IEC 60870 communication session, keep the decoded evidence readable, preserve the raw frame trail, and export a professional PDF report that can be reviewed outside the application.

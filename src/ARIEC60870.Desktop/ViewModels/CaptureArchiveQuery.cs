@@ -76,14 +76,14 @@ public sealed record CaptureArchiveQuery(
         return new CaptureArchiveQuery(ioa, ca, ti, cot, source, direction, hex, time, negative, test);
     }
 
+    /// <summary>
+    /// Numeric IEC protocol filters are evaluated only against the original
+    /// checksum-checked bytes and recorded ASDU field widths. Snapshot strings
+    /// are display metadata, never authoritative protocol evidence.
+    /// </summary>
     public bool Matches(CaptureFrameSnapshot frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        static bool NumberEquals(string value, int expected)
-            => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n == expected;
-        if (TypeId is int ti && !NumberEquals(frame.TypeId, ti)) return false;
-        if (Cot is int cot && !NumberEquals(frame.CotCode, cot)) return false;
-        if (Ca is int ca && !NumberEquals(frame.CommonAddress, ca)) return false;
         if (Source is not null &&
             !string.Equals(frame.PhysicalSource, Source, StringComparison.OrdinalIgnoreCase) &&
             !frame.PhysicalSource.EndsWith(" " + Source, StringComparison.OrdinalIgnoreCase))
@@ -94,18 +94,20 @@ public sealed record CaptureArchiveQuery(
         if (Hex is not null &&
             !frame.RawHex.Replace(" ", "", StringComparison.Ordinal)
                 .Contains(Hex, StringComparison.OrdinalIgnoreCase)) return false;
-        if (!Ioa.HasValue && !Negative.HasValue && !Test.HasValue) return true;
 
-        // Cheap exact first-IOA match when no flags are requested. A multi-object
-        // query, or any P/N/TEST check, needs the original trusted ASDU.
-        if (Ioa is int point && !Negative.HasValue && !Test.HasValue &&
-            NumberEquals(frame.Ioa, point)) return true;
+        // Text-only source/hex/time searches preserve malformed/legacy raw
+        // evidence. They never infer a valid ASDU from a stored display label.
+        if (!Ioa.HasValue && !Ca.HasValue && !TypeId.HasValue && !Cot.HasValue &&
+            !Negative.HasValue && !Test.HasValue) return true;
 
         if (!TryDecode(frame, out var decoded) || decoded?.Asdu is not { } asdu ||
             !decoded.IsIntegrityValid) return false;
+        if (TypeId is int type && asdu.TypeId != type) return false;
+        if (Cot is int cause && asdu.CauseDetails?.Code != cause) return false;
+        if (Ca is int common && asdu.CommonAddress != common) return false;
         if (Ioa is int address &&
             !asdu.Objects.Any(o => o.InformationObjectAddress == address)) return false;
-        if (Negative is bool neg && asdu.CauseDetails?.Negative != neg) return false;
+        if (Negative is bool negative && asdu.CauseDetails?.Negative != negative) return false;
         if (Test is bool test && asdu.CauseDetails?.Test != test) return false;
         return true;
     }
@@ -113,11 +115,11 @@ public sealed record CaptureArchiveQuery(
     private static bool TryDecode(CaptureFrameSnapshot frame, out Iec10xArchivedDecode? decoded)
     {
         decoded = null;
-        var protocol = frame.ProtocolMode switch
+        Iec60870ProtocolMode? protocol = frame.ProtocolMode switch
         {
             "101" => Iec60870ProtocolMode.Iec101,
             "104" => Iec60870ProtocolMode.Iec104,
-            _ => (Iec60870ProtocolMode?)null
+            _ => null
         };
         if (protocol is null || string.IsNullOrWhiteSpace(frame.RawHex)) return false;
         try

@@ -15,7 +15,7 @@ public sealed class CaptureArchiveQueryTests
     [Fact]
     public void FullVerifiedArchiveSearchFindsFramesOutsideLatest600AndPagesDeterministically()
     {
-        var file = Path.Combine(Path.GetTempPath(), "ariec-query-" + Guid.NewGuid().ToString("N") + ".ariec");
+        var file = Path.Join(Path.GetTempPath(), "ariec-query-" + Guid.NewGuid().ToString("N") + ".ariec");
         try
         {
             var frames = Enumerable.Range(1, 800).Select(i => new CaptureFrameSnapshot
@@ -23,7 +23,8 @@ public sealed class CaptureArchiveQueryTests
                 Sequence = i, ProtocolMode = "101", Direction = "RX",
                 PhysicalSource = "Link A", CommonAddress = "105",
                 TypeId = "46", CotCode = "7", Ioa = ((i - 1) % 200).ToString(),
-                RawHex = "680D0D680869002E0147006900BE0B01819B16"
+                LinkWidth = 1, CotWidth = 2, CaWidth = 2, IoaWidth = 3,
+                RawHex = Build101ControlFrame((i - 1) % 200)
             }).ToArray();
             var jsonl = string.Concat(frames.Select(x => JsonSerializer.Serialize(x) + "\n"));
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(jsonl)));
@@ -72,6 +73,37 @@ public sealed class CaptureArchiveQueryTests
         Assert.False(CaptureArchiveQuery.Parse("neg:1").Matches(fixture));
     }
 
+
+    private static string Build101ControlFrame(int ioa)
+    {
+        byte[] asdu = [46, 1, 7, 0, 105, 0,
+            (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), 0x81];
+        byte[] payload = [0x08, 105, .. asdu];
+        var length = (byte)payload.Length;
+        var checksum = (byte)(payload.Sum(x => x) & 0xFF);
+        byte[] telegram = [0x68, length, length, 0x68, .. payload, checksum, 0x16];
+        return Convert.ToHexString(telegram);
+    }
+
+    [Fact]
+    public void MetadataCannotForgeTypeCotCaOrIoaAgainstOriginalValidatedBytes()
+    {
+        var frame = new CaptureFrameSnapshot
+        {
+            ProtocolMode = "101", Direction = "RX", PhysicalSource = "Link A",
+            RawHex = Build101ControlFrame(42),
+            LinkWidth = 1, CotWidth = 2, CaWidth = 2, IoaWidth = 3,
+            TypeId = "1", CotCode = "6", CommonAddress = "999", Ioa = "99"
+        };
+        Assert.True(CaptureArchiveQuery.Parse("ioa:42 ca:105 ti:46 cot:7").Matches(frame));
+        Assert.False(CaptureArchiveQuery.Parse("ioa:99").Matches(frame));
+        Assert.False(CaptureArchiveQuery.Parse("ca:999").Matches(frame));
+        Assert.False(CaptureArchiveQuery.Parse("ti:1").Matches(frame));
+        Assert.False(CaptureArchiveQuery.Parse("cot:6").Matches(frame));
+        frame.LinkWidth = null;
+        Assert.False(CaptureArchiveQuery.Parse("ioa:42").Matches(frame));
+        Assert.True(CaptureArchiveQuery.Parse("hex:68 direction:RX").Matches(frame));
+    }
     [Theory]
     [InlineData("ioa:999999999")]
     [InlineData("cot:64")]
