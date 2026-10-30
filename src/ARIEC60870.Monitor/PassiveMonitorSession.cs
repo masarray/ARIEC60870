@@ -167,7 +167,14 @@ public sealed class PassiveMonitorSession
         var root = _options.RecordFullSession
             ? Path.Combine(Path.GetFullPath(_options.OutputDirectory), id) : string.Empty;
         if (_options.RecordFullSession) Directory.CreateDirectory(root);
-        TraceHistory = new PassiveSessionTraceHistory(_streamCount);
+        try { TraceHistory = new PassiveSessionTraceHistory(_streamCount); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TraceHistory = null;
+            Interlocked.Exchange(ref _integrityUncertain, 1);
+            _warnings.Enqueue("Temporary Trace history unavailable: " + ex.Message +
+                ". RX capture continues; enable full raw recording for durable evidence.");
+        }
         var startUtc = DateTime.UtcNow;
         var origin = Stopwatch.GetTimestamp();
         _utcOrigin = startUtc;
