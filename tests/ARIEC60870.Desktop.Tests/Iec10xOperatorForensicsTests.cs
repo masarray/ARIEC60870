@@ -32,6 +32,47 @@ public sealed class Iec10xOperatorForensicsTests
     }
 
     [Fact]
+    public void NegativeDeactivationCannotBeLabeledAsAccepted()
+    {
+        Assert.Equal("Command deactivation rejected · negative DEACTCON",
+            Iec101TraceNarrator.ApplicationTitle(Asdu(46, 9, true), FrameDirection.SlaveToMaster));
+        Assert.Equal("Command deactivation confirmed · DEACTCON",
+            Iec101TraceNarrator.ApplicationTitle(Asdu(46, 9), FrameDirection.SlaveToMaster));
+        Assert.Equal("Command negative ACTTERM · review RTU response",
+            Iec101TraceNarrator.ApplicationTitle(Asdu(46, 10, true), FrameDirection.SlaveToMaster));
+    }
+
+    [Fact]
+    public void TimeTaggedCommandPreservesDeviceTimestampAndInvalidFlag()
+    {
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 59, TypeName = "C_DC_TA_1", CauseOfTransmission = 7,
+            CauseName = "activation confirmation", CommonAddress = 1,
+            CauseDetails = new Iec10xCauseDetails(7, 7, false, false, 0),
+            Objects = new[] { new Iec10xInformationObject
+            {
+                InformationObjectAddress = 68550,
+                TimestampText = "2026-10-29 23:52:10.321 invalid-time"
+            } }
+        };
+        var ev = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            TimestampUtc = new DateTime(2026, 10, 30, 0, 0, 0, DateTimeKind.Utc),
+            AsduDetails = asdu, RawHex = "68 0D"
+        };
+        var row = Iec10xCommandEventProjection.Project(ev);
+        Assert.NotNull(row);
+        Assert.Equal("2026-10-29 23:52:10.321 invalid-time", row!.RelayTimeText);
+        Assert.True(row.RelayTimeInvalid);
+        Assert.Equal(ev.TimestampUtc, row.ArrivalTimeUtc);
+        Assert.DoesNotContain("PC ", row.RelayTimeText);
+    
+    }
+
+    [Fact]
     public void EveryObservedApplicationCommandStageAppearsAsEventWithoutClaimingOperation()
     {
         var e = new Iec103MasterEvidenceEvent

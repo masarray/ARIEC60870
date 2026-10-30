@@ -33,3 +33,7 @@ Synthetic tests must pass before merge; physical field and UI manual FAT are sep
 - Original smoke and xUnit assertion for the intentionally replaced negative-control title updated to the new operator-readable wording.
 - Copy explicitly reuses the existing formatted Trace HEX line (spaced bytes), including passive raw frames.
 - Group interrogation QOI21–36 gets group-specific send title; QOI20 remains station GI.
+
+## R3-A negative/clock review resolution
+- Command COT9 negative P/N is rejection, never labeled acknowledged; negative COT10 is not rendered as positive termination.
+- Received time-tagged commands Type58–64 retain decoded CP56Time2a (including invalid-time). Host arrival is separate forensic metadata. Untagged commands explicitly show PC observation clock, not fake IED time.

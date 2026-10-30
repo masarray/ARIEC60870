@@ -257,7 +257,9 @@ public static class Iec101TraceNarrator
         {
             if (cause is >= 44 and <= 47)
                 return "Command protocol error · COT " + cause.ToString(CultureInfo.InvariantCulture);
-            if (cause == 7 && negative) return "Command rejected · negative ACTCON";
+            if (negative && cause == 7) return "Command rejected · negative ACTCON";
+            if (negative && cause == 9) return "Command deactivation rejected · negative DEACTCON";
+            if (negative && cause == 10) return "Command negative ACTTERM · review RTU response";
             if (cause == 7) return "Command accepted · ACTCON";
             if (cause == 10) return "Command terminated · ACTTERM";
             if (cause == 9) return "Command deactivation confirmed · DEACTCON";

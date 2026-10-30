@@ -40,13 +40,26 @@ public static class Iec10xCommandEventProjection
             ? "IOA " + asdu.InformationObjectAddress.Value : "CA " + asdu.CommonAddress;
         var signal = commandLabel + " · " + target;
         var qualifier = asdu.CommandDetails?.ValueMeaning ?? string.Empty;
+        // CP56Time2a belongs to the original command ASDU, not the USB/PC receipt.
+        // Keep invalid-time explicitly marked; only use host time when wire time is absent.
+        var decodedTime = item.InformationObjectDetails?.TimestampText;
+        if (string.IsNullOrWhiteSpace(decodedTime))
+            decodedTime = asdu.FirstObject?.TimestampText;
+        if (string.IsNullOrWhiteSpace(decodedTime))
+            decodedTime = asdu.TimestampText;
+        var hasDeviceTime = !string.IsNullOrWhiteSpace(decodedTime);
+        var visibleTime = hasDeviceTime ? decodedTime! :
+            "PC " + item.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff",
+                System.Globalization.CultureInfo.InvariantCulture);
         return new Iec103RelayEventLogEntry
         {
             EvidenceSequenceNumber = item.SequenceNumber,
             PhysicalSource = item.PhysicalSource,
             EvidenceReference = item.EvidenceReference,
-            RelayTimeText = "PC " + item.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff",
-                System.Globalization.CultureInfo.InvariantCulture),
+            RelayTimeText = visibleTime,
+            RelayTimeInvalid = hasDeviceTime && (
+                item.RelayTimestampInvalid ||
+                decodedTime!.Contains("invalid", StringComparison.OrdinalIgnoreCase)),
             ArrivalTimeUtc = item.TimestampUtc,
             SignalName = signal,
             SignalGroup = "Commands",
