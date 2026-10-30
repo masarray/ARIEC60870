@@ -27,7 +27,7 @@ public sealed class PassiveSessionTraceHistory : IDisposable
     public PassiveSessionTraceHistory(int streams, string? parentDirectory = null)
     {
         if (streams is not (2 or 4)) throw new ArgumentOutOfRangeException(nameof(streams));
-        var parent = parentDirectory ?? Path.Combine(Path.GetTempPath(), "ARIEC60870", "TraceSessions");
+        var parent = parentDirectory ?? Path.Join(Path.GetTempPath(), "ARIEC60870", "TraceSessions");
         Directory.CreateDirectory(parent);
         // Only owned, stale sessions are scavenged; a running instance's folder is untouched.
         foreach (var old in Directory.EnumerateDirectories(parent))
@@ -41,18 +41,24 @@ public sealed class PassiveSessionTraceHistory : IDisposable
                 {
                     // Never clean another instance's still-running, multi-day
                     // field session. Its exclusive lock remains open until close.
-                    var lockPath = Path.Combine(old, "session.lock");
+                    var lockPath = Path.Join(old, "session.lock");
                     using (new FileStream(lockPath, FileMode.OpenOrCreate,
                         FileAccess.ReadWrite, FileShare.None)) { }
                     info.Delete(recursive: true);
                 }
             }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            catch (IOException ex)
+            {
+                System.Diagnostics.Trace.TraceInformation("Old Trace cache locked or unavailable: " + ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Old Trace cache access denied: " + ex.Message);
+            }
         }
-        DirectoryPath = Path.Combine(parent, "session-" + Guid.NewGuid().ToString("N"));
+        DirectoryPath = Path.Join(parent, "session-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(DirectoryPath);
-        _sessionLock = new FileStream(Path.Combine(DirectoryPath, "session.lock"),
+        _sessionLock = new FileStream(Path.Join(DirectoryPath, "session.lock"),
             FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
         _data = new FileStream[streams];
         _indices = new FileStream[streams];
@@ -61,8 +67,8 @@ public sealed class PassiveSessionTraceHistory : IDisposable
         {
             for (var i = 0; i < streams; i++)
             {
-                _data[i] = Open(Path.Combine(DirectoryPath, $"frames-{i:00}.bin"));
-                _indices[i] = Open(Path.Combine(DirectoryPath, $"frames-{i:00}.idx"));
+                _data[i] = Open(Path.Join(DirectoryPath, $"frames-{i:00}.bin"));
+                _indices[i] = Open(Path.Join(DirectoryPath, $"frames-{i:00}.idx"));
             }
         }
         catch
@@ -193,8 +199,8 @@ public sealed class PassiveSessionTraceHistory : IDisposable
 
     private FileStream ReadIndex(byte sid) => new(IndexPath(sid), FileMode.Open,
         FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.RandomAccess);
-    private string DataPath(byte sid) => Path.Combine(DirectoryPath, $"frames-{sid:00}.bin");
-    private string IndexPath(byte sid) => Path.Combine(DirectoryPath, $"frames-{sid:00}.idx");
+    private string DataPath(byte sid) => Path.Join(DirectoryPath, $"frames-{sid:00}.bin");
+    private string IndexPath(byte sid) => Path.Join(DirectoryPath, $"frames-{sid:00}.idx");
     private static FileStream Open(string path) => new(path, FileMode.CreateNew,
         FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.SequentialScan);
     private static long LowerBound(FileStream index, long count, long value, bool byTime)

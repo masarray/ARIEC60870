@@ -21,6 +21,46 @@ public sealed class Iec10xSourceFrameNavigationTests
     }
 
     [Fact]
+    public void PassiveControlSourceReferencesAcceptExactWildcardAndNumericObject()
+    {
+        Assert.True(Iec10xObservationIdentity.TryParsePassiveFrameReference(
+            "101|stream:0|byte:3822|object:*", out var master, out var selectOffset));
+        Assert.Equal((byte)0, master);
+        Assert.Equal(3822L, selectOffset);
+        Assert.True(Iec10xObservationIdentity.TryParsePassiveFrameReference(
+            "101|stream:1|byte:3810|object:1", out var rtu, out var replyOffset));
+        Assert.Equal((byte)1, rtu);
+        Assert.Equal(3810L, replyOffset);
+        foreach (var invalid in new[]
+        {
+            "104|stream:0|byte:3822|object:*",
+            "101|stream:4|byte:3822|object:*",
+            "101|stream:-1|byte:3822|object:*",
+            "101|stream:0|byte:-1|object:*",
+            "101|stream:0|byte:3822|object:",
+            "101|stream:0|byte:3822|object:-1",
+            "101|stream:0|byte:3822|object:any",
+            "101|stream:0|byte:3822|object:*|extra"
+        })
+            Assert.False(Iec10xObservationIdentity.TryParsePassiveFrameReference(invalid,
+                out _, out _), invalid);
+    }
+
+    [Fact]
+    public void WildcardControlFrameMatchesOnlyOriginalStreamAndOffset()
+    {
+        const string selectReference = "101|stream:0|byte:3822|object:*";
+        var select = Frame(Iec60870ProtocolMode.Iec101, "Link A", 11, 0, 3822);
+        Assert.True(Iec10xObservationIdentity.SamePhysicalFrame(select, selectReference,
+            "Link A", Iec60870ProtocolMode.Iec101, 11));
+        Assert.False(Iec10xObservationIdentity.SamePhysicalFrame(
+            Frame(Iec60870ProtocolMode.Iec101, "Link A", 12, 1, 3822),
+            selectReference, "Link A", Iec60870ProtocolMode.Iec101, 12));
+        Assert.False(Iec10xObservationIdentity.SamePhysicalFrame(select, selectReference,
+            "Link B", Iec60870ProtocolMode.Iec101, 11));
+    }
+
+    [Fact]
     public void PassiveSiblingObjectReferencesMatchOnePhysicalFrameButNeverAnotherSource()
     {
         var frame = Frame(Iec60870ProtocolMode.Iec101, "Link A", 11, 1, 512);

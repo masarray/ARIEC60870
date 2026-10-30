@@ -1,7 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Globalization;
 using System.IO;
 using System.Windows;
 using ARIEC60870.Desktop.ViewModels;
@@ -34,22 +33,7 @@ public partial class MainWindow
     }
 
     internal static bool TryParsePassiveHistoryReference(string reference, out byte stream, out long offset)
-    {
-        stream = 0;
-        offset = 0;
-        if (string.IsNullOrWhiteSpace(reference)) return false;
-        var parts = reference.Split('|');
-        return parts.Length == 4 && parts[0] == "101" &&
-            parts[1].StartsWith("stream:", StringComparison.Ordinal) &&
-            byte.TryParse(parts[1]["stream:".Length..], NumberStyles.None,
-                CultureInfo.InvariantCulture, out stream) && stream < 4 &&
-            parts[2].StartsWith("byte:", StringComparison.Ordinal) &&
-            long.TryParse(parts[2]["byte:".Length..], NumberStyles.None,
-                CultureInfo.InvariantCulture, out offset) && offset >= 0 &&
-            parts[3].StartsWith("object:", StringComparison.Ordinal) &&
-            int.TryParse(parts[3]["object:".Length..], NumberStyles.None,
-                CultureInfo.InvariantCulture, out var objectIndex) && objectIndex >= 0;
-    }
+        => Iec10xObservationIdentity.TryParsePassiveFrameReference(reference, out stream, out offset);
 
     private async Task<bool> TryOpenHistoryWindowAsync(
         string reference, string source, Iec60870ProtocolMode protocol,
@@ -120,27 +104,70 @@ public partial class MainWindow
         _passiveFrameHistory = history;
         try
         {
+            _passiveLinkAddressWidth = 1;
+            _passiveAsduDecoder = new ARIEC60870.Master.Protocol.Iec10x.Iec10xAsduDecoder(2, 2, 3);
             var now = DateTime.UtcNow;
-            history.Append(new PassiveObservedFrame(0, 3822, now.AddMilliseconds(-90),
-                "Fixed", true, new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
-            history.Append(new PassiveObservedFrame(1, 3810, now,
-                "Single", true, new byte[] { 0xE5 }));
-            history.Append(new PassiveObservedFrame(0, 3827, now.AddMilliseconds(20),
-                "Fixed", true, new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
+            static byte[] ControlWire(byte control, byte cot)
+            {
+                // IEC101 CA105, IOA68539, TI46, DCS=ON + SELECT.
+                var asdu = new byte[] { 46, 1, cot, 0, 105, 0, 0xBB, 0x0B, 0x01, 0x82 };
+                var body = new byte[] { control, 0x69 }.Concat(asdu).ToArray();
+                return new byte[] { 0x68, (byte)body.Length, (byte)body.Length, 0x68 }
+                    .Concat(body).Concat(new byte[] { (byte)(body.Sum(x => x) & 0xFF), 0x16 })
+                    .ToArray();
+            }
+            // More than the 1,200-row WPF ring, with independent
+            // physical stream offsets and the real field-case identity.
+            for (var i = 0; i < 1800; i++)
+            {
+                var when = now.AddMilliseconds(i * 20d);
+                history.Append(new PassiveObservedFrame(0, i * 6L + 12, when,
+                    i == 635 ? "Variable" : "Fixed", true,
+                    i == 635 ? ControlWire(0x53, 6) :
+                        new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
+                history.Append(new PassiveObservedFrame(1, i * 6L, when.AddMilliseconds(9),
+                    i == 635 ? "Variable" : "Single", true,
+                    i == 635 ? ControlWire(0x08, 0x47) : new byte[] { 0xE5 }));
+            }
+            if (history.FrameCount != 3600)
+                throw new InvalidOperationException("The temporary index lost frames.");
+
             _protocolTraceStore.Clear();
-            var opened = await TryOpenHistoryWindowAsync("101|stream:1|byte:3810|object:0",
-                "Link A", Iec60870ProtocolMode.Iec101);
-            if (!opened || MainTabControl.SelectedIndex != 1 ||
-                FrameTraceRows.Count < 2 || !_historicalTraceViewActive ||
-                FrameTraceGrid.SelectedItem is not EvidenceRow selected ||
-                selected.Source.PhysicalStreamId != 1 ||
-                selected.Source.RawStreamOffset != 3810 ||
+            if (!await TryOpenHistoryWindowAsync("101|stream:0|byte:3822|object:*",
+                "Link A", Iec60870ProtocolMode.Iec101) ||
+                FrameTraceGrid.SelectedItem is not EvidenceRow select ||
+                select.Source.PhysicalStreamId != 0 || select.Source.RawStreamOffset != 3822 ||
+                select.Source.TypeId != 46 || select.Source.CauseOfTransmission != 6 ||
+                !FrameTraceRows.Any(x => x.Source.PhysicalStreamId == 1 &&
+                    x.Source.RawStreamOffset == 3810))
+                throw new InvalidOperationException("Wildcard SELECT failed exact TX/RX navigation.");
+
+            if (!await TryOpenHistoryWindowAsync("101|stream:1|byte:3810|object:1",
+                "Link A", Iec60870ProtocolMode.Iec101) ||
+                MainTabControl.SelectedIndex != 1 || !_historicalTraceViewActive ||
+                FrameTraceGrid.SelectedItem is not EvidenceRow reject ||
+                reject.Source.PhysicalStreamId != 1 || reject.Source.RawStreamOffset != 3810 ||
+                reject.Source.TypeId != 46 || reject.Source.CauseOfTransmission != 7 ||
+                FrameTraceRows.Count < 2 ||
+                !FrameTraceRows.Any(x => x.Source.PhysicalStreamId == 0 &&
+                    x.Source.RawStreamOffset == 3822) ||
                 AutoScrollLatestToggleButton.IsChecked != false)
-                throw new InvalidOperationException(
-                    "Historical Control/GI/Event frame navigation did not load exact physical context.");
+                throw new InvalidOperationException("Negative ACTCON failed exact RX/TX navigation.");
+
+            var visibleCount = FrameTraceRows.Count;
+            var frameSequence = _passiveFrameSequence;
+            // New live traffic must leave a deliberately browsed page stable.
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 15000,
+                now.AddMinutes(2), "Single", true, new byte[] { 0xE5 }));
+            FlushUiQueues();
+            if (FrameTraceRows.Count != visibleCount ||
+                _passiveFrameSequence != frameSequence + 1)
+                throw new InvalidOperationException("Live RX altered the held history window.");
             ResumeLiveViews(clearSelection: true, followLive: true);
-            if (_historicalTraceViewActive || AutoScrollLatestToggleButton.IsChecked != true)
-                throw new InvalidOperationException("Resume did not restore the live Trace.");
+            if (_historicalTraceViewActive || AutoScrollLatestToggleButton.IsChecked != true ||
+                !FrameTraceRows.Any(x => x.Source.RawStreamOffset == 15000 &&
+                    x.Source.PhysicalStreamId == 1))
+                throw new InvalidOperationException("Resume failed to restore live Trace.");
         }
         finally { ReleaseSessionTraceHistory(); }
     }

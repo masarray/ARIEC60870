@@ -23,9 +23,9 @@ public sealed class PassiveSessionTraceHistoryTests
                 {
                     // Many Class 2 background frames: a 1200-row WPF preview
                     // cannot retain the original Select and negative ACTCON.
-                    history.Append(new PassiveObservedFrame(0, n * 6, now.AddMilliseconds(n * 20),
+                    history.Append(new PassiveObservedFrame(0, n * 6, now.AddMilliseconds(n * 20d),
                         "Fixed", true, new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
-                    history.Append(new PassiveObservedFrame(1, n * 6, now.AddMilliseconds(n * 20 + 9),
+                    history.Append(new PassiveObservedFrame(1, n * 6, now.AddMilliseconds(n * 20d + 9),
                         "Fixed", true, new byte[] { 0x10, 0x09, 0x69, 0x72, 0x16 }));
                 }
                 Assert.Equal(3600, history.FrameCount);
@@ -53,7 +53,7 @@ public sealed class PassiveSessionTraceHistoryTests
             var now = new DateTime(2026, 10, 30, 6, 1, 0, DateTimeKind.Utc);
             for (byte sid = 0; sid < 4; sid++)
                 for (var i = 0; i < 40; i++)
-                    h.Append(new PassiveObservedFrame(sid, i * 17, now.AddMilliseconds(i * 10 + sid),
+                    h.Append(new PassiveObservedFrame(sid, i * 17, now.AddMilliseconds(i * 10d + sid),
                         "Variable", true, new byte[] { 0x68, sid, (byte)i, 0x16 }, 1));
             var actual = h.ReadWindow(3, 17 * 20, before: 20, after: 20);
             var found = Assert.Single(actual, x => x.StreamId == 3 && x.StreamOffset == 340);
