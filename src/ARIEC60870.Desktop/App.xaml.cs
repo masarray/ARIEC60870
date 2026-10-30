@@ -12,7 +12,6 @@ public partial class App : Application
     {
         if (e.Args.Contains("--observation-ui-acceptance", StringComparer.OrdinalIgnoreCase))
         {
-            StartupUri = null;
             base.OnStartup(e);
             try
             {
@@ -30,6 +29,12 @@ public partial class App : Application
             }
             catch (Exception ex)
             {
+                var idx = Array.FindIndex(e.Args, arg => string.Equals(arg,
+                    "--observation-out", StringComparison.OrdinalIgnoreCase));
+                var dir = idx >= 0 && idx + 1 < e.Args.Length
+                    ? e.Args[idx + 1] : Path.GetTempPath();
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "failure.txt"), ex.ToString());
                 Console.Error.WriteLine("OBS-C acceptance failed: " + ex);
                 Shutdown(1);
             }
@@ -37,7 +42,6 @@ public partial class App : Application
         }
         if (e.Args.Contains("--passive-gui-smoke", StringComparer.OrdinalIgnoreCase))
         {
-            StartupUri = null;
             base.OnStartup(e);
             try
             {
@@ -57,5 +61,9 @@ public partial class App : Application
             return;
         }
         base.OnStartup(e);
+        // StartupUri was deliberately removed from App.xaml: normal and
+        // test-mode launches now each create exactly one MainWindow.
+        var main = new MainWindow();
+        main.Show();
     }
 }

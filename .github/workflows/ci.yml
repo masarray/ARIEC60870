@@ -91,8 +91,8 @@ jobs:
           $exe = Join-Path $publish 'ARIEC60870.Desktop.exe'
           if (!(Test-Path $exe)) { throw 'Expected GUI executable missing.' }
           # Instantiate actual WPF window and its resource dictionaries without opening any COM.
-          & $exe --passive-gui-smoke
-          if ($LASTEXITCODE -ne 0) { throw "Passive GUI smoke failed with exit code $LASTEXITCODE." }
+          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
+          if ($smoke.ExitCode -ne 0) { throw "Passive GUI smoke failed with process exit code $($smoke.ExitCode)." }
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           $zip = Join-Path $package 'ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip'
           # Package the current live-first operator workflow, not the retired record-first P0 guide.
@@ -108,8 +108,11 @@ jobs:
           $exe = 'artifacts/passive-gui-publish/ARIEC60870.Desktop.exe'
           $output = 'artifacts/obs-c-ui-evidence'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          & $exe --observation-ui-acceptance --observation-out $output
-          if ($LASTEXITCODE -ne 0) { throw "OBS-C WPF acceptance failed with exit code $LASTEXITCODE." }
+          $accept = Start-Process -FilePath $exe -ArgumentList @('--observation-ui-acceptance', '--observation-out', $output) -Wait -PassThru -NoNewWindow
+          if ($accept.ExitCode -ne 0) {
+            if (Test-Path (Join-Path $output 'failure.txt')) { Get-Content (Join-Path $output 'failure.txt') }
+            throw "OBS-C WPF acceptance failed with process exit code $($accept.ExitCode)."
+          }
           if (!(Test-Path (Join-Path $output 'metrics.json'))) { throw 'Missing measured GUI acceptance evidence.' }
           if ((Get-ChildItem $output -Filter *.png).Count -lt 7) { throw 'Missing real-WPF viewport screenshots.' }
 
