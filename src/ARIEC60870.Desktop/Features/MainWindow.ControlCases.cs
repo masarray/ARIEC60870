@@ -55,28 +55,11 @@ public partial class MainWindow
                     ?? c.Stages.LastOrDefault();
         if (stage is null) return;
 
-        // The source qualified case reference is authoritative; the bounded Trace
-        // viewport may have evicted it. Never navigate to an unrelated same-IOA row.
-        var source = _protocolTraceStore.Snapshot().FirstOrDefault(r =>
-            r.Sequence == stage.Sequence &&
-            string.Equals(r.Source.PhysicalSource?.Trim(), c.Source, StringComparison.OrdinalIgnoreCase) &&
-            r.ProtocolName == c.Protocol);
-        if (source is null)
-        {
-            ModernMessageBox.Show(this,
-                "The referenced frame is outside the current bounded Trace preview. " +
-                "Its original evidence reference remains in Copy Case; open the full raw journal or a saved capture to inspect it.",
-                "Source frame not in preview", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        MainTabControl.SelectedIndex = 1;
-        EnterLineMonitorHoldForUserSelection();
-        RefreshActiveTraceSnapshot();
-        FrameTraceGrid.SelectedItems.Clear();
-        FrameTraceGrid.SelectedItem = FrameTraceRows.FirstOrDefault(r => ReferenceEquals(r, source));
-        if (FrameTraceGrid.SelectedItem is not null) FrameTraceGrid.ScrollIntoView(FrameTraceGrid.SelectedItem);
-        else
-            AppendSessionLog("Control case source frame is no longer visible in the held Trace window.");
+        // Share the same strict reference matcher as Event/GI navigation. Never
+        // substitute a same-IOA row or merely the newest frame.
+        var protocol = c.Protocol == "IEC-101"
+            ? ARIEC60870.Master.Model.Iec60870ProtocolMode.Iec101
+            : ARIEC60870.Master.Model.Iec60870ProtocolMode.Iec104;
+        NavigateToOriginalFrame(stage.EvidenceReference, stage.Sequence, c.Source, protocol);
     }
 }

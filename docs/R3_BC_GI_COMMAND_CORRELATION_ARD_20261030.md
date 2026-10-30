@@ -38,3 +38,6 @@ When a GI's bounded seen-frame index reaches its configured capacity, new data f
 - Original frame navigation requires matching source+protocol and immutable evidence root (active seq or passive stream/byte offset); secondary ASDU objects may share one physical frame, no matching merely by IOA.
 - Expose GI conversations as a compact virtualized table with stages, source refs, counts and uncertainty; never display invented GI percentage. Event→GI/Control→Frame must gracefully report expired frames.
 - Offline capture rebuilds the same GI/command stage event projections used by live processing and marks unfinished histories Observed incomplete. No active TX, no silently rewritten capture file.
+
+### Captured replay: fact projection, not raw-text parsing
+Open Capture clears previous state, validates source archive, then processes the **same typed** command and GI projection functions into Event Log that live uses; incomplete observation marked at capture end. It does not transmit. Source-qualified typed `TransactionKind`/`TransactionCaseId` can navigate to case and original physical evidence if currently retained. No guessed physical command result or GI percentage. Product UI bounds remain unchanged: Trace 1200, Events 420, GI cases 160.
