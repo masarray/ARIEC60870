@@ -752,13 +752,6 @@ public partial class MainWindow
                         ? new[] { "IEC-101 prohibits the A2 single-character response." }
                         : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum or incomplete frame." }
         };
-        // The typed warning is original protocol evidence, not a guessed fault.
-        // A valid fixed frame using an unexpected link-address width must be
-        // explained in the operator Trace instead of silently burying the
-        // exact IEC profile mismatch in the inspector's issues collection.
-        if (profileMismatch || isNoise)
-            meaning = frame.Issues.FirstOrDefault() ?? meaning;
-
         var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
         // Live is writer-owned, so a skipped WPF preview cannot produce a
         // fabricated match. Offline replay reconstructs the same typed stages.
@@ -784,6 +777,11 @@ public partial class MainWindow
         var meaning = decode?.ShortMeaning ?? function;
         if (!seen.ChecksumValid && seen.Format != "Partial")
             meaning = "Bad checksum · " + meaning;
+        // Keep the decoded warning visible in the operator Trace, without
+        // changing the authoritative FT1.2 decoder or physical raw evidence.
+        if (profileMismatch || isNoise)
+            meaning = frame.Issues.FirstOrDefault() ?? meaning;
+
         var first = decode?.FirstObject;
         var rawHexOnce = Convert.ToHexString(raw);
 
