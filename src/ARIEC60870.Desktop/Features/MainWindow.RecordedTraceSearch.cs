@@ -115,10 +115,11 @@ public partial class MainWindow
 
             // Opening another capture/session or pressing Cancel invalidates
             // the old request, even if it finished while the user changed scope.
+            // A session/capture switch invalidates the request generation and
+            // cancels its token in ClearSessionView/PrepareLiveTraceForConnect.
+            // These monotonic guards cover changes across the await boundary.
             if (cancellation.IsCancellationRequested ||
-                generation != _recordedArchiveGeneration ||
-                _sessionCancellation is not null || _passiveMonitorSession is not null ||
-                _passiveReplayCancellation is not null) return;
+                generation != _recordedArchiveGeneration) return;
 
             ClearTraceQuickFindForNavigation();
             var rows = result.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
