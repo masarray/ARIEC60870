@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using ARIEC60870.Core.Model;
+using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop.ViewModels;
