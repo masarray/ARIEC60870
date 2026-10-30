@@ -522,11 +522,12 @@ public partial class MainWindow
         var filter = (EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
         // The bounded SOE store is chronological, oldest to newest. Do not reverse:
         // auto-scroll must follow the latest event at the BOTTOM, just like Trace.
-        var rows = _relayEventStore
-            .Snapshot()
-            .Where(row => ShouldIncludeRelayEvent(row, filter))
-            .TakeLast(MaxVisibleRelayEventRows)
-            .ToArray();
+        var recent = _relayEventStore.Snapshot();
+        var rows = recent.Where(row => ShouldIncludeRelayEvent(row, filter) &&
+            QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
+            .TakeLast(MaxVisibleRelayEventRows).ToArray();
+        if (EventsQuickCountText is not null)
+            EventsQuickCountText.Text = $"{rows.Length} / {recent.Count()} recent";
 
         // Prefer bounded incremental tail updates to resetting the entire WPF grid
         // on each SOE burst. A changed filter or non-overlapping window still resets.
@@ -540,7 +541,8 @@ public partial class MainWindow
                 Enumerable.Range(0, overlap).All(i =>
                     ReferenceEquals(RelayEventRows[previousCount - overlap + i], rows[i])))
             {
-                RelayEventRows.TrimStart(overlap);
+                // Keep the common suffix and append only truly new rows.
+                RelayEventRows.TrimStart(previousCount - overlap);
                 RelayEventRows.AddRange(rows.Skip(overlap));
                 return;
             }
