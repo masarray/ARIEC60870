@@ -31,3 +31,10 @@ A received ASDU may be projected once as a physical frame plus additional per-IO
 
 ### Review hardening — budget is not a protocol lifecycle veto
 When a GI's bounded seen-frame index reaches its configured capacity, new data frames are not counted and the case displays `CountLimited=true` immediately. **ACTCON, negative confirmation, and ACTTERM are still accepted as observed protocol facts and can close the case**, even if the bounded data cache is full. Synthetic regression uses a 2-frame budget to test this deterministically without a long CI soak.
+
+
+## R3-D navigation/replay implementation contract
+- Add typed transaction case ID and kind to event facts, preserving exact source/CA context. Do not parse display strings like `Case #` to navigate.
+- Original frame navigation requires matching source+protocol and immutable evidence root (active seq or passive stream/byte offset); secondary ASDU objects may share one physical frame, no matching merely by IOA.
+- Expose GI conversations as a compact virtualized table with stages, source refs, counts and uncertainty; never display invented GI percentage. Event→GI/Control→Frame must gracefully report expired frames.
+- Offline capture rebuilds the same GI/command stage event projections used by live processing and marks unfinished histories Observed incomplete. No active TX, no silently rewritten capture file.

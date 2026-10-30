@@ -15,6 +15,10 @@ public sealed class Iec103RelayEventLogEntry
     public long EvidenceSequenceNumber { get; init; }
     public string PhysicalSource { get; init; } = string.Empty;
     public string EvidenceReference { get; init; } = string.Empty;
+    /// <summary>Typed cross-workspace transaction reference. Null for process SOE.
+    /// The ID is session scoped; source and protocol must also be checked.</summary>
+    public long? TransactionCaseId { get; init; }
+    public string TransactionKind { get; init; } = string.Empty;
     public string RelayTimeText { get; init; } = string.Empty;
     public bool RelayTimeInvalid { get; init; }
     public DateTime ArrivalTimeUtc { get; init; } = DateTime.UtcNow;

@@ -58,6 +58,8 @@ public static class Iec10xCommandEventProjection
             EvidenceSequenceNumber = item.SequenceNumber,
             PhysicalSource = item.PhysicalSource,
             EvidenceReference = item.EvidenceReference,
+            TransactionCaseId = caseId,
+            TransactionKind = caseId.HasValue ? "Command" : string.Empty,
             RelayTimeText = visibleTime,
             RelayTimeInvalid = hasDeviceTime && (
                 item.RelayTimestampInvalid ||

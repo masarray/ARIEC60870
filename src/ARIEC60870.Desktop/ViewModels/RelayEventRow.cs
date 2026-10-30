@@ -13,6 +13,8 @@ public sealed class RelayEventRow
         Sequence = item.EvidenceSequenceNumber;
         PhysicalSource = item.PhysicalSource;
         EvidenceReference = item.EvidenceReference;
+        TransactionCaseId = item.TransactionCaseId;
+        TransactionKind = item.TransactionKind;
         Protocol = item.ProtocolMode switch
         {
             Iec60870ProtocolMode.Iec101 => "101",
@@ -49,6 +51,8 @@ public sealed class RelayEventRow
     public long Sequence { get; }
     public string PhysicalSource { get; }
     public string EvidenceReference { get; }
+    public long? TransactionCaseId { get; }
+    public string TransactionKind { get; }
     public string Protocol { get; }
     public string RelayTime { get; }
     public string DisplayRelayTime => RelayTime == "no timestamp" ? "—" : RelayTime;

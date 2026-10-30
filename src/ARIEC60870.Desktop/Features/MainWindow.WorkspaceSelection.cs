@@ -51,6 +51,7 @@ public partial class MainWindow
             RefreshFindingsWorkspace(force: true);
         }
         RefreshControlCasesIfVisible(force: true);
+        RefreshGiCasesIfVisible(force: true);
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
     }
@@ -77,6 +78,7 @@ public partial class MainWindow
             NavEventButton,
             NavFindingsButton,
             NavControlCasesButton,
+            NavGiCasesButton,
             NavReportButton,
             NavOperatorButton,
             NavDiagnosticsButton,
@@ -111,6 +113,7 @@ public partial class MainWindow
             NavTriggersButton.Visibility = Visibility.Visible;
             NavFindingsButton.Visibility = Visibility.Visible;
             NavControlCasesButton.Visibility = Visibility.Visible;
+            NavGiCasesButton.Visibility = Visibility.Visible;
             NavReportButton.Visibility = Visibility.Visible;
             NavDiagnosticsButton.Visibility = Visibility.Collapsed;
             NavNotesButton.Visibility = Visibility.Collapsed;
@@ -135,6 +138,8 @@ public partial class MainWindow
         NavEventButton.Visibility = Visibility.Visible;
         NavFindingsButton.Visibility = Visibility.Visible;
         NavControlCasesButton.Visibility = GetSelectedProtocolMode() is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            ? Visibility.Visible : Visibility.Collapsed;
+        NavGiCasesButton.Visibility = GetSelectedProtocolMode() is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
             ? Visibility.Visible : Visibility.Collapsed;
         NavReportButton.Visibility = Visibility.Visible;
 

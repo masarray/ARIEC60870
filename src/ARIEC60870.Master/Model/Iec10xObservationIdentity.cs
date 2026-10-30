@@ -30,6 +30,37 @@ public static class Iec10xObservationIdentity
             : $"{(int)item.ProtocolMode}|seq:{item.SequenceNumber}|object:{index}";
     }
 
+    /// <summary>Match a clicked event or transaction stage to the ORIGINAL physical
+    /// frame, never by IOA or display row index. Passive sibling objects use the
+    /// same stream/byte offset; active events must retain the exact frame sequence.</summary>
+    public static bool SamePhysicalFrame(Iec103MasterEvidenceEvent frame, string evidenceRef,
+        string physicalSource, Iec60870ProtocolMode protocol, long sequence)
+    {
+        if (frame.ProtocolMode != protocol ||
+            !string.Equals(NormalizeSource(frame.PhysicalSource), NormalizeSource(physicalSource),
+                StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(evidenceRef) ||
+            frame.Direction is not (FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster))
+            return false;
+
+        var frameRef = FrameRoot(frame.EvidenceReference);
+        var soughtRef = FrameRoot(evidenceRef);
+        if (!string.Equals(frameRef, soughtRef, StringComparison.Ordinal)) return false;
+        // Active sequence is a frame identity. Passive stream+offset is stronger;
+        // per-object projection sequence can differ from the physical frame event.
+        return soughtRef.Contains("|stream:", StringComparison.Ordinal) ||
+            frame.SequenceNumber == sequence;
+    }
+
+    private static string FrameRoot(string reference)
+    {
+        var i = reference.LastIndexOf("|object:", StringComparison.Ordinal);
+        return i < 0 ? reference : reference[..i];
+    }
+
+    private static string NormalizeSource(string? source)
+        => string.IsNullOrWhiteSpace(source) ? "SINGLE" : source.Trim();
+
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)
         => item.Direction == FrameDirection.SlaveToMaster
             && (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
