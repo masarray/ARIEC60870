@@ -1197,7 +1197,16 @@ public partial class MainWindow
 
     private async void MainWindow_ClosingPassive(object? sender, CancelEventArgs e)
     {
-        if (_closingAfterPassiveStop) return;
+        if (_closingAfterPassiveStop)
+        {
+            ReleaseSessionTraceHistory();
+            return;
+        }
+        if (_passiveMonitorSession is null && _passiveReplayCancellation is null)
+        {
+            ReleaseSessionTraceHistory();
+            return;
+        }
         if (_passiveReplayCancellation is { } replay && _passiveReplayWork is { } replayTask)
         {
             e.Cancel = true;
