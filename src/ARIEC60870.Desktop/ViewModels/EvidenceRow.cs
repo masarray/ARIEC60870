@@ -295,6 +295,9 @@ public sealed partial class EvidenceRow
             Direction = capture.Direction == "RX" ? FrameDirection.SlaveToMaster :
                 capture.Direction == "TX" ? FrameDirection.MasterToSlave : FrameDirection.Unknown,
             Frame = decoded?.SerialFrame,
+            // Never substitute Common Address or a displayed text field for the
+            // real FT1.2 link address. Only trusted byte-decoded provenance qualifies.
+            LinkAddress = decoded?.SerialFrame?.LinkAddress,
             AsduDetails = asdu,
             InformationObjectDetails = first,
             ApciFormat = decoded?.TcpFrame?.Format ?? string.Empty,

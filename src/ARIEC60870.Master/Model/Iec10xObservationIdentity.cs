@@ -27,8 +27,39 @@ public static class Iec10xObservationIdentity
         var index = item.InformationObjectDetails?.Index ?? 0;
         return item.PhysicalStreamId is int stream && item.RawStreamOffset is long offset
             ? $"{(int)item.ProtocolMode}|stream:{stream}|byte:{offset}|object:{index}"
-            : $"{(int)item.ProtocolMode}|seq:{item.SequenceNumber}|object:{index}";
+            : $"{(int)item.ProtocolMode}|seq:{item.PhysicalFrameSequenceNumber ?? item.SequenceNumber}|object:{index}";
     }
+
+    /// <summary>Match a clicked event or transaction stage to the ORIGINAL physical
+    /// frame, never by IOA or display row index. Passive sibling objects use the
+    /// same stream/byte offset; active events must retain the exact frame sequence.</summary>
+    public static bool SamePhysicalFrame(Iec103MasterEvidenceEvent frame, string evidenceRef,
+        string physicalSource, Iec60870ProtocolMode protocol, long sequence)
+    {
+        if (frame.ProtocolMode != protocol ||
+            !string.Equals(NormalizeSource(frame.PhysicalSource), NormalizeSource(physicalSource),
+                StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(evidenceRef) ||
+            frame.Direction is not (FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster))
+            return false;
+
+        var frameRef = FrameRoot(frame.EvidenceReference);
+        var soughtRef = FrameRoot(evidenceRef);
+        if (!string.Equals(frameRef, soughtRef, StringComparison.Ordinal)) return false;
+        // Both roots refer to one original physical telegram. Active sibling RX
+        // object projections carry their original frame sequence as the reference
+        // root, even though their own event sequence legitimately differs.
+        return true;
+    }
+
+    private static string FrameRoot(string reference)
+    {
+        var i = reference.LastIndexOf("|object:", StringComparison.Ordinal);
+        return i < 0 ? reference : reference[..i];
+    }
+
+    private static string NormalizeSource(string? source)
+        => string.IsNullOrWhiteSpace(source) ? "SINGLE" : source.Trim();
 
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)
         => item.Direction == FrameDirection.SlaveToMaster

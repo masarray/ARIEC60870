@@ -43,6 +43,9 @@ public partial class MainWindow
         _scanHealthLastDiagnosticUtcByCode.Clear();
         _commandCasebook.Reset();
         _giCasebook.Reset();
+        _giCasesDirty = true;
+        GiCaseRows.Clear();
+        GiCaseStages.Clear();
         _commandCasesDirty = true;
         ControlCaseRows.Clear();
     }

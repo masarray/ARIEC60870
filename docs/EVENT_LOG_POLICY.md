@@ -102,3 +102,9 @@ The visible Events timeline is chronological oldest-to-newest, so ordinary `Scro
 - GI is a first-class filtered event group. One GI request, ACTCON and ACTTERM each create a concise event milestone; interrogated COT20..36 data accumulate typed frame/object counts without producing repetitive SOE. A reported ACTTERM explicitly states *coverage unknown* unless a project-approved expected mapping proves it.
 - Command stage messages include an exact case reference when the casebook can correlate the immutable frame identity. Missing matching case is uncorrelated evidence, never a guessed case number.
 - Relay timestamps are authoritative for time-tagged process events; untimed command/GI events have explicit PC host timestamp provenance. Raw HEX and source refs stay in Trace and exports.
+
+
+## R3-D source-qualified cross-workspace navigation and offline parity (2026-10-30)
+Each command or GI event may carry **typed** `TransactionKind`/`TransactionCaseId`, never inferred by parsing its visible title. Case lookup additionally requires same protocol/physical source. Open Frame requires original physical evidence reference (stream+offset or active sequence) and source+protocol. An expired bounded frame is reported missing and must never be replaced by a same-IOA guess. GI case and command case tables remain bounded, virtualized and rendered only while visible.
+
+Verified imported capture reconstructs GI and command milestone Events from the same typed decoder and reconstructs both casebooks with no TX. A truncated source yields observed incomplete; data snapshots do not become invented SOE. The relay timestamp field remains distinct from host arrival.

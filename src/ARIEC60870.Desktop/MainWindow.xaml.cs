@@ -194,6 +194,8 @@ public partial class MainWindow : Window
     private readonly ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook _commandCasebook = new();
     // Protocol-owned, bounded GI conversation state; GUI only projects milestones.
     private readonly ARIEC60870.Master.Protocol.Iec10x.Iec10xGiCasebook _giCasebook = new();
+    private bool _giCasesDirty;
+    public ObservableRangeCollection<ARIEC60870.Master.Protocol.Iec10x.Iec10xGiCasebook.GiCase> GiCaseRows { get; } = new();
     private bool _commandCasesDirty;
     public ObservableRangeCollection<ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook.CommandCase> ControlCaseRows { get; } = new();
 

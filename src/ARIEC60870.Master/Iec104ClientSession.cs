@@ -361,11 +361,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampInvalid = decoded.Asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = decoded.Asdu?.CauseName ?? string.Empty
         });
-        AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds);
+        AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
         return decoded;
     }
 
-    private void AddAdditionalObjectEvents(Iec104ApduDecode decoded, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)
+    private void AddAdditionalObjectEvents(Iec104ApduDecode decoded, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs, long physicalFrameSequence)
     {
         var asdu = decoded.Asdu;
         if (asdu is null || asdu.Objects.Count <= 1)
@@ -380,6 +380,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 Direction = FrameDirection.SlaveToMaster,
                 State = _state,
                 Category = decoded.IsValid ? "RX Object" : "RX Warning",
+                PhysicalFrameSequenceNumber = physicalFrameSequence,
                 DataClass = dataClass,
                 PollingReason = reason,
                 Summary = $"{asdu.TypeName}, IOA={obj.InformationObjectAddress}, {obj.ShortValue}",
@@ -535,6 +536,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             PhysicalSource = item.PhysicalSource,
             PhysicalStreamId = item.PhysicalStreamId,
             RawStreamOffset = item.RawStreamOffset,
+            PhysicalFrameSequenceNumber = item.PhysicalFrameSequenceNumber,
             ResponseTimeMs = item.ResponseTimeMs,
             ProtocolMode = Iec60870ProtocolMode.Iec104,
             LinkAddress = item.LinkAddress,

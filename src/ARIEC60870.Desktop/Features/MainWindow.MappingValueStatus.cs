@@ -178,7 +178,12 @@ public partial class MainWindow
         // milestones. Interrogated data updates GI counters, not one SOE row per value.
         var giMilestone = _giCasebook.Observe(item);
         if (giMilestone is not null)
+        {
+            _giCasesDirty = true;
             AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone));
+        }
+        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
+            _giCasesDirty = true;
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
@@ -834,6 +839,9 @@ public partial class MainWindow
         FrameTraceRows.Clear();
         _commandCasebook.Reset();
         _giCasebook.Reset();
+        GiCaseRows.Clear();
+        GiCaseStages.Clear();
+        _giCasesDirty = false;
         ControlCaseRows.Clear();
         ControlCaseStages.Clear();
         _commandCasesDirty = false;

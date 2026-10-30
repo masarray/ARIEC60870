@@ -31,3 +31,20 @@ A received ASDU may be projected once as a physical frame plus additional per-IO
 
 ### Review hardening — budget is not a protocol lifecycle veto
 When a GI's bounded seen-frame index reaches its configured capacity, new data frames are not counted and the case displays `CountLimited=true` immediately. **ACTCON, negative confirmation, and ACTTERM are still accepted as observed protocol facts and can close the case**, even if the bounded data cache is full. Synthetic regression uses a 2-frame budget to test this deterministically without a long CI soak.
+
+
+## R3-D navigation/replay implementation contract
+- Add typed transaction case ID and kind to event facts, preserving exact source/CA context. Do not parse display strings like `Case #` to navigate.
+- Original frame navigation requires matching source+protocol and immutable evidence root (active seq or passive stream/byte offset); secondary ASDU objects may share one physical frame, no matching merely by IOA.
+- Expose GI conversations as a compact virtualized table with stages, source refs, counts and uncertainty; never display invented GI percentage. Event→GI/Control→Frame must gracefully report expired frames.
+- Offline capture rebuilds the same GI/command stage event projections used by live processing and marks unfinished histories Observed incomplete. No active TX, no silently rewritten capture file.
+
+### Captured replay: fact projection, not raw-text parsing
+Open Capture clears previous state, validates source archive, then processes the **same typed** command and GI projection functions into Event Log that live uses; incomplete observation marked at capture end. It does not transmit. Source-qualified typed `TransactionKind`/`TransactionCaseId` can navigate to case and original physical evidence if currently retained. No guessed physical command result or GI percentage. Product UI bounds remain unchanged: Trace 1200, Events 420, GI cases 160.
+
+### Source archive decoded link and time uncertainty
+Reopened `.ariec` rows can only reconstruct the IEC101 LinkAddress from validated `Iec10xArchivedFrameDecoder` FT1.2 bytes, not by confusing CA or reading a presentation label. Legacy captures without recorded arrival UTC explicitly display `PC time unavailable (legacy capture)`; no fabricated year-1970 host event.
+
+
+### Original active frame identity for multi-object ASDU navigation
+First RX frame event sequence is captured and supplied as `PhysicalFrameSequenceNumber` to additional per-object RX events in IEC101 and IEC104. Active evidence references now use this immutable physical frame sequence root even if the object's event sequence differs. Matching still requires protocol/source and exact physical evidence root, never IOA/HEX similarity. GI workspace refresh is called from the bounded periodic UI flush only when selected/dirty.

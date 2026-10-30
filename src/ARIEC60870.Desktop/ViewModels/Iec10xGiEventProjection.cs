@@ -20,10 +20,14 @@ public static class Iec10xGiEventProjection
         {
             EvidenceSequenceNumber = frame.SequenceNumber,
             EvidenceReference = frame.EvidenceReference,
+            TransactionCaseId = c.CaseId,
+            TransactionKind = "GI",
             PhysicalSource = frame.PhysicalSource,
             ArrivalTimeUtc = frame.TimestampUtc,
-            RelayTimeText = "PC " + frame.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff",
-                System.Globalization.CultureInfo.InvariantCulture),
+            RelayTimeText = frame.TimestampUtc == DateTime.UnixEpoch
+                ? "PC time unavailable (legacy capture)"
+                : "PC " + frame.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff",
+                    System.Globalization.CultureInfo.InvariantCulture),
             SignalName = "GI #" + c.CaseId + " · " + c.Description,
             SignalGroup = "GI",
             SignalType = "GI",
