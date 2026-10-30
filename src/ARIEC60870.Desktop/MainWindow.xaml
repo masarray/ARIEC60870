@@ -755,7 +755,7 @@
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="186" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
                                     
-                                    <DataGridTextColumn Header="Value" Binding="{Binding DisplayValue}" Width="175" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Value" Binding="{Binding CompactDisplayValue}" Width="195" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="200" />
                                     <DataGridTextColumn Header="Source / address" Binding="{Binding Address}" Width="155" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="148" />
