@@ -18,7 +18,7 @@ public partial class App : Application
                 var outputOption = Array.FindIndex(e.Args, arg =>
                     string.Equals(arg, "--observation-out", StringComparison.OrdinalIgnoreCase));
                 var output = outputOption >= 0 && outputOption + 1 < e.Args.Length
-                    ? e.Args[outputOption + 1] : Path.Combine(Path.GetTempPath(), "ARIEC60870-OBS-C");
+                    ? e.Args[outputOption + 1] : Path.Join(Path.GetTempPath(), "ARIEC60870-OBS-C");
                 var window = new MainWindow();
                 window.Show();
                 window.RunPassiveGuiSmokeProbe();
@@ -27,6 +27,8 @@ public partial class App : Application
                 window.Close();
                 Shutdown(0);
             }
+            // Deliberately broad at the executable acceptance boundary:
+            // unexpected WPF errors must produce failure.txt and exit 1.
             catch (Exception ex)
             {
                 var idx = Array.FindIndex(e.Args, arg => string.Equals(arg,
@@ -34,7 +36,7 @@ public partial class App : Application
                 var dir = idx >= 0 && idx + 1 < e.Args.Length
                     ? e.Args[idx + 1] : Path.GetTempPath();
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "failure.txt"), ex.ToString());
+                File.WriteAllText(Path.Join(dir, "failure.txt"), ex.ToString());
                 Console.Error.WriteLine("OBS-C acceptance failed: " + ex);
                 Shutdown(1);
             }
