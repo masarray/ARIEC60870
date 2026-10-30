@@ -498,7 +498,7 @@ public partial class MainWindow
         UpdateStableHeader("Monitoring", options.RecordFullSession
             ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
         AppendSessionLog("Passive monitor started: " + SessionSubtitleText.Text +
-            (options.RecordFullSession ? " · full raw journal ON" : " · live-only, no files created"));
+            (options.RecordFullSession ? " · full raw journal ON" : " · temporary session Trace, no permanent recording"));
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(160)
@@ -524,7 +524,7 @@ public partial class MainWindow
             PassiveVerifyButton.IsEnabled = options.RecordFullSession;
             AppendSessionLog(options.RecordFullSession
                 ? "Passive raw journal finalized: " + result.Manifest.Status + " · " + result.Directory
-                : "Passive live monitor stopped without automatic session recording: " + result.Manifest.Status);
+                : "Passive live monitor ended; temporary Trace remains until next session or close: " + result.Manifest.Status);
             UpdateStableHeader(result.Manifest.Status is "MonitorStopped" or "NoApplicationLossDetected"
                     ? "Stopped" : "Degraded",
                 options.RecordFullSession ? "Full journal saved · verification available." : "Live monitoring ended · no automatic recording.");
