@@ -435,6 +435,7 @@ public partial class MainWindow
 
     private void ResumeLiveViews(bool clearSelection, bool followLive)
     {
+        if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
         if (AutoScrollLatestToggleButton is not null)
         {
             AutoScrollLatestToggleButton.IsChecked = followLive;
