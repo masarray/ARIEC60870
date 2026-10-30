@@ -838,6 +838,7 @@ public partial class MainWindow
 
     private void ClearSessionView(bool clearLog)
     {
+        ResetRecordedArchiveSource();
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
         _commandCasebook.Reset();

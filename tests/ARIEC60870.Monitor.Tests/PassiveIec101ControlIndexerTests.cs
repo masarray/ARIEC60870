@@ -68,4 +68,17 @@ public sealed class PassiveIec101ControlIndexerTests
         return new PassiveObservedFrame(stream, offset, Utc.AddMilliseconds(offset),
             "Variable", true, raw);
     }
+    [Fact]
+    public void SecondaryCOT6WithValidChecksumIsFlaggedAsDirectionAnomaly()
+    {
+        Assert.True(_index.TryObserve(Frame(0, 20, 6, 0x82), out _));
+        Assert.True(_index.TryObserve(Frame(1, 30, 6, 0x82), out var anomaly));
+        Assert.True(anomaly!.NeedsAttention);
+        Assert.True(anomaly.DirectionCotMismatch);
+        Assert.Contains("DIRECTION/COT ANOMALY", anomaly.Explanation);
+        Assert.Equal(1, _index.PendingCount);
+        Assert.True(_index.TryObserve(Frame(1, 40, 7, 0x82), out var confirmation));
+        Assert.Contains("POSITIVE ACTCON", confirmation!.Explanation);
+    }
+
 }

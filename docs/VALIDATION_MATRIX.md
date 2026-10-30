@@ -6,10 +6,10 @@ This document records simulator, bench, and relay checks for ARIEC60870 releases
 
 | Item | Status | Notes |
 |---|---|---|
-| Build on Windows | Pending | GitHub Actions or local build result. |
+| Build on Windows | CI passed (2026-10-30) | Exact master a9e5cd6 Windows Release build, 0 warnings/errors; [run 41026302020](https://github.com/masarray/ARIEC60870/actions/runs/41026302020). Clean-machine field install remains pending. |
 | Protocol smoke tests | Available | Run `dotnet run --project tests/ARIEC60870.Protocol.Tests`. |
 | xUnit regression suites | Available | Core, Master, Reporting, Desktop, and Repository test projects publish `.trx` and coverage output in CI. |
-| Portable package created | Pending | Windows portable ZIP generated. |
+| Portable package created | CI passed (2026-10-30) | Win-x64 artifact available for master a9e5cd6 in [run 41026302020](https://github.com/masarray/ARIEC60870/actions/runs/41026302020). Physical Windows installation test is separate. |
 | Portable package opened | Pending | Desktop app starts from extracted ZIP. |
 | CLI help opened | Pending | CLI tools open from extracted ZIP. |
 | Simulator master run | Pending | Deterministic simulator mode produces evidence. |

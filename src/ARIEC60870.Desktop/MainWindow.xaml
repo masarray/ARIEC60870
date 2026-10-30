@@ -540,6 +540,7 @@
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" /><RowDefinition Height="6" />
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="5" />
                                     <RowDefinition Height="Auto" /><RowDefinition Height="8" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
@@ -582,8 +583,34 @@
                                     </ComboBox>
                                     <TextBlock x:Name="TraceQuickCountText" Text="Current window" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
                                 </StackPanel>
+                                <!-- R3-E portable archive: independent of R4 Live Quick Find and session history. -->
+                                <StackPanel Grid.Row="4" Margin="0,0,0,2">
+                                    <DockPanel LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
+                                            <Button x:Name="TraceRecordedFindButton" Content="Find .ariec" Click="TraceRecordedFind_Click"
+                                                    Style="{StaticResource SecondaryButton}" Padding="7,3" FontSize="11" Margin="0,0,4,0"
+                                                    ToolTip="Search entire portable .ariec, not the current live window"/>
+                                            <Button x:Name="TraceRecordedPrevButton" Content="‹" Width="27" Click="TraceRecordedPrev_Click"
+                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="0,0,3,0"
+                                                    ToolTip="Previous 150 matching archive frames"/>
+                                            <Button x:Name="TraceRecordedNextButton" Content="›" Width="27" Click="TraceRecordedNext_Click"
+                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2"
+                                                    ToolTip="Next 150 matching archive frames"/>
+                                            <Button x:Name="TraceRecordedCancelButton" Content="×" Width="27" Click="TraceRecordedCancel_Click"
+                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="4,0,0,0"
+                                                    ToolTip="Cancel current archive verification/search"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="TraceRecordedQueryBox" MinWidth="70" Height="28"
+                                                 VerticalContentAlignment="Center" FontSize="11.5"
+                                                 ToolTip="Full archive filters: ioa, ca, ti, cot, source, direction, time, hex, neg, test."/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="TraceRecordedStatusText"
+                                               Text="Archive: separate from window Quick Find · hash status appears after scan"
+                                               Foreground="{StaticResource Ink600Brush}" FontSize="10.7"
+                                               TextTrimming="CharacterEllipsis" Margin="1,3,0,0"/>
+                                </StackPanel>
                                 <ListBox x:Name="FrameTraceGrid"
-                                         Grid.Row="4"
+                                         Grid.Row="6"
                                          ItemsSource="{Binding FrameTraceRows}"
                                          Style="{StaticResource ProtocolTraceListBox}"
                                          SelectionChanged="EvidenceGrid_SelectionChanged"

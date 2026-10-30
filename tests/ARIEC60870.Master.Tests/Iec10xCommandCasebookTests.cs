@@ -205,4 +205,31 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Empty(b.Snapshot());
         Assert.Equal(0, b.ActiveCount);
     }
+    [Fact]
+    public void SecondaryActivationIsAnAnomalyAndDoesNotConsumePendingSelect()
+    {
+        var b = new Iec10xCommandCasebook();
+        Assert.True(b.Observe(Command(cot: 6, select: true)));
+        Assert.True(b.Observe(Command(cot: 6, select: true, rtu: true)));
+        Assert.Equal(2, b.Count);
+        Assert.Equal("Protocol anomaly", b.Snapshot()[1].Status);
+        Assert.Equal(1, b.ActiveCount);
+        Assert.Contains("not a standard ACTCON", b.Snapshot()[1].Interpretation);
+        Assert.True(b.Observe(Command(cot: 7, select: true, rtu: true)));
+        Assert.Equal("SELECT accepted", b.Snapshot()[0].Status);
+    }
+
+    [Fact]
+    public void CasebookAdmitsBoundedStageTruncationInEvidenceReport()
+    {
+        var b = new Iec10xCommandCasebook();
+        Assert.True(b.Observe(Command()));
+        for (var i = 0; i < 30; i++)
+            Assert.True(b.Observe(Command(cot: 7, rtu: true)));
+        var result = Assert.Single(b.Snapshot());
+        Assert.True(result.StagesTruncated);
+        Assert.Equal(24, result.Stages.Count);
+        Assert.Contains("EVIDENCE LIMITED", result.ToEvidenceText());
+    }
+
 }

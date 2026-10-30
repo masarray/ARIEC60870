@@ -168,3 +168,8 @@ The additional pair is strictly opt-in within the existing Setup.
 - Treat derived timeline entries only as navigation hints. Present raw HEX as **verified** only after matching the exact physical RX stream and original byte offset in CRC/SHA-verified APM1 journal replay. Reject incomplete captures and stale indexes. Never conflate local source 0/1 on Link B with physical RX0/RX1; map to RX2/RX3.
 - Historical selected-frame replays remain bounded in RAM but may be sequential in CPU/disk cost for large archives. Persisted random-access raw checkpoints require future FAT and benchmark proof. Do not claim physical timestamp precision, NUC switching, or loss-free electrical monitoring from USB receipt order.
 - Reference: docs/IEC101_PASSIVE_P4A_INDEXED_NAVIGATION.md.
+
+
+## R3-E — bounded verified portable archive search (2026-10-30)
+
+Frame Trace now offers background, read-only full-scan search on portable `.ariec` ZIP evidence. The UI shows a maximum 150 results per page, while its normal recent live ring remains at 1,200 rows. All rows are scanned and SHA-256 / declared count are checked before a search page becomes visible; later pages deliberately repeat the verified single-pass scan rather than retaining unbounded frame objects or trusting an unverified index. This is *not* indexed random seeking into full passive binary journals. Full RX-only passive recording remains explicitly opt-in, and GUI backpressure must never be described as complete recording. See `docs/R3E_VERIFIED_HISTORICAL_COMMAND_FORENSICS_20261030.md`.

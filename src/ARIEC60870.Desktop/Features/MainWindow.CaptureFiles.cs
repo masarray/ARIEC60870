@@ -70,6 +70,10 @@ public partial class MainWindow
             }
 
             ClearSessionView(clearLog: false);
+            // OpenCapture source becomes the default for a subsequent complete
+            // archive query, without treating its 600-row preview as full history.
+            _lastOpenedAriecFile = dialog.FileName;
+            _traceArchivePage = 0;
             _evidenceProtocolMode = imported.CapturedProtocolMode;
             _evidenceProfileId = imported.CapturedProfileId;
             _evidenceProfileEdition = imported.CapturedProfileEdition;

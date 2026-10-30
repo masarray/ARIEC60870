@@ -65,7 +65,10 @@ public sealed class PassiveIec101ControlIndexer
 
         evidence = new PassiveControlEvidence(frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
             address, typed.TypeId, typed.CommonAddress, typed.FirstObject?.InformationObjectAddress,
-            typed.CauseDetails?.Code, typed.IsNegativeConfirm, note);
+            typed.CauseDetails?.Code, typed.IsNegativeConfirm, note)
+        {
+            DirectionCotMismatch = !prm && typed.CauseDetails?.Code == 6
+        };
         return true;
     }
 }
@@ -75,5 +78,6 @@ public sealed record PassiveControlEvidence(byte StreamId, long StreamOffset, Da
     int LinkAddress, int TypeId, int CommonAddress, int? Ioa,
     int? CotCode, bool Negative, string Explanation)
 {
-    public bool NeedsAttention => Negative || CotCode is >= 44 and <= 47;
+    public bool DirectionCotMismatch { get; init; }
+    public bool NeedsAttention => Negative || DirectionCotMismatch || CotCode is >= 44 and <= 47;
 }

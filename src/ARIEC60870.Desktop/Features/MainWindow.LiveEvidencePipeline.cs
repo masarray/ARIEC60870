@@ -445,6 +445,7 @@ public partial class MainWindow
 
     private void ResumeLiveViews(bool clearSelection, bool followLive)
     {
+        ExitRecordedArchiveView();
         _historicalTraceViewActive = false;
         _historyNavigationGeneration++;
         if (TraceOlderButton is not null) TraceOlderButton.Visibility = Visibility.Collapsed;
@@ -648,6 +649,8 @@ public partial class MainWindow
     /// </summary>
     private void PrepareLiveTraceForConnect()
     {
+        // A new live session invalidates an in-flight offline archive search.
+        ResetRecordedArchiveSource();
         _initialLiveTraceFlushPending = 1;
         _protocolTraceSelectionAnchorIndex = -1;
         _evidenceSummarySelectionAnchorIndex = -1;

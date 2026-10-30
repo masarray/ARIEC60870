@@ -25,6 +25,7 @@ public static class CaptureArchiveReader
     public sealed record Result(IReadOnlyList<CaptureFrameSnapshot> Rows,
         long TotalRows, bool IntegrityVerified, string TrustDescription)
     {
+        public long MatchingRows { get; init; }
         public string CapturedProtocolMode { get; init; } = string.Empty;
         public string CapturedProfileId { get; init; } = string.Empty;
         public string CapturedProfileEdition { get; init; } = string.Empty;
@@ -33,6 +34,24 @@ public static class CaptureArchiveReader
 
     public static Result Read(string fileName, int previewLimit = DefaultPreviewLimit,
         CancellationToken cancellationToken = default)
+        => ReadCore(fileName, previewLimit, cancellationToken, query: null, skipMatching: 0);
+
+    /// <summary>Verify the ENTIRE archive before returning a bounded, ordered
+    /// query page. Searches all stored rows, not just the last preview 600.
+    /// Re-reading validates the source hash; no unverified index is trusted.</summary>
+    public static Result Search(string fileName, CaptureArchiveQuery query,
+        long skipMatching = 0, int pageSize = 150, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (skipMatching < 0 || skipMatching > MaxFrameCount)
+            throw new ArgumentOutOfRangeException(nameof(skipMatching));
+        if (pageSize is < 1 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(pageSize));
+        return ReadCore(fileName, pageSize, cancellationToken, query, skipMatching);
+    }
+
+    private static Result ReadCore(string fileName, int previewLimit,
+        CancellationToken cancellationToken, CaptureArchiveQuery? query, long skipMatching)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         if (previewLimit is < 1 or > 5000)
@@ -88,6 +107,7 @@ public static class CaptureArchiveReader
         var rented = ArrayPool<byte>.Shared.Rent(64 * 1024);
         long bytesSeen = 0;
         long rowsSeen = 0;
+        long matchesSeen = 0;
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         try
         {
@@ -132,6 +152,7 @@ public static class CaptureArchiveReader
             !string.IsNullOrWhiteSpace(requiredHash),
             string.IsNullOrWhiteSpace(requiredHash) ? "LEGACY · hash not available" : "SHA-256 VERIFIED")
         {
+            MatchingRows = matchesSeen,
             CapturedProtocolMode = capturedProtocolMode,
             CapturedProfileId = capturedProfileId,
             CapturedProfileEdition = capturedProfileEdition,
@@ -159,8 +180,18 @@ public static class CaptureArchiveReader
                     (rowsSeen + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".", ex);
             }
             rowsSeen++;
-            if (retained.Count == previewLimit) retained.Dequeue();
-            retained.Enqueue(snapshot);
+            if (query is null)
+            {
+                matchesSeen++;
+                if (retained.Count == previewLimit) retained.Dequeue();
+                retained.Enqueue(snapshot);
+            }
+            else if (query.Matches(snapshot))
+            {
+                matchesSeen++;
+                if (matchesSeen > skipMatching && retained.Count < previewLimit)
+                    retained.Enqueue(snapshot);
+            }
         }
     }
 
