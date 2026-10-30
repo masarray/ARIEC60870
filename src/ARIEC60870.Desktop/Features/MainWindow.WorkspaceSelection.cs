@@ -41,6 +41,8 @@ public partial class MainWindow
         }
 
         RefreshActiveTraceSnapshot();
+        if (!IsProtocolTraceTabActive() && FrameTimelineCaption is not null)
+            FrameTimelineCaption.Text = "Frame timeline";
         if (IsReportPreviewTabActive())
         {
             PrepareReportPreviewForDeferredReveal();
