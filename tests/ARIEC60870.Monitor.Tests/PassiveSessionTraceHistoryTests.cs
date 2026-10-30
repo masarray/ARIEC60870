@@ -56,7 +56,7 @@ public sealed class PassiveSessionTraceHistoryTests
                     h.Append(new PassiveObservedFrame(sid, i * 17, now.AddMilliseconds(i * 10 + sid),
                         "Variable", true, new byte[] { 0x68, sid, (byte)i, 0x16 }, 1));
             var actual = h.ReadWindow(3, 17 * 20, before: 20, after: 20);
-            var found = Assert.Single(actual.Where(x => x.StreamId == 3 && x.StreamOffset == 340));
+            var found = Assert.Single(actual, x => x.StreamId == 3 && x.StreamOffset == 340);
             Assert.Equal(new byte[] { 0x68, 3, 20, 0x16 }, found.RawBytes);
             Assert.Equal(1, found.DetectedLinkAddressWidth);
             Assert.Equal("Variable", found.Format);
