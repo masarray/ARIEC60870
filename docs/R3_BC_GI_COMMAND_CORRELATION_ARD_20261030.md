@@ -28,3 +28,6 @@ Full source-scoped command correlation including OA, response phase, approved ma
 
 ### Multi-object evidence deduplication
 A received ASDU may be projected once as a physical frame plus additional per-IOA process events, with different application sequence numbers but the **same immutable decoded ASDU instance**. The GI casebook deduplicates these shared instances (in addition to exact repeated evidence references), so the GI frame count is physical-ASDU-based while object count derives once from the decoded SQ0/SQ1 collection. Replay adapter must preserve frame identity; if it cannot, it must mark uncertainty instead of doubling counts.
+
+### Review hardening — budget is not a protocol lifecycle veto
+When a GI's bounded seen-frame index reaches its configured capacity, new data frames are not counted and the case displays `CountLimited=true` immediately. **ACTCON, negative confirmation, and ACTTERM are still accepted as observed protocol facts and can close the case**, even if the bounded data cache is full. Synthetic regression uses a 2-frame budget to test this deterministically without a long CI soak.

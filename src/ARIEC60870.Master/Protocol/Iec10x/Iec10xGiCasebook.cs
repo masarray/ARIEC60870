@@ -17,6 +17,7 @@ public sealed class Iec10xGiCasebook
     private const int MaxUniqueIoas = 2048;
     private const int MaxSeenFrames = 8192;
     private readonly int _capacity;
+    private readonly int _seenFrameLimit;
     private readonly List<GiCase> _history = new();
     private readonly Dictionary<GiKey, GiState> _active = new();
     private long _nextId;
@@ -62,10 +63,13 @@ public sealed class Iec10xGiCasebook
 
     public sealed record GiMilestone(GiCase Case, string Phase);
 
-    public Iec10xGiCasebook(int capacity = 160)
+    public Iec10xGiCasebook(int capacity = 160, int seenFrameLimit = MaxSeenFrames)
     {
         if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
+        if (seenFrameLimit is < 1 or > MaxSeenFrames)
+            throw new ArgumentOutOfRangeException(nameof(seenFrameLimit));
         _capacity = capacity;
+        _seenFrameLimit = seenFrameLimit;
     }
 
     public int ActiveCount => _active.Count;
@@ -117,7 +121,9 @@ public sealed class Iec10xGiCasebook
             if (item.Direction != FrameDirection.SlaveToMaster) return null;
             if (!_active.TryGetValue(key, out var existing))
                 return Orphan(item, key, cot.Code == 10 ? "Unmatched GI ACTTERM" : "Unmatched GI ACTCON");
-            if (!RecordOnce(existing, item)) return null;
+            // Count budget limits *data accounting only*: ACTCON/ACTTERM and
+            // negative confirmation must still close the correct GI lifecycle.
+            if (!RecordOnce(existing, item, lifecycle: true)) return null;
             if (existing.Ambiguous)
                 return Advance(existing, item, "Ambiguous GI response", "Ambiguous", remove: cot.Code == 10);
             if (cot.Negative)
@@ -264,15 +270,18 @@ public sealed class Iec10xGiCasebook
         if (index >= 0) _history[index] = s.Current;
     }
 
-    private bool RecordOnce(GiState s, Iec103MasterEvidenceEvent item)
+    private bool RecordOnce(GiState s, Iec103MasterEvidenceEvent item,
+        bool lifecycle = false)
     {
         var identity = (item.SequenceNumber, item.EvidenceReference);
         if (s.Seen.Contains(identity)) return false;
-        if (s.Seen.Count >= MaxSeenFrames)
+        if (s.Seen.Count >= _seenFrameLimit)
         {
             s.Truncated = true;
-            // Avoid unbounded memory; counting from here is incomplete, not verified coverage.
-            return false;
+            // Do not cache unbounded references. Terminal lifecycle evidence
+            // remains authoritative even when GI data accounting is limited.
+            Sync(s);
+            return lifecycle;
         }
         return s.Seen.Add(identity);
     }

@@ -122,6 +122,21 @@ public sealed class Iec10xGiCasebookTests
     }
 
     [Fact]
+    public void DataRetentionLimitNeverPreventsActtermOrNegativeConfirmation()
+    {
+        var b = new Iec10xGiCasebook(seenFrameLimit: 2);
+        b.Observe(Gi(6));
+        b.Observe(Gi(7, true));
+        Assert.Null(b.Observe(TwoObjects())); // beyond budget, data counting stops
+        var terminal = b.Observe(Gi(10, true))!;
+        Assert.Equal("ACTTERM observed · coverage unknown", terminal.Case.Status);
+        Assert.True(terminal.Case.CountLimited);
+        Assert.Equal(0, terminal.Case.DataFrames);
+        Assert.Equal(0, b.ActiveCount);
+        Assert.Equal("GI request", b.Observe(Gi(6))!.Phase);
+    }
+
+    [Fact]
     public void TwoDifferentConcurrentQoiGroupsAlsoBecomeAmbiguous()
     {
         var b = new Iec10xGiCasebook();
