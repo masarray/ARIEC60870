@@ -592,7 +592,7 @@
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
                                             <Button Content="Current" Click="TraceCurrentMode_Click" Style="{StaticResource SecondaryButton}"
                                                     Padding="7,3" Margin="0,0,5,0" ToolTip="Return to current Trace search"/>
-                                            <Button x:Name="TraceRecordedFindButton" Content="Find Click="TraceRecordedFind_Click"
+                                            <Button x:Name="TraceRecordedFindButton" Content="Find" Click="TraceRecordedFind_Click"
                                                     Style="{StaticResource SecondaryButton}" Padding="7,3" FontSize="11" Margin="0,0,4,0"
                                                     ToolTip="Search entire portable .ariec, not the current live window"/>
                                             <Button x:Name="TraceRecordedPrevButton" Content="‹" Width="27" Click="TraceRecordedPrev_Click"
