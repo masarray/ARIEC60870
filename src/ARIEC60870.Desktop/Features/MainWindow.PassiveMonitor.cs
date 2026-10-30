@@ -643,36 +643,43 @@ public partial class MainWindow
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
     }
 
-    private void FeedPassiveFrameToExistingViews(PassiveObservedFrame seen)
+    private EvidenceRow? FeedPassiveFrameToExistingViews(PassiveObservedFrame seen,
+        bool inspectionOnly = false)
     {
-        // Replay has a full, verified stream and re-derives the same findings here.
-        // Live capture derives findings upstream, before WPF's bounded frame queue.
-        var replayTimeline = _passiveReplayTimelines is { } ts
-            ? ts[seen.StreamId / 2] : _passiveReplayTimeline;
-        var circuitId = seen.StreamId / 2;
-        replayTimeline?.ObserveFrame(seen with { StreamId = (byte)(seen.StreamId % 2) },
-            x => ApplyPassiveTimelineWindow(x with { CircuitId = circuitId }));
-        _passiveReplayCorrelator?.Observe(seen, x =>
+        PassiveGiEvent? giNote = null;
+        PassiveTransactionEvent? transaction = null;
+        // Historical disk reads are projections, not new wire observations.
+        if (!inspectionOnly)
         {
-            var txTimeline = _passiveReplayTimelines is { } all
-                ? all[x.ObservedStream / 2] : _passiveReplayTimeline;
-            txTimeline?.ObserveTransaction(x with
+            // Replay has a full, verified stream and re-derives the same findings here.
+            // Live capture derives findings upstream, before WPF's bounded frame queue.
+            var replayTimeline = _passiveReplayTimelines is { } ts
+                ? ts[seen.StreamId / 2] : _passiveReplayTimeline;
+            var circuitId = seen.StreamId / 2;
+            replayTimeline?.ObserveFrame(seen with { StreamId = (byte)(seen.StreamId % 2) },
+                x => ApplyPassiveTimelineWindow(x with { CircuitId = circuitId }));
+            _passiveReplayCorrelator?.Observe(seen, x =>
             {
-                ObservedStream = (byte)(x.ObservedStream % 2)
+                var txTimeline = _passiveReplayTimelines is { } all
+                    ? all[x.ObservedStream / 2] : _passiveReplayTimeline;
+                txTimeline?.ObserveTransaction(x with
+                {
+                    ObservedStream = (byte)(x.ObservedStream % 2)
+                });
+                ApplyPassiveTransactionEvent(x);
             });
-            ApplyPassiveTransactionEvent(x);
-        });
-        _passiveReplayGiTracker?.Observe(seen, x =>
-        {
-            var giTimeline = _passiveReplayTimelines is { } all
-                ? all[x.StreamId / 2] : _passiveReplayTimeline;
-            giTimeline?.ObserveGi(x with { StreamId = (byte)(x.StreamId % 2) });
-            ApplyPassiveGiEvent(x);
-        });
-        _passiveGiNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var giNote);
-        _passiveGiNotes.Remove((seen.StreamId, seen.StreamOffset));
-        _passiveTransactionNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out var transaction);
-        _passiveTransactionNotes.Remove((seen.StreamId, seen.StreamOffset));
+            _passiveReplayGiTracker?.Observe(seen, x =>
+            {
+                var giTimeline = _passiveReplayTimelines is { } all
+                    ? all[x.StreamId / 2] : _passiveReplayTimeline;
+                giTimeline?.ObserveGi(x with { StreamId = (byte)(x.StreamId % 2) });
+                ApplyPassiveGiEvent(x);
+            });
+            _passiveGiNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out giNote);
+            _passiveGiNotes.Remove((seen.StreamId, seen.StreamOffset));
+            _passiveTransactionNotes.TryGetValue((seen.StreamId, seen.StreamOffset), out transaction);
+            _passiveTransactionNotes.Remove((seen.StreamId, seen.StreamOffset));
+        }
         var txNote = transaction is null ? "" :
             $" · {transaction.Meaning} · Req RX stream {transaction.RequestStream} offset {transaction.RequestOffset}" +
             (transaction.HostDelayMilliseconds is { } ms ? $" · host Δ≈{ms:0} ms" : "");
@@ -721,8 +728,9 @@ public partial class MainWindow
         var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
         // Live is writer-owned, so a skipped WPF preview cannot produce a
         // fabricated match. Offline replay reconstructs the same typed stages.
-        _passiveControlNotes.Remove((seen.StreamId, seen.StreamOffset), out var upstream);
-        var controlAnalysis = _passiveMonitorSession is not null
+        PassiveControlEvidence? upstream = null;
+        if (!inspectionOnly) _passiveControlNotes.Remove((seen.StreamId, seen.StreamOffset), out upstream);
+        var controlAnalysis = inspectionOnly ? string.Empty : _passiveMonitorSession is not null
             ? upstream?.Explanation ?? string.Empty
             : _passiveControlTimeline.Observe(direction, decode,
                 seen.StreamId < 2 ? "Link A" : "Link B", seen.StreamOffset,
@@ -747,7 +755,7 @@ public partial class MainWindow
 
         var ev = new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = ++_passiveFrameSequence,
+            SequenceNumber = inspectionOnly ? 0 : ++_passiveFrameSequence,
             TimestampUtc = seen.EstimatedUtc, Direction = direction,
             Category = seen.ChecksumValid && !forbiddenSingleA2 && !profileMismatch && !isNoise
                 ? "Passive Traffic" : "RX Warning",
@@ -796,6 +804,8 @@ public partial class MainWindow
             RelayTimestampText = first?.TimestampText ?? "",
             RelayTimestampInvalid = first?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true
         };
+        if (inspectionOnly)
+            return new EvidenceRow(ev, ResolveIoaPoint(ev));
         OnEvidenceReceived(this, ev);
         if (_passiveMonitorSession is null &&
             (controlAnalysis.StartsWith("RTU NEGATIVE CONFIRMATION", StringComparison.Ordinal) ||
@@ -848,6 +858,7 @@ public partial class MainWindow
                 });
             }
         }
+        return null;
     }
 
     private void ApplyPassiveTimelineWindow(PassiveTimelineWindow item)
