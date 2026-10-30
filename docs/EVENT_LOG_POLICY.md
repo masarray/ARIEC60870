@@ -95,3 +95,10 @@ Events must show **one Value column** rather than separate Before/After columns.
 
 The visible Events timeline is chronological oldest-to-newest, so ordinary `ScrollIntoView(last)` follows the latest event at the **bottom**, consistent with Trace. The bounded SOE store remains authoritative; manual scrolling freezes only visible Events rows without disabling acquisition. Resume is a small button shown **only when auto-follow is OFF**. When auto-follow is enabled the header control is hidden to reduce visual noise. The WPF list should append bounded batches rather than resetting all visible rows whenever possible.
 
+
+
+## 2026-10-30 R3-B/C GI/Command observation policy
+- Header **EVENT** increments only when one factual row is appended to the bounded Event Log (digital edge, spontaneous change, command stage, or GI milestone), not on every measurement or poll.
+- GI is a first-class filtered event group. One GI request, ACTCON and ACTTERM each create a concise event milestone; interrogated COT20..36 data accumulate typed frame/object counts without producing repetitive SOE. A reported ACTTERM explicitly states *coverage unknown* unless a project-approved expected mapping proves it.
+- Command stage messages include an exact case reference when the casebook can correlate the immutable frame identity. Missing matching case is uncorrelated evidence, never a guessed case number.
+- Relay timestamps are authoritative for time-tagged process events; untimed command/GI events have explicit PC host timestamp provenance. Raw HEX and source refs stay in Trace and exports.

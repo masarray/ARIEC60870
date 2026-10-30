@@ -726,7 +726,7 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <DockPanel>
-                                <TextBlock Text="Events &amp; commands" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
+                                <TextBlock Text="Events · Commands · GI" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="16,0,0,0">
                                     <TextBlock Text="Filter" Style="{StaticResource EyebrowText}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                     <ComboBox x:Name="EventLogFilterComboBox" Width="132" SelectedIndex="0" SelectionChanged="EventLogFilter_SelectionChanged" ToolTip="Filter event log by signal class">
@@ -734,6 +734,7 @@
                                         <ComboBoxItem Content="Digital status" />
                                         <ComboBoxItem Content="Analog" />
                                         <ComboBoxItem Content="Commands" />
+                                        <ComboBoxItem Content="GI" />
                                     </ComboBox>
                                     <TextBlock Text="RESUME" Visibility="{Binding Visibility, ElementName=EventsAutoScrollButton}" FontSize="11.3" FontWeight="SemiBold" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="20,0,7,0"/>
                                     <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}" IsChecked="True"

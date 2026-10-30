@@ -169,12 +169,16 @@ public partial class MainWindow
     {
         // Every actual typed TX/RX application command is an event fact, independently
         // of whether a process value changed. No fabricated RTU success on ACTCON.
-        var commandStage = Iec10xCommandEventProjection.Project(item);
+        var commandCase = _commandCasebook.FindByEvidence(item);
+        var commandStage = Iec10xCommandEventProjection.Project(item, commandCase?.CaseId);
         if (commandStage is not null)
-        {
-            _relayEventStore.Add(new RelayEventRow(commandStage));
-            _relayEventRowsDirty = true;
-        }
+            AppendProtocolEvent(commandStage);
+
+        // Application semantics live in Master; the WPF projection only receives typed
+        // milestones. Interrogated data updates GI counters, not one SOE row per value.
+        var giMilestone = _giCasebook.Observe(item);
+        if (giMilestone is not null)
+            AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone));
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
@@ -318,6 +322,7 @@ public partial class MainWindow
 
             _relayEventStore.Add(relayEventRow);
             _relayEventRowsDirty = true;
+            RegisterActualEventFact();
         }
     }
 
@@ -542,8 +547,26 @@ public partial class MainWindow
         RelayEventRows.ReplaceRange(rows);
     }
 
+    private void AppendProtocolEvent(Iec103RelayEventLogEntry entry)
+    {
+        _relayEventStore.Add(new RelayEventRow(entry));
+        _relayEventRowsDirty = true;
+        RegisterActualEventFact();
+    }
+
+    private void RegisterActualEventFact()
+    {
+        // Header EVENT represents appended factual event rows, not every GI snapshot,
+        // Class2 poll, or unchanged measurement telegram.
+        _dpiCount++;
+        PulseLed(EventLed);
+        DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static bool ShouldIncludeRelayEvent(RelayEventRow row, string filter)
     {
+        if (filter.Equals("GI", StringComparison.OrdinalIgnoreCase))
+            return row.Type == "GI";
         if (filter.Equals("Commands", StringComparison.OrdinalIgnoreCase))
             return row.Type == "Command";
         if (filter.Equals("Digital status", StringComparison.OrdinalIgnoreCase))
@@ -810,6 +833,7 @@ public partial class MainWindow
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
         _commandCasebook.Reset();
+        _giCasebook.Reset();
         ControlCaseRows.Clear();
         ControlCaseStages.Clear();
         _commandCasesDirty = false;

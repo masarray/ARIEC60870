@@ -192,9 +192,9 @@ public sealed class Iec10xGiCasebook
             Append(prior, item, "Repeated GI activation");
             return new GiMilestone(prior.Current, "Repeated GI request · ambiguous");
         }
-        foreach (var other in _active.Values.Where(s => s.Key.Protocol == key.Protocol &&
-            s.Key.Source == key.Source && s.Key.Link == key.Link && s.Key.Ca == key.Ca))
-            MarkAmbiguous(other);
+        var overlapping = _active.Values.Where(s => s.Key.Protocol == key.Protocol &&
+            s.Key.Source == key.Source && s.Key.Link == key.Link && s.Key.Ca == key.Ca).ToArray();
+        foreach (var other in overlapping) MarkAmbiguous(other);
 
         if (_active.Count >= MaxActive)
         {
@@ -206,11 +206,12 @@ public sealed class Iec10xGiCasebook
         var c = new GiCase(++_nextId,
             key.Protocol == Iec60870ProtocolMode.Iec101 ? "IEC-101" : "IEC-104",
             key.Source, key.Link, key.Ca, key.Originator, key.Qoi,
-            "GI requested", 0, 0, 0, 0, 0, 0, false,
+            overlapping.Length > 0 ? "Ambiguous · overlapping GI" : "GI requested",
+            0, 0, 0, 0, 0, 0, false,
             item.SequenceNumber, item.SequenceNumber, new[] { Stage(item, "GI request") });
         _history.Add(c);
         if (_history.Count > _capacity) _history.RemoveAt(0);
-        var s = new GiState { Key = key, Current = c };
+        var s = new GiState { Key = key, Current = c, Ambiguous = overlapping.Length > 0 };
         s.Seen.Add((item.SequenceNumber, item.EvidenceReference));
         _active[key] = s;
         return new GiMilestone(c, "GI request");

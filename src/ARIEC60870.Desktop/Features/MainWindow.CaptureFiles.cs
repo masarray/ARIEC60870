@@ -86,8 +86,10 @@ public partial class MainWindow
                 // evidence recovered from verified raw capture; never issue TX.
                 _commandCasebook.Observe(row.Source,
                     IsIec10xCommandType(row.Source.TypeId) ? ResolveFeedbackIoaForCommand(row.Source) : null);
+                _giCasebook.Observe(row.Source);
             }
             _commandCasebook.EndObservation();
+            _giCasebook.EndObservation();
             _commandCasesDirty = true;
 
             FrameTraceRows.ReplaceRange(rows);

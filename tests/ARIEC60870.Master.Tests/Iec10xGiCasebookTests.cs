@@ -107,6 +107,18 @@ public sealed class Iec10xGiCasebookTests
     }
 
     [Fact]
+    public void TwoDifferentConcurrentQoiGroupsAlsoBecomeAmbiguous()
+    {
+        var b = new Iec10xGiCasebook();
+        b.Observe(Gi(6, qoi: 20));
+        var other = b.Observe(Gi(6, qoi: 21))!;
+        Assert.Contains("Ambiguous", other.Case.Status);
+        Assert.All(b.Snapshot(), x => Assert.Contains("Ambiguous", x.Status));
+        b.Observe(TwoObjects(cot: 20));
+        Assert.All(b.Snapshot(), x => Assert.Equal(0, x.DataFrames));
+    }
+
+    [Fact]
     public void OverlapBecomesAmbiguousNeverLastWins()
     {
         var b = new Iec10xGiCasebook();

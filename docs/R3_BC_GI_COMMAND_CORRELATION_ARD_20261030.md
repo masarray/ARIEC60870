@@ -13,7 +13,7 @@ One **source-qualified** case: Protocol, source A/B/single, optional IEC101 link
 
 GI Events: only milestone rows (request/ACTCON/ACTTERM) plus a meaningful summary at termination; do not emit one SOE row per GI snapshot. Use host-labeled time for untimed GI event; preserve original raw and provenance. Existing Value Viewer receives all decoded process objects. Event header count means actual Event Log facts, not all measurement frames.
 
-Command hardening: use source-matched actual case stage for diagnostics, not newest case by insertion time; do not match feedback from a different IEC101 link when explicit link is available; reject malformed and TEST evidence. Commands are not transmitted in monitor/replay.
+Command hardening: use source-matched actual case stage for diagnostics, not newest case by insertion time; do not match feedback from a different IEC101 link when explicit link is available; reject malformed and TEST evidence. Commands are not transmitted in monitor/replay. The Event Log projects source-matched Case # onto the command stage, while GI case # and stage evidence remain in the report.
 
 ## Performance and tests
 Single authoritative ASDU decoder; `Iec10xGiCasebook` in Master, WPF projection only. Active capacity 64, unique IOA budget 2048 per GI, total per-case seen-frame budget 8192; overflow truthfully marks counting limited. No WPF per-frame redraw. Test SQ1, source/CA/link mismatch, unobserved request, negative ACTCON, overlap, group GIs and invalid quality; test regression whole repo Windows release once per final HEAD. Physical 1200-baud and 2/4-RX FAT separate and not claimed complete.

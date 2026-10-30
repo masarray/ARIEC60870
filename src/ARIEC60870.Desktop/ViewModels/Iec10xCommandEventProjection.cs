@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class Iec10xCommandEventProjection
 {
-    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item)
+    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) ||
@@ -64,7 +64,9 @@ public static class Iec10xCommandEventProjection
             SignalName = signal,
             SignalGroup = "Commands",
             SignalType = "Command",
-            NewValue = title + (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
+            NewValue = title +
+                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "") +
+                (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
             EdgeReason = isMaster ? "Observed Master TX" : "Observed RTU RX",
             CauseOfTransmission = asdu.CotNameWithFlags,
             AsduType = asdu.TypeName,
