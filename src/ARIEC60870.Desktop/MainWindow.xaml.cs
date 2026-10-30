@@ -236,6 +236,7 @@ public partial class MainWindow : Window
             UpdateResponsiveHeaderLayout();
             UpdateAutoScrollLatestRailVisual();
             ApplyCommandDockLayout();
+            UpdateObservationViewportLayout();
             UpdateCommandDockActionButtons();
             UpdateConnectToggleVisual(false);
             SetStatusHistoryPanelExpanded(false);
@@ -248,6 +249,7 @@ public partial class MainWindow : Window
         {
             UpdateSegmentedNav(false);
             UpdateResponsiveHeaderLayout();
+            UpdateObservationViewportLayout();
         };
         Closing += (_, _) =>
         {

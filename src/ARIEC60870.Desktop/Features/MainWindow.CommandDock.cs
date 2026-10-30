@@ -51,6 +51,7 @@ public partial class MainWindow
         CommandDockColumn.Width = show ? new GridLength(310) : new GridLength(0);
         CommandDockPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         CommandDockMiniButton.Visibility = Visibility.Collapsed;
+        UpdateObservationViewportLayout();
 
         if (CommandDockToggleIcon is not null)
         {

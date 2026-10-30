@@ -81,6 +81,52 @@ public sealed class ObservableRangeCollectionTests
     }
 
     [Fact]
+    public void ContinuousCaseRevisionsDoNotResetFiveHundredRows()
+    {
+        var rows = new ObservableRangeCollection<(int Id, int Status)>();
+        rows.ReplaceRange(Enumerable.Range(0, 500).Select(x => (x, 0)).ToArray());
+        var resets = 0;
+        var replaces = 0;
+        rows.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) resets++;
+            if (e.Action == NotifyCollectionChangedAction.Replace) replaces++;
+        };
+        for (var pass = 1; pass <= 100; pass++)
+        {
+            var targetId = pass % 500;
+            rows.ReconcileByKey(Enumerable.Range(0, 500)
+                .Select(id => (id, id == targetId ? pass : 0)).ToArray(), x => x.Id);
+        }
+        Assert.Equal(0, resets);
+        Assert.Equal(199, replaces); // each revision updates the current and restores the previous row
+        Assert.Equal(500, rows.Count);
+    }
+
+    [Fact]
+    public void RollingTraceAtFourteenHundredFramesHasNoSteadyStateResets()
+    {
+        var rows = new ObservableRangeCollection<object>();
+        var ring = new List<object>();
+        ring.AddRange(Enumerable.Range(0, 25).Select(_ => new object()));
+        rows.ReconcileTail(ring);
+        var resets = 0;
+        rows.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) resets++;
+        };
+        for (var i = 25; i < 1400; i += 25)
+        {
+            ring.AddRange(Enumerable.Range(0, 25).Select(_ => new object()));
+            while (ring.Count > 1200) ring.RemoveAt(0);
+            rows.ReconcileTail(ring);
+        }
+        Assert.Equal(0, resets);
+        Assert.Equal(1200, rows.Count);
+        Assert.Equal(ring, rows.ToArray());
+    }
+
+    [Fact]
     public void UnrelatedArchiveForcesDeliberateReset()
     {
         var rows = new ObservableRangeCollection<string>();

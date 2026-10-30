@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using System.IO;
 using System.Windows;
 
 namespace ARIEC60870.Desktop;
@@ -9,6 +10,31 @@ public partial class App : Application
 {
     protected override async void OnStartup(StartupEventArgs e)
     {
+        if (e.Args.Contains("--observation-ui-acceptance", StringComparer.OrdinalIgnoreCase))
+        {
+            StartupUri = null;
+            base.OnStartup(e);
+            try
+            {
+                var outputOption = Array.FindIndex(e.Args, arg =>
+                    string.Equals(arg, "--observation-out", StringComparison.OrdinalIgnoreCase));
+                var output = outputOption >= 0 && outputOption + 1 < e.Args.Length
+                    ? e.Args[outputOption + 1] : Path.Combine(Path.GetTempPath(), "ARIEC60870-OBS-C");
+                var window = new MainWindow();
+                window.Show();
+                window.RunPassiveGuiSmokeProbe();
+                await window.RunPassiveHistoryGuiSmokeProbeAsync();
+                await window.RunObservationUiAcceptanceProbeAsync(output);
+                window.Close();
+                Shutdown(0);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("OBS-C acceptance failed: " + ex);
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Contains("--passive-gui-smoke", StringComparer.OrdinalIgnoreCase))
         {
             StartupUri = null;
