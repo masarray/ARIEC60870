@@ -532,6 +532,12 @@
                                 <DockPanel>
                                     <TextBlock x:Name="FrameTimelineCaption" Text="Frame timeline" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
+                                        <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
+                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Margin="0,0,6,0" Padding="9,4" ToolTip="Read older original frames from this session's temporary history"/>
+                                        <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
+                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Margin="0,0,10,0" Padding="9,4" ToolTip="Read newer original frames from this session's temporary history"/>
                                         <TextBlock Text="RESUME" Visibility="{Binding Visibility, ElementName=TraceAutoScrollButton}" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0"/>
                                         <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
                                                       IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
