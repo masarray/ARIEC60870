@@ -41,3 +41,6 @@ When a GI's bounded seen-frame index reaches its configured capacity, new data f
 
 ### Captured replay: fact projection, not raw-text parsing
 Open Capture clears previous state, validates source archive, then processes the **same typed** command and GI projection functions into Event Log that live uses; incomplete observation marked at capture end. It does not transmit. Source-qualified typed `TransactionKind`/`TransactionCaseId` can navigate to case and original physical evidence if currently retained. No guessed physical command result or GI percentage. Product UI bounds remain unchanged: Trace 1200, Events 420, GI cases 160.
+
+### Source archive decoded link and time uncertainty
+Reopened `.ariec` rows can only reconstruct the IEC101 LinkAddress from validated `Iec10xArchivedFrameDecoder` FT1.2 bytes, not by confusing CA or reading a presentation label. Legacy captures without recorded arrival UTC explicitly display `PC time unavailable (legacy capture)`; no fabricated year-1970 host event.

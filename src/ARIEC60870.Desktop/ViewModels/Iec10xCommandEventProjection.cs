@@ -51,6 +51,7 @@ public static class Iec10xCommandEventProjection
             decodedTime = asdu.TimestampText;
         var hasDeviceTime = !string.IsNullOrWhiteSpace(decodedTime);
         var visibleTime = hasDeviceTime ? decodedTime! :
+            item.TimestampUtc == DateTime.UnixEpoch ? "PC time unavailable (legacy capture)" :
             "PC " + item.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff",
                 System.Globalization.CultureInfo.InvariantCulture);
         return new Iec103RelayEventLogEntry
