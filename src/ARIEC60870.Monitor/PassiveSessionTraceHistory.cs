@@ -142,12 +142,12 @@ public sealed class PassiveSessionTraceHistory : IDisposable
                 LowerBound(index, counts[sid], target.UtcTicks, byTime: true);
             var start = Math.Max(0, center - before - 20);
             var end = Math.Min(counts[sid], center + after + 21);
+            Span<byte> hdr = stackalloc byte[HeaderBytes];
             for (var i = start; i < end; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = ReadIndexEntry(index, i);
                 data.Position = entry.Position;
-                Span<byte> hdr = stackalloc byte[HeaderBytes];
                 data.ReadExactly(hdr);
                 var len = BinaryPrimitives.ReadUInt16LittleEndian(hdr[16..]);
                 if (len is 0 or > MaxWireBytes ||
