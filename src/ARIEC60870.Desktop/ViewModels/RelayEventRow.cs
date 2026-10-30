@@ -33,6 +33,9 @@ public sealed class RelayEventRow
         Previous = string.IsNullOrWhiteSpace(item.PreviousValue) ? "-" : item.PreviousValue;
         NewValue = item.NewValue;
         DisplayValue = FormatDisplayValue(item.TypeId, item.SignalType, NewValue);
+        // The Event grid shows only a short typed fact; unabridged display
+        // remains in DisplayValue/NewValue for selection, export and case detail.
+        CompactDisplayValue = ShortEventValue(item, DisplayValue);
         Reason = item.EdgeReason;
         Fun = item.FunctionType.HasValue ? item.FunctionType.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -67,6 +70,7 @@ public sealed class RelayEventRow
     public string Previous { get; }
     public string NewValue { get; }
     public string DisplayValue { get; }
+    public string CompactDisplayValue { get; }
     public string Reason { get; }
     public string Fun { get; }
     public string Inf { get; }
@@ -85,6 +89,30 @@ public sealed class RelayEventRow
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }
     public string RawHex { get; }
+
+    private static string ShortEventValue(Iec103RelayEventLogEntry entry, string full)
+    {
+        if (entry.TransactionKind == "GI")
+            return entry.CauseDetails is { Negative: true } ? "GI rejected · NEG" :
+                entry.CauseDetails?.Code == 6 ? "GI requested" :
+                entry.CauseDetails?.Code == 7 ? "GI acknowledged" :
+                entry.CauseDetails?.Code == 10 ? "GI ended · coverage unknown" : "GI observation";
+
+        if (entry.TransactionKind == "Command")
+        {
+            var stage = entry.CauseDetails is { Negative: true } ? "Command rejected · NEG" :
+                entry.CauseDetails?.Code is >= 44 and <= 47 ? "Command protocol error" :
+                entry.CauseDetails?.Code == 6 ? "Command requested" :
+                entry.CauseDetails?.Code == 7 ? "ACTCON · accepted" :
+                entry.CauseDetails?.Code == 10 ? "ACTTERM observed" : "Command observed";
+            return stage; // Case, IOA and original target remain accessible without truncation.
+        }
+
+        // Event's compact cell is a preview, not a new parser. Preserve complete
+        // detailed value for copies and analysis outside the scrolling grid.
+        const int max = 58;
+        return full.Length <= max ? full : full[..(max - 1)] + "…";
+    }
 
     /// <summary>Human-facing state label. Original evidence value remains unchanged.</summary>
     public static string FormatDisplayValue(int? typeId, string? signalType, string? raw)
