@@ -65,7 +65,12 @@ public partial class MainWindow
         var stage = GiStagesGrid?.SelectedItem as Iec10xGiCasebook.GiStage ?? c.Stages.LastOrDefault();
         if (stage is null) return;
         var protocol = c.Protocol == "IEC-101" ? Iec60870ProtocolMode.Iec101 : Iec60870ProtocolMode.Iec104;
-        NavigateToOriginalFrame(stage.EvidenceReference, stage.Sequence, c.Source, protocol);
+        var original = _relayEventStore.Snapshot()
+            .FirstOrDefault(ev => ev.OriginalFrameEvidence is not null &&
+                Iec10xObservationIdentity.SamePhysicalFrame(ev.OriginalFrameEvidence,
+                    stage.EvidenceReference, c.Source, protocol, stage.Sequence))
+            ?.OriginalFrameEvidence;
+        NavigateToOriginalFrame(stage.EvidenceReference, stage.Sequence, c.Source, protocol, original);
     }
 
     private void EventOpenFrame_Click(object sender, RoutedEventArgs e)
@@ -77,7 +82,7 @@ public partial class MainWindow
             "104" => Iec60870ProtocolMode.Iec104,
             _ => Iec60870ProtocolMode.Iec103
         };
-        NavigateToOriginalFrame(row.EvidenceReference, row.Sequence, row.PhysicalSource, protocol);
+        NavigateToOriginalFrame(row.EvidenceReference, row.Sequence, row.PhysicalSource, protocol, row.OriginalFrameEvidence);
     }
 
     private void EventOpenCase_Click(object sender, RoutedEventArgs e)
@@ -123,29 +128,51 @@ public partial class MainWindow
         "Transaction not retained", MessageBoxButton.OK, MessageBoxImage.Information);
 
     private void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
-        Iec60870ProtocolMode protocol)
+        Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null)
     {
+        // Event rows keep their exact typed frame for as long as the Event itself
+        // is retained. A busy Class 2 poll can evict Trace without destroying
+        // the event's immutable evidence, so NEVER substitute by IOA or time.
         var frame = _protocolTraceStore.Snapshot().FirstOrDefault(x =>
             Iec10xObservationIdentity.SamePhysicalFrame(x.Source, evidenceRef, physicalSource, protocol, sequence));
+        var pinned = false;
+        if (frame is null && retainedOriginal is not null &&
+            Iec10xObservationIdentity.SamePhysicalFrame(retainedOriginal,
+                evidenceRef, physicalSource, protocol, sequence) &&
+            !string.IsNullOrWhiteSpace(retainedOriginal.RawHex))
+        {
+            frame = new EvidenceRow(retainedOriginal, ResolveIoaPoint(retainedOriginal));
+            pinned = true;
+        }
         if (frame is null)
         {
             ModernMessageBox.Show(this,
-                "This original frame is outside the retained Trace preview or the capture lacks its source identity. " +
-                "No unrelated frame was substituted. Consult the complete capture for the original reference: " + evidenceRef,
-                "Original frame not retained", MessageBoxButton.OK, MessageBoxImage.Information);
+                "The original raw frame is not held by the current session. " +
+                "Use a full raw recording to recover older traffic; no unrelated frame was substituted. " +
+                "Reference: " + evidenceRef,
+                "Original frame unavailable", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
+
+        // Switching tabs refreshes the live ring. Set HOLD first, then focus the
+        // exact historic frame without modifying the bounded live source ring.
         MainTabControl.SelectedIndex = 1;
         EnterLineMonitorHoldForUserSelection();
-        RefreshActiveTraceSnapshot();
-        var visible = FrameTraceRows.FirstOrDefault(x => ReferenceEquals(x, frame));
-        if (visible is null)
+        if (pinned)
         {
-            AppendSessionLog("Original source frame expired while opening Trace: " + evidenceRef);
-            return;
+            // A single-frame forensic snapshot, not a false continuous timeline.
+            // RESUME restores the live ring while capture continues independently.
+            FrameTraceRows.ReplaceRange(new[] { frame });
+            AppendSessionLog("Pinned original Event frame from retained event evidence: " + evidenceRef +
+                " (single-frame view; Resume restores live Trace).");
+        }
+        else
+        {
+            FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
         }
         FrameTraceGrid.SelectedItems.Clear();
-        FrameTraceGrid.SelectedItem = visible;
-        FrameTraceGrid.ScrollIntoView(visible);
+        FrameTraceGrid.SelectedItem = frame;
+        FrameTraceGrid.ScrollIntoView(frame);
+        ApplySelectedEvidenceRowToInspector(frame);
     }
 }
