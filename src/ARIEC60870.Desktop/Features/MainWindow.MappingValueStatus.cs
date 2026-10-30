@@ -838,6 +838,11 @@ public partial class MainWindow
 
     private void ClearSessionView(bool clearLog)
     {
+        // Clear is an explicit new observation scope, not a passive HOLD.
+        // Reuse the central live/selection transition: otherwise an earlier
+        // Open Frame / GI / control selection can leave the empty Trace frozen
+        // and subsequent valid RX or malformed wire evidence appears missing.
+        ResumeLiveViews(clearSelection: true, followLive: true);
         ResetRecordedArchiveSource();
         EvidenceRows.Clear();
         FrameTraceRows.Clear();

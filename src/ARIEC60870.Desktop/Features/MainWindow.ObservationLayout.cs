@@ -12,22 +12,60 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private double _lastTraceInspectorWidth = 300;
+    private bool _traceInspectorPreferredVisible = true;
+    private bool _traceInspectorForcedOpen;
+
+    // Responsive decisions run on Window size/command layout changes, not on
+    // incoming frames. Preserve the operator's preference across width changes.
+    private void UpdateObservationViewportLayout()
+    {
+        if (TraceInspectorColumn is null || FrameInterpreterPanel is null) return;
+        var widthAvailable = ActualWidth - 160 - CommandDockColumn.ActualWidth;
+        var enoughRoom = widthAvailable >= 990;
+        ApplyTraceInspectorVisibility(_traceInspectorPreferredVisible &&
+            (enoughRoom || _traceInspectorForcedOpen));
+    }
+
+    private void ApplyTraceInspectorVisibility(bool visible)
+    {
+        if (TraceInspectorColumn is null) return;
+        if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
+        {
+            TraceInspectorColumn.Width = new GridLength(Math.Max(240, _lastTraceInspectorWidth));
+            TraceInspectorGutterColumn.Width = new GridLength(6);
+            FrameInterpreterPanel.Visibility = Visibility.Visible;
+            TraceInspectorSplitter.Visibility = Visibility.Visible;
+        }
+        else if (!visible && FrameInterpreterPanel.Visibility != Visibility.Collapsed)
+        {
+            if (TraceInspectorColumn.ActualWidth > 0)
+                _lastTraceInspectorWidth = TraceInspectorColumn.ActualWidth;
+            FrameInterpreterPanel.Visibility = Visibility.Collapsed;
+            TraceInspectorSplitter.Visibility = Visibility.Collapsed;
+            TraceInspectorGutterColumn.Width = new GridLength(0);
+            TraceInspectorColumn.Width = new GridLength(0);
+        }
+
+        TraceInspectorToggle.Content = visible ? "Hide details" : "Show details";
+        TraceInspectorToggle.ToolTip = visible
+            ? "Hide the selected frame inspector and return width to Trace"
+            : "Open the selected frame inspector; on narrow windows its width may reduce Trace";
+    }
 
     private void TraceInspectorToggle_Click(object sender, RoutedEventArgs e)
     {
-        var expanded = FrameInterpreterPanel.Visibility == Visibility.Visible;
-        if (expanded && TraceInspectorColumn.Width.Value > 0)
-            _lastTraceInspectorWidth = TraceInspectorColumn.ActualWidth > 0
-                ? TraceInspectorColumn.ActualWidth : TraceInspectorColumn.Width.Value;
-
-        // Retain the current decoded selected frame while hiding its inspector.
-        FrameInterpreterPanel.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        TraceInspectorSplitter.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
-        TraceInspectorGutterColumn.Width = expanded ? new GridLength(0) : new GridLength(6);
-        TraceInspectorColumn.Width = expanded
-            ? new GridLength(0)
-            : new GridLength(Math.Max(240, _lastTraceInspectorWidth));
-        TraceInspectorToggle.Content = expanded ? "Show details" : "Hide details";
+        var visible = FrameInterpreterPanel.Visibility == Visibility.Visible;
+        if (visible)
+        {
+            _traceInspectorPreferredVisible = false;
+            _traceInspectorForcedOpen = false;
+        }
+        else
+        {
+            _traceInspectorPreferredVisible = true;
+            _traceInspectorForcedOpen = true; // explicit action overrides auto-collapse
+        }
+        ApplyTraceInspectorVisibility(!visible);
     }
 
     private void TraceArchiveMode_Click(object sender, RoutedEventArgs e)

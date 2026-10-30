@@ -319,12 +319,22 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
+        // OBS Stage B intentionally starts with the command dock closed.
+        // Active mode must expose the deliberate Commands affordance and be
+        // able to open its dock, not force a permanent 310px obstruction.
         if (IsIec101PassiveMonitorSelected() ||
             ActiveSetupRightPanel.Visibility != Visibility.Visible ||
-            CommandDockPanel.Visibility != Visibility.Visible ||
+            WorkspaceCommandButton.Visibility != Visibility.Visible ||
             NavFrameButton.Tag?.ToString() != "1")
-            throw new InvalidOperationException("Switching back to Active Master did not restore the original layout.");
-
+            throw new InvalidOperationException("Active Master layout lost its explicit Commands affordance.");
+        var dockPreference = _commandDockExpanded;
+        _commandDockExpanded = true;
+        ApplyCommandDockLayout();
+        if (CommandDockPanel.Visibility != Visibility.Visible ||
+            CommandDockColumn.Width.Value < 280)
+            throw new InvalidOperationException("Active Master command dock could not be explicitly opened.");
+        _commandDockExpanded = dockPreference;
+        ApplyCommandDockLayout();
         ProtocolModeComboBox.SelectedIndex = index;
     }
 
@@ -767,6 +777,11 @@ public partial class MainWindow
         var meaning = decode?.ShortMeaning ?? function;
         if (!seen.ChecksumValid && seen.Format != "Partial")
             meaning = "Bad checksum · " + meaning;
+        // Keep the decoded warning visible in the operator Trace, without
+        // changing the authoritative FT1.2 decoder or physical raw evidence.
+        if (profileMismatch || isNoise)
+            meaning = frame.Issues.FirstOrDefault() ?? meaning;
+
         var first = decode?.FirstObject;
         var rawHexOnce = Convert.ToHexString(raw);
 
