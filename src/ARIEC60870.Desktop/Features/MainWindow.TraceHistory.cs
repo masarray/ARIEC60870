@@ -110,6 +110,40 @@ public partial class MainWindow
         return true;
     }
 
+
+    /// <summary>Real WPF session-history smoke without opening any physical COM.</summary>
+    public async Task RunPassiveHistoryGuiSmokeProbeAsync()
+    {
+        ReleaseSessionTraceHistory();
+        var history = new PassiveSessionTraceHistory(2);
+        _passiveFrameHistory = history;
+        try
+        {
+            var now = DateTime.UtcNow;
+            history.Append(new PassiveObservedFrame(0, 3822, now.AddMilliseconds(-90),
+                "Fixed", true, new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
+            history.Append(new PassiveObservedFrame(1, 3810, now,
+                "Single", true, new byte[] { 0xE5 }));
+            history.Append(new PassiveObservedFrame(0, 3827, now.AddMilliseconds(20),
+                "Fixed", true, new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }));
+            _protocolTraceStore.Clear();
+            var opened = await TryOpenHistoryWindowAsync("101|stream:1|byte:3810|object:0",
+                "Link A", Iec60870ProtocolMode.Iec101);
+            if (!opened || MainTabControl.SelectedIndex != 1 ||
+                FrameTraceRows.Count < 2 || !_historicalTraceViewActive ||
+                FrameTraceGrid.SelectedItem is not EvidenceRow selected ||
+                selected.Source.PhysicalStreamId != 1 ||
+                selected.Source.RawStreamOffset != 3810 ||
+                AutoScrollLatestToggleButton.IsChecked != false)
+                throw new InvalidOperationException(
+                    "Historical Control/GI/Event frame navigation did not load exact physical context.");
+            ResumeLiveViews(clearSelection: true, followLive: true);
+            if (_historicalTraceViewActive || AutoScrollLatestToggleButton.IsChecked != true)
+                throw new InvalidOperationException("Resume did not restore the live Trace.");
+        }
+        finally { ReleaseSessionTraceHistory(); }
+    }
+
     private async void TraceOlder_Click(object sender, RoutedEventArgs e)
     {
         if (FrameTraceRows.FirstOrDefault() is not { } first) return;
