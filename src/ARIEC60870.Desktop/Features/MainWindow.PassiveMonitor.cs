@@ -185,6 +185,19 @@ public partial class MainWindow
             throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
         if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+
+        // HOLD is a viewport policy, not a loss/drop policy. Verify the real
+        // WPF Trace list accepts a new RX while auto-follow has been disabled.
+        var framesBeforeHold = FrameTraceRows.Count;
+        EnterLineMonitorHoldForUserSelection();
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 140,
+            DateTime.UtcNow.AddMilliseconds(20), "Variable", true, testFrame));
+        FlushUiQueues();
+        if (FrameTraceRows.Count <= framesBeforeHold ||
+            AutoScrollLatestToggleButton.IsChecked != false)
+            throw new InvalidOperationException(
+                "HOLD incorrectly stopped incoming frames from appearing in live Trace.");
+        ResumeLiveViews(clearSelection: true, followLive: true);
         // Regression for real field screenshots: a selected Event must still
         // open its exact original frame even AFTER the bounded Trace rolls over.
         // The Event retains the typed evidence, and the Trace pin is read-only.
