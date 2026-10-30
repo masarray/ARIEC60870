@@ -42,6 +42,7 @@ public partial class MainWindow
         ResetProtocolProofState();
         _scanHealthLastDiagnosticUtcByCode.Clear();
         _commandCasebook.Reset();
+        _giCasebook.Reset();
         _commandCasesDirty = true;
         ControlCaseRows.Clear();
     }
@@ -495,7 +496,9 @@ public partial class MainWindow
             return;
 
         _commandCasesDirty = true;
-        var newest = _commandCasebook.Snapshot().LastOrDefault();
+        // The newest-created case can belong to a different source/command.
+        // Look up the actual stage by immutable evidence identity instead.
+        var newest = _commandCasebook.FindByEvidence(item);
         if (newest is null) return;
 
         // Surface the exact observed uncertainty; never turn a link ACK, ACTCON,

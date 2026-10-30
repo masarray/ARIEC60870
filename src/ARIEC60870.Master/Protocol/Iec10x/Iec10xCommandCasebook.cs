@@ -82,6 +82,24 @@ public sealed class Iec10xCommandCasebook
     public int ActiveCount => _active.Count;
     public IReadOnlyList<CommandCase> Snapshot() => _history.ToArray();
 
+    /// <summary>Exact source-evidence lookup for Event Log and diagnostics. Never use
+    /// LastOrDefault as a substitute: responses can update any older case.</summary>
+    public CommandCase? FindByEvidence(Iec103MasterEvidenceEvent item)
+    {
+        var reference = item.EvidenceReference;
+        for (var i = _history.Count - 1; i >= 0; i--)
+        {
+            var c = _history[i];
+            if (c.Protocol != (item.ProtocolMode == Iec60870ProtocolMode.Iec101 ? "IEC-101" : "IEC-104") ||
+                c.Source != Normalize(item.PhysicalSource))
+                continue;
+            if (c.Stages.Any(s => s.Sequence == item.SequenceNumber &&
+                s.EvidenceReference == reference))
+                return c;
+        }
+        return null;
+    }
+
     public void Reset()
     {
         _active.Clear();
@@ -266,7 +284,10 @@ public sealed class Iec10xCommandCasebook
                 !state.FeedbackIoa.HasValue || !state.ExpectedDigital.HasValue ||
                 state.Key.Protocol != item.ProtocolMode ||
                 !string.Equals(state.Key.Source, Normalize(item.PhysicalSource), StringComparison.Ordinal) ||
-                state.Key.Ca != asdu.CommonAddress)
+                state.Key.Ca != asdu.CommonAddress ||
+                (item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                 state.Key.Link.HasValue && item.LinkAddress.HasValue &&
+                 state.Key.Link != item.LinkAddress))
                 continue;
 
             // All objects in SQ=0 and SQ=1 use the canonical decoded per-object IOA.

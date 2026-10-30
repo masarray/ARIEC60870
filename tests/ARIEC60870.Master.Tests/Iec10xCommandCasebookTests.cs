@@ -33,7 +33,7 @@ public sealed class Iec10xCommandCasebookTests
     }
 
     private static Iec103MasterEvidenceEvent Feedback(int code = 2, int quality = 0,
-        string source = "A", int ca = 5, int ioa = 201, byte type = 3)
+        string source = "A", int ca = 5, int ioa = 201, byte type = 3, int? link = null)
     {
         var raw = new byte[] { type, 1, 3, 0, (byte)ca, 0,
             (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), (byte)(code | quality) };
@@ -43,7 +43,8 @@ public sealed class Iec10xCommandCasebookTests
             SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
             TimestampUtc = DateTime.UtcNow,
             ProtocolMode = Iec60870ProtocolMode.Iec101, Direction = FrameDirection.SlaveToMaster,
-            PhysicalSource = source, CommonAddressNumber = ca, InformationObjectAddress = ioa,
+            PhysicalSource = source, LinkAddress = link,
+            CommonAddressNumber = ca, InformationObjectAddress = ioa,
             TypeId = type, CauseDetails = asdu.CauseDetails, AsduDetails = asdu, IsRelayValue = true,
             RawHex = Convert.ToHexString(raw)
         };
@@ -152,6 +153,23 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal("Feedback mismatch", Assert.Single(b.Snapshot()).Status);
         Assert.True(b.Observe(Feedback()));
         Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+    }
+
+    [Fact]
+    public void FeedbackOnOtherExplicitIec101LinkMustNotCompleteCommand()
+    {
+        var b = new Iec10xCommandCasebook();
+        var request = Command(select: false, link: 105);
+        Assert.True(b.Observe(request, feedbackIoa: 201));
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true, link: 105)));
+        Assert.False(b.Observe(Feedback(link: 106)));
+        Assert.Equal("EXECUTE accepted", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback(link: 105)));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+        var matched = b.FindByEvidence(request);
+        Assert.NotNull(matched);
+        Assert.Equal(matched!.CaseId, Assert.Single(b.Snapshot()).CaseId);
+        Assert.Null(b.FindByEvidence(Command(ioa: 999)));
     }
 
     [Fact]

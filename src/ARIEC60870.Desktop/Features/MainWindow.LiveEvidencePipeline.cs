@@ -1260,12 +1260,8 @@ public partial class MainWindow
             _noDataCount++;
         }
 
-        if (item.Frame?.Asdu?.TypeId == 1 || item.Frame?.Asdu?.TypeId == 2 || item.IsRelayValue)
-        {
-            _dpiCount++;
-            PulseLed(EventLed);
-        }
-
+        // EVENT is incremented only by RegisterActualEventFact when a real Event
+        // Log row is appended, never by every measurement/snapshot frame.
         TxRxText.Text = $"{_txCount} / {_rxCount}";
         ClassPollText.Text = $"{_giCount} / {_class1Count} / {_class2Count}";
         NoDataText.Text = _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture);

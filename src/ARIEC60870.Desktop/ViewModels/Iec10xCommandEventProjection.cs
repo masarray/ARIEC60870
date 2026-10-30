@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class Iec10xCommandEventProjection
 {
-    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item)
+    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) ||
@@ -20,7 +20,9 @@ public static class Iec10xCommandEventProjection
             item.Frame is { IsChecksumValid: false })
             return null;
         var asdu = item.AsduDetails;
-        if (asdu is null || asdu.Issues.Count > 0 ||
+        // TI100 GI belongs exclusively to the GI milestone projection, avoiding
+        // duplicate command+GI rows for the same on-wire application fact.
+        if (asdu is null || asdu.Issues.Count > 0 || asdu.TypeId == 100 ||
             asdu.TypeId is not (>= 45 and <= 51 or >= 58 and <= 64 or >= 100 and <= 107))
             return null;
 
@@ -64,7 +66,9 @@ public static class Iec10xCommandEventProjection
             SignalName = signal,
             SignalGroup = "Commands",
             SignalType = "Command",
-            NewValue = title + (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
+            NewValue = title +
+                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "") +
+                (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
             EdgeReason = isMaster ? "Observed Master TX" : "Observed RTU RX",
             CauseOfTransmission = asdu.CotNameWithFlags,
             AsduType = asdu.TypeName,

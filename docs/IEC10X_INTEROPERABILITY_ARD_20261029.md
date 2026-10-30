@@ -86,6 +86,14 @@ CI Release build, protocol smoke, xUnit, GUI startup, CodeQL, hygiene and verifi
 
 Every thread MUST refresh master/open PRs/issues before working; choose one requirement ID, one owned module, one branch/PR; test positive and negative fixtures, verify latest CI SHA, and reconcile concurrent shared WPF/command edits instead of overwriting. Old component design docs are historical; committed code plus exact CI is implementation truth, this ARD is target behavior.
 
+## R3-B/C ownership and evidence contracts — 2026-10-30
+
+This checkpoint adds one **Master-owned GI transaction state** to the established Master `Iec10xCommandCasebook` and existing Monitor PassiveGiTracker (no duplicate raw parser). `Iec10xGiCasebook` is bounded per source/session with exact Protocol, physical source and link, CA, originator and QOI identity. Valid Type100 COT6/7/10 lifecycle, COT20..36 process objects, SQ1 implied IOAs, quality and source refs are accumulated. Overlap/missing stages remain Ambiguous/Observed incomplete; ACTTERM means observed termination only. No modeled coverage percentage without user-verified mapping.
+
+Desktop only projects these immutable GI milestones to Events and summary to export. Counter EVENT increments on actual Event Log additions, not on all measurements. Command-case diagnostics and event labels use an exact evidence reference rather than last-created case. Incorrect or unknown physical feedback cannot be upgraded to proven breaker motion. No passive TX enabled.
+
+Next milestones: full Event→Controls jump by source qualified IDs; verified mapping coverage; replay/export equivalence; 1200bps and 2/4 RX bench FAT; CI at exact HEAD. See `R3_BC_GI_COMMAND_CORRELATION_ARD_20261030.md`.
+
 ## R2-A verified profile / active-TX gate implementation (2026-10-30)
 
 A **real, versioned profile value object** now lives in `Master/Model/Iec10xInteroperabilityProfile.cs`. It records protocol, selected optional edition (generic IEC versus historical NUC101/104), explicit field widths, IEC-101 mode, serial GI-after-switch policy, and fingerprint. Its strict JSON `Import`/`Export` uses schema version 1; unknown fields, unsupported versions, malformed profiles and unsupported widths are rejected. Import/export is an engineering API at this milestone, **not yet an arbitrary-file GUI import function**.

@@ -192,6 +192,8 @@ public partial class MainWindow : Window
     // Session-scoped, bounded source-qualified control evidence. Replaces the
     // previous WPF-only last-wins command ledger and its fixed 8-second timeout.
     private readonly ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook _commandCasebook = new();
+    // Protocol-owned, bounded GI conversation state; GUI only projects milestones.
+    private readonly ARIEC60870.Master.Protocol.Iec10x.Iec10xGiCasebook _giCasebook = new();
     private bool _commandCasesDirty;
     public ObservableRangeCollection<ARIEC60870.Master.Protocol.Iec10x.Iec10xCommandCasebook.CommandCase> ControlCaseRows { get; } = new();
 
