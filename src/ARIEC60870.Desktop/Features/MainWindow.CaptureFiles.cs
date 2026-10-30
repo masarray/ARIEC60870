@@ -89,10 +89,10 @@ public partial class MainWindow
                 var commandCase = _commandCasebook.FindByEvidence(row.Source);
                 var commandStage = Iec10xCommandEventProjection.Project(row.Source, commandCase?.CaseId);
                 if (commandStage is not null)
-                    AppendProtocolEvent(commandStage);
+                    AppendProtocolEvent(commandStage, row.Source);
                 var giStage = _giCasebook.Observe(row.Source);
                 if (giStage is not null)
-                    AppendProtocolEvent(Iec10xGiEventProjection.Project(row.Source, giStage));
+                    AppendProtocolEvent(Iec10xGiEventProjection.Project(row.Source, giStage), row.Source);
             }
             _commandCasebook.EndObservation();
             _giCasebook.EndObservation();
