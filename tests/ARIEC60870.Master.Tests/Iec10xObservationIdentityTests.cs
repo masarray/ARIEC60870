@@ -53,7 +53,15 @@ public sealed class Iec10xObservationIdentityTests
                 PhysicalSource = i % 2 == 0 ? "Link A" : "Link B",
                 SequenceNumber = i + 1
             };
-            if (!Iec10xObservationIdentity.IsReceivedProcessEvent(e)) continue;
+            var isEvent = Iec10xObservationIdentity.IsReceivedProcessEvent(e);
+            if (isEvent != (cot == 3))
+                throw new Xunit.Sdk.XunitException(
+                    $"Unexpected process classification i={i}, type={e.TypeId}, cot={e.CauseOfTransmission}, " +
+                    $"protocol={e.ProtocolMode}, direction={e.Direction}, category={e.Category}, " +
+                    $"frame={(e.Frame is null ? "none" : "provided")}, ioa={e.InformationObjectAddress}, " +
+                    $"digital={Iec10xObservationIdentity.IsDigitalProcessType(e.TypeId)}, " +
+                    $"analog={Iec10xObservationIdentity.IsMeasurementOrCounterType(e.TypeId)}.");
+            if (!isEvent) continue;
             facts++;
             refs.Add(e.EvidenceReference + "|" + e.PhysicalSource);
         }
