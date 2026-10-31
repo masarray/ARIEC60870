@@ -526,8 +526,13 @@ public partial class MainWindow
         var rows = recent.Where(row => ShouldIncludeRelayEvent(row, filter) &&
             QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
             .TakeLast(MaxVisibleRelayEventRows).ToArray();
-        if (EventsQuickCountText is not null)
-            EventsQuickCountText.Text = $"{rows.Length} / {recent.Count()} recent";
+        // The count must describe the *bound WPF projection*, never an
+        // uncommitted filtered source snapshot (which can disagree on screen).
+        void UpdateVisibleEventCount()
+        {
+            if (EventsQuickCountText is not null)
+                EventsQuickCountText.Text = $"{RelayEventGrid.Items.Count} / {recent.Count()} recent";
+        }
 
         // Prefer bounded incremental tail updates to resetting the entire WPF grid
         // on each SOE burst. A changed filter or non-overlapping window still resets.
