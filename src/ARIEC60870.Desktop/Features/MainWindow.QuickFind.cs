@@ -80,6 +80,29 @@ public partial class MainWindow
         UpdateQuickFindCounts();
     }
 
+    // Context-only scope selection: filters keep their previous state without
+    // occupying the data grid toolbar or introducing another binding state.
+    private static void SelectScopeFromMenu(object sender, ComboBox scope)
+    {
+        var wanted = (sender as MenuItem)?.Tag?.ToString();
+        if (string.IsNullOrWhiteSpace(wanted)) return;
+        for (var i = 0; i < scope.Items.Count; i++)
+        {
+            if ((scope.Items[i] as ComboBoxItem)?.Content?.ToString() != wanted) continue;
+            scope.SelectedIndex = i;
+            return;
+        }
+    }
+
+    private void ValueScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, ValueQuickScopeCombo);
+
+    private void EventScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, EventLogFilterComboBox);
+
+    private void TraceScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, TraceQuickScopeCombo);
+
     private void QuickFindClear_Click(object sender, RoutedEventArgs e)
     {
         var key = (sender as Button)?.Tag as string;
@@ -129,8 +152,11 @@ public partial class MainWindow
 
     private void UpdateQuickFindCounts()
     {
-        TraceQuickCountText.Text = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} in window";
-        ValuesQuickCountText.Text = $"{ValueGrid.Items.Count} / {ValueRows.Count} values";
+        TraceQuickCountText.Text = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} frames" +
+            (_traceQuickScope == "Activity focus" ? " · Focus" :
+                _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope);
+        ValuesQuickCountText.Text = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
+            (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
         ControlsQuickCountText.Text = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
         GiQuickCountText.Text = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} cases";
     }

@@ -154,6 +154,20 @@ public partial class MainWindow
             .ToArray();
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 1440 * 5L,
             baseline.AddMilliseconds(1440 * 40d), "Variable", true, multiWire));
+        // Explicit DP ON and OFF in the production IEC-101 decode/projection
+        // path. The previous fixture only exercised SP; screenshots must prove
+        // both visual types and two distinct state backgrounds.
+        for (var i = 0; i < 2; i++)
+        {
+            var dpAsdu = new byte[] { 3, 1, 20, 0, 1, 0, (byte)(9 + i), 0, 0, (byte)(i == 0 ? 2 : 1) };
+            var dpPayload = new byte[] { 0x08, 0x69 }.Concat(dpAsdu).ToArray();
+            var dpWire = new byte[] { 0x68, (byte)dpPayload.Length, (byte)dpPayload.Length, 0x68 }
+                .Concat(dpPayload)
+                .Concat(new byte[] { (byte)(dpPayload.Sum(x => x) & 0xff), 0x16 })
+                .ToArray();
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1441 + i) * 5L,
+                baseline.AddMilliseconds((1441 + i) * 40d), "Variable", true, dpWire));
+        }
         FlushUiQueues();
         // Source store accepts frames even while another workspace is active;
         // the virtualized Trace projection is reconciled only on return.
@@ -199,7 +213,8 @@ public partial class MainWindow
             var shouldAutoCollapse = viewport.Width < 1150;
             if (shouldAutoCollapse && TraceInspectorColumn.ActualWidth > 1)
                 throw new InvalidOperationException($"Inspector retained width on narrow viewport {viewport.Name}.");
-            if (TraceWindowSearchBar.Visibility != Visibility.Visible ||
+            if (!TraceAutoScrollButton.IsVisible ||
+                TraceWindowSearchBar.Visibility != Visibility.Visible ||
                 TraceArchiveSearchBar.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Two Trace search surfaces are simultaneously displayed.");
             AssertTraceCountInSync();
@@ -236,6 +251,13 @@ public partial class MainWindow
             });
         }
 
+        // Visual field screenshots must demonstrate both ON and OFF states
+        // rendered from source-backed IEC101 two-object values; no mock panels.
+        if (TraceQuickScopeCombo.Visibility != Visibility.Collapsed ||
+            TraceArchiveModeButton.Visibility != Visibility.Collapsed ||
+            TraceInspectorToggle.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Trace wastes toolbar space on secondary actions/filters.");
+
         // One frame ledger; verify each view displays its own bound data.
         Width = 1366;
         Height = 768;
@@ -249,9 +271,29 @@ public partial class MainWindow
             UpdateLayout();
             if (view.Index == 2)
             {
+                if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
+                    ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
+                    SelectedValueContextText.IsVisible ||
+                    ValueGrid.Columns[1] is not DataGridTemplateColumn valueStateColumn ||
+                    valueStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
+                        { Path.Path: "OperatorValue" })
+                    throw new InvalidOperationException("Values grid-first layout, status or clipboard contract missing.");
                 if (ValueGrid.Items.Count < 2 || ValueRows.Count < 2)
                     throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
                 var target = ValueRows.FirstOrDefault(x => x.IoAddress == "8");
+                var onPoint = ValueRows.FirstOrDefault(x => x.IoAddress == "7");
+                var dpOn = ValueRows.FirstOrDefault(x => x.IoAddress == "9");
+                var dpOff = ValueRows.FirstOrDefault(x => x.IoAddress == "10");
+                if (onPoint?.DiscreteBadge != new DigitalStateBadge("SP", "ON") ||
+                    target?.DiscreteBadge != new DigitalStateBadge("SP", "OFF") ||
+                    dpOn?.DiscreteBadge != new DigitalStateBadge("DP", "ON") ||
+                    dpOff?.DiscreteBadge != new DigitalStateBadge("DP", "OFF"))
+                    throw new InvalidOperationException(
+                        "Source-backed [SP] and [DP] ON/OFF state projections are absent from Values.");
+                var valuesTsv = BuildTabSeparatedText(ValueGrid);
+                if (!valuesTsv.Contains("SP=OFF", StringComparison.Ordinal) ||
+                    !valuesTsv.Contains("DP=ON", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Grid badge template erased original source values from TSV export.");
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
@@ -284,6 +326,13 @@ public partial class MainWindow
             }
             if (view.Index == 3)
             {
+                if (!EventsAutoScrollButton.IsVisible ||
+                    EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
+                    Grid.GetRow(RelayEventGrid) != 2 ||
+                    RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
+                    eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
+                        { Path.Path: "OperatorValue" })
+                    throw new InvalidOperationException("Event Log compact toolbar/status/clipboard contract missing.");
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
@@ -307,6 +356,8 @@ public partial class MainWindow
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
+                if (!BuildTabSeparatedText(RelayEventGrid).Contains("Single Point ON", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Event status text missing from tab-separated export.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
                     throw new InvalidOperationException(
                         $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, filter={EventLogFilterComboBox.SelectedIndex}, query='{_eventsQuickQuery}'.");
@@ -354,10 +405,12 @@ public partial class MainWindow
             JsonSerializer.Serialize(new
             {
                 baselineMaster = "OBS-P0 Stage C acceptance",
-                totalSyntheticFrames = 1433,
+                totalSyntheticFrames = 1435,
                 focusVisibleFrames,
                 interpretedPointRows,
                 pointToWireNavigationPassed = true,
+                gridFirstToolbarPassed = true,
+                digitalStateBadgesPassed = true,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,

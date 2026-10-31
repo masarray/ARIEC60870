@@ -52,6 +52,60 @@
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
+        <!-- One canonical visual projection of typed SP/DP facts. Plain values stay plain. -->
+        <DataTemplate x:Key="DigitalValueCellTemplate">
+            <Grid VerticalAlignment="Center">
+                <TextBlock x:Name="PlainValue" Text="{Binding OperatorValue}" ToolTip="{Binding FullOperatorValue}"
+                           Style="{StaticResource GridCellNoWrapText}" VerticalAlignment="Center"/>
+                <StackPanel x:Name="DigitalBadges" Orientation="Horizontal" Visibility="Collapsed"
+                            VerticalAlignment="Center" ToolTip="{Binding FullOperatorValue}">
+                    <Border x:Name="TypeChip" CornerRadius="4" Padding="5,2" Margin="0,0,5,0"
+                            Background="#EDF2FA" BorderBrush="#D3E0EF" BorderThickness="1">
+                        <TextBlock x:Name="TypeChipText" Text="{Binding DiscreteBadge.Type}" FontSize="10.5"
+                                   FontWeight="SemiBold" Foreground="#395D85"/>
+                    </Border>
+                    <Border x:Name="StateChip" CornerRadius="4" Padding="7,2" MinWidth="48"
+                            Background="#E8EDF3" BorderBrush="#CBD5E1" BorderThickness="1">
+                        <TextBlock x:Name="StateChipText" Text="{Binding DiscreteBadge.State}"
+                                   HorizontalAlignment="Center" FontSize="10.8" FontWeight="SemiBold"
+                                   Foreground="#475569" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding DiscreteBadge.Type}" Value="SP">
+                    <Setter TargetName="DigitalBadges" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="PlainValue" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DiscreteBadge.Type}" Value="DP">
+                    <Setter TargetName="DigitalBadges" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="PlainValue" Property="Visibility" Value="Collapsed"/>
+                    <Setter TargetName="TypeChip" Property="Background" Value="#EDE9FE"/>
+                    <Setter TargetName="TypeChip" Property="BorderBrush" Value="#DDD6FE"/>
+                    <Setter TargetName="TypeChipText" Property="Foreground" Value="#5B21B6"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="ON">
+                    <Setter TargetName="StateChip" Property="Background" Value="#D1FAE5"/>
+                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#6EE7B7"/>
+                    <Setter TargetName="StateChipText" Property="Foreground" Value="#065F46"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="OFF">
+                    <Setter TargetName="StateChip" Property="Background" Value="#FFE4E6"/>
+                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#FDA4AF"/>
+                    <Setter TargetName="StateChipText" Property="Foreground" Value="#9F1239"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INTERMEDIATE">
+                    <Setter TargetName="StateChip" Property="Background" Value="#FEF3C7"/>
+                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#FCD34D"/>
+                    <Setter TargetName="StateChipText" Property="Foreground" Value="#92400E"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INDETERMINATE">
+                    <Setter TargetName="StateChip" Property="Background" Value="#F1F5F9"/>
+                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#94A3B8"/>
+                    <Setter TargetName="StateChipText" Property="Foreground" Value="#334155"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
         <DataTemplate x:Key="ForensicQualityCellTemplate">
             <ItemsControl ItemsSource="{Binding QualityChips}" ToolTip="{Binding QualityDetail}"
                           Focusable="False" VerticalAlignment="Center"
@@ -545,7 +599,7 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
-                                    <TextBlock x:Name="FrameTimelineCaption" Text="Decoded communication · select a frame for points and raw evidence" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
+                                    <TextBlock x:Name="FrameTimelineCaption" Text="Frame Trace" TextTrimming="CharacterEllipsis" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
@@ -553,7 +607,7 @@
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,10,0" Padding="9,4" ToolTip="Read newer original frames from this session's temporary history"/>
-                                        <Button x:Name="TraceInspectorToggle" Content="Hide details" Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click" Padding="8,3" Margin="0,0,8,0" ToolTip="Toggle decoded frame inspector"/>
+                                        <Button x:Name="TraceInspectorToggle" Content="Hide details" Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click" Padding="8,3" Margin="0,0,8,0" Visibility="Collapsed" ToolTip="Toggle decoded frame inspector"/>
                                         <TextBlock Text="AUTO" Visibility="{Binding Visibility, ElementName=TraceAutoScrollButton}" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0"/>
                                         <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
                                                       IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
@@ -581,13 +635,13 @@
                                                  TextChanged="QuickFindTextChanged" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window"/>
                                     </DockPanel>
                                 </Border>
-                                    <ComboBox x:Name="TraceQuickScopeCombo" Width="148" Height="30" SelectedIndex="0" SelectionChanged="TraceQuickScope_SelectionChanged" ToolTip="Choose Trace protocol traffic">
+                                    <ComboBox x:Name="TraceQuickScopeCombo" Width="148" Height="30" Visibility="Collapsed" SelectedIndex="0" SelectionChanged="TraceQuickScope_SelectionChanged" ToolTip="Choose Trace protocol traffic">
                                         <ComboBoxItem Content="Activity focus" ToolTip="Prioritize decoded data, GI, controls, errors and nonroutine link activity; All frames retains every poll."/><ComboBoxItem Content="All frames"/><ComboBoxItem Content="TX / SCADA"/>
                                         <ComboBoxItem Content="RX / RTU"/><ComboBoxItem Content="Commands"/>
                                         <ComboBoxItem Content="GI"/><ComboBoxItem Content="Negative / errors"/>
                                     </ComboBox>
                                     <TextBlock x:Name="TraceQuickCountText" Text="Current window" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                                    <Button x:Name="TraceArchiveModeButton" Content="Archive…" Click="TraceArchiveMode_Click"
+                                    <Button x:Name="TraceArchiveModeButton" Content="Archive…" Visibility="Collapsed" Click="TraceArchiveMode_Click"
                                             Style="{StaticResource SecondaryButton}" Padding="7,3" Margin="7,0,0,0"
                                             ToolTip="Search original .ariec archive without changing the active source"/>
                                 </StackPanel>
@@ -650,6 +704,16 @@
                                             <MenuItem Header="Select All Visible Trace Rows" Click="SelectAllVisibleTraceRows_Click" />
                                             <MenuItem Header="Clear Selection / Resume Live Trace" Click="ClearProtocolTraceSelection_Click" />
                                             <MenuItem Header="Resume Live Trace" Click="ResumeProtocolTraceLiveView_Click" />
+                                            <Separator/>
+                                            <MenuItem Header="Show important activity" Tag="Activity focus" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show all frames" Tag="All frames" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show TX / SCADA" Tag="TX / SCADA" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show RX / RTU" Tag="RX / RTU" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show commands" Tag="Commands" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show GI" Tag="GI" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Show negative / errors" Tag="Negative / errors" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Find in recorded archive..." Click="TraceArchiveMode_Click"/>
+                                            <MenuItem Header="Show / hide frame details" Click="TraceInspectorToggle_Click"/>
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
@@ -839,7 +903,7 @@
                             </Grid.RowDefinitions>
                             <DockPanel Grid.Row="0" LastChildFill="True">
                                 <Button x:Name="ValueOpenFrameButton" DockPanel.Dock="Right" Content="Open Frame"
-                                        Style="{StaticResource SecondaryButton}" IsEnabled="False"
+                                        Style="{StaticResource SecondaryButton}" IsEnabled="False" Visibility="Collapsed"
                                         Click="ValueOpenFrame_Click" Padding="9,5" Margin="8,0,0,0"
                                         ToolTip="Open original source frame for selected point. Double-click point for same action."/>
                                 <StackPanel Orientation="Horizontal">
@@ -857,7 +921,7 @@
                                                  TextChanged="QuickFindTextChanged" ToolTip="Search signal, value, CA, IOA, FUN/INF or source"/>
                                     </DockPanel>
                                 </Border>
-                                <ComboBox x:Name="ValueQuickScopeCombo" SelectedIndex="0" Width="144" Height="30"
+                                <ComboBox x:Name="ValueQuickScopeCombo" SelectedIndex="0" Width="144" Height="30" Visibility="Collapsed"
                                           Margin="9,0,0,0" SelectionChanged="ValueQuickScope_SelectionChanged"
                                           ToolTip="Filter the visual snapshot only; no evidence is deleted.">
                                     <ComboBoxItem Content="All points"/>
@@ -875,18 +939,24 @@
                                         <MenuItem Header="Open original source frame" Click="ValueOpenFrame_Click"/>
                                         <MenuItem Header="Copy point and raw HEX" Click="ValueCopyEvidence_Click"/>
                                         <Separator/>
+                                        <MenuItem Header="Show all points" Tag="All points" Click="ValueScopeMenu_Click"/>
+                                        <MenuItem Header="Show quality flags" Tag="Quality flags" Click="ValueScopeMenu_Click"/>
+                                        <MenuItem Header="Show unmapped points" Tag="Unmapped" Click="ValueScopeMenu_Click"/>
+                                        <MenuItem Header="Show recently changed" Tag="Recently changed" Click="ValueScopeMenu_Click"/>
+                                        <MenuItem Header="Show missing device timestamps" Tag="No device time" Click="ValueScopeMenu_Click"/>
+                                        <Separator/>
                                         <MenuItem Header="Copy selected row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
                                                   CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="2.5*" MinWidth="174" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="1.05*" MinWidth="120" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.1*" MinWidth="96" />
-                                    <DataGridTextColumn Header="Address" Binding="{Binding Address}" Width="1.1*" MinWidth="130" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.8*" MinWidth="132" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.3*" MinWidth="120" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="0.95*" MinWidth="90" />
+                                    <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.25*" MinWidth="119" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" Visibility="Collapsed" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.5*" MinWidth="124" />
-                                    <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="170" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="105" />
+                                    <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="136" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn x:Name="ValueGroupColumn" Header="Group" Binding="{Binding Group}" Width="120" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="ValueIoaColumn" Header="IOA" Binding="{Binding IoAddress}" Width="76" Visibility="Collapsed" />
@@ -896,7 +966,7 @@
                                     <DataGridTextColumn Header="Mapped" Binding="{Binding Mapped}" Width="74" Visibility="Collapsed" />
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <Border Grid.Row="4" Background="#F2F6F9" BorderBrush="#D9E3EA" BorderThickness="1"
+                            <Border Grid.Row="4" Visibility="Collapsed" Background="#F2F6F9" BorderBrush="#D9E3EA" BorderThickness="1"
                                     CornerRadius="7" Padding="9,6" MinHeight="32">
                                 <TextBlock x:Name="SelectedValueContextText"
                                            Text="Select a point to see CA/IOA, quality, relay time and source-frame availability."
@@ -909,58 +979,78 @@
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" /><RowDefinition Height="6" />
-                                <RowDefinition Height="Auto" /><RowDefinition Height="8" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <DockPanel>
-                                <TextBlock Text="Events · Commands · GI" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Events records spontaneous, return-information, and time-tagged changes." />
-                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="16,0,0,0">
-                                    <Button Content="Open Frame" Style="{StaticResource SecondaryButton}" Click="EventOpenFrame_Click"
-                                            Margin="0,0,6,0" ToolTip="Find selected event's exact original TX/RX frame in bounded Trace" />
-                                    <Button Content="Open Case" Style="{StaticResource SecondaryButton}" Click="EventOpenCase_Click"
-                                            Margin="0,0,12,0" ToolTip="Open source-qualified GI/Control transaction for the selected event" />
-                                    <TextBlock Text="Filter" Style="{StaticResource EyebrowText}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <ComboBox x:Name="EventLogFilterComboBox" Width="132" SelectedIndex="0" SelectionChanged="EventLogFilter_SelectionChanged" ToolTip="Filter event log by signal class">
-                                        <ComboBoxItem Content="All" />
-                                        <ComboBoxItem Content="Digital status" />
-                                        <ComboBoxItem Content="Analog" />
-                                        <ComboBoxItem Content="Commands" />
-                                        <ComboBoxItem Content="GI" />
+                            <!-- One quiet toolbar: search + count + follow. Actions and filters live on row context menu. -->
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ComboBox x:Name="EventLogFilterComboBox" SelectedIndex="0" Visibility="Collapsed"
+                                              SelectionChanged="EventLogFilter_SelectionChanged">
+                                        <ComboBoxItem Content="All"/>
+                                        <ComboBoxItem Content="Digital status"/>
+                                        <ComboBoxItem Content="Analog"/>
+                                        <ComboBoxItem Content="Commands"/>
+                                        <ComboBoxItem Content="GI"/>
                                     </ComboBox>
-                                    <TextBlock Text="AUTO" Visibility="{Binding Visibility, ElementName=EventsAutoScrollButton}" FontSize="11.3" FontWeight="SemiBold" Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center" Margin="20,0,7,0"/>
-                                    <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}" IsChecked="True"
-                                                  Checked="EventsAutoScroll_Changed" Unchecked="EventsAutoScroll_Changed"
-                                                  ToolTip="Follow latest Events. Mouse wheel turns OFF; click again to jump to latest.">
-                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                    <TextBlock x:Name="EventsQuickCountText" Text="Recent events"
+                                               Margin="9,0,12,0" VerticalAlignment="Center"
+                                               Foreground="#64748B" FontSize="11.3"/>
+                                    <TextBlock Text="AUTO" FontSize="10.9" FontWeight="Medium" Foreground="#64748B"
+                                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
+                                                  IsChecked="True" Checked="EventsAutoScroll_Changed"
+                                                  Unchecked="EventsAutoScroll_Changed"
+                                                  ToolTip="AUTO: follow newest event. Scroll to pause follow.">
+                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z"
+                                              Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
                                     </ToggleButton>
                                 </StackPanel>
-                            </DockPanel>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                <Border Width="242" Height="32" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search signal, status, GI, command, CA/IOA, COT or source in recent events">
+                                <Border Width="262" Height="32" CornerRadius="8" BorderBrush="#CBD5E1"
+                                        BorderThickness="1" Background="White" HorizontalAlignment="Left"
+                                        ToolTip="Search signal, state, COT, source or IOA in Event Log">
                                     <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="Events" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
-                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform" />
+                                        <Button DockPanel.Dock="Right" Tag="Events" Style="{StaticResource QuickFindClearButton}"
+                                                Click="QuickFindClear_Click">
+                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 19,17.59 13.41,12 Z"
+                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
                                         </Button>
-                                        <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
-                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                              Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="EventsQuickFindBox" BorderThickness="0" Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged" ToolTip="Search signal, status, GI, command, CA/IOA, COT or source in recent events"/>
+                                        <Path DockPanel.Dock="Left"
+                                              Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
+                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
+                                              Margin="5,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="EventsQuickFindBox" BorderThickness="0" Background="Transparent"
+                                                 FontFamily="{StaticResource AppFont}" FontSize="12.5"
+                                                 Foreground="#334155" VerticalContentAlignment="Center"
+                                                 TextChanged="QuickFindTextChanged"
+                                                 ToolTip="Search recent event rows"/>
                                     </DockPanel>
                                 </Border>
-                                <TextBlock x:Name="EventsQuickCountText" Text="Recent events" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                            </StackPanel>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="4" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="13" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                            </DockPanel>
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open original frame" Click="EventOpenFrame_Click"/>
+                                        <MenuItem Header="Open related case" Click="EventOpenCase_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Show all events" Tag="All" Click="EventScopeMenu_Click"/>
+                                        <MenuItem Header="Show digital status" Tag="Digital status" Click="EventScopeMenu_Click"/>
+                                        <MenuItem Header="Show analog" Tag="Analog" Click="EventScopeMenu_Click"/>
+                                        <MenuItem Header="Show commands" Tag="Commands" Click="EventScopeMenu_Click"/>
+                                        <MenuItem Header="Show GI" Tag="GI" Click="EventScopeMenu_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Copy selected row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
+                                                  CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="186" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="280" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="145" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
-                                    <DataGridTextColumn Header="Value" Binding="{Binding CompactDisplayValue}" Width="195" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="200" />
-                                    <DataGridTextColumn Header="Source / address" Binding="{Binding Address}" Width="155" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="148" />
+                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
+                                    <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.2*" MinWidth="116" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />
                                     
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
