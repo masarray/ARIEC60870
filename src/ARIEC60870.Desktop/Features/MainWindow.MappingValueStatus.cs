@@ -555,9 +555,13 @@ public partial class MainWindow
 
             if (previousCount == rows.Length &&
                 Enumerable.Range(0, rows.Length).All(i => ReferenceEquals(RelayEventRows[i], rows[i])))
+            {
+                UpdateVisibleEventCount();
                 return;
+            }
         }
         RelayEventRows.ReplaceRange(rows);
+        UpdateVisibleEventCount();
     }
 
     private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
