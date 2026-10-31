@@ -524,6 +524,7 @@ public partial class MainWindow
     // Sanitized, committed UI-projection diagnostics; no site data or HEX.
     private string _eventCommittedScope = "";
     private long _eventProjectionVersion;
+    private long _eventProjectionEpoch;
     private long _eventLiveResetCount;
     private long _eventProjectionMismatchCount;
     private int _eventProjectionSourceCount;
@@ -891,7 +892,17 @@ public partial class MainWindow
         _operatorDisconnectRequestedUtc = DateTime.MinValue;
         ClearSmartCorrectionSessionTrail();
         ValueRows.Clear();
+        // A new capture/session is an explicit scope transition. Its Clear()
+        // notification is not a live event-window Reset; epoch invalidates
+        // pending older UI projections and resets diagnostics.
+        _eventProjectionEpoch++;
+        _eventCommittedScope = "";
         RelayEventRows.Clear();
+        _eventLiveResetCount = 0;
+        _eventProjectionVersion = 0;
+        _eventProjectionMismatchCount = 0;
+        _eventProjectionSourceCount = 0;
+        _eventProjectionFilteredCount = 0;
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
         _evidenceSummarySignatureByKey.Clear();

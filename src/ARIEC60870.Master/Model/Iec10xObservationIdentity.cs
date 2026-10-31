@@ -91,6 +91,14 @@ public static class Iec10xObservationIdentity
     public static bool IsMeasurementOrCounterType(int? typeId)
         => typeId is 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 34 or 35 or 36 or 37;
 
+    // A valid APCI/FT1.2 envelope does NOT prove the contained ASDU or a
+    // specific information element was decoded completely.
+    public static bool HasTrustedDecodedPayload(Iec103MasterEvidenceEvent item)
+        => item.Frame?.IsChecksumValid != false &&
+           !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase) &&
+           (item.AsduDetails?.Issues.Count ?? 0) == 0 &&
+           (item.InformationObjectDetails?.Issues.Count ?? 0) == 0;
+
     /// <summary>Each validated spontaneous/return-information object is a
     /// factual observation even if it repeats its previous state/value.</summary>
     public static bool IsReceivedProcessEvent(Iec103MasterEvidenceEvent item)
@@ -99,12 +107,12 @@ public static class Iec10xObservationIdentity
             && (IsDigitalProcessType(item.TypeId) || IsMeasurementOrCounterType(item.TypeId))
             && item.InformationObjectAddress.HasValue
             && item.CauseOfTransmission is 3 or 11 or 12
-            && item.Frame?.IsChecksumValid != false
-            && !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase);
+            && HasTrustedDecodedPayload(item);
 
     public static bool ShouldRecordProcessEvent(Iec103MasterEvidenceEvent item, bool changed)
-        => IsReceivedProcessEvent(item) ||
-           (IsDigitalProcessType(item.TypeId) && ShouldRecordDigitalEvent(item, changed));
+        => HasTrustedDecodedPayload(item) &&
+           (IsReceivedProcessEvent(item) ||
+            (IsDigitalProcessType(item.TypeId) && ShouldRecordDigitalEvent(item, changed)));
 
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)
         => item.Direction == FrameDirection.SlaveToMaster
@@ -112,8 +120,7 @@ public static class Iec10xObservationIdentity
             && item.TypeId is 1 or 2 or 3 or 4 or 30 or 31
             && item.InformationObjectAddress.HasValue
             && item.CauseOfTransmission is 3 or 11 or 12
-            && item.Frame?.IsChecksumValid != false
-            && !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase);
+            && HasTrustedDecodedPayload(item);
 
     /// <summary>Preserve actual spontaneous observations, and known GI/cyclic state
     /// transitions. Never make SOE events from TX, unknown, or unchanged snapshots.</summary>
@@ -123,8 +130,7 @@ public static class Iec10xObservationIdentity
             (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) &&
             item.TypeId is 1 or 2 or 3 or 4 or 30 or 31 &&
             item.InformationObjectAddress.HasValue &&
-            item.Frame?.IsChecksumValid != false &&
-            !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase));
+            HasTrustedDecodedPayload(item));
 
     public static string EventReason(Iec103MasterEvidenceEvent item, bool hasBaseline, bool changed)
     {

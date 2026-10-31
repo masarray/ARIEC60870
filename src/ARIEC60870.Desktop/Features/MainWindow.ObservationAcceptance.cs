@@ -135,9 +135,29 @@ public partial class MainWindow
             FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1430 + i) * 5L,
                 baseline.AddMilliseconds((1430 + i) * 40d), "Variable", true, eventWire));
         }
+        // Real passive IEC101 decode: Type13 spontaneous floating measurement
+        // and Type15 spontaneous integrated totals. Each must enter Events;
+        // GI/interrogated snapshots remain only in Values/GI.
+        var measurement = new byte[] { 13, 1, 3, 0, 1, 0, 21, 0, 0, 0, 0, 0xB4, 0x41, 0 };
+        var counter = new byte[] { 15, 1, 3, 0, 1, 0, 22, 0, 0, 0xD2, 4, 0, 0, 0 };
+        var factOffset = 1433;
+        foreach (var asdu in new[] { measurement, counter })
+        {
+            var payload = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+            var wire = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+                .Concat(payload)
+                .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 }).ToArray();
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, factOffset * 5L,
+                baseline.AddMilliseconds(factOffset * 40d), "Variable", true, wire));
+            factOffset++;
+        }
         FlushUiQueues();
         if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
             throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
+        if (!RelayEventRows.Any(row => row.TypeId == "13") ||
+            !RelayEventRows.Any(row => row.TypeId == "15"))
+            throw new InvalidOperationException(
+                "Decoded IEC-101 spontaneous floating measurement and counter are missing from Events.");
         }
 
         // Representative decoded process data must be visible in screenshot and
@@ -448,6 +468,7 @@ public partial class MainWindow
                 gridFirstToolbarPassed = true,
                 searchAndAutoSameBaselinePassed = true,
                 eventProjectionVersion = _eventProjectionVersion,
+                eventProjectionEpoch = _eventProjectionEpoch,
                 eventProjectionLiveResetCount = _eventLiveResetCount,
                 eventProjectionMismatchCount = _eventProjectionMismatchCount,
                 eventProjectionSourceCount = _eventProjectionSourceCount,

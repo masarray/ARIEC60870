@@ -35,6 +35,38 @@ public sealed class Iec10xObservationIdentityTests
     }
 
     [Fact]
+    public void MalformedObjectOrAsduIsNotPromotedToProcessEvent()
+    {
+        foreach (var type in new[] { 1, 13, 15, 31 })
+        {
+            var asduIssues = new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.SlaveToMaster,
+                ProtocolMode = Iec60870ProtocolMode.Iec104,
+                TypeId = type, CauseOfTransmission = 3,
+                InformationObjectAddress = 1001,
+                AsduDetails = new Iec10xAsduDecode { Issues = ["Truncated information element"] }
+            };
+            Assert.False(Iec10xObservationIdentity.IsReceivedProcessEvent(asduIssues));
+            Assert.False(Iec10xObservationIdentity.ShouldRecordProcessEvent(asduIssues, true));
+
+            var objectIssues = new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.SlaveToMaster,
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                TypeId = type, CauseOfTransmission = 3,
+                InformationObjectAddress = 1001,
+                InformationObjectDetails = new Iec10xInformationObject
+                {
+                    InformationObjectAddress = 1001, Issues = ["Incomplete raw value"]
+                }
+            };
+            Assert.False(Iec10xObservationIdentity.IsReceivedProcessEvent(objectIssues));
+            Assert.False(Iec10xObservationIdentity.ShouldRecordProcessEvent(objectIssues, true));
+        }
+    }
+
+    [Fact]
     public void FiftyThousandMixedDigitalAnalogCounterObservationsKeepSourceIdentity()
     {
         const int count = 50_000;
