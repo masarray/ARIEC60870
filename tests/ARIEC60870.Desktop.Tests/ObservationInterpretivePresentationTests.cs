@@ -41,6 +41,20 @@ public sealed class ObservationInterpretivePresentationTests
         Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(false, 9, dfc: true), "", "Activity focus"));
         Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(false, 9, valid: false), "", "Activity focus"));
         Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(true, 0), "", "Activity focus"));
+        var widthMismatch = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Category = "RX Warning",
+            Frame = new Ft12FrameDecode
+            {
+                Format = Ft12FrameFormat.Malformed,
+                IsChecksumValid = true,
+                IsLengthValid = true,
+                Issues = new[] { "LinkWidthMismatch" },
+                LinkControl = new LinkControlInfo { Prm = true, FunctionCode = 9 }
+            }
+        });
+        Assert.True(QuickFindMatcher.MatchesTrace(widthMismatch, "", "Activity focus"));
     }
 
     [Fact]
