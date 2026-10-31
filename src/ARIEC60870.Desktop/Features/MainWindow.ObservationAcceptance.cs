@@ -25,6 +25,8 @@ public partial class MainWindow
     {
         Directory.CreateDirectory(outputDirectory);
         var metrics = new List<object>();
+        var constrainedViewportNames = new List<string>();
+        var eventGridRealizedRows = 0;
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
@@ -140,10 +142,23 @@ public partial class MainWindow
                 throw new InvalidOperationException("Two Trace search surfaces are simultaneously displayed.");
             AssertTraceCountInSync();
 
+            // GitHub-hosted runners may clamp top-level WPF windows to the
+            // actual desktop work area. Recording a 1540x960 *request* is not
+            // evidence that its bitmap was rendered at 1540x960.
+            var actualWindowWidth = Math.Round(ActualWidth, 1);
+            var actualWindowHeight = Math.Round(ActualHeight, 1);
+            var requestedWindowSizeApplied =
+                Math.Abs(actualWindowWidth - viewport.Width) <= 3 &&
+                Math.Abs(actualWindowHeight - viewport.Height) <= 3;
+            if (!requestedWindowSizeApplied)
+                constrainedViewportNames.Add(viewport.Name);
             SaveRealWpfBitmap(outputDirectory, viewport.Name + "-trace.png");
             metrics.Add(new
             {
                 viewport = viewport.Name,
+                requestedWindowSizeApplied,
+                actualWindowWidthDip = actualWindowWidth,
+                actualWindowHeightDip = actualWindowHeight,
                 requestedWidthDip = viewport.Width,
                 requestedHeightDip = viewport.Height,
                 actualClientWidthDip = Math.Round(((FrameworkElement)Content).ActualWidth, 1),
@@ -153,7 +168,9 @@ public partial class MainWindow
                 inspectorWidthDip = Math.Round(TraceInspectorColumn.ActualWidth, 1),
                 commandDockWidthDip = Math.Round(CommandDockColumn.ActualWidth, 1),
                 actualWindowsDpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX,
-                note = "Logical viewport on CI. Not an OS scaling or human visual FAT certificate."
+                note = requestedWindowSizeApplied
+                    ? "Requested WPF window dimensions realized. Not an OS scaling or visual FAT certificate."
+                    : "CI desktop constrained actual WPF window dimensions. Screenshot does NOT certify the named requested viewport."
             });
         }
 
@@ -168,6 +185,35 @@ public partial class MainWindow
             MainTabControl.SelectedIndex = view.Index;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
+            if (view.Index == 3)
+            {
+                // A visible counter without any realized WPF event rows must
+                // fail acceptance. The older Stage-C evidence showed 2/2
+                // recent yet a visually empty Event Log.
+                EventLogFilterComboBox.SelectedIndex = 0;
+                EventsQuickFindBox.Clear();
+                ApplyQuickFind();
+                ApplyRelayEventFilter();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                if (RelayEventGrid.Items.Count != RelayEventRows.Count)
+                    throw new InvalidOperationException(
+                        $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
+                if (_relayEventStore.Snapshot().Count() > 0 && RelayEventRows.Count == 0)
+                    throw new InvalidOperationException("Stored SOE records are not projected to the unfiltered Event grid.");
+                if (RelayEventRows.Count > 0)
+                {
+                    var lastEvent = RelayEventRows[RelayEventRows.Count - 1];
+                    RelayEventGrid.ScrollIntoView(lastEvent);
+                    await Dispatcher.Yield(DispatcherPriority.Loaded);
+                    UpdateLayout();
+                    if (RelayEventGrid.ItemContainerGenerator.ContainerFromItem(lastEvent) is not DataGridRow realized ||
+                        !realized.IsVisible || realized.ActualHeight < 12)
+                        throw new InvalidOperationException(
+                            "Event count is nonzero but newest event has no visible realized WPF DataGridRow.");
+                    eventGridRealizedRows = RelayEventGrid.Items.Count;
+                }
+            }
             SaveRealWpfBitmap(outputDirectory, "field-1366x768-" + view.Name + ".png");
         }
         MainTabControl.SelectedIndex = 1;
@@ -182,7 +228,11 @@ public partial class MainWindow
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,
                 entireProbeMilliseconds = testStart.Elapsed.TotalMilliseconds,
                 syntheticNoHardware = true,
+                eventGridRealizedRows,
+                allRequestedWindowSizesApplied = constrainedViewportNames.Count == 0,
+                constrainedViewportNames,
                 passed = true,
+                passedScope = "Actual rendered CI window sizes, bounded collection/selection and visible Event row checks only. Constrained requested sizes and physical DPI require separate acceptance.",
                 layoutSnapshots = metrics
             }, new JsonSerializerOptions { WriteIndented = true }));
     }
