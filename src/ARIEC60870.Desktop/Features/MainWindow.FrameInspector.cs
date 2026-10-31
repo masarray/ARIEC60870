@@ -36,6 +36,14 @@ public partial class MainWindow
     private void PopulateFrameProperties(EvidenceRow row)
     {
         SelectedFrameProperties.Clear();
+        SelectedDecodedPoints.Clear();
+        var decodedPoints = DecodedPointRow.FromAsdu(row.Source.AsduDetails);
+        foreach (var point in decodedPoints)
+            SelectedDecodedPoints.Add(point);
+        DecodedPointSection.Visibility = decodedPoints.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DecodedPointHeaderText.Text = decodedPoints.Count > 0
+            ? $"Decoded points · {decodedPoints.Count} / {row.Source.AsduDetails!.ObjectCount}"
+            : "Decoded points";
         void Add(string field, string? value, string? detail = null)
         {
             if (!string.IsNullOrWhiteSpace(value) && value != "-")
@@ -72,14 +80,9 @@ public partial class MainWindow
             row.Source.Frame.IsChecksumValid ? "Checksum valid" : "Checksum invalid",
             "A valid link checksum does not prove command execution.");
 
-        if (row.Source.AsduDetails is { Objects.Count: > 1 } asdu)
-        {
-            foreach (var obj in asdu.Objects.Take(24))
-                Add($"Object {obj.Index} · IOA {obj.InformationObjectAddress}", obj.ShortValue,
-                    obj.QualityDetails?.BitDetails);
-            if (asdu.Objects.Count > 24)
-                Add("Additional objects", $"+{asdu.Objects.Count - 24} decoded; select raw ASDU for all.");
-        }
+        // All decoded objects are now in a dedicated virtualized point table.
+        // Do not repeat 24 arbitrary objects in the property list or truncate
+        // the visible decoded ASDU when VSQ contains more information objects.
     }
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -114,6 +117,8 @@ public partial class MainWindow
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();
             SelectedFrameProperties.Clear();
+            SelectedDecodedPoints.Clear();
+            DecodedPointSection.Visibility = Visibility.Collapsed;
             UpdateFrameInterpreterTone(null);
             if (ActiveProtocolMapText is not null)
             {

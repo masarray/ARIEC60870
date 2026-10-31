@@ -544,7 +544,7 @@
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <DockPanel>
-                                    <TextBlock x:Name="FrameTimelineCaption" Text="Frame timeline" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
+                                    <TextBlock x:Name="FrameTimelineCaption" Text="Decoded communication · select a frame for points and raw evidence" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
@@ -580,8 +580,8 @@
                                                  TextChanged="QuickFindTextChanged" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window"/>
                                     </DockPanel>
                                 </Border>
-                                    <ComboBox x:Name="TraceQuickScopeCombo" Width="144" Height="30" SelectedIndex="0" SelectionChanged="TraceQuickScope_SelectionChanged" ToolTip="Choose Trace protocol traffic">
-                                        <ComboBoxItem Content="All frames"/><ComboBoxItem Content="TX / SCADA"/>
+                                    <ComboBox x:Name="TraceQuickScopeCombo" Width="148" Height="30" SelectedIndex="0" SelectionChanged="TraceQuickScope_SelectionChanged" ToolTip="Choose Trace protocol traffic">
+                                        <ComboBoxItem Content="Activity focus" ToolTip="Prioritize decoded data, GI, controls, errors and nonroutine link activity; All frames retains every poll."/><ComboBoxItem Content="All frames"/><ComboBoxItem Content="TX / SCADA"/>
                                         <ComboBoxItem Content="RX / RTU"/><ComboBoxItem Content="Commands"/>
                                         <ComboBoxItem Content="GI"/><ComboBoxItem Content="Negative / errors"/>
                                     </ComboBox>
@@ -690,7 +690,8 @@
                                                 </Grid>
 
                                                 <TextBlock Grid.Row="1"
-                                                           Text="{Binding ProtocolTraceCompactMeaning, Mode=OneWay}"
+                                                           Text="{Binding ProtocolTraceOperatorLine, Mode=OneWay}"
+                                                           ToolTip="{Binding ProtocolTraceMeaning}"
                                                            FontFamily="{StaticResource AppFont}"
                                                            FontSize="11.8"
                                                            LineHeight="15"
@@ -737,17 +738,56 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="9"/>
+                                        <RowDefinition Height="7"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="7"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="Frame details" FontSize="13.2" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}"/>
                                         <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
                                                    Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Collapsed" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
+                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Visible" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
                                                    Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" MaxHeight="46" Margin="0,3,0,0"/>
                                     </StackPanel>
-                                    <DataGrid Grid.Row="2" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
+                                    <!-- Decoded object values are a virtualized selection-only projection.
+                                         Each ASDU stays ONE trace row; large object lists never inflate the timeline. -->
+                                    <StackPanel x:Name="DecodedPointSection" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,4">
+                                        <TextBlock x:Name="DecodedPointHeaderText" Text="Decoded points" FontSize="11.4"
+                                                   FontWeight="Medium" Foreground="{StaticResource Ink800Brush}" Margin="2,0,0,4"/>
+                                        <DataGrid x:Name="DecodedPointGrid" ItemsSource="{Binding SelectedDecodedPoints}"
+                                                  Height="134" IsReadOnly="True" AutoGenerateColumns="False"
+                                                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                                                  CanUserResizeRows="False" EnableRowVirtualization="True"
+                                                  EnableColumnVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                                  HeadersVisibility="Column" ColumnHeaderHeight="24" RowHeight="25"
+                                                  FontSize="11.5" FontFamily="{StaticResource AppFont}"
+                                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E4EDF4"
+                                                  RowBackground="White" AlternatingRowBackground="#F3F7FA"
+                                                  BorderBrush="#D7E2EA" BorderThickness="1"
+                                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                            <DataGrid.RowStyle>
+                                                <Style TargetType="{x:Type DataGridRow}">
+                                                    <Setter Property="ToolTip">
+                                                        <Setter.Value>
+                                                            <MultiBinding StringFormat="{}{0} · {1} · {2} · raw: {3}">
+                                                                <Binding Path="Quality"/>
+                                                                <Binding Path="RelayTime"/>
+                                                                <Binding Path="Provenance"/>
+                                                                <Binding Path="RawHex"/>
+                                                            </MultiBinding>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </DataGrid.RowStyle>
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="IOA" Binding="{Binding Address}" Width="79"/>
+                                                <DataGridTextColumn Header="STATE / VALUE" Binding="{Binding Value}" Width="*"/>
+                                                <DataGridTextColumn Header="QUALITY" Binding="{Binding Quality}" Width="78"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </StackPanel>
+                                    <DataGrid Grid.Row="4" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"

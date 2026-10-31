@@ -155,6 +155,24 @@ public sealed partial class EvidenceRow
     // retained in ProtocolTraceMeaning, Inspector, copy and report exports.
     private string? _compactTraceMeaning;
     public string ProtocolTraceCompactMeaning => _compactTraceMeaning ??= CompactTraceMeaning();
+    private string? _operatorLine;
+    /// <summary>One fast meaning-first ASDU line. Exact raw/offset details remain in inspector.</summary>
+    public string ProtocolTraceOperatorLine => _operatorLine ??= BuildProtocolTraceOperatorLine();
+
+    private string BuildProtocolTraceOperatorLine()
+    {
+        var asdu = Source.AsduDetails;
+        if (asdu is null) return ProtocolTraceCompactMeaning;
+        var status = (asdu.IsNegativeConfirm ? "NEG · " : "") +
+            (asdu.IsTest ? "TEST · " : "");
+        var label = $"TI {asdu.TypeId} · {status}COT {asdu.CauseOfTransmission} ({asdu.CauseName}) · CA {asdu.CommonAddress}";
+        if (asdu.Objects.Count == 0) return label + " · no decoded points";
+        var examples = string.Join(", ", asdu.Objects.Take(2).Select(o =>
+            $"IOA {o.InformationObjectAddress} {o.ShortValue}" +
+            (o.QualityDetails is { DisplayText: not "Good" } q ? " [" + q.DisplayText + "]" : "")));
+        return label + $" · {asdu.Objects.Count}/{asdu.ObjectCount} points · " +
+            examples + (asdu.Objects.Count > 2 ? " …" : string.Empty);
+    }
     private string CompactTraceMeaning()
     {
         if (ProtocolMode != "101" || Source.CommandDetails is not { } cmd ||

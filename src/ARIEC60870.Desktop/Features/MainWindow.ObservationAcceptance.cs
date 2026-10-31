@@ -28,6 +28,8 @@ public partial class MainWindow
         var metrics = new List<object>();
         var constrainedViewportNames = new List<string>();
         var eventGridRealizedRows = 0;
+        var interpretedPointRows = 0;
+        var focusVisibleFrames = 0;
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
@@ -38,7 +40,7 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
         SetTraceSearchSurface(archive: false);
         TraceQuickFindBox.Clear();
-        TraceQuickScopeCombo.SelectedIndex = 0;
+        TraceQuickScopeCombo.SelectedIndex = 1; // All frames for 1,400-frame retention stress
         ApplyQuickFind();
 
         var baseline = DateTime.UtcNow;
@@ -111,7 +113,8 @@ public partial class MainWindow
             !beforeArchiveSwitch.SequenceEqual(FrameTraceRows.Select(x => x.Source.EvidenceReference)))
             throw new InvalidOperationException("Search-only scope toggle mutated Trace evidence.");
 
-        // Seed real decoded SOE evidence after the Event tab becomes visible.
+        // Seed typed SOE twice: once before Values/Trace screenshots, then
+        // on the live Events tab to prove new rows update an active grid.
         // This reuses the known-good IEC-101 spontaneous Type 1 wire fixture
         // from the passive GUI smoke and traverses the production passive
         // parser/projection path; it never opens a transport or transmits.
@@ -134,6 +137,38 @@ public partial class MainWindow
         if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
             throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
         }
+
+        // Representative decoded process data must be visible in screenshot and
+        // selectable from the same real WPF frame row. Never accept empty Values
+        // screenshots as proof of an observation-oriented protocol test set.
+        MainTabControl.SelectedIndex = 3;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        SeedSpontaneousEventRows();
+        var multiAsdu = new byte[] { 1, 2, 20, 0, 1, 0, 7, 0, 0, 1, 8, 0, 0, 0 };
+        var multiPayload = new byte[] { 0x08, 0x69 }.Concat(multiAsdu).ToArray();
+        var multiWire = new byte[] { 0x68, (byte)multiPayload.Length, (byte)multiPayload.Length, 0x68 }
+            .Concat(multiPayload)
+            .Concat(new byte[] { (byte)(multiPayload.Sum(x => x) & 0xff), 0x16 })
+            .ToArray();
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 1440 * 5L,
+            baseline.AddMilliseconds(1440 * 40d), "Variable", true, multiWire));
+        FlushUiQueues();
+        // Source store accepts frames even while another workspace is active;
+        // the virtualized Trace projection is reconciled only on return.
+        var sourceMultiObjectCount = _protocolTraceStore.Snapshot().Count(x => x.Source.AsduDetails?.Objects.Count == 2);
+        MainTabControl.SelectedIndex = 1;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        var multiObjectRow = FrameTraceRows.LastOrDefault(x => x.Source.AsduDetails?.Objects.Count == 2);
+        if (sourceMultiObjectCount == 0 || multiObjectRow is null || ValueRows.Count < 2)
+            throw new InvalidOperationException(
+                $"Two-point process ASDU absent after Trace reconciliation: source={sourceMultiObjectCount}, " +
+                $"view={FrameTraceRows.Count(x => x.Source.AsduDetails?.Objects.Count == 2)}, Values={ValueRows.Count}.");
+        TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
+        ApplyQuickFind();
+        focusVisibleFrames = FrameTraceGrid.Items.Count;
+        if (focusVisibleFrames < 3 || focusVisibleFrames >= FrameTraceRows.Count ||
+            !FrameTraceGrid.Items.Contains(multiObjectRow))
+            throw new InvalidOperationException("Activity focus did not preserve process/GI frames while filtering routine polls.");
 
         var layouts = new (string Name, double Width, double Height)[]
         {
@@ -210,6 +245,8 @@ public partial class MainWindow
             MainTabControl.SelectedIndex = view.Index;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
+            if (view.Index == 2 && (ValueGrid.Items.Count < 2 || ValueRows.Count < 2))
+                throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
             if (view.Index == 3)
             {
                 // A visible counter without any realized WPF event rows must
@@ -218,6 +255,9 @@ public partial class MainWindow
                 EventLogFilterComboBox.SelectedIndex = 0;
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
+                // Also exercise spontaneous arrivals while Events itself is
+                // visible; the prior acceptance specifically protects this
+                // live collection reconciliation/realization path.
                 SeedSpontaneousEventRows();
                 ApplyRelayEventFilter();
                 // Validate retained SOE projection after leaving and returning
@@ -251,12 +291,37 @@ public partial class MainWindow
             SaveRealWpfBitmap(outputDirectory, "field-1366x768-" + view.Name + ".png");
         }
         MainTabControl.SelectedIndex = 1;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        TraceQuickScopeCombo.SelectedIndex = 0;
+        _traceInspectorPreferredVisible = true;
+        _traceInspectorForcedOpen = true;
+        UpdateObservationViewportLayout();
+        FrameTraceGrid.SelectedItem = multiObjectRow;
+        FrameTraceGrid.ScrollIntoView(multiObjectRow);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (DecodedPointSection.Visibility != Visibility.Visible ||
+            SelectedDecodedPoints.Count != 2 || DecodedPointGrid.Items.Count != 2 ||
+            FrameInterpreterPanel.Visibility != Visibility.Visible)
+            throw new InvalidOperationException("Multi-object frame has no visible decoded IOA/value/quality inspector.");
+        var lastPoint = SelectedDecodedPoints[1];
+        DecodedPointGrid.ScrollIntoView(lastPoint);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (DecodedPointGrid.ItemContainerGenerator.ContainerFromItem(lastPoint) is not DataGridRow pointRow ||
+            !pointRow.IsVisible || pointRow.ActualHeight < 12)
+            throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
+        interpretedPointRows = DecodedPointGrid.Items.Count;
+        SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
+        _traceInspectorForcedOpen = false;
         testStart.Stop();
         File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new
             {
                 baselineMaster = "OBS-P0 Stage C acceptance",
-                totalSyntheticFrames = 1432,
+                totalSyntheticFrames = 1433,
+                focusVisibleFrames,
+                interpretedPointRows,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,
