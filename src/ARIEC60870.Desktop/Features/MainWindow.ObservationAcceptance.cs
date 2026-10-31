@@ -212,9 +212,17 @@ public partial class MainWindow
         TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
-        if (focusVisibleFrames < 3 || focusVisibleFrames >= FrameTraceRows.Count ||
+        var txSourceCount = FrameTraceRows.Count(row => row.Direction == "TX");
+        var txVisibleCount = FrameTraceGrid.Items.OfType<EvidenceRow>()
+            .Count(row => row.Direction == "TX");
+        if (focusVisibleFrames < 3 || txVisibleCount != txSourceCount ||
             !FrameTraceGrid.Items.Contains(multiObjectRow))
-            throw new InvalidOperationException("Activity focus did not preserve process/GI frames while filtering routine polls.");
+            throw new InvalidOperationException(
+                $"Focus dropped an actual Master TX request or decoded ASDU: TX source={txSourceCount}, visible={txVisibleCount}.");
+        // Screenshots demonstrate the truthful default ALL-FRAMES analyzer,
+        // not a silently narrowed inspection view.
+        TraceQuickScopeCombo.SelectedIndex = 1;
+        ApplyQuickFind();
 
         var layouts = new (string Name, double Width, double Height)[]
         {
@@ -449,7 +457,7 @@ public partial class MainWindow
         }
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
-        TraceQuickScopeCombo.SelectedIndex = 0;
+        TraceQuickScopeCombo.SelectedIndex = 1;
         _traceInspectorPreferredVisible = true;
         _traceInspectorForcedOpen = true;
         UpdateObservationViewportLayout();
