@@ -111,10 +111,12 @@ public partial class MainWindow
             !beforeArchiveSwitch.SequenceEqual(FrameTraceRows.Select(x => x.Source.EvidenceReference)))
             throw new InvalidOperationException("Search-only scope toggle mutated Trace evidence.");
 
-        // Seed real decoded SOE evidence, not merely an empty Events layout.
+        // Seed real decoded SOE evidence after the Event tab becomes visible.
         // This reuses the known-good IEC-101 spontaneous Type 1 wire fixture
         // from the passive GUI smoke and traverses the production passive
         // parser/projection path; it never opens a transport or transmits.
+        void SeedSpontaneousEventRows()
+        {
         _passiveLinkAddressWidth = 1;
         _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
         for (var i = 0; i < 2; i++)
@@ -131,6 +133,7 @@ public partial class MainWindow
         FlushUiQueues();
         if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
             throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
+        }
 
         var layouts = new (string Name, double Width, double Height)[]
         {
@@ -215,6 +218,14 @@ public partial class MainWindow
                 EventLogFilterComboBox.SelectedIndex = 0;
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
+                SeedSpontaneousEventRows();
+                ApplyRelayEventFilter();
+                // Validate retained SOE projection after leaving and returning
+                // to Events, which previously showed a 2/2 count but blank rows.
+                MainTabControl.SelectedIndex = 1;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                MainTabControl.SelectedIndex = 3;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
                 ApplyRelayEventFilter();
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 UpdateLayout();
@@ -222,7 +233,8 @@ public partial class MainWindow
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
-                    throw new InvalidOperationException("The Event screenshot is missing required decoded spontaneous test rows.");
+                    throw new InvalidOperationException(
+                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, filter={EventLogFilterComboBox.SelectedIndex}, query='{_eventsQuickQuery}'.");
                 if (RelayEventRows.Count > 0)
                 {
                     var lastEvent = RelayEventRows[RelayEventRows.Count - 1];
