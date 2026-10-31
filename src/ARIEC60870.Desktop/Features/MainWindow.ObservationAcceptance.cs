@@ -113,7 +113,8 @@ public partial class MainWindow
             !beforeArchiveSwitch.SequenceEqual(FrameTraceRows.Select(x => x.Source.EvidenceReference)))
             throw new InvalidOperationException("Search-only scope toggle mutated Trace evidence.");
 
-        // Seed real decoded SOE evidence after the Event tab becomes visible.
+        // Seed typed SOE twice: once before Values/Trace screenshots, then
+        // on the live Events tab to prove new rows update an active grid.
         // This reuses the known-good IEC-101 spontaneous Type 1 wire fixture
         // from the passive GUI smoke and traverses the production passive
         // parser/projection path; it never opens a transport or transmits.
@@ -254,6 +255,10 @@ public partial class MainWindow
                 EventLogFilterComboBox.SelectedIndex = 0;
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
+                // Also exercise spontaneous arrivals while Events itself is
+                // visible; the prior acceptance specifically protects this
+                // live collection reconciliation/realization path.
+                SeedSpontaneousEventRows();
                 ApplyRelayEventFilter();
                 // Validate retained SOE projection after leaving and returning
                 // to Events, which previously showed a 2/2 count but blank rows.
