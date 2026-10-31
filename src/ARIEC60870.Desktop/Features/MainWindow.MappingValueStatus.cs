@@ -283,14 +283,18 @@ public partial class MainWindow
             }
         }
 
-        var recordIec10xDigital = Iec10xObservationIdentity.ShouldRecordDigitalEvent(item, hasMeaningfulChange);
-        if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xDigital))
+        var recordIec10xProcess = Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
+        if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xProcess))
         {
             var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
                                   && IsIec10xDigitalType(item.TypeId);
             // A protocol edge flag on invalid/unknown digital evidence must never
             // overrule the source-backed event classification.
-            if (isIec10xDigital && !recordIec10xDigital) return;
+            if (isIec10xDigital && !recordIec10xProcess) return;
+            // A stale engine hint cannot promote invalid/unsupported IEC10x
+            // Type/COT into a trusted SOE fact. Keep the RX raw evidence.
+            if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+                !recordIec10xProcess) return;
 
             var relayEventRow = new RelayEventRow(new Iec103RelayEventLogEntry
             {
@@ -306,7 +310,7 @@ public partial class MainWindow
                 InformationNumber = item.InformationNumber,
                 PreviousValue = string.IsNullOrWhiteSpace(previousValue) ? string.Empty : previousValue,
                 NewValue = displayValue,
-                EdgeReason = isIec10xDigital
+                EdgeReason = recordIec10xProcess
                     ? Iec10xObservationIdentity.EventReason(item,
                         !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
                         hasMeaningfulChange)
@@ -517,57 +521,40 @@ public partial class MainWindow
         ApplyRelayEventFilter();
     }
 
+    // Sanitized, committed UI-projection diagnostics; no site data or HEX.
+    private string _eventCommittedScope = "";
+    private long _eventProjectionVersion;
+    private long _eventLiveResetCount;
+    private long _eventProjectionMismatchCount;
+    private int _eventProjectionSourceCount;
+    private int _eventProjectionFilteredCount;
+
+    private string CurrentEventScopeKey()
+        => ((EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All") +
+           "\u001F" + _eventsQuickQuery;
+
     private void ApplyRelayEventFilter()
     {
-        if (RelayEventRows is null)
-        {
-            return;
-        }
-
+        if (RelayEventRows is null) return;
         var filter = (EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
-        // The bounded SOE store is chronological, oldest to newest. Do not reverse:
-        // auto-scroll must follow the latest event at the BOTTOM, just like Trace.
+        // Authoritative bounded SOE store is chronological. The WPF list is
+        // only the latest projection of its typed source rows.
         var recent = _relayEventStore.Snapshot();
         var rows = recent.Where(row => ShouldIncludeRelayEvent(row, filter) &&
             QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
             .TakeLast(MaxVisibleRelayEventRows).ToArray();
-        // The count must describe the *bound WPF projection*, never an
-        // uncommitted filtered source snapshot (which can disagree on screen).
-        void UpdateVisibleEventCount()
-        {
-            if (EventsQuickCountText is not null)
-                EventsQuickCountText.Text = $"{RelayEventGrid.Items.Count} / {recent.Count()} recent" +
-                    (filter == "All" ? "" : " · " + filter);
-        }
-
-        // Prefer bounded incremental tail updates to resetting the entire WPF grid
-        // on each SOE burst. A changed filter or non-overlapping window still resets.
-        var previousCount = RelayEventRows.Count;
-        if (previousCount > 0 && rows.Length > 0)
-        {
-            var oldLast = RelayEventRows[previousCount - 1];
-            var lastIndex = Array.FindIndex(rows, row => ReferenceEquals(row, oldLast));
-            var overlap = lastIndex + 1;
-            if (overlap > 0 && overlap <= previousCount &&
-                Enumerable.Range(0, overlap).All(i =>
-                    ReferenceEquals(RelayEventRows[previousCount - overlap + i], rows[i])))
-            {
-                // Keep the common suffix and append only truly new rows.
-                RelayEventRows.TrimStart(previousCount - overlap);
-                RelayEventRows.AddRange(rows.Skip(overlap));
-                UpdateVisibleEventCount();
-                return;
-            }
-
-            if (previousCount == rows.Length &&
-                Enumerable.Range(0, rows.Length).All(i => ReferenceEquals(RelayEventRows[i], rows[i])))
-            {
-                UpdateVisibleEventCount();
-                return;
-            }
-        }
-        RelayEventRows.ReplaceRange(rows);
-        UpdateVisibleEventCount();
+        var scopeKey = CurrentEventScopeKey();
+        var changedScope = !string.Equals(scopeKey, _eventCommittedScope, StringComparison.Ordinal);
+        RelayEventRows.ReconcileTail(rows, allowResetForUnrelated: changedScope);
+        _eventCommittedScope = scopeKey;
+        _eventProjectionVersion++;
+        _eventProjectionSourceCount = recent.Count;
+        _eventProjectionFilteredCount = rows.Length;
+        if (RelayEventRows.Count != rows.Length) _eventProjectionMismatchCount++;
+        if (EventsQuickCountText is not null)
+            EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
+        // The real scope selector is ALWAYS visible: a 1/141 filtered view
+        // can never masquerade as All or trigger a blind reset "repair".
     }
 
     private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
@@ -606,28 +593,18 @@ public partial class MainWindow
         return true;
     }
 
-    private static bool IsDigitalEvent(RelayEventRow row)
-    {
-        var text = string.Join(" ", row.Type, row.Cot, row.Signal, row.NewValue, row.Reason);
-        return text.Contains("DPI", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("SPI", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("status", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("trip", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("pickup", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("ON", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("OFF", StringComparison.OrdinalIgnoreCase);
-    }
+    // Typed Type ID classification, not user signal names ("voltage ON"
+    // is still analog). IEC103 event semantics remain protocol owned.
+    private static bool IsDigitalEvent(RelayEventRow row) =>
+        row.TransactionKind is not ("GI" or "Command") &&
+        (row.Protocol is "101" or "104"
+            ? int.TryParse(row.TypeId, out var ti) && Iec10xObservationIdentity.IsDigitalProcessType(ti)
+            : row.OriginalFrameEvidence?.IsRelayEdgeEvent == true);
 
-    private static bool IsAnalogEvent(RelayEventRow row)
-    {
-        var text = string.Join(" ", row.Type, row.Cot, row.Signal, row.NewValue, row.Reason);
-        return text.Contains("Measur", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("Analog", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("current", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("voltage", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("Measurands", StringComparison.OrdinalIgnoreCase);
-    }
-
+    private static bool IsAnalogEvent(RelayEventRow row) =>
+        row.TransactionKind is not ("GI" or "Command") &&
+        (row.Protocol is "101" or "104") &&
+        int.TryParse(row.TypeId, out var ti) && Iec10xObservationIdentity.IsMeasurementOrCounterType(ti);
 
     private void UpsertValueRowStable(ValueRow row)
     {

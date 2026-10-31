@@ -139,10 +139,10 @@ public partial class MainWindow
         SelectedRawText.Text = row.RawHex;
         _selectedFrameExplanation = explanation;
         SelectedLineSummaryText.Text = "Hover or click a protocol group. The panel stays stable; linked raw/meaning groups are highlighted without rewriting the inspector.";
-        SelectedLineDirectionText.Text = row.ProtocolTraceHeader;
-        SelectedLineSummaryText.Text = row.ProtocolMode == "101"
-            ? row.ProtocolTraceMeaning.Split('\n')[0]
-            : BuildLineMonitorSummary(row);
+        // Trace already provides the meaning and title. Only the inspector's
+        // field/byte/quality grid adds new source evidence to the operator.
+        SelectedLineDirectionText.Text = row.Direction + " · IEC-" + row.ProtocolMode;
+        SelectedLineSummaryText.Visibility = Visibility.Collapsed;
         UpdateFrameInterpreterTone(row);
         PopulateFrameProperties(row);
     }

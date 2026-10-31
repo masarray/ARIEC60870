@@ -167,3 +167,7 @@ Controls and GI case workspaces now have the **same single 32-DIP grid-first Sea
 
 Windows acceptance verifies actual WPF Search/counter center-Y within 3 DIP, Search flush-left to case grid within 3 DIP, both stage/case panes usable, and context actions in the real controls. No UI timers, protocol byte decoder rewrites, or speculative state interpretation.
 
+## R6 UX-02 — 2026-10-31
+
+Values aligns its first grid with Events/Trace at a 6-DIP toolbar gap. The Events category scope is visible on the same 32-DIP toolbar. Shared outlined search and X geometries replace heavy glyphs across five search surfaces; clear X appears only with a query. Live evidence-row tooltip overlays are suppressed; selected inspector omits redundant Trace summary. Central calm blue-grey contrast tokens are tuned. CI screenshots must be inspected for constrained runner width; physical 150%-DPI and real electrical FAT are separate.
+

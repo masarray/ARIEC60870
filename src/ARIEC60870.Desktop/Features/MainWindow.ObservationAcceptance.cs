@@ -358,7 +358,7 @@ public partial class MainWindow
                     EventsAutoScrollButton, RelayEventGrid, "Events", 9);
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
                 if (!EventsAutoScrollButton.IsVisible ||
-                    EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
+                    EventLogFilterComboBox.Visibility != Visibility.Visible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
                     RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
@@ -384,6 +384,11 @@ public partial class MainWindow
                 ApplyRelayEventFilter();
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 UpdateLayout();
+                if (_eventProjectionFilteredCount != RelayEventRows.Count ||
+                    _eventProjectionSourceCount < _eventProjectionFilteredCount ||
+                    _eventProjectionVersion == 0 || _eventLiveResetCount != 0)
+                    throw new InvalidOperationException(
+                        $"Event projection invariant failure: v={_eventProjectionVersion}, source={_eventProjectionSourceCount}, filtered={_eventProjectionFilteredCount}, projected={RelayEventRows.Count}, resets={_eventLiveResetCount}.");
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
@@ -442,6 +447,11 @@ public partial class MainWindow
                 pointToWireNavigationPassed = true,
                 gridFirstToolbarPassed = true,
                 searchAndAutoSameBaselinePassed = true,
+                eventProjectionVersion = _eventProjectionVersion,
+                eventProjectionLiveResetCount = _eventLiveResetCount,
+                eventProjectionMismatchCount = _eventProjectionMismatchCount,
+                eventProjectionSourceCount = _eventProjectionSourceCount,
+                eventProjectionFilteredCount = _eventProjectionFilteredCount,
                 digitalStateBadgesPassed = true,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
