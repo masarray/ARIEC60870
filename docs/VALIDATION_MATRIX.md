@@ -54,3 +54,15 @@ A stable release is expected to have:
 
 
 | Report PDF generation | `ARIEC60870.Desktop.Tests` | Verifies direct native PDF output and guards against legacy conversion report regressions. |
+
+## Field readiness milestone (2026-10-31)
+
+| Gate | State | Evidence and limits |
+| --- | --- | --- |
+| Source-validated 2/4-COM preflight | Implemented, automated regression pending CI | `PassiveFieldCapturePlan` checks one/two paired circuits, distinct COM inputs, 1200-baud framing, duration and IEC interpretation widths without COM open |
+| Windows portable RX-only field utility | Implemented, CI gate pending | A separate self-contained portable artifact with help, Windows COM inventory, absent-port fail-closed smoke, raw journal capture, final SHA/CRC verifier and human-readable field instructions |
+| Full 2/4 RX real device traffic | **Not yet tested** | Requires electrically approved isolated tap, Windows adapter inventory, valid original frames and source mapping |
+| 1200-baud stop/reopen and multi-hour 2/4-RX soak | **Not yet tested** | Real USB serial adapters, physical wiring, independent clock/timing assessment and field-sanitized evidence |
+| IEC-101/103/104 active device FAT | **Not yet proven by field toolkit** | Separate active bench setup with authorized transmission, link verification, GI and Class1/2/commands tested on isolated equipment |
+
+The headless capture package is complementary to the main WPF GUI. Its `field-summary.json` is advisory; source-specific raw journals, manifest and the independent verifier are authoritative for **application journal consistency only**. Do not conflate that with completeness of bytes delivered by an RS232/RS485 converter.
