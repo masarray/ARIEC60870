@@ -21,6 +21,8 @@ public partial class MainWindow
     private bool _recordedArchiveViewActive;
     private long _recordedArchiveGeneration;
     private CancellationTokenSource? _recordedArchiveCancellation;
+    private CaptureArchiveIndex? _recordedArchiveIndex;
+    private bool _discardRecordedIndexAfterSearch;
 
     private async void TraceRecordedFind_Click(object sender, RoutedEventArgs e)
         => await ShowRecordedArchivePageAsync(0, TraceRecordedQueryBox.Text.Trim());
@@ -49,6 +51,13 @@ public partial class MainWindow
     private void ResetRecordedArchiveSource()
     {
         CancelRecordedArchiveSearch();
+        if (_traceArchiveFinding)
+            _discardRecordedIndexAfterSearch = true;
+        else
+        {
+            _recordedArchiveIndex?.Dispose();
+            _recordedArchiveIndex = null;
+        }
         _lastOpenedAriecFile = null;
         _traceArchivePage = 0;
         _traceArchiveQuery = string.Empty;
@@ -108,10 +117,29 @@ public partial class MainWindow
             TraceRecordedStatusText.Text = "Reading all recorded frames and checking archive integrity…";
 
             var path = _lastOpenedAriecFile!;
-            var result = await Task.Run(() => CaptureArchiveReader.Search(path, query,
-                skipMatching: (long)requestedPage * RecordedTracePageSize,
-                pageSize: RecordedTracePageSize, cancellationToken: cancellation.Token),
-                cancellation.Token);
+            var cached = _recordedArchiveIndex;
+            if (cached is not null && !cached.IsCurrentSource(path))
+            {
+                cached.Dispose();
+                cached = null;
+                _recordedArchiveIndex = null;
+            }
+            var search = await Task.Run(() =>
+            {
+                var index = cached ?? CaptureArchiveReader.OpenIndexed(path, cancellation.Token);
+                try
+                {
+                    var page = index.Search(query,
+                        skipMatching: (long)requestedPage * RecordedTracePageSize,
+                        pageSize: RecordedTracePageSize, cancellationToken: cancellation.Token);
+                    return (Index: index, Page: page, NewIndex: cached is null);
+                }
+                catch
+                {
+                    if (cached is null) index.Dispose();
+                    throw;
+                }
+            }, cancellation.Token);
 
             // Opening another capture/session or pressing Cancel invalidates
             // the old request, even if it finished while the user changed scope.
@@ -119,7 +147,13 @@ public partial class MainWindow
             // cancels its token in ClearSessionView/PrepareLiveTraceForConnect.
             // These monotonic guards cover changes across the await boundary.
             if (cancellation.IsCancellationRequested ||
-                generation != _recordedArchiveGeneration) return;
+                generation != _recordedArchiveGeneration)
+            {
+                if (search.NewIndex) search.Index.Dispose();
+                return;
+            }
+            if (search.NewIndex) _recordedArchiveIndex = search.Index;
+            var result = search.Page;
 
             ClearTraceQuickFindForNavigation();
             var rows = result.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
@@ -145,7 +179,7 @@ public partial class MainWindow
                 : "LEGACY UNVERIFIED · manifest hash unavailable";
             TraceRecordedStatusText.Text =
                 $"Matches {first:N0}–{last:N0} / {result.MatchingRows:N0} · {result.TotalRows:N0} scanned · " +
-                trust + " · full ZIP rescan per page";
+                trust + " · verified indexed snapshot (no ZIP rescan per page)";
             TraceRecordedPrevButton.IsEnabled = requestedPage > 0;
             TraceRecordedNextButton.IsEnabled = last < result.MatchingRows;
         }
@@ -163,6 +197,12 @@ public partial class MainWindow
             if (ReferenceEquals(_recordedArchiveCancellation, cancellation))
                 _recordedArchiveCancellation = null;
             _traceArchiveFinding = false;
+            if (_discardRecordedIndexAfterSearch)
+            {
+                _recordedArchiveIndex?.Dispose();
+                _recordedArchiveIndex = null;
+                _discardRecordedIndexAfterSearch = false;
+            }
             TraceRecordedFindButton.IsEnabled = true;
             TraceRecordedCancelButton.IsEnabled = false;
         }
