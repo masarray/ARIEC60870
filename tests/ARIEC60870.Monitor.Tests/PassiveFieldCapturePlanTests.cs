@@ -38,7 +38,7 @@ public sealed class PassiveFieldCapturePlanTests
         Assert.Equal(1, plan.Options.CotWidth);
         Assert.Equal(1, plan.Options.CommonAddressWidth);
         Assert.Equal(2, plan.Options.InformationAddressWidth);
-        Assert.Empty(plan.MissingPorts(["COM8", "com7"]));
+        Assert.Empty(plan.MissingPorts(new[] { "COM8", "com7" }));
     }
 
     [Fact]
@@ -49,13 +49,13 @@ public sealed class PassiveFieldCapturePlanTests
         args["link-b-rtu-com"] = "COM10";
         var plan = PassiveFieldCapturePlan.Parse(args);
         Assert.Equal(4, plan.Options.StreamCount);
-        Assert.Equal(["COM7", "COM8", "COM9", "COM10"],
+        Assert.Equal(new[] { "COM7", "COM8", "COM9", "COM10" },
             plan.Options.Sources.Select(s => s.PortName).ToArray());
         Assert.Contains("Link B", plan.Options.Sources[2].PhysicalTransmitter);
         Assert.Contains("SCADA", plan.Options.Sources[2].PhysicalTransmitter);
         Assert.Contains("RTU", plan.Options.Sources[3].PhysicalTransmitter);
-        Assert.Empty(plan.MissingPorts(["COM7", "COM8", "COM9", "COM10"]));
-        Assert.Equal(["COM10"], plan.MissingPorts(["COM7", "COM8", "COM9"]));
+        Assert.Empty(plan.MissingPorts(new[] { "COM7", "COM8", "COM9", "COM10" }));
+        Assert.Equal(new[] { "COM10" }, plan.MissingPorts(new[] { "COM7", "COM8", "COM9" }));
     }
 
     [Theory]
@@ -121,7 +121,7 @@ public sealed class PassiveFieldCapturePlanTests
     public void InventoryIsAdvisoryAndDoesNotOpenOrMutateHardware()
     {
         var plan = PassiveFieldCapturePlan.Parse(Args());
-        Assert.Equal(["COM7", "COM8"], plan.MissingPorts(Array.Empty<string>()));
-        Assert.Empty(plan.MissingPorts(["COM8", "com7", "COM42"]));
+        Assert.Equal(new[] { "COM7", "COM8" }, plan.MissingPorts(Array.Empty<string>()));
+        Assert.Empty(plan.MissingPorts(new[] { "COM8", "com7", "COM42" }));
     }
 }
