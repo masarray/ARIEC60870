@@ -82,7 +82,7 @@ public static class IecForensicByteInspector
         var trustworthyPayload = asdu is not null && frame.AsduBytes.Count >= 4 &&
             asduStart + frame.AsduBytes.Count == raw.Count - 2 &&
             frame.AsduBytes.SequenceEqual(raw.Skip(asduStart).Take(frame.AsduBytes.Count));
-        if (trustworthyPayload)
+        if (trustworthyPayload && asdu is not null)
         {
             Add("asdu-type", "Type ID", asduStart, 1,
                 $"IEC-103 Type {asdu!.TypeId} · {asdu.TypeName}");
@@ -169,7 +169,7 @@ public static class IecForensicByteInspector
             asdu.InformationObjectAddressWidth is >= 1 and <= 3 &&
             asdu.RawBytes.Count == asduLength &&
             asdu.RawBytes.SequenceEqual(raw.Skip(6));
-        if (!trusted)
+        if (!trusted || asdu is null)
         {
             if (asduLength > 0)
                 Add("asdu", "Unverified ASDU", 6, asduLength,
