@@ -592,61 +592,98 @@
                                 <ColumnDefinition x:Name="TraceInspectorColumn" Width="300" MinWidth="0" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- One physical toolbar line: responsive Search | compact counter | AUTO.
+                                 The frame ListBox begins immediately below. Archive controls
+                                 appear only in explicitly selected archive-search mode. -->
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" /><RowDefinition Height="6" />
-                                    <RowDefinition Height="Auto" /><RowDefinition Height="6" />
+                                    <RowDefinition Height="32" />
+                                    <RowDefinition Height="6" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="0" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <DockPanel>
-                                    <TextBlock x:Name="FrameTimelineCaption" Text="Frame Trace" TextTrimming="CharacterEllipsis" Style="{StaticResource SubtleText}" FontSize="11.6" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Raw TX/RX protocol trace. Select a line to inspect decoded hex content on the right. Use Ctrl/Shift to select a block, then save it as an ARIEC capture." />
-                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="18,0,0,0" VerticalAlignment="Center">
+                                <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="92" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border x:Name="TraceWindowSearchBar" Grid.Column="0"
+                                            MaxWidth="242" Height="32"
+                                            HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                            CornerRadius="8" Background="White"
+                                            BorderBrush="#CBD5E1" BorderThickness="1"
+                                            ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX in visible frames">
+                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
+                                            <Button DockPanel.Dock="Right" Tag="Trace" Style="{StaticResource QuickFindClearButton}"
+                                                    Click="QuickFindClear_Click">
+                                                <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 19,17.59 13.41,12 Z"
+                                                      Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
+                                            </Button>
+                                            <Path DockPanel.Dock="Left"
+                                                  Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
+                                                  Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
+                                                  Margin="5,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TraceQuickFindBox" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5"
+                                                     Foreground="#334155" VerticalContentAlignment="Center"
+                                                     TextChanged="QuickFindTextChanged"
+                                                     ToolTip="Search frame source, Type, COT, CA, IOA, meaning or HEX"/>
+                                        </DockPanel>
+                                    </Border>
+                                    <!-- Keep filter/archive/summary controls addressable by existing bindings
+                                         while removing secondary widgets from the visible toolbar. -->
+                                    <ComboBox x:Name="TraceQuickScopeCombo" Grid.Column="0"
+                                              Width="148" Height="30" Visibility="Collapsed" SelectedIndex="0"
+                                              SelectionChanged="TraceQuickScope_SelectionChanged">
+                                        <ComboBoxItem Content="Activity focus"/>
+                                        <ComboBoxItem Content="All frames"/>
+                                        <ComboBoxItem Content="TX / SCADA"/>
+                                        <ComboBoxItem Content="RX / RTU"/>
+                                        <ComboBoxItem Content="Commands"/>
+                                        <ComboBoxItem Content="GI"/>
+                                        <ComboBoxItem Content="Negative / errors"/>
+                                    </ComboBox>
+                                    <Button x:Name="TraceArchiveModeButton" Grid.Column="0"
+                                            Content="Archive…" Visibility="Collapsed"
+                                            Click="TraceArchiveMode_Click"/>
+                                    <TextBlock x:Name="FrameTimelineCaption" Grid.Column="0"
+                                               Text="Frame Trace" Visibility="Collapsed"
+                                               TextWrapping="NoWrap"/>
+                                    <TextBlock x:Name="TraceQuickCountText" Grid.Column="1"
+                                               Text="Current window" MaxWidth="155"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                               Margin="8,0,10,0" VerticalAlignment="Center"
+                                               Foreground="#64748B" FontSize="11.1"
+                                               ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
-                                                Margin="0,0,6,0" Padding="9,4" ToolTip="Read older original frames from this session's temporary history"/>
+                                                Margin="0,0,5,0" Padding="7,3" ToolTip="Older source frames in session history"/>
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
-                                                Margin="0,0,10,0" Padding="9,4" ToolTip="Read newer original frames from this session's temporary history"/>
-                                        <Button x:Name="TraceInspectorToggle" Content="Hide details" Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click" Padding="8,3" Margin="0,0,8,0" Visibility="Collapsed" ToolTip="Toggle decoded frame inspector"/>
-                                        <TextBlock Text="AUTO" Visibility="{Binding Visibility, ElementName=TraceAutoScrollButton}" FontSize="11.3" Foreground="{StaticResource Ink600Brush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0"/>
-                                        <ToggleButton x:Name="TraceAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
+                                                Margin="0,0,7,0" Padding="7,3" ToolTip="Newer source frames in session history"/>
+                                        <Button x:Name="TraceInspectorToggle" Content="Hide details"
+                                                Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click"
+                                                Visibility="Collapsed"/>
+                                        <TextBlock Text="AUTO" FontSize="10.9"
+                                                   Foreground="{StaticResource Ink600Brush}"
+                                                   FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ToggleButton x:Name="TraceAutoScrollButton"
+                                                      Style="{StaticResource EvidenceFollowToggle}"
+                                                      VerticalAlignment="Center"
                                                       IsChecked="{Binding IsChecked, ElementName=AutoScrollLatestToggleButton, Mode=TwoWay}"
-                                                      ToolTip="Follow latest Trace frames. Mouse wheel or selection turns this OFF. Click to resume.">
-                                            <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z" Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
+                                                      ToolTip="Follow newest Trace frames. Scroll or select to pause.">
+                                            <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z"
+                                                  Width="15" Height="15" Fill="#2563EB" Stretch="Uniform"
+                                                  IsHitTestVisible="False"/>
                                         </ToggleButton>
                                     </StackPanel>
-                                </DockPanel>
-                                <Grid Grid.Row="2" MinHeight="32">
-                                <ScrollViewer x:Name="TraceWindowSearchBar" HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center"
-                                              CanContentScroll="False">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border Width="270" Height="31" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window">
-                                    <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="Trace" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
-                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform" />
-                                        </Button>
-                                        <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
-                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                              Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="TraceQuickFindBox" BorderThickness="0" Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged" ToolTip="Search Type, COT, CA, IOA, source, meaning or HEX within this Trace window"/>
-                                    </DockPanel>
-                                </Border>
-                                    <ComboBox x:Name="TraceQuickScopeCombo" Width="148" Height="30" Visibility="Collapsed" SelectedIndex="0" SelectionChanged="TraceQuickScope_SelectionChanged" ToolTip="Choose Trace protocol traffic">
-                                        <ComboBoxItem Content="Activity focus" ToolTip="Prioritize decoded data, GI, controls, errors and nonroutine link activity; All frames retains every poll."/><ComboBoxItem Content="All frames"/><ComboBoxItem Content="TX / SCADA"/>
-                                        <ComboBoxItem Content="RX / RTU"/><ComboBoxItem Content="Commands"/>
-                                        <ComboBoxItem Content="GI"/><ComboBoxItem Content="Negative / errors"/>
-                                    </ComboBox>
-                                    <TextBlock x:Name="TraceQuickCountText" Text="Current window" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                                    <Button x:Name="TraceArchiveModeButton" Content="Archive…" Visibility="Collapsed" Click="TraceArchiveMode_Click"
-                                            Style="{StaticResource SecondaryButton}" Padding="7,3" Margin="7,0,0,0"
-                                            ToolTip="Search original .ariec archive without changing the active source"/>
-                                </StackPanel>
-                                </ScrollViewer>
-                                <StackPanel x:Name="TraceArchiveSearchBar" Visibility="Collapsed" Margin="0,0,0,2">
+                                </Grid>
+                                <StackPanel x:Name="TraceArchiveSearchBar" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,2">
                                     <DockPanel LastChildFill="True">
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
                                             <Button Content="Current" Click="TraceCurrentMode_Click" Style="{StaticResource SecondaryButton}"
@@ -673,7 +710,6 @@
                                                Foreground="{StaticResource Ink600Brush}" FontSize="10.7"
                                                TextTrimming="CharacterEllipsis" Margin="1,3,0,0"/>
                                 </StackPanel>
-                                </Grid>
                                 <ListBox x:Name="FrameTraceGrid"
                                          Grid.Row="4"
                                          ItemsSource="{Binding FrameTraceRows}"
@@ -898,41 +934,56 @@
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="8"/>
-                                <RowDefinition Height="*"/><RowDefinition Height="6"/>
+                                <RowDefinition Height="*"/><RowDefinition Height="0"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <DockPanel Grid.Row="0" LastChildFill="True">
-                                <Button x:Name="ValueOpenFrameButton" DockPanel.Dock="Right" Content="Open Frame"
-                                        Style="{StaticResource SecondaryButton}" IsEnabled="False" Visibility="Collapsed"
-                                        Click="ValueOpenFrame_Click" Padding="9,5" Margin="8,0,0,0"
-                                        ToolTip="Open original source frame for selected point. Double-click point for same action."/>
-                                <StackPanel Orientation="Horizontal">
-                                <Border Width="242" Height="32" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search signal, value, CA, IOA, FUN/INF or source">
+                            <!-- Values uses the same 32px single-line search/counter geometry.
+                                 No autoscroll is shown for the point snapshot (not a time-series). -->
+                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
+                                        BorderBrush="#CBD5E1" BorderThickness="1"
+                                        Background="White" HorizontalAlignment="Stretch"
+                                        ToolTip="Search signal, value, CA, IOA, FUN/INF or source">
                                     <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="Values" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
-                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform" />
+                                        <Button DockPanel.Dock="Right" Tag="Values"
+                                                Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
+                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 19,17.59 13.41,12 Z"
+                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
                                         </Button>
-                                        <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
-                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                              Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="ValuesQuickFindBox" BorderThickness="0" Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged" ToolTip="Search signal, value, CA, IOA, FUN/INF or source"/>
+                                        <Path DockPanel.Dock="Left"
+                                              Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
+                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
+                                              Margin="5,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="ValuesQuickFindBox" BorderThickness="0"
+                                                 Background="Transparent" FontFamily="{StaticResource AppFont}"
+                                                 FontSize="12.5" Foreground="#334155"
+                                                 VerticalContentAlignment="Center"
+                                                 TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
-                                <ComboBox x:Name="ValueQuickScopeCombo" SelectedIndex="0" Width="144" Height="30" Visibility="Collapsed"
-                                          Margin="9,0,0,0" SelectionChanged="ValueQuickScope_SelectionChanged"
-                                          ToolTip="Filter the visual snapshot only; no evidence is deleted.">
+                                <TextBlock x:Name="ValuesQuickCountText" Grid.Column="1"
+                                           Text="Current values" MaxWidth="152"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           Margin="8,0,0,0" VerticalAlignment="Center"
+                                           Foreground="#64748B" FontSize="11.1"/>
+                                <Button x:Name="ValueOpenFrameButton" Grid.Column="0" Content="Open Frame"
+                                        Style="{StaticResource SecondaryButton}" IsEnabled="False"
+                                        Visibility="Collapsed" Click="ValueOpenFrame_Click"/>
+                                <ComboBox x:Name="ValueQuickScopeCombo" Grid.Column="0"
+                                          SelectedIndex="0" Visibility="Collapsed"
+                                          SelectionChanged="ValueQuickScope_SelectionChanged">
                                     <ComboBoxItem Content="All points"/>
                                     <ComboBoxItem Content="Quality flags"/>
                                     <ComboBoxItem Content="Unmapped"/>
                                     <ComboBoxItem Content="Recently changed"/>
                                     <ComboBoxItem Content="No device time"/>
                                 </ComboBox>
-                                <TextBlock x:Name="ValuesQuickCountText" Text="Current values" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                                </StackPanel>
-                            </DockPanel>
+                            </Grid>
                             <DataGrid Grid.Row="2" SelectionChanged="ValueGrid_SelectionChanged" MouseDoubleClick="ValueGrid_MouseDoubleClick" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="ValueGrid" ItemsSource="{Binding ValueRows}" RowStyle="{StaticResource ValueGridRowStyle}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
@@ -982,35 +1033,21 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <!-- One quiet toolbar: search + count + follow. Actions and filters live on row context menu. -->
-                            <DockPanel Grid.Row="0" LastChildFill="True">
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <ComboBox x:Name="EventLogFilterComboBox" SelectedIndex="0" Visibility="Collapsed"
-                                              SelectionChanged="EventLogFilter_SelectionChanged">
-                                        <ComboBoxItem Content="All"/>
-                                        <ComboBoxItem Content="Digital status"/>
-                                        <ComboBoxItem Content="Analog"/>
-                                        <ComboBoxItem Content="Commands"/>
-                                        <ComboBoxItem Content="GI"/>
-                                    </ComboBox>
-                                    <TextBlock x:Name="EventsQuickCountText" Text="Recent events"
-                                               Margin="9,0,12,0" VerticalAlignment="Center"
-                                               Foreground="#64748B" FontSize="11.3"/>
-                                    <TextBlock Text="AUTO" FontSize="10.9" FontWeight="Medium" Foreground="#64748B"
-                                               VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
-                                                  IsChecked="True" Checked="EventsAutoScroll_Changed"
-                                                  Unchecked="EventsAutoScroll_Changed"
-                                                  ToolTip="AUTO: follow newest event. Scroll to pause follow.">
-                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80H480Zm0-240v-80h400v80H480Z"
-                                              Width="15" Height="15" Fill="#2563EB" Stretch="Uniform" IsHitTestVisible="False"/>
-                                    </ToggleButton>
-                                </StackPanel>
-                                <Border Width="262" Height="32" CornerRadius="8" BorderBrush="#CBD5E1"
-                                        BorderThickness="1" Background="White" HorizontalAlignment="Left"
-                                        ToolTip="Search signal, state, COT, source or IOA in Event Log">
+                            <!-- Same 32px baseline as Values and Trace: Search | Count | AUTO -->
+                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
+                                        BorderBrush="#CBD5E1" BorderThickness="1"
+                                        Background="White" HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Center"
+                                        ToolTip="Search signal, status, COT, source or IOA">
                                     <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="Events" Style="{StaticResource QuickFindClearButton}"
-                                                Click="QuickFindClear_Click">
+                                        <Button DockPanel.Dock="Right" Tag="Events"
+                                                Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
                                             <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 19,17.59 13.41,12 Z"
                                                   Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
                                         </Button>
@@ -1019,14 +1056,42 @@
                                               Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
                                               StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
                                               Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="EventsQuickFindBox" BorderThickness="0" Background="Transparent"
-                                                 FontFamily="{StaticResource AppFont}" FontSize="12.5"
-                                                 Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged"
-                                                 ToolTip="Search recent event rows"/>
+                                        <TextBox x:Name="EventsQuickFindBox" BorderThickness="0"
+                                                 Background="Transparent" FontFamily="{StaticResource AppFont}"
+                                                 FontSize="12.5" Foreground="#334155"
+                                                 VerticalContentAlignment="Center"
+                                                 TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
-                            </DockPanel>
+                                <ComboBox x:Name="EventLogFilterComboBox" Grid.Column="0"
+                                          SelectedIndex="0" Visibility="Collapsed"
+                                          SelectionChanged="EventLogFilter_SelectionChanged">
+                                    <ComboBoxItem Content="All"/>
+                                    <ComboBoxItem Content="Digital status"/>
+                                    <ComboBoxItem Content="Analog"/>
+                                    <ComboBoxItem Content="Commands"/>
+                                    <ComboBoxItem Content="GI"/>
+                                </ComboBox>
+                                <TextBlock x:Name="EventsQuickCountText" Grid.Column="1" Text="Recent events"
+                                           MaxWidth="146" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           Margin="8,0,10,0" VerticalAlignment="Center"
+                                           Foreground="#64748B" FontSize="11.1"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="AUTO" FontSize="10.9" FontWeight="Medium"
+                                               Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ToggleButton x:Name="EventsAutoScrollButton"
+                                                  Style="{StaticResource EvidenceFollowToggle}"
+                                                  VerticalAlignment="Center" IsChecked="True"
+                                                  Checked="EventsAutoScroll_Changed"
+                                                  Unchecked="EventsAutoScroll_Changed"
+                                                  ToolTip="Follow newest Events. Scroll to pause follow.">
+                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80h400v80H480Zm0-240v-80h400v80H480Z"
+                                              Width="15" Height="15" Fill="#2563EB" Stretch="Uniform"
+                                              IsHitTestVisible="False"/>
+                                    </ToggleButton>
+                                </StackPanel>
+                            </Grid>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
