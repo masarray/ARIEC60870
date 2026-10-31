@@ -16,7 +16,8 @@ public sealed record IecSignalTypeBadge(string Label, string Family)
 
     public static IecSignalTypeBadge? FromDecoded(string? protocol, int? typeId)
     {
-        if (protocol is not ("101" or "104") || !typeId.HasValue)
+        if (protocol is not ("101" or "104" or "IEC-101" or "IEC-104" or "Iec101" or "Iec104") ||
+            !typeId.HasValue)
             return null;
         return ByTypeId.TryGetValue(typeId.Value, out var chip) ? chip : null;
     }
