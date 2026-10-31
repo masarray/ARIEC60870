@@ -2,6 +2,9 @@
 
 **Date:** 2026-10-29. **Status:** canonical **product-direction** requirements for all implementation threads, not a statement that all features are complete. Read [research](IEC10X_NUC_RESEARCH_20261029.md) and [ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md). Verify live master, open PRs, checks and issue #39/#19/#30 before work; historical component PRDs must not override merged code.
 
+
+> **ACTIVE R6-R9 PRODUCT CONTRACT — revision 2026-10-31.** [R6-R9 requirements](#r6-r9-authoritative-milestones-and-acceptance--2026-10-31) supersede historical R0-R4 DELIVERY ORDER, not prior IEC101/103/104 protocol safety requirements. Read [ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md) and [AGENTS](../AGENTS.md). R5 source code is the starting implementation baseline, NOT evidence that these new requirements are complete.
+
 ## Vision
 
 Deliver one reliable, fast, flexible Windows engineering product for IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 FAT/SAT, commissioning and forensic analysis. An engineer must always understand **what bytes were observed, what the protocol says, what the RTU actually confirmed, what remains unknown, and which test comes next**. High interoperability is an outcome of independently validated profile alternatives and field fixtures, not an unsupported marketing assertion.
@@ -63,7 +66,7 @@ No repeated GUI parser or per-frame Dispatcher work; typed WPF selection inspect
 ### FAT-01 [P0-P2] — Interoperability proof matrix
 Deterministic IEC101/104/103 synthetic vectors, independent bench sessions (multiple implementations), physical 2/4 RX serial and TCP, corruption/noise/replay, 101 link widths, NUC unbalanced A/B, balanced only once separately implemented, 104 sequence/session and frontend recovery, flag/numeric extremes, commands out-of-order, GI outcomes, long capture, DPI. Release mode-specific verdict Supported/Tested/Partial/Not Tested rather than universal certified claim.
 
-## Delivery order and acceptance
+## Historical R0-R4 delivery order (superseded in sequence by R6-R9)
 
 **R0 document alignment:** this PRD/ARD/research + AGENTS; documentation only, no interoperability implementation claim. **R1 P0 safety:** reconcile current command-verdict and raw evidence integrity work, correct source-aware flags/measurements/replay with tests. **R2 profiles/GUI:** versioned generic vs NUC vs project profile and byte inspector parity 101/103/104. **R3 field/quality:** real multi-vendor FAT, reports parity and measured UI/CPU. **R4 release candidate:** reproducible tested Windows ZIP, hash/SBOM, truthful capability matrix.
 
@@ -78,3 +81,60 @@ Still open in #60: explicit per-case navigation, fully verified mapping coverage
 ## Multi-thread rule
 
 Before coding: fetch latest master SHA, open PRs, issue #39/#19/#30, related component AGENTS and CI. Claim one requirement ID and one ownership slice per PR; reconcile shared command model or WPF changes before merge. Prefer minimal code changes, independent source parser, synthetic positive+negative regressions and exact SHA CI. This PRD states **future targets**, not current merged completion.
+
+## R6-R9 authoritative milestones and acceptance — 2026-10-31
+
+**Product outcome:** The application is a trustworthy, compact, high-quality IEC60870-5-101/103/104 engineering test set, protocol analyzer and **strictly receive-only IEC101 sniffer**. An operator can configure, connect/capture, observe, investigate one exact original frame, verify control/GI evidence, and export independently inspectable results. Reliability and evidence truth take precedence over effects, cards, additional feature tabs or superficial polish.
+
+**Current audited status:** R5 master includes active IEC101/103/104, unbalanced IEC101 A/B, IEC101 passive 2/4 RX, command/GI casebooks and IEC104 STARTDT/TESTFR session hardening. User Windows observations revealed Events showing only 1/141 then 165/165 recent during ongoing traffic, even though the operator could not see an active filter. This is a **P0 release-blocking observed symptom**; a precise source cause is NOT verified. No statement of R6 completion is permitted until reproducible validation shows a stable Event Log.
+
+### EVENT-02 [P0, R6] — Complete and stable per-object Event Journal
+
+- Every eligible trusted **received** IEC101/104 spontaneous COT3 and appropriate return-information COT11/12 object generates a source-qualified Event fact, including first observation and legitimate repeated observations. Types include single/double points (SPS/DPS), normalized/scaled/float measurements, timed variants, and counter/integrated-total observations (BCR); preserve Type ID, COT code/P-N/TEST/OA, source/circuit, CA/IOA, value, exact original frame and object ordinal, quality and separate device/host timestamps. IEC103 protection events use native FUN/INF and relay time. Multi-object SQ0/SQ1 ASDUs must not lose the second or subsequent object. Unknown/malformed/uncertain input stays raw/uncertain, never Good.
+- GI and command milestones are **transaction facts**: GI activation/ACTCON/ACTTERM, command SELECT/EXECUTE/positive/negative/deactivation/error and exact matching case/source. GI COT20..36 provides Values and GI coverage, not generic spontaneous SOE spam. Routine background/cyclic COT1/2 is not an event just because text says 'measurement'. Never infer physical circuit-breaker OPEN/CLOSE from link ACK, ACTCON or DPI alone.
+- One canonical session/source/order-aware Event ledger with stable immutable fact IDs, bounded live UI projection and an **independent opt-in verified archive** for retained history. AUTO/HOLD may change follow behavior, never acquisition. In a single active session with scope All and empty query, an in-window source containing N valid events must not produce an unexplained one-row grid. Current active query/scope must be visible and count truthful, sourced from the same committed projection/version.
+- Reproduce and explain the screenshot oscillation by inspecting **source count, query/scope, filtered count, WPF collection count, DataGrid bound/realized count, reset count and session epoch**, before implementing a fix. Do not mask it through constant Refresh, rebinding ItemsSource, clearing or adding independent timers.
+
+**PASS EVENT-02:** >=5,000 and >=50,000 deterministic mixed eligible observations covering active/passive and replay variants, IEC101/103/104, SP/DP/measurement/counter, command/GI, negative/malformed, SQ0/SQ1 and redundant sources; tab changes, AUTO/HOLD and filter toggles cannot create silent data loss, stale scope or unexpected full-to-one-row oscillation. All eligible committed events resolve to exact original source frames, including repeated spontaneous and second objects. Report gaps whenever capture is incomplete, never silently claim lossless.
+
+### UX-02 [P0, R6] — Premium compact grid-first cockpit
+
+- Values, Events, Trace, Controls and GI use one reusable **32-DIP Search + count** row, with AUTO on chronological tabs and exactly **6 DIP** space to the first grid row. Search, count and grid must be physically aligned X/Y across tabs, not merely share the same WPF Grid.Row definition. No second title/control strip, giant cards or default bulky buttons.
+- Shared outline Search/X icons, clear X only when text is nonempty, discoverable active filter/scope and stable keyboard/context menu actions. Values remains current snapshot; Events chronological evidence; Trace one physical frame per row. Copy/export preserves typed underlying values and evidence references.
+- Remove large hover ToolTips on live evidence. Inspector displays **additional** link/APCI/ASDU, Type/COT, quality, byte offsets, original HEX and integrity, without repeating the same Trace/Class 2 no-data sentence. Selection is stable and does not trigger layout churn.
+- Calm premium industrial blue-grey theme: central tokens with slightly stronger text, border, selected-row and grid header contrast; meaningful colored status badges with text, compact normal/medium typography, no dense animations or heavy bold. Accessible at genuine Windows 100/125/150% DPI.
+
+**PASS UX-02:** Repeated real WPF screenshots and geometry assertions: <=2 DIP target Search and grid alignment, 6-DIP gap, no overlay tooltip or scrolling surprise, functional source navigation, correct copy and no clipped primary controls. CI screenshot requested at 1366 does **not** prove physical 1366 if runner constrains its dimensions.
+
+### PERF-01 [P0, R6] — Bounded memory and loss-observable high throughput
+
+- Separate COM/TCP/strict passive acquisition, parser/state and journal from WPF. Use one ordered canonical writer and **epoch/version-consistent incremental UI projection**; no per-frame Dispatcher calls, duplicate parser or full list re-filter/Reset per ordinary 75ms refresh. Preserve stable row IDs, scroll/selection and HOLD. Zero CollectionChanged.Reset during unchanged-scope live batches.
+- Render coalescing is permitted; **loss of eligible authoritative Event facts is not silently permitted**. Bounded raw/event queues need safe backpressure/spooling and recorded fault/incomplete/loss counters; DropOldest/DropNewest/DropWrite are for explicitly disposable UI previews only. Raw full-history claims only apply when capture was enabled and integrity/health verified. Bounded in-memory Event row limit is NOT full archival history.
+- Instrument capture/source/version, queue depth/peak, filtered/bound grid counts, event loss, collection resets, latency, CPU/GC/memory and archive throughput without private payload in logs. Paging/indexed disk history belongs to R7.
+
+**PASS PERF-01:** 50k event stress with bounded WPF collection; no data misclassification, 0 ordinary Reset, consistent committed counts; provisional targets <=150ms p95 event-to-visible latency and <16ms p95 Dispatcher batch on a **declared reference PC/workload**. Report actual measurements, not target numbers presented as achievements.
+
+### TRACE-02 / CAPTURE-02 [P0/P1, R7] — Full source-byte forensic parity
+
+Finish byte-accurate IEC103/104 inspectors using the authoritative decoders, correct SQ implied IOA spans, exact event-to-frame evidence, corrupted/legacy file handling, complete live/replay/JSON/PDF parity and indexed/paged read-only archives with cancellation and bounded memory. **PASS:** mixed positive/negative fixture comparisons from byte offsets through report, malformed and unverified archives explicitly marked, no unbounded memory or per-keystroke full-history read.
+
+### TASK-01 [P1, R8] — User-configurable Master/RTU Test Set
+
+Add tested IEC101/104 RTU/slave simulation with editable point database, task/exchange scenarios, GI/control/clock behavior, and **lab-only** error injection. Active test commands require clear authorization, target, safe preview and source-qualified proof. Existing IEC103 deterministic simulator is a test fixture, not full RTU simulation. **PASS:** cross-implementation tests and negative protocol behavior; self-testing simulator alone does not establish interoperability.
+
+### FAT-02 [P0/P2, R9] — Professional release/bench proof
+
+Test at least independently implemented protocol peers plus authorized IEC101 2/4-RX physical electrical isolation, 1200-bps long soak, IEC103 relay, IEC104 TCP timing t1/t2/t3/k/w and reconnect, command/GI state, all flag/measurement extrema, archives, genuine 100/125/150% DPI and CPU/memory/latency. Every advertised feature must declare **Implemented / Automated Tested / Physically Tested / Partial / Not Implemented**. Balanced IEC101 active mode and NUC certification remain separate gates.
+
+### Mandatory milestone sequence and stop/go
+
+| Order | Meaningful delivered checkpoint | Stop/go |
+|---|---|---|
+| **R6 FIRST** | EVENT-02 + UX-02 + PERF-01 in integrated Windows x64 build | Do not close until full-to-one Event flicker is reproduced, root cause fixed, mixed-event semantics verified, GUI screenshots audited and exact-head CI passes |
+| **R7** | TRACE-02 + CAPTURE-02 deep forensic proof | Verified original-byte reference from all objects into archive, replay and reports |
+| **R8** | TASK-01 active task and configurable 101/104 RTU simulator | Verified against independent implementations and safety/negative test matrix |
+| **R9** | FAT-02 production acceptance | Real electrical, serial/TCP, long-soak, DPI/CPU proof and truthful mode/capability matrix |
+
+**CI/resource discipline:** cheap unit/integration checks first, one large meaningful PR at a time, one full Windows Release/format/protocol smoke/xUnit/real-WPF/CodeQL/dependency/hygiene gate at exact head, verified portable Windows ZIP+SHA256. No merge based only on source syntax or one screenshot. No private customer traces, no competitor-specific code or proprietary GUI copying. Protocol and research constraints in the original 2026-10-29 PRD remain mandatory.
+
+**External basis (independent concepts only):** https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/optimizing-performance-controls ; https://learn.microsoft.com/en-us/dotnet/core/extensions/channels ; [controlled IEC/NUC research](IEC10X_NUC_RESEARCH_20261029.md). This contract is a **target**, NOT an assertion that R6-R9 are implemented.
