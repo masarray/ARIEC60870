@@ -86,6 +86,68 @@ public partial class MainWindow
         NavigateToOriginalFrame(stage.EvidenceReference, stage.Sequence, c.Source, protocol, original);
     }
 
+    private void ValueGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SelectedValueContextText is null || ValueOpenFrameButton is null) return;
+        var point = ValueGrid.SelectedItem as ValueRow;
+        ValueOpenFrameButton.IsEnabled = point is not null && PointInvestigation.HasOriginalReference(point);
+        SelectedValueContextText.Text = point is null
+            ? "Select a point to see CA/IOA, quality, relay time and source-frame availability."
+            : PointInvestigation.Describe(point);
+        SelectedValueContextText.ToolTip = point is null ? null :
+            PointInvestigation.Describe(point) + "\nCOT: " + point.CotLabel +
+            "\n" + point.QualityDetail + "\nEvidence: " + point.EvidenceReference;
+    }
+
+    private void ValueGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ValueGrid.SelectedItem is ValueRow point && PointInvestigation.HasOriginalReference(point))
+            ValueOpenFrame_Click(sender, e);
+    }
+
+    private void ValueOpenFrame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ValueGrid.SelectedItem is not ValueRow point ||
+            !PointInvestigation.HasOriginalReference(point)) return;
+        var protocol = point.Protocol switch
+        {
+            "101" => Iec60870ProtocolMode.Iec101,
+            "104" => Iec60870ProtocolMode.Iec104,
+            _ => Iec60870ProtocolMode.Iec103
+        };
+        _traceInspectorPreferredVisible = true;
+        _traceInspectorForcedOpen = true;
+        ApplyTraceInspectorVisibility(true);
+        var targetIoa = int.TryParse(point.IoAddress, out var ioa) ? ioa : (int?)null;
+        NavigateToOriginalFrame(point.EvidenceReference, 0, point.PhysicalSource, protocol,
+            selectedIoa: targetIoa);
+    }
+
+    private void ValueCopyEvidence_Click(object sender, RoutedEventArgs e)
+    {
+        if (ValueGrid.SelectedItem is not ValueRow point) return;
+        Clipboard.SetText(PointInvestigation.Describe(point) +
+            "\nCOT: " + point.CotLabel +
+            "\nQuality bits: " + point.QualityDetail +
+            "\nDecoded source value: " + point.RawValue +
+            "\nEvidence: " + point.EvidenceReference +
+            "\nRaw frame HEX: " + point.RawHex);
+    }
+
+    private void SelectDecodedPointByIoa(int? targetIoa)
+    {
+        if (targetIoa is not int ioa) return;
+        var point = SelectedDecodedPoints.FirstOrDefault(x =>
+            x.Address == "IOA " + ioa.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (point is null) return;
+        DecodedPointGrid.SelectedItem = point;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (ReferenceEquals(DecodedPointGrid.SelectedItem, point) && DecodedPointGrid.IsVisible)
+                DecodedPointGrid.ScrollIntoView(point);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
     private void EventOpenFrame_Click(object sender, RoutedEventArgs e)
     {
         if (RelayEventGrid?.SelectedItem is not RelayEventRow row) return;
@@ -141,14 +203,17 @@ public partial class MainWindow
         "Transaction not retained", MessageBoxButton.OK, MessageBoxImage.Information);
 
     private async void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
-        Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null)
+        Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null, int? selectedIoa = null)
     {
         // Direct navigation must reveal the original despite a previous quick filter.
         ClearTraceQuickFindForNavigation();
         // Prefer the session-wide disk index, which is fed before the lossy
         // GUI preview. This works for Controls/GI stages without an Event row.
         if (await TryOpenHistoryWindowAsync(evidenceRef, physicalSource, protocol))
+        {
+            SelectDecodedPointByIoa(selectedIoa);
             return;
+        }
 
         // For active IEC-101/104 and legacy non-indexed sources, use the exact
         // physical-frame matcher. No same-IOA/timestamp substitution.
@@ -217,5 +282,6 @@ public partial class MainWindow
         FrameTraceGrid.SelectedItem = frame;
         FrameTraceGrid.ScrollIntoView(frame);
         ApplySelectedEvidenceRowToInspector(frame);
+        SelectDecodedPointByIoa(selectedIoa);
     }
 }

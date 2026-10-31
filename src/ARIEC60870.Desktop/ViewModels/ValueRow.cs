@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop.ViewModels;
 
@@ -41,6 +42,8 @@ public sealed class ValueRow : INotifyPropertyChanged
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
+        QualityFlags = item.QualityDetails;
+        RawValue = item.RawValue;
         QualityChips = ProtocolFlagPresentation.Quality(item.QualityDetails, Quality, Protocol is "101" or "104");
         QualityDetail = item.QualityDetails?.BitDetails ?? Quality;
         Address = Protocol is "101" or "104"
@@ -73,6 +76,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     public int IoaSortKey { get; }
     public string Address { get; }
     public string Quality { get; }
+    public Iec10xQualityDetails? QualityFlags { get; }
+    public string RawValue { get; }
     public string QualityDetail { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }

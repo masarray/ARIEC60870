@@ -754,8 +754,21 @@ public partial class MainWindow
 
         if (_valueRowsDirty)
         {
+            // A selected point may be replaced by a newer RX on the same key.
+            // Restore identity only; never scroll to an unrelated physical IOA.
+            var inspectedKey = MainTabControl?.SelectedIndex == 2
+                ? (ValueGrid.SelectedItem as ValueRow)?.Key : null;
             ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
                 StringComparer.OrdinalIgnoreCase);
+            // Recently-changed view depends on an item's transient property, not
+            // only collection Add/Remove. Refresh once per coalesced UI batch.
+            if (_quickFindReady && _valuesQuickScope == "Recently changed")
+                RefreshQuickFindView(ValueRows);
+            if (inspectedKey is not null &&
+                _valueRowsByKey.TryGetValue(inspectedKey, out var refreshed) &&
+                ValueGrid.Items.Contains(refreshed) &&
+                !ReferenceEquals(ValueGrid.SelectedItem, refreshed))
+                ValueGrid.SelectedItem = refreshed;
             batchRows += ValueRows.Count;
             _valueRowsDirty = false;
         }

@@ -11,6 +11,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Monitor;
+using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop;
@@ -245,8 +247,41 @@ public partial class MainWindow
             MainTabControl.SelectedIndex = view.Index;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
-            if (view.Index == 2 && (ValueGrid.Items.Count < 2 || ValueRows.Count < 2))
-                throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
+            if (view.Index == 2)
+            {
+                if (ValueGrid.Items.Count < 2 || ValueRows.Count < 2)
+                    throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
+                var target = ValueRows.FirstOrDefault(x => x.IoAddress == "8");
+                if (target is null)
+                    throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
+                ValueGrid.SelectedItem = target;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                if (!ValueOpenFrameButton.IsEnabled ||
+                    !SelectedValueContextText.Text.Contains("IOA 8", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Selected Value has no source navigation/context.");
+                ValueQuickScopeCombo.SelectedIndex = 2; // Unmapped, never guessed name
+                if (ValueGrid.Items.Count < 2)
+                    throw new InvalidOperationException("Unmapped filter hid real process values.");
+                ValueQuickScopeCombo.SelectedIndex = 4; // Device time is not host time
+                if (ValueGrid.Items.Count < 2)
+                    throw new InvalidOperationException("Missing device timestamps were invented.");
+                ValueQuickScopeCombo.SelectedIndex = 0;
+                ValueGrid.SelectedItem = target;
+                UpdateLayout();
+                SaveRealWpfBitmap(outputDirectory, "point-investigation-values.png");
+                ValueOpenFrame_Click(ValueOpenFrameButton, new RoutedEventArgs());
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                if (MainTabControl.SelectedIndex != 1 ||
+                    FrameTraceGrid.SelectedItem is not EvidenceRow original ||
+                    !Iec10xObservationIdentity.SamePhysicalFrame(original.Source, target.EvidenceReference,
+                        target.PhysicalSource, Iec60870ProtocolMode.Iec101, 0) ||
+                    DecodedPointGrid.SelectedItem is not DecodedPointRow selectedPoint ||
+                    selectedPoint.Address != "IOA 8")
+                    throw new InvalidOperationException("Point-to-Wire navigation lost original frame or IOA 8.");
+                SaveRealWpfBitmap(outputDirectory, "point-investigation-original-frame.png");
+                MainTabControl.SelectedIndex = 2;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+            }
             if (view.Index == 3)
             {
                 // A visible counter without any realized WPF event rows must
@@ -322,6 +357,7 @@ public partial class MainWindow
                 totalSyntheticFrames = 1433,
                 focusVisibleFrames,
                 interpretedPointRows,
+                pointToWireNavigationPassed = true,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,

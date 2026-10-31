@@ -192,3 +192,12 @@ The Windows CI pipeline now archives actual WPF viewport PNGs plus `metrics.json
 **Performance:** Selection-only projection and lazy row digest; no extra receive-thread work, no WPF collection updates per frame, no new timers. Existing bounded Trace store and virtualized DataGrids remain authoritative for rendering. The field-facing acceptance must inject valid IEC-101 spontaneous and multi-object data via the real passive decode pipeline, capture populated Values/Events, and validate the selected two-object WPF inspector in a screenshot. Windows CI viewport size clamping remains explicitly documented and is not physical DPI proof.
 
 **Acceptance boundary:** This is an implementable readability/observation milestone, not claimed full parity with any specific commercial tool, not proof of IEC101/103/104 physical interoperability, and not field-approved commissioning.
+
+## POINT-WIRE-01 — point-to-source investigation (2026-10-31)
+
+In the *existing* live Value Viewer an engineer can select an IOA and immediately open the exact original telegram through the already implemented source-qualified in-memory or session-history navigator. Multi-object 101/104 ASDUs select the clicked IOA in the existing virtualized frame inspector rather than the first sibling. A missing evidence reference disables navigation; there is no IOA/time-only substitution. Double-click, Open Frame, and copy point/quality/source/raw HEX are direct operator actions. Live updates replace selected rows by physical key without losing selection or forcing the operator viewport to jump.
+
+Values filters are **All points / Quality flags / Unmapped / Recently changed / No device time**, computed only from the bounded visible ValueRows projection; no change to authoritative point identities, raw journal, master polling or decoder. Quality flags use typed source-backed IEC quality flags and never infer OV from an analog numeric boundary. No device time means none was transmitted or supported, not PC arrival time. A single-line footer provides selected process value, CA/IOA, sender quality, time availability and source evidence status. No new receive-time frame match, timer or unbounded WPF grid.
+
+Windows WPF acceptance must inject actual valid multi-object IEC101 wire frames through the production passive decoder, select point IOA 8, use the same operator Open Frame action, assert exact frame reference and IOA 8 selection and retain screenshots. It remains a software observation milestone, not a claimed physical 1200-baud/COM FAT result.
+
