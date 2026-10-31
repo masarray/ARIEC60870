@@ -271,6 +271,7 @@ public partial class MainWindow : Window
     public ObservableRangeCollection<DiagnosticRow> DiagnosticRows { get; } = new();
     public ObservableCollection<ProtocolMapLine> SelectedProtocolMapLines { get; } = new();
     public ObservableCollection<FrameInspectorProperty> SelectedFrameProperties { get; } = new();
+    public ObservableCollection<DecodedPointRow> SelectedDecodedPoints { get; } = new();
     public ObservableCollection<HexSegment> SelectedHexSegments { get; } = new();
     public ObservableCollection<StatusHistoryRow> StatusHistoryRows { get; } = new();
     public ObservableCollection<TriggerCaptureRow> TriggerCaptureRows { get; } = new();
