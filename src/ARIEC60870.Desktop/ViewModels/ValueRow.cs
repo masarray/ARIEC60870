@@ -63,7 +63,7 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string Signal { get; }
     public string Group { get; }
     public string Value { get; }
-    public string OperatorValue => Value;
+    public string OperatorValue => IecOperatorValueFormatter.ForGrid(Protocol, TypeId, Value);
     public string FullOperatorValue => Value;
     public DigitalStateBadge? DiscreteBadge { get; }
     public IecSignalTypeBadge? TypeBadge { get; }

@@ -434,9 +434,9 @@
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
+                                        <Button x:Name="NavFrameButton" Content="RAW FRAME" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
-                                        <Button x:Name="NavFrameButton" Content="Trace" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click"
                                                 ToolTip="Source-qualified Master command, RTU confirmation and process feedback casebook" />
@@ -618,7 +618,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Trace">
+                    <TabItem Header="RAW FRAME">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" MinWidth="300" />
@@ -1127,16 +1127,65 @@
                                     </DockPanel>
                                 </Border>
                                     </Grid>
-                                <ComboBox x:Name="EventLogFilterComboBox" Grid.Column="1"
-                                          Width="112" Height="28" FontSize="11" Margin="7,0,0,0"
-                                          VerticalAlignment="Center" SelectedIndex="0" Visibility="Visible"
-                                          SelectionChanged="EventLogFilter_SelectionChanged">
-                                    <ComboBoxItem Content="All"/>
-                                    <ComboBoxItem Content="Digital status"/>
-                                    <ComboBoxItem Content="Analog"/>
-                                    <ComboBoxItem Content="Commands"/>
-                                    <ComboBoxItem Content="GI"/>
-                                </ComboBox>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0"
+                                            VerticalAlignment="Center">
+                                    <ToggleButton x:Name="EventIncludeToggle" Width="113" Height="29"
+                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                  FontSize="11" FontWeight="Normal"
+                                                  Content="Include: All" ToolTip="Include categories; all selected by default"/>
+                                    <ToggleButton x:Name="EventExcludeToggle" Width="114" Height="29" Margin="5,0,0,0"
+                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
+                                                  FontSize="11" FontWeight="Normal"
+                                                  Content="Exclude: None" ToolTip="Exclude categories; none selected by default"/>
+                                    <Popup x:Name="EventIncludePopup" PlacementTarget="{Binding ElementName=EventIncludeToggle}"
+                                           Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+                                           IsOpen="{Binding IsChecked, ElementName=EventIncludeToggle, Mode=TwoWay}">
+                                        <Border Background="White" BorderBrush="#C9D6E0" BorderThickness="1"
+                                                CornerRadius="8" Padding="10" MinWidth="176">
+                                            <StackPanel x:Name="EventIncludeOptionsPanel">
+                                                <TextBlock Text="INCLUDE" Foreground="#64748B" FontSize="10.5" Margin="2,0,0,6"/>
+                                                <CheckBox Content="Digital" Tag="Digital" IsChecked="True" Margin="2,3"
+                                                          Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
+                                                <CheckBox Content="Measurement" Tag="Measurement" IsChecked="True" Margin="2,3"
+                                                          Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
+                                                <CheckBox Content="Commands" Tag="Commands" IsChecked="True" Margin="2,3"
+                                                          Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
+                                                <CheckBox Content="GI" Tag="GI" IsChecked="True" Margin="2,3"
+                                                          Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
+                                                <CheckBox Content="Other / IEC-103" Tag="Other" IsChecked="True" Margin="2,3"
+                                                          Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                    <Button Content="All" Padding="9,3" Click="EventIncludeAll_Click"/>
+                                                    <Button Content="None" Padding="9,3" Margin="6,0,0,0" Click="EventIncludeNone_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                    <Popup x:Name="EventExcludePopup" PlacementTarget="{Binding ElementName=EventExcludeToggle}"
+                                           Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+                                           IsOpen="{Binding IsChecked, ElementName=EventExcludeToggle, Mode=TwoWay}">
+                                        <Border Background="White" BorderBrush="#C9D6E0" BorderThickness="1"
+                                                CornerRadius="8" Padding="10" MinWidth="176">
+                                            <StackPanel x:Name="EventExcludeOptionsPanel">
+                                                <TextBlock Text="EXCLUDE" Foreground="#64748B" FontSize="10.5" Margin="2,0,0,6"/>
+                                                <CheckBox Content="Digital" Tag="Digital" Margin="2,3"
+                                                          Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
+                                                <CheckBox Content="Measurement" Tag="Measurement" Margin="2,3"
+                                                          Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
+                                                <CheckBox Content="Commands" Tag="Commands" Margin="2,3"
+                                                          Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
+                                                <CheckBox Content="GI" Tag="GI" Margin="2,3"
+                                                          Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
+                                                <CheckBox Content="Other / IEC-103" Tag="Other" Margin="2,3"
+                                                          Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                    <Button Content="None" Padding="9,3" Click="EventExcludeNone_Click"/>
+                                                    <Button Content="All" Padding="9,3" Margin="6,0,0,0" Click="EventExcludeAll_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </StackPanel>
                                 <TextBlock x:Name="EventsQuickCountText" Grid.Column="2" Text="Recent events"
                                            MaxWidth="146" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Margin="8,0,10,0" VerticalAlignment="Center"

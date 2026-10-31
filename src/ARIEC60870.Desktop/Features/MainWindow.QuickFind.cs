@@ -119,8 +119,19 @@ public partial class MainWindow
     private void ValueScopeMenu_Click(object sender, RoutedEventArgs e) =>
         SelectScopeFromMenu(sender, ValueQuickScopeCombo);
 
-    private void EventScopeMenu_Click(object sender, RoutedEventArgs e) =>
-        SelectScopeFromMenu(sender, EventLogFilterComboBox);
+    private void EventScopeMenu_Click(object sender, RoutedEventArgs e)
+    {
+        var label = (sender as MenuItem)?.Tag as string ?? "All";
+        var category = label switch
+        {
+            "Digital status" => "Digital",
+            "Analog" => "Measurement",
+            "Commands" => "Commands",
+            "GI" => "GI",
+            _ => null
+        };
+        SetEventFilters(category is null ? EventCategories : [category], []);
+    }
 
     private void TraceScopeMenu_Click(object sender, RoutedEventArgs e) =>
         SelectScopeFromMenu(sender, TraceQuickScopeCombo);

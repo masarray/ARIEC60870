@@ -139,11 +139,11 @@ public partial class MainWindow
         FlushUiQueues();
         if (!ReferenceEquals(FrameTraceGrid.SelectedItem, selected))
             throw new InvalidOperationException("Held source-qualified Trace selection jumped.");
-        if (FrameTraceRows.Count != totalFrames ||
-            FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1399L * 5) ||
-            _protocolTraceRowsDeferredWhileFrozen < 30)
+        if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
+            FrameTraceRows.Count > MaxVisibleFrameTraceRows ||
+            !FrameTraceRows.Contains(selected))
             throw new InvalidOperationException(
-                "Selected Trace viewport kept mutating while live TX/RX evidence arrived.");
+                "Selected Trace must receive new frames with bounded memory while retaining selected evidence.");
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
@@ -471,7 +471,7 @@ public partial class MainWindow
                     EventsAutoScrollButton, RelayEventGrid, "Events", 9);
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
                 if (!EventsAutoScrollButton.IsVisible ||
-                    EventLogFilterComboBox.Visibility != Visibility.Visible ||
+                    !EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
                     RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
@@ -480,7 +480,7 @@ public partial class MainWindow
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
-                EventLogFilterComboBox.SelectedIndex = 0;
+                SetEventFilters(EventCategories, Array.Empty<string>());
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
                 // Also exercise spontaneous arrivals while Events itself is
