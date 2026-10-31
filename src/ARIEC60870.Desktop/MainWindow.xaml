@@ -690,7 +690,8 @@
                                                 </Grid>
 
                                                 <TextBlock Grid.Row="1"
-                                                           Text="{Binding ProtocolTraceCompactMeaning, Mode=OneWay}"
+                                                           Text="{Binding ProtocolTraceOperatorLine, Mode=OneWay}"
+                                                           ToolTip="{Binding ProtocolTraceMeaning}"
                                                            FontFamily="{StaticResource AppFont}"
                                                            FontSize="11.8"
                                                            LineHeight="15"
