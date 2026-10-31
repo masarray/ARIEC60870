@@ -33,6 +33,14 @@ public partial class MainWindow
 {
     private static string ClassifyLowValueBackpressureBucket(Iec103MasterEvidenceEvent item)
     {
+        // The communications analyzer's raw TX/RX timeline is mandatory
+        // forensic evidence, including Class 1/2 requests and E5/NO DATA.
+        // Backpressure may coalesce only non-wire presentation notes. Never
+        // remove an entire physical telegram to reduce WPF queue pressure.
+        if (item.Direction is FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster &&
+            !string.IsNullOrWhiteSpace(item.RawHex) && item.RawHex != "-")
+            return string.Empty;
+
         if (IsDiagnosticEvidence(item) ||
             item.IsRelayEdgeEvent ||
             item.IsRelayValue ||

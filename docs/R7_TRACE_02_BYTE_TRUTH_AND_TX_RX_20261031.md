@@ -20,7 +20,16 @@ Corrections:
 4. IEC-104: envelope and APCI I/S/U, actual N(S)/N(R), typed header and complete decoded SQ=0/SQ=1 objects. SQ=1 later IOAs are **derived semantic addresses with offset=-1/count=0**, not bytes that exist on the wire. A mismatched/invalid ASDU never obtains a fabricated Type/COT/CA/IOA inspector; raw is preserved.
 5. Archive: V1 IEC-101/104 written fields use decoder's recorded widths, not derived offsets; explicit `IEC103-FT12-V1` stores its link-width provenance, enabling offline FT1.2 rehydration of new 103 captures. Older 103 captures without that marker remain raw-only. Archive hash verification/legacy warnings continue to be managed by the existing archive reader and **are separate** from link checksum verification.
 
-Performance: no work on RX/COM/TCP from this inspector; no permanent per-object WPF view models, additional parser on hot path or new background worker. Work is bounded to selecting and decoding the current frame, using original typed models and raw bytes.
+## P0 runtime stabilisation and border hierarchy
+
+- Trace drag gestures operate on `ListBox.Items` (the visible filtered collection), never mismatched source-row indices. Range changes use only SelectedItems deltas, do not clear/recreate the whole selection, and do not repeatedly focus containers while hovering.
+- HOLD, selection and historical investigation pin the WPF Trace viewport. Master TX/RX continue to the authoritative bounded ring and configured raw journal. When the operator resumes, an incremental tail reconciliation advances to latest without a full live Reset.
+- The previous UI backpressure classifier could drop genuine TX Class 1/Class 2 polling requests and RX ACK/NO DATA in congested WPF queues. This is prohibited: any physical raw TX/RX frame is retained in the UI queue. Only non-wire presentation notes may be coalesced under pressure, with the existing loss counters; this is **not** a claim that the bounded 1200-row visual window displays all session history or that recording is always enabled.
+- Value snapshots use `ReconcileOrderedByKey` for distinct insert/move/remove/replace without resetting the entire WPF DataGrid on routine sort changes. Stable row keys retain unchanged object references. The native WPF DataGridRow template is restored to preserve recycled cell layout.
+- Border hierarchy: keep borders where they divide functional panels, input controls, and diagnostics. Remove decorative nesting from logo, left rail, header status chip, selected workspace capsule, ordinary rail controls, Trace row outlines and redundant ListBox border. Selection uses quiet solid fill, while TX/RX meaning is still communicated by text and light semantic backgrounds.
+- Automated acceptance checks sample raw TX/RX non-droppability, five-to-eight-row drag selection with exactly three incremental changes, 1400-frame selection/hold source divergence, row recycling, and source-to-viewport reliability. Physical mouse gesture capture, genuine DPI variants, audio/video recording and real hardware serial traffic remain separate FAT requirements.
+
+Performance: no work on RX/COM/TCP from the inspector; no permanent per-object WPF view models, additional parser on hot path or new background worker. Work is bounded to selecting and decoding the current frame, using original typed models and raw bytes.
 
 ## Proof and limits
 

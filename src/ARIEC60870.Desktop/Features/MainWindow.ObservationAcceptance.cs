@@ -88,6 +88,36 @@ public partial class MainWindow
         if (totalFrames < 1000 || totalFrames > 1200)
             throw new InvalidOperationException($"Unexpected bounded Trace count {totalFrames}.");
 
+        // P0: true physical TX/RX is never discardable "routine UI noise".
+        // Test at the classification boundary exercised by queue backpressure,
+        // without sending on a COM/TCP port or waiting for 5k backlog.
+        foreach (var sample in new[]
+        {
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.MasterToSlave,
+                RawHex = "10 5B 69 C4 16",
+                Summary = "Request Class 2", DataClass = "Class 2" },
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.MasterToSlave,
+                RawHex = "10 7A 69 E3 16",
+                Summary = "Request Class 1", DataClass = "Class 1" },
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.SlaveToMaster,
+                RawHex = "E5", Summary = "Link ACK / NO DATA" }
+        })
+            if (ClassifyLowValueBackpressureBucket(sample) != string.Empty)
+                throw new InvalidOperationException(
+                    "Real physical TX/RX frame was eligible for UI backpressure data loss.");
+        if (ClassifyLowValueBackpressureBucket(new Iec103MasterEvidenceEvent
+            {
+                Summary = "background poll", RawHex = string.Empty
+            }) == string.Empty)
+            throw new InvalidOperationException(
+                "Synthetic non-wire activity no longer permits UI-only coalescing.");
+
         // Real WPF CollectionView must agree with the displayed quick counter.
         ApplyQuickFind();
         AssertTraceCountInSync();
@@ -116,6 +146,34 @@ public partial class MainWindow
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
+
+        // P0: repeated drag updates at an unchanged range must be true no-ops,
+        // not WPF SelectedItems.Clear/repopulate/scroll/flicker cycles.
+        var selectionEvents = 0;
+        SelectionChangedEventHandler onSelection = (_, _) => selectionEvents++;
+        FrameTraceGrid.SelectionChanged += onSelection;
+        try
+        {
+            BeginProtocolTraceSelectionBatch();
+            var first = Math.Max(0, FrameTraceGrid.Items.Count - 15);
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 4, additive: false);
+            if (FrameTraceGrid.SelectedItems.Count != 5)
+                throw new InvalidOperationException("Drag block did not select five visible frames.");
+            var initialEvents = selectionEvents;
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 4, additive: false);
+            if (selectionEvents != initialEvents)
+                throw new InvalidOperationException("Unchanged drag range triggered WPF selection churn.");
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 7, additive: false);
+            if (FrameTraceGrid.SelectedItems.Count != 8 ||
+                selectionEvents != initialEvents + 3)
+                throw new InvalidOperationException("Drag extension rebuilt selection instead of applying three deltas.");
+        }
+        finally
+        {
+            EndProtocolTraceSelectionBatch(FrameTraceGrid);
+            FrameTraceGrid.SelectionChanged -= onSelection;
+            ResumeLiveViews(clearSelection: true, followLive: true);
+        }
 
         // Scope switches never start an archive search or change raw evidence.
         var beforeArchiveSwitch = FrameTraceRows.Select(x => x.Source.EvidenceReference).ToArray();
