@@ -442,7 +442,8 @@ public partial class MainWindow
         }
         else
         {
-            _protocolTraceViewDirtyWhileFrozen = true;
+            // Turning follow OFF must not force a fresh snapshot/reconcile:
+            // it is a viewport-only change, never an acquisition pause.
             _evidenceSummaryViewDirtyWhileFrozen = true;
             if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
             {
@@ -538,11 +539,13 @@ public partial class MainWindow
 
     private void ScrollLatestProtocolTraceIfAutoScroll()
     {
-        if (!IsFollowLiveEnabled() || !IsProtocolTraceTabActive() || FrameTraceRows.Count == 0)
+        if (!IsFollowLiveEnabled() || !IsProtocolTraceTabActive() ||
+            FrameTraceRows.Count == 0 || IsProtocolTraceSelectionPinned())
         {
             return;
         }
 
+        // No user-selected block or drag may ever be overridden by auto-follow.
         // Follow latest matching row in the filtered view.
         if (FrameTraceGrid is { Items.Count: > 0 } list)
             list.ScrollIntoView(list.Items[list.Items.Count - 1]);
@@ -608,7 +611,8 @@ public partial class MainWindow
 
         // HOLD without a selection is a scrolling preference, NOT a pause
         // of the live line monitor. A selected range pins the rendered window.
-        return _historicalTraceViewActive || _recordedArchiveViewActive;
+        return _historicalTraceViewActive || _recordedArchiveViewActive ||
+               IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()

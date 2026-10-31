@@ -87,6 +87,12 @@ public partial class MainWindow
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Covers keyboard, context menu and programmatic selection as well as
+        // mouse gestures. A selected frame must never be chased by AUTO.
+        if (ReferenceEquals(sender, FrameTraceGrid) &&
+            FrameTraceGrid?.SelectedItems.Count > 0 && IsFollowLiveEnabled())
+            EnterLineMonitorHoldForUserSelection();
+
         if (_isProtocolTraceSelectionBatching && ReferenceEquals(sender, FrameTraceGrid))
         {
             _pendingProtocolTraceSelectionInspectorRefresh = true;

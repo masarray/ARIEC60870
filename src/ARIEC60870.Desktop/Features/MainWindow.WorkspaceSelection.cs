@@ -325,7 +325,13 @@ public partial class MainWindow
         if (sender is not ListBox listBox) return;
         var pointer = e.GetPosition(listBox);
         if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
-            IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
+            IsPointerInsideVerticalScrollbarZone(listBox, pointer))
+        {
+            // Mouse down on scrollbar/track is a manual navigation request,
+            // not a selection, and must disable automatic tail following.
+            EnterLineMonitorHoldForUserSelection();
+            return;
+        }
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
         if (index < 0 || index >= listBox.Items.Count) return;
