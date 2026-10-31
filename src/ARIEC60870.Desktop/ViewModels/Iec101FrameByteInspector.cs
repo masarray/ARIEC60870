@@ -70,7 +70,7 @@ public static class Iec101FrameByteInspector
                 $"RTU {frame.LinkAddress?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
 
         var asdu = evidence.AsduDetails;
-        if (asdu is not null && frame.IsChecksumValid && frame.IsLengthValid &&
+        if (asdu is { Issues.Count: 0 } && frame.IsChecksumValid && frame.IsLengthValid &&
             frame.AsduBytes.SequenceEqual(asdu.RawBytes) &&
             asdu.CotWidth is >= 1 and <= 2 &&
             asdu.CommonAddressWidth is >= 1 and <= 2 &&
