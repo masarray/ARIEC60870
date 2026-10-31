@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Monitor;
+using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop;
 
@@ -110,6 +111,27 @@ public partial class MainWindow
             !beforeArchiveSwitch.SequenceEqual(FrameTraceRows.Select(x => x.Source.EvidenceReference)))
             throw new InvalidOperationException("Search-only scope toggle mutated Trace evidence.");
 
+        // Seed real decoded SOE evidence, not merely an empty Events layout.
+        // This reuses the known-good IEC-101 spontaneous Type 1 wire fixture
+        // from the passive GUI smoke and traverses the production passive
+        // parser/projection path; it never opens a transport or transmits.
+        _passiveLinkAddressWidth = 1;
+        _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
+        for (var i = 0; i < 2; i++)
+        {
+            var eventAsdu = new byte[] { 1, 1, 3, 0, 1, 0, (byte)(7 + i), 0, 0, 1 };
+            var eventPayload = new byte[] { 0x08, 0x69 }.Concat(eventAsdu).ToArray();
+            var eventWire = new byte[] { 0x68, (byte)eventPayload.Length, (byte)eventPayload.Length, 0x68 }
+                .Concat(eventPayload)
+                .Concat(new byte[] { (byte)(eventPayload.Sum(x => x) & 0xff), 0x16 })
+                .ToArray();
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1430 + i) * 5L,
+                baseline.AddMilliseconds((1430 + i) * 40d), "Variable", true, eventWire));
+        }
+        FlushUiQueues();
+        if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
+            throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
+
         var layouts = new (string Name, double Width, double Height)[]
         {
             ("desktop-1540x960", 1540, 960),
@@ -199,8 +221,8 @@ public partial class MainWindow
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
-                if (_relayEventStore.Snapshot().Count() > 0 && RelayEventRows.Count == 0)
-                    throw new InvalidOperationException("Stored SOE records are not projected to the unfiltered Event grid.");
+                if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
+                    throw new InvalidOperationException("The Event screenshot is missing required decoded spontaneous test rows.");
                 if (RelayEventRows.Count > 0)
                 {
                     var lastEvent = RelayEventRows[RelayEventRows.Count - 1];
@@ -222,7 +244,7 @@ public partial class MainWindow
             JsonSerializer.Serialize(new
             {
                 baselineMaster = "OBS-P0 Stage C acceptance",
-                totalSyntheticFrames = 1430,
+                totalSyntheticFrames = 1432,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,
