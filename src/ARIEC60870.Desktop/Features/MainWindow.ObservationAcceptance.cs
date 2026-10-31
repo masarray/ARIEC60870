@@ -218,6 +218,8 @@ public partial class MainWindow
                 TraceArchiveSearchBar.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Two Trace search surfaces are simultaneously displayed.");
             AssertTraceCountInSync();
+            AssertOneLineToolbar(TraceWindowSearchBar, TraceQuickCountText,
+                TraceAutoScrollButton, FrameTraceGrid, "Trace", 9);
 
             // GitHub-hosted runners may clamp top-level WPF windows to the
             // actual desktop work area. Recording a 1540x960 *request* is not
@@ -271,6 +273,8 @@ public partial class MainWindow
             UpdateLayout();
             if (view.Index == 2)
             {
+                AssertOneLineToolbar(ValuesQuickFindBox, ValuesQuickCountText,
+                    null, ValueGrid, "Values", 11);
                 if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
                     ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
                     SelectedValueContextText.IsVisible ||
@@ -326,6 +330,8 @@ public partial class MainWindow
             }
             if (view.Index == 3)
             {
+                AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
+                    EventsAutoScrollButton, RelayEventGrid, "Events", 9);
                 if (!EventsAutoScrollButton.IsVisible ||
                     EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
@@ -410,6 +416,7 @@ public partial class MainWindow
                 interpretedPointRows,
                 pointToWireNavigationPassed = true,
                 gridFirstToolbarPassed = true,
+                searchAndAutoSameBaselinePassed = true,
                 digitalStateBadgesPassed = true,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
@@ -423,6 +430,35 @@ public partial class MainWindow
                 passedScope = "Actual rendered CI window sizes, bounded collection/selection and visible Event row checks only. Constrained requested sizes and physical DPI require separate acceptance.",
                 layoutSnapshots = metrics
             }, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
+    /// Assert actual rendered WPF Y coordinates, not just shared Grid.Row in XAML:
+    /// search, counter and follow toggle must have the SAME baseline and
+    /// the data viewport must start immediately below a 32px toolbar.
+    /// This prevents a future two-row regression hiding in a valid build.
+    /// </summary>
+    private void AssertOneLineToolbar(FrameworkElement search, FrameworkElement count,
+        FrameworkElement? follow, FrameworkElement dataGrid, string workspace, double maxGap)
+    {
+        if (!search.IsVisible || !count.IsVisible || (follow is not null && !follow.IsVisible))
+            throw new InvalidOperationException(workspace + " header control missing from rendered WPF.");
+        static double MidY(FrameworkElement x, Visual window) =>
+            x.TranslatePoint(new Point(0, x.ActualHeight / 2), window).Y;
+
+        var searchY = MidY(search, this);
+        var countY = MidY(count, this);
+        var followY = follow is null ? searchY : MidY(follow, this);
+        if (search.ActualWidth < 80 || search.ActualHeight < 20 ||
+            Math.Abs(searchY - countY) > 3 ||
+            Math.Abs(searchY - followY) > 3)
+            throw new InvalidOperationException(
+                $"{workspace} header not aligned in one row: search={searchY:0.0} count={countY:0.0} AUTO={followY:0.0}; width={search.ActualWidth:0}.");
+        var headerBottom = search.TranslatePoint(new Point(0, search.ActualHeight), this).Y;
+        var gridTop = dataGrid.TranslatePoint(new Point(0, 0), this).Y;
+        if (gridTop - headerBottom > maxGap + 1 || gridTop < headerBottom)
+            throw new InvalidOperationException(
+                $"{workspace} header is consuming unexpected vertical space: bottom={headerBottom:0.0} grid-top={gridTop:0.0}.");
     }
 
     private void AssertTraceCountInSync()

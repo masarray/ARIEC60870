@@ -153,3 +153,9 @@ Grid virtualized cells use one consistent no-wrap text and declarative style tri
 
 The shared `EvidenceFollowToggle` style must **never** collapse itself when checked. Follow ON uses selected accent background, follow OFF stays visible with a neutral border. Trace and Events display the control in their compact search-first chrome; Events includes a small `AUTO` label. A disappearing follow button previously made the most important observation control inaccessible whenever it was enabled. The Windows rendered-WPF acceptance checks actual `IsVisible`, not only the logical `Visibility` enum.
 
+## UX-HEADER-ALIGN-02 — one 32-DIP line, no second Trace header row (2026-10-31)
+
+**Operator acceptance rule:** Search, filtered count and AUTO follow must share the same center Y coordinate (±3 DIP) in every visible Trace and Events workspace. Values Search/count uses the same 32-DIP header height, with no fake AUTO control on a point snapshot. All three align along left responsive search (maximum 242 DIP), text count, and right follow when applicable. Trace's former independent "Frame timeline + AUTO" row was removed; the redundant frame caption is retained only as counter tooltip and updated by the existing exact-history state machine. Trace current-window search no longer uses a fixed 270px border inside a horizontal ScrollViewer (which clipped on narrow view); instead the header grid provides star sizing without horizontal scrolling. Session-history paging remains conditionally accessible; separate archive search can expand only when explicitly chosen.
+
+The Windows WPF acceptance must inspect actual rendered search/count/AUTO Y centers and top-of-grid distance after layout at all viewport requests (including the CI runner's constrained real work area), rejecting a second row or invisible follow control. No extra timer, animation, receive parser or protocol-state changes.
+
