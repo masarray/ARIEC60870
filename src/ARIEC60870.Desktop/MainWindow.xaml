@@ -433,8 +433,8 @@
                                         <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
                                     </Border>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavFrameButton" Content="RAW FRAME" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />

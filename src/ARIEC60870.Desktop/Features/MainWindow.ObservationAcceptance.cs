@@ -39,9 +39,12 @@ public partial class MainWindow
 
         // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
-        if (TraceQuickScopeCombo.SelectedIndex != 1)
+        if (TraceQuickScopeCombo.SelectedIndex != 1 ||
+            MainTabControl.SelectedIndex != 1 ||
+            !Equals(NavFrameButton.Content, "RAW FRAME") ||
+            !ReferenceEquals(GetSegmentedNavButtons().FirstOrDefault(), NavFrameButton))
             throw new InvalidOperationException(
-                "Trace must default to ALL TX/RX frames, never the lossy Focus view.");
+                "RAW FRAME must be first/default with the unfiltered TX/RX timeline.");
         // Selected-tab capsule must not paint the old bright blue border.
         if (NavFrameButton.BorderBrush is SolidColorBrush navBorder &&
             navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)

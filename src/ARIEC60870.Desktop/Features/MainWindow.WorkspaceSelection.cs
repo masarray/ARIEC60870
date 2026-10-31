@@ -92,8 +92,8 @@ public partial class MainWindow
     private Button[] GetSegmentedNavButtons()
         => new[]
         {
-            NavDualLinkButton,
             NavFrameButton,
+            NavDualLinkButton,
             NavValueButton,
             NavEventButton,
             NavFindingsButton,
@@ -120,7 +120,7 @@ public partial class MainWindow
         if (isPassive101)
         {
             // Monitor is a data source, not a separate UX: reuse ordinary analysis views.
-            NavFrameButton.Content = "Frame Trace";
+            NavFrameButton.Content = "RAW FRAME";
             NavEventButton.Content = "Event Log";
             NavValueButton.Content = "Values";
             NavOperatorButton.Content = "Messages";
@@ -146,7 +146,7 @@ public partial class MainWindow
         NavOperatorButton.Content = "Evidence Ledger";
         NavTriggersButton.Content = "Capture Policy";
         NavDualLinkButton.Content = "Redundancy";
-        NavFrameButton.Content = "Trace";
+        NavFrameButton.Content = "RAW FRAME";
         NavValueButton.Content = "Values";
         NavEventButton.Content = "Events";
         NavFindingsButton.Content = "Findings";
@@ -172,7 +172,7 @@ public partial class MainWindow
 
         if (isDual101 && MainTabControl.SelectedIndex is 0 or 5 or 7 or 8)
         {
-            MainTabControl.SelectedIndex = 9;
+            MainTabControl.SelectedIndex = 1;
         }
         else if (!isDual101 && (MainTabControl.SelectedIndex == 9 || MainTabControl.SelectedIndex is 0 or 5 or 7 or 8))
         {
