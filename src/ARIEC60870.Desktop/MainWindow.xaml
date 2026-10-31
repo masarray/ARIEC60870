@@ -1814,62 +1814,81 @@
                     <TabItem Header="Control Cases">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="6"/>
                                 <RowDefinition Height="2*"/>
-                                <RowDefinition Height="9"/>
+                                <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="24"/>
                             </Grid.RowDefinitions>
-                            <DockPanel>
-                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="18,0,0,0">
-                                    <Button Content="Copy Case for Analysis" Style="{StaticResource SecondaryButton}"
-                                            Click="ControlCaseCopy_Click" Margin="0,0,8,0"
-                                            ToolTip="Copy exact observed stages, original raw HEX and source references to clipboard; no upload."/>
-                                    <Button Content="Open Source Frame" Style="{StaticResource SecondaryButton}"
-                                            Click="ControlCaseJump_Click"
-                                            ToolTip="Open the selected command stage in Trace, if retained in the bounded preview."/>
-                                </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="Control cases" FontSize="15.4" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
-                                    <TextBlock Text="Observed Master → RTU stages · negative confirmations · target feedback · incomplete evidence"
-                                               Style="{StaticResource SubtleText}" Margin="0,3,0,0"/>
-                                </StackPanel>
-                            </DockPanel>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,5,0,4">
-                                <Border Width="242" Height="32" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search control by IOA, status, target or source">
-                                    <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="Controls" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
-                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform" />
-                                        </Button>
-                                        <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
-                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                              Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="ControlsQuickFindBox" BorderThickness="0" Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged" ToolTip="Search control by IOA, status, target or source"/>
-                                    </DockPanel>
-                                </Border>
-                                <TextBlock x:Name="ControlsQuickCountText" Text="Control cases" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                            </StackPanel>
-                            <DataGrid x:Name="ControlCasesGrid" Grid.Row="2" ItemsSource="{Binding ControlCaseRows}"
+                            <!-- Compact single-line case toolbar: Search flush left | actual count right.
+                                 Copy/open original frame live on both case and stage context menus. -->
+                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="242"/></Grid.ColumnDefinitions>
+                                    <Border x:Name="ControlsSearchShell" Grid.Column="0"
+                                            Height="32" BorderBrush="#CBD5E1"
+                                            BorderThickness="1" CornerRadius="8" Background="White"
+                                            ToolTip="Search control IOA, target, case, status and source">
+                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
+                                            <Button DockPanel.Dock="Right" Tag="Controls" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
+                                                <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
+                                                      Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
+                                            </Button>
+                                            <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
+                                                  Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                  Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="ControlsQuickFindBox" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5" Foreground="#334155"
+                                                     VerticalContentAlignment="Center" TextChanged="QuickFindTextChanged"/>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+                                <TextBlock x:Name="ControlsQuickCountText" Grid.Column="1"
+                                           Text="Control cases"
+                                           FontSize="11.1" Foreground="#64748B" VerticalAlignment="Center"
+                                           MaxWidth="165" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
+                            <DataGrid x:Name="ControlCasesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="ControlCaseJump_Click" Grid.Row="2" ItemsSource="{Binding ControlCaseRows}"
                                       AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                                       FontSize="12.5" RowHeight="34" SelectionChanged="ControlCases_SelectionChanged"
                                       EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open selected original frame" Click="ControlCaseJump_Click"/>
+                                        <MenuItem Header="Copy source-backed command case evidence" Click="ControlCaseCopy_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Copy selected grid row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
+                                                  CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Case" Binding="{Binding CaseId}" Width="62"/>
-                                    <DataGridTextColumn Header="Host time" Binding="{Binding FirstTime}" Width="114"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="184"/>
-                                    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
-                                    <DataGridTextColumn Header="CA / IOA / TI" Binding="{Binding Address}" Width="195"/>
-                                    <DataGridTextColumn Header="Requested target" Binding="{Binding Target}" Width="165"/>
-                                    <DataGridTextColumn Header="Evidence meaning" Binding="{Binding Interpretation}" Width="*" MinWidth="150"/>
+                                    <DataGridTextColumn Header="Case" Binding="{Binding CaseId}" Width="52"/>
+                                    <DataGridTextColumn Header="Host time" Binding="{Binding FirstTime}" Width="104"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.25*" MinWidth="130"/>
+                                    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="77"/>
+                                    <DataGridTextColumn Header="CA / IOA / TI" Binding="{Binding Address}" Width="1.3*" MinWidth="132"/>
+                                    <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="1*" MinWidth="100"/>
+                                    <DataGridTextColumn Header="Evidence" Binding="{Binding Interpretation}" Width="1.8*" MinWidth="135"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <DataGrid x:Name="ControlCaseStagesGrid" Grid.Row="4" ItemsSource="{Binding ControlCaseStages}"
+                            <DataGrid x:Name="ControlCaseStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="ControlCaseJump_Click" Grid.Row="4" ItemsSource="{Binding ControlCaseStages}"
                                       AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" FontSize="12.5"
                                       EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open selected stage's original frame" Click="ControlCaseJump_Click"/>
+                                        <MenuItem Header="Copy source-backed command case evidence" Click="ControlCaseCopy_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Copy selected grid row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
+                                                  CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Host UTC" Binding="{Binding HostUtc, StringFormat={}{0:HH:mm:ss.fff}}" Width="123"/>
                                     <DataGridTextColumn Header="TX / RX" Binding="{Binding Direction}" Width="66"/>
@@ -1880,73 +1899,94 @@
                                     <DataGridTextColumn Header="Interpretation" Binding="{Binding Explanation}" Width="*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock x:Name="ControlCaseDetailsBox" Grid.Row="5" Text="Select a command case." TextWrapping="Wrap"
-                                       Foreground="{StaticResource Ink600Brush}" FontSize="12.3" Margin="4,9,4,2"/>
+                            <TextBlock x:Name="ControlCaseDetailsBox" Grid.Row="5" Text="Select a command case." TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="22"
+                                       Foreground="{StaticResource Ink600Brush}" FontSize="12.3" Margin="4,2,4,0"/>
                         </Grid>
                     </TabItem>
 
                     <TabItem Header="GI Conversations">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="6"/>
                                 <RowDefinition Height="2*"/>
-                                <RowDefinition Height="9"/>
+                                <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="24"/>
                             </Grid.RowDefinitions>
-                            <DockPanel>
-                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="12,0,0,0">
-                                    <Button Content="Copy GI Evidence" Style="{StaticResource SecondaryButton}" Click="GiCaseCopy_Click"
-                                            Margin="0,0,8,0" ToolTip="Copy observed stage references, data counts and uncertainty" />
-                                    <Button Content="Open Source Frame" Style="{StaticResource SecondaryButton}" Click="GiCaseJump_Click"
-                                            ToolTip="Find selected GI stage in the bounded Frame Trace" />
-                                </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="GI conversations" FontSize="15.4" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
-                                    <TextBlock Text="Source-matched requests · ACTCON · data objects · ACTTERM · unknown coverage"
-                                               Style="{StaticResource SubtleText}" Margin="0,3,0,0"/>
-                                </StackPanel>
-                            </DockPanel>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,5,0,4">
-                                <Border Width="242" Height="32" Margin="0,0,8,0" CornerRadius="8" BorderBrush="#CBD5E1" BorderThickness="1" Background="White" ToolTip="Search GI by station, group, source or status">
-                                    <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button DockPanel.Dock="Right" Tag="GI" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
-                                                  Width="13" Height="13" Fill="#64748B" Stretch="Uniform" />
-                                        </Button>
-                                        <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
-                                              Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                              Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="GiQuickFindBox" BorderThickness="0" Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155" VerticalContentAlignment="Center"
-                                                 TextChanged="QuickFindTextChanged" ToolTip="Search GI by station, group, source or status"/>
-                                    </DockPanel>
-                                </Border>
-                                <TextBlock x:Name="GiQuickCountText" Text="GI cases" VerticalAlignment="Center" Foreground="#64748B" FontSize="11.4"/>
-                            </StackPanel>
-                            <DataGrid x:Name="GiCasesGrid" Grid.Row="2" ItemsSource="{Binding GiCaseRows}"
+                            <!-- Compact single-line case toolbar: Search flush left | actual count right.
+                                 Copy/open original frame live on both case and stage context menus. -->
+                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="140"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="242"/></Grid.ColumnDefinitions>
+                                    <Border x:Name="GISearchShell" Grid.Column="0"
+                                            Height="32" BorderBrush="#CBD5E1"
+                                            BorderThickness="1" CornerRadius="8" Background="White"
+                                            ToolTip="Search GI station, group, source, status and evidence">
+                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
+                                            <Button DockPanel.Dock="Right" Tag="GI" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
+                                                <Path Data="M19,6.41 L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12 Z"
+                                                      Width="13" Height="13" Fill="#64748B" Stretch="Uniform"/>
+                                            </Button>
+                                            <Path DockPanel.Dock="Left" Data="M21,21 L16.65,16.65 M18,10.5 A7.5,7.5 0 1 1 3,10.5 A7.5,7.5 0 0 1 18,10.5"
+                                                  Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                  Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="GiQuickFindBox" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5" Foreground="#334155"
+                                                     VerticalContentAlignment="Center" TextChanged="QuickFindTextChanged"/>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+                                <TextBlock x:Name="GiQuickCountText" Grid.Column="1"
+                                           Text="GI cases"
+                                           FontSize="11.1" Foreground="#64748B" VerticalAlignment="Center"
+                                           MaxWidth="165" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
+                            <DataGrid x:Name="GiCasesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="2" ItemsSource="{Binding GiCaseRows}"
                                       AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                                       FontSize="12.3" RowHeight="32" SelectionChanged="GiCases_SelectionChanged"
                                       EnableRowVirtualization="True" EnableColumnVirtualization="True"
                                       VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open selected original frame" Click="GiCaseJump_Click"/>
+                                        <MenuItem Header="Copy source-backed GI case evidence" Click="GiCaseCopy_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Copy selected grid row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
+                                                  CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="GI #" Binding="{Binding CaseId}" Width="56"/>
-                                    <DataGridTextColumn Header="Station / group" Binding="{Binding Description}" Width="205"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="245"/>
-                                    <DataGridTextColumn Header="Frames" Binding="{Binding DataFrames}" Width="70"/>
-                                    <DataGridTextColumn Header="Objects" Binding="{Binding DataObjects}" Width="70"/>
-                                    <DataGridTextColumn Header="IOAs" Binding="{Binding UniqueIoas}" Width="62"/>
-                                    <DataGridTextColumn Header="Invalid" Binding="{Binding InvalidQualityObjects}" Width="70"/>
-                                    <DataGridTextColumn Header="C1 polls" Binding="{Binding Class1Requests}" Width="77"/>
-                                    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
+                                    <DataGridTextColumn Header="GI" Binding="{Binding CaseId}" Width="46"/>
+                                    <DataGridTextColumn Header="Station / QOI" Binding="{Binding Description}" Width="1.5*" MinWidth="130"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.35*" MinWidth="125"/>
+                                    <DataGridTextColumn Header="Frames" Binding="{Binding DataFrames}" Width="58"/>
+                                    <DataGridTextColumn Header="Objects" Binding="{Binding DataObjects}" Width="60"/>
+                                    <DataGridTextColumn Header="IOAs" Binding="{Binding UniqueIoas}" Width="54"/>
+                                    <DataGridTextColumn Header="Bad Q" Binding="{Binding InvalidQualityObjects}" Width="56"/>
+                                    <DataGridTextColumn Header="C1" Binding="{Binding Class1Requests}" Width="45"/>
+                                    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="78"/>
                                     <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <DataGrid x:Name="GiStagesGrid" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
+                            <DataGrid x:Name="GiStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
                                       AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                                       FontSize="12.3" EnableRowVirtualization="True"
                                       VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open selected stage's original frame" Click="GiCaseJump_Click"/>
+                                        <MenuItem Header="Copy source-backed GI case evidence" Click="GiCaseCopy_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Copy selected grid row(s)" Command="{x:Static input:ApplicationCommands.Copy}"
+                                                  CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Host UTC" Binding="{Binding HostUtc, StringFormat={}{0:HH:mm:ss.fff}}" Width="120"/>
                                     <DataGridTextColumn Header="TX/RX" Binding="{Binding Direction}" Width="65"/>
@@ -1956,7 +1996,7 @@
                                 </DataGrid.Columns>
                             </DataGrid>
                             <TextBlock x:Name="GiCaseDetailsBox" Grid.Row="5" Text="Select GI conversation. ACTTERM never proves complete point coverage."
-                                       TextWrapping="Wrap" Foreground="{StaticResource Ink600Brush}" FontSize="12.2" Margin="4,9,4,2"/>
+                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="22" Foreground="{StaticResource Ink600Brush}" FontSize="12.2" Margin="4,2,4,0"/>
                         </Grid>
                     </TabItem>
 

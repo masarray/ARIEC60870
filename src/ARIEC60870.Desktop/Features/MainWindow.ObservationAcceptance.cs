@@ -330,6 +330,28 @@ public partial class MainWindow
                 MainTabControl.SelectedIndex = 2;
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
             }
+            if (view.Index == 11)
+            {
+                AssertOneLineToolbar(ControlsSearchShell, ControlsQuickCountText,
+                    null, ControlCasesGrid, "Control cases", 9);
+                AssertSearchFlushLeft(ControlsSearchShell, ControlCasesGrid, "Control cases");
+                if (ControlCasesGrid.ContextMenu?.Items.Count < 2 ||
+                    ControlCaseStagesGrid.ContextMenu?.Items.Count < 2)
+                    throw new InvalidOperationException("Controls context actions missing.");
+                if (ControlCasesGrid.ActualHeight < 100 || ControlCaseStagesGrid.ActualHeight < 70)
+                    throw new InvalidOperationException("Controls case/stage grid lost usable workspace.");
+            }
+            if (view.Index == 12)
+            {
+                AssertOneLineToolbar(GISearchShell, GiQuickCountText,
+                    null, GiCasesGrid, "GI cases", 9);
+                AssertSearchFlushLeft(GISearchShell, GiCasesGrid, "GI cases");
+                if (GiCasesGrid.ContextMenu?.Items.Count < 2 ||
+                    GiStagesGrid.ContextMenu?.Items.Count < 2)
+                    throw new InvalidOperationException("GI context actions missing.");
+                if (GiCasesGrid.ActualHeight < 100 || GiStagesGrid.ActualHeight < 70)
+                    throw new InvalidOperationException("GI case/stage grid lost usable workspace.");
+            }
             if (view.Index == 3)
             {
                 AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
