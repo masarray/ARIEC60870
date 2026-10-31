@@ -116,8 +116,9 @@ jobs:
           & $exe list-ports
           if ($LASTEXITCODE -ne 0) { throw 'Field CLI inventory failed.' }
           # Fail-closed preflight, no hardware opened; deliberate absent COM pair.
-          & $exe preflight --scada-com COM601 --rtu-com COM602 --output $env:RUNNER_TEMP --seconds 2
-          if ($LASTEXITCODE -ne 3) { throw 'Absent COM preflight must fail closed with exit 3.' }
+          $missingPortArgs = @('preflight', '--scada-com', 'COM601', '--rtu-com', 'COM602', '--output', $env:RUNNER_TEMP, '--seconds', '2')
+          $missingPortProbe = Start-Process -FilePath $exe -ArgumentList $missingPortArgs -Wait -PassThru -NoNewWindow
+          if ($missingPortProbe.ExitCode -ne 3) { throw "Absent COM preflight must fail closed with exit 3; got $($missingPortProbe.ExitCode)." }
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           Copy-Item 'docs/IEC101_FIELD_RX_FAT_QUICKSTART.md' (Join-Path $publish 'START_HERE_FIELD_FAT.md') -Force
           Copy-Item 'LICENSE' (Join-Path $publish 'LICENSE') -Force
