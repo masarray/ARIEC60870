@@ -660,12 +660,17 @@
                                                ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <!-- Retained named controls for existing session-history state;
+                                             their permanent host is collapsed. History paging is on
+                                             the frame context menu, never a width-consuming toolbar. -->
+                                        <StackPanel Orientation="Horizontal" Visibility="Collapsed">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,5,0" Padding="7,3" ToolTip="Older source frames in session history"/>
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,7,0" Padding="7,3" ToolTip="Newer source frames in session history"/>
+                                        </StackPanel>
                                         <Button x:Name="TraceInspectorToggle" Content="Hide details"
                                                 Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click"
                                                 Visibility="Collapsed"/>
@@ -732,6 +737,11 @@
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
+                                            <MenuItem x:Name="TraceOlderContextMenuItem" Header="‹ Older session frames"
+                                                      Visibility="Collapsed" Click="TraceOlder_Click"/>
+                                            <MenuItem x:Name="TraceNewerContextMenuItem" Header="Newer session frames ›"
+                                                      Visibility="Collapsed" Click="TraceNewer_Click"/>
+                                            <Separator/>
                                             <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
                                             <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
                                                       ToolTip="Copy this frame, or all Ctrl/Shift-selected frames, as plain text to the clipboard." />

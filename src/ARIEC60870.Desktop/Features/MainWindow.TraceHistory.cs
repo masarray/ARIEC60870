@@ -21,6 +21,8 @@ public partial class MainWindow
         _historicalTraceViewActive = false;
         if (TraceOlderButton is not null) TraceOlderButton.Visibility = Visibility.Collapsed;
         if (TraceNewerButton is not null) TraceNewerButton.Visibility = Visibility.Collapsed;
+        if (TraceOlderContextMenuItem is not null) TraceOlderContextMenuItem.Visibility = Visibility.Collapsed;
+        if (TraceNewerContextMenuItem is not null) TraceNewerContextMenuItem.Visibility = Visibility.Collapsed;
         if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
         var history = _passiveFrameHistory;
         _passiveFrameHistory = null;
@@ -88,6 +90,8 @@ public partial class MainWindow
         FrameTimelineCaption.Text = $"Session history · {rows.Count} frames";
         TraceOlderButton.Visibility = Visibility.Visible;
         TraceNewerButton.Visibility = Visibility.Visible;
+        TraceOlderContextMenuItem.Visibility = Visibility.Visible;
+        TraceNewerContextMenuItem.Visibility = Visibility.Visible;
         FrameTraceGrid.SelectedItems.Clear();
         FrameTraceGrid.SelectedItem = original;
         FrameTraceGrid.ScrollIntoView(original);
@@ -146,6 +150,8 @@ public partial class MainWindow
                 "Link A", Iec60870ProtocolMode.Iec101) ||
                 MainTabControl.SelectedIndex != 1 || !_historicalTraceViewActive ||
                 FrameTraceGrid.SelectedItem is not EvidenceRow reject ||
+                TraceOlderContextMenuItem.Visibility != Visibility.Visible ||
+                TraceNewerContextMenuItem.Visibility != Visibility.Visible ||
                 reject.Source.PhysicalStreamId != 1 || reject.Source.RawStreamOffset != 3810 ||
                 reject.Source.TypeId != 46 || reject.Source.CauseOfTransmission != 7 ||
                 FrameTraceRows.Count < 2 ||

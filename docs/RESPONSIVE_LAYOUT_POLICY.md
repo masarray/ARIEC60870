@@ -159,3 +159,5 @@ The shared `EvidenceFollowToggle` style must **never** collapse itself when chec
 
 The Windows WPF acceptance must inspect actual rendered search/count/AUTO Y centers and top-of-grid distance after layout at all viewport requests (including the CI runner's constrained real work area), rejecting a second row or invisible follow control. No extra timer, animation, receive parser or protocol-state changes.
 
+**History-width negative case:** Older/Newer navigation is not allowed to consume any of the 32-DIP live toolbar width, even when the trace inspector is open and the trace pane reaches its 300-DIP minimum. Both named history buttons are retained in a permanently collapsed host for backward compatibility; source-scoped Older/Newer actions are exposed on the Trace right-click context menu only during an active historical window. The existing actual-WPF session-history acceptance checks the menu items' visibility and exact-frame navigation. Returning live hides history-only actions again. Search, count and AUTO retain one baseline in either mode.
+
