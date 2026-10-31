@@ -120,7 +120,7 @@ public partial class MainWindow
         if (isPassive101)
         {
             // Monitor is a data source, not a separate UX: reuse ordinary analysis views.
-            NavFrameButton.Content = "RAW FRAME";
+            NavFrameButton.Content = "Raw Frames";
             NavEventButton.Content = "Event Log";
             NavValueButton.Content = "Values";
             NavOperatorButton.Content = "Messages";
@@ -146,7 +146,7 @@ public partial class MainWindow
         NavOperatorButton.Content = "Evidence Ledger";
         NavTriggersButton.Content = "Capture Policy";
         NavDualLinkButton.Content = "Redundancy";
-        NavFrameButton.Content = "RAW FRAME";
+        NavFrameButton.Content = "Raw Frames";
         NavValueButton.Content = "Values";
         NavEventButton.Content = "Events";
         NavFindingsButton.Content = "Findings";
@@ -324,8 +324,15 @@ public partial class MainWindow
     {
         if (sender is not ListBox listBox) return;
         var pointer = e.GetPosition(listBox);
+        _rawViewportGeneration++; // pointer gesture supersedes queued restoration
         if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
-            IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
+            IsPointerInsideVerticalScrollbarZone(listBox, pointer))
+        {
+            // Mouse down on scrollbar/track is a manual navigation request,
+            // not a selection, and must disable automatic tail following.
+            EnterLineMonitorHoldForUserSelection();
+            return;
+        }
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
         if (index < 0 || index >= listBox.Items.Count) return;

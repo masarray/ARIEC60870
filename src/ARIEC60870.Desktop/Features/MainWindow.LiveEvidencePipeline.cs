@@ -306,7 +306,10 @@ public partial class MainWindow
         // User-driven wheel navigation must stop following the tail immediately.
         // Do not mark Handled: WPF still performs its normal scrolling.
         if (e.Delta != 0 && IsProtocolTraceTabActive())
+        {
+            _rawViewportGeneration++; // operator wheel supersedes queued restoration
             EnterLineMonitorHoldForUserSelection();
+        }
     }
 
     private void EventsScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
@@ -442,7 +445,8 @@ public partial class MainWindow
         }
         else
         {
-            _protocolTraceViewDirtyWhileFrozen = true;
+            // Turning follow OFF must not force a fresh snapshot/reconcile:
+            // it is a viewport-only change, never an acquisition pause.
             _evidenceSummaryViewDirtyWhileFrozen = true;
             if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
             {
@@ -538,11 +542,13 @@ public partial class MainWindow
 
     private void ScrollLatestProtocolTraceIfAutoScroll()
     {
-        if (!IsFollowLiveEnabled() || !IsProtocolTraceTabActive() || FrameTraceRows.Count == 0)
+        if (!IsFollowLiveEnabled() || !IsProtocolTraceTabActive() ||
+            FrameTraceRows.Count == 0 || IsProtocolTraceSelectionPinned())
         {
             return;
         }
 
+        // No user-selected block or drag may ever be overridden by auto-follow.
         // Follow latest matching row in the filtered view.
         if (FrameTraceGrid is { Items.Count: > 0 } list)
             list.ScrollIntoView(list.Items[list.Items.Count - 1]);
@@ -608,7 +614,8 @@ public partial class MainWindow
 
         // HOLD without a selection is a scrolling preference, NOT a pause
         // of the live line monitor. A selected range pins the rendered window.
-        return _historicalTraceViewActive || _recordedArchiveViewActive;
+        return _historicalTraceViewActive || _recordedArchiveViewActive ||
+               IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
@@ -680,6 +687,84 @@ public partial class MainWindow
         if (AutoScrollLatestToggleButton is not null)
             AutoScrollLatestToggleButton.IsChecked = true;
         UpdateAutoScrollLatestRailVisual();
+    }
+
+    private readonly record struct RawViewportAnchor(EvidenceRow Row, double Top);
+
+    private bool _rawViewportRestoreQueued;
+    private int _rawViewportGeneration;
+
+    // Capture only realized WPF rows; no source-wide 1200-item scan,
+    // no worker and no second data projection. Called only when the ring
+    // must evict old rows while the operator has disabled auto-follow.
+    private RawViewportAnchor? CaptureRawViewportAnchor()
+    {
+        if (!IsProtocolTraceTabActive() || IsFollowLiveEnabled() ||
+            _isProtocolTraceDragSelecting || FrameTraceGrid is not { IsVisible: true } list)
+            return null;
+
+        ListBoxItem? topItem = null;
+        var top = double.PositiveInfinity;
+        void Visit(DependencyObject node)
+        {
+            if (node is ListBoxItem item)
+            {
+                if (item.DataContext is not EvidenceRow || item.ActualHeight <= 0) return;
+                var y = item.TranslatePoint(new Point(), list).Y;
+                if (y + item.ActualHeight > 0 && y < list.ActualHeight && y < top)
+                {
+                    topItem = item;
+                    top = y;
+                }
+                return;
+            }
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+                Visit(VisualTreeHelper.GetChild(node, i));
+        }
+        Visit(list);
+        return topItem?.DataContext is EvidenceRow row ? new RawViewportAnchor(row, top) : null;
+    }
+
+    private void RestoreRawViewportAnchor(RawViewportAnchor? anchor)
+    {
+        if (anchor is not { } value || _rawViewportRestoreQueued) return;
+        _rawViewportRestoreQueued = true;
+        var generation = _rawViewportGeneration;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _rawViewportRestoreQueued = false;
+            if (generation != _rawViewportGeneration || IsFollowLiveEnabled() ||
+                _isProtocolTraceDragSelecting || !IsProtocolTraceTabActive() ||
+                !FrameTraceRows.Contains(value.Row)) return;
+            var list = FrameTraceGrid;
+            var viewer = FindTraceScrollViewer(list);
+            if (viewer is null) return;
+            if (list.ItemContainerGenerator.ContainerFromItem(value.Row) is not ListBoxItem item)
+            {
+                // Realize the original exact row only if a rolling-ring trim
+                // displaced it from the viewport. Never select/focus it.
+                list.ScrollIntoView(value.Row);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (generation != _rawViewportGeneration || IsFollowLiveEnabled() ||
+                        _isProtocolTraceDragSelecting) return;
+                    AlignRawViewport(value, list, viewer);
+                }), DispatcherPriority.Loaded);
+            }
+            else
+            {
+                AlignRawViewport(value, list, viewer);
+            }
+        }), DispatcherPriority.Loaded);
+    }
+
+    private static void AlignRawViewport(RawViewportAnchor anchor, ListBox list, ScrollViewer viewer)
+    {
+        if (list.ItemContainerGenerator.ContainerFromItem(anchor.Row) is not ListBoxItem item)
+            return;
+        var shift = item.TranslatePoint(new Point(), list).Y - anchor.Top;
+        if (double.IsFinite(shift) && Math.Abs(shift) > 1.25)
+            viewer.ScrollToVerticalOffset(Math.Max(0, viewer.VerticalOffset + shift));
     }
 
     // A bounded live preview can preserve a small selected range while still
@@ -764,9 +849,16 @@ public partial class MainWindow
                 }
                 else
                 {
+                    // Preserve visual reading position, never source reception.
+                    // Only capture/restore when a bounded trim could displace
+                    // the manual viewport; no work on normal follow batches.
+                    var restore = FrameTraceRows.Count + _pendingProtocolTraceUiRows.Count >
+                                  MaxVisibleFrameTraceRows
+                        ? CaptureRawViewportAnchor() : null;
                     FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
                     _pendingProtocolTraceUiRows.Clear();
                     TrimLiveTraceWithoutDroppingNewFrames();
+                    RestoreRawViewportAnchor(restore);
                 }
                 ScrollLatestProtocolTraceIfAutoScroll();
             }
