@@ -185,7 +185,7 @@ public partial class MainWindow
                 : "LEGACY UNVERIFIED · manifest hash unavailable";
             TraceRecordedStatusText.Text =
                 $"Matches {first:N0}–{last:N0} / {result.MatchingRows:N0} · {result.TotalRows:N0} scanned · " +
-                trust + " · verified indexed snapshot (no ZIP rescan per page)";
+                trust + " · indexed read-only snapshot (no ZIP rescan per page)";
             TraceRecordedPrevButton.IsEnabled = requestedPage > 0;
             TraceRecordedNextButton.IsEnabled = last < result.MatchingRows;
         }
