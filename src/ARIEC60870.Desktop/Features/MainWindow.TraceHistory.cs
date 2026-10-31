@@ -23,6 +23,7 @@ public partial class MainWindow
         if (TraceNewerButton is not null) TraceNewerButton.Visibility = Visibility.Collapsed;
         if (TraceOlderContextMenuItem is not null) TraceOlderContextMenuItem.Visibility = Visibility.Collapsed;
         if (TraceNewerContextMenuItem is not null) TraceNewerContextMenuItem.Visibility = Visibility.Collapsed;
+        if (TraceHistoryMenuDivider is not null) TraceHistoryMenuDivider.Visibility = Visibility.Collapsed;
         if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
         var history = _passiveFrameHistory;
         _passiveFrameHistory = null;
@@ -92,6 +93,7 @@ public partial class MainWindow
         TraceNewerButton.Visibility = Visibility.Visible;
         TraceOlderContextMenuItem.Visibility = Visibility.Visible;
         TraceNewerContextMenuItem.Visibility = Visibility.Visible;
+        TraceHistoryMenuDivider.Visibility = Visibility.Visible;
         FrameTraceGrid.SelectedItems.Clear();
         FrameTraceGrid.SelectedItem = original;
         FrameTraceGrid.ScrollIntoView(original);
