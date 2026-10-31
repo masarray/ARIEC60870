@@ -68,7 +68,8 @@ public sealed class Iec104SessionSafetyTests
             .RunForAsync(TimeSpan.FromMilliseconds(170), CancellationToken.None);
         Assert.True(result.CompletedNormally, result.CompletionReason);
         Assert.DoesNotContain(result.Findings, f => f.Id == "IEC104-STARTDT-CON");
-        Assert.Equal(Iec104FrameBuilder.StartDtActivation(), Assert.Single(transport.Sent));
+        Assert.Equal(Iec104FrameBuilder.StartDtActivation(), transport.Sent[0]);
+        Assert.DoesNotContain(transport.Sent, f => new Iec104ApduParser().Decode(f).Format == "I");
     }
 
     private sealed class DelayedStartDtTransport : IByteTransport
@@ -90,7 +91,10 @@ public sealed class Iec104SessionSafetyTests
         public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
             Sent.Add(buffer.ToArray());
-            foreach (var octet in Iec104FrameBuilder.StartDtConfirmation()) _reply.Enqueue(octet);
+            var reply = buffer.Span[2] == 0x43
+                ? Iec104FrameBuilder.TestFrConfirmation()
+                : Iec104FrameBuilder.StartDtConfirmation();
+            foreach (var octet in reply) _reply.Enqueue(octet);
             return ValueTask.CompletedTask;
         }
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
