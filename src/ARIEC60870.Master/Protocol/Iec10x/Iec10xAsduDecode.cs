@@ -5,6 +5,11 @@ namespace ARIEC60870.Master.Protocol.Iec10x;
 
 public sealed class Iec10xAsduDecode
 {
+    // Decoding profile widths are source truth for raw offsets; never infer
+    // them from a decoded object's optional IOA (SQ=1 has implicit addresses).
+    public int CotWidth { get; init; }
+    public int CommonAddressWidth { get; init; }
+    public int InformationObjectAddressWidth { get; init; }
     public byte TypeId { get; init; }
     public string TypeName { get; init; } = string.Empty;
     public byte VariableStructureQualifier { get; init; }
