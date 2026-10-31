@@ -49,3 +49,9 @@ Two receive-only COMs cover **both directions of one full-duplex serial circuit*
 6. Physical RS232 tap non-interference, USB adapter wiring, long recording endurance, offline raw-journal replay remain separate uncompleted field gates.
 
 Do not claim this is a full independent IEC-101 reference or a physically proven zero-loss analyzer. Monitor software intentionally does not assert outgoing modem control wires, but USB devices may toggle them on open; physical isolation remains required.
+
+## FAT field-tool integration — separate from the GUI
+
+The Windows CI artifact `ARIEC60870-IEC101-RX-Field-Tools-win-x64` now packages the established RX-only engine's **independent 2/4 COM headless capture interface**. Read `docs/IEC101_FIELD_RX_FAT_QUICKSTART.md` before connecting any adapter. `preflight` only checks typed settings and Windows port enumeration; it does not open COMs. `capture` is a bounded full raw journal (unlike GUI's default live-only mode), with per-direction SHA/CRC audit, `field-summary.json`, and explicit status for no observed traffic. It never sends an IEC application command.
+
+This is a new *field testing deliverable*, not a GUI workflow replacement. Neither successful CI publication nor a locally present COM number proves non-interference, USB buffering accuracy, RTU address correctness, full-traffic completeness or verified field interoperability. Test with an approved isolated tap and real RTU before claiming FAT.
