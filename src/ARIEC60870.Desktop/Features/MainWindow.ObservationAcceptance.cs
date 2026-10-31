@@ -36,6 +36,16 @@ public partial class MainWindow
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
 
+        // A forensic line monitor must NEVER start in a view that silently
+        // omits Master TX polls while showing their RTU replies.
+        if (TraceQuickScopeCombo.SelectedIndex != 1)
+            throw new InvalidOperationException(
+                "Trace must default to ALL TX/RX frames, never the lossy Focus view.");
+        // Selected-tab capsule must not paint the old bright blue border.
+        if (NavFrameButton.BorderBrush is SolidColorBrush navBorder &&
+            navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)
+            throw new InvalidOperationException(
+                "Selected segmented navigation retained the rejected accent border.");
         // The prior passive GUI + history smoke probes have already exercised
         // source-qualified navigation; this stage stress-tests the live WPF ring.
         MainTabControl.SelectedIndex = 1;
