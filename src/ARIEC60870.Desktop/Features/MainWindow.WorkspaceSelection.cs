@@ -324,6 +324,7 @@ public partial class MainWindow
     {
         if (sender is not ListBox listBox) return;
         var pointer = e.GetPosition(listBox);
+        _rawViewportGeneration++; // pointer gesture supersedes queued restoration
         if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
             IsPointerInsideVerticalScrollbarZone(listBox, pointer))
         {
