@@ -149,3 +149,7 @@ At constrained 1004-DIP and 1366-wide operator workspaces, the grid receives the
 
 Grid virtualized cells use one consistent no-wrap text and declarative style triggers rather than per-frame UI commands or WPF converters. Do not assert physical DPI/COM performance from CI screenshot names.
 
+### Visible AUTO state
+
+The shared `EvidenceFollowToggle` style must **never** collapse itself when checked. Follow ON uses selected accent background, follow OFF stays visible with a neutral border. Trace and Events display the control in their compact search-first chrome; Events includes a small `AUTO` label. A disappearing follow button previously made the most important observation control inaccessible whenever it was enabled. The Windows rendered-WPF acceptance checks actual `IsVisible`, not only the logical `Visibility` enum.
+

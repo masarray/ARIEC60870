@@ -1052,7 +1052,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <!-- FOLLOW ON must be visible, not disappear. It is a primary
+                                 observation control beside Search on every viewport. -->
                             <Setter TargetName="Chrome" Property="Background" Value="#E6F0FF"/>
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="#3B82F6"/>
                         </Trigger>

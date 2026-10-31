@@ -213,7 +213,8 @@ public partial class MainWindow
             var shouldAutoCollapse = viewport.Width < 1150;
             if (shouldAutoCollapse && TraceInspectorColumn.ActualWidth > 1)
                 throw new InvalidOperationException($"Inspector retained width on narrow viewport {viewport.Name}.");
-            if (TraceWindowSearchBar.Visibility != Visibility.Visible ||
+            if (!TraceAutoScrollButton.IsVisible ||
+                TraceWindowSearchBar.Visibility != Visibility.Visible ||
                 TraceArchiveSearchBar.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Two Trace search surfaces are simultaneously displayed.");
             AssertTraceCountInSync();
@@ -325,7 +326,8 @@ public partial class MainWindow
             }
             if (view.Index == 3)
             {
-                if (EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
+                if (!EventsAutoScrollButton.IsVisible ||
+                    EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
                     RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding

@@ -995,6 +995,8 @@
                                     <TextBlock x:Name="EventsQuickCountText" Text="Recent events"
                                                Margin="9,0,12,0" VerticalAlignment="Center"
                                                Foreground="#64748B" FontSize="11.3"/>
+                                    <TextBlock Text="AUTO" FontSize="10.9" FontWeight="Medium" Foreground="#64748B"
+                                               VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <ToggleButton x:Name="EventsAutoScrollButton" Style="{StaticResource EvidenceFollowToggle}"
                                                   IsChecked="True" Checked="EventsAutoScroll_Changed"
                                                   Unchecked="EventsAutoScroll_Changed"
