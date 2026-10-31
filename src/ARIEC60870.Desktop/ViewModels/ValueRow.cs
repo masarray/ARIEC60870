@@ -29,6 +29,7 @@ public sealed class ValueRow : INotifyPropertyChanged
         Value = item.DisplayValue;
         DiscreteBadge = DigitalStateBadge.FromDecoded(Protocol,
             item.TypeId?.ToString(CultureInfo.InvariantCulture), Value);
+        TypeBadge = IecSignalTypeBadge.FromDecoded(Protocol, item.TypeId);
         RelayTime = string.IsNullOrWhiteSpace(item.RelayTimeText) ? "no timestamp" : item.RelayTimeText;
         Fun = item.FunctionType.HasValue ? item.FunctionType.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -65,6 +66,7 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string OperatorValue => Value;
     public string FullOperatorValue => Value;
     public DigitalStateBadge? DiscreteBadge { get; }
+    public IecSignalTypeBadge? TypeBadge { get; }
     public string RelayTime { get; }
     public string Fun { get; }
     public string Inf { get; }
