@@ -741,7 +741,7 @@
                                                       Visibility="Collapsed" Click="TraceOlder_Click"/>
                                             <MenuItem x:Name="TraceNewerContextMenuItem" Header="Newer session frames ›"
                                                       Visibility="Collapsed" Click="TraceNewer_Click"/>
-                                            <Separator/>
+                                            <Separator x:Name="TraceHistoryMenuDivider" Visibility="Collapsed"/>
                                             <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
                                             <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
                                                       ToolTip="Copy this frame, or all Ctrl/Shift-selected frames, as plain text to the clipboard." />
