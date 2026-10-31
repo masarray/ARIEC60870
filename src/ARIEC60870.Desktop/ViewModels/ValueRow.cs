@@ -62,6 +62,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string Signal { get; }
     public string Group { get; }
     public string Value { get; }
+    public string OperatorValue => Value;
+    public string FullOperatorValue => Value;
     public DigitalStateBadge? DiscreteBadge { get; }
     public string RelayTime { get; }
     public string Fun { get; }

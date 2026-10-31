@@ -55,63 +55,10 @@
         <!-- One canonical visual projection of typed SP/DP facts. Plain values stay plain. -->
         <DataTemplate x:Key="DigitalValueCellTemplate">
             <Grid VerticalAlignment="Center">
-                <TextBlock x:Name="PlainValue" Text="{Binding Value}" ToolTip="{Binding Value}"
+                <TextBlock x:Name="PlainValue" Text="{Binding OperatorValue}" ToolTip="{Binding FullOperatorValue}"
                            Style="{StaticResource GridCellNoWrapText}" VerticalAlignment="Center"/>
                 <StackPanel x:Name="DigitalBadges" Orientation="Horizontal" Visibility="Collapsed"
-                            VerticalAlignment="Center" ToolTip="{Binding Value}">
-                    <Border x:Name="TypeChip" CornerRadius="4" Padding="5,2" Margin="0,0,5,0"
-                            Background="#EDF2FA" BorderBrush="#D3E0EF" BorderThickness="1">
-                        <TextBlock x:Name="TypeChipText" Text="{Binding DiscreteBadge.Type}" FontSize="10.5"
-                                   FontWeight="SemiBold" Foreground="#395D85"/>
-                    </Border>
-                    <Border x:Name="StateChip" CornerRadius="4" Padding="7,2" MinWidth="48"
-                            Background="#E8EDF3" BorderBrush="#CBD5E1" BorderThickness="1">
-                        <TextBlock x:Name="StateChipText" Text="{Binding DiscreteBadge.State}"
-                                   HorizontalAlignment="Center" FontSize="10.8" FontWeight="SemiBold"
-                                   Foreground="#475569" />
-                    </Border>
-                </StackPanel>
-            </Grid>
-            <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding DiscreteBadge.Type}" Value="SP">
-                    <Setter TargetName="DigitalBadges" Property="Visibility" Value="Visible"/>
-                    <Setter TargetName="PlainValue" Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.Type}" Value="DP">
-                    <Setter TargetName="DigitalBadges" Property="Visibility" Value="Visible"/>
-                    <Setter TargetName="PlainValue" Property="Visibility" Value="Collapsed"/>
-                    <Setter TargetName="TypeChip" Property="Background" Value="#EDE9FE"/>
-                    <Setter TargetName="TypeChip" Property="BorderBrush" Value="#DDD6FE"/>
-                    <Setter TargetName="TypeChipText" Property="Foreground" Value="#5B21B6"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="ON">
-                    <Setter TargetName="StateChip" Property="Background" Value="#D1FAE5"/>
-                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#6EE7B7"/>
-                    <Setter TargetName="StateChipText" Property="Foreground" Value="#065F46"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="OFF">
-                    <Setter TargetName="StateChip" Property="Background" Value="#FFE4E6"/>
-                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#FDA4AF"/>
-                    <Setter TargetName="StateChipText" Property="Foreground" Value="#9F1239"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INTERMEDIATE">
-                    <Setter TargetName="StateChip" Property="Background" Value="#FEF3C7"/>
-                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#FCD34D"/>
-                    <Setter TargetName="StateChipText" Property="Foreground" Value="#92400E"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INDETERMINATE">
-                    <Setter TargetName="StateChip" Property="Background" Value="#F1F5F9"/>
-                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#94A3B8"/>
-                    <Setter TargetName="StateChipText" Property="Foreground" Value="#334155"/>
-                </DataTrigger>
-            </DataTemplate.Triggers>
-        </DataTemplate>
-        <DataTemplate x:Key="DigitalEventCellTemplate">
-            <Grid VerticalAlignment="Center">
-                <TextBlock x:Name="PlainValue" Text="{Binding CompactDisplayValue}" ToolTip="{Binding DisplayValue}"
-                           Style="{StaticResource GridCellNoWrapText}" VerticalAlignment="Center"/>
-                <StackPanel x:Name="DigitalBadges" Orientation="Horizontal" Visibility="Collapsed"
-                            VerticalAlignment="Center" ToolTip="{Binding DisplayValue}">
+                            VerticalAlignment="Center" ToolTip="{Binding FullOperatorValue}">
                     <Border x:Name="TypeChip" CornerRadius="4" Padding="5,2" Margin="0,0,5,0"
                             Background="#EDF2FA" BorderBrush="#D3E0EF" BorderThickness="1">
                         <TextBlock x:Name="TypeChipText" Text="{Binding DiscreteBadge.Type}" FontSize="10.5"
@@ -1098,7 +1045,7 @@
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="145" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
-                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalEventCellTemplate}" Width="1.25*" MinWidth="128"/>
+                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" Width="1.25*" MinWidth="128"/>
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
                                     <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.2*" MinWidth="116" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />

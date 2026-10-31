@@ -154,6 +154,20 @@ public partial class MainWindow
             .ToArray();
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 1440 * 5L,
             baseline.AddMilliseconds(1440 * 40d), "Variable", true, multiWire));
+        // Explicit DP ON and OFF in the production IEC-101 decode/projection
+        // path. The previous fixture only exercised SP; screenshots must prove
+        // both visual types and two distinct state backgrounds.
+        for (var i = 0; i < 2; i++)
+        {
+            var dpAsdu = new byte[] { 3, 1, 20, 0, 1, 0, (byte)(9 + i), 0, 0, (byte)(i == 0 ? 2 : 1) };
+            var dpPayload = new byte[] { 0x08, 0x69 }.Concat(dpAsdu).ToArray();
+            var dpWire = new byte[] { 0x68, (byte)dpPayload.Length, (byte)dpPayload.Length, 0x68 }
+                .Concat(dpPayload)
+                .Concat(new byte[] { (byte)(dpPayload.Sum(x => x) & 0xff), 0x16 })
+                .ToArray();
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1441 + i) * 5L,
+                baseline.AddMilliseconds((1441 + i) * 40d), "Variable", true, dpWire));
+        }
         FlushUiQueues();
         // Source store accepts frames even while another workspace is active;
         // the virtualized Trace projection is reconciled only on return.
@@ -265,9 +279,14 @@ public partial class MainWindow
                     throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
                 var target = ValueRows.FirstOrDefault(x => x.IoAddress == "8");
                 var onPoint = ValueRows.FirstOrDefault(x => x.IoAddress == "7");
+                var dpOn = ValueRows.FirstOrDefault(x => x.IoAddress == "9");
+                var dpOff = ValueRows.FirstOrDefault(x => x.IoAddress == "10");
                 if (onPoint?.DiscreteBadge != new DigitalStateBadge("SP", "ON") ||
-                    target?.DiscreteBadge != new DigitalStateBadge("SP", "OFF"))
-                    throw new InvalidOperationException("Rendered Values have no typed [SP] and explicit ON/OFF state projections.");
+                    target?.DiscreteBadge != new DigitalStateBadge("SP", "OFF") ||
+                    dpOn?.DiscreteBadge != new DigitalStateBadge("DP", "ON") ||
+                    dpOff?.DiscreteBadge != new DigitalStateBadge("DP", "OFF"))
+                    throw new InvalidOperationException(
+                        "Source-backed [SP] and [DP] ON/OFF state projections are absent from Values.");
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
@@ -374,7 +393,7 @@ public partial class MainWindow
             JsonSerializer.Serialize(new
             {
                 baselineMaster = "OBS-P0 Stage C acceptance",
-                totalSyntheticFrames = 1433,
+                totalSyntheticFrames = 1435,
                 focusVisibleFrames,
                 interpretedPointRows,
                 pointToWireNavigationPassed = true,

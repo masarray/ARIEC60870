@@ -73,6 +73,8 @@ public sealed class RelayEventRow
     public string NewValue { get; }
     public string DisplayValue { get; }
     public string CompactDisplayValue { get; }
+    public string OperatorValue => CompactDisplayValue;
+    public string FullOperatorValue => DisplayValue;
     public DigitalStateBadge? DiscreteBadge { get; }
     public string Reason { get; }
     public string Fun { get; }
