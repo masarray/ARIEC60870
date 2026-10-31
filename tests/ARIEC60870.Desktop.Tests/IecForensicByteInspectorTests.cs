@@ -24,6 +24,7 @@ public sealed class IecForensicByteInspectorTests
         {
             ProtocolMode = Iec60870ProtocolMode.Iec104,
             RawHex = Convert.ToHexString(wire),
+            ApciFormat = "I", SendSequence = 0, ReceiveSequence = 0,
             AsduDetails = asdu
         });
 
@@ -51,7 +52,8 @@ public sealed class IecForensicByteInspectorTests
         var s = IecForensicByteInspector.Explain(new Iec103MasterEvidenceEvent
         {
             ProtocolMode = Iec60870ProtocolMode.Iec104,
-            RawHex = "68 04 01 00 00 00"
+            RawHex = "68 04 01 00 00 00",
+            ApciFormat = "S", ReceiveSequence = 0
         });
         Assert.Equal(new[] { "envelope", "apci" }, s.Select(x => x.Key));
         Assert.Contains("acknowledgement", s.Single(x => x.Key == "apci").Meaning);
@@ -59,7 +61,8 @@ public sealed class IecForensicByteInspectorTests
         var u = IecForensicByteInspector.Explain(new Iec103MasterEvidenceEvent
         {
             ProtocolMode = Iec60870ProtocolMode.Iec104,
-            RawHex = "68 04 07 00 00 00"
+            RawHex = "68 04 07 00 00 00",
+            ApciFormat = "U", UFormatName = "STARTDT act"
         });
         Assert.Contains("STARTDT act", u.Single(x => x.Key == "apci").Meaning);
 
@@ -81,10 +84,20 @@ public sealed class IecForensicByteInspectorTests
         {
             ProtocolMode = Iec60870ProtocolMode.Iec104,
             RawHex = Convert.ToHexString(Apdu(tampered)),
+            ApciFormat = "I", SendSequence = 0, ReceiveSequence = 0,
             AsduDetails = new Iec10xAsduDecoder().Decode(original)
         });
         Assert.Contains(mismatched, x => x.Key == "asdu");
         Assert.DoesNotContain(mismatched, x => x.Key == "cot" || x.Key == "object-1");
+
+        var staleApci = IecForensicByteInspector.Explain(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            RawHex = "68 04 01 00 00 00",
+            ApciFormat = "S", ReceiveSequence = 42 // Contradicts physical bytes
+        });
+        Assert.Single(staleApci);
+        Assert.Equal("raw", staleApci[0].Key);
     }
 
     [Fact]
