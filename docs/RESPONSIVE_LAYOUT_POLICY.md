@@ -171,3 +171,12 @@ Windows acceptance verifies actual WPF Search/counter center-Y within 3 DIP, Sea
 
 Values aligns its first grid with Events/Trace at a 6-DIP toolbar gap. The Events category scope is visible on the same 32-DIP toolbar. Shared outlined search and X geometries replace heavy glyphs across five search surfaces; clear X appears only with a query. Live evidence-row tooltip overlays are suppressed; selected inspector omits redundant Trace summary. Central calm blue-grey contrast tokens are tuned. CI screenshots must be inspected for constrained runner width; physical 150%-DPI and real electrical FAT are separate.
 
+
+
+## UX-TYPE-03 — Compact source-typed IEC chips
+
+The existing SP/DP status cells extend into one shared typed visual vocabulary across Values, Events, Trace and Controls: SPS, DPS, step position STP, bitstring BSI, normalized NVA, scaled INT, short float FLT, integrated BCR, SPC/DPC/RCS, SEN/SEI/SEF, BSC, plus explicit IEC service types. IEC-101/104 Type ID controls the chip; only a recognized digital point payload may display ON/OFF/INTERMEDIATE. A command badge identifies the **command type**, not a successful execution or physical feedback; ACTCON/ACTTERM/NEG remains separately visible in original event/case evidence. A numeric badge never changes raw value, precision, unit, COT or quality. IEC-103 FUN/INF is not silently mapped as IEC-101 Type ID.
+
+One compact reusable type-template gives digital blue/violet, measurement calm teal, counters amber, commands purple and services slate. Zero per-row WPF converter/parser state; immutable lookup, bounded virtualization, no additional toolbar or card. Full underlying values remain the clipboard/export source. Trace badge comes from decoded ASDU, not optional capture JSON display metadata. Unknown and malformed frames keep raw evidence, no fabricated chip.
+
+Acceptance: deterministic Type ID matrices including timed variants, unknown and IEC103 negatives; actual WPF Values/Events live SP/DP/FLT/BCR assertions, and Windows screenshot of 1366-class constrained workspace. No physical-DPI or equipment interoperability claim from CI.
