@@ -549,6 +549,7 @@ public partial class MainWindow
                 // Keep the common suffix and append only truly new rows.
                 RelayEventRows.TrimStart(previousCount - overlap);
                 RelayEventRows.AddRange(rows.Skip(overlap));
+                UpdateVisibleEventCount();
                 return;
             }
 
