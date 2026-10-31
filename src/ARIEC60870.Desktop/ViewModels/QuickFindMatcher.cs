@@ -24,6 +24,7 @@ public static class QuickFindMatcher
     {
         if (scope switch
         {
+            "Activity focus" => !ObservationFrameFocus.IsImportant(r),
             "TX / SCADA" => r.Direction != "TX",
             "RX / RTU" => r.Direction != "RX",
             "Commands" => r.Source.CommandDetails is null &&
