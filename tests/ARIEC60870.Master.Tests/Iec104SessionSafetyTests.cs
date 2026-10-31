@@ -44,7 +44,7 @@ public sealed class Iec104SessionSafetyTests
         Assert.Contains("STARTDT", result.CompletionReason);
         Assert.Single(transport.Sent);
         Assert.Equal(Iec104FrameBuilder.StartDtActivation(), transport.Sent[0]);
-        Assert.Contains(result.Findings, f => f.RuleId == "IEC104-STARTDT-CON");
+        Assert.Contains(result.Findings, f => f.Id == "IEC104-STARTDT-CON");
     }
 
     private sealed class DeterministicWrongStartDtTransport : IByteTransport
