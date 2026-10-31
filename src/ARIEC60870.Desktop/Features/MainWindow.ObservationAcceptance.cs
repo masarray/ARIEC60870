@@ -11,6 +11,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Monitor;
+using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop;
