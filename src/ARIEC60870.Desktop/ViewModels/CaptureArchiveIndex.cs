@@ -9,8 +9,9 @@ using System.Text.Json;
 namespace ARIEC60870.Desktop.ViewModels;
 
 /// <summary>
-/// A single verified, read-only capture snapshot. The original ZIP is never
-/// modified. Both the decompressed JSONL and fixed-width match offsets live in
+/// A single read-only captured snapshot (cryptographically verified only when
+/// a valid manifest SHA-256 exists). The original ZIP is never modified. Both
+/// the decompressed JSONL and fixed-width match offsets live in
 /// OS-managed delete-on-close files, not in a growing collection of WPF rows.
 /// All pages of a query read the SAME verified snapshot.
 /// </summary>
