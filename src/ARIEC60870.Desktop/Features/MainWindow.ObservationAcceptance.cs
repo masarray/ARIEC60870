@@ -25,6 +25,17 @@ namespace ARIEC60870.Desktop;
 /// </summary>
 public partial class MainWindow
 {
+    private static bool HasVisibleRawLine(DependencyObject node, string expected)
+    {
+        if (node is TextBlock text && text.Text == expected &&
+            text.Visibility == Visibility.Visible && text.IsVisible)
+            return true;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+            if (HasVisibleRawLine(VisualTreeHelper.GetChild(node, i), expected))
+                return true;
+        return false;
+    }
+
     public async Task RunObservationUiAcceptanceProbeAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -133,15 +144,51 @@ public partial class MainWindow
         ApplyQuickFind();
         AssertTraceCountInSync();
 
+        // An unselected frame must show original HEX in the scrolling row,
+        // not just after opening the inspector.
+        FrameTraceGrid.SelectedItems.Clear();
+        var unselected = FrameTraceRows[^15];
+        FrameTraceGrid.ScrollIntoView(unselected);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        var unselectedContainer =
+            FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(unselected) as ListBoxItem;
+        if (unselectedContainer is null ||
+            !HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
+            throw new InvalidOperationException(
+                "Unselected RAW FRAME row hides the source HEX line.");
+
         var selected = FrameTraceRows[Math.Max(0, FrameTraceRows.Count - 120)];
         FrameTraceGrid.SelectedItem = selected;
-        EnterLineMonitorHoldForUserSelection();
+        // Selection, including keyboard paths, must stop AUTO before any
+        // queued frames are appended. This is not a capture pause.
+        if (AutoScrollLatestToggleButton.IsChecked != false)
+            throw new InvalidOperationException(
+                "Selecting a raw frame left automatic tail-follow enabled.");
+        FrameTraceGrid.ScrollIntoView(selected);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        var selectedContainer =
+            FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(selected) as ListBoxItem;
+        var selectedYBefore = selectedContainer?.TranslatePoint(new Point(), FrameTraceGrid).Y
+            ?? double.NaN;
         for (var i = 1400; i < 1430; i++)
             FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, i * 5L,
                 baseline.AddMilliseconds(i * 40d), "Fixed", true, bytes));
         FlushUiQueues();
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
         if (!ReferenceEquals(FrameTraceGrid.SelectedItem, selected))
             throw new InvalidOperationException("Held source-qualified Trace selection jumped.");
+        selectedContainer = FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(selected) as ListBoxItem;
+        var selectedYAfter = selectedContainer?.TranslatePoint(new Point(), FrameTraceGrid).Y
+            ?? double.NaN;
+        if (!double.IsFinite(selectedYBefore) || !double.IsFinite(selectedYAfter) ||
+            Math.Abs(selectedYAfter - selectedYBefore) > 5)
+            throw new InvalidOperationException(
+                $"Manual raw-frame viewport drifted while new RX/TX arrived: before={selectedYBefore:0.0}, after={selectedYAfter:0.0}.");
         if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
             FrameTraceRows.Count > MaxVisibleFrameTraceRows ||
             !FrameTraceRows.Contains(selected))
@@ -480,6 +527,20 @@ public partial class MainWindow
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
                         { Path.Path: "OperatorValue" })
                     throw new InvalidOperationException("Event Log compact toolbar/status/clipboard contract missing.");
+                // The Include/Exclude pair must not move as the dynamic count
+                // changes from 2 digits to thousands during long sessions.
+                UpdateLayout();
+                var includeXBefore = EventIncludeToggle.TranslatePoint(new Point(), EventsSearchShell).X;
+                var realCounter = EventsQuickCountText.Text;
+                EventsQuickCountText.Text = "99999 / 99999 recent";
+                UpdateLayout();
+                var includeXAfter = EventIncludeToggle.TranslatePoint(new Point(), EventsSearchShell).X;
+                EventsQuickCountText.Text = realCounter;
+                UpdateLayout();
+                if (Math.Abs(includeXAfter - includeXBefore) > 1)
+                    throw new InvalidOperationException(
+                        $"Events Include/Exclude controls shifted with counter text: {includeXBefore:0.0} -> {includeXAfter:0.0} DIP.");
+
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
