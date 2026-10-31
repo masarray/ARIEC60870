@@ -609,7 +609,11 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border x:Name="TraceWindowSearchBar" Grid.Column="0"
+                                                                        <Grid Grid.Column="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MaxWidth="242"/>
+                                        </Grid.ColumnDefinitions>
+<Border x:Name="TraceWindowSearchBar" Grid.Column="0"
                                             MaxWidth="242" Height="32"
                                             HorizontalAlignment="Stretch" VerticalAlignment="Center"
                                             CornerRadius="8" Background="White"
@@ -633,6 +637,7 @@
                                                      ToolTip="Search frame source, Type, COT, CA, IOA, meaning or HEX"/>
                                         </DockPanel>
                                     </Border>
+                                    </Grid>
                                     <!-- Keep filter/archive/summary controls addressable by existing bindings
                                          while removing secondary widgets from the visible toolbar. -->
                                     <ComboBox x:Name="TraceQuickScopeCombo" Grid.Column="0"
@@ -954,7 +959,11 @@
                                     <ColumnDefinition Width="*" MinWidth="140"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
+                                                                    <Grid Grid.Column="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MaxWidth="242"/>
+                                        </Grid.ColumnDefinitions>
+<Border x:Name="ValuesSearchShell" Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
                                         ToolTip="Search signal, value, CA, IOA, FUN/INF or source">
@@ -976,6 +985,7 @@
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
+                                    </Grid>
                                 <TextBlock x:Name="ValuesQuickCountText" Grid.Column="1"
                                            Text="Current values" MaxWidth="152"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
@@ -1050,7 +1060,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
+                                                                    <Grid Grid.Column="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MaxWidth="242"/>
+                                        </Grid.ColumnDefinitions>
+<Border x:Name="EventsSearchShell" Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
@@ -1073,6 +1087,7 @@
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
+                                    </Grid>
                                 <ComboBox x:Name="EventLogFilterComboBox" Grid.Column="0"
                                           SelectedIndex="0" Visibility="Collapsed"
                                           SelectionChanged="EventLogFilter_SelectionChanged">

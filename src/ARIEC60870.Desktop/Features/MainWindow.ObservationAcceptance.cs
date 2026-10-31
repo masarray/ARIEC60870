@@ -220,6 +220,7 @@ public partial class MainWindow
             AssertTraceCountInSync();
             AssertOneLineToolbar(TraceWindowSearchBar, TraceQuickCountText,
                 TraceAutoScrollButton, FrameTraceGrid, "Trace", 9);
+            AssertSearchFlushLeft(TraceWindowSearchBar, FrameTraceGrid, "Trace");
 
             // GitHub-hosted runners may clamp top-level WPF windows to the
             // actual desktop work area. Recording a 1540x960 *request* is not
@@ -275,6 +276,7 @@ public partial class MainWindow
             {
                 AssertOneLineToolbar(ValuesQuickFindBox, ValuesQuickCountText,
                     null, ValueGrid, "Values", 11);
+                AssertSearchFlushLeft(ValuesSearchShell, ValueGrid, "Values");
                 if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
                     ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
                     SelectedValueContextText.IsVisible ||
@@ -332,6 +334,7 @@ public partial class MainWindow
             {
                 AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
                     EventsAutoScrollButton, RelayEventGrid, "Events", 9);
+                AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
                 if (!EventsAutoScrollButton.IsVisible ||
                     EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
@@ -459,6 +462,20 @@ public partial class MainWindow
         if (gridTop - headerBottom > maxGap + 1 || gridTop < headerBottom)
             throw new InvalidOperationException(
                 $"{workspace} header is consuming unexpected vertical space: bottom={headerBottom:0.0} grid-top={gridTop:0.0}.");
+    }
+
+    // A MaxWidth Border aligned Stretch inside a wide Grid column is
+    // centered by WPF. This real-render assertion prevents Search drifting
+    // to the middle of the header while the data grid remains flush left.
+    private void AssertSearchFlushLeft(FrameworkElement searchShell, FrameworkElement grid,
+        string workspace)
+    {
+        var searchLeft = searchShell.TranslatePoint(new Point(0, 0), this).X;
+        var gridLeft = grid.TranslatePoint(new Point(0, 0), this).X;
+        if (!searchShell.IsVisible || Math.Abs(searchLeft - gridLeft) > 3 ||
+            searchShell.ActualWidth > 244)
+            throw new InvalidOperationException(
+                $"{workspace} Search not flush left with data grid: search={searchLeft:0.0}, grid={gridLeft:0.0}, width={searchShell.ActualWidth:0.0}.");
     }
 
     private void AssertTraceCountInSync()
