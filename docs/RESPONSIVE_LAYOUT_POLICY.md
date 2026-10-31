@@ -161,3 +161,9 @@ The Windows WPF acceptance must inspect actual rendered search/count/AUTO Y cent
 
 **History-width negative case:** Older/Newer navigation is not allowed to consume any of the 32-DIP live toolbar width, even when the trace inspector is open and the trace pane reaches its 300-DIP minimum. Both named history buttons are retained in a permanently collapsed host for backward compatibility; source-scoped Older/Newer actions are exposed on the Trace right-click context menu only during an active historical window. The existing actual-WPF session-history acceptance checks the menu items' visibility and exact-frame navigation. Returning live hides history-only actions again. Search, count and AUTO retain one baseline in either mode.
 
+## UX-CASE-03 — Controls/GI compact case investigation cockpit (2026-10-31)
+
+Controls and GI case workspaces now have the **same single 32-DIP grid-first Search + counter baseline** as Frame Trace, Values and Events. No two-level title/action bars. Actions to open the selected source frame and copy the full provenance-preserving case are available from right-click on either the case grid or stage grid, and via double-click to open selected stage. DataGrid columns retain original evidence fields and use compact widths / meaningful star-sizing, with stage rows and selected detail kept. One 24-DIP details footer is bounded so multiline status text cannot unexpectedly shrink case/stage lists.
+
+Windows acceptance verifies actual WPF Search/counter center-Y within 3 DIP, Search flush-left to case grid within 3 DIP, both stage/case panes usable, and context actions in the real controls. No UI timers, protocol byte decoder rewrites, or speculative state interpretation.
+

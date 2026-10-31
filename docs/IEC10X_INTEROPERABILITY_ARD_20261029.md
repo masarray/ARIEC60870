@@ -102,3 +102,9 @@ The WPF Setup has an explicit convention selector defaulting to **Generic IEC**,
 
 **Non-claims:** historical NUC selection is a reference/interpretation label, not interoperability certification; balancing, auto GI after switch and custom edition file picker remain separately gated future work. Passive monitoring remains receive-only, and importing/reinterpreting already captured evidence is never blocked merely because active TX is unsupported. Test scope: round-trip and malformed JSON, unsupported edition, wrong protocol/field width/addresses, bounded profile identity, and serial/TCP protocol safety.
 
+## R5-A — IEC-104 STARTDT fail-closed / modular sequence safety (2026-10-31)
+
+The active Master now gates ALL I-format TX behind a positive, valid STARTDT confirmation; an unexpected U-format reply, malformed APDU or missing confirmation yields a specific source-backed finding and a stopped faulted session, not blind GI/clock-sync/command transmission. TESTFR supervision faults rather than silently pretending a healthy line when no confirmation arrives. The Master recognizes valid interleaved frames while awaiting U-format confirmation (bounded search); original RX bytes remain in forensic evidence.
+
+APCI N(S)/N(R) wrap modulo 32768. A peer's cumulative N(R) can advance acknowledgements only inside the bounded outstanding k-window; duplicates/future N(R) never silently pass. TX blocks on a full configured k-window. Invalid/out-of-sequence I-ASDUs remain captured as RX Warning but cannot silently update process state or event/point series, and their sequence cannot advance the contiguous receive window. Handshake/sequencing tests include negative STARTDT and rollover/future ACK. **This is a safety hardening milestone, not a claim that IEC-104 t1/t2/k/w/reconnect interoperability has completed multi-vendor FAT.** 
+

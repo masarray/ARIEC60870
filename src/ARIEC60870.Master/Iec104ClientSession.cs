@@ -20,6 +20,8 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterCounters _counters = new();
     private int _sendSequence;
     private int _receiveSequence;
+    private int _oldestUnacknowledgedSend;
+    private bool _startDtConfirmed;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
     private DateTime _lastTestFrameUtc = DateTime.MinValue;
@@ -63,6 +65,9 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             SetState(Iec103MasterState.Connected, "IEC-104 TCP connected", _settings.SerialSummary);
 
+            // Never emit I-format traffic until the remote outstation has
+            // positively acknowledged STARTDT. A TCP socket alone is not a
+            // started IEC-104 data-transfer connection.
             await SendUAndReceiveAsync("STARTDT activation", Iec104FrameBuilder.StartDtActivation(), "Start data transfer before I-format ASDUs", cancellationToken).ConfigureAwait(false);
 
             if (_settings.SendClockSyncOnConnect)
@@ -198,21 +203,74 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     private async Task SendUAndReceiveAsync(string summary, byte[] frame, string reason, CancellationToken cancellationToken)
     {
         await SendRawAsync(frame, summary, "U-format", reason, cancellationToken).ConfigureAwait(false);
-        var received = await ReceiveOneAsync("U-format", reason, cancellationToken).ConfigureAwait(false);
-        if (summary.Contains("STARTDT", StringComparison.OrdinalIgnoreCase) && received?.UFormatName.Contains("STARTDT con", StringComparison.OrdinalIgnoreCase) != true)
+        var isStart = summary == "STARTDT activation";
+        var isTest = summary == "TESTFR activation";
+        // t1 is the handshake deadline, not the ordinary per-reply timeout.
+        // A conforming peer can interleave any number of I/S frames before
+        // the expected U-format confirmation. The deadline bounds the entire
+        // attempt; no arbitrary 8-frame limit and no premature 1500-ms fault.
+        var expected = isStart ? "STARTDT con" : isTest ? "TESTFR con" : string.Empty;
+        using var handshakeDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        handshakeDeadline.CancelAfter(Math.Max(1, _settings.Iec104T1AckTimeoutMs));
+        Iec104ApduDecode? received = null;
+        var acknowledged = false;
+        try
         {
-            RaiseFinding(FindingSeverity.Error, "IEC104-STARTDT-CON", "IEC-104 STARTDT confirmation was not received", received?.ShortMeaning ?? "No APDU received", "The server is not confirmed ready for I-format ASDU data transfer.", "Verify server connection limits, STARTDT policy, firewall/NAT interference, and server-side IEC-104 state.");
+            while (!handshakeDeadline.IsCancellationRequested)
+            {
+                received = await ReceiveOneAsync("U-format", reason,
+                    handshakeDeadline.Token, _settings.Iec104T1AckTimeoutMs).ConfigureAwait(false);
+                if (received is null) break;
+                if (received.IsValid && received.Format == "U" && received.UFormatName == expected)
+                {
+                    acknowledged = true;
+                    break;
+                }
+            }
         }
-        if (summary.Contains("TESTFR", StringComparison.OrdinalIgnoreCase) && received?.UFormatName.Contains("TESTFR con", StringComparison.OrdinalIgnoreCase) != true)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested &&
+            handshakeDeadline.IsCancellationRequested)
         {
-            RaiseFinding(FindingSeverity.Warning, "IEC104-TESTFR-CON", "IEC-104 TESTFR confirmation was not received", received?.ShortMeaning ?? "No APDU received", "Idle connection supervision is questionable.", "Check t3/t1 values, server test-frame support, TCP idle timeout, and duplicate sessions.");
+            // The IEC-104 t1 supervision deadline expired, not an operator stop.
+        }
+        if (isStart)
+        {
+            _startDtConfirmed = acknowledged;
+            if (!acknowledged)
+            {
+                RaiseFinding(FindingSeverity.Error, "IEC104-STARTDT-CON", "IEC-104 STARTDT confirmation was not received",
+                    received?.ShortMeaning ?? "No APDU received",
+                    "The server is not confirmed ready for I-format ASDU data transfer.",
+                    "Verify server connection limits, STARTDT policy, firewall/NAT interference, and server-side IEC-104 state.");
+                throw new IOException("STARTDT con not observed: IEC-104 I-format transmission safely blocked.");
+            }
+        }
+        if (isTest && !acknowledged)
+        {
+            RaiseFinding(FindingSeverity.Error, "IEC104-TESTFR-CON", "IEC-104 TESTFR confirmation was not received",
+                received?.ShortMeaning ?? "No APDU received", "The connection failed supervision.",
+                "Check t1/t3, TCP idle and outstation U-format TESTFR confirmation.");
+            throw new IOException("TESTFR con not observed: IEC-104 link supervision failed.");
         }
     }
 
     private async Task SendIAsync(string summary, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
-        var frame = Iec104FrameBuilder.I(_sendSequence++, _receiveSequence, asdu);
+        if (!_startDtConfirmed)
+            throw new InvalidOperationException("IEC-104 I-frame blocked until STARTDT con is observed.");
+        // Never wrap sequence numbers into 16-bit APCI reserved bits, and never
+        // exceed the configured k-window without peer acknowledgement.
+        if (Iec104SequenceWindow.Distance(_oldestUnacknowledgedSend, _sendSequence) >=
+            Math.Clamp(_settings.Iec104KMaxUnacknowledged, 1, 32767))
+        {
+            await DrainBurstAsync("IEC-104 k-window acknowledgement", maxFrames: 16, cancellationToken).ConfigureAwait(false);
+            if (Iec104SequenceWindow.Distance(_oldestUnacknowledgedSend, _sendSequence) >=
+                Math.Clamp(_settings.Iec104KMaxUnacknowledged, 1, 32767))
+                throw new IOException("IEC-104 k-window full; peer I-frame acknowledgement missing. Transmission blocked.");
+        }
+        var frame = Iec104FrameBuilder.I(_sendSequence, _receiveSequence, asdu);
         await SendRawAsync(frame, summary, "I-format", reason, cancellationToken).ConfigureAwait(false);
+        _sendSequence = Iec104SequenceWindow.Next(_sendSequence);
     }
 
     private async Task DrainBurstAsync(string reason, int maxFrames, CancellationToken cancellationToken)
@@ -269,11 +327,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
     {
         var reader = new Iec104StreamReader(_transport);
         var sw = Stopwatch.StartNew();
-        var raw = await reader.ReadFrameAsync(_settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
         sw.Stop();
         if (raw is null || raw.Length == 0)
         {
@@ -289,23 +347,44 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         var decoded = _parser.Decode(raw);
         AuditAsduForensicFindings("IEC104", decoded.Asdu);
         if (!decoded.IsValid) _counters.MalformedFrames++;
+        var acceptedI = decoded.IsValid && decoded.Format == "I" &&
+            decoded.SendSequence == _receiveSequence && _startDtConfirmed;
+        if (decoded.IsValid && decoded.Format is "I" or "S" && decoded.ReceiveSequence.HasValue)
+        {
+            var nr = decoded.ReceiveSequence.Value;
+            if (!Iec104SequenceWindow.IsAcknowledgementWithinWindow(
+                _oldestUnacknowledgedSend, _sendSequence, nr))
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC104-NR-ACK-INVALID", "IEC-104 N(R) outside outstanding TX window",
+                    $"Oldest unacknowledged={_oldestUnacknowledgedSend}, sent next={_sendSequence}, peer N(R)={nr}.",
+                    "Remote acknowledgement is outside the modular APCI transmit window.",
+                    "Inspect peer sequence reset, duplicate session and capture provenance.");
+            }
+            else
+            {
+                _oldestUnacknowledgedSend = nr;
+            }
+        }
         if (decoded.Format == "I")
         {
-            _counters.UserDataResponses++;
-            if (decoded.SendSequence.HasValue && decoded.SendSequence.Value != _receiveSequence)
+            if (!acceptedI)
             {
-                RaiseFinding(FindingSeverity.Warning, "IEC104-NS-SEQUENCE", "IEC-104 N(S) sequence discontinuity", $"Expected N(S)={_receiveSequence}, received N(S)={decoded.SendSequence.Value}.", "The server sequence stream may have a gap, duplicate, or out-of-order I-frame.", "Check reconnect handling, duplicate clients, server buffer reset, and TCP stream integrity.");
+                RaiseFinding(FindingSeverity.Warning, "IEC104-NS-SEQUENCE", "IEC-104 I-frame not accepted in sequence",
+                    $"Expected N(S)={_receiveSequence}, received={decoded.SendSequence?.ToString() ?? "missing"}, STARTDT confirmed={_startDtConfirmed}, valid={decoded.IsValid}.",
+                    "The received payload is retained as raw evidence but cannot become trusted process/command data.",
+                    "Inspect duplicate or gap, reconnect history, and protocol field validity.");
             }
-            if (decoded.ReceiveSequence.HasValue && decoded.ReceiveSequence.Value > _sendSequence)
+            else
             {
-                RaiseFinding(FindingSeverity.Warning, "IEC104-NR-ACK-FUTURE", "IEC-104 N(R) acknowledges unsent I-frame", $"Local sent={_sendSequence}, peer N(R)={decoded.ReceiveSequence.Value}.", "The peer acknowledgement window is inconsistent with this client session.", "Check duplicate sessions, stale server state, or sequence reset after reconnect.");
+                _counters.UserDataResponses++;
+                _receiveSequence = Iec104SequenceWindow.Next(_receiveSequence);
+                if (decoded.Asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
+                if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
             }
-            _receiveSequence = Math.Max(_receiveSequence, (decoded.SendSequence ?? _receiveSequence) + 1);
-            if (decoded.Asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
-            if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
-            await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement", "S-format", "Acknowledge received I-format APDU", cancellationToken).ConfigureAwait(false);
+            await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement",
+                "S-format", "Acknowledge only contiguous accepted I-format data", cancellationToken).ConfigureAwait(false);
         }
-        else if (decoded.Format == "S")
+        else if (decoded.Format == "S" && decoded.IsValid)
         {
             _counters.AckResponses++;
         }
@@ -318,7 +397,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         {
             Direction = FrameDirection.SlaveToMaster,
             State = _state,
-            Category = decoded.IsValid ? "RX" : "RX Warning",
+            Category = decoded.IsValid && (decoded.Format != "I" || acceptedI) ? "RX" : "RX Warning",
             DataClass = decoded.Format,
             PollingReason = reason,
             Summary = decoded.ShortMeaning,
@@ -348,8 +427,8 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             CommonAddressNumber = decoded.Asdu?.CommonAddress,
             InformationObjectAddress = decoded.Asdu?.FirstObject?.InformationObjectAddress,
             ObjectSummary = decoded.Asdu?.ObjectSummary ?? string.Empty,
-            IsRelayValue = decoded.Asdu is not null && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
-            IsRelayEdgeEvent = decoded.Asdu is not null && (decoded.Asdu.CauseOfTransmission is 3 or 11 or 12) && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
+            IsRelayValue = acceptedI && decoded.Asdu is not null && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
+            IsRelayEdgeEvent = acceptedI && decoded.Asdu is not null && (decoded.Asdu.CauseOfTransmission is 3 or 11 or 12) && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
             SignalKey = decoded.Asdu?.FirstObject is null ? string.Empty : $"IOA:{decoded.Asdu.FirstObject.InformationObjectAddress}",
             SignalName = decoded.Asdu?.FirstObject is null ? string.Empty : $"IOA {decoded.Asdu.FirstObject.InformationObjectAddress}",
             SignalGroup = "IEC-104",
@@ -361,7 +440,8 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampInvalid = decoded.Asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = decoded.Asdu?.CauseName ?? string.Empty
         });
-        AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
+        if (acceptedI)
+            AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
         return decoded;
     }
 
