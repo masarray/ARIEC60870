@@ -236,6 +236,13 @@ public partial class MainWindow
             });
         }
 
+        // Visual field screenshots must demonstrate both ON and OFF states
+        // rendered from source-backed IEC101 two-object values; no mock panels.
+        if (TraceQuickScopeCombo.Visibility != Visibility.Collapsed ||
+            TraceArchiveModeButton.Visibility != Visibility.Collapsed ||
+            TraceInspectorToggle.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Trace wastes toolbar space on secondary actions/filters.");
+
         // One frame ledger; verify each view displays its own bound data.
         Width = 1366;
         Height = 768;
@@ -249,9 +256,18 @@ public partial class MainWindow
             UpdateLayout();
             if (view.Index == 2)
             {
+                if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
+                    ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
+                    SelectedValueContextText.IsVisible ||
+                    ValueGrid.Columns[1] is not DataGridTemplateColumn)
+                    throw new InvalidOperationException("Values still sacrifices grid area for action/filter chrome or lacks state chips.");
                 if (ValueGrid.Items.Count < 2 || ValueRows.Count < 2)
                     throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
                 var target = ValueRows.FirstOrDefault(x => x.IoAddress == "8");
+                var onPoint = ValueRows.FirstOrDefault(x => x.IoAddress == "7");
+                if (onPoint?.DiscreteBadge != new DigitalStateBadge("SP", "ON") ||
+                    target?.DiscreteBadge != new DigitalStateBadge("SP", "OFF"))
+                    throw new InvalidOperationException("Rendered Values have no typed [SP] and explicit ON/OFF state projections.");
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
@@ -284,6 +300,10 @@ public partial class MainWindow
             }
             if (view.Index == 3)
             {
+                if (EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
+                    Grid.GetRow(RelayEventGrid) != 2 ||
+                    RelayEventGrid.Columns[2] is not DataGridTemplateColumn)
+                    throw new InvalidOperationException("Event Log is not compact single-toolbar / typed-status layout.");
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
@@ -358,6 +378,8 @@ public partial class MainWindow
                 focusVisibleFrames,
                 interpretedPointRows,
                 pointToWireNavigationPassed = true,
+                gridFirstToolbarPassed = true,
+                digitalStateBadgesPassed = true,
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,
