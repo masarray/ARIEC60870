@@ -230,7 +230,10 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("Content=\"Redundancy\"", navSection);
         Assert.Contains("Content=\"Values\"", navSection);
         Assert.Contains("Content=\"Events\"", navSection);
-        Assert.Contains("Content=\"Trace\"", navSection);
+        Assert.Contains("Content=\"RAW FRAME\"", navSection);
+        Assert.True(navSection.IndexOf("Content=\"RAW FRAME\"", StringComparison.Ordinal) <
+            navSection.IndexOf("Content=\"Values\"", StringComparison.Ordinal),
+            "RAW FRAME must be the primary visible analysis tab.");
         Assert.Contains("Content=\"Report\"", navSection);
         Assert.Contains("Content=\"Evidence Ledger\"", navSection);
         Assert.Contains("Visibility=\"Collapsed\"", navSection);
