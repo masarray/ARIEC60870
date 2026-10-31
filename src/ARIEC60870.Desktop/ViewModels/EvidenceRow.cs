@@ -47,6 +47,8 @@ public sealed partial class EvidenceRow
         AsduType = item.AsduType ?? "-";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         TypeIdName = BuildTypeIdName(item);
+        TypeBadge = item.AsduDetails is { Issues.Count: 0 } validAsdu
+            ? IecSignalTypeBadge.FromDecoded(ProtocolMode, validAsdu.TypeId) : null;
         Vsq = item.VariableStructureQualifier.HasValue ? $"0x{item.VariableStructureQualifier.Value:X2}" : "-";
         CotCode = item.CauseOfTransmission.HasValue ? item.CauseOfTransmission.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Cot = item.Cot ?? "-";
@@ -114,6 +116,7 @@ public sealed partial class EvidenceRow
     public string AsduType { get; }
     public string TypeId { get; }
     public string TypeIdName { get; }
+    public IecSignalTypeBadge? TypeBadge { get; }
     public string Vsq { get; }
     public string CotCode { get; }
     public string Cot { get; }
@@ -222,6 +225,10 @@ public sealed partial class EvidenceRow
         AsduType = string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
         TypeId = string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
         TypeIdName = TypeId == "-" ? AsduType : $"{TypeId} · {AsduType}";
+        // Capture display metadata cannot forge a badge: use restored typed
+        // original ASDU, never saved TypeId text from the JSONL row.
+        TypeBadge = Source.AsduDetails is { Issues.Count: 0 } validAsdu
+            ? IecSignalTypeBadge.FromDecoded(ProtocolMode, validAsdu.TypeId) : null;
         Vsq = Source.AsduDetails is { } asdu ? $"0x{asdu.VariableStructureQualifier:X2}" : "-";
         CotCode = Source.CauseDetails is { } cause ? cause.Code.ToString(CultureInfo.InvariantCulture) :
             string.IsNullOrWhiteSpace(capture.CotCode) ? "-" : capture.CotCode;
