@@ -433,6 +433,11 @@ public partial class MainWindow
                 }
             }
         }
+        // The existing highlight timer owns expiration. WPF CollectionView
+        // does not re-evaluate predicate filters when a row property changes;
+        // refreshing only the active scope keeps an idle session truthful.
+        if (_quickFindReady && _valuesQuickScope == "Recently changed")
+            RefreshQuickFindView(ValueRows);
     }
 
     private static bool IsIec10xProcessValue(Iec103MasterEvidenceEvent item)
