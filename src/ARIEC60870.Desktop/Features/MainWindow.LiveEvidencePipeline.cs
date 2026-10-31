@@ -471,6 +471,7 @@ public partial class MainWindow
             FrameTraceGrid?.SelectedItems.Clear();
                 EvidenceSummaryList?.SelectedItems.Clear();
             _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
             _evidenceSummarySelectionAnchorIndex = -1;
             _isProtocolTraceDragSelecting = false;
             _isProtocolTraceSelectionBatching = false;
@@ -629,6 +630,7 @@ public partial class MainWindow
         _pendingProtocolTraceSelectionInspectorRefresh = false;
         FrameTraceGrid?.SelectedItems.Clear();
         _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
         ApplyProtocolTraceSnapshotNow();
         ApplySelectedEvidenceRowToInspector(null);
         ScrollActiveWorkspaceToLatest();
@@ -663,6 +665,7 @@ public partial class MainWindow
         ResetRecordedArchiveSource();
         _initialLiveTraceFlushPending = 1;
         _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
         _evidenceSummarySelectionAnchorIndex = -1;
         _isProtocolTraceDragSelecting = false;
         _isProtocolTraceSelectionBatching = false;

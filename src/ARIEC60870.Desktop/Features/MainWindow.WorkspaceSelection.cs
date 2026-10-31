@@ -239,6 +239,7 @@ public partial class MainWindow
 
 
 
+    private EvidenceRow? _protocolTraceSelectionAnchorRow;
     private int _protocolTraceDragLastVisibleIndex = -1;
     private Point _traceDragPointer;
     private DispatcherTimer? _traceDragScrollTimer;
@@ -419,6 +420,7 @@ public partial class MainWindow
             listBox.SelectedItems.Clear();
             listBox.SelectedItems.Add(row);
             _protocolTraceSelectionAnchorIndex = index;
+            _protocolTraceSelectionAnchorRow = row;
             FocusProtocolTraceContainer(listBox, index);
         }
         // Right-clicking any already-selected frame preserves the entire
@@ -475,12 +477,14 @@ public partial class MainWindow
             }
 
             _protocolTraceSelectionAnchorIndex = index;
+            _protocolTraceSelectionAnchorRow = row;
             return;
         }
 
         listBox.SelectedItems.Clear();
         listBox.SelectedItems.Add(row);
         _protocolTraceSelectionAnchorIndex = index;
+        _protocolTraceSelectionAnchorRow = row;
     }
 
     private void ExtendProtocolTraceSelectionToIndex(ListBox listBox, int index)
@@ -490,14 +494,10 @@ public partial class MainWindow
             return;
         }
 
-        if (_protocolTraceSelectionAnchorIndex < 0 || _protocolTraceSelectionAnchorIndex >= listBox.Items.Count)
-        {
-            _protocolTraceSelectionAnchorIndex = index;
-        }
+        var anchor = GetProtocolTraceSelectionAnchorIndex(listBox, index);
 
-        // Focus was repeatedly moving the scroll anchor on every hover
-        // while dragging. Only the initial mouse-down may focus a container.
-        SelectProtocolTraceRange(listBox, _protocolTraceSelectionAnchorIndex, index, additive: false);
+        // Do not refocus/scroll on mouse hover; row identity survives prefix trims.
+        SelectProtocolTraceRange(listBox, anchor, index, additive: false);
     }
 
     private void SelectAllVisibleTraceRows_Click(object sender, RoutedEventArgs e)
@@ -509,6 +509,7 @@ public partial class MainWindow
         foreach (var row in visible)
             if (selected.Add(row)) FrameTraceGrid.SelectedItems.Add(row);
         _protocolTraceSelectionAnchorIndex = visible.Length > 0 ? 0 : -1;
+        _protocolTraceSelectionAnchorRow = visible.FirstOrDefault();
         EndProtocolTraceSelectionBatch(FrameTraceGrid);
         ApplySelectedEvidenceRowToInspector(visible.LastOrDefault());
     }
@@ -525,8 +526,20 @@ public partial class MainWindow
 
     private int GetProtocolTraceSelectionAnchorIndex(ListBox listBox, int fallbackIndex)
     {
-        if (_protocolTraceSelectionAnchorIndex >= 0 && _protocolTraceSelectionAnchorIndex < listBox.Items.Count)
+        if (_protocolTraceSelectionAnchorRow is not null)
         {
+            var index = listBox.Items.IndexOf(_protocolTraceSelectionAnchorRow);
+            if (index >= 0)
+            {
+                _protocolTraceSelectionAnchorIndex = index;
+                return index;
+            }
+        }
+        if (_protocolTraceSelectionAnchorRow is null &&
+            _protocolTraceSelectionAnchorIndex >= 0 &&
+            _protocolTraceSelectionAnchorIndex < listBox.Items.Count)
+        {
+            _protocolTraceSelectionAnchorRow = listBox.Items[_protocolTraceSelectionAnchorIndex] as EvidenceRow;
             return _protocolTraceSelectionAnchorIndex;
         }
 
@@ -542,11 +555,14 @@ public partial class MainWindow
             if (selectedIndex >= 0)
             {
                 _protocolTraceSelectionAnchorIndex = selectedIndex;
+                _protocolTraceSelectionAnchorRow = listBox.Items[selectedIndex] as EvidenceRow;
                 return selectedIndex;
             }
         }
 
         _protocolTraceSelectionAnchorIndex = fallbackIndex;
+        _protocolTraceSelectionAnchorRow = fallbackIndex >= 0 && fallbackIndex < listBox.Items.Count
+            ? listBox.Items[fallbackIndex] as EvidenceRow : null;
         return fallbackIndex;
     }
 
