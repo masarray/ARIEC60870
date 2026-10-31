@@ -42,7 +42,9 @@ public static class QuickFindMatcher
     public static bool MatchesEvent(RelayEventRow r, string? q) =>
         MatchesText(q,r.Signal,r.Address,r.Type,r.CotLabel,r.Reason,r.NewValue,
             r.DisplayValue,r.Quality,r.PhysicalSource,r.TypeId,r.EvidenceReference,r.RelayTime);
-    public static bool MatchesValue(ValueRow r, string? q) =>
+    public static bool MatchesValue(ValueRow r, string? q) => MatchesValue(r, q, "All points");
+    public static bool MatchesValue(ValueRow r, string? q, string scope) =>
+        PointInvestigation.MatchesScope(r, scope) &&
         MatchesText(q,r.Signal,r.Address,r.Value,r.Quality,r.Group,r.Type,
             r.CotLabel,r.PhysicalSource,r.IoAddress,r.CommonAddress,r.FunInf,r.TypeId);
     public static bool MatchesControl(Iec10xCommandCasebook.CommandCase r, string? q) =>

@@ -20,6 +20,7 @@ public partial class MainWindow
     private string _traceQuickScope = "Activity focus";
     private string _eventsQuickQuery = "";
     private string _valuesQuickQuery = "";
+    private string _valuesQuickScope = "All points";
     private string _controlsQuickQuery = "";
     private string _giQuickQuery = "";
 
@@ -31,8 +32,9 @@ public partial class MainWindow
         _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Activity focus";
         CollectionViewSource.GetDefaultView(FrameTraceRows).Filter =
             o => o is EvidenceRow row && QuickFindMatcher.MatchesTrace(row,_traceQuickQuery,_traceQuickScope);
+        _valuesQuickScope = (ValueQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All points";
         CollectionViewSource.GetDefaultView(ValueRows).Filter =
-            o => o is ValueRow row && QuickFindMatcher.MatchesValue(row,_valuesQuickQuery);
+            o => o is ValueRow row && QuickFindMatcher.MatchesValue(row, _valuesQuickQuery, _valuesQuickScope);
         CollectionViewSource.GetDefaultView(ControlCaseRows).Filter =
             o => o is Iec10xCommandCasebook.CommandCase row && QuickFindMatcher.MatchesControl(row,_controlsQuickQuery);
         CollectionViewSource.GetDefaultView(GiCaseRows).Filter =
@@ -70,6 +72,14 @@ public partial class MainWindow
         UpdateQuickFindCounts();
         ScrollLatestProtocolTraceIfAutoScroll();
     }
+    private void ValueQuickScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_quickFindReady) return;
+        _valuesQuickScope = (ValueQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All points";
+        RefreshQuickFindView(ValueRows);
+        UpdateQuickFindCounts();
+    }
+
     private void QuickFindClear_Click(object sender, RoutedEventArgs e)
     {
         var key = (sender as Button)?.Tag as string;
