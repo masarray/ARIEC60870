@@ -58,6 +58,11 @@ public static class ObservationFrameFocus
         ArgumentNullException.ThrowIfNull(row);
         var source = row.Source;
 
+        // An active analyzer must NEVER hide master-issued requests while
+        // retaining their RX ACK/data: that creates an orphan-looking trace.
+        // Focus may suppress uneventful secondary NO DATA but not a real TX.
+        if (row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase))
+            return true;
         if (source.AsduDetails is not null || source.CommandDetails is not null)
             return true;
         if (source.CauseDetails is { Negative: true } or { Test: true })
