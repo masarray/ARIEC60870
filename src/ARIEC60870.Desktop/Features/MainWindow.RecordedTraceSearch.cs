@@ -48,9 +48,8 @@ public partial class MainWindow
         _recordedArchiveCancellation?.Cancel();
     }
 
-    private void ResetRecordedArchiveSource()
+    private void ReleaseRecordedArchiveIndex()
     {
-        CancelRecordedArchiveSearch();
         if (_traceArchiveFinding)
             _discardRecordedIndexAfterSearch = true;
         else
@@ -58,6 +57,12 @@ public partial class MainWindow
             _recordedArchiveIndex?.Dispose();
             _recordedArchiveIndex = null;
         }
+    }
+
+    private void ResetRecordedArchiveSource()
+    {
+        CancelRecordedArchiveSearch();
+        ReleaseRecordedArchiveIndex();
         _lastOpenedAriecFile = null;
         _traceArchivePage = 0;
         _traceArchiveQuery = string.Empty;
@@ -72,6 +77,7 @@ public partial class MainWindow
     {
         if (!_recordedArchiveViewActive) return;
         CancelRecordedArchiveSearch();
+        ReleaseRecordedArchiveIndex();
         _recordedArchiveViewActive = false;
         TraceRecordedNextButton.IsEnabled = false;
         TraceRecordedPrevButton.IsEnabled = false;
