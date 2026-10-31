@@ -70,18 +70,20 @@ public static class Iec101FrameByteInspector
                 $"RTU {frame.LinkAddress?.ToString(CultureInfo.InvariantCulture) ?? "?"}");
 
         var asdu = evidence.AsduDetails;
-        if (asdu is not null && asduStart + 2 <= raw.Count - 2)
+        if (asdu is not null && frame.IsChecksumValid && frame.IsLengthValid &&
+            frame.AsduBytes.SequenceEqual(asdu.RawBytes) &&
+            asdu.CotWidth is >= 1 and <= 2 &&
+            asdu.CommonAddressWidth is >= 1 and <= 2 &&
+            asdu.InformationObjectAddressWidth is >= 1 and <= 3 &&
+            asduStart + 2 + asdu.CotWidth + asdu.CommonAddressWidth <= raw.Count - 2)
         {
             Add("asdu-type", "Type ID", asduStart, 1, $"{asdu.TypeId} · {asdu.TypeName}");
             Add("vsq", "VSQ", asduStart + 1, 1,
                 $"Count {asdu.ObjectCount} · SQ={(asdu.IsSequence ? 1 : 0)}");
-            var cotSize = asdu.CauseDetails?.OriginatorAddress.HasValue == true ? 2 : 1;
-            var headerSize = asdu.Objects.FirstOrDefault(o => o.InformationObjectOffset >= 0)?.InformationObjectOffset;
-            if (headerSize is null)
-                headerSize = 2 + cotSize + (raw.Count > asduStart + 4 ? 2 : 1);
-            var caSize = headerSize.Value - 2 - cotSize;
-            if (caSize is < 1 or > 2)
-                caSize = 0; // Unknown header size: don't invent offsets.
+            // Source-configured profile, not an inferred first-object offset.
+            // An SQ=1 second object deliberately carries no physical IOA.
+            var cotSize = asdu.CotWidth;
+            var caSize = asdu.CommonAddressWidth;
             Add("cot", "Cause (COT)", asduStart + 2, cotSize,
                 $"{asdu.CauseOfTransmission} · {asdu.CauseName}" +
                 (asdu.IsNegativeConfirm ? " · NEGATIVE" : "") +
