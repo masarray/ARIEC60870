@@ -162,9 +162,9 @@ internal static class Program
                 physicalValidationPerformed = false,
                 disclaimer = "No proof of physical non-interference, UART wire integrity, field timing or RTU conformance."
             };
-            File.WriteAllText(Path.Combine(result.Directory, "field-summary.json"),
+            File.WriteAllText(Path.Join(result.Directory, "field-summary.json"),
                 JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
-            Console.WriteLine("Field result: " + Path.Combine(result.Directory, "field-summary.json"));
+            Console.WriteLine("Field result: " + Path.Join(result.Directory, "field-summary.json"));
             return !audit.Complete ? 2 : !anyData ? 3 : 0;
         }
         finally { Console.CancelKeyPress -= cancel; }
