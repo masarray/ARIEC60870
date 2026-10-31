@@ -38,6 +38,7 @@ public sealed class RelayEventRow
         CompactDisplayValue = ShortEventValue(item, DisplayValue);
         DiscreteBadge = item.TransactionKind is "GI" or "Command" ? null :
             DigitalStateBadge.FromDecoded(Protocol, item.TypeId?.ToString(CultureInfo.InvariantCulture), NewValue);
+        TypeBadge = IecSignalTypeBadge.FromDecoded(Protocol, item.TypeId);
         Reason = item.EdgeReason;
         Fun = item.FunctionType.HasValue ? item.FunctionType.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -76,6 +77,7 @@ public sealed class RelayEventRow
     public string OperatorValue => CompactDisplayValue;
     public string FullOperatorValue => DisplayValue;
     public DigitalStateBadge? DiscreteBadge { get; }
+    public IecSignalTypeBadge? TypeBadge { get; }
     public string Reason { get; }
     public string Fun { get; }
     public string Inf { get; }
