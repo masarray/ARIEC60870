@@ -243,9 +243,12 @@ public partial class MainWindow
     private Point _traceDragPointer;
     private DispatcherTimer? _traceDragScrollTimer;
     private ScrollViewer? _traceDragScrollViewer;
+    private bool _traceDragSelectionUpdateQueued;
+    private int _traceDragGeneration;
 
     private void StartTraceDragScroll(ListBox listBox, Point pointer)
     {
+        _traceDragGeneration++;
         _traceDragPointer = pointer;
         _traceDragScrollViewer = FindTraceScrollViewer(listBox);
         if (_traceDragScrollViewer is null) return;
@@ -286,9 +289,13 @@ public partial class MainWindow
         var delta = TraceDragEdgeScroll.ScrollDelta(_traceDragPointer.Y, list.ActualHeight);
         if (delta == 0) return;
         var before = viewer.VerticalOffset;
-        viewer.ScrollToVerticalOffset(Math.Clamp(before + delta, 0,
-            Math.Max(0, viewer.ScrollableHeight)));
-        if (Math.Abs(viewer.VerticalOffset - before) < 0.1) return;
+        var targetOffset = Math.Clamp(before + delta, 0,
+            Math.Max(0, viewer.ScrollableHeight));
+        if (Math.Abs(targetOffset - before) < 0.1) return;
+        viewer.ScrollToVerticalOffset(targetOffset);
+        if (_traceDragSelectionUpdateQueued) return;
+        _traceDragSelectionUpdateQueued = true;
+        var generation = _traceDragGeneration;
 
         // WPF recycling realizes newly scrolled row containers at Loaded.
         // Hit-test the actual visible row; never fabricate an index from a
@@ -298,11 +305,16 @@ public partial class MainWindow
             delta > 0 ? Math.Max(2, list.ActualHeight - 24) : 18);
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            if (!_isProtocolTraceDragSelecting || !list.IsVisible) return;
-            var index = GetProtocolTraceIndexFromInput(list, null, target);
-            if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
-            _protocolTraceDragLastVisibleIndex = index;
-            ExtendProtocolTraceSelectionToIndex(list, index);
+            try
+            {
+                if (!_isProtocolTraceDragSelecting || !list.IsVisible ||
+                    generation != _traceDragGeneration) return;
+                var index = GetProtocolTraceIndexFromInput(list, null, target);
+                if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
+                _protocolTraceDragLastVisibleIndex = index;
+                ExtendProtocolTraceSelectionToIndex(list, index);
+            }
+            finally { _traceDragSelectionUpdateQueued = false; }
         }), DispatcherPriority.Loaded);
     }
 
@@ -377,6 +389,7 @@ public partial class MainWindow
     private void FinishProtocolTraceDrag(ListBox? listBox)
     {
         _isProtocolTraceDragSelecting = false;
+        _traceDragGeneration++;
         _protocolTraceDragLastVisibleIndex = -1;
         _traceDragScrollTimer?.Stop();
         _traceDragScrollViewer = null;
@@ -577,8 +590,9 @@ public partial class MainWindow
         if (item is null)
         {
             var hit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
-            item = ItemsControl.ContainerFromElement(listBox, hit) as ListBoxItem
-                ?? FindVisualParent<ListBoxItem>(hit);
+            if (hit is not null)
+                item = ItemsControl.ContainerFromElement(listBox, hit) as ListBoxItem
+                    ?? FindVisualParent<ListBoxItem>(hit);
         }
 
         return item?.DataContext is EvidenceRow row

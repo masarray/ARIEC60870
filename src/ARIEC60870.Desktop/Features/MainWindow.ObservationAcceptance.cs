@@ -508,6 +508,34 @@ public partial class MainWindow
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
+
+                // The prior Events tab showed only spontaneous digital rows,
+                // despite real background/GI float points being present in Values.
+                // All original qualified measurements belong to the journal.
+                var beforeFilterCount = _relayEventStore.Snapshot().Count;
+                if (!_relayEventStore.Snapshot().Any(row => row.TypeBadge?.Label == "FLT") ||
+                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT"))
+                    throw new InvalidOperationException(
+                        "All Events did not retain original decoded floating measurements.");
+
+                SetEventFilters(["Measurement"], Array.Empty<string>());
+                if (RelayEventRows.Count == 0 ||
+                    RelayEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
+                    EventIncludeToggle.Content?.ToString() != "Include: 1")
+                    throw new InvalidOperationException(
+                        "Include Measurement checkbox dropped or misclassified actual analog events.");
+
+                SetEventFilters(EventCategories, ["Measurement"]);
+                if (RelayEventRows.Any(row => ClassifyEventCategory(row) == "Measurement") ||
+                    EventExcludeToggle.Content?.ToString() != "Exclude: 1")
+                    throw new InvalidOperationException(
+                        "Exclude Measurement did not remove analog rows from view only.");
+                SetEventFilters(EventCategories, Array.Empty<string>());
+                if (_relayEventStore.Snapshot().Count != beforeFilterCount ||
+                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT") ||
+                    RelayEventGrid.Items.Count != RelayEventRows.Count)
+                    throw new InvalidOperationException(
+                        "Include/Exclude mutated source journal or failed to restore the mixed Event view.");
                 if (!BuildTabSeparatedText(RelayEventGrid).Contains("Single Point ON", StringComparison.Ordinal))
                     throw new InvalidOperationException("Event status text missing from tab-separated export.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
