@@ -17,7 +17,7 @@ public partial class MainWindow
     private readonly DispatcherTimer _quickFindDebounce = new(DispatcherPriority.Background)
     { Interval = TimeSpan.FromMilliseconds(180) };
     private string _traceQuickQuery = "";
-    private string _traceQuickScope = "All frames";
+    private string _traceQuickScope = "Activity focus";
     private string _eventsQuickQuery = "";
     private string _valuesQuickQuery = "";
     private string _controlsQuickQuery = "";
@@ -28,7 +28,7 @@ public partial class MainWindow
         if (_quickFindReady) return;
         _quickFindReady = true;
         _quickFindDebounce.Tick += (_, _) => { _quickFindDebounce.Stop(); ApplyQuickFind(); };
-        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All frames";
+        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Activity focus";
         CollectionViewSource.GetDefaultView(FrameTraceRows).Filter =
             o => o is EvidenceRow row && QuickFindMatcher.MatchesTrace(row,_traceQuickQuery,_traceQuickScope);
         CollectionViewSource.GetDefaultView(ValueRows).Filter =
@@ -65,7 +65,7 @@ public partial class MainWindow
     private void TraceQuickScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_quickFindReady) return;
-        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All frames";
+        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Activity focus";
         RefreshQuickFindView(FrameTraceRows);
         UpdateQuickFindCounts();
         ScrollLatestProtocolTraceIfAutoScroll();
@@ -129,7 +129,8 @@ public partial class MainWindow
         if (!_quickFindReady) return;
         _quickFindDebounce.Stop();
         TraceQuickFindBox.Clear();
-        TraceQuickScopeCombo.SelectedIndex = 0;
+        // Exact frame navigation intentionally reveals all raw traffic.
+        TraceQuickScopeCombo.SelectedIndex = 1;
         _traceQuickQuery = "";
         _traceQuickScope = "All frames";
         RefreshQuickFindView(FrameTraceRows);
