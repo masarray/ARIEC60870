@@ -55,6 +55,22 @@ public partial class MainWindow
         }
         RefreshControlCasesIfVisible(force: true);
         RefreshGiCasesIfVisible(force: true);
+        // Returning to a populated Events tab must realize the newest SOE row.
+        // A previous scroll attempt while the tab was hidden cannot be relied on.
+        // Preserve the operator's manual viewport when Events follow is OFF.
+        if (IsEventsTabActive())
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!IsEventsTabActive()) return;
+                if (_relayEventRowsDirty)
+                {
+                    ApplyRelayEventFilter();
+                    _relayEventRowsDirty = false;
+                }
+                ScrollLatestEventIfAutoScroll();
+            }), DispatcherPriority.Loaded);
+        }
         UpdateQuickFindCounts();
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
