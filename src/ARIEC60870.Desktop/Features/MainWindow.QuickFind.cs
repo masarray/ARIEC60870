@@ -80,6 +80,29 @@ public partial class MainWindow
         UpdateQuickFindCounts();
     }
 
+    // Context-only scope selection: filters keep their previous state without
+    // occupying the data grid toolbar or introducing another binding state.
+    private static void SelectScopeFromMenu(object sender, ComboBox scope)
+    {
+        var wanted = (sender as MenuItem)?.Tag?.ToString();
+        if (string.IsNullOrWhiteSpace(wanted)) return;
+        for (var i = 0; i < scope.Items.Count; i++)
+        {
+            if ((scope.Items[i] as ComboBoxItem)?.Content?.ToString() != wanted) continue;
+            scope.SelectedIndex = i;
+            return;
+        }
+    }
+
+    private void ValueScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, ValueQuickScopeCombo);
+
+    private void EventScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, EventLogFilterComboBox);
+
+    private void TraceScopeMenu_Click(object sender, RoutedEventArgs e) =>
+        SelectScopeFromMenu(sender, TraceQuickScopeCombo);
+
     private void QuickFindClear_Click(object sender, RoutedEventArgs e)
     {
         var key = (sender as Button)?.Tag as string;
