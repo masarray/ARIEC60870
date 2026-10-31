@@ -134,30 +134,28 @@ public static class IecForensicByteInspector
             return fields;
         }
 
-        // Authoritative protocol parser, invoked only on inspector selection.
+        // Reuse Master-owned APCI evidence. A six-byte consistency check in
+        // the Master layer prevents stale/source-mismatched displays without
+        // invoking a second full ASDU decoder from WPF.
         var asdu = evidence.AsduDetails;
-        var parser = new Iec104ApduParser(
-            asdu?.CotWidth is >= 1 and <= 2 ? asdu.CotWidth : 2,
-            asdu?.CommonAddressWidth is >= 1 and <= 2 ? asdu.CommonAddressWidth : 2,
-            asdu?.InformationObjectAddressWidth is >= 1 and <= 3 ? asdu.InformationObjectAddressWidth : 3);
-        var apdu = parser.Decode(raw);
-        if (!apdu.IsValid || apdu.Format is not ("I" or "S" or "U") ||
-            (apdu.Format is "S" or "U" && raw.Length != 6))
+        if (!Iec104ApciEvidenceVerifier.Matches(raw,
+                evidence.ApciFormat, evidence.SendSequence, evidence.ReceiveSequence,
+                evidence.UFormatName))
         {
             Add("raw", "Unverified APCI", 0, raw.Length,
-                "Malformed APCI or unsupported length; raw bytes retained without typed claim");
+                "APCI bytes do not match the recorded Master decode; raw retained");
             return fields;
         }
 
         Add("envelope", "APDU header", 0, 2, $"IEC-104 68 · length={raw[1]}");
-        var apciText = apdu.Format switch
+        var apciText = evidence.ApciFormat switch
         {
-            "I" => $"I-format N(S)={apdu.SendSequence}, N(R)={apdu.ReceiveSequence}; not a remote execution acknowledgement",
-            "S" => $"S-format acknowledgement N(R)={apdu.ReceiveSequence}; no ASDU",
-            _ => $"U-format {apdu.UFormatName}; session control, not a process value"
+            "I" => $"I-format N(S)={evidence.SendSequence}, N(R)={evidence.ReceiveSequence}; not a remote execution acknowledgement",
+            "S" => $"S-format acknowledgement N(R)={evidence.ReceiveSequence}; no ASDU",
+            _ => $"U-format {evidence.UFormatName}; session control, not a process value"
         };
         Add("apci", "APCI control", 2, 4, apciText);
-        if (apdu.Format != "I") return fields;
+        if (evidence.ApciFormat != "I") return fields;
 
         var asduLength = raw.Length - 6;
         // Compare original ASDU octets to the same typed parser result
