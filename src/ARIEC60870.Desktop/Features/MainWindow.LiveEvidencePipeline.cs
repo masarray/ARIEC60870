@@ -595,18 +595,19 @@ public partial class MainWindow
         UpdateLineMonitorStatus();
     }
 
+    private bool IsProtocolTraceSelectionPinned() =>
+        _historicalTraceViewActive || _recordedArchiveViewActive ||
+        _isProtocolTraceDragSelecting || _isProtocolTraceSelectionBatching ||
+        (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0 ||
+        FrameTraceGrid?.ContextMenu?.IsOpen == true;
+
     private bool IsProtocolTraceViewFrozen()
     {
-        if (!IsProtocolTraceTabActive())
-        {
-            return false;
-        }
+        if (!IsProtocolTraceTabActive()) return false;
 
-        return IsLineMonitorHoldRequested()
-               || _isProtocolTraceDragSelecting
-               || _isProtocolTraceSelectionBatching
-               || (_protocolTraceSelectionAnchorIndex >= 0 && (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0)
-               || FrameTraceGrid?.ContextMenu?.IsOpen == true;
+        // HOLD without a selection is a scrolling preference, NOT a pause
+        // of the live line monitor. A selected range pins the rendered window.
+        return IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
@@ -711,12 +712,33 @@ public partial class MainWindow
         {
             if (IsProtocolTraceViewFrozen())
             {
-                // HOLD/selection pins this visual window exactly. Incoming TX/RX
-                // continue into the authoritative ring and verified archive.
-                // Never append+TrimStart underneath an active range selection.
-                _protocolTraceViewDirtyWhileFrozen = true;
-                _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
-                _pendingProtocolTraceUiRows.Clear();
+                if (IsProtocolTraceSelectionPinned())
+                {
+                    // Do not remove selected rows under a drag, inspector,
+                    // archive or context menu. Original RX/TX still enter
+                    // the canonical ring and the independent capture writer.
+                    _protocolTraceViewDirtyWhileFrozen = true;
+                    _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                    _pendingProtocolTraceUiRows.Clear();
+                }
+                else if (_protocolTraceViewDirtyWhileFrozen)
+                {
+                    // Selection was cleared while HOLD remained on. Reconcile
+                    // the source once without Reset, but do not auto-scroll.
+                    FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(),
+                        allowResetForUnrelated: false);
+                    _pendingProtocolTraceUiRows.Clear();
+                    _protocolTraceViewDirtyWhileFrozen = false;
+                    _protocolTraceRowsDeferredWhileFrozen = 0;
+                }
+                else
+                {
+                    // HOLD with NO selected rows continues to show newly
+                    // received traffic; it only suppresses tail-follow.
+                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+                    _pendingProtocolTraceUiRows.Clear();
+                }
             }
             else
             {
