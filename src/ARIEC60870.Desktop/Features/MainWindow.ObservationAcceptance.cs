@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using ARIEC60870.Core.Model;
 using ARIEC60870.Monitor;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
