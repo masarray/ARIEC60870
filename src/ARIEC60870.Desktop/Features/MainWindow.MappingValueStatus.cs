@@ -526,8 +526,13 @@ public partial class MainWindow
         var rows = recent.Where(row => ShouldIncludeRelayEvent(row, filter) &&
             QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
             .TakeLast(MaxVisibleRelayEventRows).ToArray();
-        if (EventsQuickCountText is not null)
-            EventsQuickCountText.Text = $"{rows.Length} / {recent.Count()} recent";
+        // The count must describe the *bound WPF projection*, never an
+        // uncommitted filtered source snapshot (which can disagree on screen).
+        void UpdateVisibleEventCount()
+        {
+            if (EventsQuickCountText is not null)
+                EventsQuickCountText.Text = $"{RelayEventGrid.Items.Count} / {recent.Count()} recent";
+        }
 
         // Prefer bounded incremental tail updates to resetting the entire WPF grid
         // on each SOE burst. A changed filter or non-overlapping window still resets.
@@ -544,14 +549,19 @@ public partial class MainWindow
                 // Keep the common suffix and append only truly new rows.
                 RelayEventRows.TrimStart(previousCount - overlap);
                 RelayEventRows.AddRange(rows.Skip(overlap));
+                UpdateVisibleEventCount();
                 return;
             }
 
             if (previousCount == rows.Length &&
                 Enumerable.Range(0, rows.Length).All(i => ReferenceEquals(RelayEventRows[i], rows[i])))
+            {
+                UpdateVisibleEventCount();
                 return;
+            }
         }
         RelayEventRows.ReplaceRange(rows);
+        UpdateVisibleEventCount();
     }
 
     private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
