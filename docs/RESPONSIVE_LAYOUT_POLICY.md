@@ -138,3 +138,8 @@ When returning to Events with auto-follow enabled, schedule one scroll to the la
 ## OBS-V2 interpretive inspector
 
 Decoded points for the selected IEC-101/104 ASDU appear within the existing resizable/collapsible Trace inspector; the UI does not allocate a permanently open sidecar or show oversized cards. The point table has a fixed compact height and recycling, and can be scrolled independently of its parent frame/property list. The explicit **Show details** control still overrides responsive auto-collapse on narrow screens. Acceptance screenshots must include meaningful point content as well as bounded Trace/selection/count checks; named 1540/1366 screenshots on a constrained hosted runner are not by themselves evidence of those physical resolutions or 125%/150% OS DPI.
+
+## POINT-WIRE-01 point investigation and responsive GUI
+
+The existing Values grid has a compact search/filter line and one-line selected-point footer, plus an Open Frame button. Neither an extra dialog nor a permanently open secondary DataGrid is added. The filtered view is not a new capture scope; point source keys and frame evidence survive sorting, tab switches and live updates. On an explicit Open Frame action the Trace inspector may open on narrow windows to show the exact selected IOA; the operator may collapse it afterward. Hosted CI synthetic screenshots cannot certify real monitor DPI.
+
