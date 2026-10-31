@@ -44,11 +44,21 @@ public sealed class ObservableRangeCollection<T> : ObservableCollection<T>
     /// <summary>Overlap of current suffix and desired prefix in O(n) using KMP.
     /// Normal rolling frame advancement removes only expired rows and appends
     /// only new ones. No collection-wide Reset on continuous trace traffic.</summary>
-    public void ReconcileTail(IReadOnlyList<T> desired)
+    public void ReconcileTail(IReadOnlyList<T> desired, bool allowResetForUnrelated = true)
     {
         ArgumentNullException.ThrowIfNull(desired);
-        if (Count == 0) { ReplaceRange(desired); return; }
-        if (desired.Count == 0) { Clear(); return; }
+        if (Count == 0)
+        {
+            if (allowResetForUnrelated) ReplaceRange(desired);
+            else AddRange(desired);
+            return;
+        }
+        if (desired.Count == 0)
+        {
+            if (allowResetForUnrelated) Clear();
+            else while (Count > 0) RemoveAt(Count - 1);
+            return;
+        }
 
         var eq = EqualityComparer<T>.Default;
         var prefix = new int[desired.Count];
@@ -69,7 +79,18 @@ public sealed class ObservableRangeCollection<T> : ObservableCollection<T>
                 matched = prefix[matched - 1];
         }
 
-        if (matched == 0) { ReplaceRange(desired); return; }
+        if (matched == 0)
+        {
+            if (allowResetForUnrelated) ReplaceRange(desired);
+            else
+            {
+                // Even a complete live-window rollover is not a new scope:
+                // a WPF Reset destroys selection and realized row containers.
+                while (Count > 0) RemoveAt(Count - 1);
+                AddRange(desired);
+            }
+            return;
+        }
         var oldPrefix = Count - matched;
         for (var i = 0; i < oldPrefix; i++) RemoveAt(0);
         for (var i = matched; i < desired.Count; i++) Add(desired[i]);

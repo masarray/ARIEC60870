@@ -9,12 +9,12 @@
     <Color x:Key="Ink800">#1F2937</Color>
     <Color x:Key="Ink700">#374151</Color>
     <Color x:Key="Ink600">#475467</Color>
-    <Color x:Key="Ink500">#667085</Color>
-    <Color x:Key="Line200">#DDE6ED</Color>
-    <Color x:Key="Line300">#CFDBE5</Color>
-    <Color x:Key="Panel50">#EAF0F4</Color>
+    <Color x:Key="Ink500">#52647B</Color>
+    <Color x:Key="Line200">#CBD7E4</Color>
+    <Color x:Key="Line300">#BDCDE0</Color>
+    <Color x:Key="Panel50">#E8EFF6</Color>
     <Color x:Key="Panel75">#F0F4F7</Color>
-    <Color x:Key="Panel100">#E4EBF2</Color>
+    <Color x:Key="Panel100">#E1EAF4</Color>
     <Color x:Key="Surface">#F8FAFC</Color>
     <Color x:Key="Accent600">#2563EB</Color>
     <Color x:Key="Accent700">#1D4ED8</Color>

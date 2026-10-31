@@ -29,6 +29,34 @@ public sealed class ObservableRangeCollectionTests
     }
 
     [Fact]
+    public void FiftyThousandRollingEventFactsDoNotResetAnUnchangedWindow()
+    {
+        const int window = 420;
+        var source = new List<object>();
+        var rows = new ObservableRangeCollection<object>();
+        var resets = 0;
+        rows.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) resets++;
+        };
+        for (var i = 0; i < 50_000; i += 125)
+        {
+            source.AddRange(Enumerable.Range(i, 125).Select(_ => new object()));
+            if (source.Count > window) source.RemoveRange(0, source.Count - window);
+            rows.ReconcileTail(source, allowResetForUnrelated: false);
+            Assert.Equal(source, rows);
+        }
+        Assert.Equal(0, resets);
+        Assert.Equal(window, rows.Count);
+        // Intentional changes to filter scope are distinct from a live append.
+        var filtered = source.Take(1).ToArray();
+        rows.ReconcileTail(filtered, allowResetForUnrelated: true);
+        Assert.Single(rows);
+        rows.ReconcileTail(source, allowResetForUnrelated: true);
+        Assert.Equal(source, rows);
+    }
+
+    [Fact]
     public void RollingSnapshotPreservesOriginalFrameReferences()
     {
         var initial = Enumerable.Range(0, 1200).Select(_ => new object()).ToArray();

@@ -39,10 +39,17 @@ public partial class MainWindow
             o => o is Iec10xCommandCasebook.CommandCase row && QuickFindMatcher.MatchesControl(row,_controlsQuickQuery);
         CollectionViewSource.GetDefaultView(GiCaseRows).Filter =
             o => o is Iec10xGiCasebook.GiCase row && QuickFindMatcher.MatchesGi(row,_giQuickQuery);
+        RelayEventRows.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset &&
+                string.Equals(_eventCommittedScope, CurrentEventScopeKey(), StringComparison.Ordinal))
+                _eventLiveResetCount++;
+        };
         FrameTraceRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
         ValueRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
         ControlCaseRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
         GiCaseRows.CollectionChanged += (_, _) => QueueQuickFindCountRefresh();
+        UpdateQuickFindClearButtons();
         ApplyQuickFind();
         UpdateQuickFindCounts();
     }
@@ -60,10 +67,25 @@ public partial class MainWindow
 
     private void QuickFindTextChanged(object sender, TextChangedEventArgs e)
     {
+        UpdateQuickFindClearButtons();
         if (!_quickFindReady) return;
         _quickFindDebounce.Stop();
         _quickFindDebounce.Start();
     }
+    private void UpdateQuickFindClearButtons()
+    {
+        if (TraceSearchClearButton is not null && TraceQuickFindBox is not null)
+            TraceSearchClearButton.Visibility = string.IsNullOrEmpty(TraceQuickFindBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+        if (ValuesSearchClearButton is not null && ValuesQuickFindBox is not null)
+            ValuesSearchClearButton.Visibility = string.IsNullOrEmpty(ValuesQuickFindBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+        if (EventsSearchClearButton is not null && EventsQuickFindBox is not null)
+            EventsSearchClearButton.Visibility = string.IsNullOrEmpty(EventsQuickFindBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+        if (ControlsSearchClearButton is not null && ControlsQuickFindBox is not null)
+            ControlsSearchClearButton.Visibility = string.IsNullOrEmpty(ControlsQuickFindBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+        if (GISearchClearButton is not null && GiQuickFindBox is not null)
+            GISearchClearButton.Visibility = string.IsNullOrEmpty(GiQuickFindBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     private void TraceQuickScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_quickFindReady) return;

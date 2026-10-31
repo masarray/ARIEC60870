@@ -126,3 +126,10 @@ For case stage navigation, exact source-qualified Event evidence can provide the
 ## R3-E command semantic qualification (2026-10-30)
 
 A secondary-direction control ASDU with COT=6 is an unexpected direction/COT combination rather than an RTU ACTCON; valid FT1.2 checksum is not sufficient. Such a frame remains visible and may be reported as a separate protocol anomaly but does not consume a pending SELECT. A command ASDU with COT TEST flag never produces an unqualified operator-facing `Command accepted` title. When the command casebook discards older stages beyond its 24-stage bound, copied evidence explicitly states that the history is truncated. The true RTU internal cause cannot be inferred from IEC-101 negative ACTCON alone. See `docs/R3E_VERIFIED_HISTORICAL_COMMAND_FORENSICS_20261030.md`.
+
+## R6 EVENT-02 implementation checkpoint — 2026-10-31
+
+Master-owned typed IEC101/104 COT3 and COT11/12 process event classification now includes SP/DP, analog normalized/scaled/float and integrated-total/counter types per decoded object, retaining source/object identity and original frame. GI COT20..36 remains Values/GI snapshot, never spontaneous. IEC103 protection semantics stay with its native decoder; standard IEC101/104 Type IDs are not used to guess IEC103 FUN/INF.
+
+Events now shows its **actual** category scope in a compact visible ComboBox in the one-line header; a 1/141 filtered display cannot silently masquerade as unfiltered All. Live unchanged-scope event-tail reconciliation cannot Reset WPF even after a full bounded-window rollover. Filter/scope transitions are explicit rebuilds, not normal live events. A 420-row preview remains bounded and is not a complete durable archive. This corrects the verified hidden-filter ambiguity and protects the collection from routine full resets; physical reproduction must still establish any other contributing driver of the field oscillation.
+
