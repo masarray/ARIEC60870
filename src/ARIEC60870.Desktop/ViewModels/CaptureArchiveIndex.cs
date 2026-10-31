@@ -75,8 +75,8 @@ public sealed class CaptureArchiveIndex : IDisposable
         if (skipMatching < _matchingRows)
         {
             _matches!.Position = checked(skipMatching * sizeof(long));
-            var offsets = new long[Math.Min(pageSize, checked((int)Math.Min(
-                _matchingRows - skipMatching, pageSize)))];
+            var offsets = new long[(int)Math.Min((long)pageSize,
+                _matchingRows - skipMatching)];
             Span<byte> offsetBytes = stackalloc byte[sizeof(long)];
             for (var i = 0; i < offsets.Length; i++)
             {
@@ -133,7 +133,21 @@ public sealed class CaptureArchiveIndex : IDisposable
 
     private void BuildMatches(CaptureArchiveQuery query, CancellationToken cancellationToken)
     {
-        using var next = CaptureArchiveReader.CreateTemporaryIndexStream();
+        var next = CaptureArchiveReader.CreateTemporaryIndexStream();
+        try
+        {
+            BuildNextMatches(next, query, cancellationToken);
+        }
+        catch
+        {
+            next.Dispose();
+            throw;
+        }
+    }
+
+    private void BuildNextMatches(FileStream next, CaptureArchiveQuery query,
+        CancellationToken cancellationToken)
+    {
         _frames.Position = 0;
         var rented = ArrayPool<byte>.Shared.Rent(64 * 1024);
         var pending = new ArrayBufferWriter<byte>(4096);
@@ -170,13 +184,13 @@ public sealed class CaptureArchiveIndex : IDisposable
             next.Flush();
             next.Position = 0;
 
-            // Commit only after full successful scan, leaving prior index intact on cancel.
-            _matches?.Dispose();
-            _matches = CaptureArchiveReader.CreateTemporaryIndexStream();
-            next.CopyTo(_matches);
-            _matches.Position = 0;
+            // Atomic index swap: no copy of potentially millions of offsets.
+            // Cancellation/error before this point leaves the old query intact.
+            var previous = _matches;
+            _matches = next;
             _activeQuery = query;
             _matchingRows = matches;
+            previous?.Dispose();
         }
         finally { ArrayPool<byte>.Shared.Return(rented); }
 
