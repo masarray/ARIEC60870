@@ -34,6 +34,43 @@ public sealed class Iec10xObservationIdentityTests
         Assert.Equal(expected, Iec10xObservationIdentity.IsReceivedProcessEvent(e));
     }
 
+    [Theory]
+    [InlineData(13, 2, true)]
+    [InlineData(13, 20, true)]
+    [InlineData(15, 1, true)]
+    [InlineData(36, 36, true)]
+    [InlineData(1, 20, false)]
+    [InlineData(45, 7, false)]
+    public void MeasurementSnapshotsAreJournaledWithoutInventingCommands(
+        int type, int cot, bool expected)
+    {
+        var item = new Iec103MasterEvidenceEvent
+        {
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = type, CauseOfTransmission = cot,
+            InformationObjectAddress = 233,
+            AsduDetails = new Iec10xAsduDecode(),
+            InformationObjectDetails = new Iec10xInformationObject()
+        };
+        Assert.Equal(expected, Iec10xObservationIdentity.ShouldRecordMeasurementObservation(item));
+        Assert.Equal(expected, Iec10xObservationIdentity.ShouldRecordProcessEvent(item, false));
+        if (expected)
+        {
+            var invalid = new Iec103MasterEvidenceEvent
+            {
+                Direction = item.Direction,
+                ProtocolMode = item.ProtocolMode,
+                TypeId = type, CauseOfTransmission = cot,
+                InformationObjectAddress = 233,
+                AsduDetails = new Iec10xAsduDecode
+                    { Issues = ["Short ASDU; no measured float bytes"] },
+                InformationObjectDetails = new Iec10xInformationObject()
+            };
+            Assert.False(Iec10xObservationIdentity.ShouldRecordMeasurementObservation(invalid));
+        }
+    }
+
     [Fact]
     public void MalformedObjectOrAsduIsNotPromotedToProcessEvent()
     {

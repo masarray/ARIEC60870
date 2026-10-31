@@ -347,7 +347,8 @@ public partial class MainWindow
             AutoScrollLatestToggleButton.IsChecked = false;
         }
 
-        _protocolTraceViewDirtyWhileFrozen = true;
+        // HOLD is only an auto-scroll choice. Selection must not stop the
+        // streaming WPF projection, and the capture pipeline is independent.
         _evidenceSummaryViewDirtyWhileFrozen = true;
         if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
         {
@@ -606,7 +607,7 @@ public partial class MainWindow
 
         // HOLD without a selection is a scrolling preference, NOT a pause
         // of the live line monitor. A selected range pins the rendered window.
-        return IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
+        return _historicalTraceViewActive || _recordedArchiveViewActive;
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
