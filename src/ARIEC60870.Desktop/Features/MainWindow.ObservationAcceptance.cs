@@ -443,7 +443,7 @@ public partial class MainWindow
     {
         if (!search.IsVisible || !count.IsVisible || (follow is not null && !follow.IsVisible))
             throw new InvalidOperationException(workspace + " header control missing from rendered WPF.");
-        static double MidY(FrameworkElement x, Visual window) =>
+        static double MidY(FrameworkElement x, FrameworkElement window) =>
             x.TranslatePoint(new Point(0, x.ActualHeight / 2), window).Y;
 
         var searchY = MidY(search, this);
