@@ -54,7 +54,7 @@ public sealed class Iec10xObservationIdentityTests
                 SequenceNumber = i + 1
             };
             var isEvent = Iec10xObservationIdentity.IsReceivedProcessEvent(e);
-            if (isEvent != (cot == 3))
+            if (isEvent != (e.CauseOfTransmission == 3))
                 throw new Xunit.Sdk.XunitException(
                     $"Unexpected process classification i={i}, type={e.TypeId}, cot={e.CauseOfTransmission}, " +
                     $"protocol={e.ProtocolMode}, direction={e.Direction}, category={e.Category}, " +
