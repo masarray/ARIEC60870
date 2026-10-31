@@ -1,5 +1,41 @@
 > **CURRENT CROSS-THREAD DESIGN AUTHORITY — 2026-10-29.** Before modifying this public repository, read [docs/IEC10X_INTEROPERABILITY_PRD_20261029.md](docs/IEC10X_INTEROPERABILITY_PRD_20261029.md), [docs/IEC10X_INTEROPERABILITY_ARD_20261029.md](docs/IEC10X_INTEROPERABILITY_ARD_20261029.md) and [docs/IEC10X_NUC_RESEARCH_20261029.md](docs/IEC10X_NUC_RESEARCH_20261029.md). These are canonical **future product/design targets** for IEC-101/103/104; latest master, open PRs and exact CI remain implementation truth. The older introductory IEC-103-only/single-connection wording below is historical and MUST NOT cancel already-merged IEC-101/104, passive 2/4-RX, active dual-link or unified forensic work. IEC-101 balanced-mode support is **not implied** by unbalanced dual-link. NUC convention profiles are opt-in and only apply where selected by the project; a NUC technical source title may be used in research/engineering documentation, but public marketing/product UI remain vendor-neutral. Never confuse NUC101 optional post-switch GI with project-specific NUC104 frontend GI behavior. Before every PR refresh master and current workstreams; choose one PRD requirement ID, preserve raw evidence/protocol correctness, keep WPF thin, add negative tests, and never overwrite concurrent PR changes or private logs.
 
+
+> **CURRENT R6-R9 ENGINEERING AUTHORITY — 2026-10-31.** This contract takes precedence over conflicting historical v1.2.x UI and R0-R4 milestone notes below. Read the updated [canonical PRD](docs/IEC10X_INTEROPERABILITY_PRD_20261029.md) and [ARD](docs/IEC10X_INTEROPERABILITY_ARD_20261029.md), and the IEC/NUC research, before implementation. R5 master at audit: 1e7b8668e5f6018156de6ce7b77c64011650bbe5; refresh GitHub master, open PRs and CI before EACH change. **User-observed Events full -> one row -> full flicker is a P0 release blocker.** This is an observed symptom, not yet a proven root cause. Updating documentation does NOT fix runtime behavior.
+
+## Active R6-R9 non-negotiable engineering contract
+
+### Product identity and protected scope
+ARIEC60870 must become a compact, fast, reliable, premium **IEC60870-5-101/103/104 tester + analyzer + separately RX-only IEC101 sniffer**, with straightforward Configure -> Connect/Capture -> Observe -> Diagnose original frame -> Report workflow. Retain already-merged IEC101 active unbalanced single/A-B, IEC103/104 active Master, 2/4 RX passive, source-qualified GI/Command casebooks, R5 104 STARTDT/TESTFR safety and verified original evidence. **Do not claim implemented or certified** IEC101 active balanced, full operator-configurable IEC101/104 RTU simulator, universal NUC compliance, physical electrical isolation or multi-vendor FAT. Never add a parallel parser, WPF-owned protocol truth, or proprietary code/design.
+
+### R6 P0: EVENT-02 stable all-signal Event Journal
+- First instrument **session epoch, canonical source count/sequence, query+scope, filtered count, WPF projection count, bound DataGrid count, collection reset count, queue depth and latency**. A hidden filter, source/window change, Reset and WPF realization are competing hypotheses for the screenshot 1/141 -> 165/165; reproduce and identify the root cause before patching. No blind Refresh, ItemsSource toggling or extra timers.
+- Every eligible original decoded object has a stable source/physical frame/object-ordinal ID and typed Type/COT P-N/TEST, CA/IOA or IEC103 FUN/INF, quality, value, device time (when supplied), host arrival and evidence reference. **Classify using typed protocol fields**, never substring matching display text.
+- Valid received IEC101/104 COT3 spontaneous, and appropriate COT11/12 return-information observations, must include **first/repeated** SP/DP, normalized/scaled/float measurement, counters/BCR and timed variants as independently retained Event facts. IEC103 protection events likewise keep native FUN/INF and time. Preserve every multi-object ASDU object, not just FirstObject. Invalid, unknown or partial data stays raw/uncertain, never fabricated Good.
+- GI COT6/7/10 and command select/execute/confirmation/negative/termination are **transaction milestones** with original refs, not proof of mechanical action. GI COT20..36 updates Values/GI coverage, not generic SOE spam; routine cyclic/background COT1/2 is not automatically spontaneous SOE. Preserve A/B/source/CA separation and exact failure uncertainty.
+- **One ordered canonical Event authority**; one epoch/version-checked, incremental, bounded WPF projection with stable row IDs. In unchanged live scope, **0 CollectionChanged.Reset**, consistent source/filter/projection/grid counts, no unexplained full -> one-row collapse. Search/filter active state visible; AUTO/HOLD affects viewport following only, never acquisition or archiving. Values is a snapshot; Events is a history of real facts; Trace one physical frame per top-level row.
+- UI coalescing may reduce **render operations** only, not silently discard authoritative event facts. Raw recording/verified archive is explicitly enabled and has integrity/overflow/incomplete state. A 420-row UI ring is NOT full history. Bounded Channel DropOldest/DropNewest/DropWrite is not permitted for mandatory event/raw facts without explicitly counted/reported data loss. Avoid blocking COM RX on WPF. Spooling/backpressure must be measured and fail-observable.
+
+### R6 P0: UX-02 and PERF-01 premium, lightweight cockpit
+- One **32-DIP single-line** Search + counter (+ AUTO on chronological views), **6-DIP gap** to grid, matching left X and top Y across Trace/Values/Events/Controls/GI. No second toolbar or wandering columns. Shared clean outline Search/X icons, clear X only when query nonempty; discoverable scope and truthful counters. Read-only dense virtualized grids, stable selection/scroll, keyboard and right-click copy, exact source-frame navigation.
+- **No intrusive hover popups/tooltips on live evidence rows or inspector.** Selected inspector adds genuinely new byte-level protocol details, link/APCI/ASDU/quality/evidence, rather than repeating Trace or Class 2 no-data prose. The old v1.2.x hover/animated-nav directives below are historical when conflicting with this policy.
+- Calm premium industrial blue-grey: slightly stronger shared border/text/selected-row contrast, restrained green/amber/red semantic chips with text, compact normal/medium typography, no heavy bold, giant cards, per-row animations or page reflow. Use shared resources rather than per-control hard-coded drift.
+- Retain existing batching/virtualization as an **implementation baseline**, not proof of stability. Prefer a single source writer, bounded immutable facts, per-scope versioned delta, and UI-only batching. No needless threads, per-frame Dispatcher, UI re-decode, entire-grid Refresh loops, unbounded cache or full-history scan per keystroke.
+
+### Mandatory evidence gates before any implementation merge
+1. Refresh exact GitHub master, PRs, root/component AGENTS and canonical PRD/ARD. Identify requirement ID, ownership, failing regression/telemetry for P0 bug and alternatives; implement the smallest coherent architecture change, not trial/error patches.
+2. Run positive and negative deterministic tests: 5k and 50k mixed IEC101/103/104 process observations, SP/DP/measurement/counter, GI vs spontaneous, command failures, invalid/unknown, SQ0/SQ1, physical source A/B, rapid tab switches, filter, AUTO/HOLD, capture/session epoch and replay. **No silent source event loss** in healthy verified recording; visible gaps otherwise. No false digital/quality/command conclusions.
+3. Assert committed source/filter/projection/WPF grid counts, stable scroll/selection, **0 live Reset** at unchanged scope and no unexplained All+empty query full -> one-row collapse. Actual WPF geometry target <=2 DIP XY misalignment and 6-DIP gap; no obstructing tooltip.
+4. Performance **targets, not achieved facts**: bounded UI memory for 50k source facts, <=150ms p95 event-to-visible latency and <16ms p95 Dispatcher batch under a documented benchmark machine/workload; measure CPU, allocations, queue depth, losses and disk throughput. Real serial/TCP, genuine DPI 100/125/150%, physical 2/4 COM isolation and multi-vendor FAT require separate bench evidence.
+5. Do cheap tests first, use one meaningful PR and exact-head full Windows build/format/smoke/xUnit/WPF screenshots/CodeQL/dependency/hygiene plus self-contained Windows ZIP and SHA256 at integration gate. **Inspect actual screenshots before merge**; CI-clamped windows are not real physical DPI proof. Document honest Implemented / Automated-tested / Physical-tested / Partial / Not implemented verdicts.
+
+### Delivery order (replaces historical 'Future Coding Priorities')
+- **R6 NOW: EVENT-02 + UX-02 + PERF-01**: diagnose/fix oscillating Events, all-signal journal and consistent premium cockpit, Windows user-testable build.
+- **R7: TRACE-02 + CAPTURE-02**: byte-true IEC103/104 inspector, indexed long capture, all-object source/replay/report equivalence and corruption handling.
+- **R8: TASK-01**: configured IEC101/104 RTU simulator, point database, safe task/exchange engine and independently validated scenarios.
+- **R9: FAT-02**: physical IEC101 2/4 RX 1200-bps soak, IEC103/104 multi-vendor, reconnect/window/timing, real DPI/CPU/memory and per-mode proof matrix.
+- R6 is NOT complete until its P0 acceptance is demonstrated. Future targets are not merged facts, and CI is not physical interoperability.
+
 # AGENTS.md — ARIEC60870 Engineering Guardrails
 
 This file is the operating contract for every future coding agent, assistant, or maintainer that modifies ARIEC60870.
@@ -241,7 +277,7 @@ When changing behavior, update at least one of:
 
 Release assets must be reproducible. When changing project output, update `scripts/publish-windows-portable.ps1`, `scripts/verify-release-package.ps1`, `.github/workflows/release-package.yml`, and `docs/RELEASE_PACKAGING.md` when needed. Do not publish only source ZIPs for user-facing releases; provide a Windows portable package and checksum.
 
-## Future Coding Priorities
+## Historical Future Coding Priorities (superseded by active R6-R9 contract)
 
 1. Hardening active master engine
 2. User mapping profile editor/import/export
@@ -318,12 +354,12 @@ The WPF shell now uses a more compact AR-style header, lighter premium typograph
 Use an Aptos-centered modern font stack and avoid heavy semibold/bold styling except where a status number truly needs emphasis. Header cards and KPI cards must stay compact. Frame Trace must explain protocol meaning first and keep raw hex as expandable/secondary evidence. Long protocol explanations must wrap/scroll inside a bounded inspector, never clip invisibly.
 
 
-## v1.2.11 update
+## Historical v1.2.11 update (superseded when conflicting with R6)
 
 - Frame Trace inspector now uses a meaning-first raw hex map. Hovering hex blocks explains the selected byte/field so users can understand the frame without reading raw hex manually.
 - Session state and sidebar spacing were tightened to avoid clipping and hover cut-off.
 
-## Frame Trace / Hex Inspector rule
+## Historical Frame Trace / Hex Inspector rule (hover behavior superseded by R6)
 
 Frame Trace must explain protocol meaning first. Raw hex should be grouped into protocol-aware blocks (FT1.2 envelope, control/link, ASDU header, FUN/INF, payload/time/value, checksum/end). Hovering raw hex must highlight the matching meaning row without replacing panel content or causing flicker. Do not revert to isolated single-byte explanation as the primary behavior.
 
@@ -386,7 +422,7 @@ Frame Trace must behave like a real IEC-103 line monitor: TX/RX transaction trac
 - If no relay timestamp exists, show exactly `no timestamp`; do not synthesize a fake date/time.
 - Event Log must support All / Digital status / Analog filtering.
 
-### v1.2.21 UI motion and button palette
+### Historical v1.2.21 UI motion and button palette (superseded by R6)
 - Segmented navbar uses a bright fluid pill treatment, not a grey selected state.
 - Hover grows subtly and click compresses subtly to make navigation feel tactile.
 - Primary buttons use a brighter modern blue/cyan accent with dark readable captions.
@@ -397,7 +433,7 @@ Frame Trace must behave like a real IEC-103 line monitor: TX/RX transaction trac
 Do not use Button-specific dependency properties such as `IsPressed` in `TabItem` styles. TabItem motion should use WPF-safe hover/selected triggers or code-behind VisualState handling.
 
 
-## v1.2.23 UI cockpit guardrail
+## Historical v1.2.23 UI cockpit guardrail (superseded by R6)
 
 - Use the custom segmented navbar with a real sliding pill; do not rely on default TabItem selected gray highlight.
 - Left rail buttons must use icon + small caption with safe hover/shadow margins.
