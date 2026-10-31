@@ -46,7 +46,7 @@ public sealed class Iec10xObservationIdentityTests
             {
                 ProtocolMode = i % 2 == 0 ? Iec60870ProtocolMode.Iec101 : Iec60870ProtocolMode.Iec104,
                 Direction = FrameDirection.SlaveToMaster,
-                TypeId = i % 4 switch { 0 => 1, 1 => 3, 2 => 13, _ => 15 },
+                TypeId = (i % 4) switch { 0 => 1, 1 => 3, 2 => 13, _ => 15 },
                 CauseOfTransmission = i % 11 == 0 ? 20 : 3,
                 CommonAddressNumber = 105 + i % 3,
                 InformationObjectAddress = 1000 + i % 300,
