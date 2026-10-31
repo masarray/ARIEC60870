@@ -173,17 +173,16 @@ public partial class MainWindow
 
     private static string ReadGridColumnValue(DataGridColumn column, object item)
     {
-        if (column is DataGridTextColumn textColumn && textColumn.Binding is Binding binding && binding.Path is not null)
-        {
-            var path = binding.Path.Path;
-            if (!string.IsNullOrWhiteSpace(path))
-            {
-                var value = item.GetType().GetProperty(path)?.GetValue(item);
-                return value?.ToString() ?? string.Empty;
-            }
-        }
-
-        return string.Empty;
+        // A column's human-readable label may be rendered with a template
+        // (typed status chips) but must NEVER lose its source text in copy/TSV.
+        // Both WPF clipboard and our exporter use the same explicit binding.
+        var binding = column is DataGridBoundColumn bound
+            ? bound.Binding as Binding
+            : column.ClipboardContentBinding as Binding;
+        var path = binding?.Path?.Path;
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        var value = item.GetType().GetProperty(path)?.GetValue(item);
+        return value?.ToString() ?? string.Empty;
     }
 
     private static string EscapeTabValue(string value)

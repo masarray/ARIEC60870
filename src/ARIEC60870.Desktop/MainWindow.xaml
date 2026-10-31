@@ -951,7 +951,7 @@
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.8*" MinWidth="132" ElementStyle="{StaticResource GridCellNoWrapText}" />
-                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" Width="1.3*" MinWidth="120" />
+                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.3*" MinWidth="120" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="0.95*" MinWidth="90" />
                                     <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.25*" MinWidth="119" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" Visibility="Collapsed" ElementStyle="{StaticResource GridCellNoWrapText}" />
@@ -1045,7 +1045,7 @@
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="145" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
-                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" Width="1.25*" MinWidth="128"/>
+                                    <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
                                     <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.2*" MinWidth="116" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />

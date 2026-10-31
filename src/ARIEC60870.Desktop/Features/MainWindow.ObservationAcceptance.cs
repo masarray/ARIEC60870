@@ -273,8 +273,10 @@ public partial class MainWindow
                 if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
                     ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
                     SelectedValueContextText.IsVisible ||
-                    ValueGrid.Columns[1] is not DataGridTemplateColumn)
-                    throw new InvalidOperationException("Values still sacrifices grid area for action/filter chrome or lacks state chips.");
+                    ValueGrid.Columns[1] is not DataGridTemplateColumn valueStateColumn ||
+                    valueStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
+                        { Path.Path: "OperatorValue" })
+                    throw new InvalidOperationException("Values grid-first layout, status or clipboard contract missing.");
                 if (ValueGrid.Items.Count < 2 || ValueRows.Count < 2)
                     throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
                 var target = ValueRows.FirstOrDefault(x => x.IoAddress == "8");
@@ -287,6 +289,10 @@ public partial class MainWindow
                     dpOff?.DiscreteBadge != new DigitalStateBadge("DP", "OFF"))
                     throw new InvalidOperationException(
                         "Source-backed [SP] and [DP] ON/OFF state projections are absent from Values.");
+                var valuesTsv = BuildTabSeparatedText(ValueGrid);
+                if (!valuesTsv.Contains("SP=OFF", StringComparison.Ordinal) ||
+                    !valuesTsv.Contains("DP=ON", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Grid badge template erased original source values from TSV export.");
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
@@ -321,8 +327,10 @@ public partial class MainWindow
             {
                 if (EventLogFilterComboBox.Visibility != Visibility.Collapsed ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
-                    RelayEventGrid.Columns[2] is not DataGridTemplateColumn)
-                    throw new InvalidOperationException("Event Log is not compact single-toolbar / typed-status layout.");
+                    RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
+                    eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
+                        { Path.Path: "OperatorValue" })
+                    throw new InvalidOperationException("Event Log compact toolbar/status/clipboard contract missing.");
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
@@ -346,6 +354,8 @@ public partial class MainWindow
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
+                if (!BuildTabSeparatedText(RelayEventGrid).Contains("Single Point ON", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Event status text missing from tab-separated export.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
                     throw new InvalidOperationException(
                         $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, filter={EventLogFilterComboBox.SelectedIndex}, query='{_eventsQuickQuery}'.");
