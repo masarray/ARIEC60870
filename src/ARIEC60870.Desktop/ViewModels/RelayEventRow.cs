@@ -36,6 +36,8 @@ public sealed class RelayEventRow
         // The Event grid shows only a short typed fact; unabridged display
         // remains in DisplayValue/NewValue for selection, export and case detail.
         CompactDisplayValue = ShortEventValue(item, DisplayValue);
+        DiscreteBadge = item.TransactionKind is "GI" or "Command" ? null :
+            DigitalStateBadge.FromDecoded(Protocol, item.TypeId?.ToString(CultureInfo.InvariantCulture), NewValue);
         Reason = item.EdgeReason;
         Fun = item.FunctionType.HasValue ? item.FunctionType.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -71,6 +73,7 @@ public sealed class RelayEventRow
     public string NewValue { get; }
     public string DisplayValue { get; }
     public string CompactDisplayValue { get; }
+    public DigitalStateBadge? DiscreteBadge { get; }
     public string Reason { get; }
     public string Fun { get; }
     public string Inf { get; }
