@@ -39,9 +39,12 @@ public partial class MainWindow
 
         // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
-        if (TraceQuickScopeCombo.SelectedIndex != 1)
+        if (TraceQuickScopeCombo.SelectedIndex != 1 ||
+            MainTabControl.SelectedIndex != 1 ||
+            !Equals(NavFrameButton.Content, "RAW FRAME") ||
+            !ReferenceEquals(GetSegmentedNavButtons().FirstOrDefault(), NavFrameButton))
             throw new InvalidOperationException(
-                "Trace must default to ALL TX/RX frames, never the lossy Focus view.");
+                "RAW FRAME must be first/default with the unfiltered TX/RX timeline.");
         // Selected-tab capsule must not paint the old bright blue border.
         if (NavFrameButton.BorderBrush is SolidColorBrush navBorder &&
             navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)
@@ -139,11 +142,11 @@ public partial class MainWindow
         FlushUiQueues();
         if (!ReferenceEquals(FrameTraceGrid.SelectedItem, selected))
             throw new InvalidOperationException("Held source-qualified Trace selection jumped.");
-        if (FrameTraceRows.Count != totalFrames ||
-            FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1399L * 5) ||
-            _protocolTraceRowsDeferredWhileFrozen < 30)
+        if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
+            FrameTraceRows.Count > MaxVisibleFrameTraceRows ||
+            !FrameTraceRows.Contains(selected))
             throw new InvalidOperationException(
-                "Selected Trace viewport kept mutating while live TX/RX evidence arrived.");
+                "Selected Trace must receive new frames with bounded memory while retaining selected evidence.");
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
@@ -471,7 +474,7 @@ public partial class MainWindow
                     EventsAutoScrollButton, RelayEventGrid, "Events", 9);
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
                 if (!EventsAutoScrollButton.IsVisible ||
-                    EventLogFilterComboBox.Visibility != Visibility.Visible ||
+                    !EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
                     RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
@@ -480,7 +483,7 @@ public partial class MainWindow
                 // A visible counter without any realized WPF event rows must
                 // fail acceptance. The older Stage-C evidence showed 2/2
                 // recent yet a visually empty Event Log.
-                EventLogFilterComboBox.SelectedIndex = 0;
+                SetEventFilters(EventCategories, Array.Empty<string>());
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
                 // Also exercise spontaneous arrivals while Events itself is
@@ -505,11 +508,39 @@ public partial class MainWindow
                 if (RelayEventGrid.Items.Count != RelayEventRows.Count)
                     throw new InvalidOperationException(
                         $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
+
+                // The prior Events tab showed only spontaneous digital rows,
+                // despite real background/GI float points being present in Values.
+                // All original qualified measurements belong to the journal.
+                var beforeFilterCount = _relayEventStore.Snapshot().Count;
+                if (!_relayEventStore.Snapshot().Any(row => row.TypeBadge?.Label == "FLT") ||
+                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT"))
+                    throw new InvalidOperationException(
+                        "All Events did not retain original decoded floating measurements.");
+
+                SetEventFilters(["Measurement"], Array.Empty<string>());
+                if (RelayEventRows.Count == 0 ||
+                    RelayEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
+                    EventIncludeToggle.Content?.ToString() != "Include: 1")
+                    throw new InvalidOperationException(
+                        "Include Measurement checkbox dropped or misclassified actual analog events.");
+
+                SetEventFilters(EventCategories, ["Measurement"]);
+                if (RelayEventRows.Any(row => ClassifyEventCategory(row) == "Measurement") ||
+                    EventExcludeToggle.Content?.ToString() != "Exclude: 1")
+                    throw new InvalidOperationException(
+                        "Exclude Measurement did not remove analog rows from view only.");
+                SetEventFilters(EventCategories, Array.Empty<string>());
+                if (_relayEventStore.Snapshot().Count != beforeFilterCount ||
+                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT") ||
+                    RelayEventGrid.Items.Count != RelayEventRows.Count)
+                    throw new InvalidOperationException(
+                        "Include/Exclude mutated source journal or failed to restore the mixed Event view.");
                 if (!BuildTabSeparatedText(RelayEventGrid).Contains("Single Point ON", StringComparison.Ordinal))
                     throw new InvalidOperationException("Event status text missing from tab-separated export.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
                     throw new InvalidOperationException(
-                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, filter={EventLogFilterComboBox.SelectedIndex}, query='{_eventsQuickQuery}'.");
+                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, include={EventIncludeToggle.Content}, exclude={EventExcludeToggle.Content}, query='{_eventsQuickQuery}'.");
                 if (RelayEventRows.Count > 0)
                 {
                     var lastEvent = RelayEventRows[RelayEventRows.Count - 1];

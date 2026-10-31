@@ -283,6 +283,9 @@ public partial class MainWindow
             }
         }
 
+        // Event Log is an observation journal, not merely an edge detector:
+        // every trusted RX measurement/counter (including cyclic/GI) is retained.
+        // Values remains the latest per-point snapshot, raw evidence unchanged.
         var recordIec10xProcess = Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
         if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xProcess))
         {
@@ -530,18 +533,35 @@ public partial class MainWindow
     private int _eventProjectionSourceCount;
     private int _eventProjectionFilteredCount;
 
-    private string CurrentEventScopeKey()
-        => ((EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All") +
-           "\u001F" + _eventsQuickQuery;
+    private static readonly string[] EventCategories =
+        ["Digital", "Measurement", "Commands", "GI", "Other"];
+    private readonly HashSet<string> _eventIncludeCategories =
+        new(EventCategories, StringComparer.Ordinal);
+    private readonly HashSet<string> _eventExcludeCategories =
+        new(StringComparer.Ordinal);
+    private bool _eventFilterBulkUpdating;
+
+    private static string ClassifyEventCategory(RelayEventRow row)
+    {
+        if (row.TransactionKind == "GI") return "GI";
+        if (row.TransactionKind == "Command") return "Commands";
+        if (IsAnalogEvent(row)) return "Measurement";
+        if (IsDigitalEvent(row)) return "Digital";
+        return "Other";
+    }
+
+    private string CurrentEventScopeKey() =>
+        string.Join(",", EventCategories.Where(_eventIncludeCategories.Contains)) +
+        "/" + string.Join(",", EventCategories.Where(_eventExcludeCategories.Contains)) +
+        "\u001F" + _eventsQuickQuery;
 
     private void ApplyRelayEventFilter()
     {
         if (RelayEventRows is null) return;
-        var filter = (EventLogFilterComboBox?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
-        // Authoritative bounded SOE store is chronological. The WPF list is
-        // only the latest projection of its typed source rows.
         var recent = _relayEventStore.Snapshot();
-        var rows = recent.Where(row => ShouldIncludeRelayEvent(row, filter) &&
+        var rows = recent.Where(row =>
+            EventCategoryFilter.Allows(ClassifyEventCategory(row),
+                _eventIncludeCategories, _eventExcludeCategories) &&
             QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
             .TakeLast(MaxVisibleRelayEventRows).ToArray();
         var scopeKey = CurrentEventScopeKey();
@@ -554,9 +574,59 @@ public partial class MainWindow
         if (RelayEventRows.Count != rows.Length) _eventProjectionMismatchCount++;
         if (EventsQuickCountText is not null)
             EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
-        // The real scope selector is ALWAYS visible: a 1/141 filtered view
-        // can never masquerade as All or trigger a blind reset "repair".
     }
+
+    private void SetEventFilters(IEnumerable<string> included, IEnumerable<string> excluded)
+    {
+        _eventFilterBulkUpdating = true;
+        try
+        {
+            _eventIncludeCategories.Clear();
+            _eventIncludeCategories.UnionWith(included);
+            _eventExcludeCategories.Clear();
+            _eventExcludeCategories.UnionWith(excluded);
+            foreach (var checkbox in EventIncludeOptionsPanel.Children.OfType<CheckBox>())
+                checkbox.IsChecked = _eventIncludeCategories.Contains(checkbox.Tag as string ?? "");
+            foreach (var checkbox in EventExcludeOptionsPanel.Children.OfType<CheckBox>())
+                checkbox.IsChecked = _eventExcludeCategories.Contains(checkbox.Tag as string ?? "");
+        }
+        finally { _eventFilterBulkUpdating = false; }
+        CommitEventFilterChange();
+    }
+
+    private void EventIncludeCheck_Changed(object sender, RoutedEventArgs e) =>
+        UpdateEventFilterCheck(sender, _eventIncludeCategories);
+
+    private void EventExcludeCheck_Changed(object sender, RoutedEventArgs e) =>
+        UpdateEventFilterCheck(sender, _eventExcludeCategories);
+
+    private void UpdateEventFilterCheck(object sender, HashSet<string> set)
+    {
+        if (_eventFilterBulkUpdating || !IsLoaded || sender is not CheckBox checkbox ||
+            checkbox.Tag is not string category) return;
+        if (checkbox.IsChecked == true) set.Add(category);
+        else set.Remove(category);
+        CommitEventFilterChange();
+    }
+
+    private void CommitEventFilterChange()
+    {
+        if (EventIncludeToggle is null || EventExcludeToggle is null) return;
+        EventIncludeToggle.Content = _eventIncludeCategories.Count == EventCategories.Length
+            ? "Include: All" : "Include: " + _eventIncludeCategories.Count;
+        EventExcludeToggle.Content = _eventExcludeCategories.Count == 0
+            ? "Exclude: None" : "Exclude: " + _eventExcludeCategories.Count;
+        ApplyRelayEventFilter();
+    }
+
+    private void EventIncludeAll_Click(object sender, RoutedEventArgs e) =>
+        SetEventFilters(EventCategories, _eventExcludeCategories.ToArray());
+    private void EventIncludeNone_Click(object sender, RoutedEventArgs e) =>
+        SetEventFilters(Array.Empty<string>(), _eventExcludeCategories.ToArray());
+    private void EventExcludeAll_Click(object sender, RoutedEventArgs e) =>
+        SetEventFilters(_eventIncludeCategories.ToArray(), EventCategories);
+    private void EventExcludeNone_Click(object sender, RoutedEventArgs e) =>
+        SetEventFilters(_eventIncludeCategories.ToArray(), Array.Empty<string>());
 
     private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
         Iec103MasterEvidenceEvent? originalFrameEvidence = null)
@@ -568,34 +638,11 @@ public partial class MainWindow
 
     private void RegisterActualEventFact()
     {
-        // Header EVENT represents appended factual event rows, not every GI snapshot,
-        // Class2 poll, or unchanged measurement telegram.
         _dpiCount++;
         PulseLed(EventLed);
         DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static bool ShouldIncludeRelayEvent(RelayEventRow row, string filter)
-    {
-        if (filter.Equals("GI", StringComparison.OrdinalIgnoreCase))
-            return row.Type == "GI";
-        if (filter.Equals("Commands", StringComparison.OrdinalIgnoreCase))
-            return row.Type == "Command";
-        if (filter.Equals("Digital status", StringComparison.OrdinalIgnoreCase))
-        {
-            return IsDigitalEvent(row);
-        }
-
-        if (filter.Equals("Analog", StringComparison.OrdinalIgnoreCase))
-        {
-            return IsAnalogEvent(row);
-        }
-
-        return true;
-    }
-
-    // Typed Type ID classification, not user signal names ("voltage ON"
-    // is still analog). IEC103 event semantics remain protocol owned.
     private static bool IsDigitalEvent(RelayEventRow row) =>
         row.TransactionKind is not ("GI" or "Command") &&
         (row.Protocol is "101" or "104"
@@ -604,7 +651,7 @@ public partial class MainWindow
 
     private static bool IsAnalogEvent(RelayEventRow row) =>
         row.TransactionKind is not ("GI" or "Command") &&
-        (row.Protocol is "101" or "104") &&
+        row.Protocol is "101" or "104" &&
         int.TryParse(row.TypeId, out var ti) && Iec10xObservationIdentity.IsMeasurementOrCounterType(ti);
 
     private void UpsertValueRowStable(ValueRow row)

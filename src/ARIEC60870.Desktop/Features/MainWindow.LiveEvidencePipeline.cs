@@ -347,7 +347,8 @@ public partial class MainWindow
             AutoScrollLatestToggleButton.IsChecked = false;
         }
 
-        _protocolTraceViewDirtyWhileFrozen = true;
+        // HOLD is only an auto-scroll choice. Selection must not stop the
+        // streaming WPF projection, and the capture pipeline is independent.
         _evidenceSummaryViewDirtyWhileFrozen = true;
         if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
         {
@@ -470,6 +471,7 @@ public partial class MainWindow
             FrameTraceGrid?.SelectedItems.Clear();
                 EvidenceSummaryList?.SelectedItems.Clear();
             _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
             _evidenceSummarySelectionAnchorIndex = -1;
             _isProtocolTraceDragSelecting = false;
             _isProtocolTraceSelectionBatching = false;
@@ -596,7 +598,6 @@ public partial class MainWindow
     }
 
     private bool IsProtocolTraceSelectionPinned() =>
-        _historicalTraceViewActive || _recordedArchiveViewActive ||
         _isProtocolTraceDragSelecting || _isProtocolTraceSelectionBatching ||
         (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0 ||
         FrameTraceGrid?.ContextMenu?.IsOpen == true;
@@ -607,7 +608,7 @@ public partial class MainWindow
 
         // HOLD without a selection is a scrolling preference, NOT a pause
         // of the live line monitor. A selected range pins the rendered window.
-        return IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
+        return _historicalTraceViewActive || _recordedArchiveViewActive;
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
@@ -629,6 +630,7 @@ public partial class MainWindow
         _pendingProtocolTraceSelectionInspectorRefresh = false;
         FrameTraceGrid?.SelectedItems.Clear();
         _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
         ApplyProtocolTraceSnapshotNow();
         ApplySelectedEvidenceRowToInspector(null);
         ScrollActiveWorkspaceToLatest();
@@ -663,6 +665,7 @@ public partial class MainWindow
         ResetRecordedArchiveSource();
         _initialLiveTraceFlushPending = 1;
         _protocolTraceSelectionAnchorIndex = -1;
+        _protocolTraceSelectionAnchorRow = null;
         _evidenceSummarySelectionAnchorIndex = -1;
         _isProtocolTraceDragSelecting = false;
         _isProtocolTraceSelectionBatching = false;
@@ -677,6 +680,34 @@ public partial class MainWindow
         if (AutoScrollLatestToggleButton is not null)
             AutoScrollLatestToggleButton.IsChecked = true;
         UpdateAutoScrollLatestRailVisual();
+    }
+
+    // A bounded live preview can preserve a small selected range while still
+    // appending incoming TX/RX. The verified capture remains full authority.
+    // Prefer removing oldest unselected rows, never silently stop the view.
+    private void TrimLiveTraceWithoutDroppingNewFrames()
+    {
+        var toRemove = Math.Max(0, FrameTraceRows.Count - MaxVisibleFrameTraceRows);
+        if (toRemove == 0) return;
+        var selected = new HashSet<EvidenceRow>(
+            FrameTraceGrid.SelectedItems.OfType<EvidenceRow>());
+        for (var n = 0; n < toRemove; n++)
+        {
+            var removeIndex = 0;
+            if (selected.Contains(FrameTraceRows[0]))
+            {
+                // Keep the newest portion visible even when most of the old
+                // window was selected: do not eliminate just-arrived frames.
+                var limit = Math.Max(0, FrameTraceRows.Count - 64);
+                while (removeIndex < limit &&
+                       selected.Contains(FrameTraceRows[removeIndex]))
+                    removeIndex++;
+                if (removeIndex >= limit) removeIndex = 0;
+            }
+            if (removeIndex != 0) _protocolTraceViewDirtyWhileFrozen = true;
+            FrameTraceRows.RemoveAt(removeIndex);
+            _visibleEvidenceDropped++;
+        }
     }
 
     private void FlushVisibleUiBatches()
@@ -710,21 +741,21 @@ public partial class MainWindow
 
         if (_pendingProtocolTraceUiRows.Count > 0)
         {
-            if (IsProtocolTraceViewFrozen())
+            if (_historicalTraceViewActive || _recordedArchiveViewActive)
             {
-                if (IsProtocolTraceSelectionPinned())
+                // Offline historical window is immutable; the real writer and
+                // live source continue. Never mix different session windows.
+                _protocolTraceViewDirtyWhileFrozen = true;
+                _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                _pendingProtocolTraceUiRows.Clear();
+            }
+            else
+            {
+                if (_protocolTraceViewDirtyWhileFrozen &&
+                    !IsProtocolTraceSelectionPinned())
                 {
-                    // Do not remove selected rows under a drag, inspector,
-                    // archive or context menu. Original RX/TX still enter
-                    // the canonical ring and the independent capture writer.
-                    _protocolTraceViewDirtyWhileFrozen = true;
-                    _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
-                    _pendingProtocolTraceUiRows.Clear();
-                }
-                else if (_protocolTraceViewDirtyWhileFrozen)
-                {
-                    // Selection was cleared while HOLD remained on. Reconcile
-                    // the source once without Reset, but do not auto-scroll.
+                    // Exactly one catch-up after closing archive/selection;
+                    // HOLD is an auto-scroll policy and never freezes RX/TX.
                     FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(),
                         allowResetForUnrelated: false);
                     _pendingProtocolTraceUiRows.Clear();
@@ -733,36 +764,10 @@ public partial class MainWindow
                 }
                 else
                 {
-                    // HOLD with NO selected rows continues to show newly
-                    // received traffic; it only suppresses tail-follow.
-                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
-                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
-                    _pendingProtocolTraceUiRows.Clear();
-                }
-            }
-            else
-            {
-                ApplyDeferredProtocolTraceSnapshotIfNeeded();
-                if (FrameTraceRows.Count == 0)
-                {
-                    // WPF ListBox can retain an unrealized empty viewport when an
-                    // existing ItemsSource was cleared while the session changed.
-                    // Reconcile the first batch from the authoritative bounded ring,
-                    // once, instead of waiting for a tab switch to force a rebind.
-                    FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
-                    _pendingProtocolTraceUiRows.Clear();
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (IsProtocolTraceTabActive())
-                            FrameTraceGrid?.InvalidateMeasure();
-                    }), DispatcherPriority.Loaded);
-                }
-                else
-                {
                     FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
                     _pendingProtocolTraceUiRows.Clear();
+                    TrimLiveTraceWithoutDroppingNewFrames();
                 }
-                _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
                 ScrollLatestProtocolTraceIfAutoScroll();
             }
         }

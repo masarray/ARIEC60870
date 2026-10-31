@@ -109,9 +109,20 @@ public static class Iec10xObservationIdentity
             && item.CauseOfTransmission is 3 or 11 or 12
             && HasTrustedDecodedPayload(item);
 
+    public static bool ShouldRecordMeasurementObservation(Iec103MasterEvidenceEvent item)
+        => item.Direction == FrameDirection.SlaveToMaster &&
+           item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+           IsMeasurementOrCounterType(item.TypeId) &&
+           item.InformationObjectAddress.HasValue &&
+           item.CauseOfTransmission is >= 1 and <= 36 &&
+           item.AsduDetails is { Issues.Count: 0 } &&
+           item.InformationObjectDetails is { Issues.Count: 0 } &&
+           HasTrustedDecodedPayload(item);
+
     public static bool ShouldRecordProcessEvent(Iec103MasterEvidenceEvent item, bool changed)
         => HasTrustedDecodedPayload(item) &&
            (IsReceivedProcessEvent(item) ||
+            ShouldRecordMeasurementObservation(item) ||
             (IsDigitalProcessType(item.TypeId) && ShouldRecordDigitalEvent(item, changed)));
 
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)

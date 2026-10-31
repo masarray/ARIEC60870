@@ -35,7 +35,9 @@ public sealed class RelayEventRow
         DisplayValue = FormatDisplayValue(item.TypeId, item.SignalType, NewValue);
         // The Event grid shows only a short typed fact; unabridged display
         // remains in DisplayValue/NewValue for selection, export and case detail.
-        CompactDisplayValue = ShortEventValue(item, DisplayValue);
+        CompactDisplayValue = ShortEventValue(item,
+            IecOperatorValueFormatter.ForGrid(Protocol,
+                item.TypeId?.ToString(CultureInfo.InvariantCulture) ?? "-", DisplayValue));
         DiscreteBadge = item.TransactionKind is "GI" or "Command" ? null :
             DigitalStateBadge.FromDecoded(Protocol, item.TypeId?.ToString(CultureInfo.InvariantCulture), NewValue);
         TypeBadge = IecSignalTypeBadge.FromDecoded(Protocol, item.TypeId);

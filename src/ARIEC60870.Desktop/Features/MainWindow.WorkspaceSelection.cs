@@ -92,8 +92,8 @@ public partial class MainWindow
     private Button[] GetSegmentedNavButtons()
         => new[]
         {
-            NavDualLinkButton,
             NavFrameButton,
+            NavDualLinkButton,
             NavValueButton,
             NavEventButton,
             NavFindingsButton,
@@ -120,7 +120,7 @@ public partial class MainWindow
         if (isPassive101)
         {
             // Monitor is a data source, not a separate UX: reuse ordinary analysis views.
-            NavFrameButton.Content = "Frame Trace";
+            NavFrameButton.Content = "RAW FRAME";
             NavEventButton.Content = "Event Log";
             NavValueButton.Content = "Values";
             NavOperatorButton.Content = "Messages";
@@ -146,7 +146,7 @@ public partial class MainWindow
         NavOperatorButton.Content = "Evidence Ledger";
         NavTriggersButton.Content = "Capture Policy";
         NavDualLinkButton.Content = "Redundancy";
-        NavFrameButton.Content = "Trace";
+        NavFrameButton.Content = "RAW FRAME";
         NavValueButton.Content = "Values";
         NavEventButton.Content = "Events";
         NavFindingsButton.Content = "Findings";
@@ -172,7 +172,7 @@ public partial class MainWindow
 
         if (isDual101 && MainTabControl.SelectedIndex is 0 or 5 or 7 or 8)
         {
-            MainTabControl.SelectedIndex = 9;
+            MainTabControl.SelectedIndex = 1;
         }
         else if (!isDual101 && (MainTabControl.SelectedIndex == 9 || MainTabControl.SelectedIndex is 0 or 5 or 7 or 8))
         {
@@ -239,7 +239,86 @@ public partial class MainWindow
 
 
 
+    private EvidenceRow? _protocolTraceSelectionAnchorRow;
     private int _protocolTraceDragLastVisibleIndex = -1;
+    private Point _traceDragPointer;
+    private DispatcherTimer? _traceDragScrollTimer;
+    private ScrollViewer? _traceDragScrollViewer;
+    private bool _traceDragSelectionUpdateQueued;
+    private int _traceDragGeneration;
+
+    private void StartTraceDragScroll(ListBox listBox, Point pointer)
+    {
+        _traceDragGeneration++;
+        _traceDragPointer = pointer;
+        _traceDragScrollViewer = FindTraceScrollViewer(listBox);
+        if (_traceDragScrollViewer is null) return;
+        _traceDragScrollTimer ??= new DispatcherTimer(DispatcherPriority.Input)
+        {
+            Interval = TimeSpan.FromMilliseconds(40)
+        };
+        _traceDragScrollTimer.Tick -= TraceDragScroll_Tick;
+        _traceDragScrollTimer.Tick += TraceDragScroll_Tick;
+        _traceDragScrollTimer.Start();
+    }
+
+    private static ScrollViewer? FindTraceScrollViewer(DependencyObject node)
+    {
+        if (node is ScrollViewer viewer) return viewer;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found = FindTraceScrollViewer(VisualTreeHelper.GetChild(node, i));
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private void TraceDragScroll_Tick(object? sender, EventArgs e)
+    {
+        if (!_isProtocolTraceDragSelecting ||
+            Mouse.LeftButton != MouseButtonState.Pressed ||
+            FrameTraceGrid is not { IsVisible: true } list)
+        {
+            FinishProtocolTraceDrag(FrameTraceGrid);
+            return;
+        }
+        var viewer = _traceDragScrollViewer;
+        if (viewer is null) return;
+
+        // Only this active pointer gesture drives the lightweight timer.
+        // No polling worker, protocol backlog or global rendering timer.
+        var delta = TraceDragEdgeScroll.ScrollDelta(_traceDragPointer.Y, list.ActualHeight);
+        if (delta == 0) return;
+        var before = viewer.VerticalOffset;
+        var targetOffset = Math.Clamp(before + delta, 0,
+            Math.Max(0, viewer.ScrollableHeight));
+        if (Math.Abs(targetOffset - before) < 0.1) return;
+        viewer.ScrollToVerticalOffset(targetOffset);
+        if (_traceDragSelectionUpdateQueued) return;
+        _traceDragSelectionUpdateQueued = true;
+        var generation = _traceDragGeneration;
+
+        // WPF recycling realizes newly scrolled row containers at Loaded.
+        // Hit-test the actual visible row; never fabricate an index from a
+        // fixed row height or the unfiltered source collection.
+        var target = new Point(Math.Clamp(_traceDragPointer.X, 10,
+            Math.Max(10, list.ActualWidth - 38)),
+            delta > 0 ? Math.Max(2, list.ActualHeight - 24) : 18);
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (!_isProtocolTraceDragSelecting || !list.IsVisible ||
+                    generation != _traceDragGeneration) return;
+                var index = GetProtocolTraceIndexFromInput(list, null, target);
+                if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
+                _protocolTraceDragLastVisibleIndex = index;
+                ExtendProtocolTraceSelectionToIndex(list, index);
+            }
+            finally { _traceDragSelectionUpdateQueued = false; }
+        }), DispatcherPriority.Loaded);
+    }
+
 
     private void FrameTraceGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -259,6 +338,7 @@ public partial class MainWindow
         _protocolTraceDragLastVisibleIndex = index;
         FocusProtocolTraceContainer(listBox, index);
         listBox.CaptureMouse(); // ensure release also when dragging past viewport
+        StartTraceDragScroll(listBox, pointer);
         UpdateLineMonitorStatus();
         e.Handled = true;
     }
@@ -273,6 +353,7 @@ public partial class MainWindow
         }
 
         var pointer = e.GetPosition(listBox);
+        _traceDragPointer = pointer;
         if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
             IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
 
@@ -309,7 +390,10 @@ public partial class MainWindow
     private void FinishProtocolTraceDrag(ListBox? listBox)
     {
         _isProtocolTraceDragSelecting = false;
+        _traceDragGeneration++;
         _protocolTraceDragLastVisibleIndex = -1;
+        _traceDragScrollTimer?.Stop();
+        _traceDragScrollViewer = null;
         if (listBox?.IsMouseCaptured == true) listBox.ReleaseMouseCapture();
         EndProtocolTraceSelectionBatch(listBox);
     }
@@ -322,7 +406,7 @@ public partial class MainWindow
         }
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, e.GetPosition(listBox));
-        if (index < 0 || index >= FrameTraceRows.Count)
+        if (index < 0 || index >= listBox.Items.Count)
         {
             return;
         }
@@ -336,6 +420,7 @@ public partial class MainWindow
             listBox.SelectedItems.Clear();
             listBox.SelectedItems.Add(row);
             _protocolTraceSelectionAnchorIndex = index;
+            _protocolTraceSelectionAnchorRow = row;
             FocusProtocolTraceContainer(listBox, index);
         }
         // Right-clicking any already-selected frame preserves the entire
@@ -392,12 +477,14 @@ public partial class MainWindow
             }
 
             _protocolTraceSelectionAnchorIndex = index;
+            _protocolTraceSelectionAnchorRow = row;
             return;
         }
 
         listBox.SelectedItems.Clear();
         listBox.SelectedItems.Add(row);
         _protocolTraceSelectionAnchorIndex = index;
+        _protocolTraceSelectionAnchorRow = row;
     }
 
     private void ExtendProtocolTraceSelectionToIndex(ListBox listBox, int index)
@@ -407,14 +494,10 @@ public partial class MainWindow
             return;
         }
 
-        if (_protocolTraceSelectionAnchorIndex < 0 || _protocolTraceSelectionAnchorIndex >= listBox.Items.Count)
-        {
-            _protocolTraceSelectionAnchorIndex = index;
-        }
+        var anchor = GetProtocolTraceSelectionAnchorIndex(listBox, index);
 
-        // Focus was repeatedly moving the scroll anchor on every hover
-        // while dragging. Only the initial mouse-down may focus a container.
-        SelectProtocolTraceRange(listBox, _protocolTraceSelectionAnchorIndex, index, additive: false);
+        // Do not refocus/scroll on mouse hover; row identity survives prefix trims.
+        SelectProtocolTraceRange(listBox, anchor, index, additive: false);
     }
 
     private void SelectAllVisibleTraceRows_Click(object sender, RoutedEventArgs e)
@@ -426,6 +509,7 @@ public partial class MainWindow
         foreach (var row in visible)
             if (selected.Add(row)) FrameTraceGrid.SelectedItems.Add(row);
         _protocolTraceSelectionAnchorIndex = visible.Length > 0 ? 0 : -1;
+        _protocolTraceSelectionAnchorRow = visible.FirstOrDefault();
         EndProtocolTraceSelectionBatch(FrameTraceGrid);
         ApplySelectedEvidenceRowToInspector(visible.LastOrDefault());
     }
@@ -442,8 +526,20 @@ public partial class MainWindow
 
     private int GetProtocolTraceSelectionAnchorIndex(ListBox listBox, int fallbackIndex)
     {
-        if (_protocolTraceSelectionAnchorIndex >= 0 && _protocolTraceSelectionAnchorIndex < listBox.Items.Count)
+        if (_protocolTraceSelectionAnchorRow is not null)
         {
+            var index = listBox.Items.IndexOf(_protocolTraceSelectionAnchorRow);
+            if (index >= 0)
+            {
+                _protocolTraceSelectionAnchorIndex = index;
+                return index;
+            }
+        }
+        if (_protocolTraceSelectionAnchorRow is null &&
+            _protocolTraceSelectionAnchorIndex >= 0 &&
+            _protocolTraceSelectionAnchorIndex < listBox.Items.Count)
+        {
+            _protocolTraceSelectionAnchorRow = listBox.Items[_protocolTraceSelectionAnchorIndex] as EvidenceRow;
             return _protocolTraceSelectionAnchorIndex;
         }
 
@@ -459,11 +555,14 @@ public partial class MainWindow
             if (selectedIndex >= 0)
             {
                 _protocolTraceSelectionAnchorIndex = selectedIndex;
+                _protocolTraceSelectionAnchorRow = listBox.Items[selectedIndex] as EvidenceRow;
                 return selectedIndex;
             }
         }
 
         _protocolTraceSelectionAnchorIndex = fallbackIndex;
+        _protocolTraceSelectionAnchorRow = fallbackIndex >= 0 && fallbackIndex < listBox.Items.Count
+            ? listBox.Items[fallbackIndex] as EvidenceRow : null;
         return fallbackIndex;
     }
 
@@ -507,8 +606,9 @@ public partial class MainWindow
         if (item is null)
         {
             var hit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
-            item = ItemsControl.ContainerFromElement(listBox, hit) as ListBoxItem
-                ?? FindVisualParent<ListBoxItem>(hit);
+            if (hit is not null)
+                item = ItemsControl.ContainerFromElement(listBox, hit) as ListBoxItem
+                    ?? FindVisualParent<ListBoxItem>(hit);
         }
 
         return item?.DataContext is EvidenceRow row
