@@ -2,6 +2,9 @@
 
 **Date:** 2026-10-29. **Status:** canonical design/ADR for all threads, **not** a completed implementation claim. Companions: [PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [research basis](IEC10X_NUC_RESEARCH_20261029.md). Respect existing merged Passive P0–P4A, dual-link, command and Quality work. Evolve incrementally, not rewrite.
 
+
+> **ACTIVE R6-R9 ARCHITECTURE AUTHORITY — revision 2026-10-31.** [Section 9](#9-r6-r9-engineering-architecture--2026-10-31) supersedes historical R0-R4 scheduling where conflicting; existing protocol/capture ADR-01/02/03 and R5 active Master safety remain binding. Read [PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md) and [AGENTS](../AGENTS.md). Event Log root cause and R6 implementation are **not yet validated** by this document.
+
 ## 1. Decisions and component ownership
 
 **ADR-01:** One parser for each wire semantic; one authoritative raw/typed evidence ledger; independent transport state machines; thin WPF projections. The 101/104 common ASDU decoder must not duplicate decode in WPF. IEC103 FUN/INF remains independently interpreted. Master owns active serial/TCP, FCB, polling, redundancy decisions. Monitor owns RX-only, archive and passive correlation and **must not contain active TX**. Desktop only coordinates settings, commands, rendering and export; report/replay consume typed evidence, not visible row strings.
@@ -80,7 +83,7 @@ Events, Values, command stages, findings and PDF read same typed IDs; report sta
 
 CI Release build, protocol smoke, xUnit, GUI startup, CodeQL, hygiene and verified Windows package on exact head are required; **CI does not prove field interoperability**. Prefer small cheap fast tests, one packaging gate per meaningful deliverable, no wasteful loops.
 
-## 8. Concurrent-thread ownership and incremental roadmap
+## 8. Historical R0-R4 concurrent-thread ownership and roadmap (superseded in priority by R6-R9)
 
 **R0 (this documentation PR):** canonical research/PRD/ARD, AGENTS pointers, no runtime changes. **R1:** reconcile active command-verdict PRs; add tests for overflow/numeric/GI-policy and full replay parity. **R2:** optional versioned project/NUC profile rules and Inspector 103/104. **R3:** measured WPF and durable report consistency. **R4:** independent multi-vendor field matrix + release candidate. Balanced active IEC101 is separate gated scope.
 
@@ -106,5 +109,89 @@ The WPF Setup has an explicit convention selector defaulting to **Generic IEC**,
 
 The active Master now gates ALL I-format TX behind a positive, valid STARTDT confirmation; an unexpected U-format reply, malformed APDU or missing confirmation yields a specific source-backed finding and a stopped faulted session, not blind GI/clock-sync/command transmission. TESTFR supervision faults rather than silently pretending a healthy line when no confirmation arrives. The Master recognizes valid interleaved frames while awaiting U-format confirmation (bounded search); original RX bytes remain in forensic evidence.
 
-APCI N(S)/N(R) wrap modulo 32768. A peer's cumulative N(R) can advance acknowledgements only inside the bounded outstanding k-window; duplicates/future N(R) never silently pass. TX blocks on a full configured k-window. Invalid/out-of-sequence I-ASDUs remain captured as RX Warning but cannot silently update process state or event/point series, and their sequence cannot advance the contiguous receive window. Handshake/sequencing tests include negative STARTDT and rollover/future ACK. **This is a safety hardening milestone, not a claim that IEC-104 t1/t2/k/w/reconnect interoperability has completed multi-vendor FAT.** 
+APCI N(S)/N(R) wrap modulo 32768. A peer's cumulative N(R) can advance acknowledgements only inside the bounded outstanding k-window; duplicates/future N(R) never silently pass. TX blocks on a full configured k-window. Invalid/out-of-sequence I-ASDUs remain captured as RX Warning but cannot silently update process state or event/point series, and their sequence cannot advance the contiguous receive window. Handshake/sequencing tests include negative STARTDT and rollover/future ACK. **This is a safety hardening milestone, not a claim that IEC-104 t1/t2/k/w/reconnect interoperability has completed multi-vendor FAT.**
 
+## 9. R6-R9 engineering architecture — 2026-10-31
+
+### ADR-04: Diagnose source -> filter -> WPF projection before modifying it
+
+A user's Windows run displayed Event Log 1 / 141 recent and subsequently 165 / 165 recent with no apparent active search filter. **The symptom is real, not a verified diagnosis** of a thread race, missing events, or virtualization failure.
+
+Inspect the current flow: MainWindow.MappingValueStatus.cs ApplyRelayEventFilter reads the bounded event store, filters using Events search and a **collapsed scope ComboBox**, and may call RelayEventRows.ReplaceRange (Reset) for nonoverlapping snapshots. LiveEvidencePipeline flushes dirty Events per UI batch; WorkspaceSelection also queues refresh on return to Events. ObservableRangeCollection emits precise Add/Remove on normal overlap but Reset on ReplaceRange. Capture source, filtered count, projection count, bound DataGrid count and actually realized row count separately before changes.
+
+Instrument one sanitized record per committed UI version: SessionEpoch; CanonicalThroughSequence; CanonicalCount; WindowCount; FilterScope; QueryActive; FilteredCount; ProjectionCount; GridItemsCount; VisibleRealizedCount; ResetCount; QueueDepth; BatchMs; CaptureHealth. Do not log customer bytes, signal names, values, IPs or serial settings by default. Detect the four distinct cases: (1) intentional filtered 1/141, clearly labeled; (2) source/window scope change; (3) projection mismatch; (4) WPF realization failure. **No blind Refresh/InvalidateMeasure, ItemsSource detach/attach, extra timers or full collection replacement as a band-aid.**
+
+### ADR-05: One original-source, immutable per-object event authority
+
+Logical pipeline, implemented by adapting existing modules, **not by rewriting or duplicating the parser**:
+
+    Active COM/TCP Master | passive IEC101 strict RX-only | verified offline replay
+          -> existing ordered raw/frame evidence with physical source, session, offsets, receive time
+          -> canonical IEC101/104 ASDU decoder; independent IEC103 protection decoder
+          -> typed FrameFact / AsduFact / ObjectFact for ALL decoded VSQ/SQ objects
+          -> protocol-owned classification / GI + command correlation
+          -> one ordered canonical EventFact authority + independent current Values snapshot
+          -> epoch/versioned EventProjection -> bounded batched WPF grid
+          -> verified on-disk raw/event archive and indexed replay, ONLY where enabled
+
+Recommended immutable EventFact fields: SessionId, Protocol, PhysicalSource/Circuit, StreamId, PhysicalFrameIdentity, ObjectOrdinal, EventKind, ReceiveSequence, TypeId, COT numeric/P-N/TEST/OA, CA/IOA or IEC103 FUN/INF, valid raw byte spans, OriginalEvidenceReference, typed value and raw representation, SIQ/DIQ/QDS/BCR (when supported), DeviceTimestamp+InvalidBit, HostArrival+Accuracy, validity/trust grade and correlation/uncertainty. For SQ=1, implied successive IOAs must NOT invent non-existent IOA byte spans. The identity is **session/source/frame/object/kind**, never display text, IOA alone, or WPF row index.
+
+Classification contract:
+- Valid received IEC101/104 COT3 spontaneous SP/DP, timed variants, normalized/scaled/float measurement and counter/integrated-total objects, plus profile-relevant COT11/12 return info are per-object Event facts **even when first received or repeated**. Correct quality/raw flags preserved; IEC103 protection uses native FUN/INF and device time, not IEC10x fake identity.
+- GI TI100 activation/ACTCON/ACTTERM and control select/execute/confirmation/rejection/deactivation/error must use source-qualified transaction milestone kinds, with exact original frame evidence. GI COT20..36 data updates Values and GI casebook; no automatic per-object SOE from snapshots. COT1/2 cyclic/background generally updates Values; an independently verified change can be described accurately without changing its COT to spontaneous.
+- Unknown/malformed frames are raw observations, not typed good process events; out-of-order or invalid IEC104 I frames do not elevate into Values. Preserve R5 STARTDT gating and k-window safeguards. Avoid claiming physical command success from ACTCON, a link ACK or mere DP status. Preserve valid first/repeat event distinctions and A/B+CA source isolation.
+- Chronology per physical stream/receive sequence, with host timestamp uncertainty across USB COM adapters explicitly stated. Relay/device timestamp is never silently replaced by PC arrival; original frame link and raw evidence remain immutable.
+
+### ADR-06: Memory, backpressure and archive health are different contracts
+
+**Capture/authority path** and **GUI preview path** are distinct. RX acquisition does not call Dispatcher and must never depend on Trace/Event HOLD or virtualization. Keep current transport workers and verified passive append-only journal. Use bounded source queues, one writer per relevant ordered domain, batch ingestion, cancellation, and measured memory limits.
+
+- Mandatory frame/event facts cannot disappear silently under a queue overflow. For .NET bounded Channels, Wait exerts backpressure; DropOldest/DropNewest/DropWrite deliberately discard. Use bounded staging/spooling and monitored writer throughput; if correctness cannot be preserved, signal Incomplete/Overflow with affected source and sequence gap, and do not claim lossless. Do not block a hardware receive callback while holding WPF or protocol locks.
+- The UI may coalesce *rendering* or discard explicitly designated low-value preview traffic with observable counters, but never reclassify those drops as a complete recording. A bounded 420-row Events view / 1200-row Trace view is a viewport, not all historical bytes. Verified durable archive and capture mode must be opt-in, health-checked, and replayed from original bytes with CRC/SHA and source offsets.
+- Index large archives by block/time/source/object reference; provide bounded pages, generation-guarded cancellation, and corruption/truncation/legacy uncertainty. Never scan entire multiday archive on every keystroke or load full history into memory.
+
+### ADR-07: Epoch/versioned incremental EventProjection with truthful counts
+
+Recommended conceptual UI snapshot:
+
+    EventSnapshot(
+      SessionEpoch, ThroughSequence, FilterVersion, FilterScope, QueryActive,
+      CanonicalCount, RetainedWindowCount, FilteredCount, VisibleCount,
+      StableEventRows)
+
+    EventDelta(Epoch, BaseVersion, NewVersion,
+      AddedRows, ExpiredRows, ChangedRows)
+
+An ordered writer publishes immutable facts; WPF Dispatcher applies one coalesced, epoch/version-checked delta to a bounded collection. On ordinary live appends use precise Add/Remove/Replace with stable ID, not ReplaceRange/Reset. A filter or capture change is an explicit new scope/version; discard stale deferred operations without clearing a newer session. Separate persistent authoritative data from bounded DataGrid projection.
+
+The displayed numerator and denominator come from **one committed projection version** (for example 140 / 141 recent, filtered by Analog). Do NOT mix RelayEventGrid.Items.Count with a differently timed source snapshot. Filter is discoverable; if All+empty and N in-window source rows exist, an unexplained single projected row is a P0 fault. AUTO/HOLD only follows tail or preserves scroll anchor and selection. User search never changes raw capture nor another tab's canonical fact store.
+
+Retain WPF recycling and virtualization; WPF UI virtualization is not data virtualization. Existing 75ms flush is a current baseline and must be benchmarked, not blindly shortened. Use no per-frame Dispatcher calls, per-row effects, additional timer loops or UI re-decoding.
+
+### ADR-08: Premium shared interface and nonrepetitive explanations
+
+- One shared compact 32-DIP Search | count | AUTO (AUTO where chronological) on Trace, Values, Events, Controls and GI; all grid top edges 6 DIP below the toolbar, search left edges aligned with each grid. Do not perpetuate existing Values 8 DIP vs Events 6 DIP difference. One common outline Search/X style, X only for a nonempty query, active filter explicitly visible.
+- Data grid remains the main content; contextual selection and right-click enable original frame navigation, byte-true copy and filter. Eliminate intrusive ToolTips on live evidence rows, especially popup ProtocolTraceMeaning. Inspector explains **additional** bytes, link FC/flags, APCI/ASDU, COT, object count/offset, quality/uncertainty, raw HEX and provenance, not repeated Class2 no-data or Trace header text.
+- Use centralized calm blue-grey palette with just enough contrast for headers, selected rows, borders and secondary text; restrained semantic ON/OFF/warning/unknown chips with words, not color alone. No big cards, heavy bold, layout jitter or animated live rows. The original byte evidence is selected/copyable without noisy hover.
+- Windows WPF runtime acceptance checks actual Control.TranslatePoint coordinates, toolbar height, gap, selected event row realization, multi-tab reentry and accessibility. CI window constraints and simulated 150%-DIP requests must be identified as nonphysical; actual 100/125/150% Windows DPI is R9 field proof.
+
+### ADR-09: Evidence-driven milestones and hard quality gates
+
+| Milestone | Engineering checkpoint | Acceptance / failure criterion |
+|---|---|---|
+| **R6 [P0]** | EVENT-02 + UX-02 + PERF-01 in one coherent Windows build | Reproduce/diagnose full-to-one-row oscillation; 5k/50k mixed-event tests including malformed, SQ0/SQ1, repeats, A/B; 0 unchanged-scope Reset, source/filter/projection/grid version parity; true original refs; stable AUTO/HOLD and selected row; real-WPF visual inspection |
+| **R7 [P0/P1]** | TRACE-02 + CAPTURE-02 | Exact 101/103/104 field offset proof, replay/live/JSON/PDF parity, source-indexed long capture, corruption/unknown integrity and bounded memory |
+| **R8 [P1]** | TASK-01 IEC101/104 operator RTU simulator and test tasks | Independent peer verification, controlled command/negative behavior, simulator and Master not only testing each other |
+| **R9 [FAT]** | Field electrical/serial/TCP/DPI proof | 2/4 RX electrical safety + 1200-bps long soak, IEC103 relay, IEC104 multi-vendor t1/t2/t3/k/w/reconnect, actual 100/125/150% DPI and CPU/GC/latency metrics |
+
+Performance **targets pending measurement**: <=150ms p95 event-to-visible latency, <16ms p95 Dispatcher batch on a declared reference PC/workload, bounded WPF memory under 50k source facts, no drop of eligible authoritative events while recording is enabled and healthy. If benchmark is worse, document numbers and repair bottleneck rather than claim parity.
+
+Implementation gates: first inspect master, open PRs, current CI, component AGENTS and exact requirement ID. For P0, obtain a failing regression/telemetry before modifying runtime. Test positive and negative behavior and keep protocol truth in Master/Core/Monitor. Cheap tests before consolidated Windows CI; one meaningful PR per milestone/slice, exact-head Release build/format/protocol smoke/xUnit/WPF screenshot acceptance/CodeQL/dependency/hygiene plus self-contained x64 ZIP/SHA256. Physical FAT is **never** inferred from synthetic CI. Never publish private traces or competitor proprietary code/GUI.
+
+### Independent engineering references
+
+- WPF container recycling vs. data virtualization: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/optimizing-performance-controls
+- Bounded Channel backpressure and loss modes: https://learn.microsoft.com/en-us/dotnet/core/extensions/channels
+- IEC editions and optional NUC restrictions: [controlled research](IEC10X_NUC_RESEARCH_20261029.md)
+
+**Status:** This section sets future architecture/delivery authority. It does NOT say R6-R9 code, multi-vendor interoperability or physical FAT is complete.
