@@ -101,6 +101,40 @@ jobs:
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
+      - name: Package independent IEC-101 2/4-RX field test tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publish = 'artifacts/field-tools-publish'
+          $package = 'artifacts/field-tools-package'
+          dotnet publish src/ARIEC60870.Monitor.Cli/ARIEC60870.Monitor.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -o $publish
+          if ($LASTEXITCODE -ne 0) { throw 'Field tools publish failed.' }
+          $exe = Join-Path $publish 'ARIEC60870.Monitor.Cli.exe'
+          if (!(Test-Path $exe)) { throw 'Field CLI EXE missing.' }
+          & $exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'Field CLI help failed.' }
+          & $exe list-ports
+          if ($LASTEXITCODE -ne 0) { throw 'Field CLI inventory failed.' }
+          # Fail-closed preflight, no hardware opened; deliberate absent COM pair.
+          & $exe preflight --scada-com COM601 --rtu-com COM602 --output $env:RUNNER_TEMP --seconds 2
+          if ($LASTEXITCODE -ne 3) { throw 'Absent COM preflight must fail closed with exit 3.' }
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item 'docs/IEC101_FIELD_RX_FAT_QUICKSTART.md' (Join-Path $publish 'START_HERE_FIELD_FAT.md') -Force
+          Copy-Item 'LICENSE' (Join-Path $publish 'LICENSE') -Force
+          Copy-Item 'NOTICE' (Join-Path $publish 'NOTICE') -Force
+          $zip = Join-Path $package 'ARIEC60870-IEC101-RX-Field-Tools-win-x64.zip'
+          Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-IEC101-RX-Field-Tools-win-x64.zip" -Encoding ascii
+
+      - name: Upload independent field test toolkit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-IEC101-RX-Field-Tools-win-x64
+          path: artifacts/field-tools-package/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: OBS-C real-WPF viewport and 1400-frame acceptance
         shell: pwsh
         run: |
