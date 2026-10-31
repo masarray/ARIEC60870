@@ -512,7 +512,7 @@ public partial class MainWindow
                     throw new InvalidOperationException("Event status text missing from tab-separated export.");
                 if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
                     throw new InvalidOperationException(
-                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, filter={EventLogFilterComboBox.SelectedIndex}, query='{_eventsQuickQuery}'.");
+                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, include={EventIncludeToggle.Content}, exclude={EventExcludeToggle.Content}, query='{_eventsQuickQuery}'.");
                 if (RelayEventRows.Count > 0)
                 {
                     var lastEvent = RelayEventRows[RelayEventRows.Count - 1];
