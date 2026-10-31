@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Core.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop.ViewModels;
@@ -61,7 +62,14 @@ public static class ObservationFrameFocus
             return true;
         if (source.CauseDetails is { Negative: true } or { Test: true })
             return true;
-        if (source.Frame is { IsChecksumValid: false } or { IsLengthValid: false })
+        // A checksum-valid frame can still violate the selected IEC link-address
+        // width or ASDU structure. Preserve raw diagnostic/issues before the
+        // routine-FC9 / Class1 / Class2 filter is allowed to suppress anything.
+        if (source.Frame is { IsChecksumValid: false } or { IsLengthValid: false } ||
+            source.Frame?.Format == Ft12FrameFormat.Malformed ||
+            source.Frame?.Issues.Count > 0 ||
+            row.Category.Contains("warning", StringComparison.OrdinalIgnoreCase) ||
+            row.Category.Contains("error", StringComparison.OrdinalIgnoreCase))
             return true;
         if (source.Frame?.IsSingleCharacterNack == true)
             return true;
