@@ -17,7 +17,7 @@ public partial class MainWindow
     private readonly DispatcherTimer _quickFindDebounce = new(DispatcherPriority.Background)
     { Interval = TimeSpan.FromMilliseconds(180) };
     private string _traceQuickQuery = "";
-    private string _traceQuickScope = "Activity focus";
+    private string _traceQuickScope = "All frames";
     private string _eventsQuickQuery = "";
     private string _valuesQuickQuery = "";
     private string _valuesQuickScope = "All points";
@@ -29,7 +29,7 @@ public partial class MainWindow
         if (_quickFindReady) return;
         _quickFindReady = true;
         _quickFindDebounce.Tick += (_, _) => { _quickFindDebounce.Stop(); ApplyQuickFind(); };
-        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Activity focus";
+        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All frames";
         CollectionViewSource.GetDefaultView(FrameTraceRows).Filter =
             o => o is EvidenceRow row && QuickFindMatcher.MatchesTrace(row,_traceQuickQuery,_traceQuickScope);
         _valuesQuickScope = (ValueQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All points";
@@ -89,7 +89,7 @@ public partial class MainWindow
     private void TraceQuickScope_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_quickFindReady) return;
-        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Activity focus";
+        _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All frames";
         RefreshQuickFindView(FrameTraceRows);
         UpdateQuickFindCounts();
         ScrollLatestProtocolTraceIfAutoScroll();
