@@ -688,7 +688,7 @@
                                     <!-- Keep filter/archive/summary controls addressable by existing bindings
                                          while removing secondary widgets from the visible toolbar. -->
                                     <ComboBox x:Name="TraceQuickScopeCombo" Grid.Column="0"
-                                              Width="148" Height="30" Visibility="Collapsed" SelectedIndex="0"
+                                              Width="148" Height="30" Visibility="Collapsed" SelectedIndex="1"
                                               SelectionChanged="TraceQuickScope_SelectionChanged">
                                         <ComboBoxItem Content="Activity focus"/>
                                         <ComboBoxItem Content="All frames"/>
@@ -803,7 +803,7 @@
                                             <MenuItem Header="Clear Selection / Resume Live Trace" Click="ClearProtocolTraceSelection_Click" />
                                             <MenuItem Header="Resume Live Trace" Click="ResumeProtocolTraceLiveView_Click" />
                                             <Separator/>
-                                            <MenuItem Header="Show important activity" Tag="Activity focus" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Focus (retains all TX requests)" Tag="Activity focus" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show all frames" Tag="All frames" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show TX / SCADA" Tag="TX / SCADA" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show RX / RTU" Tag="RX / RTU" Click="TraceScopeMenu_Click"/>
