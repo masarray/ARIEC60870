@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Master.Model;
 
@@ -297,6 +298,27 @@ public sealed partial class EvidenceRow
             }
         }
 
+        // IEC-103 archived link framing uses the recorded physical width.
+        // Do NOT run it through IEC-101/104 ASDU decoder or synthesize IOA.
+        // Legacy archives without the explicit schema keep only raw text.
+        Ft12FrameDecode? decoded103 = null;
+        if (mode == Iec60870ProtocolMode.Iec103 &&
+            capture.DecoderSchema == "IEC103-FT12-V1" &&
+            capture.LinkWidth is >= 0 and <= 2 &&
+            !string.IsNullOrWhiteSpace(capture.RawHex))
+        {
+            try
+            {
+                var original = Convert.FromHexString(
+                    string.Concat(capture.RawHex.Where(Uri.IsHexDigit)));
+                decoded103 = new Ft12Parser(capture.LinkWidth.Value).Decode(original);
+            }
+            catch (FormatException)
+            {
+                // Retain only raw evidence if the archived HEX is corrupt.
+            }
+        }
+
         var asdu = decoded?.Asdu;
         var first = capture.SelectedObjectIndex.HasValue
             ? asdu?.Objects.FirstOrDefault(o => o.Index == capture.SelectedObjectIndex.Value)
@@ -319,10 +341,10 @@ public sealed partial class EvidenceRow
             ProtocolMode = mode,
             Direction = capture.Direction == "RX" ? FrameDirection.SlaveToMaster :
                 capture.Direction == "TX" ? FrameDirection.MasterToSlave : FrameDirection.Unknown,
-            Frame = decoded?.SerialFrame,
+            Frame = decoded?.SerialFrame ?? decoded103,
             // Never substitute Common Address or a displayed text field for the
             // real FT1.2 link address. Only trusted byte-decoded provenance qualifies.
-            LinkAddress = decoded?.SerialFrame?.LinkAddress,
+            LinkAddress = decoded?.SerialFrame?.LinkAddress ?? decoded103?.LinkAddress,
             AsduDetails = asdu,
             InformationObjectDetails = first,
             ApciFormat = decoded?.TcpFrame?.Format ?? string.Empty,
