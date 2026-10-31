@@ -154,10 +154,10 @@ public partial class MainWindow
         FlushUiQueues();
         if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
             throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
-        if (!RelayEventRows.Any(row => row.TypeId == "13") ||
-            !RelayEventRows.Any(row => row.TypeId == "15"))
+        if (!RelayEventRows.Any(row => row.TypeId == "13" && row.TypeBadge?.Label == "FLT") ||
+            !RelayEventRows.Any(row => row.TypeId == "15" && row.TypeBadge?.Label == "BCR"))
             throw new InvalidOperationException(
-                "Decoded IEC-101 spontaneous floating measurement and counter are missing from Events.");
+                "Decoded IEC-101 spontaneous FLT and BCR badges are missing from Events.");
         }
 
         // Representative decoded process data must be visible in screenshot and
@@ -316,6 +316,11 @@ public partial class MainWindow
                     dpOff?.DiscreteBadge != new DigitalStateBadge("DP", "OFF"))
                     throw new InvalidOperationException(
                         "Source-backed [SP] and [DP] ON/OFF state projections are absent from Values.");
+                if (onPoint.TypeBadge?.Label != "SPS" || dpOn.TypeBadge?.Label != "DPS" ||
+                    !ValueRows.Any(row => row.TypeBadge?.Label == "FLT") ||
+                    !ValueRows.Any(row => row.TypeBadge?.Label == "BCR"))
+                    throw new InvalidOperationException(
+                        "Typed SPS/DPS/FLT/BCR presentation is incomplete in the real Values projection.");
                 var valuesTsv = BuildTabSeparatedText(ValueGrid);
                 if (!valuesTsv.Contains("SP=OFF", StringComparison.Ordinal) ||
                     !valuesTsv.Contains("DP=ON", StringComparison.Ordinal))
