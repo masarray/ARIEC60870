@@ -8,6 +8,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources/LucideIcons.xaml" />
+                <ResourceDictionary Source="Resources/ArProtocolIcons.xaml" />
                 <ResourceDictionary Source="Resources/ModernTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
