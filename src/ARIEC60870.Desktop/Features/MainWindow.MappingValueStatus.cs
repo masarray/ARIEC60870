@@ -536,7 +536,8 @@ public partial class MainWindow
         void UpdateVisibleEventCount()
         {
             if (EventsQuickCountText is not null)
-                EventsQuickCountText.Text = $"{RelayEventGrid.Items.Count} / {recent.Count()} recent";
+                EventsQuickCountText.Text = $"{RelayEventGrid.Items.Count} / {recent.Count()} recent" +
+                    (filter == "All" ? "" : " · " + filter);
         }
 
         // Prefer bounded incremental tail updates to resetting the entire WPF grid

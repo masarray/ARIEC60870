@@ -152,8 +152,11 @@ public partial class MainWindow
 
     private void UpdateQuickFindCounts()
     {
-        TraceQuickCountText.Text = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} in window";
-        ValuesQuickCountText.Text = $"{ValueGrid.Items.Count} / {ValueRows.Count} values";
+        TraceQuickCountText.Text = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} frames" +
+            (_traceQuickScope == "Activity focus" ? " · Focus" :
+                _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope);
+        ValuesQuickCountText.Text = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
+            (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
         ControlsQuickCountText.Text = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
         GiQuickCountText.Text = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} cases";
     }

@@ -143,3 +143,9 @@ Decoded points for the selected IEC-101/104 ASDU appear within the existing resi
 
 The existing Values grid has a compact search/filter line and one-line selected-point footer, plus an Open Frame button. Neither an extra dialog nor a permanently open secondary DataGrid is added. The filtered view is not a new capture scope; point source keys and frame evidence survive sorting, tab switches and live updates. On an explicit Open Frame action the Trace inspector may open on narrow windows to show the exact selected IOA; the operator may collapse it afterward. Hosted CI synthetic screenshots cannot certify real monitor DPI.
 
+## UX-GRID-01 compact toolbar / state chip design contract
+
+At constrained 1004-DIP and 1366-wide operator workspaces, the grid receives the horizontal/vertical priority. Search stays on one slim row; Events and Trace retain independently controlled AUTO follow. Value-filter, Event-filter, Trace-scope, Open Frame, Open Case and archive/detail actions are available via right-click; they are not separate headers or permanently large action buttons. The hidden Value selected-point footer is preserved for automation/context state but removes zero-space from the visible grid. Visible filtering is declared by count + scope. Use modest chip padding and mutually distinguishable ON/OFF backgrounds, without using red/green alone as the only textual distinction. Keep a clear fallback text for analog, unsupported or uncertain states; no semantic guessing.
+
+Grid virtualized cells use one consistent no-wrap text and declarative style triggers rather than per-frame UI commands or WPF converters. Do not assert physical DPI/COM performance from CI screenshot names.
+
