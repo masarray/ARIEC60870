@@ -509,7 +509,7 @@ public partial class MainWindow
     private void ApplyProtocolTraceSnapshotNow()
     {
         _historicalTraceViewActive = false;
-        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
         _pendingProtocolTraceUiRows.Clear();
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
@@ -608,7 +608,7 @@ public partial class MainWindow
             return;
         }
 
-        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
     }
@@ -703,22 +703,11 @@ public partial class MainWindow
         {
             if (IsProtocolTraceViewFrozen())
             {
-                if (_historicalTraceViewActive)
-                {
-                    // Preserve a browsed historical disk window; the capture writer
-                    // continues indexing all fresh frames, independent of WPF.
-                    _protocolTraceViewDirtyWhileFrozen = true;
-                    _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
-                }
-                else
-                {
-                    // HOLD means stop following the tail, NOT stop updating Trace.
-                    // Append incrementally and keep the WPF window bounded.
-                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
-                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
-                    _protocolTraceViewDirtyWhileFrozen = false;
-                    _protocolTraceRowsDeferredWhileFrozen = 0;
-                }
+                // HOLD/selection pins this visual window exactly. Incoming TX/RX
+                // continue into the authoritative ring and verified archive.
+                // Never append+TrimStart underneath an active range selection.
+                _protocolTraceViewDirtyWhileFrozen = true;
+                _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
                 _pendingProtocolTraceUiRows.Clear();
             }
             else
@@ -758,7 +747,7 @@ public partial class MainWindow
             // Restore identity only; never scroll to an unrelated physical IOA.
             var inspectedKey = MainTabControl?.SelectedIndex == 2
                 ? (ValueGrid.SelectedItem as ValueRow)?.Key : null;
-            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
+            ValueRows.ReconcileOrderedByKey(GetSortedValueRowsSnapshot(), row => row.Key,
                 StringComparer.OrdinalIgnoreCase);
             // Recently-changed view depends on an item's transient property, not
             // only collection Add/Remove. Refresh once per coalesced UI batch.
@@ -818,7 +807,7 @@ public partial class MainWindow
         if (IsProtocolTraceTabActive() && !_historicalTraceViewActive &&
             !_recordedArchiveViewActive && !IsProtocolTraceViewFrozen())
         {
-            FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+            FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
             _pendingProtocolTraceUiRows.Clear();
         }
         UpdateLineMonitorStatus();

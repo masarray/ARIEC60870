@@ -87,6 +87,33 @@ public sealed class ObservableRangeCollectionTests
     }
 
     [Fact]
+    public void ValuesReorderInsertAndRemoveNeverResetOrLoseUnchangedRowIdentity()
+    {
+        var a = new ValueFact("A", 1);
+        var b = new ValueFact("B", 2);
+        var c = new ValueFact("C", 3);
+        var rows = new ObservableRangeCollection<ValueFact>();
+        rows.ReplaceRange([a, b, c]);
+        var changes = new List<NotifyCollectionChangedAction>();
+        rows.CollectionChanged += (_, e) => changes.Add(e.Action);
+        var bNew = new ValueFact("B", 20);
+        rows.ReconcileOrderedByKey([c, a, new ValueFact("D", 4), bNew], r => r.Key);
+        Assert.Equal(new[] { "C", "A", "D", "B" }, rows.Select(r => r.Key));
+        Assert.Same(c, rows[0]);
+        Assert.Same(a, rows[1]);
+        Assert.Same(bNew, rows[3]);
+        rows.ReconcileOrderedByKey([a, bNew], r => r.Key);
+        Assert.Equal(new[] { a, bNew }, rows);
+        Assert.DoesNotContain(NotifyCollectionChangedAction.Reset, changes);
+        Assert.Contains(NotifyCollectionChangedAction.Move, changes);
+        Assert.Contains(NotifyCollectionChangedAction.Add, changes);
+        Assert.Contains(NotifyCollectionChangedAction.Remove, changes);
+        Assert.Contains(NotifyCollectionChangedAction.Replace, changes);
+    }
+
+    private sealed record ValueFact(string Key, int Value);
+
+    [Fact]
     public void NewestFirstCaseInsertionPreservesExistingSelectionIdentity()
     {
         var rows = new ObservableRangeCollection<(string Source, long Id, string Status)>();
@@ -129,6 +156,23 @@ public sealed class ObservableRangeCollectionTests
         Assert.Equal(0, resets);
         Assert.Equal(199, replaces); // each revision updates the current and restores the previous row
         Assert.Equal(500, rows.Count);
+    }
+
+    [Fact]
+    public void LargeStableValuesUpdateTouchesOnlyOneRow()
+    {
+        var initial = Enumerable.Range(0, 2400)
+            .Select(i => new ValueFact($"IOA{i:D6}", i)).ToArray();
+        var rows = new ObservableRangeCollection<ValueFact>();
+        rows.ReconcileOrderedByKey(initial, r => r.Key);
+        var actions = new List<NotifyCollectionChangedAction>();
+        rows.CollectionChanged += (_, e) => actions.Add(e.Action);
+        var changed = (ValueFact[])initial.Clone();
+        changed[1234] = new ValueFact(initial[1234].Key, 99101);
+        rows.ReconcileOrderedByKey(changed, r => r.Key);
+        Assert.Equal(new[] { NotifyCollectionChangedAction.Replace }, actions);
+        Assert.Same(initial[1233], rows[1233]);
+        Assert.Same(initial[1235], rows[1235]);
     }
 
     [Fact]

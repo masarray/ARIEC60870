@@ -239,101 +239,79 @@ public partial class MainWindow
 
 
 
+    private int _protocolTraceDragLastVisibleIndex = -1;
+
     private void FrameTraceGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not ListBox listBox)
-        {
-            return;
-        }
-
+        if (sender is not ListBox listBox) return;
         var pointer = e.GetPosition(listBox);
-        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) || IsPointerInsideVerticalScrollbarZone(listBox, pointer))
-        {
-            return;
-        }
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
+            IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
-        if (index < 0 || index >= FrameTraceRows.Count)
-        {
-            return;
-        }
+        if (index < 0 || index >= listBox.Items.Count) return;
 
+        // Never mutate the backing evidence ring, only the visible selection.
         EnterLineMonitorHoldForUserSelection();
         BeginProtocolTraceSelectionBatch();
         ApplyProtocolTraceSelectionGesture(listBox, index, Keyboard.Modifiers);
         _isProtocolTraceDragSelecting = true;
+        _protocolTraceDragLastVisibleIndex = index;
         FocusProtocolTraceContainer(listBox, index);
+        listBox.CaptureMouse(); // ensure release also when dragging past viewport
         UpdateLineMonitorStatus();
         e.Handled = true;
     }
 
     private void FrameTraceGrid_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed)
+        if (!_isProtocolTraceDragSelecting || sender is not ListBox listBox) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
         {
-            return;
-        }
-
-        if (sender is not ListBox listBox)
-        {
+            FinishProtocolTraceDrag(listBox);
             return;
         }
 
         var pointer = e.GetPosition(listBox);
-        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) || IsPointerInsideVerticalScrollbarZone(listBox, pointer))
-        {
-            return;
-        }
+        if (IsScrollChromeInput(e.OriginalSource as DependencyObject) ||
+            IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
-        if (index < 0 || index >= FrameTraceRows.Count)
-        {
-            return;
-        }
-
+        if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
+        _protocolTraceDragLastVisibleIndex = index;
         ExtendProtocolTraceSelectionToIndex(listBox, index);
         e.Handled = true;
     }
 
     private void FrameTraceLineItem_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed)
-        {
-            return;
-        }
+        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed ||
+            sender is not ListBoxItem { DataContext: EvidenceRow row } item ||
+            ItemsControl.ItemsControlFromItemContainer(item) is not ListBox listBox) return;
 
-        if (sender is not ListBoxItem item || item.DataContext is not EvidenceRow row)
-        {
-            return;
-        }
-
-        if (ItemsControl.ItemsControlFromItemContainer(item) is not ListBox listBox)
-        {
-            return;
-        }
-
-        var index = FrameTraceRows.IndexOf(row);
-        if (index < 0)
-        {
-            return;
-        }
-
+        var index = listBox.Items.IndexOf(row); // current filtered view
+        if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
+        _protocolTraceDragLastVisibleIndex = index;
         ExtendProtocolTraceSelectionToIndex(listBox, index);
         e.Handled = true;
     }
 
     private void FrameTraceGrid_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        => FinishProtocolTraceDrag(sender as ListBox ?? FrameTraceGrid);
+
+    private void FrameTraceGrid_LostMouseCapture(object sender, MouseEventArgs e)
+    {
+        // Cursor/window can release the pointer without a ListBox mouse-up.
+        if (_isProtocolTraceDragSelecting)
+            FinishProtocolTraceDrag(sender as ListBox ?? FrameTraceGrid);
+    }
+
+    private void FinishProtocolTraceDrag(ListBox? listBox)
     {
         _isProtocolTraceDragSelecting = false;
-
-        if (sender is ListBox listBox)
-        {
-            EndProtocolTraceSelectionBatch(listBox);
-        }
-        else
-        {
-            EndProtocolTraceSelectionBatch(FrameTraceGrid);
-        }
+        _protocolTraceDragLastVisibleIndex = -1;
+        if (listBox?.IsMouseCaptured == true) listBox.ReleaseMouseCapture();
+        EndProtocolTraceSelectionBatch(listBox);
     }
 
     private void FrameTraceGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -350,7 +328,8 @@ public partial class MainWindow
         }
 
         EnterLineMonitorHoldForUserSelection();
-        var row = FrameTraceRows[index];
+        var row = listBox.Items[index] as EvidenceRow;
+        if (row is null) return;
         if (!listBox.SelectedItems.Contains(row))
         {
             // Right-clicking an unselected frame targets that one frame.
@@ -390,7 +369,7 @@ public partial class MainWindow
 
     private void ApplyProtocolTraceSelectionGesture(ListBox listBox, int index, ModifierKeys modifiers)
     {
-        var row = FrameTraceRows[index];
+        if (listBox.Items[index] is not EvidenceRow row) return;
         var shift = (modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
         var ctrl = (modifiers & ModifierKeys.Control) == ModifierKeys.Control;
 
@@ -423,31 +402,32 @@ public partial class MainWindow
 
     private void ExtendProtocolTraceSelectionToIndex(ListBox listBox, int index)
     {
-        if (index < 0 || index >= FrameTraceRows.Count)
+        if (index < 0 || index >= listBox.Items.Count)
         {
             return;
         }
 
-        if (_protocolTraceSelectionAnchorIndex < 0 || _protocolTraceSelectionAnchorIndex >= FrameTraceRows.Count)
+        if (_protocolTraceSelectionAnchorIndex < 0 || _protocolTraceSelectionAnchorIndex >= listBox.Items.Count)
         {
             _protocolTraceSelectionAnchorIndex = index;
         }
 
+        // Focus was repeatedly moving the scroll anchor on every hover
+        // while dragging. Only the initial mouse-down may focus a container.
         SelectProtocolTraceRange(listBox, _protocolTraceSelectionAnchorIndex, index, additive: false);
-        FocusProtocolTraceContainer(listBox, index);
     }
 
     private void SelectAllVisibleTraceRows_Click(object sender, RoutedEventArgs e)
     {
-        FrameTraceGrid.SelectedItems.Clear();
-
-        foreach (var row in FrameTraceRows)
-        {
-            FrameTraceGrid.SelectedItems.Add(row);
-        }
-
-        _protocolTraceSelectionAnchorIndex = FrameTraceRows.Count > 0 ? 0 : -1;
-        ApplySelectedEvidenceRowToInspector(FrameTraceRows.LastOrDefault());
+        EnterLineMonitorHoldForUserSelection();
+        BeginProtocolTraceSelectionBatch();
+        var visible = FrameTraceGrid.Items.OfType<EvidenceRow>().ToArray();
+        var selected = new HashSet<EvidenceRow>(FrameTraceGrid.SelectedItems.OfType<EvidenceRow>());
+        foreach (var row in visible)
+            if (selected.Add(row)) FrameTraceGrid.SelectedItems.Add(row);
+        _protocolTraceSelectionAnchorIndex = visible.Length > 0 ? 0 : -1;
+        EndProtocolTraceSelectionBatch(FrameTraceGrid);
+        ApplySelectedEvidenceRowToInspector(visible.LastOrDefault());
     }
 
     private void ClearProtocolTraceSelection_Click(object sender, RoutedEventArgs e)
@@ -462,7 +442,7 @@ public partial class MainWindow
 
     private int GetProtocolTraceSelectionAnchorIndex(ListBox listBox, int fallbackIndex)
     {
-        if (_protocolTraceSelectionAnchorIndex >= 0 && _protocolTraceSelectionAnchorIndex < FrameTraceRows.Count)
+        if (_protocolTraceSelectionAnchorIndex >= 0 && _protocolTraceSelectionAnchorIndex < listBox.Items.Count)
         {
             return _protocolTraceSelectionAnchorIndex;
         }
@@ -471,7 +451,7 @@ public partial class MainWindow
         {
             var selectedIndex = listBox.SelectedItems
                 .OfType<EvidenceRow>()
-                .Select(row => FrameTraceRows.IndexOf(row))
+                .Select(row => listBox.Items.IndexOf(row))
                 .Where(index => index >= 0)
                 .OrderBy(index => index)
                 .FirstOrDefault(-1);
@@ -517,127 +497,52 @@ public partial class MainWindow
         return LogicalTreeHelper.GetParent(current);
     }
 
-    private int GetProtocolTraceIndexFromInput(ListBox listBox, DependencyObject? originalSource, Point point)
+    private int GetProtocolTraceIndexFromInput(
+        ListBox listBox, DependencyObject? originalSource, Point point)
     {
-        var sourceItem = originalSource is null
-            ? null
-            : ItemsControl.ContainerFromElement(listBox, originalSource) as ListBoxItem;
-
-        if (sourceItem?.DataContext is EvidenceRow sourceRow)
+        // WPF ItemContainerGenerator indices refer to the FILTERED Items view,
+        // never FrameTraceRows, which may contain hidden telemetry rows.
+        var item = originalSource is null ? null :
+            ItemsControl.ContainerFromElement(listBox, originalSource) as ListBoxItem;
+        if (item is null)
         {
-            var index = FrameTraceRows.IndexOf(sourceRow);
-            if (index >= 0)
-            {
-                return index;
-            }
+            var hit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
+            item = ItemsControl.ContainerFromElement(listBox, hit) as ListBoxItem
+                ?? FindVisualParent<ListBoxItem>(hit);
         }
 
-        return GetProtocolTraceIndexFromPoint(listBox, point);
-    }
-
-    private int GetProtocolTraceIndexFromPoint(ListBox listBox, Point point)
-    {
-        if (FrameTraceRows.Count == 0)
-        {
-            return -1;
-        }
-
-        var directHit = VisualTreeHelper.HitTest(listBox, point)?.VisualHit as DependencyObject;
-        var directItem = ItemsControl.ContainerFromElement(listBox, directHit) as ListBoxItem
-                         ?? FindVisualParent<ListBoxItem>(directHit);
-        if (directItem?.DataContext is EvidenceRow directRow)
-        {
-            var directIndex = FrameTraceRows.IndexOf(directRow);
-            if (directIndex >= 0)
-            {
-                return directIndex;
-            }
-        }
-
-        var bestIndex = -1;
-        var bestDistance = double.MaxValue;
-        var firstVisibleIndex = -1;
-        var lastVisibleIndex = -1;
-        var firstTop = double.MaxValue;
-        var lastBottom = double.MinValue;
-
-        for (var i = 0; i < FrameTraceRows.Count; i++)
-        {
-            if (listBox.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem container || !container.IsVisible)
-            {
-                continue;
-            }
-
-            var top = container.TransformToAncestor(listBox).Transform(new Point(0, 0)).Y;
-            var height = Math.Max(1.0, container.ActualHeight);
-            var bottom = top + height;
-
-            if (firstVisibleIndex < 0 || top < firstTop)
-            {
-                firstVisibleIndex = i;
-                firstTop = top;
-            }
-
-            if (lastVisibleIndex < 0 || bottom > lastBottom)
-            {
-                lastVisibleIndex = i;
-                lastBottom = bottom;
-            }
-
-            if (point.Y >= top && point.Y <= bottom)
-            {
-                return i;
-            }
-
-            var distance = Math.Abs(point.Y - (top + height / 2.0));
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestIndex = i;
-            }
-        }
-
-        if (firstVisibleIndex >= 0 && point.Y < firstTop)
-        {
-            return firstVisibleIndex;
-        }
-
-        if (lastVisibleIndex >= 0 && point.Y > lastBottom)
-        {
-            return lastVisibleIndex;
-        }
-
-        return bestIndex;
+        return item?.DataContext is EvidenceRow row
+            ? listBox.Items.IndexOf(row) : -1;
     }
 
     private void SelectProtocolTraceRange(ListBox listBox, int firstIndex, int lastIndex, bool additive)
     {
-        if (FrameTraceRows.Count == 0)
-        {
-            return;
-        }
+        if (listBox.Items.Count == 0) return;
+        var start = Math.Clamp(Math.Min(firstIndex, lastIndex), 0, listBox.Items.Count - 1);
+        var end = Math.Clamp(Math.Max(firstIndex, lastIndex), 0, listBox.Items.Count - 1);
+        var wanted = new HashSet<EvidenceRow>();
+        for (var i = start; i <= end; i++)
+            if (listBox.Items[i] is EvidenceRow row) wanted.Add(row);
 
+        // Incremental selection delta. Avoid Clear()/re-add per MouseMove:
+        // that was causing mass selection events and full visual churn.
+        var selected = new HashSet<EvidenceRow>(listBox.SelectedItems.OfType<EvidenceRow>());
         if (!additive)
         {
-            listBox.SelectedItems.Clear();
-        }
-
-        var start = Math.Clamp(Math.Min(firstIndex, lastIndex), 0, FrameTraceRows.Count - 1);
-        var end = Math.Clamp(Math.Max(firstIndex, lastIndex), 0, FrameTraceRows.Count - 1);
-
-        for (var i = start; i <= end; i++)
-        {
-            var row = FrameTraceRows[i];
-            if (!listBox.SelectedItems.Contains(row))
+            foreach (var old in selected.Where(row => !wanted.Contains(row)).ToArray())
             {
-                listBox.SelectedItems.Add(row);
+                listBox.SelectedItems.Remove(old);
+                selected.Remove(old);
             }
         }
+        for (var i = start; i <= end; i++)
+            if (listBox.Items[i] is EvidenceRow row && selected.Add(row))
+                listBox.SelectedItems.Add(row);
     }
 
     private void FocusProtocolTraceContainer(ListBox listBox, int index)
     {
-        if (index < 0 || index >= FrameTraceRows.Count)
+        if (index < 0 || index >= listBox.Items.Count)
         {
             return;
         }

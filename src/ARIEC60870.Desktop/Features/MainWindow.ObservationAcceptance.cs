@@ -108,6 +108,11 @@ public partial class MainWindow
         FlushUiQueues();
         if (!ReferenceEquals(FrameTraceGrid.SelectedItem, selected))
             throw new InvalidOperationException("Held source-qualified Trace selection jumped.");
+        if (FrameTraceRows.Count != totalFrames ||
+            FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1399L * 5) ||
+            _protocolTraceRowsDeferredWhileFrozen < 30)
+            throw new InvalidOperationException(
+                "Selected Trace viewport kept mutating while live TX/RX evidence arrived.");
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
@@ -346,7 +351,13 @@ public partial class MainWindow
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
+                ValueGrid.ScrollIntoView(target);
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                if (ValueGrid.ItemContainerGenerator.ContainerFromItem(target)
+                    is not DataGridRow { IsVisible: true, ActualHeight: > 14 })
+                    throw new InvalidOperationException(
+                        "Values has source facts but its recycled WPF row is blank/unrealized.");
                 if (!ValueOpenFrameButton.IsEnabled ||
                     !SelectedValueContextText.Text.Contains("IOA 8", StringComparison.Ordinal))
                     throw new InvalidOperationException("Selected Value has no source navigation/context.");

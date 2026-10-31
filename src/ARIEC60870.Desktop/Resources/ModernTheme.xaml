@@ -584,9 +584,8 @@
                     <Grid Margin="4">
                         <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="18" RenderTransformOrigin="0.5,0.5">
                             <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Border.RenderTransform>
-                            <Border.BorderBrush>#E2EAF7</Border.BorderBrush>
-                            <Border.BorderThickness>1</Border.BorderThickness>
-                            <Border.Effect><DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.06" Color="#172033" /></Border.Effect>
+                            <Border.BorderBrush>Transparent</Border.BorderBrush>
+                            <Border.BorderThickness>0</Border.BorderThickness>
                         </Border>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
@@ -594,9 +593,8 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
                             <Setter TargetName="Chrome" Property="Background" Value="#EAF4FF" />
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#B8D7FF" />
-                            <Setter TargetName="Chrome" Property="Effect"><Setter.Value><DropShadowEffect BlurRadius="18" ShadowDepth="5" Opacity="0.15" Color="#38BDF8" /></Setter.Value></Setter>
-                            <Setter TargetName="Chrome" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="1.04" ScaleY="1.04" /></Setter.Value></Setter>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="Transparent" />
+                            <Setter TargetName="Chrome" Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="1.015" ScaleY="1.015" /></Setter.Value></Setter>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.90" />
@@ -813,8 +811,8 @@
 
     <Style x:Key="ProtocolTraceListBox" TargetType="ListBox">
         <Setter Property="Background" Value="#EDF3F7" />
-        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="8" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
@@ -828,49 +826,40 @@
     <Style x:Key="ProtocolTraceLineItem" TargetType="ListBoxItem">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,0,5" />
+        <Setter Property="Margin" Value="0,0,0,3" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource Ink800Brush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="LineChrome"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="10,8">
+                    <Border x:Name="LineChrome" Background="{TemplateBinding Background}"
+                            BorderThickness="0" CornerRadius="6" Padding="10,7">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="LineChrome" Property="Background" Value="#EEF6FF" />
-                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#D8E5F8" />
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#2563EB" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF3FF" />
-                        </Trigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">
                             <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF3FC" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#ECF3FA" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Rx">
                             <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#E8F4F0" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF4F1" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Error">
                             <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#FFF5F5" />
-                            <Setter TargetName="LineChrome" Property="BorderBrush" Value="#FECACA" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#FFF1F0" />
                         </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="LineChrome" Property="Background" Value="#E9EEF3" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="LineChrome" Property="Background" Value="#DCE8F1" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
-
 
     <Style x:Key="TrafficDataGridRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
@@ -893,42 +882,30 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Keep WPF's native DataGridRow control template: it owns cell
+         presenters, recycling and scrolling semantics. The old hand-written
+         Border+CellsPresenter template caused fragile clipped/blank cells. -->
     <Style TargetType="DataGridRow">
-        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Background" Value="White" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="DataGridRow">
-                    <Border x:Name="RowBorder"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="9"
-                            Margin="4,2"
-                            RenderTransformOrigin="0.5,0.5">
-                        <Border.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Border.RenderTransform>
-                        <DataGridCellsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="RowBorder" Property="Background" Value="#F4F8FF" />
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="RowBorder" Property="Background" Value="#EAF2FF" />
-                            <Setter TargetName="RowBorder" Property="BorderBrush" Value="#C7DAFF" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#F1F5F7" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#E2EDF3" />
+                <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="ValueGridRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsRecentlyChanged}" Value="True">
                 <Setter Property="Background" Value="#E8F3FF" />
-                <Setter Property="BorderBrush" Value="#93C5FD" />
+                <Setter Property="BorderBrush" Value="Transparent" />
             </DataTrigger>
         </Style.Triggers>
     </Style>

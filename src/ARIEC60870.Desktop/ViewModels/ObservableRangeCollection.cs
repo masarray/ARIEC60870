@@ -117,6 +117,55 @@ public sealed class ObservableRangeCollection<T> : ObservableCollection<T>
         ApplyAlignedChanges(desired);
     }
 
+    /// <summary>
+    /// Stable ordered keyed projection for live Values. A key insertion/removal
+    /// or sort rank change uses surgical collection changes; a WPF Reset is
+    /// reserved for a real session/scope swap, never normal live observations.
+    /// Fast unchanged order is O(n); structural reorder is bounded to the
+    /// configured visible Values window and preserves unaffected row objects.
+    /// </summary>
+    public void ReconcileOrderedByKey<TKey>(IReadOnlyList<T> desired,
+        Func<T, TKey> key, IEqualityComparer<TKey>? comparer = null) where TKey : notnull
+    {
+        ArgumentNullException.ThrowIfNull(desired);
+        ArgumentNullException.ThrowIfNull(key);
+        comparer ??= EqualityComparer<TKey>.Default;
+
+        var seen = new HashSet<TKey>(comparer);
+        foreach (var item in desired)
+            if (!seen.Add(key(item)))
+                throw new ArgumentException("Duplicate keys in canonical Values snapshot.", nameof(desired));
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var wanted = desired[i];
+            var wantedKey = key(wanted);
+            if (i < Count && comparer.Equals(key(this[i]), wantedKey))
+            {
+                if (!EqualityComparer<T>.Default.Equals(this[i], wanted))
+                    this[i] = wanted;
+                continue;
+            }
+
+            var existing = -1;
+            for (var j = i + 1; j < Count; j++)
+            {
+                if (!comparer.Equals(key(this[j]), wantedKey)) continue;
+                existing = j;
+                break;
+            }
+            if (existing >= 0)
+            {
+                Move(existing, i);
+                if (!EqualityComparer<T>.Default.Equals(this[i], wanted))
+                    this[i] = wanted;
+            }
+            else
+                Insert(i, wanted);
+        }
+        while (Count > desired.Count) RemoveAt(Count - 1);
+    }
+
     private bool AreKeysAligned<TKey>(IReadOnlyList<T> desired,
         Func<T, TKey> key, IEqualityComparer<TKey> comparer) where TKey : notnull
     {
