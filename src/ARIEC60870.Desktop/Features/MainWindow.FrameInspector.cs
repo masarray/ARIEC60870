@@ -158,12 +158,14 @@ public partial class MainWindow
 
         var key = row.ProtocolMode switch
         {
-            "104" when row.ApciFormat == "I" && row.IoAddress != "-" => "object",
+            "104" when row.Source.AsduDetails?.Objects.Count > 0 => "value-1",
+            "104" when row.ApciFormat == "I" => "asdu-type",
             "104" => "apci",
             "101" when row.Source.AsduDetails?.Objects.Count > 0 => "value-1",
             "101" when row.Source.AsduDetails is not null => "asdu-type",
             "101" => "control",
-            "103" when row.FunInf != "-" => "asdu",
+            "103" when row.FunInf != "-" => "fun",
+            "103" => "control",
             _ => "raw"
         };
 
@@ -175,6 +177,10 @@ public partial class MainWindow
         return key.ToLowerInvariant() switch
         {
             "apci" => "APCI selected",
+            "fun" => "IEC-103 FUN selected",
+            "inf" => "IEC-103 INF selected",
+            _ when key.StartsWith("implicit-ioa-", StringComparison.OrdinalIgnoreCase)
+                => "SQ=1 derived IOA; no address bytes on wire",
             "ft12" => "FT1.2 selected",
             "control" => "link control selected",
             "asdu" => "ASDU header selected",
@@ -301,11 +307,11 @@ public partial class MainWindow
         SelectedProtocolMapLines.Clear();
         SelectedHexSegments.Clear();
 
-        // IEC-101: one exact offset/range SSOT for BOTH decoded field rows and
-        // linked raw HEX groups. No made-up "L=...,CA=..." as a HEX segment.
-        if (row.ProtocolMode == "101")
+        // One source-byte authority across 101/103/104. No synthesized address
+        // or value text is allowed to masquerade as a physical HEX segment.
+        if (row.ProtocolMode is "101" or "103" or "104")
         {
-            var fields = Iec101FrameByteInspector.Explain(row.Source);
+            var fields = IecForensicByteInspector.Explain(row.Source);
             if (fields.Count > 0)
             {
                 foreach (var field in fields)
@@ -742,15 +748,14 @@ public partial class MainWindow
 
         var builder = new StringBuilder();
         builder.AppendLine($"Frame #{_selectedFrameRow.Sequence} {BuildLineMonitorTitle(_selectedFrameRow)}");
-        if (_selectedFrameRow.ProtocolMode == "101")
+        if (_selectedFrameRow.ProtocolMode is "101" or "103" or "104")
         {
-            foreach (var field in Iec101FrameByteInspector.Explain(_selectedFrameRow.Source))
-                builder.AppendLine($"{field.Hex}  →  {field.Title}: {field.Meaning}");
+            var fields = IecForensicByteInspector.Explain(_selectedFrameRow.Source);
+            foreach (var field in fields)
+                builder.AppendLine($"{field.Hex}  @ byte {field.Offset} [{field.Count}] → {field.Title}: {field.Meaning}");
+            if (fields.Count == 0) builder.AppendLine("No verified byte map. Retain raw evidence.");
         }
-        else
-        {
-            builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
-        }
+        else builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
         builder.AppendLine();
         builder.AppendLine("Raw: " + _selectedFrameRow.RawHex);
         Clipboard.SetText(builder.ToString());

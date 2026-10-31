@@ -28,6 +28,9 @@ public sealed class Iec10xAsduDecoder
             return new Iec10xAsduDecode
             {
                 RawBytes = raw,
+                CotWidth = _cotSize,
+                CommonAddressWidth = _caSize,
+                InformationObjectAddressWidth = _ioaSize,
                 TypeName = "Malformed ASDU",
                 CauseName = "Unknown",
                 Issues = new[] { $"ASDU too short for configured header. Length={raw.Length}, COT={_cotSize}, CA={_caSize}." }
@@ -63,6 +66,9 @@ public sealed class Iec10xAsduDecoder
         return new Iec10xAsduDecode
         {
             RawBytes = raw,
+            CotWidth = _cotSize,
+            CommonAddressWidth = _caSize,
+            InformationObjectAddressWidth = _ioaSize,
             TypeId = type,
             TypeName = TypeName(type),
             VariableStructureQualifier = vsq,

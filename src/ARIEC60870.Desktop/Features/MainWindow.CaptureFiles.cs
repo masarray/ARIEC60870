@@ -653,11 +653,13 @@ public partial class MainWindow
                 Meaning = row.ReadableMeaning,
                 Detail = row.Detail,
                 LinkWidth = row.Source.Frame?.LinkAddressSize,
-                CotWidth = row.Source.AsduDetails?.CauseDetails?.OriginatorAddress.HasValue == true ? 2 :
-                    row.Source.AsduDetails is not null ? 1 : null,
-                CaWidth = GetCaptureCaWidth(row.Source),
-                IoaWidth = GetCaptureIoaWidth(row.Source),
-                DecoderSchema = row.Source.AsduDetails is null ? string.Empty : "IEC10X-OBJECT-V1",
+                CotWidth = row.Source.AsduDetails?.CotWidth,
+                CaWidth = row.Source.AsduDetails?.CommonAddressWidth,
+                IoaWidth = row.Source.AsduDetails?.InformationObjectAddressWidth,
+                DecoderSchema = row.ProtocolMode == "103" && row.Source.Frame is { RawBytes.Count: > 0 }
+                    ? "IEC103-FT12-V1"
+                    : row.Source.AsduDetails is { Issues.Count: 0 }
+                        ? "IEC10X-OBJECT-V1" : string.Empty,
                 CaptureArrivalUtc = row.Source.PollingReason == "offline-capture" ? null : row.Source.TimestampUtc,
                 PhysicalSource = row.Source.PhysicalSource,
                 PhysicalStreamId = row.Source.PhysicalStreamId,
@@ -670,22 +672,7 @@ public partial class MainWindow
                 ProtocolTraceMeta = row.ProtocolTraceMeta
             };
 
-        private static int? GetCaptureCaWidth(Iec103MasterEvidenceEvent e)
-        {
-            var o = e.AsduDetails?.FirstObject;
-            var cotSize = e.AsduDetails?.CauseDetails?.OriginatorAddress.HasValue == true ? 2 : 1;
-            if (o is null || o.InformationObjectOffset < 0) return null;
-            var width = o.InformationObjectOffset - 2 - cotSize;
-            return width is 1 or 2 ? width : null;
-        }
 
-        private static int? GetCaptureIoaWidth(Iec103MasterEvidenceEvent e)
-        {
-            var o = e.AsduDetails?.FirstObject;
-            if (o is null || o.InformationObjectOffset < 0) return null;
-            var width = o.InformationElementOffset - o.InformationObjectOffset;
-            return width is >= 1 and <= 3 ? width : null;
-        }
     }
 
 }

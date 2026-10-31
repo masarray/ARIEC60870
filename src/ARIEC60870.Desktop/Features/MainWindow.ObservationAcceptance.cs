@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using ARIEC60870.Core.Model;
 using ARIEC60870.Monitor;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
@@ -36,6 +37,16 @@ public partial class MainWindow
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
 
+        // A forensic line monitor must NEVER start in a view that silently
+        // omits Master TX polls while showing their RTU replies.
+        if (TraceQuickScopeCombo.SelectedIndex != 1)
+            throw new InvalidOperationException(
+                "Trace must default to ALL TX/RX frames, never the lossy Focus view.");
+        // Selected-tab capsule must not paint the old bright blue border.
+        if (NavFrameButton.BorderBrush is SolidColorBrush navBorder &&
+            navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)
+            throw new InvalidOperationException(
+                "Selected segmented navigation retained the rejected accent border.");
         // The prior passive GUI + history smoke probes have already exercised
         // source-qualified navigation; this stage stress-tests the live WPF ring.
         MainTabControl.SelectedIndex = 1;
@@ -78,6 +89,36 @@ public partial class MainWindow
         if (totalFrames < 1000 || totalFrames > 1200)
             throw new InvalidOperationException($"Unexpected bounded Trace count {totalFrames}.");
 
+        // P0: true physical TX/RX is never discardable "routine UI noise".
+        // Test at the classification boundary exercised by queue backpressure,
+        // without sending on a COM/TCP port or waiting for 5k backlog.
+        foreach (var sample in new[]
+        {
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.MasterToSlave,
+                RawHex = "10 5B 69 C4 16",
+                Summary = "Request Class 2", DataClass = "Class 2" },
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.MasterToSlave,
+                RawHex = "10 7A 69 E3 16",
+                Summary = "Request Class 1", DataClass = "Class 1" },
+            new Iec103MasterEvidenceEvent {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.SlaveToMaster,
+                RawHex = "E5", Summary = "Link ACK / NO DATA" }
+        })
+            if (ClassifyLowValueBackpressureBucket(sample) != string.Empty)
+                throw new InvalidOperationException(
+                    "Real physical TX/RX frame was eligible for UI backpressure data loss.");
+        if (ClassifyLowValueBackpressureBucket(new Iec103MasterEvidenceEvent
+            {
+                Summary = "background poll", RawHex = string.Empty
+            }) == string.Empty)
+            throw new InvalidOperationException(
+                "Synthetic non-wire activity no longer permits UI-only coalescing.");
+
         // Real WPF CollectionView must agree with the displayed quick counter.
         ApplyQuickFind();
         AssertTraceCountInSync();
@@ -98,9 +139,42 @@ public partial class MainWindow
         FlushUiQueues();
         if (!ReferenceEquals(FrameTraceGrid.SelectedItem, selected))
             throw new InvalidOperationException("Held source-qualified Trace selection jumped.");
+        if (FrameTraceRows.Count != totalFrames ||
+            FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1399L * 5) ||
+            _protocolTraceRowsDeferredWhileFrozen < 30)
+            throw new InvalidOperationException(
+                "Selected Trace viewport kept mutating while live TX/RX evidence arrived.");
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
+
+        // P0: repeated drag updates at an unchanged range must be true no-ops,
+        // not WPF SelectedItems.Clear/repopulate/scroll/flicker cycles.
+        var selectionEvents = 0;
+        SelectionChangedEventHandler onSelection = (_, _) => selectionEvents++;
+        FrameTraceGrid.SelectionChanged += onSelection;
+        try
+        {
+            BeginProtocolTraceSelectionBatch();
+            var first = Math.Max(0, FrameTraceGrid.Items.Count - 15);
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 4, additive: false);
+            if (FrameTraceGrid.SelectedItems.Count != 5)
+                throw new InvalidOperationException("Drag block did not select five visible frames.");
+            var initialEvents = selectionEvents;
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 4, additive: false);
+            if (selectionEvents != initialEvents)
+                throw new InvalidOperationException("Unchanged drag range triggered WPF selection churn.");
+            SelectProtocolTraceRange(FrameTraceGrid, first, first + 7, additive: false);
+            if (FrameTraceGrid.SelectedItems.Count != 8 ||
+                selectionEvents != initialEvents + 3)
+                throw new InvalidOperationException("Drag extension rebuilt selection instead of applying three deltas.");
+        }
+        finally
+        {
+            EndProtocolTraceSelectionBatch(FrameTraceGrid);
+            FrameTraceGrid.SelectionChanged -= onSelection;
+            ResumeLiveViews(clearSelection: true, followLive: true);
+        }
 
         // Scope switches never start an archive search or change raw evidence.
         var beforeArchiveSwitch = FrameTraceRows.Select(x => x.Source.EvidenceReference).ToArray();
@@ -202,9 +276,17 @@ public partial class MainWindow
         TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
-        if (focusVisibleFrames < 3 || focusVisibleFrames >= FrameTraceRows.Count ||
+        var txSourceCount = FrameTraceRows.Count(row => row.Direction == "TX");
+        var txVisibleCount = FrameTraceGrid.Items.OfType<EvidenceRow>()
+            .Count(row => row.Direction == "TX");
+        if (focusVisibleFrames < 3 || txVisibleCount != txSourceCount ||
             !FrameTraceGrid.Items.Contains(multiObjectRow))
-            throw new InvalidOperationException("Activity focus did not preserve process/GI frames while filtering routine polls.");
+            throw new InvalidOperationException(
+                $"Focus dropped an actual Master TX request or decoded ASDU: TX source={txSourceCount}, visible={txVisibleCount}.");
+        // Screenshots demonstrate the truthful default ALL-FRAMES analyzer,
+        // not a silently narrowed inspection view.
+        TraceQuickScopeCombo.SelectedIndex = 1;
+        ApplyQuickFind();
 
         var layouts = new (string Name, double Width, double Height)[]
         {
@@ -328,7 +410,13 @@ public partial class MainWindow
                 if (target is null)
                     throw new InvalidOperationException("IOA 8 unavailable for point investigation.");
                 ValueGrid.SelectedItem = target;
+                ValueGrid.ScrollIntoView(target);
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                if (ValueGrid.ItemContainerGenerator.ContainerFromItem(target)
+                    is not DataGridRow { IsVisible: true, ActualHeight: > 14 })
+                    throw new InvalidOperationException(
+                        "Values has source facts but its recycled WPF row is blank/unrealized.");
                 if (!ValueOpenFrameButton.IsEnabled ||
                     !SelectedValueContextText.Text.Contains("IOA 8", StringComparison.Ordinal))
                     throw new InvalidOperationException("Selected Value has no source navigation/context.");
@@ -439,7 +527,7 @@ public partial class MainWindow
         }
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
-        TraceQuickScopeCombo.SelectedIndex = 0;
+        TraceQuickScopeCombo.SelectedIndex = 1;
         _traceInspectorPreferredVisible = true;
         _traceInspectorForcedOpen = true;
         UpdateObservationViewportLayout();

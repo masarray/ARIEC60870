@@ -33,6 +33,14 @@ public partial class MainWindow
 {
     private static string ClassifyLowValueBackpressureBucket(Iec103MasterEvidenceEvent item)
     {
+        // The communications analyzer's raw TX/RX timeline is mandatory
+        // forensic evidence, including Class 1/2 requests and E5/NO DATA.
+        // Backpressure may coalesce only non-wire presentation notes. Never
+        // remove an entire physical telegram to reduce WPF queue pressure.
+        if (item.Direction is FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster &&
+            !string.IsNullOrWhiteSpace(item.RawHex) && item.RawHex != "-")
+            return string.Empty;
+
         if (IsDiagnosticEvidence(item) ||
             item.IsRelayEdgeEvent ||
             item.IsRelayValue ||
@@ -509,7 +517,7 @@ public partial class MainWindow
     private void ApplyProtocolTraceSnapshotNow()
     {
         _historicalTraceViewActive = false;
-        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
         _pendingProtocolTraceUiRows.Clear();
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
@@ -587,18 +595,19 @@ public partial class MainWindow
         UpdateLineMonitorStatus();
     }
 
+    private bool IsProtocolTraceSelectionPinned() =>
+        _historicalTraceViewActive || _recordedArchiveViewActive ||
+        _isProtocolTraceDragSelecting || _isProtocolTraceSelectionBatching ||
+        (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0 ||
+        FrameTraceGrid?.ContextMenu?.IsOpen == true;
+
     private bool IsProtocolTraceViewFrozen()
     {
-        if (!IsProtocolTraceTabActive())
-        {
-            return false;
-        }
+        if (!IsProtocolTraceTabActive()) return false;
 
-        return IsLineMonitorHoldRequested()
-               || _isProtocolTraceDragSelecting
-               || _isProtocolTraceSelectionBatching
-               || (_protocolTraceSelectionAnchorIndex >= 0 && (FrameTraceGrid?.SelectedItems.Count ?? 0) > 0)
-               || FrameTraceGrid?.ContextMenu?.IsOpen == true;
+        // HOLD without a selection is a scrolling preference, NOT a pause
+        // of the live line monitor. A selected range pins the rendered window.
+        return IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
     }
 
     private void ApplyDeferredProtocolTraceSnapshotIfNeeded()
@@ -608,7 +617,7 @@ public partial class MainWindow
             return;
         }
 
-        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+        FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
         _protocolTraceViewDirtyWhileFrozen = false;
         _protocolTraceRowsDeferredWhileFrozen = 0;
     }
@@ -703,23 +712,33 @@ public partial class MainWindow
         {
             if (IsProtocolTraceViewFrozen())
             {
-                if (_historicalTraceViewActive)
+                if (IsProtocolTraceSelectionPinned())
                 {
-                    // Preserve a browsed historical disk window; the capture writer
-                    // continues indexing all fresh frames, independent of WPF.
+                    // Do not remove selected rows under a drag, inspector,
+                    // archive or context menu. Original RX/TX still enter
+                    // the canonical ring and the independent capture writer.
                     _protocolTraceViewDirtyWhileFrozen = true;
                     _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
+                    _pendingProtocolTraceUiRows.Clear();
                 }
-                else
+                else if (_protocolTraceViewDirtyWhileFrozen)
                 {
-                    // HOLD means stop following the tail, NOT stop updating Trace.
-                    // Append incrementally and keep the WPF window bounded.
-                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
-                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+                    // Selection was cleared while HOLD remained on. Reconcile
+                    // the source once without Reset, but do not auto-scroll.
+                    FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(),
+                        allowResetForUnrelated: false);
+                    _pendingProtocolTraceUiRows.Clear();
                     _protocolTraceViewDirtyWhileFrozen = false;
                     _protocolTraceRowsDeferredWhileFrozen = 0;
                 }
-                _pendingProtocolTraceUiRows.Clear();
+                else
+                {
+                    // HOLD with NO selected rows continues to show newly
+                    // received traffic; it only suppresses tail-follow.
+                    FrameTraceRows.AddRange(_pendingProtocolTraceUiRows);
+                    _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+                    _pendingProtocolTraceUiRows.Clear();
+                }
             }
             else
             {
@@ -758,7 +777,7 @@ public partial class MainWindow
             // Restore identity only; never scroll to an unrelated physical IOA.
             var inspectedKey = MainTabControl?.SelectedIndex == 2
                 ? (ValueGrid.SelectedItem as ValueRow)?.Key : null;
-            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
+            ValueRows.ReconcileOrderedByKey(GetSortedValueRowsSnapshot(), row => row.Key,
                 StringComparer.OrdinalIgnoreCase);
             // Recently-changed view depends on an item's transient property, not
             // only collection Add/Remove. Refresh once per coalesced UI batch.
@@ -818,7 +837,7 @@ public partial class MainWindow
         if (IsProtocolTraceTabActive() && !_historicalTraceViewActive &&
             !_recordedArchiveViewActive && !IsProtocolTraceViewFrozen())
         {
-            FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot());
+            FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
             _pendingProtocolTraceUiRows.Clear();
         }
         UpdateLineMonitorStatus();

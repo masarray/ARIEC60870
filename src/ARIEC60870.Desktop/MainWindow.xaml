@@ -182,7 +182,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="8" ClipToBounds="False" Effect="{StaticResource SoftShadow}">
+        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" BorderBrush="Transparent" BorderThickness="0" CornerRadius="18" Padding="8" ClipToBounds="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
@@ -195,13 +195,7 @@
                           HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"
                           CanContentScroll="True" Focusable="False">
             <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center">
-                <Border Width="68" Height="70" CornerRadius="18" Margin="0,0,0,13" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" ClipToBounds="True">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#FFFFFF" Offset="0" />
-                            <GradientStop Color="#F2F7FF" Offset="1" />
-                        </LinearGradientBrush>
-                    </Border.Background>
+                <Border Width="68" Height="70" Margin="0,0,0,13" BorderThickness="0" Background="Transparent" ClipToBounds="False">
                     <Image x:Name="ProtocolLogoImage" Source="Assets/Icons/ariec60870-icon.png" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
                 </Border>
 
@@ -350,7 +344,7 @@
                             <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                            <Border x:Name="HeaderIndicatorChip" Style="{StaticResource InstrumentChip}" Height="48" Padding="10,0" MinWidth="220">
+                            <Border x:Name="HeaderIndicatorChip" Style="{StaticResource InstrumentChip}" Height="48" Padding="10,0" MinWidth="220" BorderThickness="0" Effect="{x:Null}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock x:Name="TxLed" Text="●" Style="{StaticResource LedText}" FontSize="15.6" Foreground="{StaticResource AccentBrush}" Opacity="0.30" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -432,13 +426,7 @@
                         </Grid.ColumnDefinitions>
 
                         <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTip="Workspace navigation">
-                            <Border x:Name="SegmentedNavRoot" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="22" Padding="4" HorizontalAlignment="Left" Effect="{StaticResource SoftShadow}">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#FFFFFF" Offset="0" />
-                                        <GradientStop Color="#F5F8FF" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
+                            <Border x:Name="SegmentedNavRoot" BorderBrush="Transparent" BorderThickness="0" CornerRadius="20" Padding="4" HorizontalAlignment="Left" Background="#F1F4F7">
                                 <Grid>
                                     <Border x:Name="SegmentSlider" Height="40" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
                                         <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
@@ -688,7 +676,7 @@
                                     <!-- Keep filter/archive/summary controls addressable by existing bindings
                                          while removing secondary widgets from the visible toolbar. -->
                                     <ComboBox x:Name="TraceQuickScopeCombo" Grid.Column="0"
-                                              Width="148" Height="30" Visibility="Collapsed" SelectedIndex="0"
+                                              Width="148" Height="30" Visibility="Collapsed" SelectedIndex="1"
                                               SelectionChanged="TraceQuickScope_SelectionChanged">
                                         <ComboBoxItem Content="Activity focus"/>
                                         <ComboBoxItem Content="All frames"/>
@@ -776,6 +764,7 @@
                                          PreviewMouseLeftButtonDown="FrameTraceGrid_PreviewMouseLeftButtonDown"
                                          PreviewMouseMove="FrameTraceGrid_PreviewMouseMove"
                                          PreviewMouseLeftButtonUp="FrameTraceGrid_PreviewMouseLeftButtonUp"
+                                         LostMouseCapture="FrameTraceGrid_LostMouseCapture"
                                          PreviewMouseRightButtonDown="FrameTraceGrid_PreviewMouseRightButtonDown"
                                          PreviewMouseWheel="TraceScroll_PreviewMouseWheel"
                                          FontFamily="{StaticResource AppFont}"
@@ -803,7 +792,7 @@
                                             <MenuItem Header="Clear Selection / Resume Live Trace" Click="ClearProtocolTraceSelection_Click" />
                                             <MenuItem Header="Resume Live Trace" Click="ResumeProtocolTraceLiveView_Click" />
                                             <Separator/>
-                                            <MenuItem Header="Show important activity" Tag="Activity focus" Click="TraceScopeMenu_Click"/>
+                                            <MenuItem Header="Focus (retains all TX requests)" Tag="Activity focus" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show all frames" Tag="All frames" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show TX / SCADA" Tag="TX / SCADA" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show RX / RTU" Tag="RX / RTU" Click="TraceScopeMenu_Click"/>

@@ -71,6 +71,45 @@ public sealed class ArchivedEvidenceRowTests
         Assert.Equal("Invalid frame", row.Quality);
     }
 
+    [Fact]
+    public void NewIec103ArchiveReplaysTrueLinkFrameAndFunInfWithoutSynthesizingIoa()
+    {
+        var asdu = new byte[] { 1, 1, 3, 1, 7, 2, 0x81 };
+        var raw = SerialVariable(0x08, 0x69, asdu);
+        var restored = new EvidenceRow(new CaptureFrameSnapshot
+        {
+            Sequence = 91, ProtocolMode = "103", Direction = "RX",
+            RawHex = Convert.ToHexString(raw), DecoderSchema = "IEC103-FT12-V1",
+            LinkWidth = 1, CaptureArrivalUtc = new DateTime(2026, 10, 31, 16, 0, 0, DateTimeKind.Utc),
+            PhysicalSource = "Relay 103", PhysicalStreamId = 1, RawStreamOffset = 209
+        });
+
+        Assert.NotNull(restored.Source.Frame);
+        Assert.True(restored.Source.Frame.IsChecksumValid);
+        Assert.Equal(0x69, restored.Source.LinkAddress);
+        Assert.Equal(7, restored.Source.FunctionType);
+        Assert.Equal(2, restored.Source.InformationNumber);
+        Assert.Null(restored.Source.AsduDetails);
+        Assert.Null(restored.TypeBadge); // IEC-103 is NOT IEC-101 Type 1 SPS.
+        var fields = IecForensicByteInspector.Explain(restored.Source);
+        Assert.Equal("07", fields.Single(x => x.Key == "fun").Hex);
+        Assert.Equal("02", fields.Single(x => x.Key == "inf").Hex);
+        Assert.Equal(209, restored.Source.RawStreamOffset);
+    }
+
+    [Fact]
+    public void LegacyIec103CaptureWithoutExplicitProfileDoesNotInventLinkOrFunInf()
+    {
+        var asdu = new byte[] { 1, 1, 3, 1, 7, 2, 0x81 };
+        var restored = new EvidenceRow(new CaptureFrameSnapshot
+        {
+            ProtocolMode = "103", RawHex = Convert.ToHexString(SerialVariable(0x08, 0x69, asdu)),
+            LinkWidth = 1 // Historical capture: no explicit IEC103 decoder schema
+        });
+        Assert.Null(restored.Source.Frame);
+        Assert.Empty(IecForensicByteInspector.Explain(restored.Source));
+    }
+
     private static byte[] SerialVariable(byte control, byte address, byte[] asdu)
     {
         var payload = new byte[] { control, address }.Concat(asdu).ToArray();

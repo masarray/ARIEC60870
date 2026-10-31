@@ -30,11 +30,11 @@ public sealed class ObservationInterpretivePresentationTests
         });
 
     [Fact]
-    public void FocusSuppressesOnlyProvenRoutinePollsAndNoData()
+    public void FocusPreservesEveryRealMasterTxAndMayHideOnlyUnimportantNoData()
     {
-        Assert.False(QuickFindMatcher.MatchesTrace(LinkFrame(true, 11), "", "Activity focus"));
-        Assert.False(QuickFindMatcher.MatchesTrace(LinkFrame(true, 10), "", "Activity focus"));
-        Assert.False(QuickFindMatcher.MatchesTrace(LinkFrame(true, 9), "", "Activity focus"));
+        Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(true, 11), "", "Activity focus"));
+        Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(true, 10), "", "Activity focus"));
+        Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(true, 9), "", "Activity focus"));
         Assert.False(QuickFindMatcher.MatchesTrace(LinkFrame(false, 9), "", "Activity focus"));
         Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(true, 11), "", "All frames"));
         Assert.True(QuickFindMatcher.MatchesTrace(LinkFrame(false, 9, acd: true), "", "Activity focus"));
