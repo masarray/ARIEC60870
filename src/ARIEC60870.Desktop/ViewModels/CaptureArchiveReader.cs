@@ -50,8 +50,47 @@ public static class CaptureArchiveReader
         return ReadCore(fileName, pageSize, cancellationToken, query, skipMatching);
     }
 
+    /// <summary>Verify original ZIP bytes once and spool validated JSONL to an
+    /// OS-managed temporary file. No result is exposed if checksum/count fail.</summary>
+    public static CaptureArchiveIndex OpenIndexed(string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        var source = new FileInfo(fileName);
+        if (!source.Exists) throw new FileNotFoundException("Capture file not found.", fileName);
+        var size = source.Length;
+        var modified = source.LastWriteTimeUtc;
+        var spool = CreateTemporaryIndexStream();
+        try
+        {
+            var verified = ReadCore(fileName, 1, cancellationToken, null, 0, spool);
+            cancellationToken.ThrowIfCancellationRequested();
+            source.Refresh();
+            if (!source.Exists || source.Length != size || source.LastWriteTimeUtc != modified)
+                throw new IOException("Capture source changed during integrity verification.");
+            spool.Flush();
+            spool.Position = 0;
+            return new CaptureArchiveIndex(spool, verified, fileName, size, modified);
+        }
+        catch
+        {
+            spool.Dispose();
+            throw;
+        }
+    }
+
+    internal static FileStream CreateTemporaryIndexStream()
+    {
+        var file = Path.Combine(Path.GetTempPath(),
+            "ariec-evidence-" + Guid.NewGuid().ToString("N") + ".tmp");
+        return new FileStream(file, FileMode.CreateNew, FileAccess.ReadWrite,
+            FileShare.None, bufferSize: 64 * 1024,
+            FileOptions.DeleteOnClose | FileOptions.SequentialScan);
+    }
+
     private static Result ReadCore(string fileName, int previewLimit,
-        CancellationToken cancellationToken, CaptureArchiveQuery? query, long skipMatching)
+        CancellationToken cancellationToken, CaptureArchiveQuery? query, long skipMatching,
+        FileStream? verifiedSpool = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         if (previewLimit is < 1 or > 5000)
@@ -180,6 +219,11 @@ public static class CaptureArchiveReader
                     (rowsSeen + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".", ex);
             }
             rowsSeen++;
+            if (verifiedSpool is not null)
+            {
+                verifiedSpool.Write(raw);
+                verifiedSpool.WriteByte((byte)'\n');
+            }
             if (query is null)
             {
                 matchesSeen++;
