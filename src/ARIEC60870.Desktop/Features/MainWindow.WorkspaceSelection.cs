@@ -120,7 +120,7 @@ public partial class MainWindow
         if (isPassive101)
         {
             // Monitor is a data source, not a separate UX: reuse ordinary analysis views.
-            NavFrameButton.Content = "RAW FRAME";
+            NavFrameButton.Content = "Raw Frames";
             NavEventButton.Content = "Event Log";
             NavValueButton.Content = "Values";
             NavOperatorButton.Content = "Messages";
@@ -146,7 +146,7 @@ public partial class MainWindow
         NavOperatorButton.Content = "Evidence Ledger";
         NavTriggersButton.Content = "Capture Policy";
         NavDualLinkButton.Content = "Redundancy";
-        NavFrameButton.Content = "RAW FRAME";
+        NavFrameButton.Content = "Raw Frames";
         NavValueButton.Content = "Values";
         NavEventButton.Content = "Events";
         NavFindingsButton.Content = "Findings";

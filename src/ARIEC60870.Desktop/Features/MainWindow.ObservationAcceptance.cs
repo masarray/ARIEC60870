@@ -41,10 +41,10 @@ public partial class MainWindow
         // omits Master TX polls while showing their RTU replies.
         if (TraceQuickScopeCombo.SelectedIndex != 1 ||
             MainTabControl.SelectedIndex != 1 ||
-            !Equals(NavFrameButton.Content, "RAW FRAME") ||
+            !Equals(NavFrameButton.Content, "Raw Frames") ||
             !ReferenceEquals(GetSegmentedNavButtons().FirstOrDefault(), NavFrameButton))
             throw new InvalidOperationException(
-                "RAW FRAME must be first/default with the unfiltered TX/RX timeline.");
+                "Raw Frames must be first/default with the unfiltered TX/RX timeline.");
         // Selected-tab capsule must not paint the old bright blue border.
         if (NavFrameButton.BorderBrush is SolidColorBrush navBorder &&
             navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)
