@@ -205,21 +205,33 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         await SendRawAsync(frame, summary, "U-format", reason, cancellationToken).ConfigureAwait(false);
         var isStart = summary == "STARTDT activation";
         var isTest = summary == "TESTFR activation";
-        // A conforming peer can interleave supervisory frames with U-format
-        // confirmations. Preserve each observed frame; accept ONLY the exact
-        // valid confirmation, never a substring of a malformed APDU.
+        // t1 is the handshake deadline, not the ordinary per-reply timeout.
+        // A conforming peer can interleave any number of I/S frames before
+        // the expected U-format confirmation. The deadline bounds the entire
+        // attempt; no arbitrary 8-frame limit and no premature 1500-ms fault.
         var expected = isStart ? "STARTDT con" : isTest ? "TESTFR con" : string.Empty;
+        using var handshakeDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        handshakeDeadline.CancelAfter(Math.Max(1, _settings.Iec104T1AckTimeoutMs));
         Iec104ApduDecode? received = null;
         var acknowledged = false;
-        for (var i = 0; i < 8 && !cancellationToken.IsCancellationRequested; i++)
+        try
         {
-            received = await ReceiveOneAsync("U-format", reason, cancellationToken).ConfigureAwait(false);
-            if (received is null) break;
-            if (received.IsValid && received.Format == "U" && received.UFormatName == expected)
+            while (!handshakeDeadline.IsCancellationRequested)
             {
-                acknowledged = true;
-                break;
+                received = await ReceiveOneAsync("U-format", reason,
+                    handshakeDeadline.Token, _settings.Iec104T1AckTimeoutMs).ConfigureAwait(false);
+                if (received is null) break;
+                if (received.IsValid && received.Format == "U" && received.UFormatName == expected)
+                {
+                    acknowledged = true;
+                    break;
+                }
             }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested &&
+            handshakeDeadline.IsCancellationRequested)
+        {
+            // The IEC-104 t1 supervision deadline expired, not an operator stop.
         }
         if (isStart)
         {
@@ -315,11 +327,11 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
     {
         var reader = new Iec104StreamReader(_transport);
         var sw = Stopwatch.StartNew();
-        var raw = await reader.ReadFrameAsync(_settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        var raw = await reader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
         sw.Stop();
         if (raw is null || raw.Length == 0)
         {

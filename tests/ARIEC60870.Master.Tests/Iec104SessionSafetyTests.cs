@@ -35,6 +35,7 @@ public sealed class Iec104SessionSafetyTests
             CommonAddressSize = 2,
             InformationObjectAddressSize = 3,
             ResponseTimeoutMs = 10,
+            Iec104T1AckTimeoutMs = 40,
             SendClockSyncOnConnect = true,
             SendGeneralInterrogationOnConnect = true
         };
@@ -45,6 +46,70 @@ public sealed class Iec104SessionSafetyTests
         Assert.Single(transport.Sent);
         Assert.Equal(Iec104FrameBuilder.StartDtActivation(), transport.Sent[0]);
         Assert.Contains(result.Findings, f => f.Id == "IEC104-STARTDT-CON");
+    }
+
+
+    [Fact]
+    public async Task StartDtConfirmedAfterOrdinaryReplyTimeoutButBeforeT1IsAccepted()
+    {
+        using var transport = new DelayedStartDtTransport();
+        var settings = new Iec103MasterSettings
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            CauseOfTransmissionSize = 2,
+            CommonAddressSize = 2,
+            InformationObjectAddressSize = 3,
+            ResponseTimeoutMs = 10,
+            Iec104T1AckTimeoutMs = 200,
+            SendClockSyncOnConnect = false,
+            SendGeneralInterrogationOnConnect = false
+        };
+        var result = await new Iec104ClientSession(settings, transport)
+            .RunForAsync(TimeSpan.FromMilliseconds(170), CancellationToken.None);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.DoesNotContain(result.Findings, f => f.Id == "IEC104-STARTDT-CON");
+        Assert.Equal(Iec104FrameBuilder.StartDtActivation(), Assert.Single(transport.Sent));
+    }
+
+    private sealed class DelayedStartDtTransport : IByteTransport
+    {
+        private readonly Queue<byte> _reply = new();
+        private bool _waitOnce = true;
+        public List<byte[]> Sent { get; } = new();
+        public bool IsOpen { get; private set; }
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            IsOpen = true;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            IsOpen = false;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        {
+            Sent.Add(buffer.ToArray());
+            foreach (var octet in Iec104FrameBuilder.StartDtConfirmation()) _reply.Enqueue(octet);
+            return ValueTask.CompletedTask;
+        }
+        public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (_waitOnce)
+            {
+                _waitOnce = false;
+                await Task.Delay(65, cancellationToken);
+            }
+            if (_reply.Count == 0)
+            {
+                await Task.Delay(10, cancellationToken);
+                return 0;
+            }
+            buffer.Span[0] = _reply.Dequeue();
+            return 1;
+        }
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync() { IsOpen = false; return ValueTask.CompletedTask; }
     }
 
     private sealed class DeterministicWrongStartDtTransport : IByteTransport
