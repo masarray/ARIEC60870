@@ -152,11 +152,16 @@ public partial class MainWindow
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 1440 * 5L,
             baseline.AddMilliseconds(1440 * 40d), "Variable", true, multiWire));
         FlushUiQueues();
-        var multiObjectRow = FrameTraceRows.LastOrDefault(x => x.Source.AsduDetails?.Objects.Count == 2);
-        if (multiObjectRow is null || ValueRows.Count < 2)
-            throw new InvalidOperationException("Two-point IEC-101 process ASDU did not reach Trace/Values.");
+        // Source store accepts frames even while another workspace is active;
+        // the virtualized Trace projection is reconciled only on return.
+        var sourceMultiObjectCount = _protocolTraceStore.Snapshot().Count(x => x.Source.AsduDetails?.Objects.Count == 2);
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
+        var multiObjectRow = FrameTraceRows.LastOrDefault(x => x.Source.AsduDetails?.Objects.Count == 2);
+        if (sourceMultiObjectCount == 0 || multiObjectRow is null || ValueRows.Count < 2)
+            throw new InvalidOperationException(
+                $"Two-point process ASDU absent after Trace reconciliation: source={sourceMultiObjectCount}, " +
+                $"view={FrameTraceRows.Count(x => x.Source.AsduDetails?.Objects.Count == 2)}, Values={ValueRows.Count}.");
         TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
