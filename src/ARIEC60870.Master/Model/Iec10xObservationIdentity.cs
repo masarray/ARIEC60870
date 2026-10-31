@@ -84,6 +84,28 @@ public static class Iec10xObservationIdentity
     private static string NormalizeSource(string? source)
         => string.IsNullOrWhiteSpace(source) ? "SINGLE" : source.Trim();
 
+    // IEC101/104 process type families. IEC103 has its own FUN/INF decoder.
+    public static bool IsDigitalProcessType(int? typeId)
+        => typeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 30 or 31 or 32 or 33;
+
+    public static bool IsMeasurementOrCounterType(int? typeId)
+        => typeId is 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 34 or 35 or 36 or 37;
+
+    /// <summary>Each validated spontaneous/return-information object is a
+    /// factual observation even if it repeats its previous state/value.</summary>
+    public static bool IsReceivedProcessEvent(Iec103MasterEvidenceEvent item)
+        => item.Direction == FrameDirection.SlaveToMaster
+            && item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+            && (IsDigitalProcessType(item.TypeId) || IsMeasurementOrCounterType(item.TypeId))
+            && item.InformationObjectAddress.HasValue
+            && item.CauseOfTransmission is 3 or 11 or 12
+            && item.Frame?.IsChecksumValid != false
+            && !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase);
+
+    public static bool ShouldRecordProcessEvent(Iec103MasterEvidenceEvent item, bool changed)
+        => IsReceivedProcessEvent(item) ||
+           (IsDigitalProcessType(item.TypeId) && ShouldRecordDigitalEvent(item, changed));
+
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)
         => item.Direction == FrameDirection.SlaveToMaster
             && (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
@@ -107,7 +129,7 @@ public static class Iec10xObservationIdentity
     public static string EventReason(Iec103MasterEvidenceEvent item, bool hasBaseline, bool changed)
     {
         var cause = item.CauseDetails?.Phase ?? item.CauseName;
-        if (IsReceivedDigitalEvent(item))
+        if (IsReceivedProcessEvent(item))
             return $"{cause} · {(changed ? "state change" : hasBaseline ? "repeat observation" : "first observation")}";
         return changed ? $"{cause} · state change" : cause;
     }

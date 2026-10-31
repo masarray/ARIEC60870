@@ -10,6 +10,57 @@ namespace ARIEC60870.Master.Tests;
 
 public sealed class Iec10xObservationIdentityTests
 {
+    [Theory]
+    [InlineData(1, 3, true)]
+    [InlineData(3, 11, true)]
+    [InlineData(13, 3, true)]
+    [InlineData(13, 12, true)]
+    [InlineData(15, 3, true)]
+    [InlineData(34, 3, true)]
+    [InlineData(37, 3, true)]
+    [InlineData(13, 20, false)]
+    [InlineData(13, 2, false)]
+    [InlineData(45, 3, false)]
+    [InlineData(200, 3, false)]
+    public void SourceTypedProcessFactsAreNotGuessedFromDisplayLabels(int type, int cot, bool expected)
+    {
+        var e = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            Direction = FrameDirection.SlaveToMaster,
+            TypeId = type, CauseOfTransmission = cot,
+            CommonAddressNumber = 105, InformationObjectAddress = 1001
+        };
+        Assert.Equal(expected, Iec10xObservationIdentity.IsReceivedProcessEvent(e));
+    }
+
+    [Fact]
+    public void FiftyThousandMixedDigitalAnalogCounterObservationsKeepSourceIdentity()
+    {
+        const int count = 50_000;
+        var facts = 0;
+        var refs = new HashSet<string>();
+        for (var i = 0; i < count; i++)
+        {
+            var e = new Iec103MasterEvidenceEvent
+            {
+                ProtocolMode = i % 2 == 0 ? Iec60870ProtocolMode.Iec101 : Iec60870ProtocolMode.Iec104,
+                Direction = FrameDirection.SlaveToMaster,
+                TypeId = i % 4 switch { 0 => 1, 1 => 3, 2 => 13, _ => 15 },
+                CauseOfTransmission = i % 11 == 0 ? 20 : 3,
+                CommonAddressNumber = 105 + i % 3,
+                InformationObjectAddress = 1000 + i % 300,
+                PhysicalSource = i % 2 == 0 ? "Link A" : "Link B",
+                SequenceNumber = i + 1
+            };
+            if (!Iec10xObservationIdentity.IsReceivedProcessEvent(e)) continue;
+            facts++;
+            refs.Add(e.EvidenceReference + "|" + e.PhysicalSource);
+        }
+        Assert.Equal(count - (count + 10) / 11, facts);
+        Assert.Equal(facts, refs.Count);
+    }
+
     [Fact]
     public void PhysicalKeySeparatesProtocolChannelCommonAddressAndIoa()
     {
