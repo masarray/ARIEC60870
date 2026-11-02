@@ -144,6 +144,7 @@ public partial class MainWindow : Window
     private int _lastFindingProcessed;
     private int _lastVisibleBatchRows;
     private int _lastFlushBudget = MaxUiFlushPerTick;
+    private bool _liveCountersDirty;
     private DateTime _lastBackpressureLogUtc = DateTime.MinValue;
     private DateTime _lastDispatcherPressureDiagnosticUtc = DateTime.MinValue;
     private DateTime _lastDispatcherSlowDiagnosticUtc = DateTime.MinValue;

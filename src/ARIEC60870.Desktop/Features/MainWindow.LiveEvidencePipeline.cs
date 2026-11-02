@@ -276,7 +276,9 @@ public partial class MainWindow
         FlushVisibleUiBatches();
         RefreshControlCasesIfVisible();
         RefreshGiCasesIfVisible();
-        UpdateQuickFindCounts();
+        RenderLiveCountersIfDirty();
+        // CollectionChanged already coalesces count updates into one
+        // Dispatcher callback. Never re-enumerate filtered views on every tick.
         EmitBackpressureNoticeIfNeeded();
 
         stopwatch.Stop();
@@ -1415,6 +1417,13 @@ public partial class MainWindow
 
         // EVENT is incremented only by RegisterActualEventFact when a real Event
         // Log row is appended, never by every measurement/snapshot frame.
+        _liveCountersDirty = true;
+    }
+
+    private void RenderLiveCountersIfDirty()
+    {
+        if (!_liveCountersDirty) return;
+        _liveCountersDirty = false;
         TxRxText.Text = $"{_txCount} / {_rxCount}";
         ClassPollText.Text = $"{_giCount} / {_class1Count} / {_class2Count}";
         NoDataText.Text = _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -634,7 +634,7 @@ public partial class MainWindow
     {
         _dpiCount++;
         PulseLed(EventLed);
-        DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _liveCountersDirty = true;
     }
 
     private static bool IsDigitalEvent(RelayEventRow row) =>
@@ -1138,6 +1138,7 @@ public partial class MainWindow
             return;
         }
 
-        BufferStatusText.Text = string.Empty;
+        if (BufferStatusText.Text.Length != 0)
+            BufferStatusText.Text = string.Empty;
     }
 }
