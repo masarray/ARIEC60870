@@ -276,7 +276,9 @@ public partial class MainWindow
         FlushVisibleUiBatches();
         RefreshControlCasesIfVisible();
         RefreshGiCasesIfVisible();
-        UpdateQuickFindCounts();
+        RenderLiveCountersIfDirty();
+        // CollectionChanged already coalesces count updates into one
+        // Dispatcher callback. Never re-enumerate filtered views on every tick.
         EmitBackpressureNoticeIfNeeded();
 
         stopwatch.Stop();
@@ -912,13 +914,17 @@ public partial class MainWindow
             _pendingDiagnosticUiRows.Clear();
         }
 
-        if (IsFindingsWorkspaceTabActive() && (batchRows > 0 || _pendingEvidence.Count == 0))
+        if (IsFindingsWorkspaceTabActive() && (_findingsWorkspaceDirty || batchRows > 0))
         {
             RefreshFindingsWorkspace();
+            _findingsWorkspaceDirty = false;
         }
 
         _lastVisibleBatchRows = batchRows;
-        UpdateLineMonitorStatus();
+        // AUTO/HOLD state is updated synchronously by user-mode and tab
+        // transitions; unchanged idle ticks do not need WPF property writes.
+        if (batchRows > 0)
+            UpdateLineMonitorStatus();
     }
 
     private void RefreshActiveTraceSnapshot()
@@ -1040,6 +1046,9 @@ public partial class MainWindow
 
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
+        // Findings are derived only when their canonical source changes.
+        // An idle Dispatcher tick is not a reason to rebuild report inputs.
+        _findingsWorkspaceDirty = true;
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
         ObserveIecProtocolTriggerWatch(item, row);
         AddDualLinkTimelineRowIfImportant(item);
@@ -1307,6 +1316,7 @@ public partial class MainWindow
 
     private void ApplyFindingToUi(Iec103MasterFinding finding)
     {
+        _findingsWorkspaceDirty = true;
         if (ShouldSuppressFindingForOperatorStop(finding))
         {
             AppendSessionLog($"Context note [{finding.Severity}] {finding.Id}: suppressed as operator-stop/non-issue context.");
@@ -1415,6 +1425,13 @@ public partial class MainWindow
 
         // EVENT is incremented only by RegisterActualEventFact when a real Event
         // Log row is appended, never by every measurement/snapshot frame.
+        _liveCountersDirty = true;
+    }
+
+    private void RenderLiveCountersIfDirty()
+    {
+        if (!_liveCountersDirty) return;
+        _liveCountersDirty = false;
         TxRxText.Text = $"{_txCount} / {_rxCount}";
         ClassPollText.Text = $"{_giCount} / {_class1Count} / {_class2Count}";
         NoDataText.Text = _noDataCount.ToString(System.Globalization.CultureInfo.InvariantCulture);

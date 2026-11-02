@@ -185,13 +185,17 @@ public partial class MainWindow
 
     private void UpdateQuickFindCounts()
     {
-        TraceQuickCountText.Text = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} frames" +
+        var trace = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} frames" +
             (_traceQuickScope == "Activity focus" ? " · Focus" :
                 _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope);
-        ValuesQuickCountText.Text = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
+        var values = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
             (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
-        ControlsQuickCountText.Text = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
-        GiQuickCountText.Text = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} cases";
+        var controls = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
+        var gi = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} cases";
+        if (TraceQuickCountText.Text != trace) TraceQuickCountText.Text = trace;
+        if (ValuesQuickCountText.Text != values) ValuesQuickCountText.Text = values;
+        if (ControlsQuickCountText.Text != controls) ControlsQuickCountText.Text = controls;
+        if (GiQuickCountText.Text != gi) GiQuickCountText.Text = gi;
     }
     private void ClearTraceQuickFindForNavigation()
     {

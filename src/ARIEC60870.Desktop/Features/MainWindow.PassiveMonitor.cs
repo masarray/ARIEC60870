@@ -29,6 +29,10 @@ public partial class MainWindow
     private const int MaxVisiblePassiveRows = 600;
     private readonly ObservableCollection<PassiveRxRow> _passiveRawRows = new();
     private DispatcherTimer? _passiveUiTimer;
+    private bool _passiveUiRefreshInFlight;
+    private int _passiveCotWidth = 2;
+    private int _passiveCaWidth = 2;
+    private int _passiveIoaWidth = 3;
     private PassiveMonitorSession? _passiveMonitorSession;
     private Task<(string Directory, PassiveCaptureManifest Manifest)>? _passiveCaptureTask;
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
@@ -500,6 +504,9 @@ public partial class MainWindow
         _passiveFindingWindowCount = 0;
         _passiveAsduDecoder = new Iec10xAsduDecoder(
             options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
+        _passiveCotWidth = options.CotWidth;
+        _passiveCaWidth = options.CommonAddressWidth;
+        _passiveIoaWidth = options.InformationAddressWidth;
         _passiveLinkAddressWidth = options.LinkAddressWidth;
         AppendSessionLog($"Passive IEC-101 profile: {options.LinkMode}; Link={options.LinkAddressWidth}, COT={options.CotWidth}, CA={options.CommonAddressWidth}, IOA={options.InformationAddressWidth}; gap={options.FrameGapMilliseconds} ms.");
         PassiveScadaCountText.Text = "0 bytes";
@@ -536,7 +543,12 @@ public partial class MainWindow
             _passiveFrameHistory = session.TraceHistory;
             var result = await _passiveCaptureTask;
             _passiveCaptureResult = result;
-            RefreshPassiveUi();
+            // Let any in-flight prepare batch finish on its original session.
+            // Never overlap two GUI consumers of the single-reader preview feed.
+            while (_passiveUiRefreshInFlight)
+                await Task.Delay(10);
+            await RefreshPassiveUiAsync();
+            FlushUiQueues();
             PassiveCapturePathText.Text = options.RecordFullSession
                 ? result.Directory : "Live monitor · no recording";
             PassiveIntegrityText.Text = result.Manifest.Status;
@@ -578,12 +590,24 @@ public partial class MainWindow
         _sessionCancellation.Cancel();
     }
 
-    private void PassiveUiTimer_Tick(object? sender, EventArgs e) => RefreshPassiveUi();
+    private async void PassiveUiTimer_Tick(object? sender, EventArgs e)
+    {
+        try { await RefreshPassiveUiAsync(); }
+        catch (Exception ex)
+        {
+            // Never allow an async DispatcherTimer callback to take down WPF.
+            AppendSessionLog("Passive UI projection failed: " + ex.Message);
+            _sessionCancellation?.Cancel();
+        }
+    }
 
-    private void RefreshPassiveUi()
+    private async Task RefreshPassiveUiAsync()
     {
         var session = _passiveMonitorSession;
-        if (session is null) return;
+        if (session is null || _passiveUiRefreshInFlight) return;
+        _passiveUiRefreshInFlight = true;
+        try
+        {
         var progress = session.GetProgress();
         PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
@@ -631,11 +655,22 @@ public partial class MainWindow
 
         // Frame reconstruction is independent of the raw sample view and its Freeze flag.
         // Every observed frame is projected onto the EXISTING Evidence/Trace/Values/Event pipeline.
-        var framed = 0;
-        while (framed < 180 && session.TryReadFrame(out var frame))
+        // Only immutable byte->ASDU preparation leaves the Dispatcher. GUI event
+        // projection remains sequential; frames are processed in source-feed order.
+        // One bounded batch task per nonempty UI period, never one task per frame.
+        var frames = new List<PassiveObservedFrame>(180);
+        while (frames.Count < 180 && session.TryReadFrame(out var frame))
+            frames.Add(frame);
+        if (frames.Count > 0)
         {
-            FeedPassiveFrameToExistingViews(frame);
-            framed++;
+            var linkWidth = _passiveLinkAddressWidth;
+            var cotWidth = _passiveCotWidth;
+            var caWidth = _passiveCaWidth;
+            var ioaWidth = _passiveIoaWidth;
+            var prepared = await Task.Run(() => PassiveFramePreparation.PrepareBatch(
+                frames, linkWidth, cotWidth, caWidth, ioaWidth));
+            foreach (var item in prepared)
+                FeedPassiveFrameToExistingViews(item.Frame, prepared: item);
         }
 
         // Dedicated five-second summaries, never per-frame rendering.
@@ -646,12 +681,8 @@ public partial class MainWindow
             summaryCount++;
         }
 
-        // The Passive Monitor owns its 160-ms refresh timer. Active-Master
-        // UI flushing is not guaranteed to run in this mode; without this,
-        // evidence accumulates but Frame Trace looks frozen despite RX bytes.
-        // Always flush, even when ONLY the raw sample table is frozen.
-        FlushUiQueues();
-
+        // The shared 75-ms coordinator alone flushes the WPF projection.
+        // Passive Freeze only controls the optional raw-chunk preview.
         if (PassiveFreezeCheckBox.IsChecked == true) return;
         var count = 0;
         while (count < 65 && session.TryReadPreview(out var sample))
@@ -668,10 +699,12 @@ public partial class MainWindow
         }
         if (count > 0 && PassiveRawGrid.SelectedItem is null)
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
+        }
+        finally { _passiveUiRefreshInFlight = false; }
     }
 
     private EvidenceRow? FeedPassiveFrameToExistingViews(PassiveObservedFrame seen,
-        bool inspectionOnly = false)
+        bool inspectionOnly = false, PassiveFramePreparation.Prepared? prepared = null)
     {
         PassiveGiEvent? giNote = null;
         PassiveTransactionEvent? transaction = null;
@@ -724,10 +757,12 @@ public partial class MainWindow
             for (var i = 0; i < linkWidth; i++) address |= raw[controlOffset + 1 + i] << (8 * i);
         var asduOffset = 5 + linkWidth;
         var asduCount = seen.Format == "Variable" ? Math.Max(0, raw[1] - 1 - linkWidth) : 0;
-        byte[] asduRaw = seen.Format == "Variable" && asduCount > 0
-            ? raw.AsSpan(asduOffset, asduCount).ToArray() : Array.Empty<byte>();
+        byte[] asduRaw = prepared?.AsduRaw ?? (seen.Format == "Variable" && asduCount > 0 &&
+            raw.Length >= asduOffset + asduCount
+                ? raw.AsSpan(asduOffset, asduCount).ToArray() : Array.Empty<byte>());
         var link = control.HasValue ? LinkControlDecoder.Decode(control.Value) : null;
-        var decode = seen.ChecksumValid && asduRaw.Length > 0 ? _passiveAsduDecoder?.Decode(asduRaw) : null;
+        var decode = prepared is not null ? prepared.Decode :
+            seen.ChecksumValid && asduRaw.Length > 0 ? _passiveAsduDecoder?.Decode(asduRaw) : null;
         var format = seen.Format switch
         {
             "Fixed" => Ft12FrameFormat.FixedLength,
@@ -783,7 +818,7 @@ public partial class MainWindow
             meaning = frame.Issues.FirstOrDefault() ?? meaning;
 
         var first = decode?.FirstObject;
-        var rawHexOnce = Convert.ToHexString(raw);
+        var rawHexOnce = prepared?.RawHex ?? Convert.ToHexString(raw);
 
         var ev = new Iec103MasterEvidenceEvent
         {
