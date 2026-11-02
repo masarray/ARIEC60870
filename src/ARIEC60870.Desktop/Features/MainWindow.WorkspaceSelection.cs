@@ -306,15 +306,11 @@ public partial class MainWindow
             delta > 0 ? Math.Max(2, list.ActualHeight - 24) : 18);
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            try
-            {
-                if (!_isProtocolTraceDragSelecting || !list.IsVisible ||
-                    generation != _traceDragGeneration) return;
-                var index = GetProtocolTraceIndexFromInput(list, null, target);
-                if (index >= 0)
-                    QueueTraceDragSelectionUpdate(list, index);
-            }
-            finally { }
+            if (!_isProtocolTraceDragSelecting || !list.IsVisible ||
+                generation != _traceDragGeneration) return;
+            var index = GetProtocolTraceIndexFromInput(list, null, target);
+            if (index >= 0)
+                QueueTraceDragSelectionUpdate(list, index);
         }), DispatcherPriority.Loaded);
     }
 
