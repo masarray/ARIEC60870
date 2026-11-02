@@ -15,8 +15,11 @@ public sealed class DigitalStateBadgeTests
     [InlineData("104", "31", "Double Point OFF", "DP", "OFF")]
     [InlineData("101", "3", "1", "DP", "OFF")]
     [InlineData("101", "3", "2", "DP", "ON")]
-    [InlineData("101", "3", "0", "DP", "INTERMEDIATE")]
-    [InlineData("101", "3", "3", "DP", "INDETERMINATE")]
+    [InlineData("101", "3", "0", "DP", "INV")]
+    [InlineData("101", "3", "3", "DP", "INV")]
+    [InlineData("101", "3", "DP=Intermediate/Indeterminate", "DP", "INV")]
+    [InlineData("104", "31", "DP=Indeterminate", "DP", "INV")]
+    [InlineData("101", "3", "DP=Intermediate", "DP", "INV")]
     [InlineData("101", "1", "0", "SP", "OFF")]
     [InlineData("101", "1", "1", "SP", "ON")]
     public void BadgeMatchesTypedDigitalEvidence(string protocol, string ti, string raw, string kind, string state)

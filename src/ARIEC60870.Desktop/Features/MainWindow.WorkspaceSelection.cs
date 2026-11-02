@@ -245,11 +245,13 @@ public partial class MainWindow
     private DispatcherTimer? _traceDragScrollTimer;
     private ScrollViewer? _traceDragScrollViewer;
     private bool _traceDragSelectionUpdateQueued;
+    private int _pendingTraceDragSelectionIndex = -1;
     private int _traceDragGeneration;
 
     private void StartTraceDragScroll(ListBox listBox, Point pointer)
     {
         _traceDragGeneration++;
+        _pendingTraceDragSelectionIndex = -1;
         _traceDragPointer = pointer;
         _traceDragScrollViewer = FindTraceScrollViewer(listBox);
         if (_traceDragScrollViewer is null) return;
@@ -294,8 +296,6 @@ public partial class MainWindow
             Math.Max(0, viewer.ScrollableHeight));
         if (Math.Abs(targetOffset - before) < 0.1) return;
         viewer.ScrollToVerticalOffset(targetOffset);
-        if (_traceDragSelectionUpdateQueued) return;
-        _traceDragSelectionUpdateQueued = true;
         var generation = _traceDragGeneration;
 
         // WPF recycling realizes newly scrolled row containers at Loaded.
@@ -311,14 +311,34 @@ public partial class MainWindow
                 if (!_isProtocolTraceDragSelecting || !list.IsVisible ||
                     generation != _traceDragGeneration) return;
                 var index = GetProtocolTraceIndexFromInput(list, null, target);
-                if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
-                _protocolTraceDragLastVisibleIndex = index;
-                ExtendProtocolTraceSelectionToIndex(list, index);
+                if (index >= 0)
+                    QueueTraceDragSelectionUpdate(list, index);
             }
-            finally { _traceDragSelectionUpdateQueued = false; }
+            finally { }
         }), DispatcherPriority.Loaded);
     }
 
+    private void QueueTraceDragSelectionUpdate(ListBox list, int index)
+    {
+        if (index < 0 || !_isProtocolTraceDragSelecting) return;
+        _pendingTraceDragSelectionIndex = index;
+        if (_traceDragSelectionUpdateQueued) return;
+        _traceDragSelectionUpdateQueued = true;
+        var generation = _traceDragGeneration;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (!_isProtocolTraceDragSelecting || generation != _traceDragGeneration ||
+                    !list.IsVisible) return;
+                var next = _pendingTraceDragSelectionIndex;
+                if (next < 0 || next == _protocolTraceDragLastVisibleIndex) return;
+                _protocolTraceDragLastVisibleIndex = next;
+                ExtendProtocolTraceSelectionToIndex(list, next);
+            }
+            finally { _traceDragSelectionUpdateQueued = false; }
+        }), DispatcherPriority.Render);
+    }
 
     private void FrameTraceGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -343,7 +363,8 @@ public partial class MainWindow
         ApplyProtocolTraceSelectionGesture(listBox, index, Keyboard.Modifiers);
         _isProtocolTraceDragSelecting = true;
         _protocolTraceDragLastVisibleIndex = index;
-        FocusProtocolTraceContainer(listBox, index);
+        // Do not keyboard-focus the row anchor during a long pointer drag:
+        // WPF focus bring-into-view competes with the user-driven scroll.
         listBox.CaptureMouse(); // ensure release also when dragging past viewport
         StartTraceDragScroll(listBox, pointer);
         UpdateLineMonitorStatus();
@@ -365,22 +386,8 @@ public partial class MainWindow
             IsPointerInsideVerticalScrollbarZone(listBox, pointer)) return;
 
         var index = GetProtocolTraceIndexFromInput(listBox, e.OriginalSource as DependencyObject, pointer);
-        if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
-        _protocolTraceDragLastVisibleIndex = index;
-        ExtendProtocolTraceSelectionToIndex(listBox, index);
-        e.Handled = true;
-    }
-
-    private void FrameTraceLineItem_MouseEnter(object sender, MouseEventArgs e)
-    {
-        if (!_isProtocolTraceDragSelecting || e.LeftButton != MouseButtonState.Pressed ||
-            sender is not ListBoxItem { DataContext: EvidenceRow row } item ||
-            ItemsControl.ItemsControlFromItemContainer(item) is not ListBox listBox) return;
-
-        var index = listBox.Items.IndexOf(row); // current filtered view
-        if (index < 0 || index == _protocolTraceDragLastVisibleIndex) return;
-        _protocolTraceDragLastVisibleIndex = index;
-        ExtendProtocolTraceSelectionToIndex(listBox, index);
+        if (index < 0) return;
+        QueueTraceDragSelectionUpdate(listBox, index);
         e.Handled = true;
     }
 
@@ -398,6 +405,7 @@ public partial class MainWindow
     {
         _isProtocolTraceDragSelecting = false;
         _traceDragGeneration++;
+        _pendingTraceDragSelectionIndex = -1;
         _protocolTraceDragLastVisibleIndex = -1;
         _traceDragScrollTimer?.Stop();
         _traceDragScrollViewer = null;
