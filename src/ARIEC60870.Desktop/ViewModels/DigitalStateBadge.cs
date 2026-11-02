@@ -53,12 +53,14 @@ public sealed record DigitalStateBadge(string Type, string State)
             "1" when type == "SP" => "ON",
             // IEC double-point information: DPI=0 indeterminate/intermediate,
             // DPI=1 OFF, DPI=2 ON, DPI=3 indeterminate. Never treat DP=1 as ON.
-            "0" when type == "DP" => "INTERMEDIATE",
+            "0" when type == "DP" => "INV",
             "1" when type == "DP" => "OFF",
             "2" when type == "DP" => "ON",
-            "3" when type == "DP" => "INDETERMINATE",
-            "TRANSIENT" or "INTERMEDIATE" => "INTERMEDIATE",
-            "UNKNOWN" or "INDETERMINATE" => "INDETERMINATE",
+            "3" when type == "DP" => "INV",
+            "TRANSIENT" or "INTERMEDIATE" or "INTERMEDIATE/INDETERMINATE"
+                when type == "DP" => "INV",
+            "UNKNOWN" or "INDETERMINATE" or "INV"
+                when type == "DP" => "INV",
             _ => ""
         };
         return state.Length == 0 ? null : new DigitalStateBadge(type, state);

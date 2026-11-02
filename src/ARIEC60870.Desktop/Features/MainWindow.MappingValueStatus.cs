@@ -135,14 +135,8 @@ public partial class MainWindow
         // No inferred IOA-only mapping on a CA mismatch. A differently addressed
         // station is a different physical point; it remains visible but unmapped.
         if (!item.InformationObjectAddress.HasValue) return null;
-        return _ioaProfile.Points
-            .Where(p => p.Ioa == item.InformationObjectAddress.Value &&
-                (!(p.Ca ?? _ioaProfile.CommonAddress).HasValue ||
-                    (p.Ca ?? _ioaProfile.CommonAddress) == item.CommonAddressNumber) &&
-                (!p.TypeId.HasValue || p.TypeId == item.TypeId))
-            .OrderByDescending(p => p.Ca.HasValue)
-            .ThenByDescending(p => p.TypeId.HasValue)
-            .FirstOrDefault();
+        return _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
+            item.InformationObjectAddress.Value, item.TypeId);
     }
 
     private static string ExtractSimpleStateToken(string value)

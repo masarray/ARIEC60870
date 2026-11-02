@@ -90,6 +90,29 @@ public sealed class Iec10xPointMappingProfile
         }
     }
 
+    public Iec10xPointMappingEntry? ResolveObservedSignal(int? commonAddress, int? ioa, int? typeId)
+    {
+        if (commonAddress is null || ioa is null || typeId is null)
+            return null;
+        var candidates = Points.Where(x =>
+            x.Ioa == ioa.Value &&
+            (!((x.Ca ?? CommonAddress).HasValue) ||
+             (x.Ca ?? CommonAddress) == commonAddress.Value)).ToArray();
+        if (candidates.Length == 0) return null;
+        var exact = candidates.Where(x => x.TypeId == typeId.Value ||
+                                          !x.TypeId.HasValue).ToArray();
+        // A unique exact address+type (or explicit wildcard) is authoritative.
+        if (exact.Length == 1) return exact[0];
+        if (exact.Length > 1) return null;
+
+        // Same physical point in a GI snapshot can be untimed Type 1/3/5,
+        // then timestamped Type 30/31/32 for spontaneous SOE. Never turn
+        // a double-point into a single-point or match an unrelated command.
+        var variants = candidates.Where(x => x.TypeId.HasValue &&
+            Iec10xPointTypeFamily.SameObservationFamily(x.TypeId.Value, typeId.Value)).ToArray();
+        return variants.Length == 1 ? variants[0] : null;
+    }
+
     public Iec10xPointMappingEntry? Resolve(int? commonAddress, int? ioa, int? typeId)
     {
         if (!ioa.HasValue)

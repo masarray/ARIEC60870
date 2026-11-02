@@ -110,6 +110,7 @@
                 <TextBlock x:Name="PlainValue" Text="{Binding OperatorValue}"
                            Style="{StaticResource GridCellNoWrapText}" VerticalAlignment="Center"/>
                 <Border x:Name="StateChip" CornerRadius="4" Padding="7,2"
+                        ToolTip="{Binding FullOperatorValue}"
                         MinWidth="48" Visibility="Collapsed"
                         Background="#E8EDF3" BorderBrush="#CBD5E1" BorderThickness="1">
                     <TextBlock x:Name="StateChipText" Text="{Binding DiscreteBadge.State}"
@@ -136,15 +137,10 @@
                     <Setter TargetName="StateChip" Property="BorderBrush" Value="#FDA4AF"/>
                     <Setter TargetName="StateChipText" Property="Foreground" Value="#9F1239"/>
                 </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INTERMEDIATE">
+                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INV">
                     <Setter TargetName="StateChip" Property="Background" Value="#FEF3C7"/>
                     <Setter TargetName="StateChip" Property="BorderBrush" Value="#FCD34D"/>
                     <Setter TargetName="StateChipText" Property="Foreground" Value="#92400E"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding DiscreteBadge.State}" Value="INDETERMINATE">
-                    <Setter TargetName="StateChip" Property="Background" Value="#F1F5F9"/>
-                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#94A3B8"/>
-                    <Setter TargetName="StateChipText" Property="Foreground" Value="#334155"/>
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
@@ -784,7 +780,6 @@
                                          TextOptions.TextHintingMode="Fixed">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceLineItem}">
-                                            <EventSetter Event="MouseEnter" Handler="FrameTraceLineItem_MouseEnter" />
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>

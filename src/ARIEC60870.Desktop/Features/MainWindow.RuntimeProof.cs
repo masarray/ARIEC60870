@@ -153,6 +153,13 @@ public partial class MainWindow
 
     private void EvaluateScanHealthWindow()
     {
+        // Passive IEC-101 capture is RX-only and does not own Class 1/2
+        // scan scheduling. Idle observation is NOT proof of a stale RTU.
+        // Active Master health diagnostics must never label a passive
+        // sniffer as a failed scanning master.
+        if (IsIec101PassiveMonitorSelected())
+            return;
+
         if (_sessionCancellation is null || _scanHealthSessionStartedUtc == DateTime.MinValue)
         {
             return;
