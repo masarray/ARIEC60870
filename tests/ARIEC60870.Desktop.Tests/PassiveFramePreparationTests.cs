@@ -29,7 +29,7 @@ public sealed class PassiveFramePreparationTests
         {
             Assert.Same(observations[i], prepared[i].Frame);
             Assert.Equal(Convert.ToHexString(wire), prepared[i].RawHex);
-            Assert.Equal(1, prepared[i].Decode?.TypeId);
+            Assert.Equal<byte?>((byte)1, prepared[i].Decode?.TypeId);
             Assert.Equal(2, prepared[i].Decode?.Objects.Count);
             Assert.Equal(101, prepared[i].Decode?.Objects[0].InformationObjectAddress);
             Assert.Equal(102, prepared[i].Decode?.Objects[1].InformationObjectAddress);

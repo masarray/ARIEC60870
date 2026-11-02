@@ -914,13 +914,17 @@ public partial class MainWindow
             _pendingDiagnosticUiRows.Clear();
         }
 
-        if (IsFindingsWorkspaceTabActive() && (batchRows > 0 || _pendingEvidence.Count == 0))
+        if (IsFindingsWorkspaceTabActive() && (_findingsWorkspaceDirty || batchRows > 0))
         {
             RefreshFindingsWorkspace();
+            _findingsWorkspaceDirty = false;
         }
 
         _lastVisibleBatchRows = batchRows;
-        UpdateLineMonitorStatus();
+        // AUTO/HOLD state is updated synchronously by user-mode and tab
+        // transitions; unchanged idle ticks do not need WPF property writes.
+        if (batchRows > 0)
+            UpdateLineMonitorStatus();
     }
 
     private void RefreshActiveTraceSnapshot()
@@ -1042,6 +1046,9 @@ public partial class MainWindow
 
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
+        // Findings are derived only when their canonical source changes.
+        // An idle Dispatcher tick is not a reason to rebuild report inputs.
+        _findingsWorkspaceDirty = true;
         var row = new EvidenceRow(item, ResolveIoaPoint(item));
         ObserveIecProtocolTriggerWatch(item, row);
         AddDualLinkTimelineRowIfImportant(item);
@@ -1309,6 +1316,7 @@ public partial class MainWindow
 
     private void ApplyFindingToUi(Iec103MasterFinding finding)
     {
+        _findingsWorkspaceDirty = true;
         if (ShouldSuppressFindingForOperatorStop(finding))
         {
             AppendSessionLog($"Context note [{finding.Severity}] {finding.Id}: suppressed as operator-stop/non-issue context.");

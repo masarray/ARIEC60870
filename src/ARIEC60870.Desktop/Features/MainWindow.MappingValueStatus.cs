@@ -553,19 +553,25 @@ public partial class MainWindow
     {
         if (RelayEventRows is null) return;
         var recent = _relayEventStore.Snapshot();
-        var rows = recent.Where(row =>
-            EventCategoryFilter.Allows(ClassifyEventCategory(row),
-                _eventIncludeCategories, _eventExcludeCategories) &&
-            QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
-            .TakeLast(MaxVisibleRelayEventRows).ToArray();
+        // The common All/empty-query view needs no category classification,
+        // text matcher or second array on every rolling event batch.
+        IReadOnlyList<RelayEventRow> rows = _eventExcludeCategories.Count == 0 &&
+            _eventIncludeCategories.SetEquals(EventCategories) &&
+            string.IsNullOrEmpty(_eventsQuickQuery)
+                ? recent
+                : recent.Where(row =>
+                    EventCategoryFilter.Allows(ClassifyEventCategory(row),
+                        _eventIncludeCategories, _eventExcludeCategories) &&
+                    QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
+                    .ToArray();
         var scopeKey = CurrentEventScopeKey();
         var changedScope = !string.Equals(scopeKey, _eventCommittedScope, StringComparison.Ordinal);
         RelayEventRows.ReconcileTail(rows, allowResetForUnrelated: changedScope);
         _eventCommittedScope = scopeKey;
         _eventProjectionVersion++;
         _eventProjectionSourceCount = recent.Count;
-        _eventProjectionFilteredCount = rows.Length;
-        if (RelayEventRows.Count != rows.Length) _eventProjectionMismatchCount++;
+        _eventProjectionFilteredCount = rows.Count;
+        if (RelayEventRows.Count != rows.Count) _eventProjectionMismatchCount++;
         if (EventsQuickCountText is not null)
             EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
     }
