@@ -106,6 +106,45 @@ public partial class MainWindow
             !_passivePortRoles.DescribeAll().Contains("auto-reversed", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Reversed physical COM inputs lost received FLT Values/Events or misclassified TX/RX.");
+        // SICAM field regression: Setup uses 1-byte Link Address while the
+        // physical SCADA/RTU circuit transmits 2-byte address 69 00.
+        // Two checksum-valid fixed frames establish the observed width; a
+        // real 19-object Type31/COT3/CP56 ASDU must populate the Event grid.
+        var fieldScanner = new PassiveFt12Scanner(1);
+        var fieldFrames = new List<PassiveFt12Frame>();
+        byte[] fieldStatus = [0x10, 0x0B, 0x69, 0x00, 0x74, 0x16];
+        byte[] fieldAck = [0x10, 0x00, 0x69, 0x00, 0x69, 0x16];
+        fieldScanner.Feed(fieldStatus, 0, fieldFrames.Add);
+        fieldScanner.Feed(fieldAck, fieldStatus.Length, fieldFrames.Add);
+        var fieldPayload = new List<byte> { 0x28, 0x69, 0x00, 0x1F, 0x13, 0x03, 0x00, 0x69, 0x00 };
+        for (var i = 0; i < 19; i++)
+        {
+            var ms = 0xAB2A + i * 100;
+            fieldPayload.AddRange([0xF6, 0x03, 0xFF, (byte)(i % 2 == 0 ? 2 : 0),
+                (byte)ms, (byte)(ms >> 8), 0x04, 0x11, 0x85, 0x0B, 0x1A]);
+        }
+        var fieldWire = new byte[] { 0x68, 0xDA, 0xDA, 0x68 }.Concat(fieldPayload)
+            .Concat(new byte[] { (byte)(fieldPayload.Sum(x => x) & 255), 0x16 }).ToArray();
+        fieldScanner.Feed(fieldWire, fieldStatus.Length + fieldAck.Length, fieldFrames.Add);
+        var fieldObserved = fieldFrames.Select((f, i) =>
+            new PassiveObservedFrame(0, f.ByteOffset,
+                DateTime.UtcNow.AddMilliseconds(i * 30), f.Format,
+                f.ChecksumValid, f.RawBytes, f.DetectedLinkAddressWidth)).ToArray();
+        var initialFieldEvents = RelayEventRows.Count;
+        foreach (var prepared in PassiveFramePreparation.PrepareBatch(
+            fieldObserved, linkAddressWidth: 1, cotWidth: 2, caWidth: 2, ioaWidth: 3))
+            FeedPassiveFrameToExistingViews(prepared.Frame, prepared: prepared);
+        FlushUiQueues();
+        ApplyRelayEventFilter();
+        if (fieldObserved[^1].DetectedLinkAddressWidth != 2 ||
+            RelayEventRows.Count - initialFieldEvents < 19 ||
+            !_protocolTraceStore.Snapshot().Any(row =>
+                row.Source.AsduDetails is { TypeId: 31, ObjectCount: 19 } &&
+                row.Source.Direction == FrameDirection.SlaveToMaster) ||
+            !RelayEventRows.Any(row => row.RelayTimeText.Contains("2026-11-05", StringComparison.Ordinal)))
+            throw new InvalidOperationException(
+                "SICAM 2-byte Link Address field SOE did not produce all 19 typed CP56 events in the WPF Event Log.");
+
         // The actual session starts clean; the acceptance-only frames never
         // become part of its retained forensic source.
         MainTabControl.SelectedIndex = 1;
