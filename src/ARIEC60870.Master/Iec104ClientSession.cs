@@ -15,6 +15,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Iec104ApduParser _parser;
+    private readonly Iec104StreamReader _streamReader;
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
@@ -33,6 +34,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _parser = new Iec104ApduParser(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
+        _streamReader = new Iec104StreamReader(transport);
     }
 
     public event EventHandler<Iec103MasterEvidenceEvent>? EvidenceReceived;
@@ -329,9 +331,8 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
     {
-        var reader = new Iec104StreamReader(_transport);
         var sw = Stopwatch.StartNew();
-        var raw = await reader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        var raw = await _streamReader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
         sw.Stop();
         if (raw is null || raw.Length == 0)
         {
@@ -381,14 +382,20 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 if (decoded.Asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
                 if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
             }
-            await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement",
-                "S-format", "Acknowledge only contiguous accepted I-format data", cancellationToken).ConfigureAwait(false);
+            // A malformed APCI is retained as evidence, not acknowledged as
+            // a received I-frame. Valid out-of-sequence I-frames can still be
+            // answered with the last contiguous N(R).
+            if (decoded.IsValid)
+            {
+                await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement",
+                    "S-format", "Acknowledge only contiguous accepted I-format data", cancellationToken).ConfigureAwait(false);
+            }
         }
         else if (decoded.Format == "S" && decoded.IsValid)
         {
             _counters.AckResponses++;
         }
-        else if (decoded.Format == "U" && decoded.UFormatName.Contains("con", StringComparison.OrdinalIgnoreCase))
+        else if (decoded.Format == "U" && decoded.IsValid && decoded.UFormatName.Contains("con", StringComparison.OrdinalIgnoreCase))
         {
             _counters.AckResponses++;
         }

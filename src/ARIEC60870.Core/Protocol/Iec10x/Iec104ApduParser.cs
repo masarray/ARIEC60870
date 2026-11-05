@@ -26,10 +26,9 @@ public sealed class Iec104ApduParser
             return Malformed(raw, $"Invalid IEC-104 start byte 0x{raw[0]:X2}; expected 0x68.");
         }
 
-        var length = raw[1];
-        if (length != raw.Length - 2)
+        if (!Iec104ApciWireLayout.TryValidate(raw, out var structuralIssue))
         {
-            issues.Add($"APDU length mismatch. Declared={length}, actual={raw.Length - 2}.");
+            issues.Add(structuralIssue!);
         }
 
         var c0 = raw[2];
@@ -43,6 +42,10 @@ public sealed class Iec104ApduParser
             var nr = ((c3 << 8) | c2) >> 1;
             var asduBytes = raw.Skip(6).ToArray();
             var asdu = asduBytes.Length == 0 ? null : _asduDecoder.Decode(asduBytes);
+            if (asdu?.TypeName == "Malformed ASDU")
+            {
+                issues.Add("I-format ASDU header is incomplete for the configured field widths.");
+            }
             return new Iec104ApduDecode
             {
                 RawBytes = raw,

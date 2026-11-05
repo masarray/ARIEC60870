@@ -14,8 +14,7 @@ public static class Iec104ApciEvidenceVerifier
     public static bool Matches(IReadOnlyList<byte> raw, string? format,
         int? sendSequence, int? receiveSequence, string? uFormatName)
     {
-        if (raw.Count < 6 || raw.Count > 255 || raw[0] != 0x68 ||
-            raw[1] != raw.Count - 2 || raw[1] > 253)
+        if (!Iec104ApciWireLayout.TryValidate(raw, out _))
             return false;
 
         var c0 = raw[2];
