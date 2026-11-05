@@ -176,13 +176,19 @@ public sealed class PassiveTransactionCorrelatorTests
     }
 
     [Fact]
-    public void OppositePrimaryInUnbalancedProducesEvidenceNotFabricatedReply()
+    public void SwappedPortsKeepTheirOriginalOffsetsAndStillMatchTransactions()
     {
         var engine = new PassiveIec101TransactionCorrelator(new(LinkMode: "Unbalanced"));
         var events = new List<PassiveTransactionEvent>();
-        engine.Observe(Frame(1, 0, 0, 0x49), events.Add);
-        Assert.Contains(events, x => x.Kind == PassiveTransactionKind.DirectionConflict);
-        Assert.DoesNotContain(events, x => x.Kind == PassiveTransactionKind.Matched);
+        // SCADA primary was connected to physical RX stream 1.
+        engine.Observe(Frame(1, 0, 0, 0x5B), events.Add);
+        // RTU secondary was connected to physical RX stream 0.
+        engine.Observe(Frame(0, 0, 90, 0x08), events.Add);
+        var matched = Assert.Single(events, x => x.Kind == PassiveTransactionKind.Matched);
+        Assert.Equal((byte)1, matched.RequestStream);
+        Assert.Equal((byte)0, matched.ObservedStream);
+        Assert.Equal(0, matched.ObservedOffset);
+        Assert.DoesNotContain(events, x => x.Kind == PassiveTransactionKind.DirectionConflict);
     }
 
     [Fact]

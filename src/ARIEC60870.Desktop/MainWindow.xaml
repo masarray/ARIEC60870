@@ -1831,13 +1831,13 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="11,8">
                                     <StackPanel>
-                                        <TextBlock Text="SCADA TX → RTU" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock x:Name="PassiveScadaRoleLabel" Text="COM input 1 · auto detecting" Style="{StaticResource EyebrowText}"/>
                                         <TextBlock x:Name="PassiveScadaCountText" Text="0 bytes" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="11,8">
                                     <StackPanel>
-                                        <TextBlock Text="RTU TX → SCADA" Style="{StaticResource EyebrowText}"/>
+                                        <TextBlock x:Name="PassiveRtuRoleLabel" Text="COM input 2 · auto detecting" Style="{StaticResource EyebrowText}"/>
                                         <TextBlock x:Name="PassiveRtuCountText" Text="0 bytes" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}"/>
                                     </StackPanel>
                                 </Border>

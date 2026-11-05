@@ -96,6 +96,9 @@ public partial class MainWindow
             ReleaseSessionTraceHistory();
             _passiveFrameSequence = 0;
             _passiveControlTimeline.Reset();
+            _passivePortRoles.Reset();
+            _passiveRoleStatus = string.Empty;
+            _passiveOriginalSubtitle = SessionSubtitleText.Text;
             _passiveControlNotes.Clear();
             _passiveTransactionNotes.Clear();
             _passiveFindingLastShown.Clear();

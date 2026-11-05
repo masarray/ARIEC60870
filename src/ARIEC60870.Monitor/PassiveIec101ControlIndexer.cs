@@ -48,10 +48,9 @@ public sealed class PassiveIec101ControlIndexer
             return false;
 
         var prm = (raw[4] & 0x40) != 0;
-        // A physical source label and FT1.2 PRM must agree. Miswired taps
-        // are an observation issue, never proof that the peer sent a command.
-        if (prm != ((frame.StreamId & 1) == 0))
-            return false;
+        // The validated FT1.2 PRM bit determines command/response direction.
+        // Port labels are operator hints: swapped RX taps are valid evidence,
+        // not a reason to drop a command or negative confirmation.
 
         var address = 0;
         for (var i = 0; i < _linkWidth; i++)

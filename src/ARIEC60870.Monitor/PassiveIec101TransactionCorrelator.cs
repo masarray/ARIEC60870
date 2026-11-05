@@ -203,10 +203,9 @@ public sealed class PassiveIec101TransactionCorrelator
     private void ObservePrimary(PassiveObservedFrame frame, int addr, int fc, bool fcb,
         bool fcv, Action<PassiveTransactionEvent> output)
     {
-        if (_options.LinkMode == "Unbalanced" && (frame.StreamId & 1) == 1)
-            Emit(output, PassiveTransactionKind.DirectionConflict, frame, addr, null,
-                "PRM=1 primary frame was observed on the configured RTU transmitter input; check tap labels, echo or link mode.");
-
+        // Physical port numbering is not protocol authority. A valid PRM=1
+        // request from either port is retained and can be matched to the
+        // opposite port's response; the UI reports auto-detected reversal.
         // Unconfirmed transmission does not require a secondary acknowledgment.
         if (fc == 4) return;
         if (fc is not (0 or 1 or 3 or 7 or 9 or 10 or 11)) return;

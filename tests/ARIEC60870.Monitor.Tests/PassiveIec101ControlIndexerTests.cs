@@ -36,13 +36,34 @@ public sealed class PassiveIec101ControlIndexerTests
     }
 
     [Fact]
-    public void BadChecksumTestBitAndMiswiredDirectionNeverBecomeVerifiedControl()
+    public void BadChecksumAndTestBitDoNotProveAnActualControl()
     {
-        Assert.False(_index.TryObserve(Frame(0, 0, 6, 0x82) with { ChecksumValid = false }, out _));
-        Assert.False(_index.TryObserve(Frame(0, 0, 6, 0x82) with { StreamId = 1 }, out _)); // master PRM on RTU tap
+        Assert.False(_index.TryObserve(
+            Frame(0, 0, 6, 0x82) with { ChecksumValid = false }, out _));
         Assert.True(_index.TryObserve(Frame(0, 1, 0x86, 0x82), out var test));
         Assert.Contains("TEST bit set", test!.Explanation);
         Assert.Equal(0, _index.PendingCount);
+    }
+
+    [Fact]
+    public void ValidCommandOnReversedPhysicalPortsKeepsRequestAndResponseOffsets()
+    {
+        var index = new PassiveIec101ControlIndexer(1, 2, 2, 3);
+        // PRM=1 command originated on physical stream 1. No change to
+        // original serial source ID or command proof semantics.
+        Assert.True(index.TryObserve(
+            Frame(0, 20, 6, 0x82) with { StreamId = 1 }, out var request));
+        Assert.Contains("MASTER SELECT", request!.Explanation);
+        Assert.Equal((byte)1, request.StreamId);
+        Assert.Equal(20, request.StreamOffset);
+
+        // PRM=0 ACTCON came back over physical stream 0.
+        Assert.True(index.TryObserve(
+            Frame(1, 44, 7, 0x82) with { StreamId = 0 }, out var ack));
+        Assert.Contains("POSITIVE ACTCON", ack!.Explanation);
+        Assert.Contains("request RX offset=20", ack.Explanation);
+        Assert.Equal((byte)0, ack.StreamId);
+        Assert.Equal(44, ack.StreamOffset);
     }
 
     [Fact]
