@@ -111,7 +111,7 @@ public sealed class Iec104StreamConformanceTests
         var result = await new Iec104ClientSession(settings, transport)
             .RunForAsync(TimeSpan.FromMilliseconds(140), CancellationToken.None);
         Assert.True(result.CompletedNormally, result.CompletionReason);
-        Assert.Equal(1, transport.Writes); // STARTDT act only; no S for invalid I.
+        Assert.Equal(0, transport.SFrameWrites); // Never acknowledge the invalid I.
         Assert.True(result.Counters.MalformedFrames >= 1);
         Assert.Equal(0, result.Counters.UserDataResponses);
     }
@@ -130,6 +130,7 @@ public sealed class Iec104StreamConformanceTests
 
         public bool IsOpen { get; private set; }
         public int Writes { get; private set; }
+        public int SFrameWrites { get; private set; }
 
         public void Push(IEnumerable<byte> data)
         {
@@ -151,6 +152,8 @@ public sealed class Iec104StreamConformanceTests
         public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
             Writes++;
+            if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x01)
+                SFrameWrites++;
             if (_malformedStartReply)
             {
                 var malformed = Iec104FrameBuilder.StartDtConfirmation();
@@ -162,6 +165,10 @@ public sealed class Iec104StreamConformanceTests
                 Push(Iec104FrameBuilder.StartDtConfirmation());
                 // I-format with invalid reserved low bit in N(R).
                 Push(new byte[] { 0x68, 0x05, 0x00, 0x00, 0x01, 0x00, 0x00 });
+            }
+            else if (_malformedDataReply && buffer.Span.Length >= 6 && buffer.Span[2] == 0x43)
+            {
+                Push(Iec104FrameBuilder.TestFrConfirmation());
             }
             return ValueTask.CompletedTask;
         }
