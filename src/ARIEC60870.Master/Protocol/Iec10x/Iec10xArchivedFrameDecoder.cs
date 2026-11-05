@@ -26,7 +26,7 @@ public static class Iec10xArchivedFrameDecoder
 
         if (protocol == Iec60870ProtocolMode.Iec101 && linkWidth is >= 0 and <= 2)
         {
-            var serial = new Ft12Parser(linkWidth.Value).Decode(raw);
+            var serial = Ft12Parser.ForIec101(linkWidth.Value).Decode(raw);
             if (!serial.IsChecksumValid || !serial.IsLengthValid)
                 return new Iec10xArchivedDecode(serial, null, null, false);
 

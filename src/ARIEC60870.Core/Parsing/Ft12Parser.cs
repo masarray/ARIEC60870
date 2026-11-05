@@ -9,11 +9,23 @@ public sealed class Ft12Parser
 {
     private readonly AsduDecoder _asduDecoder = new();
     private readonly int _linkAddressSize;
+    private readonly bool _decodeIec103Asdu;
 
-    public Ft12Parser(int linkAddressSize = 1)
+    // Compatibility constructor: historical FT1.2 callers use the IEC-103
+    // application codec. IEC-101 MUST select ForIec101 instead.
+    public Ft12Parser(int linkAddressSize = 1) : this(linkAddressSize, true) { }
+
+    private Ft12Parser(int linkAddressSize, bool decodeIec103Asdu)
     {
         _linkAddressSize = Math.Clamp(linkAddressSize, 0, 2);
+        _decodeIec103Asdu = decodeIec103Asdu;
     }
+
+    public static Ft12Parser ForIec101(int linkAddressSize)
+        => new(linkAddressSize, false);
+
+    public static Ft12Parser ForIec103(int linkAddressSize)
+        => new(linkAddressSize, true);
 
     public Ft12FrameDecode Decode(IReadOnlyList<byte> bytes)
     {
@@ -35,6 +47,13 @@ public sealed class Ft12Parser
             };
         }
 
+        // Both active Master and passive Replay rely on this same verified
+        // wire layout. The IEC-103 codec is never applied to IEC-101 ASDUs.
+        if ((bytes[0] is 0x10 or 0x68) &&
+            Ft12WireLayout.TryParse(bytes is byte[] array ? array : bytes.ToArray(),
+                _linkAddressSize, out var trusted))
+            return DecodeValidated(bytes, trusted);
+
         if (bytes[0] == 0x10)
         {
             return DecodeFixed(bytes, issues);
@@ -46,6 +65,23 @@ public sealed class Ft12Parser
         }
 
         return Malformed(bytes, $"Unsupported start byte 0x{bytes[0]:X2}.");
+    }
+
+    private Ft12FrameDecode DecodeValidated(IReadOnlyList<byte> bytes, Ft12WireLayout wire)
+    {
+        var control = wire.Control;
+        var asdu = wire.Kind == Ft12WireKind.Variable && wire.AsduLength > 0
+            ? bytes.Skip(wire.AsduOffset).Take(wire.AsduLength).ToArray()
+            : Array.Empty<byte>();
+        AsduDecode? interpreted103 = _decodeIec103Asdu && asdu.Length > 0
+            ? _asduDecoder.Decode(asdu) : null;
+        var checksum = bytes[bytes.Count - 2];
+        return BuildFrame(wire.Kind == Ft12WireKind.Fixed
+                ? Ft12FrameFormat.FixedLength : Ft12FrameFormat.VariableLength,
+            bytes, Array.Empty<string>(), control, wire.LinkAddress ?? 0,
+            checksum, checksum, true, true, LinkControlDecoder.Decode(control),
+            asdu, interpreted103,
+            wire.Kind == Ft12WireKind.Variable ? bytes[1] : null);
     }
 
     private Ft12FrameDecode DecodeFixed(IReadOnlyList<byte> bytes, List<string> issues)
@@ -132,7 +168,8 @@ public sealed class Ft12Parser
         {
             var asduLength = Math.Max(0, length1 - headerInsideLength);
             asduBytes = bytes.Skip(5 + _linkAddressSize).Take(asduLength).ToArray();
-            if (asduBytes.Length > 0)
+            if (_decodeIec103Asdu && checksumOk && repeatedLengthOk &&
+                secondStartOk && lengthOk && endOk && asduBytes.Length > 0)
             {
                 asdu = _asduDecoder.Decode(asduBytes);
             }

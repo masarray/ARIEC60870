@@ -35,7 +35,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _publish = publish ?? throw new ArgumentNullException(nameof(publish));
         _observeAsdu = observeAsdu ?? throw new ArgumentNullException(nameof(observeAsdu));
-        _ft12 = new Ft12Parser(settings.LinkAddressSize);
+        _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _reader = new Ft12StreamReader(transport, settings.LinkAddressSize);
     
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Monitor;
@@ -31,34 +32,30 @@ public sealed class PassiveIec101ControlIndexer
         evidence = null;
         var raw = frame.RawBytes;
         if (!frame.ChecksumValid || frame.Format != "Variable" ||
-            raw.Length < 8 || raw[0] != 0x68 || raw[3] != 0x68 ||
-            raw[1] != raw[2] || raw.Length != raw[1] + 6 ||
-            raw[^1] != 0x16)
+            !Ft12WireLayout.TryParse(raw,
+                frame.DetectedLinkAddressWidth ?? _linkWidth, out var wire) ||
+            wire.Kind != Ft12WireKind.Variable || wire.AsduLength < 3)
             return false;
 
-        var width = frame.DetectedLinkAddressWidth ?? _linkWidth;
-        var asduStart = 5 + width;
-        var asduLength = raw[1] - 1 - width;
-        if (asduLength < 3 || asduStart + asduLength > raw.Length - 2)
-            return false;
+        var asduStart = wire.AsduOffset;
+        var asduLength = wire.AsduLength;
 
         var typeId = raw[asduStart];
         if (typeId is not (>= 45 and <= 51 or >= 58 and <= 64))
             return false;
 
-        var prm = (raw[4] & 0x40) != 0;
+        var prm = (wire.Control & 0x40) != 0;
         // The validated FT1.2 PRM bit determines command/response direction.
         // Port labels are operator hints: swapped RX taps are valid evidence,
         // not a reason to drop a command or negative confirmation.
 
-        var address = 0;
-        for (var i = 0; i < width; i++)
-            address |= raw[5 + i] << (8 * i);
+        var address = wire.LinkAddress ?? 0;
 
         var typed = _decoder.Decode(raw.AsSpan(asduStart, asduLength).ToArray());
+        if (typed.Issues.Count != 0) return false;
         var note = _timeline.Observe(prm ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster,
             typed, frame.StreamId < 2 ? "Link A" : "Link B",
-            frame.StreamOffset, trusted: true, linkAddress: width == 0 ? null : address);
+            frame.StreamOffset, trusted: true, linkAddress: wire.LinkAddress);
         if (string.IsNullOrWhiteSpace(note)) return false;
 
         evidence = new PassiveControlEvidence(frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,

@@ -23,7 +23,7 @@ public sealed class Iec10xAsduDecoder
     {
         var raw = bytes.ToArray();
         var issues = new List<string>();
-        if (raw.Length < 2 + _cotSize + _caSize)
+        if (!Iec10xAsduHeader.TryParse(raw, _cotSize, _caSize, out var header))
         {
             return new Iec10xAsduDecode
             {
@@ -37,22 +37,17 @@ public sealed class Iec10xAsduDecoder
             };
         }
 
-        var offset = 0;
-        var type = raw[offset++];
-        var vsq = raw[offset++];
-        var cotRaw = raw[offset++];
-        var cot = cotRaw & 0x3F;
-        var negative = (cotRaw & 0x40) != 0;
-        var test = (cotRaw & 0x80) != 0;
-        var oa = 0;
-        if (_cotSize == 2)
-        {
-            oa = raw[offset++];
-        }
-
-        var ca = ReadLe(raw, ref offset, _caSize);
-        var objectCount = vsq & 0x7F;
-        var sq = (vsq & 0x80) != 0;
+        var offset = header.ObjectsOffset;
+        var type = header.TypeId;
+        var vsq = header.Vsq;
+        var cotRaw = header.CotRaw;
+        var cot = header.Cause;
+        var negative = header.IsNegative;
+        var test = header.IsTest;
+        var oa = header.OriginatorAddress;
+        var ca = header.CommonAddress;
+        var objectCount = header.ObjectCount;
+        var sq = header.IsSequence;
         if (objectCount == 0)
         {
             issues.Add("VSQ object count is zero; ASDU contains no information object.");

@@ -1,6 +1,9 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Protocol.Iec10x;
+
 namespace ARIEC60870.Monitor;
 
 public enum PassiveGiKind
@@ -202,37 +205,32 @@ public sealed class PassiveIec101GiTracker
         out int cause, out bool isNegative, out int ca, out int originator, out int qualifier)
     {
         type = 0; cause = 0; isNegative = false; ca = 0; originator = 0; qualifier = 0;
-        if (!frame.ChecksumValid || frame.Format != "Variable") return false;
-        var raw = frame.RawBytes;
-        var width = frame.DetectedLinkAddressWidth ?? _options.LinkAddressWidth;
-        var start = 5 + width;
-        var asduLength = raw.Length - start - 2;
-        var headerLength = 2 + _options.CotWidth + _options.CommonAddressWidth;
-        if (raw.Length < start + 2 || raw[0] != 0x68 ||
-            raw[1] != raw[2] || raw[3] != 0x68 ||
-            raw[1] != 1 + width + asduLength ||
-            raw[^1] != 0x16 || asduLength < headerLength) return false;
+        if (!frame.ChecksumValid || frame.Format != "Variable" ||
+            !Ft12WireLayout.TryParse(frame.RawBytes,
+                frame.DetectedLinkAddressWidth ?? _options.LinkAddressWidth,
+                out var wire) || wire.Kind != Ft12WireKind.Variable)
+            return false;
+        var asdu = frame.RawBytes.AsSpan(wire.AsduOffset, wire.AsduLength);
+        if (!Iec10xAsduHeader.TryParse(asdu, _options.CotWidth,
+                _options.CommonAddressWidth, out var header) ||
+            header.ObjectCount == 0)
+            return false;
+        type = header.TypeId;
+        cause = header.Cause;
+        isNegative = header.IsNegative;
+        ca = header.CommonAddress;
+        originator = header.OriginatorAddress;
 
-        type = raw[start];
-        var vsq = raw[start + 1];
-        var cotRaw = raw[start + 2];
-        cause = cotRaw & 0x3F;
-        isNegative = (cotRaw & 0x40) != 0;
-        var at = start + 2 + _options.CotWidth;
-        originator = _options.CotWidth == 2 ? raw[start + 3] : 0;
-        for (var i = 0; i < _options.CommonAddressWidth; i++)
-            ca |= raw[at + i] << (8 * i);
-        at += _options.CommonAddressWidth;
-
-        // Type100 must contain exactly one object (VSQ=1) with IOA=0
-        // followed by QOI. Refuse malformed GI controls rather than guessing.
+        // Type 100 must contain exactly one explicit IOA=0 and one QOI.
+        // Other GI data is observed without re-decoding the ASDU payload.
         if (type == 100)
         {
-            if (vsq != 1 || asduLength != headerLength + _options.InformationAddressWidth + 1)
+            if (header.Vsq != 1 ||
+                wire.AsduLength != header.ObjectsOffset + _options.InformationAddressWidth + 1)
                 return false;
             for (var i = 0; i < _options.InformationAddressWidth; i++)
-                if (raw[at + i] != 0) return false;
-            qualifier = raw[at + _options.InformationAddressWidth];
+                if (asdu[header.ObjectsOffset + i] != 0) return false;
+            qualifier = asdu[header.ObjectsOffset + _options.InformationAddressWidth];
         }
         return true;
     }
