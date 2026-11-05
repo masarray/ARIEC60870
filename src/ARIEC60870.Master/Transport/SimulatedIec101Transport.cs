@@ -23,7 +23,7 @@ public sealed class SimulatedIec101Transport : IByteTransport
     public SimulatedIec101Transport(Iec103MasterSettings settings)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _ft12 = new Ft12Parser(settings.LinkAddressSize);
+        _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 

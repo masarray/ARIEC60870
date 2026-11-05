@@ -40,7 +40,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-        _ft12 = new Ft12Parser(settings.LinkAddressSize);
+        _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 
