@@ -36,6 +36,38 @@ public sealed class PassiveFramePreparationTests
         }
     }
 
+
+    [Fact]
+    public void FieldSicamClassOneNineteenTimestampedEventsDecodeWithObservedLinkWidth()
+    {
+        // Faithful layout to field RX: 68 DA DA 68 28 69 00 1F 13 03 00 69 00...
+        // One Type 31 ASDU contains 19 DP events, not Type 0 / 31 objects.
+        var payload = new List<byte> { 0x28, 0x69, 0x00, 0x1F, 0x13, 0x03, 0x00, 0x69, 0x00 };
+        for (var i = 0; i < 19; i++)
+        {
+            var ms = 0xAB2A + i * 100;
+            payload.AddRange([0xF6, 0x03, 0xFF, (byte)(i % 2 == 0 ? 2 : 0),
+                (byte)ms, (byte)(ms >> 8), 0x04, 0x11, 0x85, 0x0B, 0x1A]);
+        }
+        Assert.Equal(218, payload.Count);
+        var wire = new byte[] { 0x68, 0xDA, 0xDA, 0x68 }.Concat(payload)
+            .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xFF), 0x16 }).ToArray();
+        Assert.Equal(224, wire.Length);
+        Assert.Equal(0xB0, wire[^2]); // exact observed field checksum
+        var observed = new PassiveObservedFrame(1, 0, DateTime.UtcNow,
+            "Variable", true, wire, DetectedLinkAddressWidth: 2);
+        var decoded = Assert.Single(PassiveFramePreparation.PrepareBatch(
+            [observed], linkAddressWidth: 1, cotWidth: 2, caWidth: 2, ioaWidth: 3)).Decode;
+        Assert.NotNull(decoded);
+        Assert.Equal(31, decoded.TypeId);
+        Assert.Equal(19, decoded.ObjectCount);
+        Assert.Equal(19, decoded.Objects.Count);
+        Assert.Equal(3, decoded.CauseOfTransmission);
+        Assert.Equal(105, decoded.CommonAddress);
+        Assert.All(decoded.Objects, o => Assert.Equal(0xFF03F6, o.InformationObjectAddress));
+        Assert.Contains("2026-11-05", decoded.Objects[0].TimestampText);
+        Assert.Empty(decoded.Issues);
+    }
     [Fact]
     public void BrokenFramesKeepExactRawWithoutFabricatingDecodedPoints()
     {
