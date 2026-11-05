@@ -9,7 +9,7 @@ namespace ARIEC60870.Monitor;
 
 public sealed record PassiveProcessEventCandidate(int ObjectIndex, int TypeId,
     int Cot, int CommonAddress, int Ioa, string Value, string Quality,
-    string DeviceTime, bool Negative, bool Test);
+    string DeviceTime, bool Negative, bool Test, bool Changed);
 
 /// <summary>
 /// Single-writer IEC-101 process observation classifier. Runs on the complete
@@ -99,7 +99,7 @@ public sealed class PassiveIec101ProcessEventClassifier
                 acceptedObjectIndexes.Add(new PassiveProcessEventCandidate(obj.Index,
                     asdu.TypeId, asdu.CauseOfTransmission, asdu.CommonAddress,
                     obj.InformationObjectAddress, obj.ShortValue, obj.QualityText,
-                    obj.TimestampText, asdu.IsNegativeConfirm, asdu.IsTest));
+                    obj.TimestampText, asdu.IsNegativeConfirm, asdu.IsTest, changed));
         }
     }
 }

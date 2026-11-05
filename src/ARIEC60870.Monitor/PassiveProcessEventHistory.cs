@@ -10,7 +10,7 @@ namespace ARIEC60870.Monitor;
 /// are retained; session-local ordinal is never mistaken for an IOA or wire SQ.
 /// </summary>
 public sealed record PassiveProcessEventFact(
-    long Sequence, PassiveObservedFrame Frame, int ObjectIndex);
+    long Sequence, PassiveObservedFrame Frame, int ObjectIndex, bool WasChanged);
 
 /// <summary>
 /// Append-only, indexed temporary session history for process event facts.
@@ -67,7 +67,7 @@ public sealed class PassiveProcessEventHistory : IDisposable
     /// Called only from the session's single writer. A failed append is NOT
     /// counted as indexed. The caller must report an explicit unindexed fact.
     /// </summary>
-    public void Append(PassiveObservedFrame frame, int objectIndex)
+    public void Append(PassiveObservedFrame frame, int objectIndex, bool changed = false)
     {
         if (frame.Format != "Variable" || !frame.ChecksumValid ||
             frame.StreamId >= 4 || frame.RawBytes.Length is < 7 or > 261 ||
@@ -83,6 +83,7 @@ public sealed class PassiveProcessEventHistory : IDisposable
             header.Clear();
             header[0] = frame.StreamId;
             header[1] = frame.DetectedLinkAddressWidth is { } width ? (byte)width : (byte)255;
+            header[2] = changed ? (byte)1 : (byte)0;
             BinaryPrimitives.WriteInt64LittleEndian(header[4..], frame.StreamOffset);
             BinaryPrimitives.WriteInt64LittleEndian(header[12..], frame.EstimatedUtc.Ticks);
             BinaryPrimitives.WriteInt32LittleEndian(header[20..], objectIndex);
@@ -150,7 +151,8 @@ public sealed class PassiveProcessEventHistory : IDisposable
             facts.Add(new PassiveProcessEventFact(sequence + 1,
                 new PassiveObservedFrame(sid, offset,
                     new DateTime(ticks, DateTimeKind.Utc), "Variable", true,
-                    frame, width == 255 ? null : width), objectIndex));
+                    frame, width == 255 ? null : width), objectIndex,
+                header[2] == 1));
         }
         return facts;
     }
