@@ -31,9 +31,10 @@ public static class PassiveFramePreparation
             var raw = frame.RawBytes;
             // Reuse the same verified wire envelope as the active Master
             // and archived decoder; do not duplicate offsets in the Desktop.
+            Ft12WireLayout layout = default;
             var verified = frame.ChecksumValid && frame.Format == "Variable" &&
                 Ft12WireLayout.TryParse(raw,
-                    frame.DetectedLinkAddressWidth ?? linkAddressWidth, out var layout) &&
+                    frame.DetectedLinkAddressWidth ?? linkAddressWidth, out layout) &&
                 layout.Kind == Ft12WireKind.Variable;
             var asdu = verified && layout.AsduLength > 0
                 ? raw.AsSpan(layout.AsduOffset, layout.AsduLength).ToArray()

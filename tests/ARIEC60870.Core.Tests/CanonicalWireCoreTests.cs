@@ -42,7 +42,7 @@ public sealed class CanonicalWireCoreTests
             0x2A, 0xAB, 0x04, 0x11, 0x85, 0x0B, 0x1A];
         var payload = new byte[] { 0x08, 0x69, 0x00 }.Concat(asdu).ToArray();
         var serial = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
-            .Concat(payload).Concat([(byte)(payload.Sum(x => x) & 255), 0x16]).ToArray();
+            .Concat(payload).Concat([(byte)(payload.Sum(x => x) & 255), (byte)0x16]).ToArray();
         Assert.True(Ft12WireLayout.TryParse(serial, 2, out var wire));
         Assert.Equal(7, wire.AsduOffset);
         var parsed = Ft12Parser.ForIec101(2).Decode(serial);
@@ -68,7 +68,7 @@ public sealed class CanonicalWireCoreTests
         var iec103Asdu = new byte[] { 8, 1, 10, 1, 0, 0, 0 };
         var body103 = new byte[] { 8, 1 }.Concat(iec103Asdu).ToArray();
         var wire103 = new byte[] { 0x68, (byte)body103.Length, (byte)body103.Length, 0x68 }
-            .Concat(body103).Concat([(byte)(body103.Sum(x => x) & 255), 0x16]).ToArray();
+            .Concat(body103).Concat([(byte)(body103.Sum(x => x) & 255), (byte)0x16]).ToArray();
         var native103 = Ft12Parser.ForIec103(1).Decode(wire103);
         Assert.NotNull(native103.Asdu);
         Assert.Equal(8, native103.Asdu!.TypeId);
@@ -103,7 +103,7 @@ public sealed class CanonicalWireCoreTests
         byte[] body = [0x28, 0x69, 0x00, 31, 1, 3, 0, 105, 0, 0, 0, 0, 2,
             0x2A, 0xAB, 0x04, 0x11, 0x85, 0x0B, 0x1A];
         var raw = new byte[] { 0x68, (byte)body.Length, (byte)body.Length, 0x68 }
-            .Concat(body).Concat([(byte)(body.Sum(x => x) & 255), 0x16]).ToArray();
+            .Concat(body).Concat([(byte)(body.Sum(x => x) & 255), (byte)0x16]).ToArray();
         Assert.True(Ft12WireLayout.TryParse(raw, 2, out _));
         Assert.False(Ft12WireLayout.TryParse(raw.AsSpan(0, raw.Length - 1), 2, out _));
         Assert.True(Ft12WireLayout.TryParse(raw, 1, out _)); // checksum alone cannot infer link width
