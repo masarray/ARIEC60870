@@ -507,7 +507,8 @@ public sealed class PassiveMonitorSession
                             {
                                 try
                                 {
-                                    events.Append(frame, candidate.ObjectIndex, candidate.Changed);
+                                    events.Append(frame, candidate.ObjectIndex,
+                                        candidate.Changed, candidate.HadBaseline);
                                     Interlocked.Increment(ref _indexedProcessEvents);
                                 }
                                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -528,6 +529,7 @@ public sealed class PassiveMonitorSession
                                     candidate.Cot, candidate.CommonAddress, candidate.Ioa,
                                     candidate.Value, candidate.Quality, candidate.DeviceTime,
                                     candidate.Negative, candidate.Test, candidate.Changed,
+                                    candidate.HadBaseline,
                                     frame.DetectedLinkAddressWidth
                                 })).ConfigureAwait(false);
                         }

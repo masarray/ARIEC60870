@@ -162,7 +162,8 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "WPF preview duplicated a process event despite writer-owned event authority.");
             var facts = Enumerable.Range(1, 19).Select(index =>
-                new PassiveProcessEventFact(index, journalFrame, index, false)).ToArray();
+                new PassiveProcessEventFact(index, journalFrame, index, false,
+                    index > 1)).ToArray();
             var sourcePage = PassiveProcessEventPreparation.PreparePage(
                 facts, linkWidth: 1, cotWidth: 2, caWidth: 2, ioaWidth: 3);
             if (sourcePage.Any(fact => !fact.Trusted ||

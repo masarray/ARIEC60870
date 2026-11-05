@@ -21,8 +21,10 @@ public static class Iec10xProcessEventPolicy
         => (IsDigitalProcessType(typeId) || IsMeasurementOrCounterType(typeId)) &&
             cause is 3 or 11 or 12;
 
-    public static bool ShouldRecordProcessType(int? typeId, int? cause, bool changed)
+    public static bool ShouldRecordProcessType(int? typeId, int? cause, bool changed,
+        bool completeTypedMeasurementPayload = true)
         => IsReceivedProcessType(typeId, cause) ||
-            (IsMeasurementOrCounterType(typeId) && cause is >= 1 and <= 36) ||
+            (completeTypedMeasurementPayload && IsMeasurementOrCounterType(typeId) &&
+                cause is >= 1 and <= 36) ||
             (changed && typeId is 1 or 2 or 3 or 4 or 30 or 31);
 }

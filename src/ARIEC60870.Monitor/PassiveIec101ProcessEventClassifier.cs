@@ -8,7 +8,7 @@ namespace ARIEC60870.Monitor;
 
 public sealed record PassiveProcessEventCandidate(int ObjectIndex, int TypeId,
     int Cot, int CommonAddress, int Ioa, string Value, string Quality,
-    string DeviceTime, bool Negative, bool Test, bool Changed);
+    string DeviceTime, bool Negative, bool Test, bool Changed, bool HadBaseline);
 
 /// <summary>
 /// Single-writer IEC-101 process observation classifier. Runs on the complete
@@ -74,6 +74,7 @@ public sealed class PassiveIec101ProcessEventClassifier
             if (obj.Issues.Count > 0 || obj.InformationObjectAddress is < 0 or > 0xFFFFFF)
                 continue;
             var changed = false;
+            var hadBaseline = false;
             // The only cyclic/GI change events are known SP/DP values, never
             // a guessed edge from missing baseline or unsupported quality.
             if (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31)
@@ -82,6 +83,7 @@ public sealed class PassiveIec101ProcessEventClassifier
                     obj.InformationObjectAddress, asdu.TypeId);
                 if (_previous.TryGetValue(key, out var last))
                 {
+                    hadBaseline = true;
                     changed = !string.Equals(last, obj.ShortValue, StringComparison.Ordinal);
                     _previous[key] = obj.ShortValue;
                 }
@@ -96,7 +98,8 @@ public sealed class PassiveIec101ProcessEventClassifier
                 acceptedObjectIndexes.Add(new PassiveProcessEventCandidate(obj.Index,
                     asdu.TypeId, asdu.CauseOfTransmission, asdu.CommonAddress,
                     obj.InformationObjectAddress, obj.ShortValue, obj.QualityText,
-                    obj.TimestampText, asdu.IsNegativeConfirm, asdu.IsTest, changed));
+                    obj.TimestampText, asdu.IsNegativeConfirm, asdu.IsTest, changed,
+                    hadBaseline));
         }
     }
 }

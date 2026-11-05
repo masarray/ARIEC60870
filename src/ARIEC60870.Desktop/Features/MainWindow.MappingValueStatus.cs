@@ -324,7 +324,9 @@ public partial class MainWindow
                 NewValue = displayValue,
                 EdgeReason = recordIec10xProcess
                     ? Iec10xObservationIdentity.EventReason(item,
-                        !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
+                        _passiveLedgerFactProjection
+                            ? _passiveLedgerHadBaselineAtSource
+                            : !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
                         hasMeaningfulChange)
                     : string.IsNullOrWhiteSpace(item.EdgeReason) ? (item.Cot ?? string.Empty) : item.EdgeReason,
                 PhysicalSource = item.PhysicalSource,

@@ -126,7 +126,9 @@ public static class Iec10xObservationIdentity
             item.InformationObjectAddress.HasValue &&
             HasTrustedDecodedPayload(item) &&
             Iec10xProcessEventPolicy.ShouldRecordProcessType(
-                item.TypeId, item.CauseOfTransmission, changed);
+                item.TypeId, item.CauseOfTransmission, changed,
+                completeTypedMeasurementPayload: item.AsduDetails is { Issues.Count: 0 } &&
+                    item.InformationObjectDetails is { Issues.Count: 0 });
 
     public static bool IsReceivedDigitalEvent(Iec103MasterEvidenceEvent item)
         => item.Direction == FrameDirection.SlaveToMaster

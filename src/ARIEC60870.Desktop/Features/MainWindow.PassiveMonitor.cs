@@ -38,6 +38,7 @@ public partial class MainWindow
     private bool _passiveLedgerOwnsProcessEvents;
     private bool _passiveLedgerFactProjection;
     private bool _passiveLedgerChangedAtSource;
+    private bool _passiveLedgerHadBaselineAtSource;
     private bool _passiveLedgerReadFailed;
     private long _passiveLedgerCursor;
     private long _passiveLedgerPresentationSkipped;
@@ -858,11 +859,13 @@ public partial class MainWindow
         };
         _passiveLedgerFactProjection = true;
         _passiveLedgerChangedAtSource = prepared.Fact.WasChanged;
+        _passiveLedgerHadBaselineAtSource = prepared.Fact.HadBaseline;
         try { UpdateValueAndEventViews(item); }
         finally
         {
             _passiveLedgerFactProjection = false;
             _passiveLedgerChangedAtSource = false;
+            _passiveLedgerHadBaselineAtSource = false;
         }
         return true;
     }

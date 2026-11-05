@@ -9,6 +9,15 @@ namespace ARIEC60870.Core.Tests;
 /// <summary>Shared event policy must stay identical for Master and RX writer.</summary>
 public sealed class Iec10xProcessEventPolicyTests
 {
+    [Fact]
+    public void UntypedCyclicMeasurementCannotBePromotedButReceivedObservationRemainsRecorded()
+    {
+        Assert.False(Iec10xProcessEventPolicy.ShouldRecordProcessType(13, 20,
+            changed: false, completeTypedMeasurementPayload: false));
+        Assert.True(Iec10xProcessEventPolicy.ShouldRecordProcessType(13, 3,
+            changed: false, completeTypedMeasurementPayload: false));
+    }
+
     [Theory]
     [InlineData(31, 3, false, true)]
     [InlineData(31, 11, false, true)]
