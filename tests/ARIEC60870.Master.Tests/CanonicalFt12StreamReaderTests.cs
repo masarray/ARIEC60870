@@ -68,6 +68,31 @@ public sealed class CanonicalFt12StreamReaderTests
     }
 
     [Fact]
+    public async Task EmbeddedE5WithinDamagedFrameCannotMasqueradeAsMasterLinkAck()
+    {
+        using var transport = new ByteScriptTransport();
+        var valid = Fixed(1);
+        // A bad duplicate-length header followed by a data byte E5 must
+        // not advance the active IEC101 link merely because resync saw E5.
+        transport.Push(new byte[] { 0x68, 0x01, 0x03, 0x68, 0xE5 }
+            .Concat(valid).ToArray());
+        var reader = new Ft12StreamReader(transport);
+        Assert.Equal(valid, await reader.ReadFrameAsync(400, CancellationToken.None));
+        Assert.Equal(1, reader.AmbiguousShortResponsesSuppressed);
+    }
+
+    [Fact]
+    public async Task BenignConverterNoiseDoesNotSuppressAnActualSingleE5()
+    {
+        using var transport = new ByteScriptTransport();
+        transport.Push([0x55, 0x99, 0xE5]);
+        var reader = new Ft12StreamReader(transport);
+        Assert.Equal(new byte[] { 0xE5 },
+            await reader.ReadFrameAsync(400, CancellationToken.None));
+        Assert.Equal(0, reader.AmbiguousShortResponsesSuppressed);
+    }
+
+    [Fact]
     public async Task CallerCancellationPropagatesInsteadOfReportingOrdinaryTimeout()
     {
         using var transport = new ByteScriptTransport();
