@@ -181,77 +181,89 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
-        if (buffer.Length == 0)
-        {
-            return 0;
-        }
+        if (buffer.Length == 0) return 0;
 
         var serialPort = _serialPort;
         if (serialPort?.IsOpen != true)
-        {
             throw new InvalidOperationException("Serial port is not open.");
+
+        // All Master framing readers supply array-backed Memory<byte>.
+        // Read directly into the requested slice: allocating a temporary byte[]
+        // on EVERY serial read becomes a per-byte GC hotspot at low baud.
+        // Non-array-backed Memory is supported through a bounded pooled fallback.
+        byte[] destination;
+        int destinationOffset;
+        byte[]? rented = null;
+        if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
+                (ReadOnlyMemory<byte>)buffer, out var segment) && segment.Array is not null)
+        {
+            destination = segment.Array;
+            destinationOffset = segment.Offset;
+        }
+        else
+        {
+            rented = System.Buffers.ArrayPool<byte>.Shared.Rent(buffer.Length);
+            destination = rented;
+            destinationOffset = 0;
         }
 
-        // Do not use SerialPort.Read as a blocking call with ReadTimeout. Some drivers throw
-        // System.TimeoutException as a first-chance exception for normal no-data conditions, which
-        // makes field debugging noisy. Poll BytesToRead with a bounded delay instead; real transport
-        // exceptions still bubble to the master session and are converted into Diagnostics rows.
-        var timeoutMs = Math.Max(1, _settings.ResponseTimeoutMs);
-        var stopwatch = Stopwatch.StartNew();
-        var temp = new byte[buffer.Length];
-
-        while (stopwatch.ElapsedMilliseconds < timeoutMs)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (_serialPort?.IsOpen != true || !serialPort.IsOpen)
+            // Do not use blocking SerialPort.Read with ReadTimeout. Preserve the
+            // prior BytesToRead/cancellable bounded wait and error diagnostics.
+            var timeoutMs = Math.Max(1, _settings.ResponseTimeoutMs);
+            var stopwatch = Stopwatch.StartNew();
+            while (stopwatch.ElapsedMilliseconds < timeoutMs)
             {
-                if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+                if (_serialPort?.IsOpen != true || !serialPort.IsOpen)
                 {
-                    throw new OperationCanceledException("Serial transport read was cancelled or closed.", cancellationToken);
+                    if (cancellationToken.IsCancellationRequested)
+                        throw new OperationCanceledException(
+                            "Serial transport read was cancelled or closed.", cancellationToken);
+                    throw new InvalidOperationException("Serial port closed unexpectedly while reading.");
                 }
 
-                throw new InvalidOperationException("Serial port closed unexpectedly while reading.");
-            }
-
-            int available;
-            try
-            {
-                available = serialPort.BytesToRead;
-            }
-            catch (InvalidOperationException ex) when (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException("Serial transport read was cancelled or closed.", ex, cancellationToken);
-            }
-
-            if (available > 0)
-            {
-                var requested = Math.Min(Math.Min(available, temp.Length), buffer.Length);
-                try
-                {
-                    var read = serialPort.Read(temp, 0, requested);
-                    if (read > 0)
-                    {
-                        temp.AsMemory(0, read).CopyTo(buffer);
-                    }
-
-                    return read;
-                }
-                catch (TimeoutException)
-                {
-                    // Normal no-data race after BytesToRead. Keep it local; do not surface as UI exception.
-                    return 0;
-                }
+                int available;
+                try { available = serialPort.BytesToRead; }
                 catch (InvalidOperationException ex) when (cancellationToken.IsCancellationRequested)
                 {
-                    throw new OperationCanceledException("Serial transport read was cancelled or closed.", ex, cancellationToken);
+                    throw new OperationCanceledException(
+                        "Serial transport read was cancelled or closed.", ex, cancellationToken);
                 }
+
+                if (available > 0)
+                {
+                    var requested = Math.Min(available, buffer.Length);
+                    try
+                    {
+                        var read = serialPort.Read(destination, destinationOffset, requested);
+                        if (read > 0 && rented is not null)
+                            rented.AsMemory(0, read).CopyTo(buffer);
+                        return read;
+                    }
+                    catch (TimeoutException)
+                    {
+                        // BytesToRead can race the driver. A normal race is not
+                        // an operator-facing transport exception.
+                        return 0;
+                    }
+                    catch (InvalidOperationException ex) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException(
+                            "Serial transport read was cancelled or closed.", ex, cancellationToken);
+                    }
+                }
+
+                await Task.Delay(Math.Min(10, timeoutMs), cancellationToken).ConfigureAwait(false);
             }
-
-            await Task.Delay(Math.Min(10, timeoutMs), cancellationToken).ConfigureAwait(false);
+            return 0;
         }
-
-        return 0;
+        finally
+        {
+            if (rented is not null)
+                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 
     public void Dispose()
