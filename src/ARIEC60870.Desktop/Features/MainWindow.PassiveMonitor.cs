@@ -34,6 +34,14 @@ public partial class MainWindow
     private int _passiveCaWidth = 2;
     private int _passiveIoaWidth = 3;
     private PassiveMonitorSession? _passiveMonitorSession;
+    private PassiveProcessEventHistory? _passiveProcessEventHistory;
+    private bool _passiveLedgerOwnsProcessEvents;
+    private bool _passiveLedgerFactProjection;
+    private bool _passiveLedgerChangedAtSource;
+    private bool _passiveLedgerReadFailed;
+    private long _passiveLedgerCursor;
+    private long _passiveLedgerPresentationSkipped;
+    private long _passiveLedgerProjectionRejected;
     private Task<(string Directory, PassiveCaptureManifest Manifest)>? _passiveCaptureTask;
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
     private bool _closingAfterPassiveStop;
@@ -511,6 +519,12 @@ public partial class MainWindow
         PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
+        _passiveLedgerOwnsProcessEvents = false;
+        _passiveLedgerFactProjection = false;
+        _passiveLedgerReadFailed = false;
+        _passiveLedgerCursor = 0;
+        _passiveLedgerPresentationSkipped = 0;
+        _passiveLedgerProjectionRejected = 0;
         _passiveControlTimeline.Reset();
         _passivePortRoles.Reset();
         _passiveRoleStatus = string.Empty;
@@ -569,14 +583,20 @@ public partial class MainWindow
         {
             _passiveCaptureTask = session.RunAsync(_sessionCancellation.Token);
             _passiveFrameHistory = session.TraceHistory;
+            _passiveProcessEventHistory = session.ProcessEventHistory;
+            _passiveLedgerOwnsProcessEvents = _passiveProcessEventHistory is not null;
             var result = await _passiveCaptureTask;
             _passiveCaptureResult = result;
             // Let any in-flight prepare batch finish on its original session.
             // Never overlap two GUI consumers of the single-reader preview feed.
             while (_passiveUiRefreshInFlight)
                 await Task.Delay(10);
-            await RefreshPassiveUiAsync();
+            // Reconcile the latest 420 facts after source completion, even if
+            // the preview ring had already overwritten earlier frames.
+            for (var pass = 0; pass < 5; pass++)
+                await RefreshPassiveUiAsync();
             FlushUiQueues();
+            _passiveLedgerOwnsProcessEvents = false;
             PassiveCapturePathText.Text = options.RecordFullSession
                 ? result.Directory : "Live monitor · no recording";
             PassiveIntegrityText.Text = result.Manifest.Status;
@@ -644,7 +664,15 @@ public partial class MainWindow
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
             : progress.Status == "Monitoring" ? "Live only · no disk recording" : progress.Status;
-        PassiveIntegrityText.Foreground = (Brush)FindResource(progress.IntegrityWarning ? "BadBrush" : "Ink900Brush");
+        var eventProgress = session.GetProcessEventProgress();
+        PassiveIntegrityText.Text += $" · SOE {eventProgress.AcceptedObjects:N0}" +
+            $" ({eventProgress.IndexedObjects:N0} indexed)" +
+            (eventProgress.UnindexedObjects > 0 ? $" · {eventProgress.UnindexedObjects:N0} unindexed" : "") +
+            (eventProgress.PreviewFramesDropped > 0 ? $" · {eventProgress.PreviewFramesDropped:N0} frame previews skipped" : "") +
+            (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "");
+        PassiveIntegrityText.Foreground = (Brush)FindResource(
+            progress.IntegrityWarning || eventProgress.UnindexedObjects > 0 ||
+            _passiveLedgerReadFailed ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
 
@@ -701,6 +729,47 @@ public partial class MainWindow
                 FeedPassiveFrameToExistingViews(item.Frame, prepared: item);
         }
 
+        // Process facts are paged from the writer-owned indexed journal, NOT
+        // from the 512-frame DropOldest UI preview. Page read and ASDU decode
+        // run off Dispatcher, WPF projection stays on its existing UI thread.
+        if (_passiveProcessEventHistory is { } history && !_passiveLedgerReadFailed)
+        {
+            try
+            {
+                var latest = session.GetProcessEventProgress().IndexedObjects;
+                if (latest - _passiveLedgerCursor > 420)
+                {
+                    var skipped = latest - _passiveLedgerCursor - 420;
+                    _passiveLedgerCursor += skipped;
+                    _passiveLedgerPresentationSkipped += skipped;
+                }
+                var cursor = _passiveLedgerCursor;
+                var link = _passiveLinkAddressWidth;
+                var cot = _passiveCotWidth;
+                var ca = _passiveCaWidth;
+                var ioa = _passiveIoaWidth;
+                var page = await Task.Run(() => PassiveProcessEventPreparation.PreparePage(
+                    history.ReadAfter(cursor, 120), link, cot, ca, ioa));
+                foreach (var fact in page)
+                {
+                    if (fact.Fact.Sequence != _passiveLedgerCursor + 1)
+                    {
+                        _passiveLedgerReadFailed = true;
+                        AppendSessionLog("Process event index sequence mismatch; no guessed event promoted.");
+                        break;
+                    }
+                    _passiveLedgerCursor = fact.Fact.Sequence;
+                    if (!ProjectPassiveProcessEventFact(fact))
+                        _passiveLedgerProjectionRejected++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or ObjectDisposedException)
+            {
+                _passiveLedgerReadFailed = true;
+                AppendSessionLog("Process event journal read failed; original capture remains: " + ex.Message);
+            }
+        }
+
         // Dedicated five-second summaries, never per-frame rendering.
         var summaryCount = 0;
         while (summaryCount < 24 && session.TryReadTimelineWindow(out var window))
@@ -729,6 +798,73 @@ public partial class MainWindow
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
         }
         finally { _passiveUiRefreshInFlight = false; }
+    }
+
+
+    /// <summary>
+    /// Event Log consumes source-qualified writer facts. A valid event survives
+    /// WPF preview rollover; event provenance is its original physical frame.
+    /// </summary>
+    private bool ProjectPassiveProcessEventFact(PassiveProcessEventPreparation.Prepared prepared)
+    {
+        if (!prepared.Trusted || prepared.Frame is null ||
+            prepared.Asdu is not { } decode || prepared.Object is not { } obj)
+            return false;
+        var seen = prepared.Fact.Frame;
+        if (PassiveIec101FrameRoles.Classify(seen, _passiveLinkAddressWidth) !=
+            PassiveWireRole.Secondary)
+            return false;
+        var item = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = ++_passiveFrameSequence,
+            TimestampUtc = seen.EstimatedUtc,
+            Direction = FrameDirection.SlaveToMaster,
+            Category = "Passive Point",
+            PollingReason = "PASSIVE-LEDGER",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            RawHex = prepared.RawHex,
+            PhysicalSource = seen.StreamId < 2 ? "Link A" : "Link B",
+            PhysicalStreamId = seen.StreamId,
+            RawStreamOffset = seen.StreamOffset,
+            Frame = prepared.Frame,
+            LinkAddress = prepared.Frame.LinkAddress,
+            TypeId = decode.TypeId,
+            TypeName = decode.TypeName,
+            VariableStructureQualifier = decode.VariableStructureQualifier,
+            IsSequenceAsdu = decode.IsSequence,
+            ObjectCount = decode.ObjectCount,
+            CauseOfTransmission = decode.CauseOfTransmission,
+            CauseDetails = decode.CauseDetails,
+            CommandDetails = decode.CommandDetails,
+            AsduDetails = decode,
+            InformationObjectDetails = obj,
+            QualityDetails = obj.QualityDetails,
+            QualityText = obj.QualityText,
+            CauseName = decode.CauseName,
+            OriginatorAddress = decode.OriginatorAddress,
+            CommonAddressNumber = decode.CommonAddress,
+            InformationObjectAddress = obj.InformationObjectAddress,
+            ObjectSummary = obj.ReadableSummary,
+            IsRelayValue = true,
+            IsRelayEdgeEvent = decode.CauseOfTransmission == 3,
+            SignalKey = $"L{seen.StreamId / 2}:{decode.CommonAddress}:{obj.InformationObjectAddress}",
+            SignalName = $"IOA {obj.InformationObjectAddress}",
+            SignalGroup = seen.StreamId < 2 ? "IEC-101 Link A" : "IEC-101 Link B",
+            SignalType = decode.TypeName,
+            SignalDisplayValue = obj.ShortValue,
+            SignalRawValue = obj.ValueText,
+            RelayTimestampText = obj.TimestampText,
+            RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase)
+        };
+        _passiveLedgerFactProjection = true;
+        _passiveLedgerChangedAtSource = prepared.Fact.WasChanged;
+        try { UpdateValueAndEventViews(item); }
+        finally
+        {
+            _passiveLedgerFactProjection = false;
+            _passiveLedgerChangedAtSource = false;
+        }
+        return true;
     }
 
     private EvidenceRow? FeedPassiveFrameToExistingViews(PassiveObservedFrame seen,
