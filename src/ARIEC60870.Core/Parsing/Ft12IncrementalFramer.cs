@@ -166,10 +166,14 @@ public sealed class Ft12IncrementalFramer
                 else ShiftOne(emit);
                 continue;
             }
-            var calc = 0;
-            for (var j = 4; j < 4 + _pending[1]; j++) calc += _pending[j];
+            // Core's sole FT1.2 wire-layout validator owns checksum and
+            // structural truth. Still emit a complete bad-checksum candidate
+            // as untrusted evidence for Master/Monitor diagnostics.
+            var valid = Ft12WireLayout.TryParse(
+                _pending.AsSpan(0, size), _confirmedWidth, out var layout) &&
+                layout.Kind == Ft12WireKind.Variable;
             FlushNoise(emit);
-            Emit(size, _pending[size - 2] == (byte)calc, "Variable", emit,
+            Emit(size, valid, "Variable", emit,
                 _confirmedWidth == _addressWidth ? null : _confirmedWidth);
         }
     }
@@ -200,11 +204,8 @@ public sealed class Ft12IncrementalFramer
     }
 
     private bool FixedChecksum(int width)
-    {
-        var sum = _pending[1];
-        for (var j = 0; j < width; j++) sum += _pending[2 + j];
-        return _pending[2 + width] == (byte)sum;
-    }
+        => Ft12WireLayout.TryParse(_pending.AsSpan(0, 4 + width),
+            width, out var layout) && layout.Kind == Ft12WireKind.Fixed;
 
     private void Emit(int length, bool valid, string format, Action<Ft12StreamCandidate> emit,
         int? detectedWidth = null)
