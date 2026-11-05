@@ -141,7 +141,7 @@ public partial class MainWindow
             !_protocolTraceStore.Snapshot().Any(row =>
                 row.Source.AsduDetails is { TypeId: 31, ObjectCount: 19 } &&
                 row.Source.Direction == FrameDirection.SlaveToMaster) ||
-            !RelayEventRows.Any(row => row.RelayTimeText.Contains("2026-11-05", StringComparison.Ordinal)))
+            !RelayEventRows.Any(row => row.RelayTime.Contains("2026-11-05", StringComparison.Ordinal)))
             throw new InvalidOperationException(
                 "SICAM 2-byte Link Address field SOE did not produce all 19 typed CP56 events in the WPF Event Log.");
 
