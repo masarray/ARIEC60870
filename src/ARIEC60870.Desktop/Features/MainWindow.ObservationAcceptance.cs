@@ -153,8 +153,8 @@ public partial class MainWindow
         _passiveLedgerOwnsProcessEvents = true;
         try
         {
-            var visual = Assert.Single(PassiveFramePreparation.PrepareBatch(
-                [journalFrame], 1, 2, 2, 3));
+            var visual = PassiveFramePreparation.PrepareBatch(
+                [journalFrame], 1, 2, 2, 3).Single();
             FeedPassiveFrameToExistingViews(journalFrame, prepared: visual);
             FlushUiQueues();
             ApplyRelayEventFilter();
