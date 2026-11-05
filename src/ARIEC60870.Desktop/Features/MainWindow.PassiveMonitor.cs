@@ -54,6 +54,22 @@ public partial class MainWindow
     private DateTime _passiveFindingWindowEndUtc = DateTime.MinValue;
     private int _passiveFindingWindowCount;
     private int _passiveLinkAddressWidth;
+    // Physical stream identity is immutable. Protocol-confirmed primary/secondary
+    // direction is a separate property: ports may be selected in either order.
+    private readonly PassiveIec101PortRoles _passivePortRoles = new();
+    private string _passiveOriginalSubtitle = string.Empty;
+    private string _passiveRoleStatus = string.Empty;
+
+    private void UpdatePassiveAutoRoleStatus()
+    {
+        var status = _passivePortRoles.DescribeAll();
+        if (status == _passiveRoleStatus) return;
+        _passiveRoleStatus = status;
+        // Do not mutate port configuration, underlying COM handles, or journal
+        // source IDs. Only the operator description follows proven FT1.2 roles.
+        if (_passiveOriginalSubtitle.Length > 0)
+            SessionSubtitleText.Text = _passiveOriginalSubtitle + " · " + status;
+    }
     private PassiveTimelineEvidenceNavigator? _passiveAnomalyNavigator;
     private string? _passiveAnomalyDirectory;
     private long? _passiveAnomalyBeforeOffset;
@@ -491,6 +507,8 @@ public partial class MainWindow
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
         _passiveControlTimeline.Reset();
+        _passivePortRoles.Reset();
+        _passiveRoleStatus = string.Empty;
         _passiveControlNotes.Clear();
         _passiveUndecodableShown = 0;
         _passiveReplayCorrelator = null;
@@ -525,6 +543,8 @@ public partial class MainWindow
         SessionSubtitleText.Text = options.StreamCount == 4
             ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
             : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
+        _passiveOriginalSubtitle = SessionSubtitleText.Text;
+        UpdatePassiveAutoRoleStatus();
         UpdateStableHeader("Monitoring", options.RecordFullSession
             ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
         AppendSessionLog("Passive monitor started: " + SessionSubtitleText.Text +
@@ -690,7 +710,7 @@ public partial class MainWindow
             var row = new PassiveRxRow(
                 sample.EstimatedUtc.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
                 (sample.StreamId < 2 ? "A " : "B ") +
-                ((sample.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA"),
+                _passivePortRoles.KnownDirectionLabel(sample.StreamId),
                 sample.Sequence, sample.ByteCount, Convert.ToHexString(sample.FirstBytes));
             _passiveRawRows.Add(row);
             if (_passiveRawRows.Count > MaxVisiblePassiveRows)
@@ -787,7 +807,22 @@ public partial class MainWindow
                         ? new[] { "IEC-101 prohibits the A2 single-character response." }
                         : seen.ChecksumValid ? Array.Empty<string>() : new[] { "Bad FT1.2 checksum or incomplete frame." }
         };
-        var direction = (seen.StreamId & 1) == 0 ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster;
+        // The FT1.2 PRM bit (after checksum/structure validation), not the
+        // user's COM dropdown order, determines unbalanced primary/secondary
+        // traffic. E5 is a secondary-only short response. Unknown stays
+        // unknown on malformed/noise frames.
+        var wireRole = PassiveIec101FrameRoles.Classify(seen, _passiveLinkAddressWidth);
+        if (!inspectionOnly)
+        {
+            _passivePortRoles.Observe(seen, _passiveLinkAddressWidth);
+            UpdatePassiveAutoRoleStatus();
+        }
+        var direction = wireRole switch
+        {
+            PassiveWireRole.Primary => FrameDirection.MasterToSlave,
+            PassiveWireRole.Secondary => FrameDirection.SlaveToMaster,
+            _ => FrameDirection.Unknown
+        };
         // Live is writer-owned, so a skipped WPF preview cannot produce a
         // fabricated match. Offline replay reconstructs the same typed stages.
         PassiveControlEvidence? upstream = null;
@@ -799,7 +834,9 @@ public partial class MainWindow
                 seen.ChecksumValid && !profileMismatch && !forbiddenSingleA2 && !isNoise,
                 control.HasValue ? address : null);
         var prefix = (seen.StreamId < 2 ? "Link A · " : "Link B · ") +
-            ((seen.StreamId & 1) == 0 ? "SCADA → RTU" : "RTU → SCADA");
+            (direction == FrameDirection.MasterToSlave ? "SCADA → RTU (PRM)" :
+             direction == FrameDirection.SlaveToMaster ? "RTU → SCADA (PRM/E5)" :
+             "direction unconfirmed");
         var function = seen.Format switch
         {
             "Partial" => "Incomplete FT1.2 frame",
@@ -857,9 +894,9 @@ public partial class MainWindow
             InformationObjectAddress = first?.InformationObjectAddress,
             ObjectSummary = decode?.ObjectSummary ?? "",
             QualityText = first?.QualityText ?? "",
-            IsRelayEdgeEvent = seen.ChecksumValid && (seen.StreamId & 1) == 1 && first is not null &&
+            IsRelayEdgeEvent = direction == FrameDirection.SlaveToMaster && first is not null &&
                 decode?.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-            IsRelayValue = seen.ChecksumValid && (seen.StreamId & 1) == 1 && first is not null && decode is not null &&
+            IsRelayValue = direction == FrameDirection.SlaveToMaster && first is not null && decode is not null &&
                 decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
             SignalKey = first is null || decode is null ? "" :
                 $"L{seen.StreamId / 2}:{decode.CommonAddress}:{first.InformationObjectAddress}",
@@ -884,7 +921,7 @@ public partial class MainWindow
                 TimeSpan.FromSeconds(1));
 
         // Multi-object ASDUs must update EVERY point, not only the first IOA.
-        if (seen.ChecksumValid && (seen.StreamId & 1) == 1 && decode is not null &&
+        if (direction == FrameDirection.SlaveToMaster && decode is not null &&
             decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
         {
             foreach (var obj in decode.Objects.Skip(1))
@@ -933,7 +970,7 @@ public partial class MainWindow
         var seconds = (int)(item.EndUtc - item.StartUtc).TotalSeconds;
         var summary = item.CompressedEmptyWindows > 0
             ? $"{item.CompressedEmptyWindows} consecutive {seconds / Math.Max(1L, item.CompressedEmptyWindows)}s windows without received frame observations (compressed)"
-            : $"RX SCADA={item.Source0Frames}, RTU={item.Source1Frames}, " +
+            : $"Physical port0={item.Source0Frames}, port1={item.Source1Frames}, " +
               $"Class1/2={item.Class1Polls}/{item.Class2Polls}, " +
               $"LinkStatus={item.LinkStatusPolls}, Retry={item.Retries}, Timeout={item.ResponseTimeouts}, " +
               $"GI={item.GiActivations}/{item.GiCompleted}";
@@ -949,7 +986,7 @@ public partial class MainWindow
         AddUiDiagnostic("Info", "Capture", "IEC101-FAILURE-TIMELINE",
             "IEC-101 observation window contains unusual link behavior",
             $"Host-estimated UTC {item.StartUtc:O} to {item.EndUtc:O} · " +
-            $"RX SCADA/RTU={item.Source0Frames}/{item.Source1Frames}; retry={item.Retries}; " +
+            $"Physical RX0/RX1={item.Source0Frames}/{item.Source1Frames}; retry={item.Retries}; " +
             $"timeouts={item.ResponseTimeouts}; DFC={item.DfcBusy}; unknown primary FC={item.UnknownPrimaryFunctions}; " +
             $"FC15={item.ServiceNotImplementedReplies}; GI exceptions={item.GiExceptions}; invalid={item.InvalidFrames}. " +
             $"First abnormal evidence RX={item.FirstAnomalyStream?.ToString() ?? "-"}, " +
