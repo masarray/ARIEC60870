@@ -74,7 +74,7 @@ public sealed class PassiveFramePreparationTests
         byte[] payload = [0x08, 0x69, 31, 1, 3, 0, 105, 0, 100, 0, 0, 2,
             0x2A, 0xAB, 0x04, 0x11, 0x85, 0x0B, 0x1A];
         var raw = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
-            .Concat(payload).Concat([(byte)(payload.Sum(x => x) & 255), 0x16]).ToArray();
+            .Concat(payload).Concat([(byte)(payload.Sum(x => x) & 255), (byte)0x16]).ToArray();
         raw[12] ^= 1; // false-positive external checksum flag must not be trusted
         var source = new PassiveObservedFrame(1, 0, DateTime.UtcNow, "Variable", true, raw);
         var batch = Assert.Single(PassiveFramePreparation.PrepareBatch([source], 1, 2, 2, 3));
@@ -90,7 +90,7 @@ public sealed class PassiveFramePreparationTests
             "Variable", true, [0x68, 0x20, 0x20, 0x68, 0x08, 0x69]);
         var invalid = new PassiveObservedFrame(1, 1, DateTime.UtcNow,
             "Variable", false,
-            [0x68, 0x0A, 0x0A, 0x68, 0x08, 0x69, 0x01, 0x01, 0x03, 0x00, 0x69, 0x00, 0x65, 0x00, 0x00, 0x01, 0x00, 0x16]);
+            [0x68, 0x0A, 0x0A, 0x68, 0x08, 0x69, 0x01, 0x01, 0x03, 0x00, 0x69, 0x00, 0x65, 0x00, 0x00, 0x01, 0x00, (byte)0x16]);
         var result = PassiveFramePreparation.PrepareBatch([broken, invalid], 1, 2, 2, 3);
         Assert.Null(result[0].Decode);
         Assert.Empty(result[0].AsduRaw);
