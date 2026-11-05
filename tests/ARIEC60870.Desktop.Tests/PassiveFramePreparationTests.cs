@@ -69,6 +69,21 @@ public sealed class PassiveFramePreparationTests
         Assert.Empty(decoded.Issues);
     }
     [Fact]
+    public void FalseTrustedFlagCannotPromoteTamperedPayloadToEvent()
+    {
+        byte[] payload = [0x08, 0x69, 31, 1, 3, 0, 105, 0, 100, 0, 0, 2,
+            0x2A, 0xAB, 0x04, 0x11, 0x85, 0x0B, 0x1A];
+        var raw = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+            .Concat(payload).Concat([(byte)(payload.Sum(x => x) & 255), 0x16]).ToArray();
+        raw[12] ^= 1; // false-positive external checksum flag must not be trusted
+        var source = new PassiveObservedFrame(1, 0, DateTime.UtcNow, "Variable", true, raw);
+        var batch = Assert.Single(PassiveFramePreparation.PrepareBatch([source], 1, 2, 2, 3));
+        Assert.Null(batch.Decode);
+        Assert.Empty(batch.AsduRaw);
+        Assert.Equal(Convert.ToHexString(raw), batch.RawHex);
+    }
+
+    [Fact]
     public void BrokenFramesKeepExactRawWithoutFabricatingDecodedPoints()
     {
         var broken = new PassiveObservedFrame(1, 0, DateTime.UtcNow,
