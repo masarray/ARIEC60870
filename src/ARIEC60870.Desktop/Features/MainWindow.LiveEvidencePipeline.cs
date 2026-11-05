@@ -37,7 +37,8 @@ public partial class MainWindow
         // forensic evidence, including Class 1/2 requests and E5/NO DATA.
         // Backpressure may coalesce only non-wire presentation notes. Never
         // remove an entire physical telegram to reduce WPF queue pressure.
-        if (item.Direction is FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster &&
+        if ((item.Direction is FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster ||
+             item.PollingReason == "PASSIVE-IEC101") &&
             !string.IsNullOrWhiteSpace(item.RawHex) && item.RawHex != "-")
             return string.Empty;
 
@@ -975,6 +976,13 @@ public partial class MainWindow
         // summary. A valid TX/RX raw frame MUST be inspectable even if the user
         // is currently in Values, Events or Report. The bounded ring limits RAM.
         // UI queue backpressure remains a separate, explicitly counted safeguard.
+        // A physical passive sniffer must display *all* framed RX bytes,
+        // including malformed/Noise/LinkWidthMismatch whose logical sender
+        // is UNKNOWN. Assigning a fake TX/RX role hid these frames entirely.
+        // Source stream/offset and exact bytes remain available for diagnosis.
+        if (item.PollingReason == "PASSIVE-IEC101" &&
+            item.PhysicalStreamId.HasValue && row.RawHex != "-")
+            return true;
         return row.RawHex != "-" &&
                (row.Direction.Equals("TX", StringComparison.OrdinalIgnoreCase) ||
                 row.Direction.Equals("RX", StringComparison.OrdinalIgnoreCase));
