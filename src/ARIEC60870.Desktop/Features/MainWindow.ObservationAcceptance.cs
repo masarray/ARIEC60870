@@ -65,6 +65,7 @@ public partial class MainWindow
         // "SCADA" receives secondary PRM=0, while the one labeled "RTU"
         // receives primary PRM=1. In older builds these raw frames appeared
         // in Trace but ALL Values and Events were silently filtered out.
+        var previousSubtitle = SessionSubtitleText.Text;
         _passivePortRoles.Reset();
         _passiveRoleStatus = string.Empty;
         _passiveLinkAddressWidth = 1;
@@ -111,6 +112,10 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
         _passivePortRoles.Reset();
         _passiveRoleStatus = string.Empty;
+        _passiveOriginalSubtitle = previousSubtitle;
+        SessionSubtitleText.Text = previousSubtitle;
+        PassiveScadaRoleLabel.Text = "Input 1 · auto detecting";
+        PassiveRtuRoleLabel.Text = "Input 2 · auto detecting";
         // The prior passive GUI + history smoke probes have already exercised
         // source-qualified navigation; this stage stress-tests the live WPF ring.
         

@@ -184,7 +184,7 @@ public sealed class PassiveTransactionCorrelatorTests
         engine.Observe(Frame(1, 0, 0, 0x5B), events.Add);
         // RTU secondary was connected to physical RX stream 0.
         engine.Observe(Frame(0, 0, 90, 0x08), events.Add);
-        var matched = Assert.Single(events.Where(x => x.Kind == PassiveTransactionKind.Matched));
+        var matched = Assert.Single(events, x => x.Kind == PassiveTransactionKind.Matched);
         Assert.Equal((byte)1, matched.RequestStream);
         Assert.Equal((byte)0, matched.ObservedStream);
         Assert.Equal(0, matched.ObservedOffset);

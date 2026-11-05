@@ -65,8 +65,10 @@ public partial class MainWindow
         var status = _passivePortRoles.DescribeAll();
         if (status == _passiveRoleStatus) return;
         _passiveRoleStatus = status;
-        PassiveScadaRoleLabel.Text = "Input 1 · " + _passivePortRoles.KnownDirectionLabel(0);
-        PassiveRtuRoleLabel.Text = "Input 2 · " + _passivePortRoles.KnownDirectionLabel(1);
+        PassiveScadaRoleLabel.Text = ((PortComboBox.SelectedItem as string) ?? "Input 1") +
+            " · " + _passivePortRoles.KnownDirectionLabel(0);
+        PassiveRtuRoleLabel.Text = ((PassiveRtuPortComboBox.SelectedItem as string) ?? "Input 2") +
+            " · " + _passivePortRoles.KnownDirectionLabel(1);
         // Do not mutate port configuration, underlying COM handles, or journal
         // source IDs. Only the operator description follows proven FT1.2 roles.
         if (_passiveOriginalSubtitle.Length > 0)
@@ -818,8 +820,12 @@ public partial class MainWindow
         var wireRole = PassiveIec101FrameRoles.Classify(seen, _passiveLinkAddressWidth);
         if (!inspectionOnly)
         {
+            var oldRole = _passivePortRoles.KnownRole(seen.StreamId);
             _passivePortRoles.Observe(seen, _passiveLinkAddressWidth);
-            UpdatePassiveAutoRoleStatus();
+            // UI role badges only change when physical source interpretation
+            // changes, never with every cyclic frame. No per-frame text churn.
+            if (oldRole != _passivePortRoles.KnownRole(seen.StreamId))
+                UpdatePassiveAutoRoleStatus();
         }
         var direction = wireRole switch
         {
