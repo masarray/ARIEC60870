@@ -89,15 +89,44 @@ public sealed class Iec104StreamConformanceTests
         Assert.False(result.CompletedNormally);
         Assert.Contains(result.Findings, x => x.Id == "IEC104-STARTDT-CON");
         Assert.Equal(1, transport.Writes);
+        Assert.Equal(0, result.Counters.AckResponses);
+    }
+
+    [Fact]
+    public async Task InvalidIncomingIFrameIsReportedButNeverAcknowledgedAsValidData()
+    {
+        using var transport = new BufferedScriptTransport(malformedDataReply: true);
+        var settings = new Iec103MasterSettings
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            CauseOfTransmissionSize = 2,
+            CommonAddressSize = 2,
+            InformationObjectAddressSize = 3,
+            ResponseTimeoutMs = 20,
+            Iec104T1AckTimeoutMs = 100,
+            Class2PollIntervalMs = 1,
+            SendClockSyncOnConnect = false,
+            SendGeneralInterrogationOnConnect = false
+        };
+        var result = await new Iec104ClientSession(settings, transport)
+            .RunForAsync(TimeSpan.FromMilliseconds(140), CancellationToken.None);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(1, transport.Writes); // STARTDT act only; no S for invalid I.
+        Assert.True(result.Counters.MalformedFrames >= 1);
+        Assert.Equal(0, result.Counters.UserDataResponses);
     }
 
     private sealed class BufferedScriptTransport : IByteTransport
     {
         private readonly Queue<byte> _bytes = new();
         private readonly bool _malformedStartReply;
+        private readonly bool _malformedDataReply;
 
-        public BufferedScriptTransport(bool malformedStartReply = false)
-            => _malformedStartReply = malformedStartReply;
+        public BufferedScriptTransport(bool malformedStartReply = false, bool malformedDataReply = false)
+        {
+            _malformedStartReply = malformedStartReply;
+            _malformedDataReply = malformedDataReply;
+        }
 
         public bool IsOpen { get; private set; }
         public int Writes { get; private set; }
@@ -127,6 +156,12 @@ public sealed class Iec104StreamConformanceTests
                 var malformed = Iec104FrameBuilder.StartDtConfirmation();
                 malformed[3] = 1;
                 Push(malformed);
+            }
+            else if (_malformedDataReply && buffer.Span.Length >= 6 && buffer.Span[2] == 0x07)
+            {
+                Push(Iec104FrameBuilder.StartDtConfirmation());
+                // I-format with invalid reserved low bit in N(R).
+                Push(new byte[] { 0x68, 0x05, 0x00, 0x00, 0x01, 0x00, 0x00 });
             }
             return ValueTask.CompletedTask;
         }

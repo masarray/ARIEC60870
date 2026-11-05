@@ -382,14 +382,20 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 if (decoded.Asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
                 if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
             }
-            await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement",
-                "S-format", "Acknowledge only contiguous accepted I-format data", cancellationToken).ConfigureAwait(false);
+            // A malformed APCI is retained as evidence, not acknowledged as
+            // a received I-frame. Valid out-of-sequence I-frames can still be
+            // answered with the last contiguous N(R).
+            if (decoded.IsValid)
+            {
+                await SendRawAsync(Iec104FrameBuilder.S(_receiveSequence), "IEC-104 S-frame acknowledgement",
+                    "S-format", "Acknowledge only contiguous accepted I-format data", cancellationToken).ConfigureAwait(false);
+            }
         }
         else if (decoded.Format == "S" && decoded.IsValid)
         {
             _counters.AckResponses++;
         }
-        else if (decoded.Format == "U" && decoded.UFormatName.Contains("con", StringComparison.OrdinalIgnoreCase))
+        else if (decoded.Format == "U" && decoded.IsValid && decoded.UFormatName.Contains("con", StringComparison.OrdinalIgnoreCase))
         {
             _counters.AckResponses++;
         }

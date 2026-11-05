@@ -13,7 +13,7 @@ The IEC-104 TCP reader was recreated on every ReceiveOneAsync operation. A read 
 - Core Iec104ApciWireLayout validates all IEC-104 APDU structural invariants: 0x68, 4..253 octets of declared payload, declared versus actual length, I-format nonempty ASDU and even N(R), S-format exact control field, six valid U-format functions only and all U reserved octets zero. The parser and forensic APCI verifier now share this one structural authority.
 - The existing Iec104ApduParser retains malformed frame bytes, format classification and issues for diagnostics; IsValid gates active Master sequence state. Application/type interpretation stays with the existing Iec10xAsduDecoder. Unknown vendor-private ASDU semantics are not guessed by the structural validator.
 - One bounded Iec104StreamReader belongs to the TCP session, not each individual read call. It retains incomplete bytes across ordinary receive timeouts, consumes no more bytes than the current APDU needs, discards leading non-0x68 noise and returns impossible-length prefixes as untrusted malformed evidence. No background read-ahead, extra TX, GI, supervision changes or unbounded queue.
-- The session continues to reject invalid STARTDT/TESTFR evidence and out-of-window sequence values; a valid link ACK is not evidence of control-command success.
+- The session rejects invalid STARTDT/TESTFR evidence; invalid U-frame confirmations do not inflate ACK counters, and malformed I-frames do not trigger S-ACK. Valid out-of-sequence but structurally conforming I-frames may still be answered with the last contiguous N(R). A valid link ACK is not evidence of control-command success.
 
 ## Automated acceptance added
 
