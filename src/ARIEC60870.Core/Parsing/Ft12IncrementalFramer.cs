@@ -103,10 +103,10 @@ public sealed class Ft12IncrementalFramer
                 // real Link Status/ACK as random serial noise.
                 if (_count >= expected && _pending[expected - 1] == 0x16)
                 {
-                    var valid = FixedChecksum(_confirmedWidth);
-                    if (valid) ObserveVerifiedFixedWidth(_confirmedWidth);
+                    var fixedValid = FixedChecksum(_confirmedWidth);
+                    if (fixedValid) ObserveVerifiedFixedWidth(_confirmedWidth);
                     FlushNoise(emit);
-                    Emit(expected, valid,
+                    Emit(expected, fixedValid,
                         _confirmedWidth == _addressWidth ? "Fixed" : "LinkWidthMismatch",
                         emit, _confirmedWidth == _addressWidth ? null : _confirmedWidth);
                     continue;
