@@ -145,6 +145,38 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "SICAM 2-byte Link Address field SOE did not produce all 19 typed CP56 events in the WPF Event Log.");
 
+        // P0-B actual-WPF acceptance: visual frame preview can be retained
+        // without producing SOE. The complete writer-owned per-object facts
+        // alone add the 19 Event rows, with exact original stream/offset.
+        var ledgerStart = RelayEventRows.Count;
+        var journalFrame = fieldObserved[^1] with { StreamOffset = 5000 };
+        _passiveLedgerOwnsProcessEvents = true;
+        try
+        {
+            var visual = Assert.Single(PassiveFramePreparation.PrepareBatch(
+                [journalFrame], 1, 2, 2, 3));
+            FeedPassiveFrameToExistingViews(journalFrame, prepared: visual);
+            FlushUiQueues();
+            ApplyRelayEventFilter();
+            if (RelayEventRows.Count != ledgerStart)
+                throw new InvalidOperationException(
+                    "WPF preview duplicated a process event despite writer-owned event authority.");
+            var facts = Enumerable.Range(1, 19).Select(index =>
+                new PassiveProcessEventFact(index, journalFrame, index, false)).ToArray();
+            var sourcePage = PassiveProcessEventPreparation.PreparePage(
+                facts, linkWidth: 1, cotWidth: 2, caWidth: 2, ioaWidth: 3);
+            if (sourcePage.Any(fact => !fact.Trusted ||
+                !ProjectPassiveProcessEventFact(fact)))
+                throw new InvalidOperationException(
+                    "Canonical indexed process event failed to project into the WPF Event Log.");
+            FlushUiQueues();
+            ApplyRelayEventFilter();
+            if (RelayEventRows.Count != ledgerStart + 19)
+                throw new InvalidOperationException(
+                    "19 writer-owned process events did not produce exactly 19 Event rows.");
+        }
+        finally { _passiveLedgerOwnsProcessEvents = false; }
+
         // The actual session starts clean; the acceptance-only frames never
         // become part of its retained forensic source.
         MainTabControl.SelectedIndex = 1;
