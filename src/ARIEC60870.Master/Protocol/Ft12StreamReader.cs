@@ -19,6 +19,10 @@ public sealed class Ft12StreamReader
     private readonly Action<Ft12StreamCandidate> _onCandidate;
     private byte[]? _frame;
     private long _receivedBytes;
+    // A damaged FT1.2 prefix can contain 0xE5 inside its payload. Its
+    // resynchronized single byte is NOT a proved reply to the Master request.
+    private bool _uncertainFrameBoundary;
+    public long AmbiguousShortResponsesSuppressed { get; private set; }
 
     public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1)
     {
@@ -33,8 +37,24 @@ public sealed class Ft12StreamReader
             // Source noise/invalid headers are not application responses.
             // Core preserves verified boundary candidates (including checksum
             // failures); the existing Master validator decides acceptance.
-            if (candidate.Format != "Noise")
-                _frame = candidate.RawBytes;
+            if (candidate.Format == "Noise")
+            {
+                // Ordinary converter noise can precede a legitimate E5.
+                // Only an abandoned 0x10/0x68 frame prefix creates ambiguity.
+                if (candidate.RawBytes.Contains((byte)0x10) ||
+                    candidate.RawBytes.Contains((byte)0x68))
+                    _uncertainFrameBoundary = true;
+                return;
+            }
+            if (candidate.Format == "Single" && candidate.RawBytes[0] == 0xE5 &&
+                _uncertainFrameBoundary)
+            {
+                AmbiguousShortResponsesSuppressed++;
+                return;
+            }
+            if (candidate.Format is "Fixed" or "Variable" && candidate.ChecksumValid)
+                _uncertainFrameBoundary = false;
+            _frame = candidate.RawBytes;
         };
     }
 
