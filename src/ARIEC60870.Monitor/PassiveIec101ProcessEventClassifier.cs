@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Parsing;
-using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Monitor;
@@ -62,20 +61,18 @@ public sealed class PassiveIec101ProcessEventClassifier
             asdu.ObjectCount == 0)
             return;
 
-        var digital = Iec10xObservationIdentity.IsDigitalProcessType(asdu.TypeId);
-        var measurement = Iec10xObservationIdentity.IsMeasurementOrCounterType(asdu.TypeId);
+        var digital = Iec10xProcessEventPolicy.IsDigitalProcessType(asdu.TypeId);
+        var measurement = Iec10xProcessEventPolicy.IsMeasurementOrCounterType(asdu.TypeId);
         // Keep parity with the supported IEC-101 process families of the
         // existing Values/Event projector. Unsupported/vendor-private stays raw.
         if ((!digital && !measurement) ||
-            asdu.TypeId is not (>= 1 and <= 16 or >= 30 and <= 32 or >= 34 and <= 37))
+            asdu.TypeId is not (>= 1 and <= 16 or >= 30 and <= 37))
             return;
 
         foreach (var obj in asdu.Objects)
         {
             if (obj.Issues.Count > 0 || obj.InformationObjectAddress is < 0 or > 0xFFFFFF)
                 continue;
-            var eventByCot = asdu.CauseOfTransmission is 3 or 11 or 12;
-            var measurementObservation = measurement && asdu.CauseOfTransmission is >= 1 and <= 36;
             var changed = false;
             // The only cyclic/GI change events are known SP/DP values, never
             // a guessed edge from missing baseline or unsupported quality.
@@ -94,8 +91,8 @@ public sealed class PassiveIec101ProcessEventClassifier
                     _untrackedStateObservations++;
             }
 
-            if (eventByCot || measurementObservation ||
-                (changed && asdu.CauseOfTransmission is >= 1 and <= 36))
+            if (Iec10xProcessEventPolicy.ShouldRecordProcessType(
+                asdu.TypeId, asdu.CauseOfTransmission, changed))
                 acceptedObjectIndexes.Add(new PassiveProcessEventCandidate(obj.Index,
                     asdu.TypeId, asdu.CauseOfTransmission, asdu.CommonAddress,
                     obj.InformationObjectAddress, obj.ShortValue, obj.QualityText,
