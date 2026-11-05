@@ -7,6 +7,10 @@ using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Monitor;
 
+public sealed record PassiveProcessEventCandidate(int ObjectIndex, int TypeId,
+    int Cot, int CommonAddress, int Ioa, string Value, string Quality,
+    string DeviceTime, bool Negative, bool Test);
+
 /// <summary>
 /// Single-writer IEC-101 process observation classifier. Runs on the complete
 /// capture stream, independent of the lossy WPF frame preview. Type/quality
@@ -40,7 +44,7 @@ public sealed class PassiveIec101ProcessEventClassifier
     public long UntrackedStateObservations => _untrackedStateObservations;
 
     /// <summary>Appends the ONE-based ordinal of each accepted source object.</summary>
-    public void Observe(PassiveObservedFrame frame, List<int> acceptedObjectIndexes)
+    public void Observe(PassiveObservedFrame frame, List<PassiveProcessEventCandidate> acceptedObjectIndexes)
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(acceptedObjectIndexes);
@@ -92,7 +96,10 @@ public sealed class PassiveIec101ProcessEventClassifier
 
             if (eventByCot || measurementObservation ||
                 (changed && asdu.CauseOfTransmission is >= 1 and <= 36))
-                acceptedObjectIndexes.Add(obj.Index);
+                acceptedObjectIndexes.Add(new PassiveProcessEventCandidate(obj.Index,
+                    asdu.TypeId, asdu.CauseOfTransmission, asdu.CommonAddress,
+                    obj.InformationObjectAddress, obj.ShortValue, obj.QualityText,
+                    obj.TimestampText, asdu.IsNegativeConfirm, asdu.IsTest));
         }
     }
 }
