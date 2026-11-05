@@ -71,6 +71,12 @@ public sealed class PassiveMonitorSession
             FullMode = BoundedChannelFullMode.DropOldest,
             AllowSynchronousContinuations = false
         });
+    private long _framesPublished;
+    private long _framesConsumed;
+    private long _acceptedProcessEvents;
+    private long _indexedProcessEvents;
+    private long _unindexedProcessEvents;
+    private bool _eventHistoryWriteDisabled;
     private readonly long[] _writtenBytes;
     private readonly long[] _writtenChunks;
     private readonly string[] _rawHashes;
@@ -121,6 +127,22 @@ public sealed class PassiveMonitorSession
     /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
     public PassiveSessionTraceHistory? TraceHistory { get; private set; }
 
+    /// <summary>Writer-owned source/object facts; reader pages are independent of the preview.</summary>
+    public PassiveProcessEventHistory? ProcessEventHistory { get; private set; }
+
+    public PassiveProcessEventProgress GetProcessEventProgress()
+    {
+        var published = Interlocked.Read(ref _framesPublished);
+        var consumed = Interlocked.Read(ref _framesConsumed);
+        var buffered = _frames.Reader.CanCount ? _frames.Reader.Count : 0;
+        return new PassiveProcessEventProgress(
+            Interlocked.Read(ref _acceptedProcessEvents),
+            Interlocked.Read(ref _indexedProcessEvents),
+            Interlocked.Read(ref _unindexedProcessEvents),
+            Math.Max(0, published - consumed - buffered),
+            ProcessEventHistory is not null && !_eventHistoryWriteDisabled);
+    }
+
     private bool _traceHistoryWriteDisabled;
 
     private void TryAppendSessionHistory(PassiveObservedFrame frame)
@@ -144,7 +166,12 @@ public sealed class PassiveMonitorSession
     public bool TryReadPreview(out PassiveChunkPreview preview) => _previews.Reader.TryRead(out preview!);
 
     /// <summary>Decoding feed for Trace/Values/Events. A slow UI cannot block archival.</summary>
-    public bool TryReadFrame(out PassiveObservedFrame frame) => _frames.Reader.TryRead(out frame!);
+    public bool TryReadFrame(out PassiveObservedFrame frame)
+    {
+        if (!_frames.Reader.TryRead(out frame!)) return false;
+        Interlocked.Increment(ref _framesConsumed);
+        return true;
+    }
 
     /// <summary>Derived transaction alerts; full chronological output is in transactions.jsonl.</summary>
     public bool TryReadTransaction(out PassiveTransactionEvent item) =>
@@ -175,6 +202,18 @@ public sealed class PassiveMonitorSession
             _warnings.Enqueue("Temporary Trace history unavailable: " + ex.Message +
                 ". RX capture continues; enable full raw recording for durable evidence.");
         }
+        if (TraceHistory is not null)
+        {
+            try { ProcessEventHistory = new PassiveProcessEventHistory(TraceHistory.DirectoryPath); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _eventHistoryWriteDisabled = true;
+                Interlocked.Exchange(ref _integrityUncertain, 1);
+                _warnings.Enqueue("Temporary process event journal unavailable: " + ex.Message +
+                    ". Event completeness cannot be guaranteed; enable full raw recording.");
+            }
+        }
+        else _eventHistoryWriteDisabled = true;
         var startUtc = DateTime.UtcNow;
         var origin = Stopwatch.GetTimestamp();
         _utcOrigin = startUtc;
@@ -320,6 +359,7 @@ public sealed class PassiveMonitorSession
         StreamWriter? giFile = null;
         StreamWriter? timelineFile = null;
         StreamWriter? controlFile = null;
+        StreamWriter? processEventFile = null;
         var timelines = Enumerable.Range(0, _streamCount / 2)
             .Select(_ => new PassiveIec101FailureTimeline(_utcOrigin)).ToArray();
         var giTracker = new PassiveIec101GiTracker(new PassiveGiOptions(
@@ -327,6 +367,9 @@ public sealed class PassiveMonitorSession
             CommonAddressWidth: _options.CommonAddressWidth,
             InformationAddressWidth: _options.InformationAddressWidth));
         var controlIndexer = new PassiveIec101ControlIndexer(
+            _options.LinkAddressWidth, _options.CotWidth,
+            _options.CommonAddressWidth, _options.InformationAddressWidth);
+        var processEventClassifier = new PassiveIec101ProcessEventClassifier(
             _options.LinkAddressWidth, _options.CotWidth,
             _options.CommonAddressWidth, _options.InformationAddressWidth);
         var correlator = new PassiveIec101TransactionCorrelator(new PassiveTransactionOptions(
@@ -360,11 +403,16 @@ public sealed class PassiveMonitorSession
             controlFile = new StreamWriter(_options.RecordFullSession
                 ? new FileStream(Path.Combine(root, "controls.jsonl"), FileMode.CreateNew,
                     FileAccess.Write, FileShare.Read, 65536) : Stream.Null, System.Text.Encoding.UTF8);
+            processEventFile = new StreamWriter(_options.RecordFullSession
+                ? new FileStream(Path.Combine(root, "process-events.jsonl"), FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536) : Stream.Null,
+                System.Text.Encoding.UTF8);
             var bytesSinceFlush = 0L;
             var lastFlush = Stopwatch.GetTimestamp();
             // One writer owns these scratch buffers; reuse them across serial
             // reads to avoid four managed allocations on every read chunk.
             var observed = new List<PassiveObservedFrame>(8);
+            var processCandidates = new List<PassiveProcessEventCandidate>(64);
             var transactions = new List<PassiveTransactionEvent>(8);
             var giEvents = new List<PassiveGiEvent>(4);
             var timelineWindows = new List<PassiveTimelineWindow>(4);
@@ -447,7 +495,46 @@ public sealed class PassiveMonitorSession
                         // The full session index is populated on this single
                         // capture writer BEFORE the lossy WPF frame channel.
                         TryAppendSessionHistory(frame);
-                        _frames.Writer.TryWrite(frame);
+                        // P0-B: authoritative process facts are classified and
+                        // indexed on the complete writer stream, BEFORE any
+                        // 512-frame lossy WPF preview. Never block on the GUI.
+                        processCandidates.Clear();
+                        processEventClassifier.Observe(frame, processCandidates);
+                        foreach (var candidate in processCandidates)
+                        {
+                            Interlocked.Increment(ref _acceptedProcessEvents);
+                            if (!_eventHistoryWriteDisabled && ProcessEventHistory is { } events)
+                            {
+                                try
+                                {
+                                    events.Append(frame, candidate.ObjectIndex,
+                                        candidate.Changed, candidate.HadBaseline);
+                                    Interlocked.Increment(ref _indexedProcessEvents);
+                                }
+                                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                                {
+                                    _eventHistoryWriteDisabled = true;
+                                    Interlocked.Exchange(ref _integrityUncertain, 1);
+                                    _warnings.Enqueue("Process event index stopped: " + ex.Message +
+                                        ". New accepted facts are explicitly counted as unindexed.");
+                                }
+                            }
+                            if (_eventHistoryWriteDisabled)
+                                Interlocked.Increment(ref _unindexedProcessEvents);
+                            if (_options.RecordFullSession)
+                                await processEventFile.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,
+                                    candidate.ObjectIndex, candidate.TypeId,
+                                    candidate.Cot, candidate.CommonAddress, candidate.Ioa,
+                                    candidate.Value, candidate.Quality, candidate.DeviceTime,
+                                    candidate.Negative, candidate.Test, candidate.Changed,
+                                    candidate.HadBaseline,
+                                    frame.DetectedLinkAddressWidth
+                                })).ConfigureAwait(false);
+                        }
+                        if (_frames.Writer.TryWrite(frame))
+                            Interlocked.Increment(ref _framesPublished);
                     }
                     foreach (var entry in transactions)
                     {
@@ -491,6 +578,7 @@ public sealed class PassiveMonitorSession
                         await giFile.FlushAsync().ConfigureAwait(false);
                         await timelineFile.FlushAsync().ConfigureAwait(false);
                         await controlFile.FlushAsync().ConfigureAwait(false);
+                        await processEventFile.FlushAsync().ConfigureAwait(false);
                         bytesSinceFlush = 0;
                         lastFlush = Stopwatch.GetTimestamp();
                     }
@@ -512,7 +600,8 @@ public sealed class PassiveMonitorSession
                         observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
                     })).ConfigureAwait(false);
                 TryAppendSessionHistory(observedTail);
-                _frames.Writer.TryWrite(observedTail);
+                if (_frames.Writer.TryWrite(observedTail))
+                    Interlocked.Increment(ref _framesPublished);
                 var tailEvents = new List<PassiveTransactionEvent>();
                 correlator.Observe(observedTail, tailEvents.Add);
                 // A truncated frame cannot advance GI, but still advances the
@@ -569,6 +658,7 @@ public sealed class PassiveMonitorSession
                 await transactionFile.FlushAsync().ConfigureAwait(false);
                 await giFile.FlushAsync().ConfigureAwait(false);
                 await timelineFile.FlushAsync().ConfigureAwait(false);
+                await processEventFile.FlushAsync().ConfigureAwait(false);
             }
             if (_options.RecordFullSession)
                 for (var i = 0; i < _streamCount; i++)
@@ -591,6 +681,7 @@ public sealed class PassiveMonitorSession
             giFile?.Dispose();
             timelineFile?.Dispose();
             controlFile?.Dispose();
+            processEventFile?.Dispose();
             if (files is null) firstFile?.Dispose();
             if (files is not null)
                 foreach (var file in files)
@@ -623,6 +714,10 @@ public sealed class PassiveMonitorSession
             InformationAddressWidth = _options.InformationAddressWidth,
             FrameGapMilliseconds = _options.FrameGapMilliseconds,
             LinkMode = _options.LinkMode,
+            AcceptedProcessEventObjects = Interlocked.Read(ref _acceptedProcessEvents),
+            IndexedProcessEventObjects = Interlocked.Read(ref _indexedProcessEvents),
+            UnindexedProcessEventObjects = Interlocked.Read(ref _unindexedProcessEvents),
+            PreviewFramesDropped = GetProcessEventProgress().PreviewFramesDropped,
             CircuitNames = _streamCount == 4 ? new[] { "Link A", "Link B" } : new[] { "Link A" },
             Streams = _sources.Select((source, i) => new CapturedStreamSummary(
                 (byte)i, source.PortName, source.PhysicalTransmitter,
@@ -652,6 +747,11 @@ public sealed record PassiveMonitorProgress(
     long LinkBScadaBytes = 0,
     long LinkBRtuBytes = 0,
     int StreamCount = 2);
+
+/// <summary>Source facts are counted independently of GUI preview retention.</summary>
+public sealed record PassiveProcessEventProgress(
+    long AcceptedObjects, long IndexedObjects, long UnindexedObjects,
+    long PreviewFramesDropped, bool TemporaryIndexAvailable);
 
 public sealed record PassiveChunkPreview(
     byte StreamId, long Sequence, DateTime EstimatedUtc, int ByteCount, byte[] FirstBytes);

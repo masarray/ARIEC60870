@@ -25,6 +25,11 @@ public partial class MainWindow
         if (TraceNewerContextMenuItem is not null) TraceNewerContextMenuItem.Visibility = Visibility.Collapsed;
         if (TraceHistoryMenuDivider is not null) TraceHistoryMenuDivider.Visibility = Visibility.Collapsed;
         if (FrameTimelineCaption is not null) FrameTimelineCaption.Text = "Frame timeline";
+        // Close journal file handles before its owning temporary Trace
+        // directory is deleted on next session/window shutdown.
+        var processHistory = _passiveProcessEventHistory;
+        _passiveProcessEventHistory = null;
+        processHistory?.Dispose();
         var history = _passiveFrameHistory;
         _passiveFrameHistory = null;
         if (history is not null)

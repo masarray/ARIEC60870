@@ -161,6 +161,10 @@ public partial class MainWindow
 
     private void UpdateValueAndEventViews(Iec103MasterEvidenceEvent item)
     {
+        // These lifecycle engines already consumed the original frame on
+        // the normal trace path. A writer-owned SOE fact must not re-advance them.
+        if (!_passiveLedgerFactProjection)
+        {
         // Every actual typed TX/RX application command is an event fact, independently
         // of whether a process value changed. No fabricated RTU success on ACTCON.
         var commandCase = _commandCasebook.FindByEvidence(item);
@@ -178,6 +182,7 @@ public partial class MainWindow
         }
         else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
             _giCasesDirty = true;
+        }
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
@@ -186,7 +191,7 @@ public partial class MainWindow
         if (shouldShowValue)
         {
             // Only a point compatible with the configured CA/Type can satisfy GI.
-            if (ioaPoint is not null) MarkGiValueReceived(item);
+            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item);
             // In dual-link mode (or wildcard-CA mapping) an actual physical point
             // has a different key than the seeded SINGLE placeholder. Remove the
             // stale placeholder without merging Link A/B process snapshots.
@@ -205,7 +210,7 @@ public partial class MainWindow
                 }
             }
         }
-        ReportGiCompletenessIfReady(item);
+        if (!_passiveLedgerFactProjection) ReportGiCompletenessIfReady(item);
 
         var fallbackSignal = BuildFallbackSignalName(item);
         var displayValue = !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
@@ -228,7 +233,8 @@ public partial class MainWindow
             previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
         }
 
-        var hasMeaningfulChange = HasKnownStateTransition(previousValue, displayValue);
+        var hasMeaningfulChange = _passiveLedgerFactProjection
+            ? _passiveLedgerChangedAtSource : HasKnownStateTransition(previousValue, displayValue);
         var keepValueHighlight = _valueHighlightExpiryByKey.TryGetValue(key, out var highlightUntil) && highlightUntil > DateTime.UtcNow;
 
         if (shouldShowValue)
@@ -277,10 +283,19 @@ public partial class MainWindow
             }
         }
 
+        // Live passive frame preview is display-only. Its process observations
+        // come through the independent indexed writer ledger, preserving all
+        // accepted source facts even after DropOldest preview rollover.
+        if (_passiveLedgerOwnsProcessEvents && !_passiveLedgerFactProjection &&
+            item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+            item.PollingReason is "PASSIVE-IEC101" or "PASSIVE-POINT")
+            return;
+
         // Event Log is an observation journal, not merely an edge detector:
         // every trusted RX measurement/counter (including cyclic/GI) is retained.
         // Values remains the latest per-point snapshot, raw evidence unchanged.
-        var recordIec10xProcess = Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
+        var recordIec10xProcess = _passiveLedgerFactProjection ||
+            Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
         if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xProcess))
         {
             var isIec10xDigital = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
@@ -309,7 +324,9 @@ public partial class MainWindow
                 NewValue = displayValue,
                 EdgeReason = recordIec10xProcess
                     ? Iec10xObservationIdentity.EventReason(item,
-                        !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
+                        _passiveLedgerFactProjection
+                            ? _passiveLedgerHadBaselineAtSource
+                            : !string.IsNullOrWhiteSpace(NormalizeStateForComparison(previousValue)),
                         hasMeaningfulChange)
                     : string.IsNullOrWhiteSpace(item.EdgeReason) ? (item.Cot ?? string.Empty) : item.EdgeReason,
                 PhysicalSource = item.PhysicalSource,

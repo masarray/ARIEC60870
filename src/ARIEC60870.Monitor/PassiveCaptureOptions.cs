@@ -118,6 +118,10 @@ public sealed record PassiveCaptureManifest
     public int CommonAddressWidth { get; init; } = 2;
     public int InformationAddressWidth { get; init; } = 3;
     public int FrameGapMilliseconds { get; init; } = 900;
+    public long AcceptedProcessEventObjects { get; init; }
+    public long IndexedProcessEventObjects { get; init; }
+    public long UnindexedProcessEventObjects { get; init; }
+    public long PreviewFramesDropped { get; init; }
     public string LinkMode { get; init; } = "Auto";
     public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at serial driver read completion; NOT per-byte wire timing.";
     public string IntegrityPolicy { get; init; } = "No application loss detected does not guarantee zero USB/OS/physical losses.";
