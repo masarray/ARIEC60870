@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Monitor;
 
@@ -28,20 +29,16 @@ public static class PassiveFramePreparation
         {
             var frame = frames[i];
             var raw = frame.RawBytes;
-            var linkWidth = frame.DetectedLinkAddressWidth ?? linkAddressWidth;
-            var asduOffset = 5 + linkWidth;
-            var advertised = frame.Format == "Variable" && raw.Length > 1
-                ? Math.Max(0, raw[1] - 1 - linkWidth) : 0;
-            // A malformed/truncated frame must not cause a range exception.
-            // The UI still receives its original bytes and checksum/length warning.
-            var validSpan = frame.Format == "Variable" &&
-                advertised > 0 && asduOffset >= 0 &&
-                asduOffset <= raw.Length &&
-                advertised <= raw.Length - asduOffset;
-            var asdu = validSpan
-                ? raw.AsSpan(asduOffset, advertised).ToArray() : Array.Empty<byte>();
-            var decoded = frame.ChecksumValid && asdu.Length > 0
-                ? decoder.Decode(asdu) : null;
+            // Reuse the same verified wire envelope as the active Master
+            // and archived decoder; do not duplicate offsets in the Desktop.
+            var verified = frame.ChecksumValid && frame.Format == "Variable" &&
+                Ft12WireLayout.TryParse(raw,
+                    frame.DetectedLinkAddressWidth ?? linkAddressWidth, out var layout) &&
+                layout.Kind == Ft12WireKind.Variable;
+            var asdu = verified && layout.AsduLength > 0
+                ? raw.AsSpan(layout.AsduOffset, layout.AsduLength).ToArray()
+                : Array.Empty<byte>();
+            var decoded = verified && asdu.Length > 0 ? decoder.Decode(asdu) : null;
             result[i] = new Prepared(frame, asdu, decoded, Convert.ToHexString(raw));
         }
         return result;

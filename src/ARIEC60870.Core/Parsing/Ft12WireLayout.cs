@@ -29,7 +29,7 @@ public readonly record struct Ft12WireLayout(
         {
             if (raw.Length != 4 + linkAddressWidth || raw[^1] != 0x16)
                 return false;
-            var sum = raw[1];
+            var sum = (int)raw[1];
             var address = 0;
             for (var i = 0; i < linkAddressWidth; i++)
             {

@@ -49,7 +49,7 @@ public sealed class Ft12Parser
 
         // Both active Master and passive Replay rely on this same verified
         // wire layout. The IEC-103 codec is never applied to IEC-101 ASDUs.
-        if (bytes[0] is 0x10 or 0x68 &&
+        if ((bytes[0] is 0x10 or 0x68) &&
             Ft12WireLayout.TryParse(bytes is byte[] array ? array : bytes.ToArray(),
                 _linkAddressSize, out var trusted))
             return DecodeValidated(bytes, trusted);
