@@ -204,12 +204,13 @@ public sealed class PassiveIec101GiTracker
         type = 0; cause = 0; isNegative = false; ca = 0; originator = 0; qualifier = 0;
         if (!frame.ChecksumValid || frame.Format != "Variable") return false;
         var raw = frame.RawBytes;
-        var start = 5 + _options.LinkAddressWidth;
+        var width = frame.DetectedLinkAddressWidth ?? _options.LinkAddressWidth;
+        var start = 5 + width;
         var asduLength = raw.Length - start - 2;
         var headerLength = 2 + _options.CotWidth + _options.CommonAddressWidth;
         if (raw.Length < start + 2 || raw[0] != 0x68 ||
             raw[1] != raw[2] || raw[3] != 0x68 ||
-            raw[1] != 1 + _options.LinkAddressWidth + asduLength ||
+            raw[1] != 1 + width + asduLength ||
             raw[^1] != 0x16 || asduLength < headerLength) return false;
 
         type = raw[start];

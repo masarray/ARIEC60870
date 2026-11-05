@@ -100,6 +100,51 @@ public sealed class PassiveFt12ScannerTests
         Assert.True(frames[2].ChecksumValid);
     }
 
+
+    [Fact]
+    public void FieldTwoByteLinkWidthIsConfirmedBeforeDecodingSpontaneousEventFrame()
+    {
+        // Field sequence: IEC101 105 (69 00), Setup accidentally has width=1.
+        // A single foreign-width fixed frame must not rewrite ASDU offsets.
+        var scanner = new PassiveFt12Scanner(1);
+        var observed = new List<PassiveFt12Frame>();
+        byte[] status = [0x10, 0x0B, 0x69, 0x00, 0x74, 0x16];
+        byte[] ack = [0x10, 0x00, 0x69, 0x00, 0x69, 0x16];
+        byte[] payload =
+        [
+            0x28, 0x69, 0x00, // secondary user-data control + 2-byte Link Address
+            0x1F, 0x01, 0x03, 0x00, 0x69, 0x00, // Type 31, VSQ 1, spontaneous, CA 105
+            0xF6, 0x03, 0xFF, 0x02, // 3-byte IOA and DP=ON
+            0x2A, 0xAB, 0x04, 0x11, 0x85, 0x0B, 0x1A // CP56 Nov 5 2026
+        ];
+        byte length = (byte)payload.Length;
+        var variable = new byte[] { 0x68, length, length, 0x68 }.Concat(payload)
+            .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xFF), 0x16 })
+            .ToArray();
+        scanner.Feed(status, 0, observed.Add);
+        scanner.Feed(variable, 6, observed.Add);
+        Assert.Null(observed[^1].DetectedLinkAddressWidth);
+        scanner.Feed(ack, 6 + variable.Length, observed.Add);
+        scanner.Feed(variable, 12 + variable.Length, observed.Add);
+        Assert.Equal("LinkWidthMismatch", observed[0].Format);
+        Assert.Equal("LinkWidthMismatch", observed[2].Format);
+        var corrected = observed[^1];
+        Assert.Equal("Variable", corrected.Format);
+        Assert.True(corrected.ChecksumValid);
+        Assert.Equal(2, corrected.DetectedLinkAddressWidth);
+        Assert.Equal(variable, corrected.RawBytes);
+    }
+
+    [Fact]
+    public void CorruptAlternateWidthFixedFrameCannotChangeAsduInterpretation()
+    {
+        var scanner = new PassiveFt12Scanner(1);
+        var frames = new List<PassiveFt12Frame>();
+        scanner.Feed([0x10, 0x0B, 0x69, 0x00, 0x75, 0x16], 0, frames.Add);
+        scanner.Feed([0x10, 0x0B, 0x69, 0x00, 0x74, 0x16], 6, frames.Add);
+        Assert.Single(frames, f => f.DetectedLinkAddressWidth == 2);
+        Assert.DoesNotContain(frames, f => f.Format == "Variable");
+    }
     [Fact]
     public void NoisyInputIsBoundedIntoFramesInsteadOfOneUiRowPerByte()
     {

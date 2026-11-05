@@ -54,6 +54,7 @@ public partial class MainWindow
     private DateTime _passiveFindingWindowEndUtc = DateTime.MinValue;
     private int _passiveFindingWindowCount;
     private int _passiveLinkAddressWidth;
+    private readonly bool[] _passiveAutoLinkWidthReported = new bool[4];
     // Physical stream identity is immutable. Protocol-confirmed primary/secondary
     // direction is a separate property: ports may be selected in either order.
     private readonly PassiveIec101PortRoles _passivePortRoles = new();
@@ -532,6 +533,7 @@ public partial class MainWindow
         _passiveCaWidth = options.CommonAddressWidth;
         _passiveIoaWidth = options.InformationAddressWidth;
         _passiveLinkAddressWidth = options.LinkAddressWidth;
+        Array.Clear(_passiveAutoLinkWidthReported);
         AppendSessionLog($"Passive IEC-101 profile: {options.LinkMode}; Link={options.LinkAddressWidth}, COT={options.CotWidth}, CA={options.CommonAddressWidth}, IOA={options.InformationAddressWidth}; gap={options.FrameGapMilliseconds} ms.");
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
@@ -778,6 +780,13 @@ public partial class MainWindow
             seen.Format == "Variable" ? 4 : -1;
         var control = controlOffset >= 0 && raw.Length > controlOffset ? (byte?)raw[controlOffset] : null;
         var linkWidth = seen.DetectedLinkAddressWidth ?? _passiveLinkAddressWidth;
+        if (!inspectionOnly && seen.StreamId < _passiveAutoLinkWidthReported.Length &&
+            seen.Format == "Variable" && linkWidth != _passiveLinkAddressWidth &&
+            !_passiveAutoLinkWidthReported[seen.StreamId])
+        {
+            _passiveAutoLinkWidthReported[seen.StreamId] = true;
+            AppendSessionLog($"IEC-101 RX{seen.StreamId}: {linkWidth}-byte Link Address confirmed by two valid fixed frames (Setup={_passiveLinkAddressWidth}); subsequent ASDU decoding uses observed width. Check Setup profile.");
+        }
         var address = 0;
         if (control.HasValue)
             for (var i = 0; i < linkWidth; i++) address |= raw[controlOffset + 1 + i] << (8 * i);

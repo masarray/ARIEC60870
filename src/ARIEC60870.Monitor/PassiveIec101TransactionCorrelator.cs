@@ -114,7 +114,7 @@ public sealed class PassiveIec101TransactionCorrelator
         if (frame.EstimatedUtc > _latestUtc) _latestUtc = frame.EstimatedUtc;
         AdvanceTime(_latestUtc, output);
 
-        if (!frame.ChecksumValid || frame.Format is "Partial" or not ("Fixed" or "Variable" or "Single"))
+        if (!frame.ChecksumValid || frame.Format is "Partial" or not ("Fixed" or "LinkWidthMismatch" or "Variable" or "Single"))
         {
             Emit(output, PassiveTransactionKind.InvalidFrame, frame, null, null,
                 "Incomplete or invalid FT1.2 frame; not used to advance transactions.");
@@ -143,19 +143,21 @@ public sealed class PassiveIec101TransactionCorrelator
             return;
         }
 
-        var index = frame.Format == "Fixed" ? 1 : 4;
-        var minLength = (frame.Format == "Fixed" ? 4 : 6) + _options.LinkAddressWidth;
+        var fixedFrame = frame.Format is "Fixed" or "LinkWidthMismatch";
+        var width = frame.DetectedLinkAddressWidth ?? _options.LinkAddressWidth;
+        var index = fixedFrame ? 1 : 4;
+        var minLength = (fixedFrame ? 4 : 6) + width;
         if (raw.Length < minLength)
         {
             Emit(output, PassiveTransactionKind.InvalidFrame, frame, null, null,
-                "Link frame too short for configured address width.");
+                "Link frame too short for observed address width.");
             return;
         }
         var control = raw[index];
         var prm = (control & 0x40) != 0;
         var fc = control & 0x0f;
         var address = 0;
-        for (var i = 0; i < _options.LinkAddressWidth; i++)
+        for (var i = 0; i < width; i++)
             address |= raw[index + i + 1] << (8 * i);
 
         if (prm)

@@ -31,15 +31,14 @@ public sealed class PassiveIec101ControlIndexer
         evidence = null;
         var raw = frame.RawBytes;
         if (!frame.ChecksumValid || frame.Format != "Variable" ||
-            (frame.DetectedLinkAddressWidth.HasValue &&
-                frame.DetectedLinkAddressWidth.Value != _linkWidth) ||
             raw.Length < 8 || raw[0] != 0x68 || raw[3] != 0x68 ||
             raw[1] != raw[2] || raw.Length != raw[1] + 6 ||
             raw[^1] != 0x16)
             return false;
 
-        var asduStart = 5 + _linkWidth;
-        var asduLength = raw[1] - 1 - _linkWidth;
+        var width = frame.DetectedLinkAddressWidth ?? _linkWidth;
+        var asduStart = 5 + width;
+        var asduLength = raw[1] - 1 - width;
         if (asduLength < 3 || asduStart + asduLength > raw.Length - 2)
             return false;
 
@@ -53,13 +52,13 @@ public sealed class PassiveIec101ControlIndexer
         // not a reason to drop a command or negative confirmation.
 
         var address = 0;
-        for (var i = 0; i < _linkWidth; i++)
+        for (var i = 0; i < width; i++)
             address |= raw[5 + i] << (8 * i);
 
         var typed = _decoder.Decode(raw.AsSpan(asduStart, asduLength).ToArray());
         var note = _timeline.Observe(prm ? FrameDirection.MasterToSlave : FrameDirection.SlaveToMaster,
             typed, frame.StreamId < 2 ? "Link A" : "Link B",
-            frame.StreamOffset, trusted: true, linkAddress: _linkWidth == 0 ? null : address);
+            frame.StreamOffset, trusted: true, linkAddress: width == 0 ? null : address);
         if (string.IsNullOrWhiteSpace(note)) return false;
 
         evidence = new PassiveControlEvidence(frame.StreamId, frame.StreamOffset, frame.EstimatedUtc,

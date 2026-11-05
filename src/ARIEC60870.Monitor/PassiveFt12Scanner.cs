@@ -13,6 +13,13 @@ public sealed class PassiveFt12Scanner
     private const int MaxFrameBytes = 261; // 0x68 + L + L + 0x68 + 255 + CS + 0x16
     private readonly byte[] _pending = new byte[MaxFrameBytes + 1];
     private readonly int _addressWidth;
+    // Fixed FT1.2 frames have an unambiguous checksum/length for 0/1/2-byte
+    // link addresses. Require two consistent physical observations before
+    // using an alternate width for variable ASDUs. No extra ASDU parser.
+    private int _confirmedWidth;
+    private int _candidateWidth = -1;
+    private int _candidateAddress = -1;
+    private int _candidateHits;
     private int _count;
     private long _startOffset;
     private long _noiseBytes;
@@ -25,6 +32,7 @@ public sealed class PassiveFt12Scanner
         if (linkAddressWidth is < 0 or > 2)
             throw new ArgumentOutOfRangeException(nameof(linkAddressWidth));
         _addressWidth = linkAddressWidth;
+        _confirmedWidth = linkAddressWidth;
     }
 
     /// <summary>
@@ -82,22 +90,25 @@ public sealed class PassiveFt12Scanner
 
             if (first == 0x10)
             {
-                var expected = 4 + _addressWidth;
+                var expected = 4 + _confirmedWidth;
                 // The selected profile is authoritative for interpretation.
                 // Still retain a structurally valid 0/1/2-octet *alternative*
                 // as a profile-mismatch candidate instead of discarding a
                 // real Link Status/ACK as random serial noise.
                 if (_count >= expected && _pending[expected - 1] == 0x16)
                 {
-                    var valid = FixedChecksum(_addressWidth);
+                    var valid = FixedChecksum(_confirmedWidth);
+                    if (valid) ObserveVerifiedFixedWidth(_confirmedWidth);
                     FlushNoise(emit);
-                    Emit(expected, valid, "Fixed", emit);
+                    Emit(expected, valid,
+                        _confirmedWidth == _addressWidth ? "Fixed" : "LinkWidthMismatch",
+                        emit, _confirmedWidth == _addressWidth ? null : _confirmedWidth);
                     continue;
                 }
                 var mismatchWidth = -1;
                 for (var width = 0; width <= 2; width++)
                 {
-                    if (width == _addressWidth) continue;
+                    if (width == _confirmedWidth) continue;
                     var length = 4 + width;
                     if (_count >= length && _pending[length - 1] == 0x16 &&
                         FixedChecksum(width))
@@ -108,9 +119,11 @@ public sealed class PassiveFt12Scanner
                 }
                 if (mismatchWidth >= 0)
                 {
+                    ObserveVerifiedFixedWidth(mismatchWidth);
                     FlushNoise(emit);
-                    Emit(4 + mismatchWidth, true, "LinkWidthMismatch", emit,
-                        mismatchWidth);
+                    Emit(4 + mismatchWidth, true,
+                        mismatchWidth == _addressWidth ? "Fixed" : "LinkWidthMismatch",
+                        emit, mismatchWidth == _addressWidth ? null : mismatchWidth);
                     continue;
                 }
                 // Wait for a possible 2-octet frame before rejecting a 0/1
@@ -122,7 +135,7 @@ public sealed class PassiveFt12Scanner
 
             if (_count < 4) return;
             if (_pending[1] != _pending[2] || _pending[3] != 0x68 ||
-                _pending[1] < 1 + _addressWidth)
+                _pending[1] < 1 + _confirmedWidth)
             {
                 ShiftOne(emit);
                 continue;
@@ -134,8 +147,34 @@ public sealed class PassiveFt12Scanner
             var calc = 0;
             for (var j = 4; j < 4 + _pending[1]; j++) calc += _pending[j];
             FlushNoise(emit);
-            Emit(size, _pending[size - 2] == (byte)calc, "Variable", emit);
+            Emit(size, _pending[size - 2] == (byte)calc, "Variable", emit,
+                _confirmedWidth == _addressWidth ? null : _confirmedWidth);
         }
+    }
+
+    private void ObserveVerifiedFixedWidth(int width)
+    {
+        if (width == _confirmedWidth)
+        {
+            _candidateWidth = -1;
+            _candidateHits = 0;
+            return;
+        }
+
+        var address = 0;
+        for (var i = 0; i < width; i++) address |= _pending[2 + i] << (8 * i);
+        if (width == _candidateWidth && address == _candidateAddress)
+            _candidateHits++;
+        else
+        {
+            _candidateWidth = width;
+            _candidateAddress = address;
+            _candidateHits = 1;
+        }
+        if (_candidateHits < 2) return;
+        _confirmedWidth = width;
+        _candidateWidth = -1;
+        _candidateHits = 0;
     }
 
     private bool FixedChecksum(int width)
