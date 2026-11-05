@@ -136,7 +136,8 @@ public sealed class Ft12IncrementalFramer
                 // octet interpretation. A short read is not a malformed frame.
                 if (_count < 6 && !_returnMalformedEnd) return;
                 if (_count < expected) return;
-                if (_returnMalformedEnd)
+                if (_returnMalformedEnd &&
+                    HasVerifiedBodyWithDamagedEnd(expected, _confirmedWidth))
                 {
                     FlushNoise(emit);
                     Emit(expected, false, "Malformed", emit);
@@ -157,7 +158,8 @@ public sealed class Ft12IncrementalFramer
             if (_count < size) return;
             if (_pending[size - 1] != 0x16)
             {
-                if (_returnMalformedEnd)
+                if (_returnMalformedEnd &&
+                    HasVerifiedBodyWithDamagedEnd(size, _confirmedWidth))
                 {
                     FlushNoise(emit);
                     Emit(size, false, "Malformed", emit,
@@ -201,6 +203,21 @@ public sealed class Ft12IncrementalFramer
         _confirmedWidth = width;
         _candidateWidth = -1;
         _candidateHits = 0;
+    }
+
+    // A bad end marker alone is useful malformed evidence. But if the
+    // checksum/header ALSO fail, the candidate boundary is untrustworthy:
+    // consuming that many bytes may swallow the beginning of a valid frame.
+    // Verify using Core's existing wire layout with only the final delimiter
+    // substituted; never reimplement checksum arithmetic here.
+    private bool HasVerifiedBodyWithDamagedEnd(int length, int width)
+    {
+        if (_pending[length - 1] is 0x10 or 0x68 or 0xE5 or 0xA2)
+            return false; // could be the next valid start, never consume it
+        Span<byte> candidate = stackalloc byte[MaxFrameBytes];
+        _pending.AsSpan(0, length).CopyTo(candidate);
+        candidate[length - 1] = 0x16;
+        return Ft12WireLayout.TryParse(candidate[..length], width, out _);
     }
 
     private bool FixedChecksum(int width)
