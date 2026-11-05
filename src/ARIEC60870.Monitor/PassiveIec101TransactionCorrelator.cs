@@ -1,6 +1,8 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Core.Parsing;
+
 namespace ARIEC60870.Monitor;
 
 public enum PassiveTransactionKind
@@ -145,20 +147,17 @@ public sealed class PassiveIec101TransactionCorrelator
 
         var fixedFrame = frame.Format is "Fixed" or "LinkWidthMismatch";
         var width = frame.DetectedLinkAddressWidth ?? _options.LinkAddressWidth;
-        var index = fixedFrame ? 1 : 4;
-        var minLength = (fixedFrame ? 4 : 6) + width;
-        if (raw.Length < minLength)
+        if (!Ft12WireLayout.TryParse(raw, width, out var wire) ||
+            wire.Kind != (fixedFrame ? Ft12WireKind.Fixed : Ft12WireKind.Variable))
         {
             Emit(output, PassiveTransactionKind.InvalidFrame, frame, null, null,
-                "Link frame too short for observed address width.");
+                "FT1.2 checksum/length/observed address width did not validate.");
             return;
         }
-        var control = raw[index];
+        var control = wire.Control;
         var prm = (control & 0x40) != 0;
         var fc = control & 0x0f;
-        var address = 0;
-        for (var i = 0; i < width; i++)
-            address |= raw[index + i + 1] << (8 * i);
+        var address = wire.LinkAddress ?? 0;
 
         if (prm)
         {
