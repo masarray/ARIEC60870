@@ -19,6 +19,7 @@ public sealed class PassiveMonitorSession
     private readonly IReadOnlySerialTap[] _taps;
     private readonly PassiveSerialSource[] _sources;
     private readonly int _streamCount;
+    private readonly PassiveIec101ProcessEventClassifier _processEventClassifier;
     // UI-only feed: bounded; loss here never changes raw journal contents.
     private readonly Channel<PassiveChunkPreview> _previews =
         Channel.CreateBounded<PassiveChunkPreview>(new BoundedChannelOptions(256)
@@ -105,6 +106,9 @@ public sealed class PassiveMonitorSession
         _writtenBytes = new long[_streamCount];
         _writtenChunks = new long[_streamCount];
         _rawHashes = Enumerable.Repeat(string.Empty, _streamCount).ToArray();
+        _processEventClassifier = new PassiveIec101ProcessEventClassifier(
+            options.LinkAddressWidth, options.CotWidth,
+            options.CommonAddressWidth, options.InformationAddressWidth);
     }
 
     /// <summary>Starts RX-only monitoring; optional journal is finalized at Stop.</summary>
@@ -140,7 +144,8 @@ public sealed class PassiveMonitorSession
             Interlocked.Read(ref _indexedProcessEvents),
             Interlocked.Read(ref _unindexedProcessEvents),
             Math.Max(0, published - consumed - buffered),
-            ProcessEventHistory is not null && !_eventHistoryWriteDisabled);
+            ProcessEventHistory is not null && !_eventHistoryWriteDisabled,
+            _processEventClassifier.GetCounters());
     }
 
     private bool _traceHistoryWriteDisabled;
@@ -284,6 +289,18 @@ public sealed class PassiveMonitorSession
                 Interlocked.Exchange(ref _integrityUncertain, 1);
                 _warnings.Enqueue(tap.PortName + " reported " + tap.DriverErrorCount + " UART driver error notification(s).");
             }
+            // Writer terminal audit: no accepted source object may vanish
+            // between classification and the canonical temporary fact index.
+            var accounting = _processEventClassifier.GetCounters();
+            if (!accounting.FramesBalance || !accounting.AsdusBalance ||
+                !accounting.ObjectsBalance ||
+                accounting.ObjectsAccepted != Interlocked.Read(ref _acceptedProcessEvents) ||
+                accounting.ObjectsAccepted != Interlocked.Read(ref _indexedProcessEvents) +
+                    Interlocked.Read(ref _unindexedProcessEvents))
+            {
+                Interlocked.Exchange(ref _integrityUncertain, 1);
+                _warnings.Enqueue("Process evidence accounting invariant failed; some observed facts may be missing.");
+            }
             var status = Volatile.Read(ref _fatal) != 0 ? "Incomplete" :
                 Volatile.Read(ref _integrityUncertain) != 0 ? "IntegrityUncertain" :
                 _options.RecordFullSession ? "NoApplicationLossDetected" : "MonitorStopped";
@@ -367,9 +384,6 @@ public sealed class PassiveMonitorSession
             CommonAddressWidth: _options.CommonAddressWidth,
             InformationAddressWidth: _options.InformationAddressWidth));
         var controlIndexer = new PassiveIec101ControlIndexer(
-            _options.LinkAddressWidth, _options.CotWidth,
-            _options.CommonAddressWidth, _options.InformationAddressWidth);
-        var processEventClassifier = new PassiveIec101ProcessEventClassifier(
             _options.LinkAddressWidth, _options.CotWidth,
             _options.CommonAddressWidth, _options.InformationAddressWidth);
         var correlator = new PassiveIec101TransactionCorrelator(new PassiveTransactionOptions(
@@ -499,7 +513,7 @@ public sealed class PassiveMonitorSession
                         // indexed on the complete writer stream, BEFORE any
                         // 512-frame lossy WPF preview. Never block on the GUI.
                         processCandidates.Clear();
-                        processEventClassifier.Observe(frame, processCandidates);
+                        _processEventClassifier.Observe(frame, processCandidates);
                         foreach (var candidate in processCandidates)
                         {
                             Interlocked.Increment(ref _acceptedProcessEvents);
@@ -718,6 +732,7 @@ public sealed class PassiveMonitorSession
             IndexedProcessEventObjects = Interlocked.Read(ref _indexedProcessEvents),
             UnindexedProcessEventObjects = Interlocked.Read(ref _unindexedProcessEvents),
             PreviewFramesDropped = GetProcessEventProgress().PreviewFramesDropped,
+            ProcessDecodeAccounting = _processEventClassifier.GetCounters(),
             CircuitNames = _streamCount == 4 ? new[] { "Link A", "Link B" } : new[] { "Link A" },
             Streams = _sources.Select((source, i) => new CapturedStreamSummary(
                 (byte)i, source.PortName, source.PhysicalTransmitter,
@@ -751,7 +766,8 @@ public sealed record PassiveMonitorProgress(
 /// <summary>Source facts are counted independently of GUI preview retention.</summary>
 public sealed record PassiveProcessEventProgress(
     long AcceptedObjects, long IndexedObjects, long UnindexedObjects,
-    long PreviewFramesDropped, bool TemporaryIndexAvailable);
+    long PreviewFramesDropped, bool TemporaryIndexAvailable,
+    PassiveProcessDecodeCounters? DecodeAccounting = null);
 
 public sealed record PassiveChunkPreview(
     byte StreamId, long Sequence, DateTime EstimatedUtc, int ByteCount, byte[] FirstBytes);

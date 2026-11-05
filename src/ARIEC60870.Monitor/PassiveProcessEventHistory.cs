@@ -91,6 +91,10 @@ public sealed class PassiveProcessEventHistory : IDisposable
             BinaryPrimitives.WriteInt64LittleEndian(header[12..], frame.EstimatedUtc.Ticks);
             BinaryPrimitives.WriteInt32LittleEndian(header[20..], objectIndex);
             BinaryPrimitives.WriteInt32LittleEndian(header[24..], frame.RawBytes.Length);
+            // Header bytes 28..31 were reserved. Temp-only format now stores
+            // CRC32 over identity, flags and complete original frame bytes.
+            BinaryPrimitives.WriteUInt32LittleEndian(header[28..],
+                PassiveJournalFormat.ComputeIndexCrc32(header[..28], frame.RawBytes));
             var position = _data.Position;
             _data.Write(header);
             _data.Write(frame.RawBytes);
@@ -151,6 +155,9 @@ public sealed class PassiveProcessEventHistory : IDisposable
                 throw new InvalidDataException("Process event history record is malformed.");
             var frame = new byte[length];
             raw.ReadExactly(frame);
+            if (BinaryPrimitives.ReadUInt32LittleEndian(header[28..]) !=
+                PassiveJournalFormat.ComputeIndexCrc32(header[..28], frame))
+                throw new InvalidDataException("Process event fact CRC mismatch: original evidence cannot be trusted.");
             facts.Add(new PassiveProcessEventFact(sequence + 1,
                 new PassiveObservedFrame(sid, offset,
                     new DateTime(ticks, DateTimeKind.Utc), "Variable", true,

@@ -666,14 +666,22 @@ public partial class MainWindow
             ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
             : progress.Status == "Monitoring" ? "Live only · no disk recording" : progress.Status;
         var eventProgress = session.GetProcessEventProgress();
-        PassiveIntegrityText.Text += $" · SOE {eventProgress.AcceptedObjects:N0}" +
+        // These are typed process observations, not a claim that all are
+        // physical SOEs or that missing remote FIFO events were transmitted.
+        PassiveIntegrityText.Text += $" · OBS {eventProgress.AcceptedObjects:N0}" +
             $" ({eventProgress.IndexedObjects:N0} indexed)" +
             (eventProgress.UnindexedObjects > 0 ? $" · {eventProgress.UnindexedObjects:N0} unindexed" : "") +
             (eventProgress.PreviewFramesDropped > 0 ? $" · {eventProgress.PreviewFramesDropped:N0} frame previews skipped" : "") +
-            (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "");
+            (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "") +
+            (eventProgress.DecodeAccounting is { } decode && decode.InvalidVariableFrames > 0
+                ? $" · {decode.InvalidVariableFrames:N0} invalid FT1.2" : "") +
+            (eventProgress.DecodeAccounting is { } counted && counted.AsdusRejected > 0
+                ? $" · {counted.AsdusRejected:N0} rejected ASDUs" : "");
         PassiveIntegrityText.Foreground = (Brush)FindResource(
             progress.IntegrityWarning || eventProgress.UnindexedObjects > 0 ||
-            _passiveLedgerReadFailed ? "BadBrush" : "Ink900Brush");
+            _passiveLedgerReadFailed || eventProgress.DecodeAccounting is
+                { InvalidVariableFrames: > 0 } or { AsdusRejected: > 0 }
+                ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
 
