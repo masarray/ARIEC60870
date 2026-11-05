@@ -15,6 +15,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Iec104ApduParser _parser;
+    private readonly Iec104StreamReader _streamReader;
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
@@ -33,6 +34,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _parser = new Iec104ApduParser(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
+        _streamReader = new Iec104StreamReader(transport);
     }
 
     public event EventHandler<Iec103MasterEvidenceEvent>? EvidenceReceived;
@@ -329,9 +331,8 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
     {
-        var reader = new Iec104StreamReader(_transport);
         var sw = Stopwatch.StartNew();
-        var raw = await reader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
+        var raw = await _streamReader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
         sw.Stop();
         if (raw is null || raw.Length == 0)
         {
