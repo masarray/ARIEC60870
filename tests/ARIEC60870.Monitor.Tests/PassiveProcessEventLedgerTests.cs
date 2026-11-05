@@ -61,7 +61,7 @@ public sealed class PassiveProcessEventLedgerTests
             var utc = DateTime.SpecifyKind(new DateTime(2026, 11, 5), DateTimeKind.Utc);
             for (var i = 0; i < 640; i++)
             {
-                var frame = new PassiveObservedFrame(1, i * 59L, utc.AddMilliseconds(i),
+                var frame = new PassiveObservedFrame(1, i * 58L, utc.AddMilliseconds(i),
                     "Variable", true, MakeFrame(i));
                 candidates.Clear();
                 classifier.Observe(frame, candidates);
@@ -80,7 +80,7 @@ public sealed class PassiveProcessEventLedgerTests
             Assert.Equal((byte)1, first[0].Frame.StreamId);
             Assert.Equal(0, first[0].Frame.StreamOffset);
             Assert.Equal(3, first[2].ObjectIndex);
-            Assert.Equal(639 * 59L, last[^1].Frame.StreamOffset);
+            Assert.Equal(639 * 58L, last[^1].Frame.StreamOffset);
             Assert.Equal(4, last[^1].ObjectIndex);
             Assert.All(last, x => Assert.Equal("Variable", x.Frame.Format));
         }
