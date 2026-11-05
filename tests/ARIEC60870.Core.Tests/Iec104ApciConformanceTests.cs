@@ -86,7 +86,7 @@ public sealed class Iec104ApciConformanceTests
         var clock = Stopwatch.StartNew();
         for (var index = 0; index < iterations; index++)
         {
-            var raw = index % 4 switch { 0 => validS, 1 => validU, 2 => invalidS, _ => invalidU };
+            var raw = (index % 4) switch { 0 => validS, 1 => validU, 2 => invalidS, _ => invalidU };
             if (Iec104ApciWireLayout.TryValidate(raw, out _)) observedValid++;
             else observedInvalid++;
         }
