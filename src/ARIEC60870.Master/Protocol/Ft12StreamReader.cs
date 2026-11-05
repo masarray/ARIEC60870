@@ -1,130 +1,85 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Transport;
 
 namespace ARIEC60870.Master.Protocol;
 
+/// <summary>
+/// Active serial byte-transport adapter for the canonical Core FT1.2 framer.
+/// The framing state is per reader/connection, never shared across link A/B.
+/// No TX, polling, FCB or protocol-level application logic is owned here.
+/// </summary>
 public sealed class Ft12StreamReader
 {
     private readonly IByteTransport _transport;
-    private readonly int _linkAddressSize;
-    private readonly byte[] _oneByte = new byte[1];
+    private readonly Ft12IncrementalFramer _framer;
+    private readonly byte[] _byte = new byte[1];
+    private readonly Action<Ft12StreamCandidate> _onCandidate;
+    private byte[]? _frame;
+    private long _receivedBytes;
 
     public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-        _linkAddressSize = Math.Clamp(linkAddressSize, 0, 2);
+        // Master never adopts a different link-address profile implicitly.
+        // A complete malformed-end frame is retained for the existing
+        // secondary response validator and frame-quality diagnostics.
+        _framer = new Ft12IncrementalFramer(linkAddressSize,
+            permitAlternateLinkWidths: false, returnMalformedEnd: true);
+        _onCandidate = candidate =>
+        {
+            // Source noise/invalid headers are not application responses.
+            // Core preserves verified boundary candidates (including checksum
+            // failures); the existing Master validator decides acceptance.
+            if (candidate.Format != "Noise")
+                _frame = candidate.RawBytes;
+        };
     }
 
     public async Task<byte[]?> ReadFrameAsync(int timeoutMs, CancellationToken cancellationToken)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(Math.Max(1, timeoutMs));
-
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(Math.Max(1, timeoutMs));
         try
         {
-            var first = await ReadStartByteAsync(timeout.Token).ConfigureAwait(false);
-            if (first is null)
+            while (true)
             {
-                return null;
-            }
-
-            if (first.Value is 0xE5 or 0xA2)
-            {
-                return new[] { first.Value };
-            }
-
-            if (first.Value == 0x10)
-            {
-                var tail = await ReadExactAsync(3 + _linkAddressSize, timeout.Token).ConfigureAwait(false);
-                return tail is null ? new[] { first.Value } : new[] { first.Value }.Concat(tail).ToArray();
-            }
-
-            if (first.Value == 0x68)
-            {
-                var header = await ReadExactAsync(3, timeout.Token).ConfigureAwait(false);
-                if (header is null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = await _transport.ReadAsync(_byte, deadline.Token).ConfigureAwait(false);
+                if (read > _byte.Length || read < 0)
+                    throw new IOException("Transport returned invalid serial read length.");
+                if (read == 0)
                 {
-                    return new[] { first.Value };
+                    // Preserve the previous transport contract for transient
+                    // empty reads without claiming that a response arrived.
+                    await Task.Delay(1, deadline.Token).ConfigureAwait(false);
+                    continue;
                 }
-
-                var length = header[0];
-                var rest = await ReadExactAsync(length + 2, timeout.Token).ConfigureAwait(false);
-                if (rest is null)
+                _framer.Feed(_byte.AsSpan(0, read), _receivedBytes,
+                    _onCandidate, flushNoiseAtEnd: false);
+                _receivedBytes += read;
+                if (_frame is { } result)
                 {
-                    return new[] { first.Value }.Concat(header).ToArray();
+                    _frame = null;
+                    return result;
                 }
-
-                return new[] { first.Value }.Concat(header).Concat(rest).ToArray();
             }
-
-            return null;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            // An incomplete frame cannot silently become a response during
+            // the next independent Master request on a persistent reader.
+            _framer.ExpireIncomplete();
+            _frame = null;
             return null;
         }
         catch (TimeoutException)
         {
+            _framer.ExpireIncomplete();
+            _frame = null;
             return null;
         }
-    }
-
-    private async Task<byte?> ReadStartByteAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var value = await ReadByteAsync(cancellationToken).ConfigureAwait(false);
-            if (value is null)
-            {
-                return null;
-            }
-
-            if (value.Value is 0xE5 or 0xA2 or 0x10 or 0x68)
-            {
-                return value;
-            }
-
-            // Serial links can contain leftover/noise bytes after converter turnaround,
-            // cable disturbance, or aborted reads. Resync to the next FT1.2 start byte
-            // instead of returning one malformed frame per noise byte.
-        }
-
-        return null;
-    }
-
-    private async Task<byte?> ReadByteAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var read = await _transport.ReadAsync(_oneByte, cancellationToken).ConfigureAwait(false);
-            if (read > 0) return _oneByte[0];
-            // IByteTransport may report a transient empty read; only the
-            // enclosing receive deadline may terminate an in-progress frame.
-            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-        return null;
-    }
-
-    private async Task<byte[]?> ReadExactAsync(int count, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[count];
-        var offset = 0;
-
-        while (offset < count)
-        {
-            var read = await _transport.ReadAsync(buffer.AsMemory(offset, count - offset), cancellationToken).ConfigureAwait(false);
-            if (read <= 0)
-            {
-                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
-
-            offset += read;
-        }
-
-        return buffer;
     }
 }
