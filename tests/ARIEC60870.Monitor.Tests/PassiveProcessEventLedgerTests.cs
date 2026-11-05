@@ -88,7 +88,7 @@ public sealed class PassiveProcessEventLedgerTests
     }
 
     [Fact]
-    public void FullRxSessionCountsAndIndexesAll2560SoesEvenAfter512FramePreviewRollover()
+    public async Task FullRxSessionCountsAndIndexesAll2560SoesEvenAfter512FramePreviewRollover()
     {
         var output = Path.Combine(Path.GetTempPath(),
             "ariec-p0b-" + Guid.NewGuid().ToString("N"));
@@ -103,7 +103,7 @@ public sealed class PassiveProcessEventLedgerTests
         try
         {
             using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(1600));
-            var result = session.RunAsync(stop.Token).GetAwaiter().GetResult();
+            var result = await session.RunAsync(stop.Token);
             Assert.Equal("NoApplicationLossDetected", result.Manifest.Status);
             Assert.Equal(wire.Length, session.GetProgress().RtuBytes);
             var progress = session.GetProcessEventProgress();
