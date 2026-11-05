@@ -115,6 +115,35 @@ public sealed class Ft12IncrementalFramerTests
     }
 
     [Fact]
+    public void CorruptHeaderCannotConsumeFollowingGoodStartAsPhantomMalformedFrame()
+    {
+        var strict = new Ft12IncrementalFramer(1, false, true);
+        byte[] damagedHeader = [0x68, 0x10, 0x11, 0x68, 0x99];
+        var actual = Fixed(1);
+        var observed = new List<Ft12StreamCandidate>();
+        strict.Feed(damagedHeader.Concat(actual).ToArray(), 300, observed.Add);
+        var accepted = Assert.Single(observed.Where(x => x.Format == "Fixed"));
+        Assert.Equal(305, accepted.ByteOffset);
+        Assert.Equal(actual, accepted.RawBytes);
+        Assert.True(accepted.ChecksumValid);
+        Assert.DoesNotContain(observed, x => x.Format == "Malformed");
+    }
+
+    [Fact]
+    public void VariableFrameWithOnlyBrokenEndStillPreservesUntrustedRawEvidence()
+    {
+        var strict = new Ft12IncrementalFramer(1, false, true);
+        var broken = Variable(1, [0x1F, 0x01, 0x03, 0x00, 0x69, 0x00]);
+        broken[^1] = 0x44;
+        var observed = new List<Ft12StreamCandidate>();
+        strict.Feed(broken, 80, observed.Add);
+        var candidate = Assert.Single(observed);
+        Assert.Equal("Malformed", candidate.Format);
+        Assert.False(candidate.ChecksumValid);
+        Assert.Equal(broken, candidate.RawBytes);
+    }
+
+    [Fact]
     public void CompleteInvalidEndCanBeReturnedToMasterAsUntrustedFrame()
     {
         var master = new Ft12IncrementalFramer(1, false, true);
