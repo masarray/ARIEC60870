@@ -22,7 +22,7 @@ public sealed class Ft12IncrementalFramerTests
         var framer = new Ft12IncrementalFramer(width, permitAlternateLinkWidths: false);
         var fixedFrame = Fixed(width);
         var variable = Variable(width, [0x1F, 0x01, 0x03, 0x00, 0x69, 0x00]);
-        var stream = fixedFrame.Concat(variable).Concat([0xE5, 0xA2]).ToArray();
+        var stream = fixedFrame.Concat(variable).Concat(new byte[] { 0xE5, 0xA2 }).ToArray();
         var observed = new List<Ft12StreamCandidate>();
         for (var i = 0; i < stream.Length; i++)
             framer.Feed(stream.AsSpan(i, 1), 700 + i, observed.Add, flushNoiseAtEnd: false);
@@ -108,7 +108,7 @@ public sealed class Ft12IncrementalFramerTests
         var strict = new Ft12IncrementalFramer(1, permitAlternateLinkWidths: false);
         var observed = new List<Ft12StreamCandidate>();
         var alternative = Fixed(2);
-        strict.Feed(alternative.Concat([0xE5]).ToArray(), 0, observed.Add);
+        strict.Feed(alternative.Concat(new byte[] { 0xE5 }).ToArray(), 0, observed.Add);
         Assert.DoesNotContain(observed, x => x.Format == "LinkWidthMismatch");
         Assert.DoesNotContain(observed, x => x.DetectedLinkAddressWidth == 2);
         Assert.Contains(observed, x => x.Format == "Single" && x.RawBytes[0] == 0xE5);
