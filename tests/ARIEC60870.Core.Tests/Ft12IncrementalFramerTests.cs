@@ -122,7 +122,7 @@ public sealed class Ft12IncrementalFramerTests
         var actual = Fixed(1);
         var observed = new List<Ft12StreamCandidate>();
         strict.Feed(damagedHeader.Concat(actual).ToArray(), 300, observed.Add);
-        var accepted = Assert.Single(observed.Where(x => x.Format == "Fixed"));
+        var accepted = Assert.Single(observed, x => x.Format == "Fixed");
         Assert.Equal(305, accepted.ByteOffset);
         Assert.Equal(actual, accepted.RawBytes);
         Assert.True(accepted.ChecksumValid);
