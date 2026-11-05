@@ -65,6 +65,8 @@ public partial class MainWindow
         var status = _passivePortRoles.DescribeAll();
         if (status == _passiveRoleStatus) return;
         _passiveRoleStatus = status;
+        PassiveScadaRoleLabel.Text = "Input 1 · " + _passivePortRoles.KnownDirectionLabel(0);
+        PassiveRtuRoleLabel.Text = "Input 2 · " + _passivePortRoles.KnownDirectionLabel(1);
         // Do not mutate port configuration, underlying COM handles, or journal
         // source IDs. Only the operator description follows proven FT1.2 roles.
         if (_passiveOriginalSubtitle.Length > 0)
@@ -509,6 +511,8 @@ public partial class MainWindow
         _passiveControlTimeline.Reset();
         _passivePortRoles.Reset();
         _passiveRoleStatus = string.Empty;
+        PassiveScadaRoleLabel.Text = "Input 1 · auto detecting";
+        PassiveRtuRoleLabel.Text = "Input 2 · auto detecting";
         _passiveControlNotes.Clear();
         _passiveUndecodableShown = 0;
         _passiveReplayCorrelator = null;

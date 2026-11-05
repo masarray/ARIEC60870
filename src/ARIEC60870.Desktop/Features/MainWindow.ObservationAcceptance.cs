@@ -61,10 +61,59 @@ public partial class MainWindow
             navBorder.Color == (FindResource("AccentBrush") as SolidColorBrush)?.Color)
             throw new InvalidOperationException(
                 "Selected segmented navigation retained the rejected accent border.");
-        // The prior passive GUI + history smoke probes have already exercised
-        // source-qualified navigation; this stage stress-tests the live WPF ring.
+        // Regression for a real field failure: the COM adapter plugged into
+        // "SCADA" receives secondary PRM=0, while the one labeled "RTU"
+        // receives primary PRM=1. In older builds these raw frames appeared
+        // in Trace but ALL Values and Events were silently filtered out.
+        _passivePortRoles.Reset();
+        _passiveRoleStatus = string.Empty;
+        _passiveLinkAddressWidth = 1;
+        _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
+        var reversedAsdu = new byte[]
+        {
+            13, 1, 3, 0, 1, 0, 24, 0, 0, 0, 0, 0xB4, 0x41, 0
+        };
+        var reversedPayload = new byte[] { 0x08, 0x69 }.Concat(reversedAsdu).ToArray();
+        var reversedWire = new byte[] { 0x68, (byte)reversedPayload.Length,
+                (byte)reversedPayload.Length, 0x68 }
+            .Concat(reversedPayload)
+            .Concat(new byte[] { (byte)(reversedPayload.Sum(x => x) & 255), 0x16 })
+            .ToArray();
+        var swappedPhysical = new[]
+        {
+            new PassiveObservedFrame(1, 0, DateTime.UtcNow, "Fixed", true,
+                new byte[] { 0x10, 0x5B, 0x69, 0xC4, 0x16 }),
+            new PassiveObservedFrame(0, 0, DateTime.UtcNow.AddMilliseconds(25),
+                "Variable", true, reversedWire)
+        };
+        // Exercise the PERF-02 prepared route, not a one-off mock decode.
+        var preparedReverse = PassiveFramePreparation.PrepareBatch(
+            swappedPhysical, 1, 2, 2, 3);
+        foreach (var frame in preparedReverse)
+            FeedPassiveFrameToExistingViews(frame.Frame, prepared: frame);
+        FlushUiQueues();
+        ApplyRelayEventFilter();
+        if (!ValueRows.Any(row => row.IoaSortKey == 24) ||
+            !RelayEventRows.Any(row => row.Signal.Contains("24", StringComparison.Ordinal)) ||
+            !_protocolTraceStore.Snapshot().Any(row =>
+                row.Source.PhysicalStreamId == 0 &&
+                row.Source.Direction == FrameDirection.SlaveToMaster &&
+                row.Source.AsduDetails?.TypeId == 13) ||
+            !_protocolTraceStore.Snapshot().Any(row =>
+                row.Source.PhysicalStreamId == 1 &&
+                row.Source.Direction == FrameDirection.MasterToSlave) ||
+            !_passivePortRoles.DescribeAll().Contains("auto-reversed", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Reversed physical COM inputs lost received FLT Values/Events or misclassified TX/RX.");
+        // The actual session starts clean; the acceptance-only frames never
+        // become part of its retained forensic source.
         MainTabControl.SelectedIndex = 1;
         ClearSessionView(clearLog: true);
+        _passivePortRoles.Reset();
+        _passiveRoleStatus = string.Empty;
+        // The prior passive GUI + history smoke probes have already exercised
+        // source-qualified navigation; this stage stress-tests the live WPF ring.
+        
         SetTraceSearchSurface(archive: false);
         TraceQuickFindBox.Clear();
         TraceQuickScopeCombo.SelectedIndex = 1; // All frames for 1,400-frame retention stress
