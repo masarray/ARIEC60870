@@ -47,6 +47,12 @@ public partial class MainWindow
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
+        // The executable acceptance first runs two other GUI smoke probes in
+        // the SAME MainWindow. Simulate the actual new passive Start boundary:
+        // clear their historical fixture frames before testing zero-RX UX.
+        ClearSessionView(clearLog: false);
+        if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
+            throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
         // Field-empty-state acceptance: display wire counters and distinguish
         // silent COM from a WPF rendering failure on the actual Raw Frames view.
         UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
