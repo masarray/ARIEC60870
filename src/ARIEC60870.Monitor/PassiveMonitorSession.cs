@@ -123,6 +123,10 @@ public sealed class PassiveMonitorSession
         _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0,
         _streamCount);
 
+    /// <summary>Number of source-owned FT1.2 candidates (including untrusted noise/partials)
+    /// admitted to the bounded UI feed. This is not a count of verified valid frames.</summary>
+    public long ObservedFrameCandidates => Interlocked.Read(ref _framesPublished);
+
     /// <summary>Temporary full frame index, available while live and after Stop
     /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
     public PassiveSessionTraceHistory? TraceHistory { get; private set; }
@@ -416,10 +420,60 @@ public sealed class PassiveMonitorSession
             var transactions = new List<PassiveTransactionEvent>(8);
             var giEvents = new List<PassiveGiEvent>(4);
             var timelineWindows = new List<PassiveTimelineWindow>(4);
-            await foreach (var chunk in channel.Reader.ReadAllAsync().ConfigureAwait(false))
+            async Task PublishIncompleteAsync(byte sid, PassiveFt12Frame partial, DateTime estimatedUtc)
             {
-                try
+                var seen = new PassiveObservedFrame(sid, partial.ByteOffset, estimatedUtc,
+                    "Partial", false, partial.RawBytes);
+                if (_options.RecordFullSession)
+                    await frameFiles![sid].WriteLineAsync(JsonSerializer.Serialize(new
+                    {
+                        seen.StreamId, seen.StreamOffset, seen.EstimatedUtc,
+                        seen.Format, seen.ChecksumValid, Length = seen.RawBytes.Length
+                    })).ConfigureAwait(false);
+                TryAppendSessionHistory(seen);
+                if (_frames.Writer.TryWrite(seen)) Interlocked.Increment(ref _framesPublished);
+                var tailEvents = new List<PassiveTransactionEvent>();
+                correlator.Observe(seen, tailEvents.Add);
+                giTracker.Observe(seen, _ => { });
+                foreach (var entry in tailEvents)
                 {
+                    if (_options.RecordFullSession)
+                        await transactionFile!.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
+                    _transactionEvents.Writer.TryWrite(entry);
+                }
+            }
+            // An idle UART has no next chunk to trigger ExpireIncomplete().
+            // Check writer-owned pending candidates on a low-frequency timer so a
+            // truncated FT1.2 telegram is visible during Monitoring, not only Stop.
+            // Timer and receive waits are reused; serial readers are never blocked.
+            using var idleTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(200));
+            var nextChunk = channel.Reader.WaitToReadAsync().AsTask();
+            var nextTick = idleTimer.WaitForNextTickAsync().AsTask();
+            while (true)
+            {
+                var ready = await Task.WhenAny(nextChunk, nextTick).ConfigureAwait(false);
+                if (ready == nextTick)
+                {
+                    if (!await nextTick.ConfigureAwait(false)) break;
+                    var nowTicks = Stopwatch.GetTimestamp();
+                    for (byte sid = 0; sid < _streamCount; sid++)
+                    {
+                        if (lastSeenTicks[sid] == 0 ||
+                            Stopwatch.GetElapsedTime(lastSeenTicks[sid], nowTicks) <
+                            TimeSpan.FromMilliseconds(_options.FrameGapMilliseconds)) continue;
+                        var partial = scanners[sid].ExpireIncomplete();
+                        if (partial is not null)
+                            await PublishIncompleteAsync(sid, partial, DateTime.UtcNow).ConfigureAwait(false);
+                    }
+                    nextTick = idleTimer.WaitForNextTickAsync().AsTask();
+                    continue;
+                }
+                if (!await nextChunk.ConfigureAwait(false)) break;
+                nextChunk = channel.Reader.WaitToReadAsync().AsTask();
+                while (channel.Reader.TryRead(out var chunk))
+                {
+                    try
+                    {
                     if (_options.RecordFullSession)
                         await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
                     if (_options.RecordFullSession)
@@ -583,7 +637,8 @@ public sealed class PassiveMonitorSession
                         lastFlush = Stopwatch.GetTimestamp();
                     }
                 }
-                finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
+                    finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
+                }
             }
             // Preserve truncated tail candidates as explicit partial-frame observations
             // at EOF rather than silently suppressing them.
@@ -591,27 +646,7 @@ public sealed class PassiveMonitorSession
             {
                 var partial = scanners[sid].ExpireIncomplete();
                 if (partial is null) continue;
-                var observedTail = new PassiveObservedFrame(sid, partial.ByteOffset,
-                    DateTime.UtcNow, "Partial", false, partial.RawBytes);
-                if (_options.RecordFullSession)
-                    await frameFiles[sid].WriteLineAsync(JsonSerializer.Serialize(new
-                    {
-                        observedTail.StreamId, observedTail.StreamOffset, observedTail.EstimatedUtc,
-                        observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
-                    })).ConfigureAwait(false);
-                TryAppendSessionHistory(observedTail);
-                if (_frames.Writer.TryWrite(observedTail))
-                    Interlocked.Increment(ref _framesPublished);
-                var tailEvents = new List<PassiveTransactionEvent>();
-                correlator.Observe(observedTail, tailEvents.Add);
-                // A truncated frame cannot advance GI, but still advances the
-                // original per-source offset for the deterministic replay path.
-                giTracker.Observe(observedTail, _ => { });
-                foreach (var entry in tailEvents)
-                {
-                    await transactionFile.WriteLineAsync(JsonSerializer.Serialize(entry)).ConfigureAwait(false);
-                    _transactionEvents.Writer.TryWrite(entry);
-                }
+                await PublishIncompleteAsync(sid, partial, DateTime.UtcNow).ConfigureAwait(false);
             }
             var finalGi = new List<PassiveGiEvent>();
             giTracker.AdvanceTime(DateTime.UtcNow, finalGi.Add);
