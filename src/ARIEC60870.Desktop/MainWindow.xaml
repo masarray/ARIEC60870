@@ -2465,6 +2465,18 @@
                             </ComboBox>
 
                             <StackPanel x:Name="SerialConnectionPanel">
+                                <StackPanel x:Name="PassiveCaptureSourcePanel" Visibility="Collapsed" Margin="0,0,0,12">
+                                    <TextBlock Text="CAPTURE SOURCE" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                    <ComboBox x:Name="PassiveSourceComboBox" SelectedIndex="0"
+                                              SelectionChanged="PassiveSourceComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Physical RX-only"/>
+                                        <ComboBoxItem Content="Virtual Inline (VSPE)"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="PassiveVirtualHelpText" Visibility="Collapsed" Margin="0,7,0,0"
+                                               TextWrapping="Wrap" FontSize="10.5"
+                                               Foreground="{StaticResource Ink600Brush}"
+                                               Text="Active lab relay: VSPE COM11 ↔ COM12 and COM13 ↔ COM14. Master opens COM11, ARIEC opens COM12/COM13, Slave opens COM14. Forwarding is active, NOT an electrical RX-only tap."/>
+                                </StackPanel>
                                 <TextBlock x:Name="SerialConnectionTitleText" Text="SERIAL CONNECTION" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
@@ -2472,7 +2484,7 @@
                                     <Button Grid.Column="2" Content="Refresh" Style="{StaticResource SecondaryButton}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                                    <TextBlock Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
                                     <ComboBox x:Name="PassiveRtuPortComboBox" ToolTip="Listen to Link A RTU TX using a dedicated receive-only input."/>
                                     <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Content="Also monitor redundant Link B (4 RX ports)"
                                               Margin="0,12,0,6" Checked="PassiveLinkBSelectionChanged" Unchecked="PassiveLinkBSelectionChanged"
