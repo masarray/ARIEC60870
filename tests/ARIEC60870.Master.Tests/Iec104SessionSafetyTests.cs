@@ -105,7 +105,7 @@ public sealed class Iec104SessionSafetyTests
         Assert.True(result.CompletedNormally, result.CompletionReason);
         Assert.Contains(result.Findings, f => f.Id == "IEC104-NR-ACK-INVALID");
         Assert.Equal(2, result.Counters.RejectedFrames); // invalid S and I N(R)
-        Assert.Equal(1, result.Counters.AckResponses); // STARTDT con only
+        Assert.Equal(2, result.Counters.AckResponses); // STARTDT and first TESTFR confirmations
         Assert.Equal(1, result.Counters.UserDataResponses); // valid I only
 
         var rejected = Assert.Single(result.Events, e =>
@@ -159,6 +159,8 @@ public sealed class Iec104SessionSafetyTests
             }
             else if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x01)
                 SFrameWrites++;
+            else if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x43)
+                Push(Iec104FrameBuilder.TestFrConfirmation());
             return ValueTask.CompletedTask;
         }
 
