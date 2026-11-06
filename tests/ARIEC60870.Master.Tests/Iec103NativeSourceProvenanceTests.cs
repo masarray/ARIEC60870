@@ -19,8 +19,8 @@ public sealed class Iec103NativeSourceProvenanceTests
         var asdu = new byte[]
             { 0x01, 0x01, 0x01, 0x01, 0xC0, 0x24, 0x02, 0x39, 0x30, 0x22, 0x0E, 0x00 };
         var result = await ReceiveOneIec103AsduAsync(asdu);
-        var original = Assert.Single(result.Events.Where(e =>
-            e.Direction == FrameDirection.SlaveToMaster && e.Frame?.Asdu is not null));
+        var original = Assert.Single(result.Events, e =>
+            e.Direction == FrameDirection.SlaveToMaster && e.Frame?.Asdu is not null);
         Assert.True(original.IsRelayValue);
         Assert.True(original.IsRelayEdgeEvent);
         var value = Assert.Single(result.ValuePoints);
@@ -43,8 +43,8 @@ public sealed class Iec103NativeSourceProvenanceTests
         // Type 1 DPI and CP32Time2a. A valid link checksum cannot fix it.
         var result = await ReceiveOneIec103AsduAsync(
             [0x01, 0x01, 0x01, 0x01, 0xC0, 0x24]);
-        var received = Assert.Single(result.Events.Where(e =>
-            e.Direction == FrameDirection.SlaveToMaster && e.Frame?.Asdu is not null));
+        var received = Assert.Single(result.Events, e =>
+            e.Direction == FrameDirection.SlaveToMaster && e.Frame?.Asdu is not null);
         Assert.True(received.Frame!.IsChecksumValid);
         Assert.NotEqual(DecodeStatus.Ok, received.Frame.Asdu!.Status);
         Assert.False(received.IsRelayValue);
