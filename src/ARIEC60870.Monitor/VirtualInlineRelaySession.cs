@@ -108,6 +108,17 @@ public sealed record VirtualInlineRelayProgress(
     VirtualInlineDirectionProgress SlaveToMaster);
 
 /// <summary>
+/// Read-only source accounting exported into the canonical Monitor terminal audit.
+/// Unlike physical RX taps, a relay owns a bounded ingress tee whose delivery
+/// must be reconciled before calling an observed session complete.
+/// </summary>
+public interface IVirtualInlineIngressAccounting
+{
+    VirtualInlineDirectionProgress GetIngressAccounting();
+    string? RelayFault { get; }
+}
+
+/// <summary>
 /// Byte-transparent, two-pump virtual inline relay. The only connection to the existing
 /// IEC-101 Monitor is an observation-only read adapter. No FT1.2 framing, IEC command,
 /// polling or GUI work occurs on either forwarding worker.
@@ -351,16 +362,26 @@ public sealed class VirtualInlineRelaySession : IDisposable
         Volatile.Write(ref _status, Volatile.Read(ref _fault) is null ? "Stopped" : "Faulted");
     }
 
+    private void AwaitQuiescence()
+    {
+        try
+        {
+            if (_pumps.Length != 0 && !Task.WhenAll(_pumps).Wait(TimeSpan.FromSeconds(3)))
+                Interlocked.CompareExchange(ref _fault,
+                    "A serial driver worker did not stop within the bounded shutdown interval.", null);
+        }
+        catch (AggregateException ex)
+        {
+            Interlocked.CompareExchange(ref _fault,
+                "Relay worker failed during shutdown: " + ex.GetBaseException().Message, null);
+        }
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Stop();
-        try
-        {
-            if (_pumps.Length != 0)
-                Task.WhenAll(_pumps).Wait(TimeSpan.FromSeconds(3));
-        }
-        catch (AggregateException) { /* pump exceptions are recorded by Fail */ }
+        AwaitQuiescence();
         // A driver that refuses to unblock may still own its worker.
         // Do not return pooled buffers while such a worker could publish them.
         if (_pumps.All(task => task.IsCompleted))
@@ -380,7 +401,7 @@ public sealed class VirtualInlineRelaySession : IDisposable
         }
     }
 
-    private sealed class VirtualIngressTap : IReadOnlySerialTap
+    private sealed class VirtualIngressTap : IReadOnlySerialTap, IVirtualInlineIngressAccounting
     {
         private readonly VirtualInlineRelaySession _owner;
         private readonly int _index;
@@ -395,10 +416,16 @@ public sealed class VirtualInlineRelaySession : IDisposable
 
         public string PortName => _owner._ports[_index].PortName;
         public long DriverErrorCount => _owner._ports[_index].DriverErrorCount;
+        public VirtualInlineDirectionProgress GetIngressAccounting() => _owner.Snapshot(_index);
+        public string? RelayFault => Volatile.Read(ref _owner._fault);
         public void Open() => _owner.OpenTap(_index);
         public int Read(byte[] buffer, int offset, int count) =>
             _owner.ReadObserved(_index, buffer, offset, count, this);
-        public void Close() => _owner.Stop();
+        public void Close()
+        {
+            _owner.Stop();
+            _owner.AwaitQuiescence();
+        }
         public void Dispose() => Close();
     }
 }
