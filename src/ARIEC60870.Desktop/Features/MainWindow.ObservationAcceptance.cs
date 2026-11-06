@@ -61,6 +61,18 @@ public partial class MainWindow
             !TracePassiveEmptyTitleText.Text.Contains("No UART bytes", StringComparison.Ordinal) ||
             !TracePassiveEmptyDetailText.Text.Contains("COM4", StringComparison.Ordinal))
             throw new InvalidOperationException("Silent passive capture has no visible serial diagnosis.");
+        // Direct UART samples must be displayed without a completed frame.
+        _passiveRawRows.Add(new PassiveRxRow("16:31:01.200", "A RX0",
+            1, 2, "680C"));
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 2, 0, 1, 0, 0, 0, false,
+            IncompleteFrameBytes: 2), "COM4", "COM3", "");
+        if (TracePassiveRawChunkGrid.Visibility != Visibility.Visible ||
+            TracePassiveRawChunkGrid.Items.Count != 1 ||
+            !((PassiveRxRow)TracePassiveRawChunkGrid.Items[0]).Hex.Equals("680C", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Actual UART RX bytes were hidden because no FT1.2 frame had completed.");
+        _passiveRawRows.Clear();
         TracePassiveEmptyState.Visibility = Visibility.Collapsed;
 
         // A forensic line monitor must NEVER start in a view that silently

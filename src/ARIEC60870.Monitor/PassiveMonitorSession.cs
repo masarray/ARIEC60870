@@ -441,9 +441,55 @@ public sealed class PassiveMonitorSession
             var transactions = new List<PassiveTransactionEvent>(8);
             var giEvents = new List<PassiveGiEvent>(4);
             var timelineWindows = new List<PassiveTimelineWindow>(4);
-            await foreach (var chunk in channel.Reader.ReadAllAsync().ConfigureAwait(false))
+            // The previous await-foreach never ran when the UART stopped
+            // delivering chunks. A received 0x68 partial then remained invisible
+            // until the next chunk or Stop. One writer-owned idle clock expires
+            // partials without blocking COM readers or manufacturing valid ASDUs.
+            using var idleTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(200));
+            var nextData = channel.Reader.WaitToReadAsync().AsTask();
+            var nextIdle = idleTimer.WaitForNextTickAsync().AsTask();
+            while (true)
             {
-                try
+                var ready = nextData.IsCompleted ? nextData
+                    : await Task.WhenAny(nextData, nextIdle).ConfigureAwait(false);
+                if (ready == nextIdle)
+                {
+                    if (!await nextIdle.ConfigureAwait(false)) break;
+                    var now = Stopwatch.GetTimestamp();
+                    for (byte sid = 0; sid < _streamCount; sid++)
+                    {
+                        if (lastSeenTicks[sid] == 0 ||
+                            Stopwatch.GetElapsedTime(lastSeenTicks[sid], now) <
+                                TimeSpan.FromMilliseconds(_options.FrameGapMilliseconds))
+                            continue;
+                        var partial = scanners[sid].ExpireIncomplete();
+                        if (partial is null) continue;
+                        var seen = new PassiveObservedFrame(sid, partial.ByteOffset,
+                            DateTime.UtcNow, "Partial", false, partial.RawBytes);
+                        if (_options.RecordFullSession)
+                            await frameFiles[sid].WriteLineAsync(JsonSerializer.Serialize(new
+                            {
+                                seen.StreamId, seen.StreamOffset, seen.EstimatedUtc,
+                                seen.Format, seen.ChecksumValid, Length = seen.RawBytes.Length
+                            })).ConfigureAwait(false);
+                        TryAppendSessionHistory(seen);
+                        Interlocked.Increment(ref _untrustedFrameCandidates);
+                        if (_frames.Writer.TryWrite(seen))
+                            Interlocked.Increment(ref _framesPublished);
+                        // A partial cannot advance decoded values or GI, but
+                        // it must still be navigable with its exact source bytes.
+                    }
+                    Interlocked.Exchange(ref _incompleteFrameBytes,
+                        scanners.Sum(scanner => scanner.IncompleteBytes));
+                    nextIdle = idleTimer.WaitForNextTickAsync().AsTask();
+                    continue;
+                }
+                if (!await nextData.ConfigureAwait(false)) break;
+                // Consume the ready chunks before registering another wait:
+                // reusing a completed WaitToReadAsync(true) spins forever.
+                while (channel.Reader.TryRead(out var chunk))
+                {
+                    try
                 {
                     if (_options.RecordFullSession)
                         await files[chunk.StreamId].WriteAsync(chunk.Buffer.AsMemory(0, chunk.Length)).ConfigureAwait(false);
@@ -619,7 +665,9 @@ public sealed class PassiveMonitorSession
                         lastFlush = Stopwatch.GetTimestamp();
                     }
                 }
-                finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
+                    finally { ArrayPool<byte>.Shared.Return(chunk.Buffer); }
+                }
+                nextData = channel.Reader.WaitToReadAsync().AsTask();
             }
             // Preserve truncated tail candidates as explicit partial-frame observations
             // at EOF rather than silently suppressing them.

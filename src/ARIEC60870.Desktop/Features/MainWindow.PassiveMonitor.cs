@@ -570,6 +570,9 @@ public partial class MainWindow
         SetRunUiState(isRunning: true);
         MainTabControl.SelectedIndex = PassiveTraceTabIndex;
         UpdateSegmentedNav(false);
+        // Never inherit a hidden focus/search filter from the prior capture.
+        // Every fresh physical monitor starts on all raw TX/RX.
+        ClearTraceQuickFindForNavigation();
         SessionSubtitleText.Text = options.StreamCount == 4
             ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
             : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
@@ -675,6 +678,10 @@ public partial class MainWindow
             FrameTraceRows.Count, _pendingEvidence.Count);
         TracePassiveEmptyTitleText.Text = result.Title;
         TracePassiveEmptyDetailText.Text = result.Detail;
+        // These are real UART read chunks, NOT synthetic FT1.2 frames.
+        // A failed/stalled decoder must not leave an RX-active workstation blank.
+        TracePassiveRawChunkGrid.Visibility = _passiveRawRows.Count == 0
+            ? Visibility.Collapsed : Visibility.Visible;
         TracePassiveEmptyState.Visibility = Visibility.Visible;
         // One reportable diagnostic per silent session, not per UI timer tick.
         // Start status alone must not masquerade as verified wire acquisition.
@@ -850,6 +857,13 @@ public partial class MainWindow
         }
         if (count > 0 && PassiveRawGrid.SelectedItem is null)
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
+        // Counters and raw-byte samples are published after this tick's reads.
+        // Update the zero-frame viewport once more with committed source truth.
+        if (count > 0)
+            UpdatePassiveTraceEmptyState(session.GetProgress(),
+                session.SourcePortNames[0], session.SourcePortNames[1],
+                progress.StreamCount == 4
+                    ? $"{session.SourcePortNames[2]}/{session.SourcePortNames[3]}" : "");
         }
         finally { _passiveUiRefreshInFlight = false; }
     }

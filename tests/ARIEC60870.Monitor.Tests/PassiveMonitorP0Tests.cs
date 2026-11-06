@@ -122,6 +122,78 @@ public sealed class PassiveMonitorP0Tests
         Assert.Contains("pending UI=2", pending.Detail);
     }
 
+
+    [Fact]
+    public async Task Both1200BaudRxPortsProduceVerbatimValidFramesBeforeStop()
+    {
+        // Production ReadLoop -> pooled source journal writer -> Core FT1.2
+        // scanner -> live UI presentation feed, including 1-byte UART reads.
+        byte[] scada = [0x10, 0x5B, 0x69, 0xC4, 0x16];
+        byte[] rtu = [0x10, 0x29, 0x69, 0x92, 0x16];
+        var settings = Options(string.Empty) with
+        {
+            RecordFullSession = false,
+            ScadaTx = new PassiveSerialSource("COM7", "SCADA TX", 1200, Parity.Even),
+            RtuTx = new PassiveSerialSource("COM8", "RTU TX", 1200, Parity.Even)
+        };
+        var session = new PassiveMonitorSession(settings,
+            new ReplayTap("COM7", scada, 1),
+            new ReplayTap("COM8", rtu, 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var running = session.RunAsync(stop.Token);
+        var received = new List<PassiveObservedFrame>();
+        for (var i = 0; i < 120 && received.Count < 2 && !running.IsCompleted; i++)
+        {
+            while (session.TryReadFrame(out var frame)) received.Add(frame);
+            if (received.Count < 2) await Task.Delay(10);
+        }
+        var progressBeforeStop = session.GetProgress();
+        stop.Cancel();
+        await running;
+        Assert.Contains(received, f => f.StreamId == 0 && f.ChecksumValid &&
+            f.Format == "Fixed" && f.RawBytes.SequenceEqual(scada));
+        Assert.Contains(received, f => f.StreamId == 1 && f.ChecksumValid &&
+            f.Format == "Fixed" && f.RawBytes.SequenceEqual(rtu));
+        Assert.Equal(scada.Length, progressBeforeStop.ScadaBytes);
+        Assert.Equal(rtu.Length, progressBeforeStop.RtuBytes);
+        Assert.Equal(2, progressBeforeStop.ValidFt12Frames);
+    }
+
+    [Fact]
+    public async Task Incomplete1200BaudRxBytesAreVisibleWhileRunningAndBeforeStop()
+    {
+        var settings = Options(string.Empty) with
+        {
+            RecordFullSession = false,
+            FrameGapMilliseconds = 100,
+            ScadaTx = new PassiveSerialSource("COM7", "SCADA TX", 1200, Parity.Even),
+            RtuTx = new PassiveSerialSource("COM8", "RTU TX", 1200, Parity.Even)
+        };
+        var raw = new byte[] { 0x68, 0x0C };
+        var session = new PassiveMonitorSession(settings,
+            new ReplayTap("COM7", raw, 1),
+            new ReplayTap("COM8", Array.Empty<byte>(), 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var running = session.RunAsync(stop.Token);
+        var samples = new List<PassiveChunkPreview>();
+        PassiveObservedFrame? partial = null;
+        for (var i = 0; i < 120 && partial is null && !running.IsCompleted; i++)
+        {
+            while (session.TryReadPreview(out var sample)) samples.Add(sample);
+            while (session.TryReadFrame(out var frame)) partial = frame;
+            if (partial is null) await Task.Delay(10);
+        }
+        Assert.False(running.IsCompleted, "Idle partial evidence must surface before Stop.");
+        Assert.NotNull(partial);
+        Assert.Equal("Partial", partial.Format);
+        Assert.False(partial.ChecksumValid);
+        Assert.Equal(raw, partial.RawBytes);
+        Assert.Contains(samples, x => x.StreamId == 0 && x.FirstBytes.Length > 0);
+        stop.Cancel();
+        await running;
+        Assert.Equal(raw.Length, session.GetProgress().ScadaBytes);
+    }
+
     [Fact]
     public void LiveModeDoesNotRequireOrValidateAnArchiveFolder()
     {
