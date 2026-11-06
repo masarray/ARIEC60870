@@ -176,8 +176,14 @@ public sealed class VirtualInlineRelaySession : IDisposable
     /// </summary>
     public IReadOnlySerialTap[] CreateMonitorTaps() => [_taps[0], _taps[1]];
 
-    public VirtualInlineRelayProgress GetProgress() => new(
-        Volatile.Read(ref _status), Volatile.Read(ref _fault), Snapshot(0), Snapshot(1));
+    public VirtualInlineRelayProgress GetProgress()
+    {
+        var fault = Volatile.Read(ref _fault);
+        var status = Volatile.Read(ref _stopped) != 0
+            ? (fault is null ? "Stopped" : "Faulted")
+            : Volatile.Read(ref _status);
+        return new(status, fault, Snapshot(0), Snapshot(1));
+    }
 
     private VirtualInlineDirectionProgress Snapshot(int index) => new(
         _ports[index].PortName, _ports[1 - index].PortName,
