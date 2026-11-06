@@ -28,8 +28,15 @@ public static class Iec10xObservationIdentity
         var index = item.InformationObjectDetails?.Index ?? 0;
         return item.PhysicalStreamId is int stream && item.RawStreamOffset is long offset
             ? $"{(int)item.ProtocolMode}|stream:{stream}|byte:{offset}|object:{index}"
-            : $"{(int)item.ProtocolMode}|seq:{item.PhysicalFrameSequenceNumber ?? item.SequenceNumber}|object:{index}";
+            : ActiveFrameReference(item.ProtocolMode,
+                item.PhysicalFrameSequenceNumber ?? item.SequenceNumber, index);
     }
+
+    /// <summary>One canonical active physical-frame reference for Master evidence,
+    /// per-point Values and native event facts; no display-name or IOA fallback.</summary>
+    public static string ActiveFrameReference(Iec60870ProtocolMode protocol, long frameSequence,
+        int objectIndex = 0) =>
+        $"{(int)protocol}|seq:{frameSequence}|object:{objectIndex}";
 
     /// <summary>Parse an exact passive physical-frame identity. The wildcard
     /// is a legal frame-level SELECT reference, never a wildcard for stream
