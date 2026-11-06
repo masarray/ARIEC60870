@@ -857,6 +857,7 @@ public sealed class PassiveMonitorSession
         {
             SessionId = id,
             Status = status,
+            CaptureSource = _options.CaptureSource,
             Warnings = _warnings.ToArray(),
             StartUtc = started,
             EndUtc = ended,
@@ -868,6 +869,19 @@ public sealed class PassiveMonitorSession
             InformationAddressWidth = _options.InformationAddressWidth,
             FrameGapMilliseconds = _options.FrameGapMilliseconds,
             LinkMode = _options.LinkMode,
+            PhysicalSafetyLimitations = _options.CaptureSource == "Virtual Inline (VSPE)"
+                ? new[]
+                {
+                    "ACTIVE byte relay with two virtual COM ports; NOT a passive electrical tap.",
+                    "Driver write completion does not prove external Master/Slave receipt.",
+                    "VSPE does not prove physical UART timing, modem-line transparency or field connectivity."
+                }
+                : new[]
+                {
+                    "Two RX COMs observe one full-duplex link; four RX COMs observe two separately tapped links.",
+                    "Monitor TXD/RTS/DTR must be physically disconnected from plant; software flags cannot guarantee isolation.",
+                    "Use an approved isolated/high-impedance tap and preserve original handshaking."
+                },
             AcceptedProcessEventObjects = Interlocked.Read(ref _acceptedProcessEvents),
             IndexedProcessEventObjects = Interlocked.Read(ref _indexedProcessEvents),
             UnindexedProcessEventObjects = Interlocked.Read(ref _unindexedProcessEvents),
