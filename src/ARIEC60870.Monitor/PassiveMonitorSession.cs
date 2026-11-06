@@ -273,6 +273,14 @@ public sealed class PassiveMonitorSession
             WriteManifest(root, Snapshot(id, "Recording", startUtc, startUtc, origin));
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // The active virtual transport must STOP forwarding as soon as its owning
+        // Monitor is cancelled or a virtual read source faults. Passive physical
+        // receivers deliberately keep their independent failure policy.
+        using var virtualRelayStop = _options.CaptureSource == "Virtual Inline (VSPE)" &&
+            _taps[0] is IVirtualInlineIngressAccounting virtualIngress
+                ? stop.Token.Register(static source =>
+                    ((IVirtualInlineIngressAccounting)source!).StopRelay(), virtualIngress)
+                : default;
         var channel = Channel.CreateBounded<OwnedCaptureRecord>(new BoundedChannelOptions(_options.ChannelCapacity)
         {
             SingleReader = true,
@@ -447,8 +455,11 @@ public sealed class PassiveMonitorSession
                 Interlocked.Exchange(ref _integrityUncertain, 1);
                 _warnings.Enqueue("RX source " + tap.PortName + " failed: " +
                     ex.GetType().Name + ": " + ex.Message +
-                    ". This source stopped; remaining RX sources continue. " +
-                    "Capture completeness is uncertain.");
+                    (_options.CaptureSource == "Virtual Inline (VSPE)"
+                        ? ". Duplex relay and both Monitor directions are stopping; capture incomplete."
+                        : ". This source stopped; remaining RX sources continue. Capture completeness is uncertain."));
+                if (_options.CaptureSource == "Virtual Inline (VSPE)")
+                    stop.Cancel(); // Linked cancellation closes BOTH active virtual endpoints.
                 break;
             }
             finally
