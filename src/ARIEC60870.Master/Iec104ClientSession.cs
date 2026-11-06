@@ -12,6 +12,9 @@ namespace ARIEC60870.Master;
 
 public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolControlCommandSession
 {
+    // Receive ownership includes APCI acceptance, not merely decoded wire bytes.
+    // A rejected I-frame is evidence but cannot terminate GI or advance process state.
+    private readonly record struct ReceiveOutcome(Iec104ApduDecode? Apdu, bool AcceptedI);
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Iec104ApduParser _parser;
@@ -220,8 +223,9 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         {
             while (!handshakeDeadline.IsCancellationRequested)
             {
-                received = await ReceiveOneAsync("U-format", reason,
+                var outcome = await ReceiveOneAsync("U-format", reason,
                     handshakeDeadline.Token, _settings.Iec104T1AckTimeoutMs).ConfigureAwait(false);
+                received = outcome.Apdu;
                 if (received is null) break;
                 if (received.IsValid && received.Format == "U" && received.UFormatName == expected)
                 {
@@ -281,10 +285,12 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         while (!cancellationToken.IsCancellationRequested && received < maxFrames)
         {
             var before = _counters.RxFrames;
-            var apdu = await ReceiveOneAsync("I/S/U-format", reason, cancellationToken).ConfigureAwait(false);
-            if (apdu is null || _counters.RxFrames == before) break;
+            var outcome = await ReceiveOneAsync("I/S/U-format", reason, cancellationToken).ConfigureAwait(false);
+            if (outcome.Apdu is null || _counters.RxFrames == before) break;
             received++;
-            if (apdu.Asdu?.CauseOfTransmission == 10) break;
+            // A rejected APDU may carry COT10 in its raw bytes. It is not a GI
+            // completion and cannot abbreviate the remaining receive window.
+            if (outcome.AcceptedI && outcome.Apdu.Asdu?.CauseOfTransmission == 10) break;
         }
     }
 
@@ -329,7 +335,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Iec104ApduDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
+    private async Task<ReceiveOutcome> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken, int? readTimeoutMs = null)
     {
         var sw = Stopwatch.StartNew();
         var raw = await _streamReader.ReadFrameAsync(readTimeoutMs ?? _settings.ResponseTimeoutMs, cancellationToken).ConfigureAwait(false);
@@ -338,7 +344,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         {
             _counters.Timeouts++;
             SetState(Iec103MasterState.TimeoutRecovery, "IEC-104 receive timeout", $"No APDU within {_settings.ResponseTimeoutMs} ms during {reason}.", category: "Info", dataClass: dataClass);
-            return null;
+            return new ReceiveOutcome(null, false);
         }
 
         _counters.RxFrames++;
@@ -348,14 +354,14 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         var decoded = _parser.Decode(raw);
         AuditAsduForensicFindings("IEC104", decoded.Asdu);
         if (!decoded.IsValid) _counters.MalformedFrames++;
-        var acceptedI = decoded.IsValid && decoded.Format == "I" &&
-            decoded.SendSequence == _receiveSequence && _startDtConfirmed;
+        var validAcknowledgement = true;
         if (decoded.IsValid && decoded.Format is "I" or "S" && decoded.ReceiveSequence.HasValue)
         {
             var nr = decoded.ReceiveSequence.Value;
             if (!Iec104SequenceWindow.IsAcknowledgementWithinWindow(
                 _oldestUnacknowledgedSend, _sendSequence, nr))
             {
+                validAcknowledgement = false;
                 RaiseFinding(FindingSeverity.Warning, "IEC104-NR-ACK-INVALID", "IEC-104 N(R) outside outstanding TX window",
                     $"Oldest unacknowledged={_oldestUnacknowledgedSend}, sent next={_sendSequence}, peer N(R)={nr}.",
                     "Remote acknowledgement is outside the modular APCI transmit window.",
@@ -366,11 +372,19 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 _oldestUnacknowledgedSend = nr;
             }
         }
+        // N(R) and N(S) form one acceptance decision. Previously a future or
+        // stale peer acknowledgement raised a warning but still promoted the
+        // same I-frame's ASDU, even though association sequence was untrusted.
+        var acceptedI = decoded.IsValid && decoded.Format == "I" &&
+            decoded.SendSequence == _receiveSequence && _startDtConfirmed &&
+            validAcknowledgement;
         if (decoded.Format == "I")
         {
             if (!acceptedI)
             {
-                RaiseFinding(FindingSeverity.Warning, "IEC104-NS-SEQUENCE", "IEC-104 I-frame not accepted in sequence",
+                _counters.RejectedFrames++;
+                if (validAcknowledgement)
+                    RaiseFinding(FindingSeverity.Warning, "IEC104-NS-SEQUENCE", "IEC-104 I-frame not accepted in sequence",
                     $"Expected N(S)={_receiveSequence}, received={decoded.SendSequence?.ToString() ?? "missing"}, STARTDT confirmed={_startDtConfirmed}, valid={decoded.IsValid}.",
                     "The received payload is retained as raw evidence but cannot become trusted process/command data.",
                     "Inspect duplicate or gap, reconnect history, and protocol field validity.");
@@ -393,7 +407,10 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         }
         else if (decoded.Format == "S" && decoded.IsValid)
         {
-            _counters.AckResponses++;
+            if (validAcknowledgement)
+                _counters.AckResponses++;
+            else
+                _counters.RejectedFrames++;
         }
         else if (decoded.Format == "U" && decoded.IsValid && decoded.UFormatName.Contains("con", StringComparison.OrdinalIgnoreCase))
         {
@@ -449,7 +466,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         });
         if (acceptedI)
             AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
-        return decoded;
+        return new ReceiveOutcome(decoded, acceptedI);
     }
 
     private void AddAdditionalObjectEvents(Iec104ApduDecode decoded, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs, long physicalFrameSequence)

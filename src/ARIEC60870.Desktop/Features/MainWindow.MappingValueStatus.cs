@@ -161,6 +161,16 @@ public partial class MainWindow
 
     private void UpdateValueAndEventViews(Iec103MasterEvidenceEvent item)
     {
+        // Preserve rejected IEC-101/104 RX in the original Frame Trace, but
+        // never let UI fallback classification independently promote its
+        // decoded Type/IOA into a trusted Value, Event or GI/command milestone.
+        // The active protocol owner marks unaccepted I-frames RX Warning.
+        if (item.Direction == FrameDirection.SlaveToMaster &&
+            item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+            item.TypeId.HasValue &&
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item))
+            return;
+
         // These lifecycle engines already consumed the original frame on
         // the normal trace path. A writer-owned SOE fact must not re-advance them.
         if (!_passiveLedgerFactProjection)
