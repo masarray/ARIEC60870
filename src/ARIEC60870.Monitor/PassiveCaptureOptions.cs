@@ -29,7 +29,8 @@ public sealed record PassiveCaptureOptions(
     string LinkMode = "Auto",
     PassiveSerialSource? LinkBScadaTx = null,
     PassiveSerialSource? LinkBRtuTx = null,
-    bool RecordFullSession = true)
+    bool RecordFullSession = true,
+    string CaptureSource = "Physical RX-only")
 {
     public int StreamCount => LinkBScadaTx is not null && LinkBRtuTx is not null ? 4 : 2;
 
@@ -39,6 +40,8 @@ public sealed record PassiveCaptureOptions(
 
     public void Validate()
     {
+        if (CaptureSource is not ("Physical RX-only" or "Virtual Inline (VSPE)"))
+            throw new ArgumentException("Unknown IEC-101 Monitor capture source.");
         if (RecordFullSession && string.IsNullOrWhiteSpace(OutputDirectory))
             throw new ArgumentException("Recording output directory is required only when full-session recording is enabled.");
         if (string.IsNullOrWhiteSpace(ScadaTx.PortName) || string.IsNullOrWhiteSpace(RtuTx.PortName))
@@ -108,6 +111,7 @@ public sealed record PassiveCaptureManifest
     public string Format { get; init; } = "ARIEC_PASSIVE_JOURNAL_P0_V1";
     public string SessionId { get; init; } = string.Empty;
     public string Status { get; init; } = "Unknown";
+    public string CaptureSource { get; init; } = "Physical RX-only";
     public string[] Warnings { get; init; } = Array.Empty<string>();
     public DateTime StartUtc { get; init; }
     public DateTime EndUtc { get; init; }
@@ -124,7 +128,7 @@ public sealed record PassiveCaptureManifest
     public long PreviewFramesDropped { get; init; }
     public PassiveProcessDecodeCounters? ProcessDecodeAccounting { get; init; }
     public string LinkMode { get; init; } = "Auto";
-    public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at serial driver read completion; NOT per-byte wire timing.";
+    public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at Monitor observation read completion; NOT per-byte wire timing.";
     public string IntegrityPolicy { get; init; } = "No application loss detected does not guarantee zero USB/OS/physical losses.";
     public CapturedStreamSummary[] Streams { get; init; } = Array.Empty<CapturedStreamSummary>();
     public string[] CircuitNames { get; init; } = Array.Empty<string>();
