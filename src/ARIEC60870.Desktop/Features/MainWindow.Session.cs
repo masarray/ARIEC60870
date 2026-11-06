@@ -53,7 +53,10 @@ public partial class MainWindow
 
         if (ConnectToggleCaption is not null)
         {
-            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected() ? (isRunning ? "Stop Monitor" : "Start Monitor") : (isRunning ? "Disconnect" : "Connect");
+            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected()
+                ? (isRunning ? (IsVirtualInlineSelected() ? "Stop Relay" : "Stop Monitor")
+                    : (IsVirtualInlineSelected() ? "Start Relay" : "Start Monitor"))
+                : (isRunning ? "Disconnect" : "Connect");
         }
 
         if (ConnectIconOn is not null)
@@ -70,7 +73,11 @@ public partial class MainWindow
         StartButton.BorderBrush = Brushes.Transparent;
         StartButton.Foreground = (Brush)FindResource(isRunning ? "BadBrush" : "GoodBrush");
         StartButton.ToolTip = IsIec101PassiveMonitorSelected()
-            ? (isRunning ? "Stop receive-only monitoring (finalize optional full journal)" : "Start IEC-101 receive-only monitoring; recording is OFF unless enabled in Setup")
+            ? (IsVirtualInlineSelected()
+                ? (isRunning ? "Stop active virtual relay and Monitor" :
+                    "Start ACTIVE two-COM VSPE byte relay and shared IEC-101 Monitor")
+                : (isRunning ? "Stop receive-only monitoring (finalize optional full journal)" :
+                    "Start IEC-101 receive-only monitoring; recording is OFF unless enabled in Setup"))
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
     }
 
