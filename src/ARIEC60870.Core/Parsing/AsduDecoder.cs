@@ -45,16 +45,20 @@ public sealed class AsduDecoder
         {
             case 1:
                 meaning = "Time-tagged protection/status message returned by the relay.";
-                if (data.Length >= 1)
+                // IEC-103 Type 1 needs FUN/INF + DPI (1 octet), CP32Time2a
+                // (4 octets) and SIN (1 octet). The previous fallback decoded
+                // a short payload as a timestamp starting at the DPI byte,
+                // silently promoting an incomplete ASDU as status Ok.
+                if (fun is null || inf is null || data.Length < 6)
                 {
-                    dpi = data[0];
-                    dpiText = DpiText(dpi.Value);
+                    status = DecodeStatus.Error;
+                    notes.Add($"Incomplete IEC-103 Type 1: expected FUN/INF + six data octets (DPI, CP32Time2a, SIN); observed data={data.Length}.");
+                    break;
                 }
-                if (data.Length >= 5)
-                {
-                    var timeStart = data.Length >= 6 ? 1 : 0;
-                    time = Cp32Time2aDecoder.TryDecode(data.Skip(timeStart).Take(5).ToArray());
-                }
+                dpi = data[0];
+                dpiText = DpiText(dpi.Value);
+                time = Cp32Time2aDecoder.TryDecode(data.Skip(1).Take(4).ToArray());
+                notes.Add($"Supplementary information SIN=0x{data[5]:X2}.");
                 break;
 
             case 2:

@@ -25,6 +25,38 @@ public sealed class Iec103AsduAndTraceRegressionTests
         Assert.Equal("14:34:12.345", asdu.Time!.DisplayTime);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void IncompleteTypeOneNeverGuessesDpiOrTimestampFromMissingOctets(int payloadLength)
+    {
+        byte[] fullData = [0x02, 0x39, 0x30, 0x22, 0x0E, 0x00];
+        byte[] header = [0x01, 0x01, 0x01, 0x01, 0xC0, 0x24];
+        var asdu = new AsduDecoder().Decode(
+            header.Concat(fullData.Take(payloadLength)).ToArray());
+
+        Assert.Equal(DecodeStatus.Error, asdu.Status);
+        Assert.Equal(payloadLength, asdu.DataBytes.Count);
+        Assert.Null(asdu.Time);
+        Assert.Null(asdu.Dpi);
+        Assert.Contains(asdu.Notes, n => n.Contains("Incomplete IEC-103 Type 1",
+            StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FullTypeOneKeepsSupplementaryInformationOutsideTheFourByteTime()
+    {
+        var asdu = new AsduDecoder().Decode(
+            [0x01, 0x01, 0x01, 0x01, 0xC0, 0x24, 0x02, 0x39, 0x30, 0x22, 0x0E, 0xBC]);
+        Assert.Equal(DecodeStatus.Ok, asdu.Status);
+        Assert.Equal(new byte[] { 0x39, 0x30, 0x22, 0x0E }, asdu.Time!.RawBytes);
+        Assert.Contains(asdu.Notes, n => n.Contains("SIN=0xBC", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void PrivateVendorAsduIsTransparentRatherThanDiscarded()
     {
