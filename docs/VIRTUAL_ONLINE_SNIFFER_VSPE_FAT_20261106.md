@@ -24,10 +24,10 @@ In VSPE: `Device -> Create -> Pair` (twice); use one lane per pair, keep any set
 
 - Master: connect to COM11.
 - Slave: listen on COM14.
-- **Future** ARIEC60870 mode: `IEC-101 Virtual Online Sniffer`, Master-side relay COM12, Slave-side relay COM13.
+- **Future** ARIEC60870 **existing IEC-101 Monitor window** -> **Source: Virtual Inline (VSPE)**, Master-side relay COM12, Slave-side relay COM13. This is a Setup source option, **not** a new window or top-level protocol mode.
 - Set matching supported UART profile in all apps, e.g. 1200 bps 8E1 for an interoperability case; check every app's actual settings. Use no hardware RTS/CTS handshake for V1.
 - Match link address width / COT / CA / IOA choices **only for correct decoding**; forwarding must not depend on these widths.
-- In future ARIEC, select `Start Relay` and ensure `COMs open; peer not verified` is initially distinguished from real observed traffic. Then connect Master and Slave, issue a benign link-status/poll/GI through the **external Master**, and inspect both original HEX streams. ARIEC must not originate polling or E5 itself.
+- In future ARIEC's **existing Monitor workspace**, select `Start Relay & Monitor` and ensure `COMs open; peer not verified` is initially distinguished from real observed traffic. Then connect Master and Slave, issue a benign link-status/poll/GI through the **external Master**, and inspect both original HEX streams. ARIEC must not originate polling or E5 itself.
 
 **Current master has no Virtual Online Sniffer relay mode.** Its existing `IEC-101 Passive Monitor` cannot be used as the middle of the chain to forward COM12↔COM13; do not mistake opening two RX-only taps for creating this relay.
 
@@ -88,3 +88,18 @@ In VSPE: `Device -> Create -> Pair` (twice); use one lane per pair, keep any set
 - https://learn.microsoft.com/en-us/dotnet/core/extensions/channels
 
 **No physical IEC101 1200-bps field FAT and no working VOS runtime can be claimed from this documentation.**
+
+
+## 7. Lab-to-field parity checklist (2026-11-07 requirement)
+
+This plan exists because a previous SCADA/RTU field-test window has ended and physical equipment is no longer accessible. **Do not claim VSPE reproduces the full field.** The goal is to diagnose the *same* Monitor with controllable test traffic until the next hardware opportunity.
+
+- [ ] The existing IEC-101 Monitor window shows **Source: Physical RX-only / Virtual Inline** in one Setup panel; no extra window.
+- [ ] Both choices show the **same original Trace/Values/Events/Report/Inspector** controls and use the exact shared parser/ledger logic.
+- [ ] With fixture byte streams unchanged, both adapters give the same checksum/ASDU/process/transaction evidence (normalized for source/time). Do not count egress copies as extra frames.
+- [ ] A small external scripted Master/Slave peer can supply valid IEC101, malformed/unknown, E5, GI, Class1/2 and SOE traffic; no complete SCADA/RTU installation is required.
+- [ ] Source counters distinguish ingress RX, relay write-attempt/write-complete, canonical frame decode, event-fact admission and WPF shown rows; provide zero-byte/one-direction diagnostics.
+- [ ] Existing saved field capture, **if legally and locally available**, can be replayed through the same decoding pipeline without VSPE to reproduce a past failure, but must not be published in public CI/PR.
+- [ ] **Real hardware still pending:** separately verify 2/4 RX electrical isolation, physical baud/framing/handshake, genuine RTU/SCADA timing, full-loss accounting and ability to resolve the old failure.
+
+**Acceptance statuses:** `Source parity in synthetic lab: Pass/Fail`; `VSPE real-driver round-trip: Pass/Fail/Not Tested`; `Physical RX FAT: Pass/Fail/Not Tested`; `Real SCADA/RTU interoperability: Pass/Fail/Not Tested`. Never fold them into a single misleading green check.

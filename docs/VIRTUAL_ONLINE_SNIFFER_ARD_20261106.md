@@ -1,13 +1,13 @@
 # ARD — Virtual Online Sniffer: duplex virtual-serial proxy with independent byte evidence
 
 **Date:** 2026-11-06  
-**Status:** Proposed / **NOT IMPLEMENTED**. Architecture decision for `VOS-01..14` in the [PRD](VIRTUAL_ONLINE_SNIFFER_PRD_20261106.md).  
+**Status:** Proposed / **NOT IMPLEMENTED**. Architecture decision for `VOS-01..16` in the [PRD](VIRTUAL_ONLINE_SNIFFER_PRD_20261106.md). **2026-11-07 correction: existing IEC-101 Monitor workspace only; Virtual Inline is an input source option, not a new window or top-level mode.**  
 **Bench:** [VSPE four-port setup and test gate](VIRTUAL_ONLINE_SNIFFER_VSPE_FAT_20261106.md).  
 **Non-negotiable:** preserve existing IEC101 physical RX-only passive monitor and canonical IEC101/103/104 decoder/observation truth; reconcile open PR #95 before implementation.
 
 ## 1. Decision and alternatives
 
-**Decision VOS-ADR-01:** implement a **user-mode, bidirectional, byte-transparent inline proxy** between two **independent VSPE Pair devices** in one Windows process. Do not build or ship a kernel virtual serial driver. A Pair has one external application endpoint and one ARIEC relay endpoint, avoiding competing opens of an ordinary exclusive COM port.
+**Decision VOS-ADR-01:** implement a **user-mode, bidirectional, byte-transparent inline proxy** as an **alternative transport source of the existing Monitor**, between two **independent VSPE Pair devices** in one Windows process. Do not build or ship a kernel virtual serial driver. A Pair has one external application endpoint and one ARIEC relay endpoint, avoiding competing opens of an ordinary exclusive COM port.
 
     Master app (COM11) <== Pair A ==> (COM12)
                                         | ARIEC VOS
@@ -31,7 +31,7 @@
 | `ARIEC60870.Core` | Existing FT1.2 scanner, ASDU decoder, typed trusted/invalid representation | Any COM driver, relay scheduling, GUI or duplicate FT1.2 parser |
 | New `ARIEC60870.VirtualRelay` project (preferred), or isolated Monitor transport folder if project cost justified | `VirtualSerialRelaySession`, `IByteDuplexEndpoint`, per-direction pumps, fail-fast ownership, explicit byte counters, transport diagnostics | GI, polling, IEC decision-making, WPF updates, silent byte mutation, unbounded queues |
 | `ARIEC60870.Monitor` | Existing passive interpretation/journal/Source indexing adapted via an **observation-only sink interface**, without using RX-only tap as proxy | Opening active TX on existing passive tap; assumption that virtual relay is physically passive |
-| `ARIEC60870.Desktop` | Thin Setup/Start/Stop orchestration; reuse Trace, inspector, Values/Events and evidence exporter | Serial read/write loop, ASDU parsing, per-byte Dispatcher events or a second timeline authority |
+| `ARIEC60870.Desktop` | **Existing MainWindow IEC-101 Monitor Setup and tabs**: add a physical/virtual source selector with contextual port rows and Start labels; reuse existing Trace, inspector, Values/Events, report and evidence exporter **without a second window** | Serial read/write loop, ASDU parsing, per-byte Dispatcher events, new protocol-mode dropdown entry or a second timeline authority |
 | Test harness | In-memory duplex endpoints, test streams, fault injection, optional real VSPE bench script | Claim real driver tested from in-memory CI |
 
 Suggested contracts (pseudotypes; decide naming with actual current source before coding):
@@ -152,7 +152,7 @@ Microsoft's `SerialPort.DataReceived` is not guaranteed once per byte and events
 
 Preflight checks validate configured ports and supported mode without trying to hijack either external app's endpoints. A separate optional **Open test** is active and must disclose it will acquire COM handles. Port display names and driver metadata are hints, not guarantees that two valid pairs are wired; user confirms Master/Slave owner COMs.
 
-Suggested single dense strip: `Virtual Inline | Master-side COM12 | Slave-side COM13 | UART 1200 8E1 | Start Relay`. Below: `M→S IN, OUT, Fault` and `S→M IN, OUT, Fault`, label `Driver Write Complete ≠ Peer Read`, a normal live Trace and selected raw byte inspector. No 2nd large dashboard or new parser window.
+Inside existing Monitor's compact Setup, the only new choice is `Source: Physical RX-only / Virtual Inline`. When Virtual is selected, show `Master-side COM12 | Slave-side COM13 | UART 1200 8E1 | Start Relay & Monitor`; when Physical is selected, retain present `SCADA TX RX | RTU TX RX | optional Link B | Start RX`. Below: `M→S IN, OUT, Fault` and `S→M IN, OUT, Fault`, label `Driver Write Complete ≠ Peer Read`, a normal live Trace and selected raw byte inspector. No 2nd large dashboard or new parser window.
 
 Unknown frame must be observable via original HEX even if the ASDU is unrecognized. Zero-byte state must show exact COM names, open status and a next diagnostic. WPF AUTO/HOLD affects **viewport only**; never alter pumps/recording.
 
@@ -180,9 +180,9 @@ Benchmark metrics: OS/build, VSPE version/options, COM map, third-party simulato
 ## 10. Implementation sequence, branch discipline and approvals
 
 1. **Design/documentation (this change):** align PRD, ARD, bench; no production code or feature claim.
-2. **Core relay + test harness:** project/isolated namespace with two pumps, one explicit observation interface, lifecycle, counters and fake endpoints; no WPF, active Master or passive-tap changes. One meaningful implementation PR with negative tests, not patch stacks.
-3. **Canonical evidence integration:** reuse current Core FT1.2 and Monitor writer-owned journal through adapter; wait for PR #95 to resolve conflicts. Do not copy its evolving WPF read/projection logic.
-4. **Desktop + VSPE FAT:** setup, Stop, compact trace, real two-Pair 4-port bench; verify observed original HEX even when decoder fails.
+2. **Core relay + test harness:** project/isolated namespace with two pumps, one explicit observation interface into the **existing Monitor receive authority**, lifecycle, counters and fake endpoints; no new WPF screen, active Master or passive-tap changes. One meaningful implementation PR with negative tests, not patch stacks.
+3. **Canonical evidence integration:** introduce a narrow source-adapter contract shared by physical `PassiveMonitorSession` and new Virtual Inline ingress. Reuse current Core FT1.2 and Monitor writer-owned journal through this adapter; reconcile PR #95 before editing its source-fact or WPF projection logic. No duplicate parser, event ledger or WPF projection.
+4. **Existing Monitor Desktop + VSPE FAT:** add **Source** picker to already-present Monitor Setup, preserving old physical defaults, existing left rail/Trace/Values/Events/Report and Stop; real two-Pair 4-port bench verifies observed original HEX even when decoder fails.
 5. **Release candidate:** one selective Windows workflow + visual check + actual user test, SHA-pinned artifact, truthful status per gate. Do not churn expensive CI for docs-only changes.
 
 ## 11. Primary technical references
@@ -199,3 +199,61 @@ Benchmark metrics: OS/build, VSPE version/options, COM map, third-party simulato
 - Open virtual-pair alternative, conceptual reference only: https://com0com.sourceforge.net/
 
 Published behavior guides design. No third-party code, proprietary SDK, driver, screenshot, licensed IEC text or private capture may be pasted or bundled.
+
+
+## 12. ADR-02 — one shared Monitor workspace, interchangeable acquisition (2026-11-07)
+
+**Decision:** The `IEC-101 Passive Monitor` UI/workspace is the sole operator-facing IEC-101 Monitor. Its setup adds **`Capture source: Physical RX-only | Virtual Inline`**; neither choice creates a new window nor a new top-level protocol option. Physical remains the default for backward compatibility. This supersedes any earlier wording in this ARD that implies a separate VOS window or protocol mode.
+
+### Boundary and abstraction
+
+    Existing MainWindow IEC101 Monitor
+       Source selector: [Physical RX] [Virtual Inline]
+                    |
+       existing Capture/Trace/Values/Events/Report UI
+                    ^
+           canonical Monitor facts & event ledger
+                    ^
+             canonical Core FT1.2/ASDU
+                    ^
+          per-source immutable byte ingress
+                 /           \
+      Physical RX taps     Virtual Inline A/B
+       (Read-only)         (Read + Write relay)
+         2/4 COM               2 COM in VSPE pairs
+
+Preferred contracts:
+- `IObservedByteSource`: exports read-only `ObservedByteChunk(epoch, circuit, direction, physicalOrVirtualProvenance, sourceCom, sourceOffset, bytes, hostTimestampQuality)` plus `SourceFaultOrGap`; **never exposes Write to Core or UI**.
+- `PhysicalRxSourceAdapter`: projects existing 2/4 RX passive byte ingestion, preserving stream IDs and electrical safety invariants.
+- `VirtualInlineSourceAdapter`: uses two duplex serial endpoints to relay **original bytes**, and projects ingress chunks exactly once into the same canonical monitor path.
+- `CanonicalMonitorEvidenceProcessor` (existing owner refactored only as required): single FT1.2/ASDU, trust, transaction, GI, SOE, Values, report and original-frame lineage. **Do not start separate independent event states** in each adapter.
+- `MonitorSessionCoordinator`: owns one source per session and its immutable epoch; switching source must close/finish prior session and cannot silently reconfigure an active capture. Existing physical 4-RX A/B profiles remain available only in Physical.
+
+**Important implementation detail:** Current `PassiveMonitorSession` likely combines reading, framing and journal. Reconcile its current code and open draft #95; extract a narrow read-to-framer seam only if proven safe. **Do not rewrite the working passive capture engine wholesale** merely to introduce interface abstractions.
+
+### Laboratory parity as mandatory engineering proof
+
+Test harness feeds **identical synthetic raw byte vectors** to:
+1. The shared canonical input from `PhysicalRxSourceAdapter` (injected test endpoint; no plant).
+2. The shared canonical input from `VirtualInlineSourceAdapter` (injected duplex endpoints; one forwarded copy in each direction).
+
+Assert equality of normalized per-direction byte streams, offsets, FT1.2 checksum/framing validation, link-layer FC/PRM/FCB/FCV/ACD/DFC, E5 contextual handling, COT/CA/IOA/quality, GI/command lifecycle, event facts and original HEX across Trace/Values/Events/Report. Compare after normalizing provenance, source/epoch IDs and host arrival timestamp (which vary legitimately). **Transport accounting must remain different**: Physical TX=forbidden; Virtual has write-attempt/completion and uncertain-delivery facts. No UI-dependent backpressure or hidden "refresh".
+
+Include deterministic reproducible incident cases: zero-byte COM with correct open, only one stream producing data, invalid parity/width hypothesis (without fabricated repair), broken/truncated/chunked FT1.2, E5 ambiguity, partial GI, SOE raw-in/canonical-present-but-UI-missing, rejected ASDU, queue gap, reconnection and stale epoch. Existing archive replay without new live endpoints is the safest way to reproduce earlier field data if captures are available.
+
+An optional **tiny lab peer harness** can generate IEC-101 link/GI/SOE/command and bad frames over the VSPE pairs; it is strictly a test fixture and must not be automatically attached to the Monitor production receive path or masquerade as a real SCADA/RTU. No complete third-party SCADA stack required for basic lab regressions.
+
+### Exact field-validity boundary
+
+**Proved by virtual**: software COM forwarding, byte preservation on tested VSPE version/settings, canonical decode and view/report parity, application-level behavior on supplied test patterns, bounded queues, tested UI state and restart.
+
+**Cannot be proved by virtual**: TX/RX electrical wiring isolation, RS232/485 level/loading/ground, RTS/CTS handshake in real equipment, UART parity/framing errors generated in physical receivers, field USB driver buffering, real baud-rate idle/bit-edge timing, actual SCADA or RTU interoperability/response semantics. A field return requires independent physical FAT and genuine raw capture; a perfect virtual test must be labeled *Lab Verified / Field Pending*.
+
+### Implementation acceptance before merge
+
+- No new top-level `ProtocolModeComboBox` item or second Window; only source controls in existing Monitor Setup.
+- Existing `WindowsReadOnlySerialTap` interface retains no `Write`; no active relay COM opened under Physical selection.
+- Exactly one trusted frame/event publisher per ingress frame and one immutable source/epoch identity; egress byte copies do not produce duplicate SOE.
+- Full original HEX on both sources even if frame malformed or undecodable, with observable gap/driver-error/unknown state; no synthetic protocol success.
+- Cross-adapter golden parity fixture plus 100 Start/Stop, concurrent 2-direction traffic, occupied COM, forced close, timeout, overload, journal failure; UI filter/HOLD cannot change canonical ingest.
+- Real Windows VSPE two-Pair bench and true hardware FAT are **separate gates**. Neither is presently completed.
