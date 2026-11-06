@@ -644,7 +644,8 @@ public partial class MainWindow
         UpdateStableHeader("Monitoring", virtualMode
             ? "ACTIVE VSPE relay · peer receipt not verified." : options.RecordFullSession
                 ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
-        AppendSessionLog("Passive monitor started: " + SessionSubtitleText.Text +
+        AppendSessionLog((virtualMode ? "Active virtual relay + Monitor started: " :
+            "Passive monitor started: ") + SessionSubtitleText.Text +
             (options.RecordFullSession ? " · full raw journal ON" : " · temporary session Trace, no permanent recording"));
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -783,6 +784,33 @@ public partial class MainWindow
             FrameTraceRows.Count, _pendingEvidence.Count);
         TracePassiveEmptyTitleText.Text = result.Title;
         TracePassiveEmptyDetailText.Text = result.Detail;
+        if (_virtualRelaySession is { } virtualRelay)
+        {
+            var transport = virtualRelay.GetProgress();
+            var totalIngress = transport.MasterToSlave.IngressBytes +
+                transport.SlaveToMaster.IngressBytes;
+            if (transport.Fault is { } fault)
+            {
+                TracePassiveEmptyTitleText.Text = "Virtual relay fault · evidence incomplete";
+                TracePassiveEmptyDetailText.Text = fault;
+            }
+            else if (totalIngress == 0)
+            {
+                TracePassiveEmptyTitleText.Text = "Virtual relay open · no ingress bytes";
+                TracePassiveEmptyDetailText.Text =
+                    $"Relay ports {scadaPort} and {rtuPort} are open in ARIEC. " +
+                    "Verify the external Master and Slave are running on the opposite VSPE Pair endpoints. " +
+                    "COM Open does not establish peer receipt or valid IEC-101 traffic.";
+            }
+            else if (Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes) +
+                     Math.Max(progress.ReaderRtuBytes, progress.RtuBytes) == 0)
+            {
+                TracePassiveEmptyTitleText.Text = "Virtual ingress observed · Monitor processing pending";
+                TracePassiveEmptyDetailText.Text =
+                    $"{totalIngress:N0} raw bytes reached the relay. " +
+                    "Monitor ingestion/recording is still pending; do not classify this as no traffic.";
+            }
+        }
         // These are real UART read chunks, NOT synthetic FT1.2 frames.
         // A failed/stalled decoder must not leave an RX-active workstation blank.
         TracePassiveRawChunkGrid.Visibility = _passiveRawRows.Count == 0
@@ -790,7 +818,8 @@ public partial class MainWindow
         TracePassiveEmptyState.Visibility = Visibility.Visible;
         // One reportable diagnostic per silent session, not per UI timer tick.
         // Start status alone must not masquerade as verified wire acquisition.
-        if (!_passiveSilenceReported && progress.Status == "Monitoring" &&
+        if (_virtualRelaySession is null && !_passiveSilenceReported &&
+            progress.Status == "Monitoring" &&
             Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes) +
             Math.Max(progress.ReaderRtuBytes, progress.RtuBytes) +
             Math.Max(progress.ReaderLinkBScadaBytes, progress.LinkBScadaBytes) +
