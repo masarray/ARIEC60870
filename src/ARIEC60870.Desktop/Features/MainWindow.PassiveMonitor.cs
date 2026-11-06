@@ -127,6 +127,7 @@ public partial class MainWindow
         }
         if (index < 0) throw new InvalidOperationException("Passive IEC-101 profile absent from existing Setup dropdown.");
         ProtocolModeComboBox.SelectedIndex = index;
+        PassiveSourceComboBox.SelectedIndex = 0; // physical default remains independently tested
         if (!IsIec101PassiveMonitorSelected() ||
             PassiveSecondaryPortPanel.Visibility != Visibility.Visible ||
             PassiveSetupRightPanel.Visibility != Visibility.Visible ||
@@ -178,6 +179,23 @@ public partial class MainWindow
             profile.ScadaTx.Parity != Parity.Even || profile.FrameGapMilliseconds != 1500 ||
             profile.LinkMode != "Balanced" || profile.ScadaTx.DataBits != 8)
             throw new InvalidOperationException("IEC-101 passive serial/config profile was not applied.");
+
+        // VOS M2: the same setup and Monitor profile selects a virtual two-COM
+        // ingress without creating a new protocol mode or exposing a physical TX.
+        PassiveSourceComboBox.SelectedIndex = 1;
+        if (PassiveVirtualHelpText.Visibility != Visibility.Visible ||
+            PassiveLinkBEnabledCheckBox.Visibility != Visibility.Collapsed ||
+            PassiveRtuPortLabel.Text != "SLAVE-SIDE RELAY · COM" ||
+            SetupConnectButton.Content?.ToString() != "Start Relay & Monitor")
+            throw new InvalidOperationException("Virtual Inline did not switch existing IEC-101 Monitor setup.");
+        var virtualProfile = BuildPassiveCaptureOptions();
+        if (virtualProfile.CaptureSource != "Virtual Inline (VSPE)" ||
+            virtualProfile.StreamCount != 2 || virtualProfile.RecordFullSession)
+            throw new InvalidOperationException("Virtual Inline must use the same two-source monitor profile.");
+        PassiveSourceComboBox.SelectedIndex = 0;
+        if (PassiveVirtualHelpText.Visibility != Visibility.Collapsed ||
+            BuildPassiveCaptureOptions().CaptureSource != "Physical RX-only")
+            throw new InvalidOperationException("Switching back did not restore physical RX-only ownership.");
 
         // P3: select both redundant circuits within existing Setup. All
         // four COM identities must survive the profile builder; legacy mode
