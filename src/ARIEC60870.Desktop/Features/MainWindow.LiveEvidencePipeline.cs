@@ -253,6 +253,12 @@ public partial class MainWindow
         }
     }
 
+    // Existing receive-only passive monitor routes through the current capture
+    // epoch. Do not remove this callback when active Master subscriptions are
+    // changed to immutable per-connection delegates.
+    private void OnFindingRaised(object? sender, Iec103MasterFinding finding) =>
+        OnMasterFindingRaised(System.Threading.Volatile.Read(ref _eventProjectionEpoch), sender, finding);
+
     private void OnMasterFindingRaised(long epoch, object? sender, Iec103MasterFinding finding)
     {
         if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch))
