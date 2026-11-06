@@ -270,6 +270,8 @@ public partial class MainWindow
                 SelectedInteroperabilitySource = InteroperabilityConventionComboBox?.SelectedIndex == 2 ? "Project"
                     : InteroperabilityConventionComboBox?.SelectedIndex == 1 ? "Historical" : "Generic",
                 CustomInteroperabilityProfileJson = _projectInteroperabilityProfile?.Export() ?? string.Empty,
+                PassiveCaptureSource = IsVirtualInlineSelected()
+                    ? "Virtual Inline (VSPE)" : "Physical RX-only",
                 PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
                 PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
                 PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width"),
