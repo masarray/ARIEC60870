@@ -50,6 +50,7 @@ public partial class MainWindow
     // Typed, bounded operator interpretation. Never drives TX or the raw journal.
     private readonly Iec10xObservedControlTimeline _passiveControlTimeline = new();
     private long _passiveFrameSequence;
+    private DateTime _passiveMonitorStartedUtc;
     private long _passiveUndecodableShown;
     private PassiveIec101TransactionCorrelator? _passiveReplayCorrelator;
     private PassiveIec101GiTracker? _passiveReplayGiTracker;
@@ -520,6 +521,9 @@ public partial class MainWindow
         PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
+        _passiveMonitorStartedUtc = DateTime.UtcNow;
+        PassiveTraceEmptyText.Text = "Waiting for passive UART receive data…";
+        PassiveTraceEmptyText.Visibility = Visibility.Visible;
         _passiveLedgerOwnsProcessEvents = false;
         _passiveLedgerFactProjection = false;
         _passiveLedgerReadFailed = false;
@@ -781,6 +785,7 @@ public partial class MainWindow
 
         // The shared 75-ms coordinator alone flushes the WPF projection.
         // Passive Freeze only controls the optional raw-chunk preview.
+        RefreshPassiveTraceEmptyHint(progress, session.ObservedFrameCandidates);
         if (PassiveFreezeCheckBox.IsChecked == true) return;
         var count = 0;
         while (count < 65 && session.TryReadPreview(out var sample))
@@ -801,6 +806,34 @@ public partial class MainWindow
         finally { _passiveUiRefreshInFlight = false; }
     }
 
+
+    /// <summary>Describe what the receive pipeline actually knows when Trace is empty.
+    /// Never infer port activity from SerialPort.Open, or call malformed bytes valid frames.</summary>
+    private void RefreshPassiveTraceEmptyHint(PassiveMonitorProgress progress, long candidates)
+    {
+        if (FrameTraceGrid.Items.Count > 0)
+        {
+            PassiveTraceEmptyText.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var bytes = progress.ScadaBytes + progress.RtuBytes +
+            progress.LinkBScadaBytes + progress.LinkBRtuBytes;
+        var physicalPorts = _passiveOriginalSubtitle;
+        var text = FrameTraceRows.Count > 0
+            ? "Captured frames exist, but the current Trace search/filter shows none. Clear search or choose All frames."
+            : bytes == 0
+                ? (DateTime.UtcNow - _passiveMonitorStartedUtc).TotalSeconds < 2
+                    ? "Waiting for serial bytes from the passive RX ports…"
+                    : "No serial RX bytes observed · " + physicalPorts +
+                      ". Check the receive-only taps, serial settings and whether the line is transmitting."
+                : candidates == 0
+                    ? $"UART received {bytes:N0} byte(s), but no complete FT1.2 candidate yet. " +
+                      "Check framing/baud/parity and inspect the raw chunk preview in Setup."
+                    : $"UART received {bytes:N0} byte(s); {candidates:N0} raw FT1.2 candidate(s) reached the writer. " +
+                      "Waiting for Trace projection; inspect Session Log if this persists.";
+        if (PassiveTraceEmptyText.Text != text) PassiveTraceEmptyText.Text = text;
+        PassiveTraceEmptyText.Visibility = Visibility.Visible;
+    }
 
     /// <summary>
     /// Event Log consumes source-qualified writer facts. A valid event survives
