@@ -125,7 +125,7 @@ public sealed class Iec104SessionSafetyTests
             Iec10xObservationIdentity.HasTrustedDecodedPayload(e)));
         Assert.Equal(accepted[0].EvidenceReference.Split("|object:")[0],
             accepted[1].EvidenceReference.Split("|object:")[0]);
-        Assert.Equal(3, transport.SFrameWrites); // invalid I, valid I and no other I
+        Assert.Equal(2, transport.SFrameWrites); // each well-formed I receives a contiguous N(R) acknowledgement
     }
 
     private sealed class InvalidAckThenValidMultiObjectTransport : IByteTransport

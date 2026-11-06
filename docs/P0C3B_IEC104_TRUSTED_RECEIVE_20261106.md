@@ -16,3 +16,7 @@ In `Iec104ClientSession.ReceiveOneAsync`, an out-of-window N(R) produced `IEC104
 ## Non-goals / remaining gates
 
 This slice does not prove full IEC-103 protection event storage, all IEC-101/103/104 replay/report parity, IEC-104 reconnect across real TCP sockets, full 2k/5k/50k mixed production-pipeline benchmarks, actual WPF p95, bounded retention under long running active sessions, or physical 1200-bps delivery of ~2k RTU SOEs. These remain **unverified** and PR stays Draft. Exact-head CI, CodeQL, dependency and hygiene outcomes must be checked after this commit, not extrapolated from older results.
+
+## IEC-101 dual-link SQ0/SQ1 original-frame parity
+
+The dual-link channel previously emitted one event for the first information object and additional events for siblings, but the session-owned sequence assigner did **not** link the sibling events to the originating physical frame. Individual event sequence numbers were incorrectly used as separate original-frame identities. The channel now obtains the session-owned frame sequence from its existing publish callback; siblings carry `PhysicalFrameSequenceNumber`, and the session preserves it when enriching evidence. No new event source or physical identifier is invented. The existing IEC-101 sequence-GI simulation asserts that object 100 and object 101 have distinct event sequences but exactly one original frame root and physical Link A identity.
