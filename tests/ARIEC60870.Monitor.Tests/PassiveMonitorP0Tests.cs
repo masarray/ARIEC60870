@@ -78,6 +78,10 @@ public sealed class PassiveMonitorP0Tests
         Assert.Equal("MonitorStopped", session.GetProgress().Status);
         Assert.Equal(tx.Length, session.GetProgress().ScadaBytes);
         Assert.Equal(rx.Length, session.GetProgress().RtuBytes);
+        Assert.Equal(tx.Length, session.GetProgress().ReaderScadaBytes);
+        Assert.Equal(rx.Length, session.GetProgress().ReaderRtuBytes);
+        Assert.Equal(tx.Length, session.GetProgress().QueuedScadaBytes);
+        Assert.Equal(rx.Length, session.GetProgress().QueuedRtuBytes);
         Assert.True(tapA.WasClosed && tapB.WasClosed);
         Assert.Equal(0, tapA.Writes + tapB.Writes);
         var received = new List<PassiveObservedFrame>();
@@ -89,6 +93,159 @@ public sealed class PassiveMonitorP0Tests
             Assert.Equal(string.Empty, stream.File);
             Assert.Equal(string.Empty, stream.RawSha256);
         });
+    }
+
+    [Fact]
+    public void SilentPassiveMonitoringDoesNotPretendComOpenMeansReceivedFrames()
+    {
+        var silent = new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false);
+        var diagnosis = PassiveNoFrameDiagnosis.Evaluate(
+            silent, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("No UART bytes", diagnosis.Title);
+        Assert.Contains("COM4", diagnosis.Detail);
+        Assert.Contains("COM3", diagnosis.Detail);
+        Assert.DoesNotContain("CRC failure", diagnosis.Detail);
+    }
+
+    [Fact]
+    public void PositiveDriverReadWithZeroCommittedBytesIsNeverClassifiedSilent()
+    {
+        var pending = new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false,
+            ReaderScadaBytes: 48, ReaderRtuBytes: 12,
+            QueuedScadaBytes: 20);
+        var diagnosis = PassiveNoFrameDiagnosis.Evaluate(
+            pending, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("writer pipeline pending", diagnosis.Title);
+        Assert.Contains("COM4 read=48/commit=0", diagnosis.Detail);
+        Assert.Contains("COM3 read=12/commit=0", diagnosis.Detail);
+        Assert.Contains("not queued=40", diagnosis.Detail);
+        Assert.Contains("queued not committed=20", diagnosis.Detail);
+        Assert.DoesNotContain("No UART bytes", diagnosis.Title);
+    }
+
+    [Fact]
+    public void RawByteActivityAndIncompleteOrUntrustedFramingGetDifferentDiagnosis()
+    {
+        var active = new PassiveMonitorProgress(
+            "Monitoring", "", 40, 20, 1, 1, 0, 0, false,
+            ValidFt12Frames: 0, UntrustedFrameCandidates: 3, IncompleteFrameBytes: 4);
+        var invalid = PassiveNoFrameDiagnosis.Evaluate(
+            active, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("UART bytes received", invalid.Title);
+        Assert.Contains("60", invalid.Detail);
+        Assert.Contains("incomplete=4", invalid.Detail);
+        var valid = active with { ValidFt12Frames = 2, FramePreviewsPublished = 2 };
+        var pending = PassiveNoFrameDiagnosis.Evaluate(
+            valid, "COM4", "COM3", "", 0, 2);
+        Assert.Contains("Decoded frames not visible", pending.Title);
+        Assert.Contains("pending UI=2", pending.Detail);
+    }
+
+
+    [Fact]
+    public async Task Both1200BaudRxPortsProduceVerbatimValidFramesBeforeStop()
+    {
+        // Production ReadLoop -> pooled source journal writer -> Core FT1.2
+        // scanner -> live UI presentation feed, including 1-byte UART reads.
+        byte[] scada = [0x10, 0x5B, 0x69, 0xC4, 0x16];
+        byte[] rtu = [0x10, 0x29, 0x69, 0x92, 0x16];
+        var settings = Options(string.Empty) with
+        {
+            RecordFullSession = false,
+            ScadaTx = new PassiveSerialSource("COM7", "SCADA TX", 1200, Parity.Even),
+            RtuTx = new PassiveSerialSource("COM8", "RTU TX", 1200, Parity.Even)
+        };
+        var session = new PassiveMonitorSession(settings,
+            new ReplayTap("COM7", scada, 1),
+            new ReplayTap("COM8", rtu, 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var running = session.RunAsync(stop.Token);
+        var received = new List<PassiveObservedFrame>();
+        for (var i = 0; i < 120 && received.Count < 2 && !running.IsCompleted; i++)
+        {
+            while (session.TryReadFrame(out var frame)) received.Add(frame);
+            if (received.Count < 2) await Task.Delay(10);
+        }
+        var progressBeforeStop = session.GetProgress();
+        stop.Cancel();
+        await running;
+        Assert.Contains(received, f => f.StreamId == 0 && f.ChecksumValid &&
+            f.Format == "Fixed" && f.RawBytes.SequenceEqual(scada));
+        Assert.Contains(received, f => f.StreamId == 1 && f.ChecksumValid &&
+            f.Format == "Fixed" && f.RawBytes.SequenceEqual(rtu));
+        Assert.Equal(scada.Length, progressBeforeStop.ScadaBytes);
+        Assert.Equal(rtu.Length, progressBeforeStop.RtuBytes);
+        Assert.Equal(2, progressBeforeStop.ValidFt12Frames);
+    }
+
+    [Fact]
+    public async Task Incomplete1200BaudRxBytesAreVisibleWhileRunningAndBeforeStop()
+    {
+        var settings = Options(string.Empty) with
+        {
+            RecordFullSession = false,
+            FrameGapMilliseconds = 100,
+            ScadaTx = new PassiveSerialSource("COM7", "SCADA TX", 1200, Parity.Even),
+            RtuTx = new PassiveSerialSource("COM8", "RTU TX", 1200, Parity.Even)
+        };
+        var raw = new byte[] { 0x68, 0x0C };
+        var session = new PassiveMonitorSession(settings,
+            new ReplayTap("COM7", raw, 1),
+            new ReplayTap("COM8", Array.Empty<byte>(), 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var running = session.RunAsync(stop.Token);
+        var samples = new List<PassiveChunkPreview>();
+        PassiveObservedFrame? partial = null;
+        for (var i = 0; i < 120 && partial is null && !running.IsCompleted; i++)
+        {
+            while (session.TryReadPreview(out var sample)) samples.Add(sample);
+            while (session.TryReadFrame(out var frame)) partial = frame;
+            if (partial is null) await Task.Delay(10);
+        }
+        Assert.False(running.IsCompleted, "Idle partial evidence must surface before Stop.");
+        Assert.NotNull(partial);
+        Assert.Equal("Partial", partial.Format);
+        Assert.False(partial.ChecksumValid);
+        Assert.Equal(raw, partial.RawBytes);
+        Assert.Contains(samples, x => x.StreamId == 0 && x.FirstBytes.Length > 0);
+        stop.Cancel();
+        await running;
+        Assert.Equal(raw.Length, session.GetProgress().ScadaBytes);
+    }
+
+    [Fact]
+    public async Task RawSampleRingOverflowIsCountedSeparatelyFromWriterBytes()
+    {
+        const int count = 300;
+        var raw = Enumerable.Repeat((byte)0x33, count * 128).ToArray();
+        var options = Options(string.Empty) with
+        {
+            RecordFullSession = false, ChannelCapacity = 512, ReadChunkBytes = 128
+        };
+        var session = new PassiveMonitorSession(options,
+            new ReplayTap("COM7", raw, 128),
+            new ReplayTap("COM8", Array.Empty<byte>(), 128));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        var running = session.RunAsync(stop.Token);
+        for (var i = 0; i < 400 && !running.IsCompleted &&
+             session.GetProgress().ScadaChunks < count; i++)
+            await Task.Delay(10);
+        stop.Cancel();
+        await running;
+        var progress = session.GetProgress();
+        Assert.Equal(raw.Length, progress.ReaderScadaBytes);
+        Assert.Equal(raw.Length, progress.QueuedScadaBytes);
+        Assert.Equal(raw.Length, progress.ScadaBytes);
+        Assert.Equal(count, progress.RawPreviewPublished);
+        Assert.Equal(0, progress.RawPreviewConsumed);
+        Assert.Equal(count - 256, progress.RawPreviewDropped);
+        var retained = 0;
+        while (session.TryReadPreview(out _)) retained++;
+        Assert.Equal(256, retained);
+        Assert.Equal(count, session.GetProgress().RawPreviewConsumed +
+            session.GetProgress().RawPreviewDropped);
     }
 
     [Fact]
@@ -270,6 +427,117 @@ public sealed class PassiveMonitorP0Tests
             Assert.True(shown < stored); // durability is independent of WPF ring
         }
         finally { Directory.Delete(folder, recursive: true); }
+    }
+
+
+    [Fact]
+    public async Task FailedComReadDoesNotCancelHealthySiblingAndItsSourceFrame()
+    {
+        // COM8 is forbidden to yield bytes until COM7 has already faulted.
+        // The former session-wide cancellation lost this independently healthy stream.
+        using var fault = new ManualResetEventSlim(false);
+        byte[] good = [0x10, 0x29, 0x69, 0x92, 0x16];
+        var bad = new FailingReadTap("COM7", fault);
+        var healthy = new GatedReadTap(new ReplayTap("COM8", good, 1), fault);
+        var options = Options(string.Empty) with { RecordFullSession = false };
+        var session = new PassiveMonitorSession(options, bad, healthy);
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(350));
+        var result = await session.RunAsync(stop.Token);
+        Assert.True(fault.IsSet);
+        Assert.True(bad.WasClosed && healthy.WasClosed);
+        Assert.Equal("IntegrityUncertain", result.Manifest.Status);
+        Assert.Contains("COM7", session.GetProgress().ReaderFaultPorts);
+        Assert.Equal(good.Length, session.GetProgress().ReaderRtuBytes);
+        Assert.Equal(good.Length, session.GetProgress().QueuedRtuBytes);
+        Assert.Equal(good.Length, session.GetProgress().RtuBytes);
+        Assert.Contains(result.Manifest.Warnings, w => w.Contains("COM7") &&
+            w.Contains("remaining RX sources continue"));
+        var frames = new List<PassiveObservedFrame>();
+        while (session.TryReadFrame(out var frame)) frames.Add(frame);
+        Assert.Contains(frames, f => f.StreamId == 1 && f.ChecksumValid &&
+            f.RawBytes.SequenceEqual(good));
+        var chunks = new List<PassiveChunkPreview>();
+        while (session.TryReadPreview(out var sample)) chunks.Add(sample);
+        Assert.Equal(good, chunks.SelectMany(x => x.FirstBytes).ToArray());
+    }
+
+    [Fact]
+    public async Task RawBytePreviewIsIndependentOfIncompleteFt12Framing()
+    {
+        byte[] a = [0x68, 0x0C, 0x0C, 0x68];
+        byte[] b = [0x44, 0x55];
+        var options = Options(string.Empty) with
+        {
+            RecordFullSession = false, FrameGapMilliseconds = 10000
+        };
+        var session = new PassiveMonitorSession(options,
+            new ReplayTap("COM7", a, 1), new ReplayTap("COM8", b, 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var running = session.RunAsync(stop.Token);
+        var samples = new List<PassiveChunkPreview>();
+        for (var i = 0; i < 150 && samples.Sum(x => x.ByteCount) < a.Length + b.Length; i++)
+        {
+            while (session.TryReadPreview(out var sample)) samples.Add(sample);
+            if (samples.Sum(x => x.ByteCount) < a.Length + b.Length)
+                await Task.Delay(10);
+        }
+        var progress = session.GetProgress();
+        Assert.False(running.IsCompleted);
+        Assert.Equal(0, progress.ValidFt12Frames);
+        Assert.Equal(a.Length, progress.ReaderScadaBytes);
+        Assert.Equal(b.Length, progress.ReaderRtuBytes);
+        Assert.Equal(a.Length, progress.ScadaBytes);
+        Assert.Equal(b.Length, progress.RtuBytes);
+        Assert.Equal(a.Length + b.Length, samples.Sum(x => x.ByteCount));
+        Assert.Equal(a, samples.Where(x => x.StreamId == 0)
+            .SelectMany(x => x.FirstBytes).ToArray());
+        Assert.Equal(b, samples.Where(x => x.StreamId == 1)
+            .SelectMany(x => x.FirstBytes).ToArray());
+        stop.Cancel();
+        await running;
+    }
+
+    private sealed class FailingReadTap : IReadOnlySerialTap
+    {
+        private readonly ManualResetEventSlim _fault;
+        public FailingReadTap(string port, ManualResetEventSlim fault)
+        {
+            PortName = port;
+            _fault = fault;
+        }
+        public string PortName { get; }
+        public long DriverErrorCount => 0;
+        public bool WasClosed { get; private set; }
+        public void Open() { }
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            _fault.Set();
+            throw new IOException("Simulated driver read fault");
+        }
+        public void Close() => WasClosed = true;
+        public void Dispose() => Close();
+    }
+
+    private sealed class GatedReadTap : IReadOnlySerialTap
+    {
+        private readonly IReadOnlySerialTap _inner;
+        private readonly ManualResetEventSlim _gate;
+        public GatedReadTap(IReadOnlySerialTap inner, ManualResetEventSlim gate)
+        {
+            _inner = inner;
+            _gate = gate;
+        }
+        public string PortName => _inner.PortName;
+        public long DriverErrorCount => _inner.DriverErrorCount;
+        public bool WasClosed { get; private set; }
+        public void Open() => _inner.Open();
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            if (!_gate.IsSet) { Thread.Sleep(2); return 0; }
+            return _inner.Read(buffer, offset, count);
+        }
+        public void Close() { _inner.Close(); WasClosed = true; }
+        public void Dispose() => Close();
     }
 
     private static PassiveCaptureOptions Options(string folder) => new(folder,

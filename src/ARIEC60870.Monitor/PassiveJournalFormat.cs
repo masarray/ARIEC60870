@@ -50,6 +50,11 @@ public static class PassiveJournalFormat
         return true;
     }
 
+    /// <summary>CRC32 for temporary index records; detects accidental corruption,
+    /// not malicious editing. Reuses the raw journal checksum algorithm.</summary>
+    public static uint ComputeIndexCrc32(ReadOnlySpan<byte> header, ReadOnlySpan<byte> payload) =>
+        Crc32.Compute(header, payload);
+
     private static class Crc32
     {
         private static readonly uint[] Table = CreateTable();

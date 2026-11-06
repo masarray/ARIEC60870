@@ -217,22 +217,32 @@ public partial class MainWindow
         }
     }
 
-    private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
-    {
-        // Do not render one WPF row per protocol event immediately. High-volume polling can
-        // produce thousands of frames; the UI consumes this queue in timed batches.
-        var depth = _pendingEvidence.Count;
-        TrackPendingEvidenceDepth(depth);
+    // Passive UI decode uses the current scope; active Master callbacks capture
+    // the exact epoch when subscribed, never read a later session's epoch.
+    private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item) =>
+        QueueEvidence(System.Threading.Volatile.Read(ref _eventProjectionEpoch), item);
 
-        if (ShouldApplyBackpressure(depth) && TryDropLowValueForBackpressure(item))
+    private void OnMasterEvidenceReceived(long epoch, object? sender, Iec103MasterEvidenceEvent item) =>
+        QueueEvidence(epoch, item);
+
+    private void QueueEvidence(long epoch, Iec103MasterEvidenceEvent item)
+    {
+        if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch))
         {
+            System.Threading.Interlocked.Increment(ref _staleSessionEvidenceRejected);
             return;
         }
 
-        _pendingEvidence.Enqueue(item);
+        // Only low-value presentation is pressure-compressed, never source facts.
+        var depth = _pendingEvidence.Count;
+        TrackPendingEvidenceDepth(depth);
+        if (ShouldApplyBackpressure(depth) && TryDropLowValueForBackpressure(item))
+            return;
 
-        // First event after Connect gets one prompt dispatcher flush; normal traffic
-        // continues on the 75ms bounded timer. Never queue a UI callback per telegram.
+        _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(epoch, item));
+
+        // First event after Connect gets one prompt dispatcher flush; ordinary
+        // traffic continues on the bounded timer, not per-frame WPF dispatch.
         if (System.Threading.Interlocked.Exchange(ref _initialLiveTraceFlushPending, 0) == 1 &&
             !Dispatcher.HasShutdownStarted)
         {
@@ -243,9 +253,20 @@ public partial class MainWindow
         }
     }
 
-    private void OnFindingRaised(object? sender, Iec103MasterFinding finding)
+    // Existing receive-only passive monitor routes through the current capture
+    // epoch. Do not remove this callback when active Master subscriptions are
+    // changed to immutable per-connection delegates.
+    private void OnFindingRaised(object? sender, Iec103MasterFinding finding) =>
+        OnMasterFindingRaised(System.Threading.Volatile.Read(ref _eventProjectionEpoch), sender, finding);
+
+    private void OnMasterFindingRaised(long epoch, object? sender, Iec103MasterFinding finding)
     {
-        _pendingFindings.Enqueue(finding);
+        if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+        {
+            System.Threading.Interlocked.Increment(ref _staleSessionFindingsRejected);
+            return;
+        }
+        _pendingFindings.Enqueue(new SessionFindingEnvelope(epoch, finding));
     }
 
     private void FlushUiQueues()
@@ -258,16 +279,22 @@ public partial class MainWindow
         var flushBudget = GetAdaptiveFlushBudget(queuedBeforeFlush);
         _lastFlushBudget = flushBudget;
 
-        while (processed < flushBudget && _pendingEvidence.TryDequeue(out var item))
+        while (processed < flushBudget && _pendingEvidence.TryDequeue(out var pending))
         {
-            ApplyEvidenceToUi(item);
+            if (pending.Epoch == System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+                ApplyEvidenceToUi(pending.Item);
+            else
+                System.Threading.Interlocked.Increment(ref _staleSessionEvidenceRejected);
             processed++;
         }
 
         var findingProcessed = 0;
-        while (findingProcessed < 50 && _pendingFindings.TryDequeue(out var finding))
+        while (findingProcessed < 50 && _pendingFindings.TryDequeue(out var pendingFinding))
         {
-            ApplyFindingToUi(finding);
+            if (pendingFinding.Epoch == System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+                ApplyFindingToUi(pendingFinding.Item);
+            else
+                System.Threading.Interlocked.Increment(ref _staleSessionFindingsRejected);
             findingProcessed++;
         }
 
@@ -1475,13 +1502,23 @@ public partial class MainWindow
         }
     }
 
-    private void ApplyFinalResult(Iec103MasterRunResult result)
+    private async Task ApplyFinalResultAsync(Iec103MasterRunResult result)
     {
-        FlushUiQueues();
+        // The runtime has stopped producing evidence. Finish the already-accepted
+        // observations before publishing a terminal status or allowing a new session.
+        // One FlushUiQueues() consumes a bounded batch, NOT the entire RX backlog.
+        // Yield between batches rather than monopolizing the WPF dispatcher.
+        do
+        {
+            FlushUiQueues();
+            if (_pendingEvidence.IsEmpty && _pendingFindings.IsEmpty) break;
+            await Dispatcher.Yield(DispatcherPriority.Background);
+        } while (true);
         TxRxText.Text = $"{result.Counters.TxFrames} / {result.Counters.RxFrames}";
         ClassPollText.Text = $"{result.Counters.GiCommands + result.Counters.GiEndResponses} / {result.Counters.Class1Requests} / {result.Counters.Class2Requests}";
         NoDataText.Text = result.Counters.NoDataResponses.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        DpiText.Text = result.Counters.DpiEvents.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // EVENT counts projected observations, not the narrower engine edge summary.
+        DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         FindingCountText.Text = CountActionableIssues(result.Findings.ToArray()).ToString(System.Globalization.CultureInfo.InvariantCulture);
         UpdateStableHeader(result.CompletedNormally ? "Completed" : "Faulted",
             $"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100). {result.CompletionReason}");
@@ -1494,30 +1531,12 @@ public partial class MainWindow
         }
         AppendSessionLog($"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100) - {result.Assessment.Summary}");
 
-        if (result.ValuePoints.Count > 0)
-        {
-            _valueRowsByKey.Clear();
-            foreach (var row in result.ValuePoints.Select(x => new ValueRow(x)))
-            {
-                _valueRowsByKey[row.Key] = row;
-            }
-
-            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
-                StringComparer.OrdinalIgnoreCase);
-            _valueRowsDirty = false;
-        }
-
-        if (result.EventLog.Count > 0)
-        {
-            _relayEventStore.Clear();
-            foreach (var ev in result.EventLog.Select(x => new RelayEventRow(x)))
-            {
-                _relayEventStore.Add(ev);
-            }
-
-            ApplyRelayEventFilter();
-            _relayEventRowsDirty = false;
-        }
+        // Result.ValuePoints/EventLog are report snapshots and can be narrower
+        // than the per-object, source-qualified live observations. Never clear or
+        // rebuild Values/Event Journal from that different authority at completion:
+        // doing so caused full -> one Event flicker and lost original wire links.
+        // They remain available unmodified via _lastResult for report generation.
+        // A new session alone (ClearSessionView) changes the projection scope.
 
         foreach (var finding in result.Findings)
         {

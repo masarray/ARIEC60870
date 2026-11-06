@@ -9,6 +9,72 @@ namespace ARIEC60870.Desktop.Tests;
 
 public sealed class PassiveFramePreparationTests
 {
+
+    [Fact]
+    public void WireFirstUnknownAsduWithGoodFt12ChecksumIsNeverAProcessValue()
+    {
+        byte[] asdu = [0xFA, 0x01, 0x03, 0x00, 0x69, 0x00, 0x01, 0x00, 0x00, 0x42];
+        var body = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+        byte[] wire = [0x68, (byte)body.Length, (byte)body.Length, 0x68,
+            .. body, (byte)(body.Sum(x => x) & 255), 0x16];
+        var item = new PassiveObservedFrame(1, 905, DateTime.UtcNow,
+            "Variable", true, wire);
+        var result = Assert.Single(PassiveFramePreparation.PrepareBatch(
+            [item], 1, 2, 2, 3));
+        Assert.Equal(PassiveWirePresentation.Kind.UnknownAsdu, result.Wire.Status);
+        Assert.True(result.Wire.TrustedWire);
+        Assert.False(result.Wire.TrustedProcess);
+        Assert.Contains("Unknown/invalid IEC-101 ASDU", result.Wire.Message);
+        Assert.Equal(Convert.ToHexString(wire), result.RawHex);
+        Assert.NotNull(result.Decode);
+    }
+
+    [Fact]
+    public void WireFirstTruncatedKnownTypeHasValidEnvelopeButNoTrustedObject()
+    {
+        // Legal FT1.2 enclosing a Type 1 with one declared object but no DPI.
+        byte[] asdu = [0x01, 0x01, 0x03, 0x00, 0x69, 0x00, 0x65, 0x00, 0x00];
+        var body = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+        byte[] wire = [0x68, (byte)body.Length, (byte)body.Length, 0x68,
+            .. body, (byte)(body.Sum(x => x) & 255), 0x16];
+        var observed = new PassiveObservedFrame(1, 88, DateTime.UtcNow,
+            "Variable", true, wire);
+        var item = Assert.Single(PassiveFramePreparation.PrepareBatch(
+            [observed], 1, 2, 2, 3));
+        Assert.Equal(PassiveWirePresentation.Kind.UnknownAsdu, item.Wire.Status);
+        Assert.False(item.Wire.TrustedProcess);
+        Assert.NotEmpty(item.Decode!.Issues);
+        Assert.Equal(Convert.ToHexString(wire), item.RawHex);
+    }
+
+    [Fact]
+    public void WireFirstAllInvalidAndPartialStatesKeepVerbatimRawWithoutFakeDecode()
+    {
+        PassiveObservedFrame[] samples =
+        [
+            new(0, 1, DateTime.UtcNow, "Noise", false, [0x51, 0x52, 0x53]),
+            new(0, 4, DateTime.UtcNow, "Partial", false, [0x68, 0x0C]),
+            new(0, 6, DateTime.UtcNow, "Malformed", false, [0x10, 0x32, 0x16]),
+            new(0, 9, DateTime.UtcNow, "Single", true, [0xA2])
+        ];
+        var kinds = new[]
+        {
+            PassiveWirePresentation.Kind.Noise,
+            PassiveWirePresentation.Kind.Partial,
+            PassiveWirePresentation.Kind.InvalidFrame,
+            PassiveWirePresentation.Kind.InvalidFrame
+        };
+        var items = PassiveFramePreparation.PrepareBatch(samples, 1, 2, 2, 3);
+        for (var i = 0; i < samples.Length; i++)
+        {
+            Assert.Equal(kinds[i], items[i].Wire.Status);
+            Assert.False(items[i].Wire.TrustedProcess);
+            Assert.False(items[i].Wire.TrustedWire);
+            Assert.Equal(Convert.ToHexString(samples[i].RawBytes), items[i].RawHex);
+            Assert.Null(items[i].Decode);
+        }
+    }
+
     [Fact]
     public void PreparedBatchRetainsSourceOrderingRawHexAndTypedMultiObject()
     {

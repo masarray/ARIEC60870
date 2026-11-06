@@ -688,12 +688,21 @@
                                     <TextBlock x:Name="FrameTimelineCaption" Grid.Column="0"
                                                Text="Frame Trace" Visibility="Collapsed"
                                                TextWrapping="NoWrap"/>
-                                    <TextBlock x:Name="TraceQuickCountText" Grid.Column="1"
-                                               Text="Current window" MaxWidth="155"
-                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                               Margin="8,0,10,0" VerticalAlignment="Center"
-                                               Foreground="#64748B" FontSize="11.1"
-                                               ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <TextBlock x:Name="TracePassiveSourceStatusText"
+                                                   Visibility="Collapsed" Text="COM RX"
+                                                   MaxWidth="215" TextTrimming="CharacterEllipsis"
+                                                   TextWrapping="NoWrap" Margin="5,0,4,0"
+                                                   Foreground="#52647B" FontSize="10.5"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TraceQuickCountText"
+                                                   Text="Current window" MaxWidth="155"
+                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                   Margin="4,0,10,0" VerticalAlignment="Center"
+                                                   Foreground="#64748B" FontSize="11.1"
+                                                   ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
+                                    </StackPanel>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <!-- Retained named controls for existing session-history state;
@@ -879,6 +888,45 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                <!-- Zero-frame evidence: show the physical RX state in the
+                                     SAME workspace where an operator sees empty Trace. -->
+                                <StackPanel x:Name="TracePassiveEmptyState" Grid.Row="4"
+                                            Visibility="Collapsed"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Width="520" Margin="22,0">
+                                    <TextBlock x:Name="TracePassiveEmptyTitleText"
+                                               Text="Waiting for IEC-101 receive evidence"
+                                               FontSize="13" FontWeight="Medium"
+                                               Foreground="{StaticResource Ink900Brush}"
+                                               HorizontalAlignment="Center" TextAlignment="Center"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="TracePassiveEmptyDetailText"
+                                               FontSize="11.5" Foreground="{StaticResource Ink600Brush}"
+                                               TextAlignment="Center" TextWrapping="Wrap"
+                                               Margin="0,7,0,0"/>
+                                    <!-- Live physical UART bytes remain selectable even when
+                                         FT1.2 framing cannot finish. Source is the same
+                                         bounded, RX-only preview as Setup, not fake frames. -->
+                                    <DataGrid x:Name="TracePassiveRawChunkGrid"
+                                              ItemsSource="{Binding PassiveRawRows}"
+                                              Visibility="Collapsed" Height="210"
+                                              Margin="0,13,0,0" Background="White"
+                                              AutoGenerateColumns="False" IsReadOnly="True"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              EnableRowVirtualization="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              ClipboardCopyMode="IncludeHeader"
+                                              HeadersVisibility="Column" RowHeight="24"
+                                              FontFamily="{StaticResource AppFont}" FontSize="11.2"
+                                              RowBackground="White" AlternatingRowBackground="#F2F6FA">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="UART Time" Binding="{Binding Utc}" Width="110"/>
+                                            <DataGridTextColumn Header="Observed input" Binding="{Binding Direction}" Width="108"/>
+                                            <DataGridTextColumn Header="Bytes" Binding="{Binding ByteCount}" Width="65"/>
+                                            <DataGridTextColumn Header="Actual RX HEX" Binding="{Binding Hex}" Width="*"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
                             </Grid>
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True" ToolTip="Resize decoded inspector"/>

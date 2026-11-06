@@ -69,6 +69,8 @@ public partial class MainWindow
     private readonly PassiveIec101PortRoles _passivePortRoles = new();
     private string _passiveOriginalSubtitle = string.Empty;
     private string _passiveRoleStatus = string.Empty;
+    private DateTime _passiveCaptureStartUtc;
+    private bool _passiveSilenceReported;
 
     private void UpdatePassiveAutoRoleStatus()
     {
@@ -517,6 +519,11 @@ public partial class MainWindow
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
         ClearSessionView(clearLog: true);
+        _passiveCaptureStartUtc = DateTime.UtcNow;
+        _passiveSilenceReported = false;
+        UpdatePassiveTraceEmptyState(session.GetProgress(), options.ScadaTx.PortName,
+            options.RtuTx.PortName, options.StreamCount == 4
+                ? $"{options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}" : "");
         PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
@@ -563,6 +570,9 @@ public partial class MainWindow
         SetRunUiState(isRunning: true);
         MainTabControl.SelectedIndex = PassiveTraceTabIndex;
         UpdateSegmentedNav(false);
+        // Never inherit a hidden focus/search filter from the prior capture.
+        // Every fresh physical monitor starts on all raw TX/RX.
+        ClearTraceQuickFindForNavigation();
         SessionSubtitleText.Text = options.StreamCount == 4
             ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
             : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
@@ -598,6 +608,9 @@ public partial class MainWindow
                 await RefreshPassiveUiAsync();
             FlushUiQueues();
             _passiveLedgerOwnsProcessEvents = false;
+            UpdatePassiveTraceEmptyState(session.GetProgress(), options.ScadaTx.PortName,
+                options.RtuTx.PortName, options.StreamCount == 4
+                    ? $"{options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}" : "");
             PassiveCapturePathText.Text = options.RecordFullSession
                 ? result.Directory : "Live monitor · no recording";
             PassiveIntegrityText.Text = result.Manifest.Status;
@@ -650,6 +663,59 @@ public partial class MainWindow
         }
     }
 
+    // Presentation-only classification of physical UART RX versus FT1.2 framing.
+    // Never confuse a started COM handle with bytes or valid process evidence.
+    private void UpdatePassiveTraceEmptyState(PassiveMonitorProgress progress,
+        string scadaPort, string rtuPort, string linkBPorts)
+    {
+        // Status remains visible even with fully decoded frames. The two byte
+        // counters are not interchangeable: Read is at the driver boundary.
+        var rxA = Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes);
+        var rxB = Math.Max(progress.ReaderRtuBytes, progress.RtuBytes);
+        TracePassiveSourceStatusText.Text =
+            $"{scadaPort} {rxA:N0} B · {rtuPort} {rxB:N0} B · FT1.2 {progress.ValidFt12Frames:N0}" +
+            (progress.RawPreviewDropped > 0 ? $" · view skip {progress.RawPreviewDropped:N0}" : "") +
+            (string.IsNullOrEmpty(progress.ReaderFaultPorts) ? "" :
+                " · RX FAULT " + progress.ReaderFaultPorts);
+        TracePassiveSourceStatusText.ToolTip =
+            $"{scadaPort} RX/queued/written: {rxA:N0}/{progress.QueuedScadaBytes:N0}/{progress.ScadaBytes:N0} B\n" +
+            $"{rtuPort} RX/queued/written: {rxB:N0}/{progress.QueuedRtuBytes:N0}/{progress.RtuBytes:N0} B\n" +
+            (progress.StreamCount == 4 ? $"Link B {linkBPorts} RX {progress.ReaderLinkBScadaBytes:N0}/{progress.ReaderLinkBRtuBytes:N0} B\n" : "") +
+            $"Valid FT1.2={progress.ValidFt12Frames:N0}; untrusted={progress.UntrustedFrameCandidates:N0}; pending={progress.IncompleteFrameBytes:N0} B\n" +
+            $"Raw preview published={progress.RawPreviewPublished:N0}; consumed={progress.RawPreviewConsumed:N0}; skipped={progress.RawPreviewDropped:N0}. Preview is not an archive.";
+        TracePassiveSourceStatusText.Visibility = Visibility.Visible;
+        if (FrameTraceGrid.Items.Count > 0)
+        {
+            TracePassiveEmptyState.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var result = PassiveNoFrameDiagnosis.Evaluate(progress,
+            scadaPort, rtuPort, linkBPorts,
+            FrameTraceRows.Count, _pendingEvidence.Count);
+        TracePassiveEmptyTitleText.Text = result.Title;
+        TracePassiveEmptyDetailText.Text = result.Detail;
+        // These are real UART read chunks, NOT synthetic FT1.2 frames.
+        // A failed/stalled decoder must not leave an RX-active workstation blank.
+        TracePassiveRawChunkGrid.Visibility = _passiveRawRows.Count == 0
+            ? Visibility.Collapsed : Visibility.Visible;
+        TracePassiveEmptyState.Visibility = Visibility.Visible;
+        // One reportable diagnostic per silent session, not per UI timer tick.
+        // Start status alone must not masquerade as verified wire acquisition.
+        if (!_passiveSilenceReported && progress.Status == "Monitoring" &&
+            Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes) +
+            Math.Max(progress.ReaderRtuBytes, progress.RtuBytes) +
+            Math.Max(progress.ReaderLinkBScadaBytes, progress.LinkBScadaBytes) +
+            Math.Max(progress.ReaderLinkBRtuBytes, progress.LinkBRtuBytes) == 0 &&
+            DateTime.UtcNow - _passiveCaptureStartUtc >= TimeSpan.FromSeconds(5))
+        {
+            _passiveSilenceReported = true;
+            AddUiDiagnostic("Warning", "IEC-101 RX-only", "IEC101-PASSIVE-NO-UART",
+                "No UART bytes on passive receive inputs",
+                result.Title + ". " + result.Detail,
+                "Verify the COM adapters are tapped into the active SCADA TX and RTU TX circuits with reference ground, serial baud/parity/stop configuration, and approved isolation. Passive monitoring never sends a poll.");
+        }
+    }
+
     private async Task RefreshPassiveUiAsync()
     {
         var session = _passiveMonitorSession;
@@ -658,22 +724,35 @@ public partial class MainWindow
         try
         {
         var progress = session.GetProgress();
-        PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
+        UpdatePassiveTraceEmptyState(progress, session.SourcePortNames[0],
+            session.SourcePortNames[1],
+            progress.StreamCount == 4
+                ? $"{session.SourcePortNames[2]}/{session.SourcePortNames[3]}" : "");
+        PassiveScadaCountText.Text = Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes).ToString("N0") + " RX bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
-        PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +
+        PassiveRtuCountText.Text = Math.Max(progress.ReaderRtuBytes, progress.RtuBytes).ToString("N0") + " RX bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
             : progress.Status == "Monitoring" ? "Live only · no disk recording" : progress.Status;
         var eventProgress = session.GetProcessEventProgress();
-        PassiveIntegrityText.Text += $" · SOE {eventProgress.AcceptedObjects:N0}" +
+        // These are typed process observations, not a claim that all are
+        // physical SOEs or that missing remote FIFO events were transmitted.
+        PassiveIntegrityText.Text += $" · OBS {eventProgress.AcceptedObjects:N0}" +
             $" ({eventProgress.IndexedObjects:N0} indexed)" +
             (eventProgress.UnindexedObjects > 0 ? $" · {eventProgress.UnindexedObjects:N0} unindexed" : "") +
             (eventProgress.PreviewFramesDropped > 0 ? $" · {eventProgress.PreviewFramesDropped:N0} frame previews skipped" : "") +
-            (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "");
+            (progress.RawPreviewDropped > 0 ? $" · {progress.RawPreviewDropped:N0} raw chunk previews skipped" : "") +
+            (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "") +
+            (eventProgress.DecodeAccounting is { } decode && decode.InvalidVariableFrames > 0
+                ? $" · {decode.InvalidVariableFrames:N0} invalid FT1.2" : "") +
+            (eventProgress.DecodeAccounting is { } counted && counted.AsdusRejected > 0
+                ? $" · {counted.AsdusRejected:N0} rejected ASDUs" : "");
         PassiveIntegrityText.Foreground = (Brush)FindResource(
             progress.IntegrityWarning || eventProgress.UnindexedObjects > 0 ||
-            _passiveLedgerReadFailed ? "BadBrush" : "Ink900Brush");
+            _passiveLedgerReadFailed || eventProgress.DecodeAccounting is
+                { InvalidVariableFrames: > 0 } or { AsdusRejected: > 0 }
+                ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
             PassiveCapturePathText.Text = progress.CaptureDirectory;
 
@@ -797,6 +876,13 @@ public partial class MainWindow
         }
         if (count > 0 && PassiveRawGrid.SelectedItem is null)
             PassiveRawGrid.ScrollIntoView(_passiveRawRows[^1]);
+        // Counters and raw-byte samples are published after this tick's reads.
+        // Update the zero-frame viewport once more with committed source truth.
+        if (count > 0)
+            UpdatePassiveTraceEmptyState(session.GetProgress(),
+                session.SourcePortNames[0], session.SourcePortNames[1],
+                progress.StreamCount == 4
+                    ? $"{session.SourcePortNames[2]}/{session.SourcePortNames[3]}" : "");
         }
         finally { _passiveUiRefreshInFlight = false; }
     }
@@ -937,6 +1023,11 @@ public partial class MainWindow
         var link = control.HasValue ? LinkControlDecoder.Decode(control.Value) : null;
         var decode = prepared is not null ? prepared.Decode :
             seen.ChecksumValid && asduRaw.Length > 0 ? _passiveAsduDecoder?.Decode(asduRaw) : null;
+        // A received byte sequence is always visible in Trace. Only a fully
+        // verified frame AND complete supported ASDU can update process facts.
+        var wire = prepared?.Wire ??
+            PassiveWirePresentation.Classify(seen, _passiveLinkAddressWidth, decode);
+        var trustedDecode = wire.TrustedProcess ? decode : null;
         var format = seen.Format switch
         {
             "Fixed" => Ft12FrameFormat.FixedLength,
@@ -950,7 +1041,7 @@ public partial class MainWindow
             LinkAddress = control.HasValue ? address : null,
             LinkAddressSize = linkWidth, LinkControl = link,
             AsduBytes = asduRaw, IsChecksumValid = seen.ChecksumValid,
-            IsLengthValid = true,
+            IsLengthValid = wire.TrustedWire,
             Issues = profileMismatch
                 ? new[] { $"IEC-101 Link Address width mismatch: Setup={_passiveLinkAddressWidth}, " +
                     $"observed fixed frame has {linkWidth} octet(s). Check Setup or re-decode the raw capture." }
@@ -1000,26 +1091,26 @@ public partial class MainWindow
             "Partial" => "Incomplete FT1.2 frame",
             "Noise" => "Unrecognized serial bytes (raw preserved)",
             "LinkWidthMismatch" => $"Fixed link frame · {linkWidth}-octet address detected; Setup={_passiveLinkAddressWidth}",
-            _ => link?.FunctionName ?? (raw[0] == 0xE5
+            _ => link?.FunctionName ?? (raw.Length == 1 && raw[0] == 0xE5
                 ? "E5 short response (ACK or no-data by request context)"
-                : "A2 single response (not permitted in IEC-101)")
+                : raw.Length == 1 && raw[0] == 0xA2
+                    ? "A2 single response (not permitted in IEC-101)"
+                    : "Unknown FT1.2 candidate")
         };
-        var meaning = decode?.ShortMeaning ?? function;
-        if (!seen.ChecksumValid && seen.Format != "Partial")
-            meaning = "Bad checksum · " + meaning;
-        // Keep the decoded warning visible in the operator Trace, without
-        // changing the authoritative FT1.2 decoder or physical raw evidence.
-        if (profileMismatch || isNoise)
-            meaning = frame.Issues.FirstOrDefault() ?? meaning;
-
-        var first = decode?.FirstObject;
+        var meaning = wire.Status == PassiveWirePresentation.Kind.Decoded
+            ? trustedDecode!.ShortMeaning
+            : wire.Status == PassiveWirePresentation.Kind.LinkOnly ? function
+            : wire.Message;
+        // A valid FT1.2 envelope with an unknown ASDU is still a physical
+        // frame; do not rewrite it into a fake decoded signal or hide it.
+        var first = trustedDecode?.FirstObject;
         var rawHexOnce = prepared?.RawHex ?? Convert.ToHexString(raw);
 
         var ev = new Iec103MasterEvidenceEvent
         {
             SequenceNumber = inspectionOnly ? 0 : ++_passiveFrameSequence,
             TimestampUtc = seen.EstimatedUtc, Direction = direction,
-            Category = seen.ChecksumValid && !forbiddenSingleA2 && !profileMismatch && !isNoise
+            Category = !wire.NeedsAttention
                 ? "Passive Traffic" : "RX Warning",
             DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
@@ -1053,9 +1144,9 @@ public partial class MainWindow
             ObjectSummary = decode?.ObjectSummary ?? "",
             QualityText = first?.QualityText ?? "",
             IsRelayEdgeEvent = direction == FrameDirection.SlaveToMaster && first is not null &&
-                decode?.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-            IsRelayValue = direction == FrameDirection.SlaveToMaster && first is not null && decode is not null &&
-                decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
+                trustedDecode?.CauseOfTransmission == 3 && trustedDecode.TypeId is >= 1 and <= 44,
+            IsRelayValue = direction == FrameDirection.SlaveToMaster && first is not null && trustedDecode is not null &&
+                trustedDecode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
             SignalKey = first is null || decode is null ? "" :
                 $"L{seen.StreamId / 2}:{decode.CommonAddress}:{first.InformationObjectAddress}",
             SignalName = first is null ? "" : $"IOA {first.InformationObjectAddress}",
@@ -1079,10 +1170,10 @@ public partial class MainWindow
                 TimeSpan.FromSeconds(1));
 
         // Multi-object ASDUs must update EVERY point, not only the first IOA.
-        if (direction == FrameDirection.SlaveToMaster && decode is not null &&
-            decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
+        if (direction == FrameDirection.SlaveToMaster && trustedDecode is not null &&
+            trustedDecode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
         {
-            foreach (var obj in decode.Objects.Skip(1))
+            foreach (var obj in trustedDecode.Objects.Skip(1))
             {
                 UpdateValueAndEventViews(new Iec103MasterEvidenceEvent
                 {
@@ -1096,23 +1187,23 @@ public partial class MainWindow
                     PhysicalSource = seen.StreamId < 2 ? "Link A" : "Link B",
                     PhysicalStreamId = seen.StreamId,
                     RawStreamOffset = seen.StreamOffset,
-                    TypeId = decode.TypeId, TypeName = decode.TypeName,
-                    CauseOfTransmission = decode.CauseOfTransmission,
-                    CauseDetails = decode.CauseDetails,
+                    TypeId = trustedDecode.TypeId, TypeName = trustedDecode.TypeName,
+                    CauseOfTransmission = trustedDecode.CauseOfTransmission,
+                    CauseDetails = trustedDecode.CauseDetails,
                     AsduDetails = decode,
                     InformationObjectDetails = obj,
                     QualityDetails = obj.QualityDetails,
-                    CommandDetails = Iec10xCommandDetails.Decode(decode.TypeId, obj, decode.CauseDetails!),
+                    CommandDetails = Iec10xCommandDetails.Decode(trustedDecode.TypeId, obj, trustedDecode.CauseDetails!),
                     QualityText = obj.QualityText,
-                    CauseName = decode.CauseName, CommonAddressNumber = decode.CommonAddress,
+                    CauseName = trustedDecode.CauseName, CommonAddressNumber = trustedDecode.CommonAddress,
                     InformationObjectAddress = obj.InformationObjectAddress,
                     ObjectSummary = obj.ReadableSummary,
                     IsRelayValue = true,
-                    IsRelayEdgeEvent = decode.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-                    SignalKey = $"L{seen.StreamId / 2}:{decode.CommonAddress}:{obj.InformationObjectAddress}",
+                    IsRelayEdgeEvent = trustedDecode.CauseOfTransmission == 3 && trustedDecode.TypeId is >= 1 and <= 44,
+                    SignalKey = $"L{seen.StreamId / 2}:{trustedDecode.CommonAddress}:{obj.InformationObjectAddress}",
                     SignalName = $"IOA {obj.InformationObjectAddress}",
                     SignalGroup = seen.StreamId < 2 ? "IEC-101 Link A" : "IEC-101 Link B",
-                    SignalType = decode.TypeName,
+                    SignalType = trustedDecode.TypeName,
                     SignalDisplayValue = obj.ShortValue,
                     SignalRawValue = obj.ValueText,
                     RelayTimestampText = obj.TimestampText,

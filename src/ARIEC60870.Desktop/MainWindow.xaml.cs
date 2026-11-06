@@ -92,10 +92,16 @@ public partial class MainWindow : Window
     private const int MaxTriggerPreBufferRows = 80;
 
 
-    private readonly ConcurrentQueue<Iec103MasterEvidenceEvent> _pendingEvidence = new();
+    // Stamped at the source so a late callback from an earlier connection can
+    // never turn into process evidence for a newer UI/session epoch.
+    private readonly record struct SessionEvidenceEnvelope(long Epoch, Iec103MasterEvidenceEvent Item);
+    private readonly record struct SessionFindingEnvelope(long Epoch, Iec103MasterFinding Item);
+    private readonly ConcurrentQueue<SessionEvidenceEnvelope> _pendingEvidence = new();
     // One early dispatcher flush per Connect; normal traffic uses the bounded UI timer.
     private int _initialLiveTraceFlushPending;
-    private readonly ConcurrentQueue<Iec103MasterFinding> _pendingFindings = new();
+    private readonly ConcurrentQueue<SessionFindingEnvelope> _pendingFindings = new();
+    private long _staleSessionEvidenceRejected;
+    private long _staleSessionFindingsRejected;
     private readonly Queue<string> _sessionLogLines = new();
     private readonly DispatcherTimer _uiFlushTimer;
     private readonly DispatcherTimer _ledDecayTimer;

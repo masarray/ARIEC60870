@@ -79,6 +79,15 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.Contains(stationInterrogationValues, x => x.InformationObjectAddress == 101 && x.SignalDisplayValue.Contains("OFF", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Events, x => x.Category == "RX Object" && x.InformationObjectAddress == 101);
         Assert.Contains(result.Events, x => string.Equals(x.PollingReason, "Dual-link startup post-GI Class 2 verification sweep", StringComparison.OrdinalIgnoreCase));
+        var firstObject = stationInterrogationValues.First(x => x.InformationObjectAddress == 100);
+        var secondObject = stationInterrogationValues.First(x =>
+            x.InformationObjectAddress == 101 &&
+            x.PhysicalFrameSequenceNumber == firstObject.SequenceNumber);
+        Assert.Equal(firstObject.PhysicalSource, secondObject.PhysicalSource);
+        Assert.Equal("Link A", secondObject.PhysicalSource);
+        Assert.Equal(firstObject.EvidenceReference.Split("|object:")[0],
+            secondObject.EvidenceReference.Split("|object:")[0]);
+        Assert.NotEqual(firstObject.SequenceNumber, secondObject.SequenceNumber);
         Assert.Equal(2, session.CreateSnapshot().ApplicationImageObjectCount);
     }
 

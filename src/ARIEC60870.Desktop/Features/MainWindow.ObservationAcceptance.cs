@@ -36,6 +36,10 @@ public partial class MainWindow
         return false;
     }
 
+    private static PassiveFramePreparation.Prepared AssertSinglePreparedForUi(
+        PassiveObservedFrame observed) =>
+        PassiveFramePreparation.PrepareBatch([observed], 1, 2, 2, 3)[0];
+
     public async Task RunObservationUiAcceptanceProbeAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -47,8 +51,79 @@ public partial class MainWindow
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
+        // The executable acceptance first runs two other GUI smoke probes in
+        // the SAME MainWindow. Simulate the actual new passive Start boundary:
+        // clear their historical fixture frames before testing zero-RX UX.
+        ClearSessionView(clearLog: false);
+        if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
+            throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
+        // Field-empty-state acceptance: display wire counters and distinguish
+        // silent COM from a WPF rendering failure on the actual Raw Frames view.
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false), "COM4", "COM3", "");
+        if (TracePassiveEmptyState.Visibility != Visibility.Visible ||
+            !TracePassiveEmptyTitleText.Text.Contains("No UART bytes", StringComparison.Ordinal) ||
+            !TracePassiveEmptyDetailText.Text.Contains("COM4", StringComparison.Ordinal))
+            throw new InvalidOperationException("Silent passive capture has no visible serial diagnosis.");
+        // Verified reader receipt must not be misdiagnosed as a silent line
+        // merely because the shared writer has not committed its queue.
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false,
+            ReaderScadaBytes: 2), "COM4", "COM3", "");
+        if (!TracePassiveEmptyTitleText.Text.Contains("writer pipeline pending", StringComparison.Ordinal) ||
+            !TracePassiveSourceStatusText.Text.Contains("COM4 2", StringComparison.Ordinal))
+            throw new InvalidOperationException("RX reader activity was mistaken for a silent UART.");
+        // Direct UART samples must be displayed without a completed frame.
+        _passiveRawRows.Add(new PassiveRxRow("16:31:01.200", "A RX0",
+            1, 2, "680C"));
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 2, 0, 1, 0, 0, 0, false,
+            IncompleteFrameBytes: 2), "COM4", "COM3", "");
+        if (TracePassiveRawChunkGrid.Visibility != Visibility.Visible ||
+            TracePassiveRawChunkGrid.Items.Count != 1 ||
+            !((PassiveRxRow)TracePassiveRawChunkGrid.Items[0]).Hex.Equals("680C", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Actual UART RX bytes were hidden because no FT1.2 frame had completed.");
+        _passiveRawRows.Clear();
+        TracePassiveEmptyState.Visibility = Visibility.Collapsed;
 
-        // A forensic line monitor must NEVER start in a view that silently
+        // An unknown Type with a sound FT1.2 checksum must appear in the SAME
+        // Trace as valid frames, but must never create false Values/SOE.
+        var unknownAsdu = new byte[]
+            { 0xFA, 0x01, 0x03, 0x00, 0x69, 0x00, 0x01, 0x00, 0x00, 0x42 };
+        var unknownBody = new byte[] { 0x08, 0x69 }.Concat(unknownAsdu).ToArray();
+        var unknownWire = new byte[] { 0x68, (byte)unknownBody.Length,
+                (byte)unknownBody.Length, 0x68 }
+            .Concat(unknownBody)
+            .Concat(new byte[] { (byte)(unknownBody.Sum(x => x) & 255), 0x16 })
+            .ToArray();
+        var unknownObserved = new PassiveObservedFrame(1, 407, DateTime.UtcNow,
+            "Variable", true, unknownWire);
+        var unknownPrepared = AssertSinglePreparedForUi(unknownObserved);
+        FeedPassiveFrameToExistingViews(unknownObserved, prepared: unknownPrepared);
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 408,
+            DateTime.UtcNow, "Noise", false, [0x51, 0x52, 0x53]));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 411,
+            DateTime.UtcNow, "Partial", false, [0x68, 0x0C]));
+        FlushUiQueues();
+        var unknownVisible = FrameTraceRows.Any(x =>
+            x.RawHex == Convert.ToHexString(unknownWire) &&
+            x.Source.OperatorMessage.Contains("Unknown/invalid IEC-101 ASDU", StringComparison.Ordinal));
+        var noiseVisible = FrameTraceRows.Any(x =>
+            x.RawHex == "515253" &&
+            x.Source.OperatorMessage.Contains("Unrecognized serial bytes", StringComparison.Ordinal));
+        var partialVisible = FrameTraceRows.Any(x =>
+            x.RawHex == "680C" &&
+            x.Source.OperatorMessage.Contains("Partial FT1.2", StringComparison.Ordinal));
+        if (!unknownVisible || !noiseVisible || !partialVisible ||
+            ValueRows.Count != 0 || RelayEventRows.Count != 0)
+            throw new InvalidOperationException(
+                $"Wire-first Trace mismatch: unknown={unknownVisible}, noise={noiseVisible}, " +
+                $"partial={partialVisible}, values={ValueRows.Count}, events={RelayEventRows.Count}, " +
+                $"trace={FrameTraceRows.Count}, raw=" +
+                string.Join("|", FrameTraceRows.Select(x => x.RawHex).Take(10)));
+        ClearSessionView(clearLog: false);
+                // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
         if (TraceQuickScopeCombo.SelectedIndex != 1 ||
             MainTabControl.SelectedIndex != 1 ||
@@ -767,6 +842,131 @@ public partial class MainWindow
         interpretedPointRows = DecodedPointGrid.Items.Count;
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
         _traceInspectorForcedOpen = false;
+
+        // Reproduce field failure: a full live Event journal suddenly became one
+        // row when a narrower engine result arrived at end of session. Also
+        // verify > one dispatcher batch of pending evidence is drained before
+        // terminal summary rather than being discarded on the next Connect.
+        FlushUiQueues();
+        var retainedAtFinish = _relayEventStore.Snapshot().ToArray();
+        var projectedAtFinish = RelayEventRows.ToArray();
+        var valuesAtFinish = ValueRows.ToArray();
+        if (retainedAtFinish.Length < 2 || projectedAtFinish.Length < 2 ||
+            valuesAtFinish.Length < 2)
+            throw new InvalidOperationException("Terminal regression lacks mixed live Events/Values.");
+        var terminalEventResets = 0;
+        var terminalValueResets = 0;
+        NotifyCollectionChangedEventHandler eventWatch = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) terminalEventResets++;
+        };
+        NotifyCollectionChangedEventHandler valueWatch = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) terminalValueResets++;
+        };
+        RelayEventRows.CollectionChanged += eventWatch;
+        ValueRows.CollectionChanged += valueWatch;
+        try
+        {
+            const int terminalBacklog = 280; // greater than one bounded UI flush
+            for (var i = 0; i < terminalBacklog; i++)
+            {
+                _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(
+                    System.Threading.Volatile.Read(ref _eventProjectionEpoch),
+                    new Iec103MasterEvidenceEvent
+                {
+                    SequenceNumber = 8_000_000L + i,
+                    ProtocolMode = Iec60870ProtocolMode.Iec103,
+                    Direction = FrameDirection.MasterToSlave,
+                    Category = "Info",
+                    DataClass = "Test",
+                    Summary = "Synthetic terminal receive-queue drain"
+                }));
+            }
+            await ApplyFinalResultAsync(new Iec103MasterRunResult
+            {
+                CompletedNormally = true,
+                CompletionReason = "Synthetic completion (WPF regression only)",
+                // An engine edge summary must NEVER replace the richer live log.
+                EventLog = [new Iec103RelayEventLogEntry
+                {
+                    EvidenceSequenceNumber = 9_000_000,
+                    SignalName = "summary-only event"
+                }],
+                ValuePoints = [new Iec103ValuePoint
+                {
+                    Key = "summary-only-value",
+                    SignalName = "summary-only value"
+                }]
+            });
+        }
+        finally
+        {
+            RelayEventRows.CollectionChanged -= eventWatch;
+            ValueRows.CollectionChanged -= valueWatch;
+        }
+        if (!_pendingEvidence.IsEmpty || !_pendingFindings.IsEmpty ||
+            !retainedAtFinish.SequenceEqual(_relayEventStore.Snapshot()) ||
+            !projectedAtFinish.SequenceEqual(RelayEventRows) ||
+            !valuesAtFinish.SequenceEqual(ValueRows) ||
+            RelayEventGrid.Items.Count != projectedAtFinish.Length ||
+            terminalEventResets != 0 || terminalValueResets != 0 ||
+            DpiText.Text != _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            throw new InvalidOperationException(
+                $"Terminal completion lost live observations or reset WPF: " +
+                $"retained={_relayEventStore.Snapshot().Count}/{retainedAtFinish.Length}, " +
+                $"event UI={RelayEventRows.Count}/{projectedAtFinish.Length}, " +
+                $"values={ValueRows.Count}/{valuesAtFinish.Length}, " +
+                $"pending={_pendingEvidence.Count}, resets={terminalEventResets}/{terminalValueResets}.");
+        // A new Start changes the epoch. Late active Master callbacks, including
+        // already-queued old results, must not modify this session's Values,
+        // Events, diagnostics or dual-link state.
+        var oldEpoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+        ClearSessionView(clearLog: false);
+        var nextEpoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+        if (nextEpoch == oldEpoch)
+            throw new InvalidOperationException("New observation scope failed to advance its epoch.");
+        var late = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 9_100_001,
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            Category = "RX",
+            TypeId = 1,
+            CauseOfTransmission = 3,
+            CommonAddressNumber = 105,
+            InformationObjectAddress = 901,
+            SignalDisplayValue = "SP=ON"
+        };
+        var lateFinding = new Iec103MasterFinding
+        {
+            Id = "STALE-SOURCE",
+            Title = "Stale previous-session finding"
+        };
+        OnMasterEvidenceReceived(oldEpoch, this, late);
+        OnMasterFindingRaised(oldEpoch, this, lateFinding);
+        // Also cover the hard race: the old callback passed the initial epoch
+        // check, then the UI cleared the scope before it was dequeued.
+        _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(oldEpoch, late));
+        _pendingFindings.Enqueue(new SessionFindingEnvelope(oldEpoch, lateFinding));
+        FlushUiQueues();
+        if (_rxCount != 0 || RelayEventRows.Count != 0 || ValueRows.Count != 0 ||
+            FindingRows.Count != 0 || _pendingEvidence.Count != 0 ||
+            _pendingFindings.Count != 0 || _staleSessionEvidenceRejected < 2 ||
+            _staleSessionFindingsRejected < 2)
+            throw new InvalidOperationException(
+                "Previous session callback/queue entries contaminated a new session epoch.");
+
+        // A new trusted callback must continue working normally. Epoch guard
+        // blocks old sources; it must not accidentally block the current one.
+        OnMasterEvidenceReceived(nextEpoch, this, late);
+        FlushUiQueues();
+        if (_rxCount != 1 || RelayEventRows.Count != 1 ||
+            !ValueRows.Any(x => x.IoAddress == "901") ||
+            !RelayEventRows.Any(x => x.IoAddress == "901"))
+            throw new InvalidOperationException(
+                "Session epoch protection also blocked current trusted process evidence.");
+        var staleEpochReceptionPassed = true;
         testStart.Stop();
         File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new
@@ -780,6 +980,9 @@ public partial class MainWindow
                 searchAndAutoSameBaselinePassed = true,
                 eventProjectionVersion = _eventProjectionVersion,
                 eventProjectionEpoch = _eventProjectionEpoch,
+                staleEpochReceptionPassed,
+                staleSessionEvidenceRejected = _staleSessionEvidenceRejected,
+                staleSessionFindingsRejected = _staleSessionFindingsRejected,
                 eventProjectionLiveResetCount = _eventLiveResetCount,
                 eventProjectionMismatchCount = _eventProjectionMismatchCount,
                 eventProjectionSourceCount = _eventProjectionSourceCount,

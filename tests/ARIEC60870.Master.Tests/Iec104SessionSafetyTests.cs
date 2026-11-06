@@ -72,6 +72,127 @@ public sealed class Iec104SessionSafetyTests
         Assert.DoesNotContain(transport.Sent, f => new Iec104ApduParser().Decode(f).Format == "I");
     }
 
+
+    [Fact]
+    public async Task OutOfWindowAckCannotPromoteMultiObjectObservationsButValidRetransmissionCan()
+    {
+        var settings = new Iec103MasterSettings
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            CauseOfTransmissionSize = 2,
+            CommonAddressSize = 2,
+            InformationObjectAddressSize = 3,
+            CommonAddress = 1,
+            ResponseTimeoutMs = 20,
+            Iec104T1AckTimeoutMs = 150,
+            Class2PollIntervalMs = 1,
+            SendClockSyncOnConnect = false,
+            SendGeneralInterrogationOnConnect = false
+        };
+        var asdu = Iec10xAsduBuilder.SinglePoint(settings, 101, true, cause: 3);
+        asdu[1] = 2; // SQ0: two independently addressable process objects
+        asdu = asdu.Concat(new byte[] { 102, 0, 0, 0 }).ToArray();
+
+        // No I-format was sent, so N(R)=1 acknowledges a nonexistent TX.
+        // The following valid N(S)=0 retransmission must remain acceptable.
+        using var transport = new InvalidAckThenValidMultiObjectTransport(
+            Iec104FrameBuilder.S(1),
+            Iec104FrameBuilder.I(0, 1, asdu),
+            Iec104FrameBuilder.I(0, 0, asdu));
+        var session = new Iec104ClientSession(settings, transport);
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(260), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Contains(result.Findings, f => f.Id == "IEC104-NR-ACK-INVALID");
+        Assert.Equal(2, result.Counters.RejectedFrames); // invalid S and I N(R)
+        Assert.Equal(2, result.Counters.AckResponses); // STARTDT and first TESTFR confirmations
+        Assert.Equal(1, result.Counters.UserDataResponses); // valid I only
+
+        var rejected = Assert.Single(result.Events, e =>
+            e.Direction == ARIEC60870.Core.Model.FrameDirection.SlaveToMaster &&
+            e.TypeId == 1 && e.Category == "RX Warning");
+        Assert.False(rejected.IsRelayValue);
+        Assert.False(rejected.IsRelayEdgeEvent);
+        Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(rejected));
+        Assert.DoesNotContain(result.Events, e =>
+            e.PhysicalFrameSequenceNumber == rejected.SequenceNumber);
+
+        var accepted = result.Events.Where(e => e.TypeId == 1 && e.IsRelayValue).ToArray();
+        Assert.Equal(2, accepted.Length);
+        Assert.Equal(new int?[] { 101, 102 },
+            accepted.Select(e => e.InformationObjectAddress).ToArray());
+        Assert.All(accepted, e => Assert.True(
+            Iec10xObservationIdentity.HasTrustedDecodedPayload(e)));
+        Assert.Equal(accepted[0].EvidenceReference.Split("|object:")[0],
+            accepted[1].EvidenceReference.Split("|object:")[0]);
+        Assert.Equal(2, transport.SFrameWrites); // each well-formed I receives a contiguous N(R) acknowledgement
+    }
+
+    private sealed class InvalidAckThenValidMultiObjectTransport : IByteTransport
+    {
+        private readonly Queue<byte> _rx = new();
+        private readonly byte[][] _afterStart;
+        public int SFrameWrites { get; private set; }
+        public bool IsOpen { get; private set; }
+
+        public InvalidAckThenValidMultiObjectTransport(params byte[][] afterStart)
+            => _afterStart = afterStart;
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            IsOpen = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            IsOpen = false;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x07)
+            {
+                Push(Iec104FrameBuilder.StartDtConfirmation());
+                foreach (var response in _afterStart) Push(response);
+            }
+            else if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x01)
+                SFrameWrites++;
+            else if (buffer.Span.Length >= 6 && buffer.Span[2] == 0x43)
+                Push(Iec104FrameBuilder.TestFrConfirmation());
+            return ValueTask.CompletedTask;
+        }
+
+        private void Push(byte[] bytes)
+        {
+            foreach (var b in bytes) _rx.Enqueue(b);
+        }
+
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (_rx.Count == 0)
+                return new ValueTask<int>(WaitForDeadlineAsync(cancellationToken));
+            var count = 0;
+            while (count < buffer.Length && _rx.Count > 0)
+                buffer.Span[count++] = _rx.Dequeue();
+            return ValueTask.FromResult(count);
+        }
+
+        private static async Task<int> WaitForDeadlineAsync(CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return 0;
+        }
+
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync()
+        {
+            IsOpen = false;
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class DelayedStartDtTransport : IByteTransport
     {
         private readonly Queue<byte> _reply = new();

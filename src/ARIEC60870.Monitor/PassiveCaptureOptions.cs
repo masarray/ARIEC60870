@@ -122,6 +122,7 @@ public sealed record PassiveCaptureManifest
     public long IndexedProcessEventObjects { get; init; }
     public long UnindexedProcessEventObjects { get; init; }
     public long PreviewFramesDropped { get; init; }
+    public PassiveProcessDecodeCounters? ProcessDecodeAccounting { get; init; }
     public string LinkMode { get; init; } = "Auto";
     public string TimestampPolicy { get; init; } = "Monotonic Stopwatch at serial driver read completion; NOT per-byte wire timing.";
     public string IntegrityPolicy { get; init; } = "No application loss detected does not guarantee zero USB/OS/physical losses.";

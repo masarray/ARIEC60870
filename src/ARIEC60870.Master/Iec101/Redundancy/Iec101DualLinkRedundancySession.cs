@@ -1302,7 +1302,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         FindingRaised?.Invoke(this, finding);
     }
 
-    private void AddEvent(Iec103MasterEvidenceEvent item)
+    private long AddEvent(Iec103MasterEvidenceEvent item)
     {
         var enriched = new Iec103MasterEvidenceEvent
         {
@@ -1322,6 +1322,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             PhysicalSource = item.PhysicalSource,
             PhysicalStreamId = item.PhysicalStreamId,
             RawStreamOffset = item.RawStreamOffset,
+            PhysicalFrameSequenceNumber = item.PhysicalFrameSequenceNumber,
             ExceptionType = item.ExceptionType,
             ExceptionMessage = item.ExceptionMessage,
             ExceptionStackTrace = item.ExceptionStackTrace,
@@ -1373,6 +1374,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _counters.EvidenceEventsDroppedFromMemory++;
         }
         EvidenceReceived?.Invoke(this, enriched);
+        return enriched.SequenceNumber;
     }
 
     private void PublishSnapshot() => SnapshotChanged?.Invoke(this, CreateSnapshot());

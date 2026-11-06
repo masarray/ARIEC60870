@@ -881,7 +881,10 @@ public sealed class Iec103MasterSession : IProtocolMasterSession
     private MappingUpdate BuildMappingUpdate(Ft12FrameDecode decoded, string rawHex, DateTime arrivalUtc)
     {
         var asdu = decoded.Asdu;
-        if (asdu is null || asdu.FunctionType is null || asdu.InformationNumber is null)
+        // Link CRC is not sufficient for process-state admission: incomplete
+        // native IEC-103 ASDUs must remain raw instead of inventing Values/SOE.
+        if (asdu is null || asdu.Status != DecodeStatus.Ok ||
+            asdu.FunctionType is null || asdu.InformationNumber is null)
         {
             return MappingUpdate.Empty;
         }
@@ -892,6 +895,12 @@ public sealed class Iec103MasterSession : IProtocolMasterSession
             return MappingUpdate.Empty;
         }
 
+        // AddEvent immediately following this decode assigns the next sequence
+        // to the physical RX frame. Its derived Values/Event facts share that
+        // exact frame root; do not fabricate a separate event-row identity.
+        var physicalFrameSequence = _sequence + 1;
+        var originalReference = Iec10xObservationIdentity.ActiveFrameReference(
+            Iec60870ProtocolMode.Iec103, physicalFrameSequence);
         var resolved = _mappingProfile.Resolve(asdu);
         var key = string.IsNullOrWhiteSpace(resolved.SignalKey)
             ? $"FUN{asdu.FunctionType.Value:000}:INF{asdu.InformationNumber.Value:000}:{Iec103SignalMappingProfile.InferSignalType(asdu)}"
@@ -921,6 +930,7 @@ public sealed class Iec103MasterSession : IProtocolMasterSession
         var valuePoint = new Iec103ValuePoint
         {
             Key = key,
+            EvidenceReference = originalReference,
             IsMapped = resolved.IsMapped,
             SignalName = displayName,
             SignalGroup = resolved.IsMapped ? resolved.SignalGroup : "Unmapped",
@@ -945,7 +955,8 @@ public sealed class Iec103MasterSession : IProtocolMasterSession
         {
             _eventLog.Add(new Iec103RelayEventLogEntry
             {
-                EvidenceSequenceNumber = _sequence + 1,
+                EvidenceSequenceNumber = physicalFrameSequence,
+                EvidenceReference = originalReference,
                 RelayTimeText = relayTimeText,
                 RelayTimeInvalid = relayTimeInvalid,
                 ArrivalTimeUtc = arrivalUtc,

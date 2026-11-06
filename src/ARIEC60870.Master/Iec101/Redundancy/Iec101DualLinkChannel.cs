@@ -18,7 +18,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Ft12Parser _ft12;
     private readonly Ft12StreamReader _reader;
     private readonly Iec10xAsduDecoder _asduDecoder;
-    private readonly Action<Iec103MasterEvidenceEvent> _publish;
+    private readonly Func<Iec103MasterEvidenceEvent, long> _publish;
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
     private readonly Iec101TransmitHistory _transmitHistory = new();
@@ -27,7 +27,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Iec101DualLinkEndpoint endpoint,
         Iec103MasterSettings settings,
         IByteTransport transport,
-        Action<Iec103MasterEvidenceEvent> publish,
+        Func<Iec103MasterEvidenceEvent, long> publish,
         Action<Iec10xAsduDecode?, DateTime> observeAsdu)
     {
         Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
@@ -451,7 +451,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             if (isUserData) LinkState.UserDataResponses++;
         }
 
-        _publish(new Iec103MasterEvidenceEvent
+        var physicalFrameSequence = _publish(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.SlaveToMaster,
             State = Iec103MasterState.NormalClass2Polling,
@@ -498,7 +498,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             RelayTimestampInvalid = asdu?.FirstObject?.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase) == true,
             EdgeReason = asdu?.CauseName ?? string.Empty
         });
-        PublishAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason, sw.ElapsedMilliseconds);
+        PublishAdditionalObjectEvents(decoded, asdu, raw!, dataClass, reason,
+            sw.ElapsedMilliseconds, physicalFrameSequence);
 
         State = Role == Iec101RedundancyChannelRole.Active
             ? Iec101RedundancyChannelState.ActivePolling
@@ -570,7 +571,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         });
     }
 
-    private void PublishAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs)
+    private void PublishAdditionalObjectEvents(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs, long physicalFrameSequence)
     {
         if (asdu is null || asdu.Objects.Count <= 1)
         {
@@ -584,6 +585,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
                 Direction = FrameDirection.SlaveToMaster,
                 State = Iec103MasterState.NormalClass2Polling,
                 Category = decoded.IsChecksumValid ? "RX Object" : "RX Warning",
+                PhysicalFrameSequenceNumber = physicalFrameSequence,
                 DataClass = DecorateDataClass(dataClass),
                 PollingReason = reason,
                 Summary = $"{Name} RX object - {asdu.TypeName}, IOA={obj.InformationObjectAddress}, {obj.ShortValue}",

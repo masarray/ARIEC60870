@@ -161,6 +161,16 @@ public partial class MainWindow
 
     private void UpdateValueAndEventViews(Iec103MasterEvidenceEvent item)
     {
+        // Preserve rejected IEC-101/104 RX in the original Frame Trace, but
+        // never let UI fallback classification independently promote its
+        // decoded Type/IOA into a trusted Value, Event or GI/command milestone.
+        // The active protocol owner marks unaccepted I-frames RX Warning.
+        if (item.Direction == FrameDirection.SlaveToMaster &&
+            item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+            item.TypeId.HasValue &&
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item))
+            return;
+
         // These lifecycle engines already consumed the original frame on
         // the normal trace path. A writer-owned SOE fact must not re-advance them.
         if (!_passiveLedgerFactProjection)
@@ -901,6 +911,9 @@ public partial class MainWindow
         // Open Frame / GI / control selection can leave the empty Trace frozen
         // and subsequent valid RX or malformed wire evidence appears missing.
         ResumeLiveViews(clearSelection: true, followLive: true);
+        TracePassiveSourceStatusText.Visibility = Visibility.Collapsed;
+        TracePassiveEmptyState.Visibility = Visibility.Collapsed;
+        TracePassiveRawChunkGrid.Visibility = Visibility.Collapsed;
         ResetRecordedArchiveSource();
         EvidenceRows.Clear();
         FrameTraceRows.Clear();
@@ -959,7 +972,9 @@ public partial class MainWindow
         // A new capture/session is an explicit scope transition. Its Clear()
         // notification is not a live event-window Reset; epoch invalidates
         // pending older UI projections and resets diagnostics.
-        _eventProjectionEpoch++;
+        System.Threading.Interlocked.Increment(ref _eventProjectionEpoch);
+        System.Threading.Interlocked.Exchange(ref _staleSessionEvidenceRejected, 0);
+        System.Threading.Interlocked.Exchange(ref _staleSessionFindingsRejected, 0);
         _eventCommittedScope = "";
         RelayEventRows.Clear();
         _eventLiveResetCount = 0;
