@@ -99,6 +99,55 @@ public sealed class VirtualInlineRelayTests
     }
 
     [Fact]
+    public async Task VirtualDriverFailureAutomaticallyEndsMonitorAndBothRelayDirections()
+    {
+        using var a = new MemoryEndpoint("COM12");
+        using var b = new MemoryEndpoint("COM13") { FailOnWrite = true };
+        using var relay = new VirtualInlineRelaySession(Master, Slave, a, b);
+        var options = new PassiveCaptureOptions(string.Empty, Master, Slave,
+            RecordFullSession: false, CaptureSource: "Virtual Inline (VSPE)");
+        var monitor = new PassiveMonitorSession(options, relay.CreateMonitorTaps());
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var running = monitor.RunAsync(timeout.Token);
+        await UntilAsync(() => a.IsOpen && b.IsOpen);
+        a.Inject([0x10, 0x5B, 0x69, 0xC4, 0x16]);
+        // The relay fault MUST automatically terminate BOTH Monitor readers,
+        // without relying on a WPF timer or operator Stop click.
+        var completed = await running.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(timeout.IsCancellationRequested);
+        Assert.Equal("IntegrityUncertain", completed.Manifest.Status);
+        Assert.Contains(completed.Manifest.Warnings, warning =>
+            warning.Contains("Duplex relay and both Monitor directions are stopping",
+                StringComparison.Ordinal));
+        Assert.Equal("Faulted", relay.GetProgress().Status);
+        Assert.True(a.WasClosed && b.WasClosed);
+        Assert.Equal(1, b.WriteCallCount);
+    }
+
+    [Fact]
+    public async Task MonitorCancellationStopsActiveVirtualForwardingImmediately()
+    {
+        using var a = new MemoryEndpoint("COM12");
+        using var b = new MemoryEndpoint("COM13");
+        using var relay = new VirtualInlineRelaySession(Master, Slave, a, b);
+        var options = new PassiveCaptureOptions(string.Empty, Master, Slave,
+            RecordFullSession: false, CaptureSource: "Virtual Inline (VSPE)");
+        var monitor = new PassiveMonitorSession(options, relay.CreateMonitorTaps());
+
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var running = monitor.RunAsync(stop.Token);
+        await UntilAsync(() => a.IsOpen && b.IsOpen);
+        stop.Cancel();
+        // The cancellation callback is synchronous. Do not allow forwarding
+        // to continue until journal writer completion or a delayed UI tick.
+        Assert.True(a.WasClosed && b.WasClosed);
+        var completed = await running.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal("MonitorStopped", completed.Manifest.Status);
+        Assert.Equal("Stopped", relay.GetProgress().Status);
+    }
+
+    [Fact]
     public void SecondPortOpenFailureClosesFirstWithoutStartingRelay()
     {
         using var a = new MemoryEndpoint("COM12");
@@ -236,6 +285,7 @@ public sealed class VirtualInlineRelayTests
         public string PortName { get; }
         public long DriverErrorCount => 0;
         public string? RelayFault => null;
+        public void StopRelay() { }
         public VirtualInlineDirectionProgress GetIngressAccounting() =>
             new(PortName, "virtual peer", _ingress, _ingress, _ingress,
                 0, _ingress, 0, 0, _ingress > 0 ? 1 : 0, 0);
