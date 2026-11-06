@@ -2476,6 +2476,10 @@
                                                TextWrapping="Wrap" FontSize="10.5"
                                                Foreground="{StaticResource Ink600Brush}"
                                                Text="Active lab relay: VSPE COM11 ↔ COM12 and COM13 ↔ COM14. Master opens COM11, ARIEC opens COM12/COM13, Slave opens COM14. Forwarding is active, NOT an electrical RX-only tap."/>
+                                    <CheckBox x:Name="PassiveVirtualLabAcknowledgedCheckBox"
+                                              Margin="0,7,0,0" Visibility="Collapsed"
+                                              Content="I confirm both relay COM ports are virtual lab endpoints"
+                                              ToolTip="Active byte forwarding can transmit onto a physical COM if the wrong port is selected. Verify both VSPE Pair endpoints before Start."/>
                                 </StackPanel>
                                 <TextBlock x:Name="SerialConnectionTitleText" Text="SERIAL CONNECTION" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
                                 <Grid Margin="0,0,0,12">
