@@ -209,3 +209,11 @@ Both Value and Event columns use one consistent lightweight state chip pattern: 
 
 The change uses existing bounded ObservableRangeCollections, recycling virtualized grids, and immutable per-row state objects. No dynamic visual animation, unbounded row view models, extra timer, receive-path formatting, driver interaction or protocol engine modifications. Save WPF screenshots and test XAML layout at actual realized CI viewport dimensions, then perform physical 100%/125%/150% DPI review and COM/RTU FAT separately.
 
+
+## P0 Passive empty Trace / serial evidence contract (2026-11-06)
+
+A successful RX-only SerialPort open and a UI banner that says Monitoring **do not** establish physical UART traffic. When the main Frame Trace window is empty, the passive cockpit distinguishes (a) zero bytes delivered by both configured COM receivers, (b) bytes delivered but no complete FT1.2 candidate, (c) source-owned candidates already published yet not visible in WPF, and (d) frames retained but excluded by the current Trace filter. The diagnostic is a compact, non-interactive overlay on the existing Trace, not a synthetic protocol row, and counts come from the single writer. It does not change handshake outputs or transmit, poll, reset or GI.
+
+The previous framer finalized a truncated trailing candidate only after the next UART chunk or Stop. A writer-owned 200-ms check now expires an incomplete FT1.2 candidate once the configured inter-frame gap has truly elapsed, even when a COM port is silent afterward. It publishes the original bytes as **Partial / checksum-unverified** and records them in temporary session navigation/full journal when enabled. This **does not** reinterpret a partial telegram as trusted source data or claim that no physical frame was sent. Both sender/receiver counts and invalid candidates remain separate from successful IEC-101 process observations. No UI polling is added and the serial read workers remain independent of the WPF Dispatcher.
+
+Automated software checks cover idle byte-free ports and an incomplete frame observed *before Stop*, with no fake valid decode. A real dual-COM 1200-bps FAT is still required to distinguish missing physical signals, wrong COM mapping, parity, UART loss and valid 2-octet link-address decoding; screenshots and CI cannot establish physical reception.
