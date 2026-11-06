@@ -99,6 +99,128 @@ public sealed class VirtualInlineRelayTests
     }
 
     [Fact]
+    public async Task GoldenIec101StreamsHaveSamePhysicalAndVirtualCanonicalEvidence()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "ariec-vos-parity-" + Guid.NewGuid().ToString("N"));
+        byte[] masterBytes = [0x10, 0x5B, 0x69, 0xC4, 0x16, 0xE5];
+        byte[] spontaneousAsdu =
+            [0x01, 0x01, 0x03, 0x00, 0x01, 0x00, 0x64, 0x00, 0x00, 0x01];
+        byte[] unknownAsdu =
+            [0xFA, 0x01, 0x03, 0x00, 0x01, 0x00, 0x65, 0x00, 0x00, 0x01];
+        byte[] slaveBytes = Variable(0x08, spontaneousAsdu)
+            .Concat(Variable(0x08, unknownAsdu))
+            .Concat(new byte[] { 0x10, 0x29, 0x69, 0x92, 0x16 })
+            .ToArray();
+
+        try
+        {
+            var physicalOptions = new PassiveCaptureOptions(
+                Path.Combine(directory, "physical"), Master, Slave, RecordFullSession: true);
+            var physical = new PassiveMonitorSession(physicalOptions,
+                new FragmentedReadOnlyTap("COM12", masterBytes),
+                new FragmentedReadOnlyTap("COM13", slaveBytes));
+            using var physicalStop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var physicalRunning = physical.RunAsync(physicalStop.Token);
+            await UntilAsync(() => physical.GetProgress().ScadaBytes == masterBytes.Length &&
+                physical.GetProgress().RtuBytes == slaveBytes.Length &&
+                physical.GetProcessEventProgress().DecodeAccounting.FramesObserved >= 5);
+            physicalStop.Cancel();
+            var physicalResult = await physicalRunning.WaitAsync(TimeSpan.FromSeconds(2));
+
+            using var a = new MemoryEndpoint("COM12");
+            using var b = new MemoryEndpoint("COM13");
+            using var relay = new VirtualInlineRelaySession(Master, Slave, a, b);
+            var virtualOptions = physicalOptions with
+            {
+                OutputDirectory = Path.Combine(directory, "virtual"),
+                CaptureSource = "Virtual Inline (VSPE)"
+            };
+            var virtualMonitor = new PassiveMonitorSession(virtualOptions, relay.CreateMonitorTaps());
+            using var virtualStop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var virtualRunning = virtualMonitor.RunAsync(virtualStop.Token);
+            await UntilAsync(() => a.IsOpen && b.IsOpen);
+            a.Inject(masterBytes);
+            b.Inject(slaveBytes);
+            Assert.Equal(masterBytes, b.TakeOutbound());
+            Assert.Equal(slaveBytes, a.TakeOutbound());
+            await UntilAsync(() => virtualMonitor.GetProgress().ScadaBytes == masterBytes.Length &&
+                virtualMonitor.GetProgress().RtuBytes == slaveBytes.Length &&
+                virtualMonitor.GetProcessEventProgress().DecodeAccounting.FramesObserved >= 5);
+            virtualStop.Cancel();
+            var virtualResult = await virtualRunning.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal("NoApplicationLossDetected", physicalResult.Manifest.Status);
+            Assert.Equal("NoApplicationLossDetected", virtualResult.Manifest.Status);
+            Assert.Equal("Physical RX-only", physicalResult.Manifest.CaptureSource);
+            Assert.Equal("Virtual Inline (VSPE)", virtualResult.Manifest.CaptureSource);
+            Assert.Equal(physicalResult.Manifest.Streams.Select(s => s.RawSha256),
+                virtualResult.Manifest.Streams.Select(s => s.RawSha256));
+            Assert.Equal(physicalResult.Manifest.ProcessDecodeAccounting,
+                virtualResult.Manifest.ProcessDecodeAccounting);
+            Assert.True(physicalResult.Manifest.ProcessDecodeAccounting!.ObjectsAccepted >= 1,
+                "Golden spontaneous SP must reach the canonical writer-owned fact admission.");
+            Assert.Equal(physicalResult.Manifest.AcceptedProcessEventObjects,
+                virtualResult.Manifest.AcceptedProcessEventObjects);
+            Assert.Equal(physicalResult.Manifest.IndexedProcessEventObjects,
+                virtualResult.Manifest.IndexedProcessEventObjects);
+            Assert.Equal(FrameSignatures(physical), FrameSignatures(virtualMonitor));
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static byte[] Variable(byte control, byte[] asdu)
+    {
+        var data = new byte[asdu.Length + 2];
+        data[0] = control;
+        data[1] = 0x69;
+        asdu.CopyTo(data, 2);
+        return [0x68, (byte)data.Length, (byte)data.Length, 0x68,
+            .. data, (byte)(data.Sum(x => (int)x) & 255), 0x16];
+    }
+
+    private static string[] FrameSignatures(PassiveMonitorSession session)
+    {
+        var frames = new List<string>();
+        while (session.TryReadFrame(out var frame))
+            frames.Add($"{frame.StreamId}:{frame.StreamOffset}:{frame.Format}:" +
+                $"{frame.ChecksumValid}:{Convert.ToHexString(frame.RawBytes)}");
+        frames.Sort(StringComparer.Ordinal);
+        return frames.ToArray();
+    }
+
+    private sealed class FragmentedReadOnlyTap : IReadOnlySerialTap
+    {
+        private readonly byte[] _source;
+        private int _cursor;
+        public FragmentedReadOnlyTap(string port, byte[] bytes)
+        {
+            PortName = port;
+            _source = bytes;
+        }
+        public string PortName { get; }
+        public long DriverErrorCount => 0;
+        public void Open() { }
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            var cursor = _cursor;
+            if (cursor == _source.Length)
+            {
+                Thread.Sleep(5);
+                return 0;
+            }
+            var take = Math.Min(Math.Min(1 + cursor % 7, count), _source.Length - cursor);
+            Buffer.BlockCopy(_source, cursor, buffer, offset, take);
+            _cursor += take;
+            return take;
+        }
+        public void Close() { }
+        public void Dispose() { }
+    }
+
+    [Fact]
     public async Task VirtualDriverFailureAutomaticallyEndsMonitorAndBothRelayDirections()
     {
         using var a = new MemoryEndpoint("COM12");
