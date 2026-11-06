@@ -164,11 +164,11 @@ public partial class MainWindow
                     : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
                 _lastResult = result;
 
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(new Func<Task>(async () =>
                 {
-                    ApplyFinalResult(result);
+                    await ApplyFinalResultAsync(result);
                     AppendSessionLog("Dual-link redundancy session completed: " + result.CompletionReason);
-                });
+                })).Task.Unwrap().ConfigureAwait(false);
             }
             else
             {
@@ -184,11 +184,11 @@ public partial class MainWindow
                     : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
                 _lastResult = result;
 
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(new Func<Task>(async () =>
                 {
-                    ApplyFinalResult(result);
+                    await ApplyFinalResultAsync(result);
                     AppendSessionLog("Monitor session completed: " + result.CompletionReason);
-                });
+                })).Task.Unwrap().ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)

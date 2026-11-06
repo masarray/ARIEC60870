@@ -767,6 +767,80 @@ public partial class MainWindow
         interpretedPointRows = DecodedPointGrid.Items.Count;
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
         _traceInspectorForcedOpen = false;
+
+        // Reproduce field failure: a full live Event journal suddenly became one
+        // row when a narrower engine result arrived at end of session. Also
+        // verify > one dispatcher batch of pending evidence is drained before
+        // terminal summary rather than being discarded on the next Connect.
+        FlushUiQueues();
+        var retainedAtFinish = _relayEventStore.Snapshot().ToArray();
+        var projectedAtFinish = RelayEventRows.ToArray();
+        var valuesAtFinish = ValueRows.ToArray();
+        if (retainedAtFinish.Length < 2 || projectedAtFinish.Length < 2 ||
+            valuesAtFinish.Length < 2)
+            throw new InvalidOperationException("Terminal regression lacks mixed live Events/Values.");
+        var terminalEventResets = 0;
+        var terminalValueResets = 0;
+        NotifyCollectionChangedEventHandler eventWatch = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) terminalEventResets++;
+        };
+        NotifyCollectionChangedEventHandler valueWatch = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset) terminalValueResets++;
+        };
+        RelayEventRows.CollectionChanged += eventWatch;
+        ValueRows.CollectionChanged += valueWatch;
+        try
+        {
+            const int terminalBacklog = 280; // greater than one bounded UI flush
+            for (var i = 0; i < terminalBacklog; i++)
+            {
+                _pendingEvidence.Enqueue(new Iec103MasterEvidenceEvent
+                {
+                    SequenceNumber = 8_000_000L + i,
+                    ProtocolMode = Iec60870ProtocolMode.Iec103,
+                    Direction = FrameDirection.MasterToSlave,
+                    Category = "Info",
+                    DataClass = "Test",
+                    Summary = "Synthetic terminal receive-queue drain"
+                });
+            }
+            await ApplyFinalResultAsync(new Iec103MasterRunResult
+            {
+                CompletedNormally = true,
+                CompletionReason = "Synthetic completion (WPF regression only)",
+                // An engine edge summary must NEVER replace the richer live log.
+                EventLog = [new Iec103RelayEventLogEntry
+                {
+                    EvidenceSequenceNumber = 9_000_000,
+                    SignalName = "summary-only event"
+                }],
+                ValuePoints = [new Iec103ValuePoint
+                {
+                    Key = "summary-only-value",
+                    SignalName = "summary-only value"
+                }]
+            });
+        }
+        finally
+        {
+            RelayEventRows.CollectionChanged -= eventWatch;
+            ValueRows.CollectionChanged -= valueWatch;
+        }
+        if (!_pendingEvidence.IsEmpty || !_pendingFindings.IsEmpty ||
+            !retainedAtFinish.SequenceEqual(_relayEventStore.Snapshot()) ||
+            !projectedAtFinish.SequenceEqual(RelayEventRows) ||
+            !valuesAtFinish.SequenceEqual(ValueRows) ||
+            RelayEventGrid.Items.Count != projectedAtFinish.Length ||
+            terminalEventResets != 0 || terminalValueResets != 0 ||
+            DpiText.Text != _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            throw new InvalidOperationException(
+                $"Terminal completion lost live observations or reset WPF: " +
+                $"retained={_relayEventStore.Snapshot().Count}/{retainedAtFinish.Length}, " +
+                $"event UI={RelayEventRows.Count}/{projectedAtFinish.Length}, " +
+                $"values={ValueRows.Count}/{valuesAtFinish.Length}, " +
+                $"pending={_pendingEvidence.Count}, resets={terminalEventResets}/{terminalValueResets}.");
         testStart.Stop();
         File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new

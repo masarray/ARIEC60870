@@ -1475,13 +1475,23 @@ public partial class MainWindow
         }
     }
 
-    private void ApplyFinalResult(Iec103MasterRunResult result)
+    private async Task ApplyFinalResultAsync(Iec103MasterRunResult result)
     {
-        FlushUiQueues();
+        // The runtime has stopped producing evidence. Finish the already-accepted
+        // observations before publishing a terminal status or allowing a new session.
+        // One FlushUiQueues() consumes a bounded batch, NOT the entire RX backlog.
+        // Yield between batches rather than monopolizing the WPF dispatcher.
+        do
+        {
+            FlushUiQueues();
+            if (_pendingEvidence.IsEmpty && _pendingFindings.IsEmpty) break;
+            await Dispatcher.Yield(DispatcherPriority.Background);
+        } while (true);
         TxRxText.Text = $"{result.Counters.TxFrames} / {result.Counters.RxFrames}";
         ClassPollText.Text = $"{result.Counters.GiCommands + result.Counters.GiEndResponses} / {result.Counters.Class1Requests} / {result.Counters.Class2Requests}";
         NoDataText.Text = result.Counters.NoDataResponses.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        DpiText.Text = result.Counters.DpiEvents.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // EVENT counts projected observations, not the narrower engine edge summary.
+        DpiText.Text = _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         FindingCountText.Text = CountActionableIssues(result.Findings.ToArray()).ToString(System.Globalization.CultureInfo.InvariantCulture);
         UpdateStableHeader(result.CompletedNormally ? "Completed" : "Faulted",
             $"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100). {result.CompletionReason}");
@@ -1494,30 +1504,12 @@ public partial class MainWindow
         }
         AppendSessionLog($"Assessment: {result.Assessment.OverallStatus} ({result.Assessment.Score}/100) - {result.Assessment.Summary}");
 
-        if (result.ValuePoints.Count > 0)
-        {
-            _valueRowsByKey.Clear();
-            foreach (var row in result.ValuePoints.Select(x => new ValueRow(x)))
-            {
-                _valueRowsByKey[row.Key] = row;
-            }
-
-            ValueRows.ReconcileByKey(GetSortedValueRowsSnapshot(), row => row.Key,
-                StringComparer.OrdinalIgnoreCase);
-            _valueRowsDirty = false;
-        }
-
-        if (result.EventLog.Count > 0)
-        {
-            _relayEventStore.Clear();
-            foreach (var ev in result.EventLog.Select(x => new RelayEventRow(x)))
-            {
-                _relayEventStore.Add(ev);
-            }
-
-            ApplyRelayEventFilter();
-            _relayEventRowsDirty = false;
-        }
+        // Result.ValuePoints/EventLog are report snapshots and can be narrower
+        // than the per-object, source-qualified live observations. Never clear or
+        // rebuild Values/Event Journal from that different authority at completion:
+        // doing so caused full -> one Event flicker and lost original wire links.
+        // They remain available unmodified via _lastResult for report generation.
+        // A new session alone (ClearSessionView) changes the projection scope.
 
         foreach (var finding in result.Findings)
         {
