@@ -688,12 +688,21 @@
                                     <TextBlock x:Name="FrameTimelineCaption" Grid.Column="0"
                                                Text="Frame Trace" Visibility="Collapsed"
                                                TextWrapping="NoWrap"/>
-                                    <TextBlock x:Name="TraceQuickCountText" Grid.Column="1"
-                                               Text="Current window" MaxWidth="155"
-                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                               Margin="8,0,10,0" VerticalAlignment="Center"
-                                               Foreground="#64748B" FontSize="11.1"
-                                               ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <TextBlock x:Name="TracePassiveSourceStatusText"
+                                                   Visibility="Collapsed" Text="COM RX"
+                                                   MaxWidth="215" TextTrimming="CharacterEllipsis"
+                                                   TextWrapping="NoWrap" Margin="5,0,4,0"
+                                                   Foreground="#52647B" FontSize="10.5"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TraceQuickCountText"
+                                                   Text="Current window" MaxWidth="155"
+                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                                   Margin="4,0,10,0" VerticalAlignment="Center"
+                                                   Foreground="#64748B" FontSize="11.1"
+                                                   ToolTip="{Binding Text, ElementName=FrameTimelineCaption}"/>
+                                    </StackPanel>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal"
                                                 VerticalAlignment="Center" HorizontalAlignment="Right">
                                         <!-- Retained named controls for existing session-history state;

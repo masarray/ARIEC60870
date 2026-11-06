@@ -78,6 +78,10 @@ public sealed class PassiveMonitorP0Tests
         Assert.Equal("MonitorStopped", session.GetProgress().Status);
         Assert.Equal(tx.Length, session.GetProgress().ScadaBytes);
         Assert.Equal(rx.Length, session.GetProgress().RtuBytes);
+        Assert.Equal(tx.Length, session.GetProgress().ReaderScadaBytes);
+        Assert.Equal(rx.Length, session.GetProgress().ReaderRtuBytes);
+        Assert.Equal(tx.Length, session.GetProgress().QueuedScadaBytes);
+        Assert.Equal(rx.Length, session.GetProgress().QueuedRtuBytes);
         Assert.True(tapA.WasClosed && tapB.WasClosed);
         Assert.Equal(0, tapA.Writes + tapB.Writes);
         var received = new List<PassiveObservedFrame>();
@@ -102,6 +106,23 @@ public sealed class PassiveMonitorP0Tests
         Assert.Contains("COM4", diagnosis.Detail);
         Assert.Contains("COM3", diagnosis.Detail);
         Assert.DoesNotContain("CRC failure", diagnosis.Detail);
+    }
+
+    [Fact]
+    public void PositiveDriverReadWithZeroCommittedBytesIsNeverClassifiedSilent()
+    {
+        var pending = new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false,
+            ReaderScadaBytes: 48, ReaderRtuBytes: 12,
+            QueuedScadaBytes: 20);
+        var diagnosis = PassiveNoFrameDiagnosis.Evaluate(
+            pending, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("writer pipeline pending", diagnosis.Title);
+        Assert.Contains("COM4 read=48/commit=0", diagnosis.Detail);
+        Assert.Contains("COM3 read=12/commit=0", diagnosis.Detail);
+        Assert.Contains("not queued=40", diagnosis.Detail);
+        Assert.Contains("queued not committed=20", diagnosis.Detail);
+        Assert.DoesNotContain("No UART bytes", diagnosis.Title);
     }
 
     [Fact]
@@ -192,6 +213,39 @@ public sealed class PassiveMonitorP0Tests
         stop.Cancel();
         await running;
         Assert.Equal(raw.Length, session.GetProgress().ScadaBytes);
+    }
+
+    [Fact]
+    public async Task RawSampleRingOverflowIsCountedSeparatelyFromWriterBytes()
+    {
+        const int count = 300;
+        var raw = Enumerable.Repeat((byte)0x33, count * 128).ToArray();
+        var options = Options(string.Empty) with
+        {
+            RecordFullSession = false, ChannelCapacity = 512, ReadChunkBytes = 128
+        };
+        var session = new PassiveMonitorSession(options,
+            new ReplayTap("COM7", raw, 128),
+            new ReplayTap("COM8", Array.Empty<byte>(), 128));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        var running = session.RunAsync(stop.Token);
+        for (var i = 0; i < 400 && !running.IsCompleted &&
+             session.GetProgress().ScadaChunks < count; i++)
+            await Task.Delay(10);
+        stop.Cancel();
+        await running;
+        var progress = session.GetProgress();
+        Assert.Equal(raw.Length, progress.ReaderScadaBytes);
+        Assert.Equal(raw.Length, progress.QueuedScadaBytes);
+        Assert.Equal(raw.Length, progress.ScadaBytes);
+        Assert.Equal(count, progress.RawPreviewPublished);
+        Assert.Equal(0, progress.RawPreviewConsumed);
+        Assert.Equal(count - 256, progress.RawPreviewDropped);
+        var retained = 0;
+        while (session.TryReadPreview(out _)) retained++;
+        Assert.Equal(256, retained);
+        Assert.Equal(count, session.GetProgress().RawPreviewConsumed +
+            session.GetProgress().RawPreviewDropped);
     }
 
     [Fact]

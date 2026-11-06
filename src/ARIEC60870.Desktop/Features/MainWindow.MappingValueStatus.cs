@@ -911,6 +911,9 @@ public partial class MainWindow
         // Open Frame / GI / control selection can leave the empty Trace frozen
         // and subsequent valid RX or malformed wire evidence appears missing.
         ResumeLiveViews(clearSelection: true, followLive: true);
+        TracePassiveSourceStatusText.Visibility = Visibility.Collapsed;
+        TracePassiveEmptyState.Visibility = Visibility.Collapsed;
+        TracePassiveRawChunkGrid.Visibility = Visibility.Collapsed;
         ResetRecordedArchiveSource();
         EvidenceRows.Clear();
         FrameTraceRows.Clear();

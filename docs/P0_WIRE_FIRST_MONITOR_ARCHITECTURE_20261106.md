@@ -45,3 +45,13 @@ A normal decoded frame shows original timestamp, physical receive lane, logical 
 6. **Rollout**: keep Draft PR until actual full-path and field receipt are separately measured; do not promote to master or stable on green tests alone.
 
 This specification is original engineering work based on the general public concepts of independent raw and interpreted line monitoring. Do not reuse commercial manual text, proprietary algorithms or product-specific assets.
+
+## ASE2000 line-monitor behavior and source-stage reliability gate (2026-11-06)
+
+**Reference behavior, not copied proprietary layout:** the public ASE2000 V2 product documentation describes dual raw/interpreted panes, concise message lists, linked field interpretation and communication/error statistics; normal line-monitor mode retains unknown messages. https://www.ase-systems.com/products/ase2000-v2/ and https://www.ase-systems.com/ase2000-v1-faq/.
+
+**Engineering invariant:** distinct counters for bytes delivered by each actual driver `Read` (**RX**), bytes admitted to the writer queue (**Queued**) and bytes processed/journaled by the writer (**Committed**). Opening COM is never evidence of RX; a positive RX count with zero writer count is *processing pending*, not “No UART bytes received.” The main Frame Trace shows compact port RX counts and FT1.2 totals continuously; its detailed status distinguishes source/writer/decoder stages. The five-second no-UART diagnostic checks reader counters, not delayed writer counters.
+
+**Live preview integrity:** original binary capture, when opted in and independently verified, stays authoritative. The 256-sample bounded GUI preview uses `DropOldest` and now exposes *published, consumed, and evicted* counts (at stable snapshots, evicted=published-consumed-buffered). This sample loss must not be misreported as OS UART loss or proof of an incomplete recorded journal. Frame preview and raw-chunk preview have separate counters.
+
+**Acceptance:** tests simulate `Read>0, writer=0`, verify live reader/queue/writer equality for two independent COM sources, overflow 300 raw chunks into the 256-sample display ring with truthful skipped count, and assert the new empty-state decision in real Windows WPF smoke. Physical COM4/COM3 at 1200bps, 2k SOE completeness, true UART error sources, and multi-vendor FAT remain unverified until field tests.

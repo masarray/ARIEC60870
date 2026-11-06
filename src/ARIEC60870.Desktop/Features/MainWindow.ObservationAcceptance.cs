@@ -65,6 +65,14 @@ public partial class MainWindow
             !TracePassiveEmptyTitleText.Text.Contains("No UART bytes", StringComparison.Ordinal) ||
             !TracePassiveEmptyDetailText.Text.Contains("COM4", StringComparison.Ordinal))
             throw new InvalidOperationException("Silent passive capture has no visible serial diagnosis.");
+        // Verified reader receipt must not be misdiagnosed as a silent line
+        // merely because the shared writer has not committed its queue.
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false,
+            ReaderScadaBytes: 2), "COM4", "COM3", "");
+        if (!TracePassiveEmptyTitleText.Text.Contains("writer pipeline pending", StringComparison.Ordinal) ||
+            !TracePassiveSourceStatusText.Text.Contains("COM4 2", StringComparison.Ordinal))
+            throw new InvalidOperationException("RX reader activity was mistaken for a silent UART.");
         // Direct UART samples must be displayed without a completed frame.
         _passiveRawRows.Add(new PassiveRxRow("16:31:01.200", "A RX0",
             1, 2, "680C"));

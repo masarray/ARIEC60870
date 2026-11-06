@@ -668,6 +668,20 @@ public partial class MainWindow
     private void UpdatePassiveTraceEmptyState(PassiveMonitorProgress progress,
         string scadaPort, string rtuPort, string linkBPorts)
     {
+        // Status remains visible even with fully decoded frames. The two byte
+        // counters are not interchangeable: Read is at the driver boundary.
+        var rxA = Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes);
+        var rxB = Math.Max(progress.ReaderRtuBytes, progress.RtuBytes);
+        TracePassiveSourceStatusText.Text =
+            $"{scadaPort} {rxA:N0} B · {rtuPort} {rxB:N0} B · FT1.2 {progress.ValidFt12Frames:N0}" +
+            (progress.RawPreviewDropped > 0 ? $" · view skip {progress.RawPreviewDropped:N0}" : "");
+        TracePassiveSourceStatusText.ToolTip =
+            $"{scadaPort} RX/queued/written: {rxA:N0}/{progress.QueuedScadaBytes:N0}/{progress.ScadaBytes:N0} B\n" +
+            $"{rtuPort} RX/queued/written: {rxB:N0}/{progress.QueuedRtuBytes:N0}/{progress.RtuBytes:N0} B\n" +
+            (progress.StreamCount == 4 ? $"Link B {linkBPorts} RX {progress.ReaderLinkBScadaBytes:N0}/{progress.ReaderLinkBRtuBytes:N0} B\n" : "") +
+            $"Valid FT1.2={progress.ValidFt12Frames:N0}; untrusted={progress.UntrustedFrameCandidates:N0}; pending={progress.IncompleteFrameBytes:N0} B\n" +
+            $"Raw preview published={progress.RawPreviewPublished:N0}; consumed={progress.RawPreviewConsumed:N0}; skipped={progress.RawPreviewDropped:N0}. Preview is not an archive.";
+        TracePassiveSourceStatusText.Visibility = Visibility.Visible;
         if (FrameTraceGrid.Items.Count > 0)
         {
             TracePassiveEmptyState.Visibility = Visibility.Collapsed;
@@ -686,8 +700,10 @@ public partial class MainWindow
         // One reportable diagnostic per silent session, not per UI timer tick.
         // Start status alone must not masquerade as verified wire acquisition.
         if (!_passiveSilenceReported && progress.Status == "Monitoring" &&
-            progress.ScadaBytes + progress.RtuBytes +
-            progress.LinkBScadaBytes + progress.LinkBRtuBytes == 0 &&
+            Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes) +
+            Math.Max(progress.ReaderRtuBytes, progress.RtuBytes) +
+            Math.Max(progress.ReaderLinkBScadaBytes, progress.LinkBScadaBytes) +
+            Math.Max(progress.ReaderLinkBRtuBytes, progress.LinkBRtuBytes) == 0 &&
             DateTime.UtcNow - _passiveCaptureStartUtc >= TimeSpan.FromSeconds(5))
         {
             _passiveSilenceReported = true;
@@ -710,9 +726,9 @@ public partial class MainWindow
             session.SourcePortNames[1],
             progress.StreamCount == 4
                 ? $"{session.SourcePortNames[2]}/{session.SourcePortNames[3]}" : "");
-        PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
+        PassiveScadaCountText.Text = Math.Max(progress.ReaderScadaBytes, progress.ScadaBytes).ToString("N0") + " RX bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
-        PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +
+        PassiveRtuCountText.Text = Math.Max(progress.ReaderRtuBytes, progress.RtuBytes).ToString("N0") + " RX bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBRtuBytes:N0}" : "");
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
@@ -724,6 +740,7 @@ public partial class MainWindow
             $" ({eventProgress.IndexedObjects:N0} indexed)" +
             (eventProgress.UnindexedObjects > 0 ? $" · {eventProgress.UnindexedObjects:N0} unindexed" : "") +
             (eventProgress.PreviewFramesDropped > 0 ? $" · {eventProgress.PreviewFramesDropped:N0} frame previews skipped" : "") +
+            (progress.RawPreviewDropped > 0 ? $" · {progress.RawPreviewDropped:N0} raw chunk previews skipped" : "") +
             (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "") +
             (eventProgress.DecodeAccounting is { } decode && decode.InvalidVariableFrames > 0
                 ? $" · {decode.InvalidVariableFrames:N0} invalid FT1.2" : "") +
