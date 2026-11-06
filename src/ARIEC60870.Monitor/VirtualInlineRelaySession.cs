@@ -116,6 +116,8 @@ public interface IVirtualInlineIngressAccounting
 {
     VirtualInlineDirectionProgress GetIngressAccounting();
     string? RelayFault { get; }
+    /// <summary>Immediately stop active forwarding when Monitor cancellation/fault begins.</summary>
+    void StopRelay();
 }
 
 /// <summary>
@@ -418,6 +420,7 @@ public sealed class VirtualInlineRelaySession : IDisposable
         public long DriverErrorCount => _owner._ports[_index].DriverErrorCount;
         public VirtualInlineDirectionProgress GetIngressAccounting() => _owner.Snapshot(_index);
         public string? RelayFault => Volatile.Read(ref _owner._fault);
+        public void StopRelay() => _owner.Stop();
         public void Open() => _owner.OpenTap(_index);
         public int Read(byte[] buffer, int offset, int count) =>
             _owner.ReadObserved(_index, buffer, offset, count, this);
