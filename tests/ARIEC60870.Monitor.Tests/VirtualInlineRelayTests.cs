@@ -123,7 +123,7 @@ public sealed class VirtualInlineRelayTests
             var physicalRunning = physical.RunAsync(physicalStop.Token);
             await UntilAsync(() => physical.GetProgress().ScadaBytes == masterBytes.Length &&
                 physical.GetProgress().RtuBytes == slaveBytes.Length &&
-                physical.GetProcessEventProgress().DecodeAccounting.FramesObserved >= 5);
+                physical.GetProcessEventProgress().DecodeAccounting is { FramesObserved: >= 5 });
             physicalStop.Cancel();
             var physicalResult = await physicalRunning.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -145,7 +145,7 @@ public sealed class VirtualInlineRelayTests
             Assert.Equal(slaveBytes, a.TakeOutbound());
             await UntilAsync(() => virtualMonitor.GetProgress().ScadaBytes == masterBytes.Length &&
                 virtualMonitor.GetProgress().RtuBytes == slaveBytes.Length &&
-                virtualMonitor.GetProcessEventProgress().DecodeAccounting.FramesObserved >= 5);
+                virtualMonitor.GetProcessEventProgress().DecodeAccounting is { FramesObserved: >= 5 });
             virtualStop.Cancel();
             var virtualResult = await virtualRunning.WaitAsync(TimeSpan.FromSeconds(2));
 
