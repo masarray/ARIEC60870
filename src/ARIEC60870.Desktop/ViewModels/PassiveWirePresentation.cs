@@ -40,7 +40,7 @@ public static class PassiveWirePresentation
 
         if (frame.Format == "Noise")
             return new(Kind.Noise,
-                "Unknown serial bytes · original HEX preserved; no IEC-101 meaning inferred",
+                "Unrecognized serial bytes (Unknown) · original HEX preserved; no IEC-101 meaning inferred",
                 false, false);
 
         if (frame.Format == "Partial")
@@ -50,7 +50,7 @@ public static class PassiveWirePresentation
 
         if (frame.Format == "LinkWidthMismatch")
             return new(Kind.LinkWidthMismatch,
-                $"IEC-101 link-address profile mismatch · observed {frame.DetectedLinkAddressWidth?.ToString() ?? "unknown"} octet(s), setup {configuredLinkWidth}; HEX retained",
+                $"IEC-101 Link Address width mismatch · observed {frame.DetectedLinkAddressWidth?.ToString() ?? "unknown"} octet(s), setup {configuredLinkWidth}; HEX retained",
                 false, false);
 
         if (frame.Format is not ("Fixed" or "Variable" or "Single") ||
