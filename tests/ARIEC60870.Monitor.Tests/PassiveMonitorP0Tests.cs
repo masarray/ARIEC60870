@@ -92,6 +92,56 @@ public sealed class PassiveMonitorP0Tests
     }
 
     [Fact]
+    public async Task IdleTruncatedTelegramIsVisibleBeforeStopWithoutInventingValidFrame()
+    {
+        var opts = Options(string.Empty) with
+        {
+            RecordFullSession = false, FrameGapMilliseconds = 100
+        };
+        var source = new byte[] { 0x68, 0x0C }; // incomplete FT1.2 header
+        var session = new PassiveMonitorSession(opts,
+            new ReplayTap("COM7", source, 2),
+            new ReplayTap("COM8", Array.Empty<byte>(), 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var running = session.RunAsync(stop.Token);
+        PassiveObservedFrame? observed = null;
+        // Must be received while the monitor is still active, not only at EOF.
+        for (var attempt = 0; attempt < 100 && !running.IsCompleted; attempt++)
+        {
+            if (session.TryReadFrame(out var candidate))
+            {
+                observed = candidate;
+                break;
+            }
+            await Task.Delay(20);
+        }
+        var publishedBeforeStop = session.ObservedFrameCandidates;
+        stop.Cancel();
+        await running;
+        Assert.NotNull(observed);
+        Assert.Equal("Partial", observed.Format);
+        Assert.False(observed.ChecksumValid);
+        Assert.Equal(source, observed.RawBytes);
+        Assert.True(publishedBeforeStop > 0, "Partial candidate must be published while monitoring.");
+        Assert.Equal(source.Length, session.GetProgress().ScadaBytes);
+        Assert.Equal(0, session.GetProgress().RtuBytes);
+    }
+
+    [Fact]
+    public async Task IdlePortsDoNotFabricateRawFramesOrSerialActivity()
+    {
+        var session = new PassiveMonitorSession(Options(string.Empty) with { RecordFullSession = false },
+            new ReplayTap("COM7", Array.Empty<byte>(), 1),
+            new ReplayTap("COM8", Array.Empty<byte>(), 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(180));
+        await session.RunAsync(stop.Token);
+        Assert.Equal(0, session.GetProgress().ScadaBytes);
+        Assert.Equal(0, session.GetProgress().RtuBytes);
+        Assert.Equal(0, session.ObservedFrameCandidates);
+        Assert.False(session.TryReadFrame(out _));
+    }
+
+    [Fact]
     public void LiveModeDoesNotRequireOrValidateAnArchiveFolder()
     {
         var opts = Options(string.Empty) with { RecordFullSession = false };
