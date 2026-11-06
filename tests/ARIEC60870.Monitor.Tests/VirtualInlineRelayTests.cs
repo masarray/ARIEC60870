@@ -206,6 +206,49 @@ public sealed class VirtualInlineRelayTests
         Assert.True(predicate(), "Timed out waiting for a real relay or monitor state transition.");
     }
 
+    [Fact]
+    public async Task StopWithUnconsumedVirtualIngressCannotClaimCompleteCapture()
+    {
+        // Deterministic overload/in-flight-stop injection: relay read and tee
+        // acceptance occurred, but the canonical Monitor was not given that span.
+        var master = new IncompleteIngressTap("COM12", 128);
+        var slave = new IncompleteIngressTap("COM13", 0);
+        var opts = new PassiveCaptureOptions(string.Empty, Master, Slave,
+            RecordFullSession: false, CaptureSource: "Virtual Inline (VSPE)");
+        var monitor = new PassiveMonitorSession(opts, master, slave);
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(130));
+        var result = await monitor.RunAsync(stop.Token);
+        Assert.Equal("IntegrityUncertain", result.Manifest.Status);
+        Assert.Contains(result.Manifest.Warnings, w =>
+            w.Contains("COM12", StringComparison.Ordinal) &&
+            w.Contains("Capture/transport is incomplete", StringComparison.Ordinal));
+        Assert.Equal("Virtual Inline (VSPE)", result.Manifest.CaptureSource);
+    }
+
+    private sealed class IncompleteIngressTap : IReadOnlySerialTap, IVirtualInlineIngressAccounting
+    {
+        private readonly long _ingress;
+        internal IncompleteIngressTap(string port, long ingress)
+        {
+            PortName = port;
+            _ingress = ingress;
+        }
+        public string PortName { get; }
+        public long DriverErrorCount => 0;
+        public string? RelayFault => null;
+        public VirtualInlineDirectionProgress GetIngressAccounting() =>
+            new(PortName, "virtual peer", _ingress, _ingress, _ingress,
+                0, _ingress, 0, 0, _ingress > 0 ? 1 : 0, 0);
+        public void Open() { }
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            Thread.Sleep(15);
+            return 0;
+        }
+        public void Close() { }
+        public void Dispose() { }
+    }
+
     private sealed class MemoryEndpoint : IVirtualInlineEndpoint
     {
         private readonly BlockingCollection<byte[]> _incoming = new(new ConcurrentQueue<byte[]>());
