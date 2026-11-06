@@ -108,9 +108,9 @@ public sealed class Iec104SessionSafetyTests
         Assert.Equal(1, result.Counters.AckResponses); // STARTDT con only
         Assert.Equal(1, result.Counters.UserDataResponses); // valid I only
 
-        var rejected = Assert.Single(result.Events.Where(e =>
+        var rejected = Assert.Single(result.Events, e =>
             e.Direction == ARIEC60870.Core.Model.FrameDirection.SlaveToMaster &&
-            e.TypeId == 1 && e.Category == "RX Warning"));
+            e.TypeId == 1 && e.Category == "RX Warning");
         Assert.False(rejected.IsRelayValue);
         Assert.False(rejected.IsRelayEdgeEvent);
         Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(rejected));
