@@ -114,7 +114,7 @@ public sealed record VirtualInlineRelayProgress(
 /// </summary>
 public sealed class VirtualInlineRelaySession : IDisposable
 {
-    private sealed record Observation(byte[] Buffer, int Length);
+    internal sealed record Observation(byte[] Buffer, int Length);
 
     private readonly IVirtualInlineEndpoint[] _ports;
     private readonly BlockingCollection<Observation>[] _observations;
