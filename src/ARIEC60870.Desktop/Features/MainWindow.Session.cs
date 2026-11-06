@@ -777,13 +777,16 @@ public partial class MainWindow
         TargetModeLabel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         TransportModeComboBox.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         PassiveSecondaryPortPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
+        PassiveCaptureSourcePanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
+        if (isPassive101) ApplyPassiveSourceLayout();
         if (isPassive101 && string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text))
             PassiveCaptureFolderBox.Text = DefaultPassiveCaptureDirectory();
         PassiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
         ProtocolSetupDescriptionCard.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSerialHandshakePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        SetupConnectButton.Content = isPassive101 ? "Start Monitor" : "Connect";
+        SetupConnectButton.Content = isPassive101
+            ? (IsVirtualInlineSelected() ? "Start Relay & Monitor" : "Start Monitor") : "Connect";
         ApplyCommandDockLayout();
         UpdateConnectToggleVisual(_sessionCancellation is not null);
         DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
