@@ -333,6 +333,44 @@ public sealed class PassiveMonitorSession
                 Interlocked.Exchange(ref _integrityUncertain, 1);
                 _warnings.Enqueue(tap.PortName + " reported " + tap.DriverErrorCount + " UART driver error notification(s).");
             }
+            // Virtual forwarding is not capture evidence: reconcile three distinct
+            // byte boundaries AFTER both pumps have quiesced. A user Stop during a
+            // burst may leave ingress chunks in the bounded observation tee.
+            // Never label such an interrupted virtual capture complete.
+            if (_options.CaptureSource == "Virtual Inline (VSPE)")
+            {
+                for (var i = 0; i < _streamCount; i++)
+                {
+                    if (_taps[i] is not IVirtualInlineIngressAccounting ingress)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue("Virtual ingress " + _sources[i].PortName +
+                            " does not expose verified source accounting.");
+                        continue;
+                    }
+                    var evidence = ingress.GetIngressAccounting();
+                    var committed = Interlocked.Read(ref _writtenBytes[i]);
+                    if (evidence.IngressBytes != evidence.CapturedBytes ||
+                        evidence.CapturedBytes != evidence.ConsumedBytes ||
+                        evidence.ConsumedBytes != committed ||
+                        evidence.WriteAttemptedBytes != evidence.IngressBytes ||
+                        evidence.WriteCompletedBytes != evidence.WriteAttemptedBytes ||
+                        evidence.WriteUncertainBytes != 0 || evidence.CaptureRejectedBytes != 0)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue($"Virtual {evidence.IngressPort}: RX {evidence.IngressBytes}, " +
+                            $"tee accepted {evidence.CapturedBytes}, monitor consumed {evidence.ConsumedBytes}, " +
+                            $"writer committed {committed}; TX attempted {evidence.WriteAttemptedBytes}, " +
+                            $"driver completed {evidence.WriteCompletedBytes}, uncertain {evidence.WriteUncertainBytes}, " +
+                            $"tee rejected {evidence.CaptureRejectedBytes}. Capture/transport is incomplete.");
+                    }
+                    if (i == 0 && ingress.RelayFault is { } fault)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue("Virtual duplex relay fault: " + fault);
+                    }
+                }
+            }
             // Writer terminal audit: no accepted source object may vanish
             // between classification and the canonical temporary fact index.
             var accounting = _processEventClassifier.GetCounters();
