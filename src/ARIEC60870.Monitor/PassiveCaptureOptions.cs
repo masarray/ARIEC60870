@@ -42,6 +42,8 @@ public sealed record PassiveCaptureOptions(
     {
         if (CaptureSource is not ("Physical RX-only" or "Virtual Inline (VSPE)"))
             throw new ArgumentException("Unknown IEC-101 Monitor capture source.");
+        if (CaptureSource == "Virtual Inline (VSPE)" && StreamCount != 2)
+            throw new ArgumentException("Virtual Inline requires exactly two COM endpoints (one link).");
         if (RecordFullSession && string.IsNullOrWhiteSpace(OutputDirectory))
             throw new ArgumentException("Recording output directory is required only when full-session recording is enabled.");
         if (string.IsNullOrWhiteSpace(ScadaTx.PortName) || string.IsNullOrWhiteSpace(RtuTx.PortName))
