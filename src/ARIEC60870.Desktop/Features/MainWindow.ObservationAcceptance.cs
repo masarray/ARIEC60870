@@ -98,15 +98,22 @@ public partial class MainWindow
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 411,
             DateTime.UtcNow, "Partial", false, [0x68, 0x0C]));
         FlushUiQueues();
-        if (!FrameTraceRows.Any(x => x.RawHex == Convert.ToHexString(unknownWire) &&
-            x.Source.OperatorMessage.Contains("Unknown/invalid IEC-101 ASDU", StringComparison.Ordinal)) ||
-            !FrameTraceRows.Any(x => x.RawHex == "515253" &&
-                x.Source.OperatorMessage.Contains("Unknown serial bytes", StringComparison.Ordinal)) ||
-            !FrameTraceRows.Any(x => x.RawHex == "680C" &&
-                x.Source.OperatorMessage.Contains("Partial FT1.2", StringComparison.Ordinal)) ||
+        var unknownVisible = FrameTraceRows.Any(x =>
+            x.RawHex == Convert.ToHexString(unknownWire) &&
+            x.Source.OperatorMessage.Contains("Unknown/invalid IEC-101 ASDU", StringComparison.Ordinal));
+        var noiseVisible = FrameTraceRows.Any(x =>
+            x.RawHex == "515253" &&
+            x.Source.OperatorMessage.Contains("Unrecognized serial bytes", StringComparison.Ordinal));
+        var partialVisible = FrameTraceRows.Any(x =>
+            x.RawHex == "680C" &&
+            x.Source.OperatorMessage.Contains("Partial FT1.2", StringComparison.Ordinal));
+        if (!unknownVisible || !noiseVisible || !partialVisible ||
             ValueRows.Count != 0 || RelayEventRows.Count != 0)
             throw new InvalidOperationException(
-                "Wire-first Trace hid unknown/partial/noise raw HEX or invented process values.");
+                $"Wire-first Trace mismatch: unknown={unknownVisible}, noise={noiseVisible}, " +
+                $"partial={partialVisible}, values={ValueRows.Count}, events={RelayEventRows.Count}, " +
+                $"trace={FrameTraceRows.Count}, raw=" +
+                string.Join("|", FrameTraceRows.Select(x => x.RawHex).Take(10)));
         ClearSessionView(clearLog: false);
                 // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
