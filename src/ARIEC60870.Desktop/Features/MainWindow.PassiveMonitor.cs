@@ -34,6 +34,7 @@ public partial class MainWindow
     private int _passiveCaWidth = 2;
     private int _passiveIoaWidth = 3;
     private PassiveMonitorSession? _passiveMonitorSession;
+    private VirtualInlineRelaySession? _virtualRelaySession;
     private PassiveProcessEventHistory? _passiveProcessEventHistory;
     private bool _passiveLedgerOwnsProcessEvents;
     private bool _passiveLedgerFactProjection;
@@ -74,6 +75,14 @@ public partial class MainWindow
 
     private void UpdatePassiveAutoRoleStatus()
     {
+        if (_virtualRelaySession is not null)
+        {
+            PassiveScadaRoleLabel.Text = _virtualRelaySession.GetProgress().MasterToSlave.IngressPort +
+                " · Master → Slave";
+            PassiveRtuRoleLabel.Text = _virtualRelaySession.GetProgress().SlaveToMaster.IngressPort +
+                " · Slave → Master";
+            return;
+        }
         var status = _passivePortRoles.DescribeAll();
         if (status == _passiveRoleStatus) return;
         _passiveRoleStatus = status;
@@ -374,11 +383,28 @@ public partial class MainWindow
         ProtocolModeComboBox.SelectedIndex = index;
     }
 
-    private void PassiveLinkBSelectionChanged(object sender, RoutedEventArgs e)
+    private void PassiveLinkBSelectionChanged(object sender, RoutedEventArgs e) =>
+        ApplyPassiveSourceLayout();
+
+    private bool IsVirtualInlineSelected() => PassiveSourceComboBox?.SelectedIndex == 1;
+
+    private void PassiveSourceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        ApplyPassiveSourceLayout();
+
+    private void ApplyPassiveSourceLayout()
     {
-        if (PassiveLinkBPortsPanel is not null)
-            PassiveLinkBPortsPanel.Visibility =
-                PassiveLinkBEnabledCheckBox?.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        if (PassiveLinkBPortsPanel is null || PassiveCaptureSourcePanel is null ||
+            PassiveLinkBEnabledCheckBox is null || PassiveRtuPortLabel is null)
+            return;
+        var virtualMode = IsVirtualInlineSelected();
+        PassiveVirtualHelpText.Visibility = virtualMode ? Visibility.Visible : Visibility.Collapsed;
+        PassiveLinkBEnabledCheckBox.Visibility = virtualMode ? Visibility.Collapsed : Visibility.Visible;
+        PassiveLinkBPortsPanel.Visibility = !virtualMode && PassiveLinkBEnabledCheckBox.IsChecked == true
+            ? Visibility.Visible : Visibility.Collapsed;
+        PassiveRtuPortLabel.Text = virtualMode ? "SLAVE-SIDE RELAY · COM" : "Link A · RTU TX";
+        SerialConnectionTitleText.Text = virtualMode ? "MASTER-SIDE RELAY · COM" : "SCADA TX · COM port";
+        SetupConnectButton.Content = virtualMode ? "Start Relay & Monitor" : "Start Monitor";
+        if (IsIec101PassiveMonitorSelected()) UpdateConnectToggleVisual(_sessionCancellation is not null);
     }
 
     private bool IsIec101PassiveMonitorSelected() =>
@@ -412,6 +438,8 @@ public partial class MainWindow
             }
 
             prefs.ProtocolMode = "Iec101Passive";
+            prefs.PassiveCaptureSource = IsVirtualInlineSelected()
+                ? "Virtual Inline (VSPE)" : "Physical RX-only";
             prefs.PortName = (PortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
             prefs.PassiveLinkBEnabled = PassiveLinkBEnabledCheckBox.IsChecked == true;
@@ -457,14 +485,17 @@ public partial class MainWindow
         static int Width(ComboBox combo) => int.Parse(
             (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "0",
             System.Globalization.CultureInfo.InvariantCulture);
-        var isLinkB = PassiveLinkBEnabledCheckBox.IsChecked == true;
+        var isVirtual = IsVirtualInlineSelected();
+        var isLinkB = !isVirtual && PassiveLinkBEnabledCheckBox.IsChecked == true;
         var bScada = (PassiveLinkBScadaPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
         var bRtu = (PassiveLinkBRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
         if (isLinkB && (string.IsNullOrWhiteSpace(bScada) || string.IsNullOrWhiteSpace(bRtu)))
             throw new InvalidOperationException("Select both Link B SCADA TX and RTU TX receiver COM ports.");
         var options = new PassiveCaptureOptions(output,
-            new PassiveSerialSource(first, "Link A SCADA TX -> RTU", baud, parity, 8, stopBits),
-            new PassiveSerialSource(second, "Link A RTU TX -> SCADA", baud, parity, 8, stopBits),
+            new PassiveSerialSource(first, isVirtual ? "Virtual Master -> Slave ingress" :
+                "Link A SCADA TX -> RTU", baud, parity, 8, stopBits),
+            new PassiveSerialSource(second, isVirtual ? "Virtual Slave -> Master ingress" :
+                "Link A RTU TX -> SCADA", baud, parity, 8, stopBits),
             LinkAddressWidth: Width(PassiveLinkWidthCombo),
             CotWidth: Width(PassiveCotWidthCombo),
             CommonAddressWidth: Width(PassiveCaWidthCombo),
@@ -473,7 +504,8 @@ public partial class MainWindow
             LinkMode: (PassiveLinkModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auto",
             LinkBScadaTx: isLinkB ? new PassiveSerialSource(bScada, "Link B SCADA TX -> RTU", baud, parity, 8, stopBits) : null,
             LinkBRtuTx: isLinkB ? new PassiveSerialSource(bRtu, "Link B RTU TX -> SCADA", baud, parity, 8, stopBits) : null,
-            RecordFullSession: PassiveFullRecordingCheckBox.IsChecked == true);
+            RecordFullSession: PassiveFullRecordingCheckBox.IsChecked == true,
+            CaptureSource: isVirtual ? "Virtual Inline (VSPE)" : "Physical RX-only");
         options.Validate();
 
         var directory = Path.GetFullPath(output);
@@ -509,13 +541,19 @@ public partial class MainWindow
             return;
         }
 
+        var virtualMode = IsVirtualInlineSelected();
         SavePassiveSetupPreferences(silent: true);
         // Each new session removes the previous session's temporary disk cache.
         // Full raw recording, when opted in, is separately preserved.
         ReleaseSessionTraceHistory();
         _sessionCancellation = new CancellationTokenSource();
-        var session = new PassiveMonitorSession(options,
-            options.Sources.Select(x => (IReadOnlySerialTap)new WindowsReadOnlySerialTap(x)).ToArray());
+        _virtualRelaySession = virtualMode
+            ? new VirtualInlineRelaySession(options.ScadaTx, options.RtuTx) : null;
+        var sources = _virtualRelaySession is { } virtualRelay
+            ? virtualRelay.CreateMonitorTaps()
+            : options.Sources.Select(x => (IReadOnlySerialTap)new WindowsReadOnlySerialTap(x)).ToArray();
+        var session = new PassiveMonitorSession(options, sources);
+        PassiveSourceComboBox.IsEnabled = false;
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
         ClearSessionView(clearLog: true);
@@ -556,12 +594,17 @@ public partial class MainWindow
         _passiveIoaWidth = options.InformationAddressWidth;
         _passiveLinkAddressWidth = options.LinkAddressWidth;
         Array.Clear(_passiveAutoLinkWidthReported);
-        AppendSessionLog($"Passive IEC-101 profile: {options.LinkMode}; Link={options.LinkAddressWidth}, COT={options.CotWidth}, CA={options.CommonAddressWidth}, IOA={options.InformationAddressWidth}; gap={options.FrameGapMilliseconds} ms.");
+        AppendSessionLog($"{options.CaptureSource} IEC-101 profile: {options.LinkMode}; Link={options.LinkAddressWidth}, COT={options.CotWidth}, CA={options.CommonAddressWidth}, IOA={options.InformationAddressWidth}; gap={options.FrameGapMilliseconds} ms.");
+        if (virtualMode) AppendSessionLog(
+            $"ACTIVE virtual byte relay {options.ScadaTx.PortName} ↔ {options.RtuTx.PortName}; " +
+            "COM Open is not proof that the two external VSPE peers are receiving bytes.");
         PassiveScadaCountText.Text = "0 bytes";
         PassiveRtuCountText.Text = "0 bytes";
-        PassiveIntegrityText.Text = "Opening receivers...";
-        PassiveStatusMessageText.Text = options.RecordFullSession
-            ? "Opening monitor with full raw journal…" : "Opening live monitor · recording OFF";
+        PassiveIntegrityText.Text = virtualMode ? "Opening virtual relay..." : "Opening receivers...";
+        PassiveStatusMessageText.Text = virtualMode
+            ? "Active VSPE relay · byte forwarding ON · peer receipt not verified"
+            : options.RecordFullSession
+                ? "Opening monitor with full raw journal…" : "Opening live monitor · recording OFF";
         PassiveCapturePathText.Text = options.RecordFullSession
             ? options.OutputDirectory : "Live monitor · no recording";
         PassiveSelectedRawText.Text = "Select a received raw-byte chunk.";
@@ -573,13 +616,16 @@ public partial class MainWindow
         // Never inherit a hidden focus/search filter from the prior capture.
         // Every fresh physical monitor starts on all raw TX/RX.
         ClearTraceQuickFindForNavigation();
-        SessionSubtitleText.Text = options.StreamCount == 4
-            ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
-            : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
+        SessionSubtitleText.Text = virtualMode
+            ? $"Virtual IEC-101 inline · {options.ScadaTx.PortName} ↔ {options.RtuTx.PortName}"
+            : options.StreamCount == 4
+                ? $"Passive IEC-101 A/B · A {options.ScadaTx.PortName}/{options.RtuTx.PortName} · B {options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}"
+                : $"Passive IEC-101 Link A · {options.ScadaTx.PortName}/{options.RtuTx.PortName}";
         _passiveOriginalSubtitle = SessionSubtitleText.Text;
         UpdatePassiveAutoRoleStatus();
-        UpdateStableHeader("Monitoring", options.RecordFullSession
-            ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
+        UpdateStableHeader("Monitoring", virtualMode
+            ? "ACTIVE VSPE relay · peer receipt not verified." : options.RecordFullSession
+                ? "Receive-only monitoring · full raw journal enabled." : "Receive-only monitoring · recording OFF.");
         AppendSessionLog("Passive monitor started: " + SessionSubtitleText.Text +
             (options.RecordFullSession ? " · full raw journal ON" : " · temporary session Trace, no permanent recording"));
         _passiveUiTimer ??= new DispatcherTimer(DispatcherPriority.Background)
@@ -636,6 +682,17 @@ public partial class MainWindow
         finally
         {
             _passiveUiTimer?.Stop();
+            if (_virtualRelaySession is { } completedRelay)
+            {
+                var transport = completedRelay.GetProgress();
+                AppendSessionLog($"Virtual relay terminal: {transport.Status}; " +
+                    $"M→S RX {transport.MasterToSlave.IngressBytes:N0} / TX {transport.MasterToSlave.WriteCompletedBytes:N0} B; " +
+                    $"S→M RX {transport.SlaveToMaster.IngressBytes:N0} / TX {transport.SlaveToMaster.WriteCompletedBytes:N0} B." +
+                    (transport.Fault is null ? "" : " FAULT: " + transport.Fault));
+                completedRelay.Dispose();
+                _virtualRelaySession = null;
+            }
+            PassiveSourceComboBox.IsEnabled = true;
             _passiveMonitorSession = null;
             _passiveCaptureTask = null;
             _sessionCancellation?.Dispose();
@@ -648,7 +705,9 @@ public partial class MainWindow
     {
         if (_passiveMonitorSession is null || _sessionCancellation is null) return;
         PassiveIntegrityText.Text = "Stopping…";
-        UpdateStableHeader("Stopping", "Disconnecting passive receivers and finalizing optional journal.");
+        UpdateStableHeader("Stopping", _virtualRelaySession is null
+            ? "Disconnecting passive receivers and finalizing optional journal."
+            : "Stopping both virtual directions and finalizing monitor evidence.");
         _sessionCancellation.Cancel();
     }
 
@@ -683,6 +742,18 @@ public partial class MainWindow
             (progress.StreamCount == 4 ? $"Link B {linkBPorts} RX {progress.ReaderLinkBScadaBytes:N0}/{progress.ReaderLinkBRtuBytes:N0} B\n" : "") +
             $"Valid FT1.2={progress.ValidFt12Frames:N0}; untrusted={progress.UntrustedFrameCandidates:N0}; pending={progress.IncompleteFrameBytes:N0} B\n" +
             $"Raw preview published={progress.RawPreviewPublished:N0}; consumed={progress.RawPreviewConsumed:N0}; skipped={progress.RawPreviewDropped:N0}. Preview is not an archive.";
+        if (_virtualRelaySession is { } inlineRelay)
+        {
+            var p = inlineRelay.GetProgress();
+            TracePassiveSourceStatusText.Text +=
+                $" · TX {p.MasterToSlave.WriteCompletedBytes:N0}/{p.SlaveToMaster.WriteCompletedBytes:N0} B";
+            TracePassiveSourceStatusText.ToolTip +=
+                $"\nACTIVE relay TX attempted/completed/uncertain M→S: " +
+                $"{p.MasterToSlave.WriteAttemptedBytes:N0}/{p.MasterToSlave.WriteCompletedBytes:N0}/{p.MasterToSlave.WriteUncertainBytes:N0} B" +
+                $"\nACTIVE relay TX attempted/completed/uncertain S→M: " +
+                $"{p.SlaveToMaster.WriteAttemptedBytes:N0}/{p.SlaveToMaster.WriteCompletedBytes:N0}/{p.SlaveToMaster.WriteUncertainBytes:N0} B" +
+                $"\nNot a passive electrical tap. No peer-received proof.";
+        }
         TracePassiveSourceStatusText.Visibility = Visibility.Visible;
         if (FrameTraceGrid.Items.Count > 0)
         {
@@ -735,6 +806,20 @@ public partial class MainWindow
         PassiveIntegrityText.Text = progress.IntegrityWarning
             ? "Integrity warning" : progress.Status == "Recording" ? "Full journal active"
             : progress.Status == "Monitoring" ? "Live only · no disk recording" : progress.Status;
+        if (_virtualRelaySession is { } relay)
+        {
+            var transport = relay.GetProgress();
+            PassiveScadaCountText.Text =
+                $"{transport.MasterToSlave.IngressBytes:N0} RX / {transport.MasterToSlave.WriteCompletedBytes:N0} TX bytes";
+            PassiveRtuCountText.Text =
+                $"{transport.SlaveToMaster.IngressBytes:N0} RX / {transport.SlaveToMaster.WriteCompletedBytes:N0} TX bytes";
+            PassiveStatusMessageText.Text = transport.Fault ??
+                $"Virtual relay {transport.Status} · TX uncertain " +
+                $"{transport.MasterToSlave.WriteUncertainBytes + transport.SlaveToMaster.WriteUncertainBytes:N0} B · " +
+                $"monitor ingested {transport.MasterToSlave.ConsumedBytes + transport.SlaveToMaster.ConsumedBytes:N0} B";
+            if (transport.Fault is not null)
+                PassiveIntegrityText.Text = "Virtual relay fault · capture incomplete";
+        }
         var eventProgress = session.GetProcessEventProgress();
         // These are typed process observations, not a claim that all are
         // physical SOEs or that missing remote FIFO events were transmitted.
