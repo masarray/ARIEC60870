@@ -92,6 +92,37 @@ public sealed class PassiveMonitorP0Tests
     }
 
     [Fact]
+    public void SilentPassiveMonitoringDoesNotPretendComOpenMeansReceivedFrames()
+    {
+        var silent = new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false);
+        var diagnosis = PassiveNoFrameDiagnosis.Evaluate(
+            silent, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("No UART bytes", diagnosis.Title);
+        Assert.Contains("COM4", diagnosis.Detail);
+        Assert.Contains("COM3", diagnosis.Detail);
+        Assert.DoesNotContain("CRC failure", diagnosis.Detail);
+    }
+
+    [Fact]
+    public void RawByteActivityAndIncompleteOrUntrustedFramingGetDifferentDiagnosis()
+    {
+        var active = new PassiveMonitorProgress(
+            "Monitoring", "", 40, 20, 1, 1, 0, 0, false,
+            ValidFt12Frames: 0, UntrustedFrameCandidates: 3, IncompleteFrameBytes: 4);
+        var invalid = PassiveNoFrameDiagnosis.Evaluate(
+            active, "COM4", "COM3", "", 0, 0);
+        Assert.Contains("UART bytes received", invalid.Title);
+        Assert.Contains("60", invalid.Detail);
+        Assert.Contains("incomplete=4", invalid.Detail);
+        var valid = active with { ValidFt12Frames = 2, FramePreviewsPublished = 2 };
+        var pending = PassiveNoFrameDiagnosis.Evaluate(
+            valid, "COM4", "COM3", "", 0, 2);
+        Assert.Contains("Decoded frames not visible", pending.Title);
+        Assert.Contains("pending UI=2", pending.Detail);
+    }
+
+    [Fact]
     public void LiveModeDoesNotRequireOrValidateAnArchiveFolder()
     {
         var opts = Options(string.Empty) with { RecordFullSession = false };

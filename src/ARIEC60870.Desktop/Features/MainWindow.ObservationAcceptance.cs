@@ -47,6 +47,15 @@ public partial class MainWindow
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
+        // Field-empty-state acceptance: display wire counters and distinguish
+        // silent COM from a WPF rendering failure on the actual Raw Frames view.
+        UpdatePassiveTraceEmptyState(new PassiveMonitorProgress(
+            "Monitoring", "", 0, 0, 0, 0, 0, 0, false), "COM4", "COM3", "");
+        if (TracePassiveEmptyState.Visibility != Visibility.Visible ||
+            !TracePassiveEmptyTitleText.Text.Contains("No UART bytes", StringComparison.Ordinal) ||
+            !TracePassiveEmptyDetailText.Text.Contains("COM4", StringComparison.Ordinal))
+            throw new InvalidOperationException("Silent passive capture has no visible serial diagnosis.");
+        TracePassiveEmptyState.Visibility = Visibility.Collapsed;
 
         // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.

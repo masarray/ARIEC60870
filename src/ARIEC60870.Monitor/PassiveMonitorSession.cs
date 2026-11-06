@@ -74,6 +74,11 @@ public sealed class PassiveMonitorSession
         });
     private long _framesPublished;
     private long _framesConsumed;
+    // Writer-owned FT1.2 proof, separate from UART byte counts and the
+    // potentially dropping WPF preview channel.
+    private long _validFt12Frames;
+    private long _untrustedFrameCandidates;
+    private long _incompleteFrameBytes;
     private long _acceptedProcessEvents;
     private long _indexedProcessEvents;
     private long _unindexedProcessEvents;
@@ -125,11 +130,17 @@ public sealed class PassiveMonitorSession
         Volatile.Read(ref _integrityUncertain) != 0 || Volatile.Read(ref _fatal) != 0,
         _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[2]) : 0,
         _streamCount == 4 ? Interlocked.Read(ref _writtenBytes[3]) : 0,
-        _streamCount);
+        _streamCount,
+        Interlocked.Read(ref _validFt12Frames),
+        Interlocked.Read(ref _untrustedFrameCandidates),
+        Interlocked.Read(ref _incompleteFrameBytes),
+        Interlocked.Read(ref _framesPublished),
+        Interlocked.Read(ref _framesConsumed));
 
     /// <summary>Temporary full frame index, available while live and after Stop
     /// until a new session or window shutdown disposes it. Never a permanent capture.</summary>
     public PassiveSessionTraceHistory? TraceHistory { get; private set; }
+    public IReadOnlyList<string> SourcePortNames => Array.ConvertAll(_sources, x => x.PortName);
 
     /// <summary>Writer-owned source/object facts; reader pages are independent of the preview.</summary>
     public PassiveProcessEventHistory? ProcessEventHistory { get; private set; }
@@ -462,6 +473,17 @@ public sealed class PassiveMonitorSession
                         frame => observed.Add(new PassiveObservedFrame(chunk.StreamId,
                             frame.ByteOffset, frameUtc, frame.Format, frame.ChecksumValid,
                             frame.RawBytes, frame.DetectedLinkAddressWidth)));
+                    // Pending bytes are incomplete frame candidates, not missing
+                    // SCADA events; update from the single writer only.
+                    Interlocked.Exchange(ref _incompleteFrameBytes,
+                        scanners.Sum(scanner => scanner.IncompleteBytes));
+                    foreach (var frame in observed)
+                    {
+                        if (frame.ChecksumValid && frame.Format is "Fixed" or "Variable" or "Single")
+                            Interlocked.Increment(ref _validFt12Frames);
+                        else
+                            Interlocked.Increment(ref _untrustedFrameCandidates);
+                    }
                     foreach (var frame in observed)
                     {
                         timelines[frame.StreamId / 2].ObserveFrame(frame with
@@ -614,6 +636,9 @@ public sealed class PassiveMonitorSession
                         observedTail.Format, observedTail.ChecksumValid, Length = observedTail.RawBytes.Length
                     })).ConfigureAwait(false);
                 TryAppendSessionHistory(observedTail);
+                Interlocked.Increment(ref _untrustedFrameCandidates);
+                Interlocked.Exchange(ref _incompleteFrameBytes,
+                    scanners.Sum(scanner => scanner.IncompleteBytes));
                 if (_frames.Writer.TryWrite(observedTail))
                     Interlocked.Increment(ref _framesPublished);
                 var tailEvents = new List<PassiveTransactionEvent>();
@@ -761,7 +786,12 @@ public sealed record PassiveMonitorProgress(
     bool IntegrityWarning,
     long LinkBScadaBytes = 0,
     long LinkBRtuBytes = 0,
-    int StreamCount = 2);
+    int StreamCount = 2,
+    long ValidFt12Frames = 0,
+    long UntrustedFrameCandidates = 0,
+    long IncompleteFrameBytes = 0,
+    long FramePreviewsPublished = 0,
+    long FramePreviewsConsumed = 0);
 
 /// <summary>Source facts are counted independently of GUI preview retention.</summary>
 public sealed record PassiveProcessEventProgress(

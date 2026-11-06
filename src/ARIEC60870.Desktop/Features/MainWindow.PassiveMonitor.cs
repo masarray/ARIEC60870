@@ -69,6 +69,8 @@ public partial class MainWindow
     private readonly PassiveIec101PortRoles _passivePortRoles = new();
     private string _passiveOriginalSubtitle = string.Empty;
     private string _passiveRoleStatus = string.Empty;
+    private DateTime _passiveCaptureStartUtc;
+    private bool _passiveSilenceReported;
 
     private void UpdatePassiveAutoRoleStatus()
     {
@@ -517,6 +519,11 @@ public partial class MainWindow
         _passiveMonitorSession = session;
         _passiveCaptureResult = null;
         ClearSessionView(clearLog: true);
+        _passiveCaptureStartUtc = DateTime.UtcNow;
+        _passiveSilenceReported = false;
+        UpdatePassiveTraceEmptyState(session.GetProgress(), options.ScadaTx.PortName,
+            options.RtuTx.PortName, options.StreamCount == 4
+                ? $"{options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}" : "");
         PrepareLiveTraceForConnect();
         _passiveRawRows.Clear();
         _passiveFrameSequence = 0;
@@ -598,6 +605,9 @@ public partial class MainWindow
                 await RefreshPassiveUiAsync();
             FlushUiQueues();
             _passiveLedgerOwnsProcessEvents = false;
+            UpdatePassiveTraceEmptyState(session.GetProgress(), options.ScadaTx.PortName,
+                options.RtuTx.PortName, options.StreamCount == 4
+                    ? $"{options.LinkBScadaTx!.PortName}/{options.LinkBRtuTx!.PortName}" : "");
             PassiveCapturePathText.Text = options.RecordFullSession
                 ? result.Directory : "Live monitor · no recording";
             PassiveIntegrityText.Text = result.Manifest.Status;
@@ -650,6 +660,37 @@ public partial class MainWindow
         }
     }
 
+    // Presentation-only classification of physical UART RX versus FT1.2 framing.
+    // Never confuse a started COM handle with bytes or valid process evidence.
+    private void UpdatePassiveTraceEmptyState(PassiveMonitorProgress progress,
+        string scadaPort, string rtuPort, string linkBPorts)
+    {
+        if (FrameTraceGrid.Items.Count > 0)
+        {
+            TracePassiveEmptyState.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var result = PassiveNoFrameDiagnosis.Evaluate(progress,
+            scadaPort, rtuPort, linkBPorts,
+            FrameTraceRows.Count, _pendingEvidence.Count);
+        TracePassiveEmptyTitleText.Text = result.Title;
+        TracePassiveEmptyDetailText.Text = result.Detail;
+        TracePassiveEmptyState.Visibility = Visibility.Visible;
+        // One reportable diagnostic per silent session, not per UI timer tick.
+        // Start status alone must not masquerade as verified wire acquisition.
+        if (!_passiveSilenceReported && progress.Status == "Monitoring" &&
+            progress.ScadaBytes + progress.RtuBytes +
+            progress.LinkBScadaBytes + progress.LinkBRtuBytes == 0 &&
+            DateTime.UtcNow - _passiveCaptureStartUtc >= TimeSpan.FromSeconds(5))
+        {
+            _passiveSilenceReported = true;
+            AddUiDiagnostic("Warning", "IEC-101 RX-only", "IEC101-PASSIVE-NO-UART",
+                "No UART bytes on passive receive inputs",
+                result.Title + ". " + result.Detail,
+                "Verify the COM adapters are tapped into the active SCADA TX and RTU TX circuits with reference ground, serial baud/parity/stop configuration, and approved isolation. Passive monitoring never sends a poll.");
+        }
+    }
+
     private async Task RefreshPassiveUiAsync()
     {
         var session = _passiveMonitorSession;
@@ -658,6 +699,10 @@ public partial class MainWindow
         try
         {
         var progress = session.GetProgress();
+        UpdatePassiveTraceEmptyState(progress, session.SourcePortNames[0],
+            session.SourcePortNames[1],
+            progress.StreamCount == 4
+                ? $"{session.SourcePortNames[2]}/{session.SourcePortNames[3]}" : "");
         PassiveScadaCountText.Text = progress.ScadaBytes.ToString("N0") + " bytes" +
             (progress.StreamCount == 4 ? $" · B {progress.LinkBScadaBytes:N0}" : "");
         PassiveRtuCountText.Text = progress.RtuBytes.ToString("N0") + " bytes" +

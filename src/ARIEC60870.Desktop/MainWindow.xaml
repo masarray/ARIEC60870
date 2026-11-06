@@ -879,6 +879,23 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                <!-- Zero-frame evidence: show the physical RX state in the
+                                     SAME workspace where an operator sees empty Trace. -->
+                                <StackPanel x:Name="TracePassiveEmptyState" Grid.Row="4"
+                                            Visibility="Collapsed" IsHitTestVisible="False"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            MaxWidth="520" Margin="22,0">
+                                    <TextBlock x:Name="TracePassiveEmptyTitleText"
+                                               Text="Waiting for IEC-101 receive evidence"
+                                               FontSize="13" FontWeight="Medium"
+                                               Foreground="{StaticResource Ink900Brush}"
+                                               HorizontalAlignment="Center" TextAlignment="Center"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="TracePassiveEmptyDetailText"
+                                               FontSize="11.5" Foreground="{StaticResource Ink600Brush}"
+                                               TextAlignment="Center" TextWrapping="Wrap"
+                                               Margin="0,7,0,0"/>
+                                </StackPanel>
                             </Grid>
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True" ToolTip="Resize decoded inspector"/>
