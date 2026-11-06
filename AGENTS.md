@@ -439,3 +439,9 @@ Do not use Button-specific dependency properties such as `IsPressed` in `TabItem
 - Left rail buttons must use icon + small caption with safe hover/shadow margins.
 - ComboBox controls must use the modern rounded web-style template and stay visually aligned with TextBox fields.
 - Do not use invalid WPF control properties such as TabItem.IsPressed.
+
+## P0 live serial line monitor — wire-first release gate (2026-11-06)
+
+The user-facing contract is **Start Monitor → visible original per-COM received HEX**, even if FT1.2 checksum, vendor ASDU interpretation, physical direction inference, user mapping, or UI filters fail. The successful `SerialPort.Open` banner and blinking adapter LEDs are not decoded evidence, but missing protocol decoding must never hide genuine received COM bytes. Unknown, malformed, unrecognized, bad-checksum, and partial candidates are legitimate **raw observations** in the same Trace; they are NEVER automatically trusted Values or Events. Classification is deterministic, source-qualified and fail-closed.
+
+Keep the original COM stream writer and canonical Core FT1.2 framer separate from optional ASDU and Values/Event projection. Do not invent values or silently discard unsupported vendor Type/COT/IOA. Auto-handle verified alternative link widths and reversed primary/secondary direction only on physical evidence; do not automatically retune live COM baud, toggle RTS/DTR, transmit polls, or change electrical wiring. All visible Trace windows are bounded; durable lossless claims require explicitly enabled raw recording and verified archive accounting. Both COMs and adverse receive scenarios must be tested through real reader→writer→framer→WPF routing. An integration PR is not production-FAT-certified without hardware.

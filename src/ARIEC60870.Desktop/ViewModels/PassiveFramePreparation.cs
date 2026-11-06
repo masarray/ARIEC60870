@@ -16,7 +16,8 @@ namespace ARIEC60870.Desktop.ViewModels;
 public static class PassiveFramePreparation
 {
     public sealed record Prepared(PassiveObservedFrame Frame, byte[] AsduRaw,
-        Iec10xAsduDecode? Decode, string RawHex);
+        Iec10xAsduDecode? Decode, string RawHex,
+        PassiveWirePresentation.Verdict Wire);
 
     public static IReadOnlyList<Prepared> PrepareBatch(
         IReadOnlyList<PassiveObservedFrame> frames,
@@ -40,7 +41,8 @@ public static class PassiveFramePreparation
                 ? raw.AsSpan(layout.AsduOffset, layout.AsduLength).ToArray()
                 : Array.Empty<byte>();
             var decoded = verified && asdu.Length > 0 ? decoder.Decode(asdu) : null;
-            result[i] = new Prepared(frame, asdu, decoded, Convert.ToHexString(raw));
+            result[i] = new Prepared(frame, asdu, decoded, Convert.ToHexString(raw),
+                PassiveWirePresentation.Classify(frame, linkAddressWidth, decoded));
         }
         return result;
     }

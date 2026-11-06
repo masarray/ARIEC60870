@@ -36,6 +36,10 @@ public partial class MainWindow
         return false;
     }
 
+    private static PassiveFramePreparation.Prepared AssertSinglePreparedForUi(
+        PassiveObservedFrame observed) =>
+        PassiveFramePreparation.PrepareBatch([observed], 1, 2, 2, 3)[0];
+
     public async Task RunObservationUiAcceptanceProbeAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -75,7 +79,36 @@ public partial class MainWindow
         _passiveRawRows.Clear();
         TracePassiveEmptyState.Visibility = Visibility.Collapsed;
 
-        // A forensic line monitor must NEVER start in a view that silently
+        // An unknown Type with a sound FT1.2 checksum must appear in the SAME
+        // Trace as valid frames, but must never create false Values/SOE.
+        var unknownAsdu = new byte[]
+            { 0xFA, 0x01, 0x03, 0x00, 0x69, 0x00, 0x01, 0x00, 0x00, 0x42 };
+        var unknownBody = new byte[] { 0x08, 0x69 }.Concat(unknownAsdu).ToArray();
+        var unknownWire = new byte[] { 0x68, (byte)unknownBody.Length,
+                (byte)unknownBody.Length, 0x68 }
+            .Concat(unknownBody)
+            .Concat(new byte[] { (byte)(unknownBody.Sum(x => x) & 255), 0x16 })
+            .ToArray();
+        var unknownObserved = new PassiveObservedFrame(1, 407, DateTime.UtcNow,
+            "Variable", true, unknownWire);
+        var unknownPrepared = AssertSinglePreparedForUi(unknownObserved);
+        FeedPassiveFrameToExistingViews(unknownObserved, prepared: unknownPrepared);
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, 408,
+            DateTime.UtcNow, "Noise", false, [0x51, 0x52, 0x53]));
+        FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 411,
+            DateTime.UtcNow, "Partial", false, [0x68, 0x0C]));
+        FlushUiQueues();
+        if (!FrameTraceRows.Any(x => x.RawHex == Convert.ToHexString(unknownWire) &&
+            x.Source.OperatorMessage.Contains("Unknown/invalid IEC-101 ASDU", StringComparison.Ordinal)) ||
+            !FrameTraceRows.Any(x => x.RawHex == "515253" &&
+                x.Source.OperatorMessage.Contains("Unknown serial bytes", StringComparison.Ordinal)) ||
+            !FrameTraceRows.Any(x => x.RawHex == "680C" &&
+                x.Source.OperatorMessage.Contains("Partial FT1.2", StringComparison.Ordinal)) ||
+            ValueRows.Count != 0 || RelayEventRows.Count != 0)
+            throw new InvalidOperationException(
+                "Wire-first Trace hid unknown/partial/noise raw HEX or invented process values.");
+        ClearSessionView(clearLog: false);
+                // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
         if (TraceQuickScopeCombo.SelectedIndex != 1 ||
             MainTabControl.SelectedIndex != 1 ||

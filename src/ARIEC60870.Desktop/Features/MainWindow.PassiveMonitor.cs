@@ -1004,6 +1004,11 @@ public partial class MainWindow
         var link = control.HasValue ? LinkControlDecoder.Decode(control.Value) : null;
         var decode = prepared is not null ? prepared.Decode :
             seen.ChecksumValid && asduRaw.Length > 0 ? _passiveAsduDecoder?.Decode(asduRaw) : null;
+        // A received byte sequence is always visible in Trace. Only a fully
+        // verified frame AND complete supported ASDU can update process facts.
+        var wire = prepared?.Wire ??
+            PassiveWirePresentation.Classify(seen, _passiveLinkAddressWidth, decode);
+        var trustedDecode = wire.TrustedProcess ? decode : null;
         var format = seen.Format switch
         {
             "Fixed" => Ft12FrameFormat.FixedLength,
@@ -1017,7 +1022,7 @@ public partial class MainWindow
             LinkAddress = control.HasValue ? address : null,
             LinkAddressSize = linkWidth, LinkControl = link,
             AsduBytes = asduRaw, IsChecksumValid = seen.ChecksumValid,
-            IsLengthValid = true,
+            IsLengthValid = wire.TrustedWire,
             Issues = profileMismatch
                 ? new[] { $"IEC-101 Link Address width mismatch: Setup={_passiveLinkAddressWidth}, " +
                     $"observed fixed frame has {linkWidth} octet(s). Check Setup or re-decode the raw capture." }
@@ -1067,26 +1072,26 @@ public partial class MainWindow
             "Partial" => "Incomplete FT1.2 frame",
             "Noise" => "Unrecognized serial bytes (raw preserved)",
             "LinkWidthMismatch" => $"Fixed link frame · {linkWidth}-octet address detected; Setup={_passiveLinkAddressWidth}",
-            _ => link?.FunctionName ?? (raw[0] == 0xE5
+            _ => link?.FunctionName ?? (raw.Length == 1 && raw[0] == 0xE5
                 ? "E5 short response (ACK or no-data by request context)"
-                : "A2 single response (not permitted in IEC-101)")
+                : raw.Length == 1 && raw[0] == 0xA2
+                    ? "A2 single response (not permitted in IEC-101)"
+                    : "Unknown FT1.2 candidate")
         };
-        var meaning = decode?.ShortMeaning ?? function;
-        if (!seen.ChecksumValid && seen.Format != "Partial")
-            meaning = "Bad checksum · " + meaning;
-        // Keep the decoded warning visible in the operator Trace, without
-        // changing the authoritative FT1.2 decoder or physical raw evidence.
-        if (profileMismatch || isNoise)
-            meaning = frame.Issues.FirstOrDefault() ?? meaning;
-
-        var first = decode?.FirstObject;
+        var meaning = wire.Status == PassiveWirePresentation.Kind.Decoded
+            ? trustedDecode!.ShortMeaning
+            : wire.Status == PassiveWirePresentation.Kind.LinkOnly ? function
+            : wire.Message;
+        // A valid FT1.2 envelope with an unknown ASDU is still a physical
+        // frame; do not rewrite it into a fake decoded signal or hide it.
+        var first = trustedDecode?.FirstObject;
         var rawHexOnce = prepared?.RawHex ?? Convert.ToHexString(raw);
 
         var ev = new Iec103MasterEvidenceEvent
         {
             SequenceNumber = inspectionOnly ? 0 : ++_passiveFrameSequence,
             TimestampUtc = seen.EstimatedUtc, Direction = direction,
-            Category = seen.ChecksumValid && !forbiddenSingleA2 && !profileMismatch && !isNoise
+            Category = !wire.NeedsAttention
                 ? "Passive Traffic" : "RX Warning",
             DataClass = link?.FunctionCode switch { 10 => "Class 1", 11 => "Class 2", _ => "-" },
             PollingReason = "PASSIVE-IEC101", ProtocolMode = Iec60870ProtocolMode.Iec101,
@@ -1120,9 +1125,9 @@ public partial class MainWindow
             ObjectSummary = decode?.ObjectSummary ?? "",
             QualityText = first?.QualityText ?? "",
             IsRelayEdgeEvent = direction == FrameDirection.SlaveToMaster && first is not null &&
-                decode?.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-            IsRelayValue = direction == FrameDirection.SlaveToMaster && first is not null && decode is not null &&
-                decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
+                trustedDecode?.CauseOfTransmission == 3 && trustedDecode.TypeId is >= 1 and <= 44,
+            IsRelayValue = direction == FrameDirection.SlaveToMaster && first is not null && trustedDecode is not null &&
+                trustedDecode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37,
             SignalKey = first is null || decode is null ? "" :
                 $"L{seen.StreamId / 2}:{decode.CommonAddress}:{first.InformationObjectAddress}",
             SignalName = first is null ? "" : $"IOA {first.InformationObjectAddress}",
@@ -1146,10 +1151,10 @@ public partial class MainWindow
                 TimeSpan.FromSeconds(1));
 
         // Multi-object ASDUs must update EVERY point, not only the first IOA.
-        if (direction == FrameDirection.SlaveToMaster && decode is not null &&
-            decode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
+        if (direction == FrameDirection.SlaveToMaster && trustedDecode is not null &&
+            trustedDecode.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 34 or 35 or 36 or 37)
         {
-            foreach (var obj in decode.Objects.Skip(1))
+            foreach (var obj in trustedDecode.Objects.Skip(1))
             {
                 UpdateValueAndEventViews(new Iec103MasterEvidenceEvent
                 {
@@ -1163,23 +1168,23 @@ public partial class MainWindow
                     PhysicalSource = seen.StreamId < 2 ? "Link A" : "Link B",
                     PhysicalStreamId = seen.StreamId,
                     RawStreamOffset = seen.StreamOffset,
-                    TypeId = decode.TypeId, TypeName = decode.TypeName,
-                    CauseOfTransmission = decode.CauseOfTransmission,
-                    CauseDetails = decode.CauseDetails,
+                    TypeId = trustedDecode.TypeId, TypeName = trustedDecode.TypeName,
+                    CauseOfTransmission = trustedDecode.CauseOfTransmission,
+                    CauseDetails = trustedDecode.CauseDetails,
                     AsduDetails = decode,
                     InformationObjectDetails = obj,
                     QualityDetails = obj.QualityDetails,
-                    CommandDetails = Iec10xCommandDetails.Decode(decode.TypeId, obj, decode.CauseDetails!),
+                    CommandDetails = Iec10xCommandDetails.Decode(trustedDecode.TypeId, obj, trustedDecode.CauseDetails!),
                     QualityText = obj.QualityText,
-                    CauseName = decode.CauseName, CommonAddressNumber = decode.CommonAddress,
+                    CauseName = trustedDecode.CauseName, CommonAddressNumber = trustedDecode.CommonAddress,
                     InformationObjectAddress = obj.InformationObjectAddress,
                     ObjectSummary = obj.ReadableSummary,
                     IsRelayValue = true,
-                    IsRelayEdgeEvent = decode.CauseOfTransmission == 3 && decode.TypeId is >= 1 and <= 44,
-                    SignalKey = $"L{seen.StreamId / 2}:{decode.CommonAddress}:{obj.InformationObjectAddress}",
+                    IsRelayEdgeEvent = trustedDecode.CauseOfTransmission == 3 && trustedDecode.TypeId is >= 1 and <= 44,
+                    SignalKey = $"L{seen.StreamId / 2}:{trustedDecode.CommonAddress}:{obj.InformationObjectAddress}",
                     SignalName = $"IOA {obj.InformationObjectAddress}",
                     SignalGroup = seen.StreamId < 2 ? "IEC-101 Link A" : "IEC-101 Link B",
-                    SignalType = decode.TypeName,
+                    SignalType = trustedDecode.TypeName,
                     SignalDisplayValue = obj.ShortValue,
                     SignalRawValue = obj.ValueText,
                     RelayTimestampText = obj.TimestampText,
