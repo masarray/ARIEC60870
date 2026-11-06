@@ -796,7 +796,9 @@ public partial class MainWindow
             const int terminalBacklog = 280; // greater than one bounded UI flush
             for (var i = 0; i < terminalBacklog; i++)
             {
-                _pendingEvidence.Enqueue(new Iec103MasterEvidenceEvent
+                _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(
+                    System.Threading.Volatile.Read(ref _eventProjectionEpoch),
+                    new Iec103MasterEvidenceEvent
                 {
                     SequenceNumber = 8_000_000L + i,
                     ProtocolMode = Iec60870ProtocolMode.Iec103,
@@ -804,7 +806,7 @@ public partial class MainWindow
                     Category = "Info",
                     DataClass = "Test",
                     Summary = "Synthetic terminal receive-queue drain"
-                });
+                }));
             }
             await ApplyFinalResultAsync(new Iec103MasterRunResult
             {
@@ -841,6 +843,55 @@ public partial class MainWindow
                 $"event UI={RelayEventRows.Count}/{projectedAtFinish.Length}, " +
                 $"values={ValueRows.Count}/{valuesAtFinish.Length}, " +
                 $"pending={_pendingEvidence.Count}, resets={terminalEventResets}/{terminalValueResets}.");
+        // A new Start changes the epoch. Late active Master callbacks, including
+        // already-queued old results, must not modify this session's Values,
+        // Events, diagnostics or dual-link state.
+        var oldEpoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+        ClearSessionView(clearLog: false);
+        var nextEpoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+        if (nextEpoch == oldEpoch)
+            throw new InvalidOperationException("New observation scope failed to advance its epoch.");
+        var late = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 9_100_001,
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec104,
+            Category = "RX",
+            TypeId = 1,
+            CauseOfTransmission = 3,
+            CommonAddressNumber = 105,
+            InformationObjectAddress = 901,
+            SignalDisplayValue = "SP=ON"
+        };
+        var lateFinding = new Iec103MasterFinding
+        {
+            Id = "STALE-SOURCE",
+            Title = "Stale previous-session finding"
+        };
+        OnMasterEvidenceReceived(oldEpoch, this, late);
+        OnMasterFindingRaised(oldEpoch, this, lateFinding);
+        // Also cover the hard race: the old callback passed the initial epoch
+        // check, then the UI cleared the scope before it was dequeued.
+        _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(oldEpoch, late));
+        _pendingFindings.Enqueue(new SessionFindingEnvelope(oldEpoch, lateFinding));
+        FlushUiQueues();
+        if (_rxCount != 0 || RelayEventRows.Count != 0 || ValueRows.Count != 0 ||
+            FindingRows.Count != 0 || _pendingEvidence.Count != 0 ||
+            _pendingFindings.Count != 0 || _staleSessionEvidenceRejected < 2 ||
+            _staleSessionFindingsRejected < 2)
+            throw new InvalidOperationException(
+                "Previous session callback/queue entries contaminated a new session epoch.");
+
+        // A new trusted callback must continue working normally. Epoch guard
+        // blocks old sources; it must not accidentally block the current one.
+        OnMasterEvidenceReceived(nextEpoch, this, late);
+        FlushUiQueues();
+        if (_rxCount != 1 || RelayEventRows.Count != 1 ||
+            !ValueRows.Any(x => x.IoAddress == "901") ||
+            !RelayEventRows.Any(x => x.IoAddress == "901"))
+            throw new InvalidOperationException(
+                "Session epoch protection also blocked current trusted process evidence.");
+        var staleEpochReceptionPassed = true;
         testStart.Stop();
         File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new
@@ -854,6 +905,9 @@ public partial class MainWindow
                 searchAndAutoSameBaselinePassed = true,
                 eventProjectionVersion = _eventProjectionVersion,
                 eventProjectionEpoch = _eventProjectionEpoch,
+                staleEpochReceptionPassed,
+                staleSessionEvidenceRejected = _staleSessionEvidenceRejected,
+                staleSessionFindingsRejected = _staleSessionFindingsRejected,
                 eventProjectionLiveResetCount = _eventLiveResetCount,
                 eventProjectionMismatchCount = _eventProjectionMismatchCount,
                 eventProjectionSourceCount = _eventProjectionSourceCount,

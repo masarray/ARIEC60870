@@ -217,22 +217,32 @@ public partial class MainWindow
         }
     }
 
-    private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item)
-    {
-        // Do not render one WPF row per protocol event immediately. High-volume polling can
-        // produce thousands of frames; the UI consumes this queue in timed batches.
-        var depth = _pendingEvidence.Count;
-        TrackPendingEvidenceDepth(depth);
+    // Passive UI decode uses the current scope; active Master callbacks capture
+    // the exact epoch when subscribed, never read a later session's epoch.
+    private void OnEvidenceReceived(object? sender, Iec103MasterEvidenceEvent item) =>
+        QueueEvidence(System.Threading.Volatile.Read(ref _eventProjectionEpoch), item);
 
-        if (ShouldApplyBackpressure(depth) && TryDropLowValueForBackpressure(item))
+    private void OnMasterEvidenceReceived(long epoch, object? sender, Iec103MasterEvidenceEvent item) =>
+        QueueEvidence(epoch, item);
+
+    private void QueueEvidence(long epoch, Iec103MasterEvidenceEvent item)
+    {
+        if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch))
         {
+            System.Threading.Interlocked.Increment(ref _staleSessionEvidenceRejected);
             return;
         }
 
-        _pendingEvidence.Enqueue(item);
+        // Only low-value presentation is pressure-compressed, never source facts.
+        var depth = _pendingEvidence.Count;
+        TrackPendingEvidenceDepth(depth);
+        if (ShouldApplyBackpressure(depth) && TryDropLowValueForBackpressure(item))
+            return;
 
-        // First event after Connect gets one prompt dispatcher flush; normal traffic
-        // continues on the 75ms bounded timer. Never queue a UI callback per telegram.
+        _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(epoch, item));
+
+        // First event after Connect gets one prompt dispatcher flush; ordinary
+        // traffic continues on the bounded timer, not per-frame WPF dispatch.
         if (System.Threading.Interlocked.Exchange(ref _initialLiveTraceFlushPending, 0) == 1 &&
             !Dispatcher.HasShutdownStarted)
         {
@@ -243,9 +253,14 @@ public partial class MainWindow
         }
     }
 
-    private void OnFindingRaised(object? sender, Iec103MasterFinding finding)
+    private void OnMasterFindingRaised(long epoch, object? sender, Iec103MasterFinding finding)
     {
-        _pendingFindings.Enqueue(finding);
+        if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+        {
+            System.Threading.Interlocked.Increment(ref _staleSessionFindingsRejected);
+            return;
+        }
+        _pendingFindings.Enqueue(new SessionFindingEnvelope(epoch, finding));
     }
 
     private void FlushUiQueues()
@@ -258,16 +273,22 @@ public partial class MainWindow
         var flushBudget = GetAdaptiveFlushBudget(queuedBeforeFlush);
         _lastFlushBudget = flushBudget;
 
-        while (processed < flushBudget && _pendingEvidence.TryDequeue(out var item))
+        while (processed < flushBudget && _pendingEvidence.TryDequeue(out var pending))
         {
-            ApplyEvidenceToUi(item);
+            if (pending.Epoch == System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+                ApplyEvidenceToUi(pending.Item);
+            else
+                System.Threading.Interlocked.Increment(ref _staleSessionEvidenceRejected);
             processed++;
         }
 
         var findingProcessed = 0;
-        while (findingProcessed < 50 && _pendingFindings.TryDequeue(out var finding))
+        while (findingProcessed < 50 && _pendingFindings.TryDequeue(out var pendingFinding))
         {
-            ApplyFindingToUi(finding);
+            if (pendingFinding.Epoch == System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+                ApplyFindingToUi(pendingFinding.Item);
+            else
+                System.Threading.Interlocked.Increment(ref _staleSessionFindingsRejected);
             findingProcessed++;
         }
 

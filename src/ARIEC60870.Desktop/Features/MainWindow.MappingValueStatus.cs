@@ -969,7 +969,9 @@ public partial class MainWindow
         // A new capture/session is an explicit scope transition. Its Clear()
         // notification is not a live event-window Reset; epoch invalidates
         // pending older UI projections and resets diagnostics.
-        _eventProjectionEpoch++;
+        System.Threading.Interlocked.Increment(ref _eventProjectionEpoch);
+        System.Threading.Interlocked.Exchange(ref _staleSessionEvidenceRejected, 0);
+        System.Threading.Interlocked.Exchange(ref _staleSessionFindingsRejected, 0);
         _eventCommittedScope = "";
         RelayEventRows.Clear();
         _eventLiveResetCount = 0;

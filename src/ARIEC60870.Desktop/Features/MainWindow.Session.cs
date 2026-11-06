@@ -155,20 +155,35 @@ public partial class MainWindow
                 var session = CreateDualLinkSession(settings, linkATransport, linkBTransport);
                 _activeControlSession = session;
                 _activeDualLinkSession = session;
-                session.EvidenceReceived += OnEvidenceReceived;
-                session.FindingRaised += OnFindingRaised;
-                session.SnapshotChanged += OnDualLinkSnapshotChanged;
-
-                var result = durationSeconds <= 0
-                    ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
-                    : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
-                _lastResult = result;
-
-                await Dispatcher.InvokeAsync(new Func<Task>(async () =>
+                var epoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+                EventHandler<Iec103MasterEvidenceEvent> evidenceHandler =
+                    (sender, item) => OnMasterEvidenceReceived(epoch, sender, item);
+                EventHandler<Iec103MasterFinding> findingHandler =
+                    (sender, item) => OnMasterFindingRaised(epoch, sender, item);
+                EventHandler<Iec101RedundancySessionSnapshot> snapshotHandler =
+                    (sender, item) => OnDualLinkSnapshotChanged(epoch, item);
+                session.EvidenceReceived += evidenceHandler;
+                session.FindingRaised += findingHandler;
+                session.SnapshotChanged += snapshotHandler;
+                try
                 {
-                    await ApplyFinalResultAsync(result);
-                    AppendSessionLog("Dual-link redundancy session completed: " + result.CompletionReason);
-                })).Task.Unwrap().ConfigureAwait(false);
+                    var result = durationSeconds <= 0
+                        ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
+                        : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
+                    _lastResult = result;
+
+                    await Dispatcher.InvokeAsync(new Func<Task>(async () =>
+                    {
+                        await ApplyFinalResultAsync(result);
+                        AppendSessionLog("Dual-link redundancy session completed: " + result.CompletionReason);
+                    })).Task.Unwrap().ConfigureAwait(false);
+                }
+                finally
+                {
+                    session.EvidenceReceived -= evidenceHandler;
+                    session.FindingRaised -= findingHandler;
+                    session.SnapshotChanged -= snapshotHandler;
+                }
             }
             else
             {
@@ -176,19 +191,31 @@ public partial class MainWindow
                 _activeTransport = transport;
                 var session = CreateSession(settings, transport);
                 _activeControlSession = session as IProtocolControlCommandSession;
-                session.EvidenceReceived += OnEvidenceReceived;
-                session.FindingRaised += OnFindingRaised;
-
-                var result = durationSeconds <= 0
-                    ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
-                    : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
-                _lastResult = result;
-
-                await Dispatcher.InvokeAsync(new Func<Task>(async () =>
+                var epoch = System.Threading.Volatile.Read(ref _eventProjectionEpoch);
+                EventHandler<Iec103MasterEvidenceEvent> evidenceHandler =
+                    (sender, item) => OnMasterEvidenceReceived(epoch, sender, item);
+                EventHandler<Iec103MasterFinding> findingHandler =
+                    (sender, item) => OnMasterFindingRaised(epoch, sender, item);
+                session.EvidenceReceived += evidenceHandler;
+                session.FindingRaised += findingHandler;
+                try
                 {
-                    await ApplyFinalResultAsync(result);
-                    AppendSessionLog("Monitor session completed: " + result.CompletionReason);
-                })).Task.Unwrap().ConfigureAwait(false);
+                    var result = durationSeconds <= 0
+                        ? await session.RunAsync(_sessionCancellation.Token).ConfigureAwait(false)
+                        : await session.RunForAsync(TimeSpan.FromSeconds(durationSeconds), _sessionCancellation.Token).ConfigureAwait(false);
+                    _lastResult = result;
+
+                    await Dispatcher.InvokeAsync(new Func<Task>(async () =>
+                    {
+                        await ApplyFinalResultAsync(result);
+                        AppendSessionLog("Monitor session completed: " + result.CompletionReason);
+                    })).Task.Unwrap().ConfigureAwait(false);
+                }
+                finally
+                {
+                    session.EvidenceReceived -= evidenceHandler;
+                    session.FindingRaised -= findingHandler;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -507,9 +534,15 @@ public partial class MainWindow
         return backup;
     }
 
-    private void OnDualLinkSnapshotChanged(object? sender, Iec101RedundancySessionSnapshot snapshot)
+    private void OnDualLinkSnapshotChanged(long epoch, Iec101RedundancySessionSnapshot snapshot)
     {
-        _ = Dispatcher.InvokeAsync(() => ApplyDualLinkSnapshot(snapshot));
+        if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch)) return;
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            // InvokeAsync callbacks can already be queued during a reconnect.
+            if (epoch == System.Threading.Volatile.Read(ref _eventProjectionEpoch))
+                ApplyDualLinkSnapshot(snapshot);
+        });
     }
 
     private void ApplyDualLinkSnapshot(Iec101RedundancySessionSnapshot snapshot)

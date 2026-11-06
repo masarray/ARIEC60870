@@ -209,3 +209,10 @@ Both Value and Event columns use one consistent lightweight state chip pattern: 
 
 The change uses existing bounded ObservableRangeCollections, recycling virtualized grids, and immutable per-row state objects. No dynamic visual animation, unbounded row view models, extra timer, receive-path formatting, driver interaction or protocol engine modifications. Save WPF screenshots and test XAML layout at actual realized CI viewport dimensions, then perform physical 100%/125%/150% DPI review and COM/RTU FAT separately.
 
+
+## C3-D — session-epoch isolation, original evidence continuity (2026-11-06)
+
+- Active IEC-101 single/dual-link, IEC-103 and IEC-104 evidence/finding callbacks are registered with immutable **connection-epoch** ownership, and detached in `finally` for normal completion, cancellation and fault. The 2/4-RX passive monitor still uses its independently owned capture flow. Dual-link state snapshots check the epoch both before and after WPF dispatch.
+- The existing bounded WPF queue carries the original epoch with each incoming evidence and diagnostic finding. A new capture/connection increments the epoch and clears old projections; both ingress and dequeue validate that same source identity. Thus a callback that passed ingress before a reconnect cannot populate a newer session after its queue drain. Source protocol bytes are never guessed, reinterpreted or changed by this guard.
+- In the real Windows WPF acceptance, old active callbacks and already-staged observations/findings are rejected after a new scope; valid current-epoch process observations still enter Values and Events. Rejected stale callbacks are counted separately from low-value pressure compression and reported in evidence-retention export.
+- No active TX, polling, relay data acceptance, shared parser or raw journal semantics change. The projection queue remains a **bounded rendering workspace**, not a guaranteed persistent all-event source; full raw capture is opt-in. Real disconnect/reconnect under network/USB timings, physical DPI, 50k full mixed-pipeline measurements and FAT remain separately unverified.
