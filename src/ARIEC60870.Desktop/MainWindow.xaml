@@ -879,6 +879,15 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                <!-- Passive RX diagnosis remains visible when there are zero matching wire frames.
+                                     Not a fabricated protocol row; receives updates from source-owned counters. -->
+                                <TextBlock x:Name="PassiveTraceEmptyText" Grid.Row="4"
+                                           Visibility="Collapsed" IsHitTestVisible="False"
+                                           HorizontalAlignment="Center" VerticalAlignment="Top"
+                                           Margin="26,28,26,0" MaxWidth="760"
+                                           FontSize="12" FontWeight="Normal"
+                                           Foreground="{StaticResource Ink600Brush}"
+                                           TextAlignment="Center" TextWrapping="Wrap"/>
                             </Grid>
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True" ToolTip="Resize decoded inspector"/>
