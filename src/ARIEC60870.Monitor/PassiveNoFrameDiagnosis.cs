@@ -33,6 +33,10 @@ public static class PassiveNoFrameDiagnosis
         if (progress.Status is "Idle" or "Starting")
             return new Result("Opening receive-only COM ports",
                 ports + " · COM open is not evidence of UART activity.");
+        if (!string.IsNullOrEmpty(progress.ReaderFaultPorts))
+            return new Result("Receive source degraded · " + progress.ReaderFaultPorts,
+                ports + " · a physical COM reader failed; other RX sources continue. " +
+                "Inspect source fault diagnostics. Capture completeness is uncertain." + skips);
         if (read == 0)
             return new Result("No UART bytes received",
                 ports + " · Check RX-only tap, configured COMs and UART profile. Passive mode never polls.");

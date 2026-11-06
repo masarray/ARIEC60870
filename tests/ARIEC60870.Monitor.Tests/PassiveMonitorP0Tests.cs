@@ -429,6 +429,117 @@ public sealed class PassiveMonitorP0Tests
         finally { Directory.Delete(folder, recursive: true); }
     }
 
+
+    [Fact]
+    public async Task FailedComReadDoesNotCancelHealthySiblingAndItsSourceFrame()
+    {
+        // COM8 is forbidden to yield bytes until COM7 has already faulted.
+        // The former session-wide cancellation lost this independently healthy stream.
+        using var fault = new ManualResetEventSlim(false);
+        byte[] good = [0x10, 0x29, 0x69, 0x92, 0x16];
+        var bad = new FailingReadTap("COM7", fault);
+        var healthy = new GatedReadTap(new ReplayTap("COM8", good, 1), fault);
+        var options = Options(string.Empty) with { RecordFullSession = false };
+        var session = new PassiveMonitorSession(options, bad, healthy);
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(350));
+        var result = await session.RunAsync(stop.Token);
+        Assert.True(fault.IsSet);
+        Assert.True(bad.WasClosed && healthy.WasClosed);
+        Assert.Equal("IntegrityUncertain", result.Manifest.Status);
+        Assert.Contains("COM7", session.GetProgress().ReaderFaultPorts);
+        Assert.Equal(good.Length, session.GetProgress().ReaderRtuBytes);
+        Assert.Equal(good.Length, session.GetProgress().QueuedRtuBytes);
+        Assert.Equal(good.Length, session.GetProgress().RtuBytes);
+        Assert.Contains(result.Manifest.Warnings, w => w.Contains("COM7") &&
+            w.Contains("remaining RX sources continue"));
+        var frames = new List<PassiveObservedFrame>();
+        while (session.TryReadFrame(out var frame)) frames.Add(frame);
+        Assert.Contains(frames, f => f.StreamId == 1 && f.ChecksumValid &&
+            f.RawBytes.SequenceEqual(good));
+        var chunks = new List<PassiveChunkPreview>();
+        while (session.TryReadPreview(out var sample)) chunks.Add(sample);
+        Assert.Equal(good, chunks.SelectMany(x => x.FirstBytes).ToArray());
+    }
+
+    [Fact]
+    public async Task RawBytePreviewIsIndependentOfIncompleteFt12Framing()
+    {
+        byte[] a = [0x68, 0x0C, 0x0C, 0x68];
+        byte[] b = [0x44, 0x55];
+        var options = Options(string.Empty) with
+        {
+            RecordFullSession = false, FrameGapMilliseconds = 10000
+        };
+        var session = new PassiveMonitorSession(options,
+            new ReplayTap("COM7", a, 1), new ReplayTap("COM8", b, 1));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var running = session.RunAsync(stop.Token);
+        var samples = new List<PassiveChunkPreview>();
+        for (var i = 0; i < 150 && samples.Sum(x => x.ByteCount) < a.Length + b.Length; i++)
+        {
+            while (session.TryReadPreview(out var sample)) samples.Add(sample);
+            if (samples.Sum(x => x.ByteCount) < a.Length + b.Length)
+                await Task.Delay(10);
+        }
+        var progress = session.GetProgress();
+        Assert.False(running.IsCompleted);
+        Assert.Equal(0, progress.ValidFt12Frames);
+        Assert.Equal(a.Length, progress.ReaderScadaBytes);
+        Assert.Equal(b.Length, progress.ReaderRtuBytes);
+        Assert.Equal(a.Length, progress.ScadaBytes);
+        Assert.Equal(b.Length, progress.RtuBytes);
+        Assert.Equal(a.Length + b.Length, samples.Sum(x => x.ByteCount));
+        Assert.Equal(a, samples.Where(x => x.StreamId == 0)
+            .SelectMany(x => x.FirstBytes).ToArray());
+        Assert.Equal(b, samples.Where(x => x.StreamId == 1)
+            .SelectMany(x => x.FirstBytes).ToArray());
+        stop.Cancel();
+        await running;
+    }
+
+    private sealed class FailingReadTap : IReadOnlySerialTap
+    {
+        private readonly ManualResetEventSlim _fault;
+        public FailingReadTap(string port, ManualResetEventSlim fault)
+        {
+            PortName = port;
+            _fault = fault;
+        }
+        public string PortName { get; }
+        public long DriverErrorCount => 0;
+        public bool WasClosed { get; private set; }
+        public void Open() { }
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            _fault.Set();
+            throw new IOException("Simulated driver read fault");
+        }
+        public void Close() => WasClosed = true;
+        public void Dispose() => Close();
+    }
+
+    private sealed class GatedReadTap : IReadOnlySerialTap
+    {
+        private readonly IReadOnlySerialTap _inner;
+        private readonly ManualResetEventSlim _gate;
+        public GatedReadTap(IReadOnlySerialTap inner, ManualResetEventSlim gate)
+        {
+            _inner = inner;
+            _gate = gate;
+        }
+        public string PortName => _inner.PortName;
+        public long DriverErrorCount => _inner.DriverErrorCount;
+        public bool WasClosed { get; private set; }
+        public void Open() => _inner.Open();
+        public int Read(byte[] buffer, int offset, int count)
+        {
+            if (!_gate.IsSet) { Thread.Sleep(2); return 0; }
+            return _inner.Read(buffer, offset, count);
+        }
+        public void Close() { _inner.Close(); WasClosed = true; }
+        public void Dispose() => Close();
+    }
+
     private static PassiveCaptureOptions Options(string folder) => new(folder,
         new PassiveSerialSource("COM7", "SCADA TX -> RTU"),
         new PassiveSerialSource("COM8", "RTU TX -> SCADA"), ChannelCapacity: 32,

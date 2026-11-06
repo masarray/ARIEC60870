@@ -55,3 +55,31 @@ This specification is original engineering work based on the general public conc
 **Live preview integrity:** original binary capture, when opted in and independently verified, stays authoritative. The 256-sample bounded GUI preview uses `DropOldest` and now exposes *published, consumed, and evicted* counts (at stable snapshots, evicted=published-consumed-buffered). This sample loss must not be misreported as OS UART loss or proof of an incomplete recorded journal. Frame preview and raw-chunk preview have separate counters.
 
 **Acceptance:** tests simulate `Read>0, writer=0`, verify live reader/queue/writer equality for two independent COM sources, overflow 300 raw chunks into the 256-sample display ring with truthful skipped count, and assert the new empty-state decision in real Windows WPF smoke. Physical COM4/COM3 at 1200bps, 2k SOE completeness, true UART error sources, and multi-vendor FAT remain unverified until field tests.
+
+
+## P0-C5 source-first receive isolation (2026-11-07 candidate)
+
+**Source audit:** live raw previews and writer byte totals were emitted only after FT1.2,
+GI, transaction and ASDU event derivation; a decoder exception could prevent
+otherwise received bytes from appearing in Raw Frames. One serial Read exception
+also cancelled all other COM readers. The canonical Core framer remains SSOT.
+
+**Correction:** the single writer accounts and publishes bounded raw UART samples
+immediately after optional original-byte journal append, before derived work.
+Every emitted physical frame enters temporary history and the 512-frame Trace
+feed before any GI/ASDU interpreter. An ordinary derived-code exception disables
+interpretation for the affected RX lane with an integrity warning; original
+wire reception and other healthy interpreters continue. Raw journal I/O faults
+stay fatal, not hidden by decoder recovery. Per-COM driver read failures are
+individually marked as incomplete source coverage, without stopping healthy
+directions; the UI names the faulted COM explicitly.
+
+**Regression gates:** COM7 fails before COM8 yields a byte yet COM8 still emits
+its exact fixed FT1.2 frame and source byte sample; a 10-second pending FT1.2
+candidate must not delay original byte previews from either COM before Stop.
+The 48-byte-per-read GUI sample and 256-sample rolling queue are bounded and
+may truncate/evict GUI evidence; only verified full raw journaling can support
+complete application capture claims.
+
+**Acceptance:** pending exact-head CI/WPF build. Physical COM4/COM3 and 2,000
+site SOE receipt are not tested; keep PR #95 Draft and master unchanged.

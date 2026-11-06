@@ -76,6 +76,7 @@ public sealed class PassiveMonitorSession
     private long _framesConsumed;
     // Distinguish OS-delivered bytes from queue admission and writer completion.
     private readonly long[] _readerReceivedBytes;
+    private readonly int[] _readerFailed;
     private readonly long[] _writerQueuedBytes;
     private long _rawPreviewPublished;
     private long _rawPreviewConsumed;
@@ -114,6 +115,7 @@ public sealed class PassiveMonitorSession
             throw new ArgumentException("Provide exactly one RX-only tap per configured physical source in order.");
         _taps = taps;
         _readerReceivedBytes = new long[_streamCount];
+        _readerFailed = new int[_streamCount];
         _writerQueuedBytes = new long[_streamCount];
         _writtenBytes = new long[_streamCount];
         _writtenChunks = new long[_streamCount];
@@ -158,7 +160,9 @@ public sealed class PassiveMonitorSession
         QueuedLinkBRtuBytes: _streamCount == 4 ? Interlocked.Read(ref _writerQueuedBytes[3]) : 0,
         RawPreviewPublished: published,
         RawPreviewConsumed: consumed,
-        RawPreviewDropped: Math.Max(0, published - consumed - buffered));
+        RawPreviewDropped: Math.Max(0, published - consumed - buffered),
+        ReaderFaultPorts: string.Join(", ", _sources.Where((s, i) =>
+            Volatile.Read(ref _readerFailed[i]) != 0).Select(s => s.PortName)));
     }
 
     /// <summary>Temporary full frame index, available while live and after Stop
@@ -399,9 +403,14 @@ public sealed class PassiveMonitorSession
             catch (ChannelClosedException) when (cancellationToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
-                Interlocked.Exchange(ref _fatal, 1);
-                _warnings.Enqueue("Read failed on " + tap.PortName + ": " + ex.GetType().Name + ": " + ex.Message);
-                stop.Cancel();
+                // Each receiver owns its failure. Never tear down a healthy
+                // sibling COM port because this driver failed.
+                Interlocked.Exchange(ref _readerFailed[streamId], 1);
+                Interlocked.Exchange(ref _integrityUncertain, 1);
+                _warnings.Enqueue("RX source " + tap.PortName + " failed: " +
+                    ex.GetType().Name + ": " + ex.Message +
+                    ". This source stopped; remaining RX sources continue. " +
+                    "Capture completeness is uncertain.");
                 break;
             }
             finally
@@ -434,6 +443,8 @@ public sealed class PassiveMonitorSession
             LinkAddressWidth: _options.LinkAddressWidth, LinkMode: _options.LinkMode));
         var scanners = Enumerable.Range(0, _streamCount)
             .Select(_ => new PassiveFt12Scanner(_options.LinkAddressWidth)).ToArray();
+        // A failed derived decoder cannot terminate independent raw acquisition.
+        var projectionDisabled = new bool[_streamCount];
         var lastSeenTicks = new long[_streamCount];
         var hashes = Enumerable.Range(0, _streamCount)
             .Select(_ => IncrementalHash.CreateHash(HashAlgorithmName.SHA256)).ToArray();
@@ -532,6 +543,20 @@ public sealed class PassiveMonitorSession
                     var rawOffset = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(24, 8));
                     var frameTicks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
                     var frameUtc = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, frameTicks);
+                    // Source-first evidence after the writer accepts original
+                    // bytes: never wait for any decoder before raw GUI sampling.
+                    // Small capped byte sample, copied while the writer still owns the pooled buffer.
+                    var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
+                    var first = new byte[Math.Min(byteCount, 48)];
+                    chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize, first.Length).CopyTo(first);
+                    var sequence = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(8, 8));
+                    var ticks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
+                    var utcEstimate = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, ticks);
+                    if (_previews.Writer.TryWrite(new PassiveChunkPreview(
+                        chunk.StreamId, sequence, utcEstimate, byteCount, first)))
+                        Interlocked.Increment(ref _rawPreviewPublished);
+                    Interlocked.Increment(ref _writtenChunks[chunk.StreamId]);
+                    Interlocked.Add(ref _writtenBytes[chunk.StreamId], chunk.Length - PassiveJournalFormat.HeaderSize);
                     // The journal is authoritative. Frame recognition is a passive projection
                     // of the COMPLETE chunk, not the bounded 48-byte UI preview.
                     observed.Clear();
@@ -565,6 +590,14 @@ public sealed class PassiveMonitorSession
                     }
                     foreach (var frame in observed)
                     {
+                        // Physical source evidence is independent from all
+                        // derived classifiers and always comes first.
+                        TryAppendSessionHistory(frame);
+                        if (_frames.Writer.TryWrite(frame))
+                            Interlocked.Increment(ref _framesPublished);
+                        if (projectionDisabled[frame.StreamId]) continue;
+                        try
+                        {
                         timelines[frame.StreamId / 2].ObserveFrame(frame with
                         {
                             StreamId = (byte)(frame.StreamId % 2)
@@ -607,9 +640,6 @@ public sealed class PassiveMonitorSession
                                     .ConfigureAwait(false);
                             _controlEvents.Writer.TryWrite(control);
                         }
-                        // The full session index is populated on this single
-                        // capture writer BEFORE the lossy WPF frame channel.
-                        TryAppendSessionHistory(frame);
                         // P0-B: authoritative process facts are classified and
                         // indexed on the complete writer stream, BEFORE any
                         // 512-frame lossy WPF preview. Never block on the GUI.
@@ -648,8 +678,23 @@ public sealed class PassiveMonitorSession
                                     frame.DetectedLinkAddressWidth
                                 })).ConfigureAwait(false);
                         }
-                        if (_frames.Writer.TryWrite(frame))
-                            Interlocked.Increment(ref _framesPublished);
+                        }
+                        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or
+                            InvalidOperationException or IndexOutOfRangeException or
+                            FormatException or OverflowException or NullReferenceException)
+                        {
+                            projectionDisabled[frame.StreamId] = true;
+                            Interlocked.Exchange(ref _integrityUncertain, 1);
+                            _warnings.Enqueue("IEC-101 derived projection fault on " +
+                                _sources[frame.StreamId].PortName + ": " +
+                                ex.GetType().Name + ": " + ex.Message +
+                                ". Original UART RX and physical Trace remain available; " +
+                                "untrusted derived process interpretation is disabled for this source.");
+                            transactions.Clear();
+                            giEvents.Clear();
+                            timelineWindows.Clear();
+                            processCandidates.Clear();
+                        }
                     }
                     foreach (var entry in transactions)
                     {
@@ -672,18 +717,6 @@ public sealed class PassiveMonitorSession
                                 .ConfigureAwait(false);
                         _timelineWindows.Writer.TryWrite(window);
                     }
-                    // Small capped byte sample, copied while the writer still owns the pooled buffer.
-                    var byteCount = chunk.Length - PassiveJournalFormat.HeaderSize;
-                    var first = new byte[Math.Min(byteCount, 48)];
-                    chunk.Buffer.AsSpan(PassiveJournalFormat.HeaderSize, first.Length).CopyTo(first);
-                    var sequence = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(8, 8));
-                    var ticks = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(chunk.Buffer.AsSpan(16, 8));
-                    var utcEstimate = _utcOrigin + Stopwatch.GetElapsedTime(_timestampOrigin, ticks);
-                    if (_previews.Writer.TryWrite(new PassiveChunkPreview(
-                        chunk.StreamId, sequence, utcEstimate, byteCount, first)))
-                        Interlocked.Increment(ref _rawPreviewPublished);
-                    Interlocked.Increment(ref _writtenChunks[chunk.StreamId]);
-                    Interlocked.Add(ref _writtenBytes[chunk.StreamId], chunk.Length - PassiveJournalFormat.HeaderSize);
                     bytesSinceFlush += chunk.Length;
                     if (_options.RecordFullSession &&
                         (bytesSinceFlush >= 262144 || Stopwatch.GetElapsedTime(lastFlush) >= TimeSpan.FromSeconds(2)))
@@ -884,7 +917,8 @@ public sealed record PassiveMonitorProgress(
     long QueuedLinkBRtuBytes = 0,
     long RawPreviewPublished = 0,
     long RawPreviewConsumed = 0,
-    long RawPreviewDropped = 0);
+    long RawPreviewDropped = 0,
+    string ReaderFaultPorts = "");
 
 /// <summary>Source facts are counted independently of GUI preview retention.</summary>
 public sealed record PassiveProcessEventProgress(

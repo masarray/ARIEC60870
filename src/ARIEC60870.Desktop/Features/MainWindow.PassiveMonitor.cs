@@ -674,7 +674,9 @@ public partial class MainWindow
         var rxB = Math.Max(progress.ReaderRtuBytes, progress.RtuBytes);
         TracePassiveSourceStatusText.Text =
             $"{scadaPort} {rxA:N0} B · {rtuPort} {rxB:N0} B · FT1.2 {progress.ValidFt12Frames:N0}" +
-            (progress.RawPreviewDropped > 0 ? $" · view skip {progress.RawPreviewDropped:N0}" : "");
+            (progress.RawPreviewDropped > 0 ? $" · view skip {progress.RawPreviewDropped:N0}" : "") +
+            (string.IsNullOrEmpty(progress.ReaderFaultPorts) ? "" :
+                " · RX FAULT " + progress.ReaderFaultPorts);
         TracePassiveSourceStatusText.ToolTip =
             $"{scadaPort} RX/queued/written: {rxA:N0}/{progress.QueuedScadaBytes:N0}/{progress.ScadaBytes:N0} B\n" +
             $"{rtuPort} RX/queued/written: {rxB:N0}/{progress.QueuedRtuBytes:N0}/{progress.RtuBytes:N0} B\n" +
