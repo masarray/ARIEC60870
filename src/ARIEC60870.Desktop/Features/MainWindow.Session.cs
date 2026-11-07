@@ -32,6 +32,22 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    // Set only after the active engine has released its transports and the WPF
+    // session finalizer has restored the idle state. Used by Restart Manager
+    // WM_CLOSE and normal window close; never inferred from a Cancel() call.
+    private TaskCompletionSource<bool>? _activeMasterRunFinished;
+
+    public void StartInstallerMasterCloseSmokeProbe()
+    {
+        // Internal Windows CI mode: uses the existing active Master pipeline,
+        // in-process simulated device only. Never opens a plant COM/TCP port.
+        SelectComboContent(ProtocolModeComboBox, "IEC 60870-5-103 - Protection relay serial");
+        SelectComboContent(TransportModeComboBox, "Built-in demo simulation");
+        Start_Click(this, new RoutedEventArgs());
+        if (_sessionCancellation is null || _activeMasterRunFinished is null)
+            throw new InvalidOperationException("Installer close probe did not start the active Master.");
+    }
+
     private void ConnectToggle_Click(object sender, RoutedEventArgs e)
     {
         if (_sessionCancellation is null)
@@ -126,6 +142,8 @@ public partial class MainWindow
         SetRunUiState(isRunning: true);
         _lastResult = null;
         _sessionCancellation = new CancellationTokenSource();
+        _activeMasterRunFinished = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         SessionSubtitleText.Text = settings.SerialSummary;
         UpdateStableHeader("Monitoring", settings.UseSimulatedSlave
             ? "Demo mode active. Monitoring continuously until Stop."
@@ -263,6 +281,10 @@ public partial class MainWindow
                 _sessionCancellation?.Dispose();
                 _sessionCancellation = null;
                 SetRunUiState(isRunning: false);
+                // Signals actual completion only AFTER transport disposal and
+                // idle UI state; the close handler will then call Close().
+                _activeMasterRunFinished?.TrySetResult(true);
+                _activeMasterRunFinished = null;
             });
         }
     }

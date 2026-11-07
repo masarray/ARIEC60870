@@ -1789,6 +1789,60 @@ public partial class MainWindow
             ReleaseSessionTraceHistory();
             return;
         }
+        if (_passiveMonitorSession is null && _passiveReplayCancellation is null &&
+            _sessionCancellation is not null && _activeMasterRunFinished is { } master)
+        {
+            // Inno/Windows Restart Manager sends ordinary WM_CLOSE. For active
+            // IEC101/103/104, Cancel alone is not finalization: wait for the
+            // engine's task and async transport disposal before exiting.
+            e.Cancel = true;
+            _closingAfterPassiveStop = true;
+            IsEnabled = false;
+            try
+            {
+                _stopRequested = true;
+                _operatorDisconnectInProgress = true;
+                _sessionCancellation.Cancel();
+                var closeTransport = TryCloseActiveTransportAsync("Windows close / installer");
+                var transportResult = await Task.WhenAny(closeTransport,
+                    Task.Delay(TimeSpan.FromSeconds(8)));
+                if (transportResult == closeTransport)
+                    await closeTransport;
+                else
+                    AppendSessionLog("Transport close has exceeded 8 seconds; waiting for engine finalization.");
+
+                var completed = await Task.WhenAny(master.Task,
+                    Task.Delay(TimeSpan.FromSeconds(8)));
+                if (completed != master.Task)
+                {
+                    // Fail safely: keep the window alive so an installer cannot
+                    // mistake a cancellation request for completed evidence.
+                    _closingAfterPassiveStop = false;
+                    IsEnabled = true;
+                    AppendSessionLog("Shutdown deferred: active Master did not release its transport.");
+                    ModernMessageBox.Show(this,
+                        "The active communication session is still closing. The application was kept open to protect evidence. Stop the session and retry installation.",
+                        "Communication still active", MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                await master.Task;
+                await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+                Close();
+            }
+            catch (Exception ex)
+            {
+                _closingAfterPassiveStop = false;
+                IsEnabled = true;
+                AppendSessionLog("Close deferred: " + ex.Message);
+                AddUiDiagnostic("Warning", "Desktop", "IEC10X-CLOSE-ACTIVE",
+                    "Application close deferred until active session is safe",
+                    ex.Message, "Stop the communication session then retry the update.", ex);
+            }
+            return;
+        }
+
         if (_passiveMonitorSession is null && _passiveReplayCancellation is null)
         {
             ReleaseSessionTraceHistory();
