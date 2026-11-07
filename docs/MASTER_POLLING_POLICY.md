@@ -133,3 +133,7 @@ safe test setup and check whether primary frames still appear on RX; verify
 SICAM unbalanced secondary configuration, separate Link Address vs Common
 Address, baud/parity/stop bits and RS232 RTS/CTS/converter wiring. Do not
 change RTU settings or issue control commands blindly based on suspected echo.
+
+## Smart CA recovery separation from signal-name repair (2026-11-07)
+
+An observed DL address (FT1.2) and Common Address of ASDU are independent; DL105/CA1 is a valid protocol combination. The active IEC-101 Master already supports bounded GI retry to the dominant process-observed CA, with original negative and positive confirmations retained. Signal List CA/TI mismatch **does not authorize** changing operator Setup, persistent project profile, control command CA, link address, or additional automatic command sends. The read-only IOA name adapter lives outside the polling state machine, requires trusted process objects on one single-station source, and never changes raw physical fact keys. Display and GI coverage distinguish IOA received from profile TI conformance and from unobserved data.

@@ -108,6 +108,23 @@ public sealed class Iec10xGiCasebookTests
     }
 
     [Fact]
+    public void LongGiStagePreviewRemainsBoundedWhileExactSourceCountersAdvance()
+    {
+        var book = new Iec10xGiCasebook();
+        book.Observe(Gi(6));
+        book.Observe(Gi(7, true));
+        for (var i = 0; i < 200; i++)
+            book.Observe(TwoObjects());
+        var ended = book.Observe(Gi(10, true))!.Case;
+        Assert.Equal(200, ended.DataFrames);
+        Assert.Equal(400, ended.DataObjects);
+        Assert.True(ended.Stages.Count <= 96);
+        Assert.Equal("GI request", ended.Stages.First().Phase);
+        Assert.Equal("GI ACTTERM", ended.Stages.Last().Phase);
+        Assert.Equal(0, book.ActiveCount);
+    }
+
+    [Fact]
     public void GiSourceCaAndLinkCannotBorrowUnrelatedDataOrReply()
     {
         var b = new Iec10xGiCasebook();
