@@ -31,7 +31,13 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    public sealed record FrameInspectorProperty(string Field, string Value, string Detail);
+    public sealed record FrameInspectorProperty(
+        string Field, string Value, string Detail,
+        IReadOnlyList<FrameInspectorFieldPresentation.DetailRow>? Children = null)
+    {
+        public bool HasChildren => Children is { Count: > 0 };
+        public string ExpansionMark => HasChildren ? "▸" : "";
+    }
 
     private void PopulateFrameProperties(EvidenceRow row)
     {
@@ -44,10 +50,12 @@ public partial class MainWindow
         DecodedPointHeaderText.Text = decodedPoints.Count > 0
             ? $"Decoded points · {decodedPoints.Count} / {row.Source.AsduDetails!.ObjectCount}"
             : "Decoded points";
-        void Add(string field, string? value, string? detail = null)
+        void Add(string field, string? value, string? detail = null,
+            IReadOnlyList<FrameInspectorFieldPresentation.DetailRow>? children = null)
         {
             if (!string.IsNullOrWhiteSpace(value) && value != "-")
-                SelectedFrameProperties.Add(new FrameInspectorProperty(field, value, detail ?? string.Empty));
+                SelectedFrameProperties.Add(new FrameInspectorProperty(
+                    field, value, detail ?? string.Empty, children));
         }
 
         Add("Host time (local)", row.Time, "Host observation time; not a calibrated on-wire timestamp.");
@@ -59,20 +67,27 @@ public partial class MainWindow
         Add("Link address", row.LinkAddress);
         Add("Link function", row.Source.Frame?.LinkControl?.FunctionName);
         Add("Link flags", row.LinkFlags);
-        Add("Type", row.TypeId == "-" ? row.AsduType : $"TI {row.TypeId} · {row.AsduType}", row.TypeIdName);
-        Add("VSQ", row.Vsq, row.SequenceMode);
+        Add("Type", row.TypeId == "-" ? row.AsduType :
+            Iec10xTypeIdPresentation.Tooltip(int.TryParse(row.TypeId, out var typeId) ? typeId : null));
+        var asdu = row.Source.AsduDetails;
+        Add("VSQ", asdu is null ? row.Vsq : $"{asdu.ObjectCount} object{(asdu.ObjectCount == 1 ? "" : "s")}",
+            row.Vsq, asdu is null ? null : FrameInspectorFieldPresentation.Vsq(
+                asdu.VariableStructureQualifier, asdu.IsSequence, asdu.ObjectCount));
         Add("COT", row.CotDisplay, row.Source.CauseDetails?.Detail);
         if (row.Source.CauseDetails is { } cot &&
             (cot.Negative || cot.Test || cot.OriginatorAddress is > 0))
             Add("COT flags", cot.Detail);
         Add("Common address", row.CommonAddress);
-        Add("IOA", row.IoAddress);
+        Add("IOA", row.IoAddress, null,
+            int.TryParse(row.IoAddress, out var decodedIoa)
+                ? FrameInspectorFieldPresentation.Ioa(decodedIoa)
+                : null);
         if (row.ProtocolMode == "103") Add("FUN / INF", row.FunInf);
         Add("Object count", row.ObjectCount);
         Add("Value", row.SemanticState);
-        Add("Quality", row.Quality, row.Source.QualityDetails?.BitDetails);
-        if (!string.Equals(row.Quality, "Good", StringComparison.OrdinalIgnoreCase))
-            Add("Quality bits", row.Source.QualityDetails?.BitDetails);
+        var decodedQuality = row.Source.QualityDetails ?? asdu?.FirstObject?.QualityDetails;
+        Add("Quality", row.Quality, decodedQuality?.BitDetails,
+            FrameInspectorFieldPresentation.Quality(decodedQuality));
         Add("IED / RTU time", row.RelayTime);
         Add("Command", row.Source.CommandDetails?.Detail);
         Add("APCI", row.ApciFormat == "-" ? null : row.ApciFormat + " · NS=" + row.SendSequence + " · NR=" + row.ReceiveSequence);
