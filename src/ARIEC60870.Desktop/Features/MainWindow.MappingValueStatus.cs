@@ -347,6 +347,11 @@ public partial class MainWindow
             return;
 
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
+        // In live passive capture the indexed Event facts and latest-point
+        // snapshots have different jobs. An old Event page cannot overwrite
+        // a more recent Values snapshot when the UI falls behind source RX.
+        var shouldPublishValue = shouldShowValue &&
+            (!_passiveLedgerFactProjection || _passiveLedgerSnapshotProjection);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
         var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
@@ -405,7 +410,7 @@ public partial class MainWindow
             ? _passiveLedgerChangedAtSource : HasKnownStateTransition(previousValue, displayValue);
         var keepValueHighlight = _valueHighlightExpiryByKey.TryGetValue(key, out var highlightUntil) && highlightUntil > DateTime.UtcNow;
 
-        if (shouldShowValue)
+        if (shouldPublishValue)
         {
             var valueRow = new ValueRow(new Iec103ValuePoint
             {
@@ -472,6 +477,9 @@ public partial class MainWindow
         // Event Log is an observation journal, not merely an edge detector:
         // every trusted RX measurement/counter (including cyclic/GI) is retained.
         // Values remains the latest per-point snapshot, raw evidence unchanged.
+        // A snapshot is not an event, even when it is the first ever
+        // observation of a digital point. Event authority remains unchanged.
+        if (_passiveLedgerSnapshotProjection) return;
         var recordIec10xProcess = _passiveLedgerFactProjection ||
             Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
         if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xProcess))

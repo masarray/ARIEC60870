@@ -169,7 +169,11 @@ public sealed class PassiveProcessEventLedgerTests
         }
 
         Observe(1, 2, 20); // valid GI baseline, no previous state
-        Assert.Empty(accepted);
+        Assert.Empty(accepted); // not an SOE; still a Values snapshot
+        var initial = classifier.ReadLatestPointsAfter(0);
+        Assert.Equal(4, initial.PointCount);
+        Assert.Equal(4, initial.Points.Count);
+        Assert.All(initial.Points, x => Assert.Equal(20, x.Frame.RawBytes[8]));
         Observe(1, 0x83, 20); // IV=1: must NOT change baseline
         Assert.Empty(accepted);
         Observe(1, 0x13, 20); // BL=1: not a credible physical edge
@@ -178,13 +182,20 @@ public sealed class PassiveProcessEventLedgerTests
         Assert.Empty(accepted);
         Observe(1, 3, 0x54); // NEG with COT 20
         Assert.Empty(accepted);
+        var afterNegative = classifier.ReadLatestPointsAfter(0);
+        Assert.Equal(4, afterNegative.PointCount);
+        Assert.DoesNotContain(afterNegative.Points, x => x.Frame.RawBytes[8] is 0x94 or 0x54);
         Observe(3, 3, 20); // independent Link B has no baseline
         Assert.Empty(accepted);
+        Assert.Equal(8, classifier.ReadLatestPointsAfter(0).PointCount);
         Observe(1, 3, 20); // Link A credible 2 -> 3 transition
         var change = Assert.Single(accepted);
         Assert.Equal(1, change.ObjectIndex);
         Assert.True(change.Changed);
         Assert.True(change.HadBaseline);
+        var changedPoints = classifier.ReadLatestPointsAfter(afterNegative.LatestRevision);
+        Assert.Equal(8, changedPoints.PointCount);
+        Assert.Contains(changedPoints.Points, x => x.Frame.StreamId == 1 && x.WasChanged);
         Observe(1, 0x83, 3); // spontaneous invalid still retained, not state-trusted
         Assert.Equal(4, accepted.Count);
         Assert.False(accepted[0].Changed);

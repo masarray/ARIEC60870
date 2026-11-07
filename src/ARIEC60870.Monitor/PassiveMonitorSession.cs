@@ -173,6 +173,9 @@ public sealed class PassiveMonitorSession
     /// <summary>Writer-owned source/object facts; reader pages are independent of the preview.</summary>
     public PassiveProcessEventHistory? ProcessEventHistory { get; private set; }
 
+    public PassiveLatestPointPage ReadLatestProcessPointsAfter(long revision, int limit = 120) =>
+        _processEventClassifier.ReadLatestPointsAfter(revision, limit);
+
     public PassiveProcessEventProgress GetProcessEventProgress()
     {
         var published = Interlocked.Read(ref _framesPublished);

@@ -11,6 +11,18 @@ public sealed record PassiveProcessEventCandidate(int ObjectIndex, int TypeId,
     string DeviceTime, bool Negative, bool Test, bool Changed, bool HadBaseline);
 
 /// <summary>
+/// Latest trusted process observation per physical circuit / CA / IOA.
+/// This is an independent Values snapshot, never an Event/SOE selection rule.
+/// The original frame and object ordinal survive a lossy UI frame preview.
+/// </summary>
+public sealed record PassiveLatestPoint(long Revision, PassiveObservedFrame Frame,
+    int ObjectIndex, int TypeId, int CommonAddress, int Ioa,
+    bool WasChanged, bool HadBaseline);
+
+public sealed record PassiveLatestPointPage(long ThroughRevision, long LatestRevision,
+    int PointCount, long CapacityRejected, IReadOnlyList<PassiveLatestPoint> Points);
+
+/// <summary>
 /// Writer-owned accounting for decoded source facts, not upstream FIFO delivery.
 /// Live snapshots may be in-flight; final snapshots balance exactly.
 /// </summary>
@@ -34,6 +46,12 @@ public sealed record PassiveProcessDecodeCounters(
 public sealed class PassiveIec101ProcessEventClassifier
 {
     private const int MaxStateKeys = 65536;
+    private const int MaxLatestPoints = 65536;
+    private readonly object _latestGate = new();
+    private readonly Dictionary<LatestKey, PassiveLatestPoint> _latestPoints = new();
+    private long _latestRevision;
+    private long _latestCapacityRejected;
+    private readonly record struct LatestKey(int Circuit, int CommonAddress, int Ioa);
     private readonly int _linkWidth;
     private readonly Iec10xAsduDecoder _decoder;
     private readonly Dictionary<StateKey, string> _previous = new();
@@ -67,6 +85,43 @@ public sealed class PassiveIec101ProcessEventClassifier
     /// observations remain eligible. This counter makes the limitation explicit.
     /// </summary>
     public long UntrackedStateObservations => Interlocked.Read(ref _untrackedStateObservations);
+
+    /// <summary>
+    /// Pages changed *latest* points in source-publisher revision order. A slow GUI
+    /// may coalesce intermediate values, but never misses a distinct latest point.
+    /// No growing update queue, no Dispatcher work and no source-frame preview dependency.
+    /// </summary>
+    public PassiveLatestPointPage ReadLatestPointsAfter(long revision, int limit = 120)
+    {
+        if (revision < 0 || limit is < 1 or > 1024)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+        lock (_latestGate)
+        {
+            if (revision >= _latestRevision)
+                return new PassiveLatestPointPage(_latestRevision, _latestRevision,
+                    _latestPoints.Count, _latestCapacityRejected, Array.Empty<PassiveLatestPoint>());
+            var page = _latestPoints.Values.Where(x => x.Revision > revision)
+                .OrderBy(x => x.Revision).Take(limit).ToArray();
+            return new PassiveLatestPointPage(page.Length > 0 ? page[^1].Revision : _latestRevision,
+                _latestRevision, _latestPoints.Count, _latestCapacityRejected, page);
+        }
+    }
+
+    private void UpdateLatestPoint(PassiveObservedFrame frame, int objectIndex,
+        int typeId, int ca, int ioa, bool changed, bool hadBaseline)
+    {
+        var key = new LatestKey(frame.StreamId / 2, ca, ioa);
+        lock (_latestGate)
+        {
+            if (!_latestPoints.ContainsKey(key) && _latestPoints.Count >= MaxLatestPoints)
+            {
+                _latestCapacityRejected++;
+                return;
+            }
+            _latestPoints[key] = new PassiveLatestPoint(++_latestRevision, frame,
+                objectIndex, typeId, ca, ioa, changed, hadBaseline);
+        }
+    }
 
     public PassiveProcessDecodeCounters GetCounters() => new(
         Interlocked.Read(ref _framesObserved),
@@ -166,6 +221,14 @@ public sealed class PassiveIec101ProcessEventClassifier
                 else
                     Interlocked.Increment(ref _untrackedStateObservations);
             }
+
+            // Snapshot observations and event selection are independent. A first
+            // GI COT20 digital baseline is a real current point even when it did
+            // not change. TEST / negative observations must not replace live state.
+            if (!asdu.IsTest && !asdu.IsNegativeConfirm &&
+                asdu.CauseOfTransmission is 1 or 2 or 3 or 11 or 12 or (>= 20 and <= 36))
+                UpdateLatestPoint(frame, obj.Index, asdu.TypeId, asdu.CommonAddress,
+                    obj.InformationObjectAddress, changed, hadBaseline);
 
             if (Iec10xProcessEventPolicy.ShouldRecordProcessType(
                 asdu.TypeId, asdu.CauseOfTransmission, changed))
