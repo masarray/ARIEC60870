@@ -172,4 +172,103 @@ public sealed class ProtocolFlagPresentationTests
         Assert.StartsWith("3 ·", v.CotLabel);
         Assert.StartsWith("3 ·", e.CotLabel);
     }
+
+    [Theory]
+    [InlineData(6, "GI requested")]
+    [InlineData(7, "GI acknowledged")]
+    [InlineData(10, "GI ended")]
+    public void GiRequestActconAndActtermHaveNoProcessQualityDescriptor(
+        int cause, string expectedStage)
+    {
+        // TI100 contains QOI, not SIQ/DIQ/QDS. COT status is independent
+        // of quality; a valid GI stage must never show "Unknown" quality.
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            [(byte)100, 1, (byte)cause, 0, 1, 0, 0, 0, 0, 20]);
+        Assert.Empty(asdu.Issues);
+        Assert.Null(Assert.Single(asdu.Objects).QualityDetails);
+        var row = new RelayEventRow(new Iec103RelayEventLogEntry
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 100,
+            TransactionKind = "GI",
+            CauseDetails = asdu.CauseDetails,
+            QualityText = "Unknown" // Old generic source label must not leak to UI
+        });
+        Assert.Equal("N/A", row.Quality);
+        Assert.Equal("—", Assert.Single(row.QualityChips).Text);
+        Assert.DoesNotContain("Unknown", row.QualityDetail);
+        Assert.Contains("TI100", row.QualityDetail);
+        Assert.Contains("QOI", row.QualityDetail);
+        Assert.Contains(expectedStage, row.CompactDisplayValue);
+        Assert.False(row.IsQualityInvalid);
+    }
+
+    [Theory]
+    [InlineData(45)]  // C_SC_NA_1
+    [InlineData(46)]  // C_DC_NA_1
+    [InlineData(50)]  // C_SE_NC_1
+    [InlineData(64)]  // time-tagged setpoint
+    [InlineData(70)]  // M_EI_NA_1
+    [InlineData(101)] // Counter GI
+    [InlineData(102)] // Read command
+    [InlineData(103)] // Clock sync
+    [InlineData(105)] // Reset process
+    public void ServiceAndControlAsdusAreQualityNotApplicable(int typeId)
+    {
+        var row = new RelayEventRow(new Iec103RelayEventLogEntry
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = typeId,
+            QualityText = "-"
+        });
+        Assert.Equal("N/A", row.Quality);
+        Assert.Equal("—", Assert.Single(row.QualityChips).Text);
+        Assert.Contains($"TI{typeId}", row.QualityDetail);
+        Assert.False(row.IsQualityInvalid);
+    }
+
+    [Fact]
+    public void Ti21MeasuredValueWithoutQdsIsNotUnknownAndNotGood()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 21, QualityText = "-"
+        });
+        Assert.Equal("N/A", row.Quality);
+        Assert.Equal("—", Assert.Single(row.QualityChips).Text);
+        Assert.Contains("WITHOUT", row.QualityDetail);
+        Assert.DoesNotContain(row.QualityChips, chip => chip.Text is "Unknown" or "Good");
+    }
+
+    [Fact]
+    public void MissingRequiredProcessQualityRemainsUnknown()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 13, QualityText = "-"
+        });
+        Assert.Equal("Unknown", Assert.Single(row.QualityChips).Text);
+        Assert.Contains("TI13", row.QualityDetail);
+        Assert.DoesNotContain("Good", row.QualityChips.Select(chip => chip.Text));
+    }
+
+    [Fact]
+    public void NegativeGiConfirmationIsCotFailureNotQualityFault()
+    {
+        var row = new RelayEventRow(new Iec103RelayEventLogEntry
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TransactionKind = "GI",
+            TypeId = 100,
+            CauseDetails = new Iec10xCauseDetails(0x47, 7, true, false, 0)
+        });
+        Assert.Equal("N/A", row.Quality);
+        Assert.Equal("—", Assert.Single(row.QualityChips).Text);
+        Assert.Equal("NEG", Assert.Single(row.CotChips).Text);
+        Assert.Equal("GI rejected · NEG", row.CompactDisplayValue);
+        Assert.False(row.IsQualityInvalid);
+    }
+
 }

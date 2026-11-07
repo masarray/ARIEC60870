@@ -21,22 +21,62 @@ public static class ProtocolFlagPresentation
 {
     private static readonly IReadOnlyList<ProtocolFlagChip> Good = [new("Good", "Good")];
     private static readonly IReadOnlyList<ProtocolFlagChip> Unknown = [new("Unknown", "Neutral")];
+    private static readonly IReadOnlyList<ProtocolFlagChip> NotApplicable = [new("—", "Neutral")];
     private static readonly IReadOnlyList<ProtocolFlagChip> None = [];
     private static readonly ConcurrentDictionary<int, ProtocolQualityPresentation> QualityCache = new();
 
-    public static ProtocolQualityPresentation QualityState(Iec10xQualityDetails? q, string? legacy, bool iec10x)
+    // IEC-101/104 Type ID is necessary for deciding whether a quality
+    // descriptor SHOULD exist. In particular, a GI/command has no QDS;
+    // missing QDS in a process value such as TI13 must NOT be marked Good.
+    // Preserve source-backed quality flags first, even if a caller labels the
+    // ASDU as a service transaction.
+    public static ProtocolQualityPresentation QualityState(
+        Iec10xQualityDetails? q, string? legacy, bool iec10x,
+        int? typeId = null, string? transactionKind = null)
     {
         if (q is not null)
             return QualityCache.GetOrAdd(((int)q.Kind << 8) | q.Raw, _ => BuildQuality(q));
+        if (iec10x && QualityDescriptorNotApplicable(typeId, transactionKind))
+            return new(NotApplicable, ExplainNotApplicable(typeId, transactionKind), false);
         if (iec10x || string.IsNullOrWhiteSpace(legacy) || legacy == "-")
-            return new(Unknown, "Quality byte not present in the decoded evidence — not assumed Good.", false);
+            return new(Unknown,
+                typeId.HasValue
+                    ? $"TI{typeId.Value}: no quality descriptor in accepted evidence. Do not infer Good; inspect the decoded information element and raw ASDU."
+                    : "Quality descriptor not available in decoded evidence — not assumed Good.",
+                false);
         // IEC-103 quality metadata is not an IEC-10x SIQ/DIQ/QDS/BCR byte.
         return new([new ProtocolFlagChip(legacy.Length > 20 ? "Info" : legacy, "Neutral")],
             legacy, false);
     }
 
-    public static IReadOnlyList<ProtocolFlagChip> Quality(Iec10xQualityDetails? q, string? legacy, bool iec10x)
-        => QualityState(q, legacy, iec10x).Chips;
+    public static IReadOnlyList<ProtocolFlagChip> Quality(Iec10xQualityDetails? q, string? legacy,
+        bool iec10x, int? typeId = null, string? transactionKind = null)
+        => QualityState(q, legacy, iec10x, typeId, transactionKind).Chips;
+
+    private static bool QualityDescriptorNotApplicable(int? typeId, string? transactionKind) =>
+        typeId switch
+        {
+            21 => true, // M_ME_ND_1: normalized value WITHOUT quality descriptor
+            >= 45 and <= 70 => true, // control/setpoint/parameter and end of initialization
+            >= 100 and <= 127 => true, // system: GI, counter GI, read, clock sync, reset, tests, ...
+            null => transactionKind is "GI" or "Command",
+            _ => false
+        };
+
+    private static string ExplainNotApplicable(int? typeId, string? transactionKind) =>
+        typeId switch
+        {
+            100 => "TI100 · C_IC_NA_1 general interrogation: no SIQ/DIQ/QDS/BCR quality descriptor. Evaluate COT (ACT, ACTCON, ACTTERM, P/N, TEST), QOI and GI sequence/coverage separately.",
+            101 => "TI101 · C_CI_NA_1 counter interrogation: no process quality descriptor. Evaluate COT and QCC.",
+            102 => "TI102 · C_RD_NA_1 read command: no process quality descriptor. Evaluate response and COT.",
+            103 => "TI103 · C_CS_NA_1 clock synchronization: no process quality descriptor. Evaluate COT and CP56Time2a time validity separately.",
+            21 => "TI21 · M_ME_ND_1: normalized measured value explicitly carries no QDS. N/A does not mean Good.",
+            >= 45 and <= 70 => $"TI{typeId}: control, parameter or initialization ASDU; quality descriptor is not part of this service payload. Evaluate COT and the corresponding command/response fields.",
+            >= 100 and <= 127 => $"TI{typeId}: system ASDU without process quality descriptor. Evaluate COT, qualifier and transaction outcome.",
+            _ => transactionKind is "GI" or "Command"
+                ? $"{transactionKind} transaction without a decoded process quality descriptor. Evaluate its COT and protocol evidence."
+                : "Quality descriptor not applicable to this ASDU type."
+        };
 
     public static IReadOnlyList<ProtocolFlagChip> Cot(Iec10xCauseDetails? cot)
     {

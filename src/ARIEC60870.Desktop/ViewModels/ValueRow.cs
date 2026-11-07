@@ -63,10 +63,12 @@ public sealed class ValueRow : INotifyPropertyChanged
         IoaTooltip = Iec10xIoaPresentation.StructuredTooltip(item.InformationObjectAddress);
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
-        Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
+        var rawQuality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
         QualityFlags = item.QualityDetails;
         RawValue = item.RawValue;
-        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
+        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, rawQuality,
+            Protocol is "101" or "104", item.TypeId);
+        Quality = quality.Chips.Count == 1 && quality.Chips[0].Text == "—" ? "N/A" : rawQuality;
         QualityChips = quality.Chips;
         QualityDetail = quality.Tooltip;
         IsQualityInvalid = quality.IsInvalid;
