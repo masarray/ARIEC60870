@@ -856,12 +856,10 @@ public partial class MainWindow
 
         if (_pendingProtocolTraceUiRows.Count > 0)
         {
-            if (_historicalTraceViewActive || _recordedArchiveViewActive ||
-                IsProtocolTraceViewFrozen())
+            if (_historicalTraceViewActive || _recordedArchiveViewActive)
             {
-                // An operator-held forensic viewport is immutable: capture
-                // and the bounded session store continue, but WPF does not
-                // add/trim large three-column blocks until explicit Resume.
+                // Offline historical window is immutable; the real writer and
+                // live source continue. Never mix different session windows.
                 _protocolTraceViewDirtyWhileFrozen = true;
                 _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
                 _pendingProtocolTraceUiRows.Clear();
@@ -872,7 +870,7 @@ public partial class MainWindow
                     !IsProtocolTraceSelectionPinned())
                 {
                     // Exactly one catch-up after closing archive/selection;
-                    // The HOLD viewport does not freeze capture or raw evidence.
+                    // HOLD is an auto-scroll policy and never freezes RX/TX.
                     FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(),
                         allowResetForUnrelated: false);
                     _pendingProtocolTraceUiRows.Clear();
