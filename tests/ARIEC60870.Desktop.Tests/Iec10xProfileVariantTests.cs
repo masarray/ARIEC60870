@@ -198,7 +198,7 @@ public sealed class Iec10xProfileVariantTests
         Assert.Equal("1", row.CommonAddress);
         Assert.True(row.IsCaMismatch);
         Assert.False(row.IsDlMismatch);
-        Assert.Contains("Read-only", row.CaExplanation);
+        Assert.Contains("Name match only", row.CaExplanation);
         Assert.Contains("16712686", row.Address);
     }
 
