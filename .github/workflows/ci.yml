@@ -101,7 +101,7 @@ jobs:
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
-      - name: Build Inno Setup installer and verify in-place install/reinstall
+      - name: Build Inno Setup and prove older-release upgrade plus active-Master shutdown
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -113,39 +113,91 @@ jobs:
           if (!(Test-Path $iscc)) { throw "Missing Inno Setup compiler: $iscc" }
           [xml]$props = Get-Content Directory.Build.props
           $version = [string]$props.Project.PropertyGroup.Version
+          if ([version]$version -le [version]'3.6.7') { throw 'This upgrade acceptance requires a version newer than v3.6.7.' }
+          $oldVersion = '3.6.7'
           New-Item -ItemType Directory -Force -Path artifacts/installer | Out-Null
           $source = (Resolve-Path artifacts/passive-gui-publish).Path
           $output = (Resolve-Path artifacts/installer).Path
+          $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-old-release'
+          New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
+          $oldZip = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous.zip'
+          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$oldVersion-win-x64.zip"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous release.' }
+          $sumFile = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous-sums.txt'
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sumFile "$baseUrl/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous checksums.' }
+          $expected = Get-Content $sumFile | Where-Object { $_ -match 'ARIEC60870-v3\.6\.7-win-x64\.zip$' } | Select-Object -First 1
+          if (!$expected) { throw 'Previous release ZIP is absent from published SHA256SUMS.' }
+          $digest = ([regex]::Match($expected, '^[0-9a-fA-F]{64}')).Value
+          if (!(($digest) -and ((Get-FileHash $oldZip -Algorithm SHA256).Hash -ieq $digest))) {
+            throw 'Previous release ZIP checksum mismatch.'
+          }
+          Expand-Archive -Path $oldZip -DestinationPath $oldSource -Force
+          if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
+            throw 'Old public release does not contain the expected application EXE.'
+          }
+          & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Previous-version installer compilation failed.' }
+          $oldSetup = Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"
           & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
-          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Current-version Inno compilation failed.' }
           $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
-          if (!(Test-Path $setup)) { throw 'Missing Inno installer artifact.' }
+          if (!(Test-Path $setup) -or !(Test-Path $oldSetup)) { throw 'Installer artifacts missing.' }
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content (Join-Path $output 'SHA256SUMS.txt') "$hash  $(Split-Path $setup -Leaf)" -Encoding ascii
           $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
-          $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NORESTARTAPPLICATIONS')
-          $fresh = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
-          if ($fresh.ExitCode -ne 0) { throw "Fresh installer failed: $($fresh.ExitCode)" }
           $exe = Join-Path $installDir 'ARIEC60870.exe'
-          if (!(Test-Path $exe)) { throw 'Installed ARIEC60870.exe was not found.' }
-          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru
-          if ($smoke.ExitCode -ne 0) { throw "Installed WPF smoke failed: $($smoke.ExitCode)" }
           $userData = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
           New-Item -ItemType Directory -Force -Path $userData | Out-Null
           $sentinel = Join-Path $userData 'ci-install-preservation.txt'
           'preserve' | Set-Content $sentinel
-          $again = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
-          if ($again.ExitCode -ne 0) { throw "In-place reinstall failed: $($again.ExitCode)" }
-          if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Reinstall lost app or user data.' }
-          $matches = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+          $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NORESTARTAPPLICATIONS')
+          $oldInstall = Start-Process -FilePath $oldSetup -ArgumentList $args -Wait -PassThru
+          if ($oldInstall.ExitCode -ne 0 -or !(Test-Path $exe)) { throw 'Previous release installation failed.' }
+          if ((Get-Item $exe).VersionInfo.FileVersion -notlike '3.6.7*') { throw 'Not actually running previous 3.6.7 binary.' }
+          # Genuine published-old-binary -> newest-version update while the
+          # previously installed WPF application is open.
+          $oldProcess = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 2
+          if ($oldProcess.HasExited) { throw 'Old WPF application did not remain open.' }
+          $upgrade = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($upgrade.ExitCode -ne 0) { throw "Upgrade from v$oldVersion failed: $($upgrade.ExitCode)" }
+          if (!$oldProcess.WaitForExit(20000)) { throw 'Inno did not close the running previous application.' }
+          if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Upgrade lost installed executable or user data.' }
+          if ((Get-Item $exe).VersionInfo.FileVersion -notlike "$version*") { throw 'In-place upgrade retained old executable version.' }
+          $registry = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
             Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq 'ARIEC60870 Evidence Analyzer' })
-          if ($matches.Count -ne 1) { throw "Expected one uninstall registration, found $($matches.Count)." }
+          if ($registry.Count -ne 1) { throw "Expected one uninstall registration, found $($registry.Count)." }
+          $installedVersion = (Get-ItemProperty $registry[0].PsPath).DisplayVersion
+          if ($installedVersion -ne $version) { throw "Registry kept stale version $installedVersion." }
+          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru
+          if ($smoke.ExitCode -ne 0) { throw "Installed WPF smoke failed: $($smoke.ExitCode)" }
+          # New version: verified active Master *simulation* must finalize before
+          # Restart Manager can close the app; no field COM/TCP touched.
+          $readyFile = Join-Path $env:RUNNER_TEMP 'active-master-ready.txt'
+          Remove-Item $readyFile -ErrorAction SilentlyContinue
+          $live = Start-Process -FilePath $exe -ArgumentList @('--installer-master-close-smoke','--ready-file',"$readyFile") -PassThru
+          for ($i=0; $i -lt 100 -and !(Test-Path $readyFile) -and !$live.HasExited; $i++) {
+            Start-Sleep -Milliseconds 200
+          }
+          if (!(Test-Path $readyFile) -or $live.HasExited) {
+            throw 'Installed active-Master simulated session did not start.'
+          }
+          $reinstall = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($reinstall.ExitCode -ne 0) { throw "Live-Master reinstall failed: $($reinstall.ExitCode)" }
+          if (!$live.WaitForExit(20000)) { throw 'Installer failed to close active Master gracefully.' }
+          if ($live.ExitCode -ne 0) { throw "Active Master close exited abnormally: $($live.ExitCode)" }
+          if (!(Test-Path $sentinel)) { throw 'Active-Master reinstall deleted user data.' }
           $uninstall = Join-Path $installDir 'unins000.exe'
           if (!(Test-Path $uninstall)) { throw 'Missing registered uninstaller.' }
-          $removed = Start-Process -FilePath $uninstall -ArgumentList @('/VERYSILENT', '/NORESTART') -Wait -PassThru
+          $removed = Start-Process -FilePath $uninstall -ArgumentList @('/VERYSILENT','/NORESTART') -Wait -PassThru
           if ($removed.ExitCode -ne 0) { throw "Uninstall failed: $($removed.ExitCode)" }
           if (Test-Path $exe) { throw 'Uninstall left application executable behind.' }
           if (!(Test-Path $sentinel)) { throw 'Uninstall deleted user data.' }
+          Remove-Item $oldSetup -Force
+          "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
+            Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
       - name: Upload Inno Setup installer and checksum
         uses: actions/upload-artifact@v4

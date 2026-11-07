@@ -7,6 +7,9 @@
 #ifndef SourceRoot
   #define SourceRoot "..\artifacts\passive-gui-publish"
 #endif
+#ifndef SourceExe
+  #define SourceExe "ARIEC60870.Desktop.exe"
+#endif
 #ifndef OutputRoot
   #define OutputRoot "..\artifacts\installer"
 #endif
@@ -47,8 +50,8 @@ OutputBaseFilename=ARIEC60870-v{#AppVersion}-setup-win-x64
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "{#SourceRoot}\ARIEC60870.Desktop.exe"; DestDir: "{app}"; DestName: "ARIEC60870.exe"; Flags: ignoreversion
-Source: "{#SourceRoot}\*"; Excludes: "ARIEC60870.Desktop.exe,*.pdb"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\{#SourceExe}"; DestDir: "{app}"; DestName: "ARIEC60870.exe"; Flags: ignoreversion
+Source: "{#SourceRoot}\*"; Excludes: "ARIEC60870.Desktop.exe,ARIEC60870.exe,*.pdb"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\ARIEC60870"; Filename: "{app}\ARIEC60870.exe"
