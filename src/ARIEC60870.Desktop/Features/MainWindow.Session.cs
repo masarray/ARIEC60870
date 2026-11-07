@@ -75,7 +75,7 @@ public partial class MainWindow
         StartButton.ToolTip = IsIec101PassiveMonitorSelected()
             ? (IsVirtualInlineSelected()
                 ? (isRunning ? "Stop active virtual relay and Monitor" :
-                    "Start ACTIVE two-COM VSPE byte relay and shared IEC-101 Monitor")
+                    "Start transparent two-COM inline forwarding and IEC-101 monitoring")
                 : (isRunning ? "Stop receive-only monitoring (finalize optional full journal)" :
                     "Start IEC-101 receive-only monitoring; recording is OFF unless enabled in Setup"))
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
@@ -707,7 +707,7 @@ public partial class MainWindow
 
         SetupTitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 Passive Monitor",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 Monitor",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 dual link redundancy setup",
             Iec60870ProtocolMode.Iec101 => "IEC-101 telecontrol serial setup",
             Iec60870ProtocolMode.Iec104 => "IEC-104 telecontrol TCP/IP setup",
@@ -715,7 +715,7 @@ public partial class MainWindow
         };
         SetupSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Monitor both directions using two COM ports.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Observe IEC-101 from physical RX taps or a virtual inline connection.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Two independent serial links: active owns GI, commands and Class polling; standby is supervised without draining event queues.",
             Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
             Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
@@ -723,7 +723,7 @@ public partial class MainWindow
         };
         ProtocolSetupBadgeText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 · Passive Monitor",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "IEC-101 · Monitor",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 · Dual Link Redundancy",
             Iec60870ProtocolMode.Iec101 => "IEC-101 · FT1.2 serial telecontrol",
             Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP telecontrol",
@@ -731,7 +731,7 @@ public partial class MainWindow
         };
         ProtocolSetupDescriptionText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Listen to both IEC-101 directions. Full recording is optional; select Trace frames to save/share.",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Select receive-only physical inputs or active inline serial forwarding. Both sources share the same IEC-101 evidence pipeline.",
             Iec60870ProtocolMode.Iec101 when isDual101 => "Use this workspace when the RTU/outstation exposes two IEC-101 serial paths with active/standby master ownership, failover evidence, and post-switch GI validation.",
             Iec60870ProtocolMode.Iec101 => "Use this profile for serial RTU/outstation tests. Main addressing is CA + IOA; Type ID and COT explain what data is returned and why.",
             Iec60870ProtocolMode.Iec104 => "Use this profile for IEC-104 server tests over TCP. The frame trace exposes APCI format, sequence numbers, STARTDT/TESTFR control and ASDU payload.",
@@ -843,7 +843,8 @@ public partial class MainWindow
         // Protocol-specific fields are rendered inside the line text and decoded in the interpreter.
 
         // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Trace.
-        SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueDlColumn, mode == Iec60870ProtocolMode.Iec101 ? Visibility.Visible : Visibility.Collapsed);
+        SetColumnVisibility(ValueCaColumn, mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 ? Visibility.Visible : Visibility.Collapsed);
         SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueTypeIdColumn, Visibility.Collapsed);
@@ -864,7 +865,7 @@ public partial class MainWindow
 
         SessionSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Passive Monitor · Two COM receivers",
+            Iec60870ProtocolMode.Iec101 when isPassive101 => IsVirtualInlineSelected() ? "Virtual Inline · Two COM relay" : "Physical RX · Two COM receivers",
             Iec60870ProtocolMode.Iec101 when isDual101 => "IEC-101 Dual Link selected: use Redundancy for link ownership, Values/Events for process data, Trace only when troubleshooting.",
             Iec60870ProtocolMode.Iec101 => "IEC-101 selected: serial FT1.2, ACD/DFC, Class 1/Class 2, Type ID/COT/CA/IOA views.",
             Iec60870ProtocolMode.Iec104 => "IEC-104 selected: TCP/IP, APCI I/S/U trace, sequence numbers, Type ID/COT/CA/IOA views.",

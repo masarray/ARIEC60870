@@ -124,6 +124,66 @@ public sealed class Iec10xPointMappingProfile
         return variantAmbiguous ? null : variant;
     }
 
+    /// <summary>
+    /// Diagnoses an otherwise unmapped observation, without ever promoting a
+    /// different station's signal name into the trusted value. Only a unique
+    /// IOA and type-family candidate with a different explicit profile CA
+    /// can be reported as a probable configuration mismatch.
+    /// </summary>
+    public int? FindUniqueMismatchedCommonAddress(int? observedCa, int? ioa, int? typeId)
+    {
+        if (!observedCa.HasValue || !ioa.HasValue || !typeId.HasValue)
+            return null;
+        if (ResolveObservedSignal(observedCa, ioa, typeId) is not null)
+            return null;
+
+        int? candidate = null;
+        foreach (var point in Points)
+        {
+            if (point.Ioa != ioa.Value ||
+                !(point.TypeId is null || point.TypeId == typeId.Value ||
+                  Iec10xPointTypeFamily.SameObservationFamily(point.TypeId.Value, typeId.Value)))
+                continue;
+
+            var profileCa = point.Ca ?? CommonAddress;
+            if (!profileCa.HasValue || profileCa.Value == observedCa.Value)
+                return null;
+            if (candidate.HasValue)
+                return null; // Ambiguous: don't name or relocate another station.
+            candidate = profileCa.Value;
+        }
+        return candidate;
+    }
+
+    /// <summary>
+    /// Explicit operator-requested single-station profile copy. Never called
+    /// by decoding, GI, or CA auto-learning. Multi-station profiles are rejected;
+    /// original profile and file remain unchanged until the user saves the copy.
+    /// </summary>
+    public Iec10xPointMappingProfile RebindSingleStationCommonAddress(int targetCa)
+    {
+        if (targetCa is < 0 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(targetCa));
+
+        Validate();
+        if (!CommonAddress.HasValue || Points.Any(p =>
+                (p.Ca ?? CommonAddress).HasValue &&
+                (p.Ca ?? CommonAddress).Value != CommonAddress.Value))
+            throw new InvalidOperationException(
+                "Bulk CA alignment requires a single-station profile. Multi-CA profiles must be edited per station.");
+
+        var copy = JsonSerializer.Deserialize<Iec10xPointMappingProfile>(
+            JsonSerializer.Serialize(this, JsonOptions), JsonOptions)
+            ?? throw new InvalidOperationException("Unable to clone IOA profile.");
+        copy.CommonAddress = targetCa;
+        if (copy.DefaultSettings is not null)
+            copy.DefaultSettings.CommonAddress = targetCa;
+        foreach (var point in copy.Points)
+            point.Ca = targetCa;
+        copy.Validate();
+        return copy;
+    }
+
     public Iec10xPointMappingEntry? Resolve(int? commonAddress, int? ioa, int? typeId)
     {
         if (!ioa.HasValue)

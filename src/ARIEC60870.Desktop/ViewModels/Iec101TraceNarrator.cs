@@ -88,7 +88,7 @@ public static class Iec101TraceNarrator
                 builder.Append('\n').Append("ASDU: Not decoded; check COT, CA, IOA and link-width settings.");
             if (!string.IsNullOrWhiteSpace(item.ControlObservation))
                 builder.Append('\n').Append("Control sequence: ").Append(item.ControlObservation);
-            return (prefix + title, builder.ToString());
+            return (prefix + title + (asdu is null ? "" : $" · TI{asdu.TypeId}"), builder.ToString());
         }
 
         string meaning;
@@ -129,7 +129,7 @@ public static class Iec101TraceNarrator
 
         if (item.AsduDetails is { } extra)
         {
-            label = ApplicationTitle(extra, item.Direction);
+            label = ApplicationTitle(extra, item.Direction) + $" · TI{extra.TypeId}";
             var builder = new StringBuilder(meaning);
             AppendAsdu(builder, extra);
             meaning = builder.ToString();
@@ -147,7 +147,8 @@ public static class Iec101TraceNarrator
     private static void AppendAsdu(StringBuilder builder, Iec10xAsduDecode asdu)
     {
         builder.Append('\n').Append("ASDU: Type ID ").Append(asdu.TypeId)
-            .Append(" <").Append(GetTypeLabel(asdu)).Append("> Count ").Append(asdu.ObjectCount);
+            .Append(" <").Append(GetTypeLabel(asdu)).Append("> Count ").Append(asdu.ObjectCount)
+            .Append(" · TI").Append(asdu.TypeId);
         builder.Append('\n').Append("Cause of transmission: ").Append(asdu.CauseOfTransmission)
             .Append(" (").Append(asdu.CauseName).Append(") | Origin: ")
             .Append(asdu.CauseDetails?.OriginatorAddress is int origin ? origin.ToString(CultureInfo.InvariantCulture)

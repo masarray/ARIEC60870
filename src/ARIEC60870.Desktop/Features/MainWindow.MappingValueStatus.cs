@@ -31,6 +31,11 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
+    private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
+    private readonly HashSet<(string Source, int Ioa, int ExpectedTi, int ActualTi)> _reportedTiMismatch = new();
+    private string? _sessionSubtitleBeforeCaRecovery;
+
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
@@ -106,7 +111,8 @@ public partial class MainWindow
             return;
         }
 
-        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty, SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text))
+        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty,
+            SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text), _firstObservedRuntimeCa)
         {
             Owner = this
         };
@@ -132,11 +138,118 @@ public partial class MainWindow
             return null;
         }
 
-        // No inferred IOA-only mapping on a CA mismatch. A differently addressed
-        // station is a different physical point; it remains visible but unmapped.
         if (!item.InformationObjectAddress.HasValue) return null;
-        return _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
+        var strict = _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
             item.InformationObjectAddress.Value, item.TypeId);
+        // The adapter is read-only and requires a trusted active IEC-101
+        // process observation. Passive and multi-CA profiles remain strict.
+        if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
+            item.Direction != FrameDirection.SlaveToMaster ||
+            !IsIec10xProcessValue(item) ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            _passiveLedgerFactProjection || IsIec101PassiveMonitorSelected() ||
+            item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal) ||
+            item.CommonAddressNumber is not int ca || item.TypeId is not int type)
+            return strict;
+        _runtimeCaReconciler ??= new Iec10xRuntimeCaReconciler(_ioaProfile);
+        var match = _runtimeCaReconciler.Observe(item.PhysicalSource, ca,
+            item.InformationObjectAddress.Value, type);
+        if (match.SourceCaConflict)
+        {
+            AddUiDiagnostic("Warning", "IEC-101", "IEC101-SMART-CA-AMBIGUOUS",
+                "Multiple RTU common addresses on one source",
+                $"Observed more than one ASDU CA on {item.PhysicalSource}; read-only auto-name alignment is suspended. Raw CA/IOA physical identities remain separate.",
+                "Review station addressing before associating a project signal name. No settings, wire frames or control targets were changed.");
+            AppendSessionLog("Smart CA alignment suspended: conflicting station CAs on the same source.");
+            if (_sessionSubtitleBeforeCaRecovery is not null)
+                SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
+                    " · RX CA CONFLICT (multiple stations); see Diagnostics";
+        }
+        if (match.TypeMismatch && match.Point?.TypeId is int expectedTi &&
+            _reportedTiMismatch.Count < 160)
+        {
+            var source = string.IsNullOrWhiteSpace(item.PhysicalSource) ? "SINGLE" : item.PhysicalSource;
+            if (_reportedTiMismatch.Add((source, item.InformationObjectAddress.Value, expectedTi, type)))
+            {
+                var info = $"Trusted RX at DL={item.LinkAddress?.ToString() ?? "?"}, ASDU CA={ca}, IOA={item.InformationObjectAddress.Value} " +
+                           $"uses TI{type}, but Signal List defines TI{expectedTi}. " +
+                           "Unique IOA supplies the displayed name only; the incoming ASDU TI governs SP/DP/analog decoding, quality and value.";
+                AddUiDiagnostic("Warning", "Mapping", "IEC101-PROFILE-TI-MISMATCH",
+                    $"TI mismatch: IOA {item.InformationObjectAddress.Value} (profile TI{expectedTi}, RTU TI{type})",
+                    info,
+                    "Review the RTU point database and correct the project Signal List if approved. No automatic control remap, profile write, or TI conversion was performed.");
+                AppendSessionLog("Smart IOA name recovery: " + info);
+            }
+        }
+        if (match.FirstAlias)
+        {
+            var originalCa = _ioaProfile.CommonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?";
+            var message = $"Configured CA={CommonAddressBox.Text}, Signal List CA={originalCa}, observed RTU CA={ca}; " +
+                $"IEC-101 Link Address={LinkAddressBox.Text} remains unchanged. Read-only signal-name/coverage alignment is active " +
+                "for this one station and source. Protocol GI retry uses validated observed CA. No settings, profile, command address or evidence bytes are changed.";
+            AddUiDiagnostic("Warning", "IEC-101", "IEC101-SMART-CA-AUTO-ALIGNED",
+                $"Smart CA recovery: profile {originalCa} → RTU {ca}", message,
+                "Communication and Values continue automatically. Review CA in Setup; optional 'Align to observed CA' can save a separate project profile. Control commands require an explicit CA.");
+            MappingProfileStatusText.Text = $"Smart CA: observed {ca} / profile {originalCa} — read-only aligned; Diagnostics has details.";
+            // Keep the configured CA visible, but do not let it look like the
+            // observed RTU CA. This compact status is deliberately in the
+            // always-visible header, not only in hidden Setup/Diagnostics.
+            _sessionSubtitleBeforeCaRecovery ??= SessionSubtitleText.Text;
+            var observedDl = (item.LinkAddress ?? item.Frame?.LinkAddress)?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? "?";
+            SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
+                $" · RX DL={observedDl} / CA={ca} ! (setup {CommonAddressBox.Text}, profile {originalCa})";
+            AppendSessionLog("Smart CA recovery: " + message);
+        }
+        return match.Point ?? strict;
+    }
+
+    private void ReportUnmatchedProfileCommonAddress(Iec103MasterEvidenceEvent item)
+    {
+        if (item.Direction != FrameDirection.SlaveToMaster ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            item.CommonAddressNumber is not int observedCa ||
+            item.InformationObjectAddress is not int ioa ||
+            item.TypeId is not int type)
+            return;
+
+        var expectedCa = _ioaProfile.FindUniqueMismatchedCommonAddress(observedCa, ioa, type);
+        if (!expectedCa.HasValue)
+            return;
+
+        var source = string.IsNullOrWhiteSpace(item.PhysicalSource) ? "SINGLE" : item.PhysicalSource;
+        var warningKey = $"{item.ProtocolMode}|{source}|observed:{observedCa}|profile:{expectedCa.Value}";
+        if (!_reportedProfileCaMismatchSources.Add(warningKey))
+            return;
+
+        var explanation =
+            $"Trusted RX on {source} has ASDU CA={observedCa}, IOA={ioa}, Type={type}; " +
+            $"the loaded Signal List describes this IOA under CA={expectedCa.Value}. " +
+            "The physical link address is independent. Unmapped RX is preserved, " +
+            "and profile placeholders remain separate until explicit operator alignment.";
+        AddUiDiagnostic("Warning", "Mapping", "IEC10X-PROFILE-CA-MISMATCH",
+            $"Observed ASDU CA {observedCa} differs from Signal List CA {expectedCa.Value}",
+            explanation,
+            "Check the RTU's ASDU CA. For a single-station profile open Signal List Editor, choose " +
+            "'Align to observed CA', confirm and Save As a project copy, then reconnect. " +
+            "Do not change the link address to force a CA match.");
+        MappingProfileStatusText.Text =
+            $"CA mismatch: RX CA {observedCa} / profile CA {expectedCa.Value} — see Diagnostics; Signal List Editor can align a copy.";
+        AppendSessionLog("Profile CA mismatch: " + explanation);
+    }
+
+    private int? ConfiguredDlForSource(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
+            _passiveLedgerFactProjection || IsIec101PassiveMonitorSelected())
+            return null;
+
+        // Standby physical link may have a different link-layer address.
+        var isBackup = IsIec101DualLinkModeSelected() &&
+            (item.PhysicalSource.Equals("LINK B", StringComparison.OrdinalIgnoreCase) ||
+             item.PhysicalSource.Equals("B", StringComparison.OrdinalIgnoreCase));
+        var field = isBackup ? BackupLinkAddressBox : LinkAddressBox;
+        return int.TryParse(field.Text, out var address) ? address : null;
     }
 
     private static string ExtractSimpleStateToken(string value)
@@ -190,18 +303,25 @@ public partial class MainWindow
             _giCasesDirty = true;
             AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone), item);
         }
-        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
+        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 } ||
+                 _giCasebook.ActiveCount > 0 && item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                 item.Frame?.LinkControl is { IsPrimaryRequestClass1: true })
             _giCasesDirty = true;
         }
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
+        var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
+            item.TypeId is int receivedTi &&
+            !Iec10xPointTypeFamily.SameObservationFamily(declaredTi, receivedTi);
+        if (ioaPoint is null && shouldShowValue)
+            ReportUnmatchedProfileCommonAddress(item);
         var key = BuildValueKey(item);
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
         if (shouldShowValue)
         {
             // Only a point compatible with the configured CA/Type can satisfy GI.
-            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item);
+            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item, ioaPoint);
             // In dual-link mode (or wildcard-CA mapping) an actual physical point
             // has a different key than the seeded SINGLE placeholder. Remove the
             // stale placeholder without merging Link A/B process snapshots.
@@ -228,7 +348,7 @@ public partial class MainWindow
             : !string.IsNullOrWhiteSpace(item.ObjectSummary)
                 ? item.ObjectSummary
                 : item.SignalRawValue;
-        if (ioaPoint is not null)
+        if (ioaPoint is not null && !profileTiMismatch)
         {
             displayValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(displayValue));
         }
@@ -238,7 +358,7 @@ public partial class MainWindow
         {
             previousValue = item.PreviousSignalValue;
         }
-        if (ioaPoint is not null && !string.IsNullOrWhiteSpace(previousValue))
+        if (ioaPoint is not null && !profileTiMismatch && !string.IsNullOrWhiteSpace(previousValue))
         {
             previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
         }
@@ -257,7 +377,7 @@ public partial class MainWindow
                 IsMapped = item.IsMappedSignal || ioaPoint is not null,
                 SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
-                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                SignalType = !profileTiMismatch && !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
                 FunctionType = item.FunctionType,
                 InformationNumber = item.InformationNumber,
                 RawValue = string.IsNullOrWhiteSpace(item.SignalRawValue) ? item.ObjectSummary : item.SignalRawValue,
@@ -276,7 +396,17 @@ public partial class MainWindow
                 QualityText = ExtractQualityTextFromEvidence(item),
                 QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
-            })
+            },
+            item.LinkAddress ?? item.Frame?.LinkAddress,
+            ConfiguredDlForSource(item),
+            item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                !_passiveLedgerFactProjection && !IsIec101PassiveMonitorSelected() &&
+                int.TryParse(CommonAddressBox.Text, out var configuredCa) ? configuredCa : null,
+            ioaPoint is null ? null : ioaPoint.Ca ?? _ioaProfile.CommonAddress,
+            ioaPoint is not null && item.CommonAddressNumber.HasValue &&
+                (ioaPoint.Ca ?? _ioaProfile.CommonAddress) is int profileCa &&
+                profileCa != item.CommonAddressNumber.Value,
+            ioaPoint?.TypeId)
             {
                 IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
             };
@@ -327,7 +457,7 @@ public partial class MainWindow
                 IsMapped = item.IsMappedSignal || ioaPoint is not null,
                 SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
-                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                SignalType = !profileTiMismatch && !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
                 FunctionType = item.FunctionType,
                 InformationNumber = item.InformationNumber,
                 PreviousValue = string.IsNullOrWhiteSpace(previousValue) ? string.Empty : previousValue,
@@ -990,6 +1120,7 @@ public partial class MainWindow
         _evidenceSummaryLastAnalogUtcByKey.Clear();
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
+        _runtimeCaReconciler = null;
         _giCompletenessWatchActive = false;
         _giCompletenessReported = false;
         _firstObservedRuntimeCa = null;

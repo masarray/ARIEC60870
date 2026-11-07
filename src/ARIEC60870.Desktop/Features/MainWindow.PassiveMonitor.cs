@@ -183,29 +183,21 @@ public partial class MainWindow
         // VOS M2: the same setup and Monitor profile selects a virtual two-COM
         // ingress without creating a new protocol mode or exposing a physical TX.
         PassiveSourceComboBox.SelectedIndex = 1;
-        if (PassiveVirtualLabAcknowledgedCheckBox.Visibility != Visibility.Visible)
-            throw new InvalidOperationException("Active virtual mode did not reveal its explicit lab-only safety gate.");
-        try
-        {
-            _ = BuildPassiveCaptureOptions();
-            throw new InvalidOperationException("Virtual lab confirmation was not required before selecting active TX.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Confirm both COM ports", StringComparison.Ordinal))
-        {
-            // Expected: explicit confirmation is mandatory before an active relay can open ports.
-        }
-        PassiveVirtualLabAcknowledgedCheckBox.IsChecked = true;
+        // A selected Virtual Inline source is ready to configure immediately,
+        // with no extra lab acknowledgement or extra top-level protocol mode.
         if (PassiveVirtualHelpText.Visibility != Visibility.Visible ||
             PassiveLinkBEnabledCheckBox.Visibility != Visibility.Collapsed ||
             PassiveRtuPortLabel.Text != "SLAVE-SIDE RELAY · COM" ||
             SetupConnectButton.Content?.ToString() != "Start Relay & Monitor")
             throw new InvalidOperationException("Virtual Inline did not switch existing IEC-101 Monitor setup.");
         var virtualProfile = BuildPassiveCaptureOptions();
+        if (!PassiveVirtualHelpText.Text.Contains("COM201", StringComparison.Ordinal) ||
+            !PassiveVirtualHelpText.Text.Contains("COM202", StringComparison.Ordinal))
+            throw new InvalidOperationException("Dynamic topology instructions did not reflect both selected relay ports.");
         if (virtualProfile.CaptureSource != "Virtual Inline (VSPE)" ||
             virtualProfile.StreamCount != 2 || virtualProfile.RecordFullSession)
             throw new InvalidOperationException("Virtual Inline must use the same two-source monitor profile.");
         PassiveSourceComboBox.SelectedIndex = 0;
-        PassiveVirtualLabAcknowledgedCheckBox.IsChecked = false;
         if (PassiveVirtualHelpText.Visibility != Visibility.Collapsed ||
             BuildPassiveCaptureOptions().CaptureSource != "Physical RX-only")
             throw new InvalidOperationException("Switching back did not restore physical RX-only ownership.");
@@ -422,15 +414,36 @@ public partial class MainWindow
     private void PassiveSourceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         ApplyPassiveSourceLayout();
 
+    private void PassiveRelayPort_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsVirtualInlineSelected()) ApplyPassiveSourceLayout();
+    }
+
     private void ApplyPassiveSourceLayout()
     {
         if (PassiveLinkBPortsPanel is null || PassiveCaptureSourcePanel is null ||
             PassiveLinkBEnabledCheckBox is null || PassiveRtuPortLabel is null ||
-            PassiveVirtualLabAcknowledgedCheckBox is null)
+            PassiveVirtualHelpText is null || PortComboBox is null ||
+            PassiveRtuPortComboBox is null)
             return;
         var virtualMode = IsVirtualInlineSelected();
         PassiveVirtualHelpText.Visibility = virtualMode ? Visibility.Visible : Visibility.Collapsed;
-        PassiveVirtualLabAcknowledgedCheckBox.Visibility = virtualMode ? Visibility.Visible : Visibility.Collapsed;
+        var masterPort = (PortComboBox.SelectedItem as string)?.Trim();
+        var slavePort = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim();
+        PassiveVirtualHelpText.Text = "Master app ↔ pair ↔ " +
+            (string.IsNullOrWhiteSpace(masterPort) ? "select COM" : masterPort) +
+            "   |   " + (string.IsNullOrWhiteSpace(slavePort) ? "select COM" : slavePort) +
+            " ↔ pair ↔ Slave app. Transparent forwarding in both directions; peer apps open the opposite endpoints.";
+        PortComboBox.ToolTip = virtualMode
+            ? "Relay-owned COM connected to the Master application's virtual pair."
+            : "Receive-only input on the SCADA transmit direction.";
+        PassiveRtuPortComboBox.ToolTip = virtualMode
+            ? "Relay-owned COM connected to the Slave application's virtual pair."
+            : "Receive-only input on the RTU transmit direction.";
+        if (SetupSubtitleText is not null && IsIec101PassiveMonitorSelected())
+            SetupSubtitleText.Text = virtualMode
+                ? "Transparent IEC-101 forwarding and observation across two selected COM ports."
+                : "Receive-only IEC-101 observation through two or four physical inputs.";
         PassiveLinkBEnabledCheckBox.Visibility = virtualMode ? Visibility.Collapsed : Visibility.Visible;
         PassiveLinkBPortsPanel.Visibility = !virtualMode && PassiveLinkBEnabledCheckBox.IsChecked == true
             ? Visibility.Visible : Visibility.Collapsed;
@@ -519,9 +532,6 @@ public partial class MainWindow
             (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "0",
             System.Globalization.CultureInfo.InvariantCulture);
         var isVirtual = IsVirtualInlineSelected();
-        if (isVirtual && PassiveVirtualLabAcknowledgedCheckBox.IsChecked != true)
-            throw new InvalidOperationException(
-                "Virtual Inline actively forwards bytes. Confirm both COM ports belong to your VSPE laboratory pairs before Start.");
         var isLinkB = !isVirtual && PassiveLinkBEnabledCheckBox.IsChecked == true;
         var bScada = (PassiveLinkBScadaPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
         var bRtu = (PassiveLinkBRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty;
@@ -730,8 +740,7 @@ public partial class MainWindow
                 _virtualRelaySession = null;
             }
             PassiveSourceComboBox.IsEnabled = true;
-            PassiveVirtualLabAcknowledgedCheckBox.IsChecked = false; // per-session safety gate
-            _passiveMonitorSession = null;
+                _passiveMonitorSession = null;
             _passiveCaptureTask = null;
             _sessionCancellation?.Dispose();
             _sessionCancellation = null;

@@ -157,7 +157,12 @@ public partial class MainWindow
             PassiveFrameGapBox.Text = (prefs.PassiveFrameGapMilliseconds is >= 100 and <= 10000
                 ? prefs.PassiveFrameGapMilliseconds : 900).ToString(System.Globalization.CultureInfo.InvariantCulture);
             SelectComboContent(PassiveLinkModeCombo, string.IsNullOrWhiteSpace(prefs.PassiveLinkMode) ? "Auto" : prefs.PassiveLinkMode);
-            SelectComboContent(TransportModeComboBox, prefs.UseSimulatedSlave ? "Built-in demo simulation" : "Real device / server");
+            // Demo is an explicit per-run choice, never a restored startup target.
+            // A saved demo selection once caused a real COM test to run against
+            // the in-process fixture while looking like a successful RTU link.
+            SelectComboContent(TransportModeComboBox, "Real device / server");
+            if (prefs.UseSimulatedSlave)
+                AppendSessionLog("Safety: saved demo target was not restored. Startup uses Real device / server; explicitly select demo for a lab run.");
 
             if (!string.IsNullOrWhiteSpace(prefs.PortName))
             {
