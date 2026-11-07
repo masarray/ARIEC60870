@@ -890,7 +890,7 @@ public partial class MainWindow
         interpretedPointRows = DecodedPointGrid.Items.Count;
         // Field screenshot acceptance: decoded inspector exposes expandable,
         // source-backed children. No synthetic quality/IOA bits are fabricated.
-        var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "VSQ");
+        var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Value structure (VSQ)");
         var ioaRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "IOA");
         var qualityRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Quality");
         if (vsqRow?.Children is not { Count: 3 } ||
