@@ -33,6 +33,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 SetupIconFile=..\src\ARIEC60870.Desktop\Assets\Icons\ariec60870-app.ico
 UninstallDisplayIcon={app}\ARIEC60870.exe
+UninstallDisplayName=ARIEC60870 Evidence Analyzer
 Compression=lzma2
 SolidCompression=yes
 CloseApplications=yes
