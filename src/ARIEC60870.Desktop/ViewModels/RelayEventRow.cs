@@ -46,6 +46,7 @@ public sealed class RelayEventRow
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        TiLabel = item.TypeId.HasValue ? $"TI{item.TypeId.Value}" : "-";
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
@@ -53,12 +54,15 @@ public sealed class RelayEventRow
         CotDetail = item.CauseDetails?.Detail ?? Cot;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        IoaTooltip = Iec10xIoaPresentation.StructuredTooltip(item.InformationObjectAddress);
         Address = Protocol is "101" or "104"
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
-        QualityChips = ProtocolFlagPresentation.Quality(item.QualityDetails, Quality, Protocol is "101" or "104");
-        QualityDetail = item.QualityDetails?.BitDetails ?? Quality;
+        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
+        QualityChips = quality.Chips;
+        QualityDetail = quality.Tooltip;
+        IsQualityInvalid = quality.IsInvalid;
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
     }
@@ -85,6 +89,7 @@ public sealed class RelayEventRow
     public string Inf { get; }
     public string FunInf { get; }
     public string TypeId { get; }
+    public string TiLabel { get; }
     public string Type { get; }
     public string Cot { get; }
     public string CotLabel { get; }
@@ -92,9 +97,11 @@ public sealed class RelayEventRow
     public IReadOnlyList<ProtocolFlagChip> CotChips { get; }
     public string CommonAddress { get; }
     public string IoAddress { get; }
+    public string IoaTooltip { get; }
     public string Address { get; }
     public string Quality { get; }
     public string QualityDetail { get; }
+    public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }
     public string RawHex { get; }

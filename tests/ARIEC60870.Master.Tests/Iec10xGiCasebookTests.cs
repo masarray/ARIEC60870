@@ -78,6 +78,53 @@ public sealed class Iec10xGiCasebookTests
     }
 
     [Fact]
+    public void FullGiTimelineShowsEveryDrainedAsduAndActualTi()
+    {
+        var b = new Iec10xGiCasebook();
+        b.Observe(Gi(6));
+        b.Observe(Gi(7, true));
+        for (var i = 0; i < 8; i++)
+            b.Observe(TwoObjects());
+        var completed = b.Observe(Gi(10, true))!.Case;
+        Assert.Equal(8, completed.DataFrames);
+        Assert.Equal(16, completed.DataObjects);
+        Assert.Equal(11, completed.Stages.Count); // TX, ACTCON, 8 frames, ACTTERM
+        Assert.Equal("TI1", completed.Stages[3].TiLabel);
+        Assert.Contains("GI data #2", completed.Stages[3].OperatorEvent);
+        Assert.Contains("8 data ASDUs", completed.OperatorSummary);
+        Assert.Contains("End of GI", completed.OperatorSummary);
+        Assert.Contains("TI100", completed.Description);
+    }
+
+    [Fact]
+    public void NegativeActconHasHumanVerdictWithoutPromotingLinkAck()
+    {
+        var b = new Iec10xGiCasebook();
+        b.Observe(Gi(6, ca: 105));
+        var rejected = b.Observe(Gi(7, true, ca: 105, negative: true))!.Case;
+        Assert.Contains("rejected activation", rejected.OperatorSummary);
+        Assert.Contains("CA=105", rejected.OperatorSummary);
+        Assert.Contains("negative ACTCON", rejected.Stages.Last().OperatorEvent);
+    }
+
+    [Fact]
+    public void LongGiStagePreviewRemainsBoundedWhileExactSourceCountersAdvance()
+    {
+        var book = new Iec10xGiCasebook();
+        book.Observe(Gi(6));
+        book.Observe(Gi(7, true));
+        for (var i = 0; i < 200; i++)
+            book.Observe(TwoObjects());
+        var ended = book.Observe(Gi(10, true))!.Case;
+        Assert.Equal(200, ended.DataFrames);
+        Assert.Equal(400, ended.DataObjects);
+        Assert.True(ended.Stages.Count <= 96);
+        Assert.Equal("GI request", ended.Stages.First().Phase);
+        Assert.Equal("GI ACTTERM", ended.Stages.Last().Phase);
+        Assert.Equal(0, book.ActiveCount);
+    }
+
+    [Fact]
     public void GiSourceCaAndLinkCannotBorrowUnrelatedDataOrReply()
     {
         var b = new Iec10xGiCasebook();

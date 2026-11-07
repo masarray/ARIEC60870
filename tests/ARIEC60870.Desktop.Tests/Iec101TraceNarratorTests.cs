@@ -122,7 +122,7 @@ public sealed class Iec101TraceNarratorTests
             DataClass = "Class 1"
         };
         var row = new EvidenceRow(e);
-        Assert.EndsWith("GI data · Single-point with date/time", row.ProtocolTraceTitle);
+        Assert.EndsWith("GI data · Single-point with date/time · TI30", row.ProtocolTraceTitle);
         Assert.Contains("Data Link: User Data [PRM:0,ACD:1,DFC:0] Length 19 Data Link Addr 105", row.ProtocolTraceMeaning);
         Assert.Contains("ASDU: Type ID 30 <Single-point with date/time> Count 1", row.ProtocolTraceMeaning);
         Assert.Contains("Cause of transmission: 20 (interrogated by station interrogation) | Origin: 0", row.ProtocolTraceMeaning);

@@ -833,7 +833,8 @@ public partial class MainWindow
         // Protocol-specific fields are rendered inside the line text and decoded in the interpreter.
 
         // Value/Event main grids also keep one compact Address column; raw CA/IOA/FUN/INF/TypeID columns stay in Trace.
-        SetColumnVisibility(ValueCaColumn, Visibility.Collapsed);
+        SetColumnVisibility(ValueDlColumn, mode == Iec60870ProtocolMode.Iec101 ? Visibility.Visible : Visibility.Collapsed);
+        SetColumnVisibility(ValueCaColumn, mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 ? Visibility.Visible : Visibility.Collapsed);
         SetColumnVisibility(ValueIoaColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueFunInfColumn, Visibility.Collapsed);
         SetColumnVisibility(ValueTypeIdColumn, Visibility.Collapsed);

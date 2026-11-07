@@ -51,8 +51,7 @@ public partial class MainWindow
         }
         GiCaseStages.ReconcileByKey(c.Stages, stage => (stage.Sequence, stage.EvidenceReference));
         if (GiCaseDetailsBox is not null)
-            GiCaseDetailsBox.Text = c.Summary + " · " + c.Coverage +
-                " · Class1 requests " + c.Class1Requests + ". ACTTERM is not process-point verification.";
+            GiCaseDetailsBox.Text = c.OperatorSummary;
     }
 
     private void GiCaseCopy_Click(object sender, RoutedEventArgs e)
@@ -62,11 +61,12 @@ public partial class MainWindow
         sb.AppendLine(c.Summary);
         sb.AppendLine("Protocol: " + c.Protocol + " | Source: " + c.Source +
             " | Link: " + (c.LinkAddress?.ToString() ?? "N/A") + " | OA: " + c.Originator);
+        sb.AppendLine("Operator interpretation: " + c.OperatorSummary);
         sb.AppendLine("Coverage: " + c.Coverage);
         sb.AppendLine("Class1 request/response: " + c.Class1Requests + "/" + c.Class1Responses);
         foreach (var s in c.Stages)
         {
-            sb.AppendLine($"{s.HostUtc:O} | {s.Direction} | {s.Phase} | seq {s.Sequence} | {s.EvidenceReference}");
+            sb.AppendLine($"{s.HostUtc:O} | {s.Direction} | {s.TiLabel} | {s.CotLabel} | {s.OperatorEvent} | seq {s.Sequence} | {s.EvidenceReference}");
             sb.AppendLine("HEX: " + s.RawHex);
         }
         Clipboard.SetText(sb.ToString());
