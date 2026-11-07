@@ -1018,19 +1018,24 @@
                                             </DataTemplate>
                                         </DataGrid.RowDetailsTemplate>
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="PROPERTY" Width="0.95*" MinWidth="84" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="PROPERTY" Width="1.15*" MinWidth="106" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="9,6,6,6">
+                                                        <Grid VerticalAlignment="Center" Margin="8,5,4,5">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="13"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
                                                             <TextBlock Text="{Binding ExpansionMark}" FontSize="11.5"
-                                                                       Foreground="{StaticResource Ink600Brush}" Margin="0,0,3,0"/>
-                                                            <TextBlock Text="{Binding Field}" FontSize="12.3" FontWeight="Medium"
-                                                                       Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap"/>
-                                                        </StackPanel>
+                                                                       Foreground="{StaticResource Ink600Brush}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Field}" FontSize="12"
+                                                                       FontWeight="Medium" Foreground="{StaticResource Ink800Brush}"
+                                                                       TextWrapping="Wrap"/>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="VALUE" Width="1.55*" MinWidth="90">
+                                            <DataGridTemplateColumn Header="VALUE" Width="1.35*" MinWidth="104">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}" FontSize="12.3"
