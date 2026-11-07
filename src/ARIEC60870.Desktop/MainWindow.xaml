@@ -1105,7 +1105,35 @@
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.8*" MinWidth="132" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.3*" MinWidth="120" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="0.95*" MinWidth="90" />
-                                    <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.25*" MinWidth="119" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="Source / IOA" Width="1.25*" MinWidth="119" ClipboardContentBinding="{Binding Address}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Address}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource Ink800Brush}" FontSize="11.7"
+                                                           ToolTip="{Binding IoaTooltip}" ToolTipService.IsEnabled="True"
+                                                           ToolTipService.InitialShowDelay="450"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="TI" Width="59" MinWidth="55" ClipboardContentBinding="{Binding TiLabel}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border x:Name="TiIndicator" Padding="4,2" HorizontalAlignment="Left" CornerRadius="4"
+                                                        Background="Transparent" ToolTip="{Binding TiExplanation}"
+                                                        ToolTipService.IsEnabled="True" ToolTipService.InitialShowDelay="450">
+                                                    <TextBlock x:Name="TiText" Text="{Binding TiLabel}" FontSize="11.1"
+                                                               Foreground="{StaticResource Ink700Brush}"/>
+                                                </Border>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTiMismatch}" Value="True">
+                                                        <Setter TargetName="TiIndicator" Property="Background" Value="#FFF3CD"/>
+                                                        <Setter TargetName="TiText" Property="Foreground" Value="#B45309"/>
+                                                        <Setter TargetName="TiText" Property="FontWeight" Value="SemiBold"/>
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="1.0*" MinWidth="125" Visibility="Collapsed" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="105" />
                                     <DataGridTextColumn Header="IED/RTU time" Binding="{Binding RelayTime}" Width="1.35*" MinWidth="136" ElementStyle="{StaticResource GridCellNoWrapText}" />
@@ -1128,23 +1156,30 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn x:Name="ValueCaColumn" Header="CA" Width="59" MinWidth="52" Visibility="Collapsed">
+                                    <DataGridTemplateColumn x:Name="ValueCaColumn" Header="CA" Width="67" MinWidth="62" Visibility="Collapsed">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Border x:Name="CaBadge" Background="Transparent" CornerRadius="4" Padding="4,2"
-                                                        ToolTip="{Binding CaExplanation}" HorizontalAlignment="Left">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding CommonAddress}" FontSize="11" Foreground="#334155"/>
-                                                        <TextBlock x:Name="CaAlert" Text=" !" FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="#9A5A00" Visibility="Collapsed"/>
+                                                        ToolTip="{Binding CaExplanation}" ToolTipService.IsEnabled="True"
+                                                        ToolTipService.InitialShowDelay="450" HorizontalAlignment="Left">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock x:Name="CaNumber" Text="{Binding CommonAddress}" FontSize="11.4"
+                                                                   Foreground="#334155" VerticalAlignment="Center"/>
+                                                        <Path x:Name="CaWarningIcon" Width="13" Height="13" Margin="5,0,0,0"
+                                                              Stroke="#B42318" StrokeThickness="1.9" StrokeLineJoin="Round"
+                                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                              Stretch="Uniform" Fill="Transparent" Visibility="Collapsed"
+                                                              Data="M21.73,18 L13.73,4 A2,2 0 0 0 10.25,4 L2.25,18 A2,2 0 0 0 4,21 H20 A2,2 0 0 0 21.73,18 M12,9 V13 M12,17 H12.01"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
                                                     <DataTrigger Binding="{Binding IsCaMismatch}" Value="True">
-                                                        <Setter TargetName="CaBadge" Property="Background" Value="#FFF3CD"/>
-                                                        <Setter TargetName="CaBadge" Property="BorderBrush" Value="#F7CE83"/>
+                                                        <Setter TargetName="CaBadge" Property="Background" Value="#FFF5F1"/>
+                                                        <Setter TargetName="CaBadge" Property="BorderBrush" Value="#FED7CB"/>
                                                         <Setter TargetName="CaBadge" Property="BorderThickness" Value="1"/>
-                                                        <Setter TargetName="CaAlert" Property="Visibility" Value="Visible"/>
+                                                        <Setter TargetName="CaNumber" Property="Foreground" Value="#B42318"/>
+                                                        <Setter TargetName="CaNumber" Property="FontWeight" Value="Bold"/>
+                                                        <Setter TargetName="CaWarningIcon" Property="Visibility" Value="Visible"/>
                                                     </DataTrigger>
                                                 </DataTemplate.Triggers>
                                             </DataTemplate>
@@ -1311,7 +1346,18 @@
                                     
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
-                                    <DataGridTextColumn Header="Source / IOA" Binding="{Binding Address}" Width="1.2*" MinWidth="116" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTemplateColumn Header="Source / IOA" Width="1.2*" MinWidth="116" ClipboardContentBinding="{Binding Address}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Address}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource Ink800Brush}" FontSize="11.7"
+                                                           ToolTip="{Binding IoaTooltip}" ToolTipService.IsEnabled="True"
+                                                           ToolTipService.InitialShowDelay="450"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="59" MinWidth="55"
+                                                        ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />
                                     
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
@@ -2053,6 +2099,9 @@
                                                     <ContentControl Content="{Binding TypeId, Converter={StaticResource IecSignalTypeBadgeConverter}}"
                                                                     ContentTemplate="{StaticResource IecSignalTypeBadgeTemplate}"
                                                                     Style="{StaticResource OptionalTypeBadge}"/>
+                                                    <TextBlock Text="{Binding TypeId, StringFormat='TI{0}'}"
+                                                               Margin="2,0,8,0" FontSize="11.1" Foreground="#52647B"
+                                                               VerticalAlignment="Center"/>
                                                     <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                FontSize="11.8" Foreground="{StaticResource Ink800Brush}">
                                                         <TextBlock.Text>
