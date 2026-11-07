@@ -11,7 +11,7 @@ public sealed class FrameInspectorFieldPresentationTests
 {
     [Theory]
     [InlineData(790446, 174, 15, 12)]
-    [InlineData(16712686, 238, 2, 255)]
+    [InlineData(16712686, 238, 3, 255)]
     [InlineData(0, 0, 0, 0)]
     [InlineData(0xFFFFFF, 255, 255, 255)]
     public void IoaBytesFollowActualIecLittleEndianOrder(
