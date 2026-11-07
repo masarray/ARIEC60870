@@ -14,6 +14,7 @@ namespace ARIEC60870.Master.Protocol.Iec10x;
 public sealed class Iec10xGiCasebook
 {
     private const int MaxActive = 64;
+    private const int MaxTimelineStages = 96;
     private const int MaxUniqueIoas = 2048;
     private const int MaxSeenFrames = 8192;
     private readonly int _capacity;
@@ -45,7 +46,22 @@ public sealed class Iec10xGiCasebook
     }
 
     public sealed record GiStage(long Sequence, string EvidenceReference,
-        DateTime HostUtc, string Direction, string Phase, string RawHex);
+        DateTime HostUtc, string Direction, string Phase, string RawHex,
+        int? TypeId = null, int? CotCode = null, string DataClass = "",
+        int DataFrames = 0, int DataObjects = 0, int UniqueIoas = 0)
+    {
+        public string TiLabel => TypeId.HasValue ? $"TI{TypeId.Value}" : "DL";
+        public string CotLabel => CotCode.HasValue ? $"COT {CotCode.Value}" : "-";
+        public string OperatorEvent => Phase switch
+        {
+            "GI request" => "Master sent GI activation — TI100 / COT6",
+            "Positive GI ACTCON" => "RTU accepted GI — positive ACTCON (COT7)",
+            "Negative GI confirmation" => "RTU rejected GI — negative ACTCON (COT7, P/N=1)",
+            "GI ACTTERM" => $"RTU ended GI — ACTTERM (COT10). {DataFrames} data frames / {DataObjects} objects / {UniqueIoas} unique IOAs observed; complete point coverage not proven",
+            "First interrogated data" => $"First GI data — {TiLabel}, {CotLabel}, {DataClass}: {DataObjects} accumulated objects / {UniqueIoas} IOAs",
+            _ => Phase
+        };
+    }
 
     public sealed record GiCase(long CaseId, string Protocol, string Source, int? LinkAddress,
         int CommonAddress, int Originator, int Qoi, string Status,
@@ -53,9 +69,27 @@ public sealed class Iec10xGiCasebook
         int Class1Requests, int Class1Responses, bool CountLimited,
         long FirstSequence, long LastSequence, IReadOnlyList<GiStage> Stages)
     {
-        public string Description => (Qoi == 20 ? "Station GI" : $"Group GI {Qoi - 20}") +
+        public string Description => (Qoi == 20 ? "Station GI · TI100" : $"Group GI {Qoi - 20} · TI100") +
             $" · CA {CommonAddress} · {Source}";
         public string Coverage => "Unknown — expected IOA mapping and complete capture not proven";
+        public string OperatorSummary
+        {
+            get
+            {
+                var route = $"GI TI100 / QOI={Qoi}, DL={LinkAddress?.ToString() ?? "N/A"}, ASDU CA={CommonAddress}, source={Source}. ";
+                var explanation = Status switch
+                {
+                    "GI rejected" => "RTU rejected activation (negative ACTCON). A link ACK is not GI acceptance; inspect requested CA/QOI.",
+                    "ACTTERM observed · coverage unknown" => "ACTCON accepted; RTU sent ACTTERM. End of GI observed, not proof of complete point coverage.",
+                    "Unmatched response · request not observed" => "GI response did not match an observed request; original TX or capture might be missing.",
+                    _ => $"Status: {Status}. Review original request/reply evidence."
+                };
+                return route + explanation + $" Drained {DataFrames} data ASDUs, {DataObjects} objects, {UniqueIoas} unique IOAs; " +
+                    $"Class 1 TX polls {Class1Requests} / user-data responses {Class1Responses}; " +
+                    $"invalid quality {InvalidQualityObjects}" +
+                    (CountLimited ? " · index capacity reached, counts incomplete." : ".");
+            }
+        }
         public string Summary => $"{Description} · {Status} · data {DataFrames} frames / " +
             $"{DataObjects} objects / {UniqueIoas} unique IOAs · invalid quality {InvalidQualityObjects}" +
             (CountLimited ? " · counting limit reached" : "");
@@ -103,12 +137,34 @@ public sealed class Iec10xGiCasebook
             asdu is null && lc.IsPrimaryRequestClass1)
         {
             var candidates = ActiveOnPhysicalSource(item.ProtocolMode, source, link);
-            if (candidates.Length == 1) candidates[0].Class1Requests++;
+            if (candidates.Length == 1)
+            {
+                var state = candidates[0];
+                if (RecordOnce(state, item))
+                {
+                    state.Class1Requests++;
+                    if (state.Current.Stages.Count < MaxTimelineStages - 4)
+                        Append(state, item, $"Master requested Class 1 data — poll #{state.Class1Requests}");
+                    else Sync(state);
+                }
+            }
             return null;
         }
 
         if (asdu is null || asdu.CauseDetails is not { } cot || cot.Test)
+        {
+            // A source-qualified Class 1 NO DATA response is explicitly not GI
+            // completion. Only retain it when one active case owns this stream.
+            if (asdu is null && item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                item.Frame?.LinkControl is { Prm: false, FunctionCode: 9 } &&
+                string.Equals(item.DataClass, "Class 1", StringComparison.OrdinalIgnoreCase))
+            {
+                var cases = ActiveOnPhysicalSource(item.ProtocolMode, source, link);
+                if (cases.Length == 1 && cases[0].Current.Stages.Count < MaxTimelineStages - 4)
+                    Append(cases[0], item, "Class 1 NO DATA — RTU sent no ASDU payload");
+            }
             return null;
+        }
 
         if (asdu.TypeId == 100 && cot.Code is 6 or 7 or 10)
         {
@@ -178,6 +234,10 @@ public sealed class Iec10xGiCasebook
         // Preserve first data evidence, but avoid O(N) stage growth and Event rows.
         if (state.DataFrames == 1)
             Append(state, item, "First interrogated data");
+        else if (state.Current.Stages.Count < MaxTimelineStages - 4)
+            Append(state, item, $"GI data #{state.DataFrames} — TI{asdu.TypeId}, COT {cot.Code}, {asdu.Objects.Count} objects; " +
+                $"cumulative {state.DataObjects} objects / {state.UniqueIoas.Count} unique IOAs" +
+                (state.InvalidQuality > 0 ? $" / {state.InvalidQuality} invalid quality" : ""));
         else
             Sync(state);
         return null;
@@ -244,16 +304,24 @@ public sealed class Iec10xGiCasebook
         string phase, string status, bool remove = false)
     {
         s.Current = s.Current with { Status = status };
-        Append(s, item, phase);
+        Append(s, item, phase, mandatory: true);
         if (remove) _active.Remove(s.Key);
         return new GiMilestone(s.Current, phase);
     }
 
-    private void Append(GiState s, Iec103MasterEvidenceEvent item, string phase)
+    private void Append(GiState s, Iec103MasterEvidenceEvent item, string phase, bool mandatory = false)
     {
-        var stages = s.Current.Stages.Count < 24 ?
-            s.Current.Stages.Append(Stage(item, phase)).ToArray() :
-            s.Current.Stages.Skip(1).Append(Stage(item, phase)).ToArray();
+        if (s.Current.Stages.Count >= MaxTimelineStages && !mandatory)
+        {
+            Sync(s);
+            return;
+        }
+        var stage = Stage(item, phase, s.DataFrames, s.DataObjects, s.UniqueIoas.Count);
+        // Keep first activation/response plus final lifecycle; long GI data
+        // streams may be aggregated instead of allocating unbounded stage rows.
+        var stages = s.Current.Stages.Count < MaxTimelineStages ?
+            s.Current.Stages.Append(stage).ToArray() :
+            s.Current.Stages.Take(3).Concat(s.Current.Stages.Skip(4)).Append(stage).ToArray();
         s.Current = s.Current with { LastSequence = item.SequenceNumber, Stages = stages };
         Sync(s);
     }
@@ -297,9 +365,13 @@ public sealed class Iec10xGiCasebook
         _active.Values.Where(s => s.Key.Protocol == protocol &&
             s.Key.Source == source && s.Key.Link == link).ToArray();
 
-    private static GiStage Stage(Iec103MasterEvidenceEvent item, string phase) =>
+    private static GiStage Stage(Iec103MasterEvidenceEvent item, string phase,
+        int frames = 0, int objects = 0, int uniqueIoas = 0) =>
         new(item.SequenceNumber, item.EvidenceReference, item.TimestampUtc,
-            item.DirectionText, phase, item.RawHex);
+            item.DirectionText, phase, item.RawHex,
+            item.TypeId ?? item.AsduDetails?.TypeId,
+            item.CauseDetails?.Code ?? item.AsduDetails?.CauseDetails?.Code,
+            item.DataClass, frames, objects, uniqueIoas);
 
     private static string Normalize(string? source) =>
         string.IsNullOrWhiteSpace(source) ? "SINGLE" : source.Trim().ToUpperInvariant();
