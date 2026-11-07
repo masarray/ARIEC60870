@@ -54,7 +54,8 @@ public sealed class ProtocolFlagPresentationTests
             [13, 1, 20, 0, 1, 0, 1, 0, 0, 0x00, 0x00, 0x48, 0x41, 0xF1]);
         Assert.Empty(asdu.Issues);
         var obj = Assert.Single(asdu.Objects);
-        Assert.Equal(0xF1, obj.QualityDetails?.Raw);
+        Assert.NotNull(obj.QualityDetails);
+        Assert.Equal((byte)0xF1, obj.QualityDetails!.Raw);
         var visual = ProtocolFlagPresentation.QualityState(obj.QualityDetails, obj.QualityText, true);
         Assert.Equal(["IV", "OV", "+3"], visual.Chips.Select(x => x.Text));
         Assert.True(visual.IsInvalid);
@@ -98,6 +99,31 @@ public sealed class ProtocolFlagPresentationTests
             Assert.DoesNotContain("OV=", visual.Tooltip);
             Assert.Contains("IV=1", visual.Tooltip);
         }
+    }
+
+    [Fact]
+    public void Sq1MultipleObjectsKeepIndependentQualityNotFirstObjectFlags()
+    {
+        // One real SQ=1 TI13 ASDU, two IOAs (1,2), independent QDS
+        // values 0x81 and 0x00. Never copy the first object's IV/OV
+        // status to its neighbor during multi-object projection.
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            [13, 0x82, 20, 0, 1, 0, 1, 0, 0,
+             0, 0, 0x20, 0x41, 0x81,
+             0, 0, 0x30, 0x41, 0x00]);
+        Assert.Empty(asdu.Issues);
+        Assert.Equal(2, asdu.Objects.Count);
+        Assert.Equal(1, asdu.Objects[0].InformationObjectAddress);
+        Assert.Equal(2, asdu.Objects[1].InformationObjectAddress);
+        Assert.True(asdu.Objects[0].QualityDetails?.Invalid);
+        Assert.False(asdu.Objects[1].QualityDetails?.Invalid);
+        var first = ProtocolFlagPresentation.QualityState(asdu.Objects[0].QualityDetails,
+            asdu.Objects[0].QualityText, true);
+        var second = ProtocolFlagPresentation.QualityState(asdu.Objects[1].QualityDetails,
+            asdu.Objects[1].QualityText, true);
+        Assert.Equal(["IV", "OV"], first.Chips.Select(x => x.Text));
+        Assert.Equal("Good", Assert.Single(second.Chips).Text);
+        Assert.Equal("QDS 0x00", second.CleanRawLabel);
     }
 
     [Fact]
