@@ -31,6 +31,31 @@ pinned publisher identity, an independent staged helper, negative tests
 for interruption and rollback, and a verified real-Windows upgrade matrix.
 Unsigned CI artifacts are **test-only**, not autonomous-update payloads.
 
-CI reinstall of the same version is an idempotence test; a genuine
-previous-version to new-version upgrade and running-COM capture test
-remain separate, explicitly pending FAT gates.
+Windows CI now builds a temporary v3.6.7 installer from the **actual published
+v3.6.7 Windows ZIP**, verifying the published SHA256SUMS first. The same
+stable AppId then installs v3.6.8 over a running previous-version WPF binary.
+It asserts current file/registry version, exactly one uninstall entry, retained
+local data, and a graceful close of a running **simulated active Master** during
+an in-place reinstall. The previous temporary installer is **not shipped**.
+
+This is an integration test of an actual old binary and normal Windows
+shutdown, not a substitute for 1200-baud physical serial FAT. Real COM handles,
+electrical disconnects, queued commands, interrupted writes and OS-disk-full
+recovery remain explicitly pending field tests.
+
+## Windows shutdown ownership
+
+When a standard Windows close is requested while an **active** IEC101/103/104
+master is running, `MainWindow_ClosingPassive` (the existing shared window
+Closing hook) first requests cancellation and closes active A/B transports. It
+then awaits the Master session's completion signal, set **after** final session
+UI state and transport disposal. If cancellation/finalization exceeds the
+bounded deadline, it cancels the window close and informs the engineer.
+This is the same safety policy for manual close and Restart Manager; the
+installer does not force-kill processes. The parallel passive capture close
+path continues to await journal flush before leaving.
+
+The `--installer-master-close-smoke --ready-file PATH` argument is for Windows
+CI only. It runs the genuine active Master against the in-process fixture,
+with no physical COM/TCP device. The installer requests normal WPF shutdown.
+This does not enable auto-connect after an update.

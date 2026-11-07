@@ -44,8 +44,21 @@ public sealed class RepositoryHygieneTests
         var version = props.Descendants("Version").FirstOrDefault()?.Value;
 
         Assert.False(string.IsNullOrWhiteSpace(version));
-        Assert.Contains(version!, File.ReadAllText(root.File("site/index.html")));
-        Assert.Contains(version!, File.ReadAllText(root.File("site/seo-manifest.json")));
+        // Source code may advance in a release-candidate PR while the public
+        // download page must truthfully advertise only the last released build.
+        // Its metadata must still agree internally and cannot be newer than code.
+        using var manifest = System.Text.Json.JsonDocument.Parse(
+            File.ReadAllText(root.File("site/seo-manifest.json")));
+        var published = manifest.RootElement.GetProperty("version").GetString();
+        Assert.True(Version.TryParse(version, out var codeVersion),
+            $"Invalid source version: {version}");
+        Assert.True(Version.TryParse(published, out var siteVersion),
+            $"Invalid public site release version: {published}");
+        Assert.True(siteVersion <= codeVersion,
+            $"Public website version {published} exceeds source candidate {version}.");
+        var site = File.ReadAllText(root.File("site/index.html"));
+        Assert.Contains($"name=\"application-version\" content=\"{published}\"", site);
+        Assert.Contains($"\"softwareVersion\":\"{published}\"", site);
         Assert.Contains("IEC 60870", File.ReadAllText(root.File("site/site.webmanifest")));
     }
 

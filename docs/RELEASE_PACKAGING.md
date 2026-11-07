@@ -110,3 +110,14 @@ pwsh ./scripts/generate-sbom-lite.ps1 -Version 3.6.5 -OutputPath artifacts/relea
 
 Windows builds run `pwsh ./scripts/prepare-inter-font.ps1` **before restore/build/publish**. It downloads the unmodified Inter variable TTF from the official Google Fonts repository into the ignored `Assets/Fonts/Inter.ttf` working-tree path, rejects an unexpected Git blob SHA and embeds the verified resource in the WPF executable. It is not a Windows installed-font dependency. The SIL OFL 1.1 notice is included beside the application; do not remove the notice from ZIP generation. Offline source builds require running the script while connected once; subsequent builds reuse and verify the local font.
 
+
+## Windows installer (P0 integration track)
+
+The installable EXE is generated separately by Windows CI using
+`installer/ARIEC60870.iss` from the same self-contained published WPF
+binary. It supports per-user in-place upgrades, a Start Menu shortcut and
+preserves `%LOCALAPPDATA%\\ARIEC60870`. CI verifies a genuine published
+v3.6.7 binary upgrade, a running simulated Master close, one uninstall
+registration and user-data preservation. Until a trusted publisher signing
+pipeline exists, this installer is a **CI test artifact**, not an auto-update
+payload; the stable public Releases workflow continues to publish ZIPs.

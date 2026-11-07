@@ -42,6 +42,30 @@ public partial class App : Application
             }
             return;
         }
+        if (e.Args.Contains("--installer-master-close-smoke", StringComparer.OrdinalIgnoreCase))
+        {
+            base.OnStartup(e);
+            try
+            {
+                // Windows installer acceptance: real WPF window with active
+                // simulated Master (no physical port), left running until
+                // Restart Manager requests normal WM_CLOSE.
+                var markerIndex = Array.FindIndex(e.Args, x =>
+                    string.Equals(x, "--ready-file", StringComparison.OrdinalIgnoreCase));
+                if (markerIndex < 0 || markerIndex + 1 >= e.Args.Length)
+                    throw new ArgumentException("--ready-file is required for installer smoke.");
+                var window = new MainWindow();
+                window.Show();
+                window.StartInstallerMasterCloseSmokeProbe();
+                File.WriteAllText(e.Args[markerIndex + 1], "active-master-started");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("Active Master installer close smoke failed: " + ex);
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Contains("--passive-gui-smoke", StringComparer.OrdinalIgnoreCase))
         {
             base.OnStartup(e);

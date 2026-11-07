@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.7</Version>
-    <AssemblyVersion>3.6.7.0</AssemblyVersion>
-    <FileVersion>3.6.7.0</FileVersion>
-    <InformationalVersion>3.6.7+smart-redundancy-polish</InformationalVersion>
+    <Version>3.6.8</Version>
+    <AssemblyVersion>3.6.8.0</AssemblyVersion>
+    <FileVersion>3.6.8.0</FileVersion>
+    <InformationalVersion>3.6.8+p0-safe-installer-upgrade</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Evidence Analyzer</Product>

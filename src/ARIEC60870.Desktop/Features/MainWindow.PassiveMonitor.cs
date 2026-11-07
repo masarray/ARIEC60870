@@ -48,6 +48,9 @@ public partial class MainWindow
     private Task<(string Directory, PassiveCaptureManifest Manifest)>? _passiveCaptureTask;
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
     private bool _closingAfterPassiveStop;
+    // A repeated Windows WM_CLOSE during async capture/transport shutdown must
+    // never bypass the first Close cancellation before cleanup is verified.
+    private bool _closeValidatedForExit;
     private Iec10xAsduDecoder? _passiveAsduDecoder;
     // Typed, bounded operator interpretation. Never drives TX or the raw journal.
     private readonly Iec10xObservedControlTimeline _passiveControlTimeline = new();
@@ -116,6 +119,23 @@ public partial class MainWindow
     /// <summary>Windows CI verifies the actual integrated Setup-to-Trace workflow without any COM calls.</summary>
     public void RunPassiveGuiSmokeProbe()
     {
+        // Real WPF regression: even a second Close request while shutdown is
+        // pending must not destroy the window before writer/transport cleanup.
+        _closingAfterPassiveStop = true;
+        _closeValidatedForExit = false;
+        try
+        {
+            Close();
+            if (!IsVisible)
+                throw new InvalidOperationException(
+                    "Repeated WM_CLOSE bypassed pending protocol shutdown.");
+        }
+        finally
+        {
+            _closingAfterPassiveStop = false;
+            _closeValidatedForExit = false;
+        }
+
         var index = -1;
         for (var i = 0; i < ProtocolModeComboBox.Items.Count; i++)
         {
@@ -1786,9 +1806,72 @@ public partial class MainWindow
     {
         if (_closingAfterPassiveStop)
         {
+            if (!_closeValidatedForExit)
+            {
+                // Inno/Restart Manager can repeat WM_CLOSE while the async
+                // Closing handler is awaiting transport and journal finalizers.
+                e.Cancel = true;
+                return;
+            }
             ReleaseSessionTraceHistory();
             return;
         }
+        if (_passiveMonitorSession is null && _passiveReplayCancellation is null &&
+            _sessionCancellation is not null && _activeMasterRunFinished is { } master)
+        {
+            // Inno/Windows Restart Manager sends ordinary WM_CLOSE. For active
+            // IEC101/103/104, Cancel alone is not finalization: wait for the
+            // engine's task and async transport disposal before exiting.
+            e.Cancel = true;
+            _closingAfterPassiveStop = true;
+            IsEnabled = false;
+            try
+            {
+                _stopRequested = true;
+                _operatorDisconnectInProgress = true;
+                _sessionCancellation.Cancel();
+                var closeTransport = TryCloseActiveTransportAsync("Windows close / installer");
+                var transportResult = await Task.WhenAny(closeTransport,
+                    Task.Delay(TimeSpan.FromSeconds(8)));
+                if (transportResult == closeTransport)
+                    await closeTransport;
+                else
+                    AppendSessionLog("Transport close has exceeded 8 seconds; waiting for engine finalization.");
+
+                var completed = await Task.WhenAny(master.Task,
+                    Task.Delay(TimeSpan.FromSeconds(8)));
+                if (completed != master.Task)
+                {
+                    // Fail safely: keep the window alive so an installer cannot
+                    // mistake a cancellation request for completed evidence.
+                    _closingAfterPassiveStop = false;
+                    IsEnabled = true;
+                    AppendSessionLog("Shutdown deferred: active Master did not release its transport.");
+                    ModernMessageBox.Show(this,
+                        "The active communication session is still closing. The application was kept open to protect evidence. Stop the session and retry installation.",
+                        "Communication still active", MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                await master.Task;
+                await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+                _closeValidatedForExit = true;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                _closingAfterPassiveStop = false;
+                _closeValidatedForExit = false;
+                IsEnabled = true;
+                AppendSessionLog("Close deferred: " + ex.Message);
+                AddUiDiagnostic("Warning", "Desktop", "IEC10X-CLOSE-ACTIVE",
+                    "Application close deferred until active session is safe",
+                    ex.Message, "Stop the communication session then retry the update.", ex);
+            }
+            return;
+        }
+
         if (_passiveMonitorSession is null && _passiveReplayCancellation is null)
         {
             ReleaseSessionTraceHistory();
@@ -1804,6 +1887,7 @@ public partial class MainWindow
             catch (OperationCanceledException) { }
             catch (Exception ex) { AppendSessionLog("Offline replay shutdown: " + ex.Message); }
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            _closeValidatedForExit = true;
             Close();
             return;
         }
@@ -1825,6 +1909,7 @@ public partial class MainWindow
         {
             // Finish the UI async continuation before closing the owner.
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            _closeValidatedForExit = true;
             Close();
         }
     }

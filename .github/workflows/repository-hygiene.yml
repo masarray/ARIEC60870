@@ -47,7 +47,17 @@ jobs:
           $readme = Get-Content README.md -Raw
           $site = Get-Content site/index.html -Raw
           $manifest = Get-Content site/site.webmanifest -Raw
-          if ($site -notmatch [regex]::Escape($version)) { throw "site/index.html does not contain version $version" }
+          # Site version denotes the latest *published* release, not the
+          # still-unreleased source version under test in this pull request.
+          $published = (Get-Content site/seo-manifest.json -Raw | ConvertFrom-Json).version
+          if (!$published) { throw 'Missing public release version in SEO manifest.' }
+          if ([version]$published -gt [version]$version) {
+            throw "Public release metadata $published is newer than source $version."
+          }
+          if (!$site.Contains('name="application-version" content="' + $published + '"') -or
+              !$site.Contains('"softwareVersion":"' + $published + '"')) {
+            throw "site/index.html and site/seo-manifest.json disagree on published version $published."
+          }
           if ($manifest -notmatch 'IEC 60870') { throw 'site.webmanifest is not IEC 60870 branded.' }
           if ($readme -notmatch 'IEC 60870-5-101' -or $readme -notmatch 'IEC 60870-5-104') { throw 'README does not clearly describe 101/104 coverage.' }
 
