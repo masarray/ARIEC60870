@@ -139,13 +139,13 @@ public sealed class Iec10xGiCasebook
             var candidates = ActiveOnPhysicalSource(item.ProtocolMode, source, link);
             if (candidates.Length == 1)
             {
-                var state = candidates[0];
-                if (RecordOnce(state, item))
+                var pollOwner = candidates[0];
+                if (RecordOnce(pollOwner, item))
                 {
-                    state.Class1Requests++;
-                    if (state.Current.Stages.Count < MaxTimelineStages - 4)
-                        Append(state, item, $"Master requested Class 1 data — poll #{state.Class1Requests}");
-                    else Sync(state);
+                    pollOwner.Class1Requests++;
+                    if (pollOwner.Current.Stages.Count < MaxTimelineStages - 4)
+                        Append(pollOwner, item, $"Master requested Class 1 data — poll #{pollOwner.Class1Requests}");
+                    else Sync(pollOwner);
                 }
             }
             return null;
