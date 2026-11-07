@@ -271,4 +271,36 @@ public sealed class ProtocolFlagPresentationTests
         Assert.False(row.IsQualityInvalid);
     }
 
+
+    [Fact]
+    public void SelectedGiFrameInspectorAndTraceAgreeQualityIsNotApplicable()
+    {
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            [100, 1, 7, 0, 1, 0, 0, 0, 0, 20]);
+        Assert.Empty(asdu.Issues);
+        var point = Assert.Single(DecodedPointRow.FromAsdu(asdu));
+        Assert.Equal("N/A", point.Quality);
+
+        var trace = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 100,
+            AsduDetails = asdu,
+            QualityText = "Unknown"
+        });
+        Assert.Equal("N/A", trace.Quality);
+    }
+
+    [Fact]
+    public void SelectedMeasurementFrameStillShowsMissingRequiredQuality()
+    {
+        var trace = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 13,
+            QualityText = "Unknown"
+        });
+        Assert.Equal("Unknown", trace.Quality);
+    }
+
 }
