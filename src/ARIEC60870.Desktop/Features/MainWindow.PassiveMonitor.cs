@@ -13,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ARIEC60870.Monitor;
+using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
@@ -253,6 +254,62 @@ public partial class MainWindow
             throw new InvalidOperationException("FT1.2 passive response was not projected to Frame Trace, Values and Event Log.");
         if (!FrameTraceRows.Any(x => x.TypeId == "1" && x.RawHex.Contains("680C0C68", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("Frame Trace did not retain interpreted Type 1 with full wire HEX.");
+
+        // Regression: Physical RX and Virtual Inline both enter the same
+        // writer-owned process-fact projection. If a real RTU sends CA=1 but
+        // the unique Signal List name lives under CA=105, ResolveIoaPoint
+        // must not collapse all 22 accepted Values into anonymous IOA labels.
+        // A normal, lossy preview frame is NOT allowed to create that alias.
+        var savedIoaProfile = _ioaProfile;
+        var savedAliasReconciler = _runtimeCaReconciler;
+        var savedSubtitle = SessionSubtitleText.Text;
+        var savedCaRecoverySubtitle = _sessionSubtitleBeforeCaRecovery;
+        var savedMappingStatus = MappingProfileStatusText.Text;
+        try
+        {
+            _ioaProfile = new Iec10xPointMappingProfile
+            {
+                CommonAddress = 105,
+                Points = [new Iec10xPointMappingEntry
+                    { Ca = 105, Ioa = 7, TypeId = 30, Name = "Observed GI status" }]
+            };
+            _runtimeCaReconciler = new Iec10xRuntimeCaReconciler(_ioaProfile);
+            // Prime the source's diagnostic once, outside the projection probe,
+            // so synthetic smoke evidence does not mutate operator diagnostics.
+            _ = _runtimeCaReconciler.Observe("Link A", 1, 7, 1);
+            var decoded = _passiveAsduDecoder.Decode(asdu);
+            var accepted = new Iec103MasterEvidenceEvent
+            {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                Direction = FrameDirection.SlaveToMaster,
+                PollingReason = "PASSIVE-LEDGER",
+                PhysicalSource = "Link A",
+                PhysicalStreamId = 1,
+                RawStreamOffset = 0,
+                CommonAddressNumber = 1,
+                InformationObjectAddress = 7,
+                TypeId = 1,
+                AsduDetails = decoded,
+                InformationObjectDetails = decoded.Objects[0],
+                Frame = new Ft12Parser(1).Decode(testFrame),
+                IsRelayValue = true
+            };
+            _passiveLedgerFactProjection = true;
+            if (ResolveIoaPoint(accepted)?.Name != "Observed GI status")
+                throw new InvalidOperationException("Trusted passive/virtual GI value did not recover its unique Signal List name across CA mismatch.");
+            _passiveLedgerFactProjection = false;
+            if (ResolveIoaPoint(accepted) is not null)
+                throw new InvalidOperationException("A preview-only passive frame unexpectedly promoted a CA-alias Signal List name.");
+        }
+        finally
+        {
+            _passiveLedgerFactProjection = false;
+            _ioaProfile = savedIoaProfile;
+            _runtimeCaReconciler = savedAliasReconciler;
+            _sessionSubtitleBeforeCaRecovery = savedCaRecoverySubtitle;
+            SessionSubtitleText.Text = savedSubtitle;
+            MappingProfileStatusText.Text = savedMappingStatus;
+        }
 
         // HOLD is a viewport policy, not a loss/drop policy. Verify the real
         // WPF Trace list accepts a new RX while auto-follow has been disabled.
