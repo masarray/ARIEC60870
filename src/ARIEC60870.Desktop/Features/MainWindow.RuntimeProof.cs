@@ -575,12 +575,16 @@ public partial class MainWindow
         AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. No persistent settings or command address were modified.");
     }
 
+    private readonly HashSet<string> _giProfileTiMismatchKeys = new(StringComparer.OrdinalIgnoreCase);
+
     private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
     {
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
         _runtimeCaReconciler = new Iec10xRuntimeCaReconciler(_ioaProfile);
         _reportedProfileCaMismatchSources.Clear();
+        _reportedTiMismatch.Clear();
+        _giProfileTiMismatchKeys.Clear();
         _sessionSubtitleBeforeCaRecovery = null;
         _giClass2CollectionWindowActive = false;
         _giClass2CollectionUntilUtc = DateTime.MinValue;
@@ -602,36 +606,14 @@ public partial class MainWindow
             .ThenBy(point => point.TypeId ?? 0)
             .ToList();
 
+        // Values is an observed snapshot, not a speculative profile inventory.
+        // Expected but never transmitted IOAs belong to GI/Diagnostics, never
+        // as duplicate "awaiting live value" rows beside accepted process RX.
         foreach (var point in ordered)
-        {
-            var key = BuildProfileGiKey(point);
-            _giExpectedValueKeys.Add(key);
-            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
-            {
-                Key = Iec10xObservationIdentity.ValueKey(protocolMode, null,
-                    point.Ca ?? _ioaProfile.CommonAddress, point.Ioa),
-                IsMapped = true,
-                SignalName = point.Name,
-                SignalGroup = string.IsNullOrWhiteSpace(point.Group) ? "Profile" : point.Group,
-                SignalType = string.IsNullOrWhiteSpace(point.SignalType) ? $"Type {point.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point.SignalType,
-                DisplayValue = "awaiting live value",
-                RawValue = string.Empty,
-                CauseOfTransmission = "profile pending",
-                AsduType = string.IsNullOrWhiteSpace(point.SignalType) ? string.Empty : point.SignalType,
-                RelayTimeText = "not received",
-                ArrivalTimeUtc = DateTime.UtcNow,
-                ProtocolMode = protocolMode,
-                CommonAddress = point.Ca ?? _ioaProfile.CommonAddress,
-                InformationObjectAddress = point.Ioa,
-                TypeId = point.TypeId,
-                QualityText = "pending"
-            }));
-        }
+            _giExpectedValueKeys.Add(BuildProfileGiKey(point));
 
         if (ordered.Count > 0)
-        {
-            AppendSessionLog($"Values seeded with {ordered.Count} expected IOA points from {_ioaProfile.ProfileName}. Missing profile values stay visible as 'awaiting live value' until the RTU sends the IOA.");
-        }
+            AppendSessionLog($"Loaded {ordered.Count} expected monitor IOAs for GI coverage from {_ioaProfile.ProfileName}. Values displays only accepted RX; unobserved IOAs are diagnosed in GI/Diagnostics.");
     }
 
     private static bool IsMonitorPoint(Iec10xPointMappingEntry point)
@@ -671,7 +653,13 @@ public partial class MainWindow
         // Trusted RX retains its real CA in the separate physical Values key.
         var expected = BuildProfileGiKey(mappedPoint);
         if (_giExpectedValueKeys.Contains(expected))
+        {
             _giReceivedValueKeys.Add(expected);
+            if (mappedPoint.TypeId is int expectedTi &&
+                item.TypeId is int observedTi &&
+                !Iec10xPointTypeFamily.SameObservationFamily(expectedTi, observedTi))
+                _giProfileTiMismatchKeys.Add(expected);
+        }
     }
 
     private void ReportGiCompletenessIfReady(Iec103MasterEvidenceEvent item)
@@ -749,7 +737,7 @@ public partial class MainWindow
             "IEC101-SCAN-PROFILE-PENDING",
             "Profile points still pending after GI/group/Class 2 observation window",
             $"Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points during the GI/group/Class 2 observation window. Pending sample: {sample}",
-            "This is a non-destructive scan note. Values rows stay in waiting state until actual Class 1/Class 2 frames arrive. Verify RTU profile only if the test case requires every IOA to be returned in this window.");
+            "This is a non-destructive scan note; unobserved IOAs are listed here rather than inserted as fake Values rows. Verify RTU publication/group configuration and profile if complete IOA delivery is part of the FAT.");
         AppendSessionLog($"Scan observation note: pending {missing.Length}/{_giExpectedValueKeys.Count} profile points after GI/group/Class 2 window. Sample: {sample}");
     }
 
@@ -768,7 +756,16 @@ public partial class MainWindow
 
         _giCompletenessReported = true;
         _giClass2CollectionWindowActive = false;
-        AppendSessionLog($"GI/Class 2 completeness: PASS. Received {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected profile points.");
+        if (_giProfileTiMismatchKeys.Count > 0)
+        {
+            AddUiDiagnostic("Warning", "Mapping", "IEC101-SCAN-TI-MISMATCH",
+                $"All {_giReceivedValueKeys.Count} expected IOAs observed; {_giProfileTiMismatchKeys.Count} profile TIs disagree",
+                $"The IOAs were genuinely received, but {_giProfileTiMismatchKeys.Count} point Type IDs do not match the Signal List. This is IOA coverage, not profile type conformance.",
+                "Review TI discrepancies in Values and Diagnostics; use the received TI when interpreting the process state. Do not overwrite the RTU's decoded values.");
+            AppendSessionLog($"GI/Class2: {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} IOAs observed; {_giProfileTiMismatchKeys.Count} TI mismatch(es). Profile conformance NOT proven.");
+        }
+        else
+            AppendSessionLog($"GI/Class2: {_giReceivedValueKeys.Count}/{_giExpectedValueKeys.Count} expected IOAs observed with compatible TI. GI completeness beyond the loaded profile remains unproven.");
         return true;
     }
 
@@ -785,8 +782,8 @@ public partial class MainWindow
             "IEC-101",
             "IEC101-GI-CLASS2-COLLECTION",
             isNegativeFallback ? "GI negative confirmation observed; continuing normal scan" : "GI moved to Class 2/background collection window",
-            $"{reason}. Values placeholders are kept neutral; only actual Class 1/Class 2 frames are allowed to update IOA values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting a non-destructive completeness note.",
-            "SCADA master behaviour: GI is a collection trigger, not a reason to mark profile IOAs as failed. Continue bounded Class 1 drain and Class 2/background polling; do not mass-read or overwrite placeholders.");
+            $"{reason}. Only actual Class 1/Class 2 RX appears in Values. Waiting {Math.Ceiling(window.TotalSeconds):0}s before reporting an observation-window coverage note.",
+            "GI activates an interrogation cycle; it does not authorize synthetic Values or prove a complete point database. Continue normal bounded Class 1/Class 2 behaviour.");
         AppendSessionLog($"GI/Class2 collection: {reason}; neutral background collection window ≈{Math.Ceiling(window.TotalSeconds):0}s.");
     }
 
@@ -795,38 +792,6 @@ public partial class MainWindow
         var intervalMs = int.TryParse(Class2IntervalBox.Text, out var configured) ? Math.Max(configured, 500) : 1000;
         var estimatedSeconds = Math.Ceiling(Math.Max(20, _giExpectedValueKeys.Count * intervalMs / 1000.0 * 2.5));
         return TimeSpan.FromSeconds(Math.Clamp((int)estimatedSeconds, 20, 120));
-    }
-
-    private void MarkMissingProfileRows(string displayValue, string cot, string quality)
-    {
-        foreach (var key in _giExpectedValueKeys.Except(_giReceivedValueKeys, StringComparer.OrdinalIgnoreCase).ToArray())
-        {
-            var point = _ioaProfile.Points.FirstOrDefault(x =>
-                string.Equals(BuildProfileGiKey(x), key, StringComparison.OrdinalIgnoreCase));
-            if (point is null) continue;
-            var ioa = point.Ioa;
-            var protocol = GetSelectedProtocolMode();
-            UpsertValueRowStable(new ValueRow(new Iec103ValuePoint
-            {
-                Key = Iec10xObservationIdentity.ValueKey(protocol, null,
-                    point.Ca ?? _ioaProfile.CommonAddress, ioa),
-                IsMapped = true,
-                SignalName = point?.Name ?? $"IOA {ioa}",
-                SignalGroup = string.IsNullOrWhiteSpace(point?.Group) ? "Profile" : point!.Group,
-                SignalType = string.IsNullOrWhiteSpace(point?.SignalType) ? $"Type {point?.TypeId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "-"}" : point!.SignalType,
-                DisplayValue = displayValue,
-                RawValue = string.Empty,
-                CauseOfTransmission = cot,
-                AsduType = string.IsNullOrWhiteSpace(point?.SignalType) ? string.Empty : point!.SignalType,
-                RelayTimeText = "not received",
-                ArrivalTimeUtc = DateTime.UtcNow,
-                ProtocolMode = GetSelectedProtocolMode(),
-                CommonAddress = point?.Ca ?? _ioaProfile.CommonAddress,
-                InformationObjectAddress = ioa,
-                TypeId = point?.TypeId,
-                QualityText = quality
-            }));
-        }
     }
 
 }

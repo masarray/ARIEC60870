@@ -33,6 +33,7 @@ public partial class MainWindow
 {
     private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
     private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
+    private readonly HashSet<(string Source, int Ioa, int ExpectedTi, int ActualTi)> _reportedTiMismatch = new();
     private string? _sessionSubtitleBeforeCaRecovery;
 
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
@@ -164,6 +165,22 @@ public partial class MainWindow
                 SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
                     " · RX CA CONFLICT (multiple stations); see Diagnostics";
         }
+        if (match.TypeMismatch && match.Point?.TypeId is int expectedTi &&
+            _reportedTiMismatch.Count < 160)
+        {
+            var source = string.IsNullOrWhiteSpace(item.PhysicalSource) ? "SINGLE" : item.PhysicalSource;
+            if (_reportedTiMismatch.Add((source, item.InformationObjectAddress.Value, expectedTi, type)))
+            {
+                var info = $"Trusted RX at DL={item.LinkAddress?.ToString() ?? "?"}, ASDU CA={ca}, IOA={item.InformationObjectAddress.Value} " +
+                           $"uses TI{type}, but Signal List defines TI{expectedTi}. " +
+                           "Unique IOA supplies the displayed name only; the incoming ASDU TI governs SP/DP/analog decoding, quality and value.";
+                AddUiDiagnostic("Warning", "Mapping", "IEC101-PROFILE-TI-MISMATCH",
+                    $"TI mismatch: IOA {item.InformationObjectAddress.Value} (profile TI{expectedTi}, RTU TI{type})",
+                    info,
+                    "Review the RTU point database and correct the project Signal List if approved. No automatic control remap, profile write, or TI conversion was performed.");
+                AppendSessionLog("Smart IOA name recovery: " + info);
+            }
+        }
         if (match.FirstAlias)
         {
             var originalCa = _ioaProfile.CommonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?";
@@ -292,6 +309,9 @@ public partial class MainWindow
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
+        var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
+            item.TypeId is int receivedTi &&
+            !Iec10xPointTypeFamily.SameObservationFamily(declaredTi, receivedTi);
         if (ioaPoint is null && shouldShowValue)
             ReportUnmatchedProfileCommonAddress(item);
         var key = BuildValueKey(item);
@@ -326,7 +346,7 @@ public partial class MainWindow
             : !string.IsNullOrWhiteSpace(item.ObjectSummary)
                 ? item.ObjectSummary
                 : item.SignalRawValue;
-        if (ioaPoint is not null)
+        if (ioaPoint is not null && !profileTiMismatch)
         {
             displayValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(displayValue));
         }
@@ -336,7 +356,7 @@ public partial class MainWindow
         {
             previousValue = item.PreviousSignalValue;
         }
-        if (ioaPoint is not null && !string.IsNullOrWhiteSpace(previousValue))
+        if (ioaPoint is not null && !profileTiMismatch && !string.IsNullOrWhiteSpace(previousValue))
         {
             previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
         }
@@ -355,7 +375,7 @@ public partial class MainWindow
                 IsMapped = item.IsMappedSignal || ioaPoint is not null,
                 SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
-                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                SignalType = !profileTiMismatch && !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
                 FunctionType = item.FunctionType,
                 InformationNumber = item.InformationNumber,
                 RawValue = string.IsNullOrWhiteSpace(item.SignalRawValue) ? item.ObjectSummary : item.SignalRawValue,
@@ -434,7 +454,7 @@ public partial class MainWindow
                 IsMapped = item.IsMappedSignal || ioaPoint is not null,
                 SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
-                SignalType = !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
+                SignalType = !profileTiMismatch && !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
                 FunctionType = item.FunctionType,
                 InformationNumber = item.InformationNumber,
                 PreviousValue = string.IsNullOrWhiteSpace(previousValue) ? string.Empty : previousValue,
