@@ -40,6 +40,12 @@ public static class Iec10xTypeIdPresentation
     public static string Tooltip(int? typeId)
         => typeId is null ? "Type unavailable" : $"{Label(typeId)} — {Name(typeId)}";
 
+    // IEC-103 has a different Type ID space; never label its ASDUs using
+    // IEC-101/104 process meanings just because the numeric Type ID matches.
+    public static string Tooltip(int? typeId, string protocol) =>
+        protocol is "101" or "104" ? Tooltip(typeId) :
+        typeId is null ? "Type unavailable" : $"{Label(typeId)} — IEC-103 ASDU";
+
     public static string Compare(int? mapped, int? received)
         => $"Signal List: {Tooltip(mapped)}\nReceived: {Tooltip(received)}";
 }

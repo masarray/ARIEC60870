@@ -43,7 +43,7 @@ public sealed class ValueRow : INotifyPropertyChanged
             !Iec10xPointTypeFamily.SameObservationFamily(mappedTi.Value, item.TypeId.Value);
         TiExplanation = IsTiMismatch
             ? Iec10xTypeIdPresentation.Compare(mappedTi, item.TypeId)
-            : Iec10xTypeIdPresentation.Tooltip(item.TypeId);
+            : Iec10xTypeIdPresentation.Tooltip(item.TypeId, Protocol);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;

@@ -68,7 +68,8 @@ public partial class MainWindow
         Add("Link function", row.Source.Frame?.LinkControl?.FunctionName);
         Add("Link flags", row.LinkFlags);
         Add("Type", row.TypeId == "-" ? row.AsduType :
-            Iec10xTypeIdPresentation.Tooltip(int.TryParse(row.TypeId, out var typeId) ? typeId : null));
+            Iec10xTypeIdPresentation.Tooltip(
+                int.TryParse(row.TypeId, out var typeId) ? typeId : null, row.ProtocolMode));
         var asdu = row.Source.AsduDetails;
         Add("VSQ", asdu is null ? row.Vsq : $"{asdu.ObjectCount} object{(asdu.ObjectCount == 1 ? "" : "s")}",
             row.Vsq, asdu is null ? null : FrameInspectorFieldPresentation.Vsq(

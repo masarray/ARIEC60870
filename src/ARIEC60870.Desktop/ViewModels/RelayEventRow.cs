@@ -47,7 +47,7 @@ public sealed class RelayEventRow
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         TiLabel = Iec10xTypeIdPresentation.Label(item.TypeId);
-        TiExplanation = Iec10xTypeIdPresentation.Tooltip(item.TypeId);
+        TiExplanation = Iec10xTypeIdPresentation.Tooltip(item.TypeId, Protocol);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;

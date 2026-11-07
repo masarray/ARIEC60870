@@ -34,6 +34,15 @@ public sealed class Iec10xTypeIdPresentationTests
     }
 
     [Fact]
+    public void Iec103TypeIdNeverBorrowsIec101PointSemantics()
+    {
+        Assert.Equal("TI-31 — IEC-103 ASDU",
+            Iec10xTypeIdPresentation.Tooltip(31, "103"));
+        Assert.Contains("Double point with timestamp",
+            Iec10xTypeIdPresentation.Tooltip(31, "101"));
+    }
+
+    [Fact]
     public void UnknownTypeIdIsNeverGuessed()
         => Assert.Contains("Unknown", Iec10xTypeIdPresentation.Tooltip(200));
 
