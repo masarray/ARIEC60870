@@ -38,11 +38,11 @@ public sealed class ValueRow : INotifyPropertyChanged
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        TiLabel = item.TypeId.HasValue ? $"TI{item.TypeId.Value}" : "-";
+        TiLabel = Iec10xTypeIdPresentation.Label(item.TypeId);
         IsTiMismatch = mappedTi.HasValue && item.TypeId.HasValue &&
             !Iec10xPointTypeFamily.SameObservationFamily(mappedTi.Value, item.TypeId.Value);
         TiExplanation = IsTiMismatch
-            ? $"Signal List TI{mappedTi}, actual received TI{item.TypeId}. Name associated by unique IOA only; raw TI determines process value and quality. No profile state conversion."
+            ? Iec10xTypeIdPresentation.Compare(mappedTi, item.TypeId)
             : Iec10xTypeIdPresentation.Tooltip(item.TypeId);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
@@ -56,9 +56,8 @@ public sealed class ValueRow : INotifyPropertyChanged
             ((configuredCa.HasValue && item.CommonAddress.Value != configuredCa.Value) ||
              (mappedCa.HasValue && item.CommonAddress.Value != mappedCa.Value));
         DlExplanation = $"Observed FT1.2 DL={LinkAddress}; configured DL={configuredDl?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}. DL and ASDU CA are independent.";
-        CaExplanation = $"Observed ASDU CA={CommonAddress}; configured CA={configuredCa?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}; Signal List CA={mappedCa?.ToString(CultureInfo.InvariantCulture) ?? "unmapped"}. " +
-            (readOnlyAlias ? "Read-only name alignment: trusted wire CA and command target remain unchanged."
-                           : "Displayed value comes from accepted RX; no CA modification.");
+        CaExplanation = $"Received CA: {CommonAddress}\nSignal List CA: {mappedCa?.ToString(CultureInfo.InvariantCulture) ?? "not mapped"}" +
+            (readOnlyAlias ? "\nName match only — no address change." : "");
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoaTooltip = Iec10xIoaPresentation.StructuredTooltip(item.InformationObjectAddress);
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
