@@ -20,6 +20,7 @@ public sealed class PassiveMonitorSession
     private readonly PassiveSerialSource[] _sources;
     private readonly int _streamCount;
     private readonly PassiveIec101ProcessEventClassifier _processEventClassifier;
+    private readonly PassiveWriterGiCasebook _writerGiCasebook;
     // UI-only feed: bounded; loss here never changes raw journal contents.
     private readonly Channel<PassiveChunkPreview> _previews =
         Channel.CreateBounded<PassiveChunkPreview>(new BoundedChannelOptions(256)
@@ -123,6 +124,8 @@ public sealed class PassiveMonitorSession
         _processEventClassifier = new PassiveIec101ProcessEventClassifier(
             options.LinkAddressWidth, options.CotWidth,
             options.CommonAddressWidth, options.InformationAddressWidth);
+        _writerGiCasebook = new PassiveWriterGiCasebook(options.LinkAddressWidth,
+            options.CotWidth, options.CommonAddressWidth, options.InformationAddressWidth);
     }
 
     /// <summary>Starts RX-only monitoring; optional journal is finalized at Stop.</summary>
@@ -175,6 +178,10 @@ public sealed class PassiveMonitorSession
 
     public PassiveLatestPointPage ReadLatestProcessPointsAfter(long revision, int limit = 120) =>
         _processEventClassifier.ReadLatestPointsAfter(revision, limit);
+
+    public PassiveWriterGiSnapshot GetWriterGiSnapshot() => _writerGiCasebook.Snapshot();
+    public bool TryReadWriterGiMilestone(out PassiveWriterGiMilestone milestone) =>
+        _writerGiCasebook.TryReadMilestone(out milestone);
 
     public PassiveProcessEventProgress GetProcessEventProgress()
     {
@@ -697,6 +704,9 @@ public sealed class PassiveMonitorSession
                         // 512-frame lossy WPF preview. Never block on the GUI.
                         processCandidates.Clear();
                         _processEventClassifier.Observe(frame, processCandidates);
+                        // Complete writer stream, never the lossy 512-frame WPF preview,
+                        // owns GI lifecycle and per-object coverage accounting.
+                        _writerGiCasebook.Observe(frame);
                         foreach (var candidate in processCandidates)
                         {
                             Interlocked.Increment(ref _acceptedProcessEvents);
@@ -857,6 +867,7 @@ public sealed class PassiveMonitorSession
                     .ConfigureAwait(false);
                 _timelineWindows.Writer.TryWrite(window);
             }
+            _writerGiCasebook.Complete();
             if (_options.RecordFullSession)
             {
                 foreach (var file in files) await file.FlushAsync().ConfigureAwait(false);

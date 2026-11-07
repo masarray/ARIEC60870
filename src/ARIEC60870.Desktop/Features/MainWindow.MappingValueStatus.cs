@@ -315,7 +315,10 @@ public partial class MainWindow
 
         // These lifecycle engines already consumed the original frame on
         // the normal trace path. A writer-owned SOE fact must not re-advance them.
-        if (!_passiveLedgerFactProjection)
+        if (!_passiveLedgerFactProjection &&
+            !(item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+              _passiveMonitorSession is not null &&
+              item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal)))
         {
         // Every actual typed TX/RX application command is an event fact, independently
         // of whether a process value changed. No fabricated RTU success on ACTCON.
@@ -1101,6 +1104,8 @@ public partial class MainWindow
         FrameTraceRows.Clear();
         _commandCasebook.Reset();
         _giCasebook.Reset();
+        _passiveWriterGiSnapshot = null;
+        _passiveWriterGiRevision = 0;
         GiCaseRows.Clear();
         GiCaseStages.Clear();
         _giCasesDirty = false;

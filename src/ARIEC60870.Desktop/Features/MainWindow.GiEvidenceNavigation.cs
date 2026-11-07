@@ -23,7 +23,10 @@ public partial class MainWindow
         _restoringGiCaseSelection = true;
         try
         {
-            GiCaseRows.ReconcileByKey(_giCasebook.Snapshot().Reverse().ToArray(),
+            // Monitor GI is authored by the complete RX writer; the bounded
+            // WPF frame preview is never a transaction authority.
+            var sourceCases = _passiveWriterGiSnapshot?.Cases ?? _giCasebook.Snapshot();
+            GiCaseRows.ReconcileByKey(sourceCases.Reverse().ToArray(),
                 row => (row.Protocol, row.Source, row.CaseId));
             _giCasesDirty = false;
             var match = selected.HasValue ? GiCaseRows.FirstOrDefault(x => x.CaseId == selected.Value) : null;

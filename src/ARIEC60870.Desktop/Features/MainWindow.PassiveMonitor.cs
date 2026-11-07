@@ -43,6 +43,8 @@ public partial class MainWindow
     private long _passiveLatestPointRevision;
     private long _passiveLatestPointCapacityRejected;
     private long _passiveLatestPointProjectionRejected;
+    private PassiveWriterGiSnapshot? _passiveWriterGiSnapshot;
+    private long _passiveWriterGiRevision;
     private bool _passiveLedgerChangedAtSource;
     private bool _passiveLedgerHadBaselineAtSource;
     private bool _passiveLedgerReadFailed;
@@ -719,6 +721,8 @@ public partial class MainWindow
         _passiveLatestPointRevision = 0;
         _passiveLatestPointCapacityRejected = 0;
         _passiveLatestPointProjectionRejected = 0;
+        _passiveWriterGiSnapshot = null;
+        _passiveWriterGiRevision = 0;
         _passiveLedgerReadFailed = false;
         _passiveLedgerCursor = 0;
         _passiveLedgerPresentationSkipped = 0;
@@ -1001,6 +1005,20 @@ public partial class MainWindow
             if (transport.Fault is not null)
                 PassiveIntegrityText.Text = "Virtual relay fault · capture incomplete";
         }
+        var writerGi = session.GetWriterGiSnapshot();
+        if (_passiveWriterGiSnapshot is null || writerGi.Revision != _passiveWriterGiRevision)
+        {
+            _passiveWriterGiSnapshot = writerGi;
+            _passiveWriterGiRevision = writerGi.Revision;
+            _giCasesDirty = true;
+        }
+        var writerGiEventCount = 0;
+        while (writerGiEventCount < 96 && session.TryReadWriterGiMilestone(out var giMilestone))
+        {
+            AppendProtocolEvent(Iec10xGiEventProjection.Project(
+                giMilestone.Evidence, giMilestone.Milestone), giMilestone.Evidence);
+            writerGiEventCount++;
+        }
         var eventProgress = session.GetProcessEventProgress();
         // These are typed process observations, not a claim that all are
         // physical SOEs or that missing remote FIFO events were transmitted.
@@ -1012,6 +1030,7 @@ public partial class MainWindow
             (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "") +
             (_passiveLatestPointCapacityRejected > 0 ? $" · {_passiveLatestPointCapacityRejected:N0} point identities beyond snapshot capacity" : "") +
             (_passiveLatestPointProjectionRejected > 0 ? $" · {_passiveLatestPointProjectionRejected:N0} point snapshots not projected" : "") +
+            (writerGi.MilestonesNotPresented > 0 ? $" · {writerGi.MilestonesNotPresented:N0} old GI event chips not shown" : "") +
             (eventProgress.DecodeAccounting is { } decode && decode.InvalidVariableFrames > 0
                 ? $" · {decode.InvalidVariableFrames:N0} invalid FT1.2" : "") +
             (eventProgress.DecodeAccounting is { } counted && counted.AsdusRejected > 0
@@ -1019,7 +1038,8 @@ public partial class MainWindow
         PassiveIntegrityText.Foreground = (Brush)FindResource(
             progress.IntegrityWarning || eventProgress.UnindexedObjects > 0 ||
             _passiveLedgerReadFailed || _passiveLatestPointCapacityRejected > 0 ||
-            _passiveLatestPointProjectionRejected > 0 || eventProgress.DecodeAccounting is
+            _passiveLatestPointProjectionRejected > 0 || writerGi.MilestonesNotPresented > 0 ||
+            eventProgress.DecodeAccounting is
                 { InvalidVariableFrames: > 0 } or { AsdusRejected: > 0 }
                 ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
