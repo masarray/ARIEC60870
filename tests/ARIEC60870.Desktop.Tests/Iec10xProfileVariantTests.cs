@@ -198,7 +198,7 @@ public sealed class Iec10xProfileVariantTests
         Assert.Equal("1", row.CommonAddress);
         Assert.True(row.IsCaMismatch);
         Assert.False(row.IsDlMismatch);
-        Assert.Contains("Read-only", row.CaExplanation);
+        Assert.Contains("Name match only", row.CaExplanation);
         Assert.Contains("16712686", row.Address);
     }
 
@@ -246,9 +246,9 @@ public sealed class Iec10xProfileVariantTests
             CommonAddress = 1, TypeId = 1,
             InformationObjectAddress = 16712694, SignalName = "LOCAL REMOTE CB"
         }, wireDl: 105, configuredDl: 105, mappedTi: 31);
-        Assert.Equal("TI1", row.TiLabel);
+        Assert.Equal("TI-1", row.TiLabel);
         Assert.True(row.IsTiMismatch);
-        Assert.Contains("TI31", row.TiExplanation);
+        Assert.Contains("TI-31", row.TiExplanation);
         Assert.Contains("IOA3 (HIGH)", row.IoaTooltip);
         var compatible = new ValueRow(new Iec103ValuePoint
         {

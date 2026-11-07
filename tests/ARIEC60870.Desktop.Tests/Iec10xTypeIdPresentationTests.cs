@@ -9,18 +9,37 @@ namespace ARIEC60870.Desktop.Tests;
 public sealed class Iec10xTypeIdPresentationTests
 {
     [Theory]
-    [InlineData(13, "M_ME_NC_1")]
-    [InlineData(30, "M_SP_TB_1")]
-    [InlineData(31, "M_DP_TB_1")]
-    [InlineData(32, "M_ST_TB_1")]
-    [InlineData(36, "M_ME_TF_1")]
-    [InlineData(45, "C_SC_NA_1")]
-    [InlineData(100, "C_IC_NA_1")]
+    [InlineData(13, "Floating-point measurement")]
+    [InlineData(30, "Single point with timestamp")]
+    [InlineData(31, "Double point with timestamp")]
+    [InlineData(32, "Step position with timestamp")]
+    [InlineData(36, "Floating-point measurement with timestamp")]
+    [InlineData(45, "Single command")]
+    [InlineData(100, "General interrogation")]
     public void KnownTypeIdRetainsWireNumberAndStandardIdentifier(int ti, string symbol)
     {
         var tooltip = Iec10xTypeIdPresentation.Tooltip(ti);
-        Assert.Contains($"TI{ti}", tooltip);
+        Assert.Contains($"TI-{ti}", tooltip);
+        Assert.DoesNotContain("CP56", tooltip);
         Assert.Contains(symbol, tooltip);
+    }
+
+    [Fact]
+    public void MismatchedTypesShowTwoShortHumanReadableDescriptions()
+    {
+        var text = Iec10xTypeIdPresentation.Compare(11, 13);
+        Assert.Contains("Signal List: TI-11 — Scaled measurement", text);
+        Assert.Contains("Received: TI-13 — Floating-point measurement", text);
+        Assert.DoesNotContain("conversion", text);
+    }
+
+    [Fact]
+    public void Iec103TypeIdNeverBorrowsIec101PointSemantics()
+    {
+        Assert.Equal("TI-31 — IEC-103 ASDU",
+            Iec10xTypeIdPresentation.Tooltip(31, "103"));
+        Assert.Contains("Double point with timestamp",
+            Iec10xTypeIdPresentation.Tooltip(31, "101"));
     }
 
     [Fact]
