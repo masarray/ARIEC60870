@@ -90,6 +90,41 @@ public sealed class Iec10xProfileVariantTests
         Assert.Null(blocked.Observe("SINGLE", 1, 5, 30).Point);
     }
 
+    [Theory]
+    [InlineData(31, 1, true)]   // DP project, SP observed: name only
+    [InlineData(11, 13, true)]  // scaled project, float observed
+    [InlineData(30, 13, false)] // digital name must not label analog value
+    [InlineData(46, 3, false)]  // command must never label process feedback
+    public void UniqueIoaMaySupplyNameWithExplicitTiMismatch(int expected, int observed, bool accepted)
+    {
+        var profile = new Iec10xPointMappingProfile
+        {
+            CommonAddress = 105,
+            Points = [new() { Ca = 105, Ioa = 16712694, TypeId = expected, Name = "Approved IOA name" }]
+        };
+        var result = new Iec10xRuntimeCaReconciler(profile).Observe("SINGLE", 1, 16712694, observed);
+        Assert.Equal(accepted, result.Point is not null);
+        Assert.Equal(accepted, result.TypeMismatch);
+        Assert.Equal(accepted, result.ReadOnlyAlias);
+        Assert.Null(profile.ResolveObservedSignal(1, 16712694, observed));
+    }
+
+    [Fact]
+    public void MultipleProjectDefinitionsAtSameIoaNeverAutoNameWrongTi()
+    {
+        var profile = new Iec10xPointMappingProfile
+        {
+            CommonAddress = 105,
+            Points =
+            [
+                new() { Ca = 105, Ioa = 100, TypeId = 30, Name = "SP" },
+                new() { Ca = 105, Ioa = 100, TypeId = 31, Name = "DP" }
+            ]
+        };
+        var result = new Iec10xRuntimeCaReconciler(profile).Observe("SINGLE", 1, 100, 3);
+        Assert.Null(result.Point);
+    }
+
     [Fact]
     public void MismatchedCaIsDiagnosedButNeverAliasedAutomatically()
     {

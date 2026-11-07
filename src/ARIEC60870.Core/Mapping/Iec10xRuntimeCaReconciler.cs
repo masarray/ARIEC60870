@@ -13,6 +13,10 @@ public sealed class Iec10xRuntimeCaReconciler
 {
     private readonly Iec10xPointMappingProfile _profile;
     private readonly int? _singleProfileCa;
+    // Pre-index the approved single-station monitor IOAs once. Duplicates
+    // deliberately become ambiguous rather than claiming an arbitrary name.
+    private readonly Dictionary<int, Iec10xPointMappingEntry> _uniqueMonitorIoas = new();
+    private readonly HashSet<int> _ambiguousMonitorIoas = new();
     private readonly Dictionary<string, SourceState> _sources = new(StringComparer.OrdinalIgnoreCase);
     private sealed class SourceState
     {
@@ -26,8 +30,35 @@ public sealed class Iec10xRuntimeCaReconciler
         if (profile.CommonAddress is int ca && ca is >= 0 and <= 65535 &&
             profile.Points.Count > 0 &&
             profile.Points.All(p => (p.Ca ?? profile.CommonAddress) == ca))
+        {
             _singleProfileCa = ca;
+            foreach (var point in profile.Points)
+            {
+                if (point.TypeId is not int ti ||
+                    !Iec10xPointTypeFamily.SameProcessKind(ti, ti) ||
+                    IsControlProfilePoint(point) ||
+                    _ambiguousMonitorIoas.Contains(point.Ioa))
+                    continue;
+                if (!_uniqueMonitorIoas.TryAdd(point.Ioa, point))
+                {
+                    _uniqueMonitorIoas.Remove(point.Ioa);
+                    _ambiguousMonitorIoas.Add(point.Ioa);
+                }
+            }
+        }
     }
+
+    private static bool IsControlProfilePoint(Iec10xPointMappingEntry p)
+    {
+        if (p.TypeId is >= 45 and <= 64) return true;
+        var policy = p.CommandPolicy ?? string.Empty;
+        return policy.Contains("Command", StringComparison.OrdinalIgnoreCase) ||
+               policy.Contains("RemoteOnly", StringComparison.OrdinalIgnoreCase) ||
+               policy.Contains("Control", StringComparison.OrdinalIgnoreCase) ||
+               policy.Contains("Setpoint", StringComparison.OrdinalIgnoreCase) ||
+               policy.Contains("Regulating", StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool IsSingleStation => _singleProfileCa.HasValue;
 
     public Result Observe(string? source, int ca, int ioa, int typeId)
@@ -49,19 +80,25 @@ public sealed class Iec10xRuntimeCaReconciler
             state.Conflict = true;
             return new(strict, false, false, firstConflict);
         }
-        if (state.Conflict || strict is not null || ca == _singleProfileCa)
+        if (state.Conflict || strict is not null)
             return new(strict, false, false, false);
-        // No cross-station IOA-only alias. Enforce one unique CA + typed
-        // point family; actual source CA is never re-keyed.
-        if (_profile.FindUniqueMismatchedCommonAddress(ca, ioa, typeId) != _singleProfileCa)
+
+        // An exact (CA, IOA, TI-family) match always wins. Name-only fallback
+        // is permitted only for a unique project monitor IOA within one known
+        // station, for a compatible process category (SP vs DP, scaled vs float).
+        // Preserve the original TI's semantics and display a type mismatch.
+        if (!_uniqueMonitorIoas.TryGetValue(ioa, out var candidate) ||
+            candidate.TypeId is not int profileTi ||
+            !Iec10xPointTypeFamily.SameProcessKind(profileTi, typeId))
             return default;
-        var candidate = _profile.ResolveObservedSignal(_singleProfileCa, ioa, typeId);
-        if (candidate is null) return default;
-        var first = !state.Reported;
-        state.Reported = true;
-        return new(candidate, true, first, false);
+
+        var caAlias = ca != _singleProfileCa;
+        var first = caAlias && !state.Reported;
+        if (caAlias) state.Reported = true;
+        var tiMismatch = !Iec10xPointTypeFamily.SameObservationFamily(profileTi, typeId);
+        return new(candidate, caAlias, first, false, tiMismatch);
     }
     public readonly record struct Result(
         Iec10xPointMappingEntry? Point, bool ReadOnlyAlias,
-        bool FirstAlias, bool SourceCaConflict);
+        bool FirstAlias, bool SourceCaConflict, bool TypeMismatch = false);
 }
