@@ -33,6 +33,7 @@ public partial class MainWindow
 {
     private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
     private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
+    private string? _sessionSubtitleBeforeCaRecovery;
 
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
     {
@@ -159,6 +160,9 @@ public partial class MainWindow
                 $"Observed more than one ASDU CA on {item.PhysicalSource}; read-only auto-name alignment is suspended. Raw CA/IOA physical identities remain separate.",
                 "Review station addressing before associating a project signal name. No settings, wire frames or control targets were changed.");
             AppendSessionLog("Smart CA alignment suspended: conflicting station CAs on the same source.");
+            if (_sessionSubtitleBeforeCaRecovery is not null)
+                SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
+                    " · RX CA CONFLICT (multiple stations); see Diagnostics";
         }
         if (match.FirstAlias)
         {
@@ -170,6 +174,14 @@ public partial class MainWindow
                 $"Smart CA recovery: profile {originalCa} → RTU {ca}", message,
                 "Communication and Values continue automatically. Review CA in Setup; optional 'Align to observed CA' can save a separate project profile. Control commands require an explicit CA.");
             MappingProfileStatusText.Text = $"Smart CA: observed {ca} / profile {originalCa} — read-only aligned; Diagnostics has details.";
+            // Keep the configured CA visible, but do not let it look like the
+            // observed RTU CA. This compact status is deliberately in the
+            // always-visible header, not only in hidden Setup/Diagnostics.
+            _sessionSubtitleBeforeCaRecovery ??= SessionSubtitleText.Text;
+            var observedDl = (item.LinkAddress ?? item.Frame?.LinkAddress)?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? "?";
+            SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
+                $" · RX DL={observedDl} / CA={ca} ! (setup {CommonAddressBox.Text}, profile {originalCa})";
             AppendSessionLog("Smart CA recovery: " + message);
         }
         return match.Point ?? strict;

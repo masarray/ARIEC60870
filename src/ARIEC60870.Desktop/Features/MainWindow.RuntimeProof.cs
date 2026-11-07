@@ -581,6 +581,7 @@ public partial class MainWindow
         _giReceivedValueKeys.Clear();
         _runtimeCaReconciler = new Iec10xRuntimeCaReconciler(_ioaProfile);
         _reportedProfileCaMismatchSources.Clear();
+        _sessionSubtitleBeforeCaRecovery = null;
         _giClass2CollectionWindowActive = false;
         _giClass2CollectionUntilUtc = DateTime.MinValue;
         _firstObservedRuntimeCa = null;
