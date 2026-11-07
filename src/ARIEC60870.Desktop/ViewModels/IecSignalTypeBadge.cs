@@ -10,6 +10,22 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public sealed record IecSignalTypeBadge(string Label, string Family)
 {
+    public string Explanation => Label switch
+    {
+        "SPS" => "SPS — Single-Point Status",
+        "DPS" => "DPS — Double-Point Status",
+        "STP" => "STP — Step Position",
+        "BSI" => "BSI — Bitstring Information",
+        "NVA" => "NVA — Normalized Measured Value",
+        "INT" => "INT — Scaled Integer Measured Value",
+        "FLT" => "FLT — Short Floating-Point Measured Value",
+        "BCR" => "BCR — Binary Counter Reading",
+        "GI" => "GI — General Interrogation",
+        "SPC" => "SPC — Single Command",
+        "DPC" => "DPC — Double Command",
+        _ => $"{Label} — {Family}"
+    };
+
     // Immutable singleton chips: the UI never allocates a second dictionary
     // or parses signal names for each frame, point or grid refresh.
     private static readonly IReadOnlyDictionary<int, IecSignalTypeBadge> ByTypeId = Build();

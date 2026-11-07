@@ -25,6 +25,8 @@
         <!-- Visual-only badge: family does not imply quality, state or command success. -->
         <DataTemplate x:Key="IecSignalTypeBadgeTemplate">
             <Border x:Name="FamilyBorder" CornerRadius="4" Padding="5,2"
+                    ToolTip="{Binding Explanation}" ToolTipService.IsEnabled="True"
+                    ToolTipService.InitialShowDelay="500"
                     Background="#E8F0FB" BorderBrush="#C8DBF4"
                     BorderThickness="1" SnapsToDevicePixels="True">
                 <TextBlock x:Name="FamilyText" Text="{Binding Label}"
@@ -1357,7 +1359,7 @@
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="145" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="205" MinWidth="195" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
@@ -1372,8 +1374,15 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="59" MinWidth="55"
-                                                        ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="59" MinWidth="55">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
+                                                <Setter Property="ToolTip" Value="{Binding TiExplanation}"/>
+                                                <Setter Property="ToolTipService.IsEnabled" Value="True"/>
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="500"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />
                                     
                                     <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />

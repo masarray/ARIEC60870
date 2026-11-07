@@ -43,7 +43,7 @@ public sealed class ValueRow : INotifyPropertyChanged
             !Iec10xPointTypeFamily.SameObservationFamily(mappedTi.Value, item.TypeId.Value);
         TiExplanation = IsTiMismatch
             ? $"Signal List TI{mappedTi}, actual received TI{item.TypeId}. Name associated by unique IOA only; raw TI determines process value and quality. No profile state conversion."
-            : $"Received {TiLabel}. Type ID is decoded from original ASDU.";
+            : Iec10xTypeIdPresentation.Tooltip(item.TypeId);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
