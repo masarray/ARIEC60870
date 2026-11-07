@@ -62,7 +62,6 @@ public sealed class RelayEventRow
         var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
         QualityChips = quality.Chips;
         QualityDetail = quality.Tooltip;
-        QualityRawLabel = quality.CleanRawLabel;
         IsQualityInvalid = quality.IsInvalid;
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
@@ -102,7 +101,6 @@ public sealed class RelayEventRow
     public string Address { get; }
     public string Quality { get; }
     public string QualityDetail { get; }
-    public string QualityRawLabel { get; }
     public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }

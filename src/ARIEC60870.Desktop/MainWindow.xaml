@@ -165,9 +165,6 @@
                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
-                <TextBlock Text="{Binding QualityRawLabel}" FontSize="10.0"
-                           Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"/>
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="ForensicCotCellTemplate">

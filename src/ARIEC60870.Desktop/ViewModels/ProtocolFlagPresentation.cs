@@ -15,7 +15,7 @@ public sealed record ProtocolFlagChip(string Text, string Tone);
 /// </summary>
 public sealed record ProtocolQualityPresentation(
     IReadOnlyList<ProtocolFlagChip> Chips,
-    string Tooltip, string CleanRawLabel, bool IsInvalid);
+    string Tooltip, bool IsInvalid);
 
 public static class ProtocolFlagPresentation
 {
@@ -29,10 +29,10 @@ public static class ProtocolFlagPresentation
         if (q is not null)
             return QualityCache.GetOrAdd(((int)q.Kind << 8) | q.Raw, _ => BuildQuality(q));
         if (iec10x || string.IsNullOrWhiteSpace(legacy) || legacy == "-")
-            return new(Unknown, "Quality byte not present in the decoded evidence — not assumed Good.", "", false);
+            return new(Unknown, "Quality byte not present in the decoded evidence — not assumed Good.", false);
         // IEC-103 quality metadata is not an IEC-10x SIQ/DIQ/QDS/BCR byte.
         return new([new ProtocolFlagChip(legacy.Length > 20 ? "Info" : legacy, "Neutral")],
-            legacy, "", false);
+            legacy, false);
     }
 
     public static IReadOnlyList<ProtocolFlagChip> Quality(Iec10xQualityDetails? q, string? legacy, bool iec10x)
@@ -79,7 +79,6 @@ public static class ProtocolFlagPresentation
                 $"SQ={q.CounterSequence} · CY={Bit(q.Carry)} · CA={Bit(q.Adjusted)} · IV={Bit(q.Invalid)}",
             _ => ""
         };
-        return new(chips, $"{type} 0x{q.Raw:X2}\n{flags}",
-            active.Count == 0 ? $"{type} 0x{q.Raw:X2}" : "", q.Invalid);
+        return new(chips, $"{type} 0x{q.Raw:X2}\n{flags}", q.Invalid);
     }
 }

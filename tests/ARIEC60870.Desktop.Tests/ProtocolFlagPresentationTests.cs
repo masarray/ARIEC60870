@@ -64,7 +64,7 @@ public sealed class ProtocolFlagPresentationTests
         Assert.Contains("NT=1", visual.Tooltip);
         Assert.Contains("SB=1", visual.Tooltip);
         Assert.Contains("BL=1", visual.Tooltip);
-        Assert.Equal("", visual.CleanRawLabel);
+        Assert.Contains("QDS 0xF1", visual.Tooltip);
 
         var value = new ValueRow(new Iec103ValuePoint
         {
@@ -123,7 +123,7 @@ public sealed class ProtocolFlagPresentationTests
             asdu.Objects[1].QualityText, true);
         Assert.Equal(["IV", "OV"], first.Chips.Select(x => x.Text));
         Assert.Equal("Good", Assert.Single(second.Chips).Text);
-        Assert.Equal("QDS 0x00", second.CleanRawLabel);
+        Assert.Contains("QDS 0x00", second.Tooltip);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class ProtocolFlagPresentationTests
         var siq = Iec10xQualityDetails.Decode(1, [0x01]);
         var visual = ProtocolFlagPresentation.QualityState(siq, "Good", true);
         Assert.Equal("Good", Assert.Single(visual.Chips).Text);
-        Assert.Equal("SIQ 0x01", visual.CleanRawLabel);
+        Assert.Contains("SIQ 0x01", visual.Tooltip);
         Assert.Contains("IV=0", visual.Tooltip);
         Assert.DoesNotContain("OV=", visual.Tooltip);
         Assert.False(visual.IsInvalid);
