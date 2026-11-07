@@ -68,6 +68,7 @@ public partial class MainWindow
             else
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(fileName);
+                ResetReadOnlyNameAliasCache();
                 MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
                 var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
@@ -90,6 +91,7 @@ public partial class MainWindow
     {
         _mappingProfile = Iec103SignalMappingProfile.Empty;
         _ioaProfile = Iec10xPointMappingProfile.Empty;
+        ResetReadOnlyNameAliasCache();
         MappingProfilePathBox.Text = string.Empty;
         RefreshIoaProfileRows();
         MappingProfileStatusText.Text = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103
@@ -120,6 +122,7 @@ public partial class MainWindow
         if (editor.ShowDialog() == true)
         {
             _ioaProfile = editor.Profile;
+            ResetReadOnlyNameAliasCache();
             MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(editor.SavedProfilePath);
             ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
             var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
@@ -131,6 +134,15 @@ public partial class MainWindow
     }
 
 
+    // A loaded Signal List may change without restarting the serial Monitor.
+    // Never retain a CA/IOA name index from the previous project profile.
+    private void ResetReadOnlyNameAliasCache()
+    {
+        _runtimeCaReconciler = null;
+        _reportedTiMismatch.Clear();
+        _reportedProfileCaMismatchSources.Clear();
+    }
+
     private Iec10xPointMappingEntry? ResolveIoaPoint(Iec103MasterEvidenceEvent item)
     {
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104))
@@ -141,14 +153,25 @@ public partial class MainWindow
         if (!item.InformationObjectAddress.HasValue) return null;
         var strict = _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
             item.InformationObjectAddress.Value, item.TypeId);
-        // The adapter is read-only and requires a trusted active IEC-101
-        // process observation. Passive and multi-CA profiles remain strict.
+        // The canonical Monitor writer, not its lossy live frame preview,
+        // establishes trustworthy process facts for both Physical RX-only and
+        // Virtual Inline. Permit read-only unique IOA names for those facts,
+        // just as for accepted active-Master observations. Do NOT apply alias
+        // reconciliation to preview frames, malformed ASDUs, commands or TX.
+        var passiveWriterFact = _passiveLedgerFactProjection &&
+            item.PollingReason == "PASSIVE-LEDGER" &&
+            item.PhysicalStreamId is >= 0 and <= 3 &&
+            item.RawStreamOffset is >= 0 &&
+            item.AsduDetails is { Issues.Count: 0 } &&
+            item.InformationObjectDetails is { Issues.Count: 0 };
+        var activeMasterFact = !_passiveLedgerFactProjection &&
+            !IsIec101PassiveMonitorSelected() &&
+            !item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal);
         if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
             item.Direction != FrameDirection.SlaveToMaster ||
             !IsIec10xProcessValue(item) ||
             !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
-            _passiveLedgerFactProjection || IsIec101PassiveMonitorSelected() ||
-            item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal) ||
+            !(passiveWriterFact || activeMasterFact) ||
             item.CommonAddressNumber is not int ca || item.TypeId is not int type)
             return strict;
         _runtimeCaReconciler ??= new Iec10xRuntimeCaReconciler(_ioaProfile);
@@ -184,9 +207,13 @@ public partial class MainWindow
         if (match.FirstAlias)
         {
             var originalCa = _ioaProfile.CommonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?";
-            var message = $"Configured CA={CommonAddressBox.Text}, Signal List CA={originalCa}, observed RTU CA={ca}; " +
-                $"IEC-101 Link Address={LinkAddressBox.Text} remains unchanged. Read-only signal-name/coverage alignment is active " +
-                "for this one station and source. Protocol GI retry uses validated observed CA. No settings, profile, command address or evidence bytes are changed.";
+            var message = passiveWriterFact
+                ? $"Accepted IEC-101 Monitor RX on {item.PhysicalSource}: actual ASDU CA={ca}, Signal List CA={originalCa}. " +
+                  "A unique IOA supplies its displayed name only; actual DL/CA/TI/value/quality, recording and protocol traffic remain unchanged. " +
+                  "This capture cannot transmit GI or modify the RTU."
+                : $"Configured CA={CommonAddressBox.Text}, Signal List CA={originalCa}, observed RTU CA={ca}; " +
+                  $"IEC-101 Link Address={LinkAddressBox.Text} remains unchanged. Read-only signal-name/coverage alignment is active " +
+                  "for this one station and source. Protocol GI retry uses validated observed CA. No settings, profile, command address or evidence bytes are changed.";
             AddUiDiagnostic("Warning", "IEC-101", "IEC101-SMART-CA-AUTO-ALIGNED",
                 $"Smart CA recovery: profile {originalCa} → RTU {ca}", message,
                 "Communication and Values continue automatically. Review CA in Setup; optional 'Align to observed CA' can save a separate project profile. Control commands require an explicit CA.");
@@ -198,7 +225,9 @@ public partial class MainWindow
             var observedDl = (item.LinkAddress ?? item.Frame?.LinkAddress)?.ToString(
                 System.Globalization.CultureInfo.InvariantCulture) ?? "?";
             SessionSubtitleText.Text = _sessionSubtitleBeforeCaRecovery +
-                $" · RX DL={observedDl} / CA={ca} ! (setup {CommonAddressBox.Text}, profile {originalCa})";
+                (passiveWriterFact
+                    ? $" · RX DL={observedDl} / CA={ca} · Signal List CA={originalCa} (name-only)"
+                    : $" · RX DL={observedDl} / CA={ca} ! (setup {CommonAddressBox.Text}, profile {originalCa})");
             AppendSessionLog("Smart CA recovery: " + message);
         }
         return match.Point ?? strict;

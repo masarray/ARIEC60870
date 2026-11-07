@@ -2536,7 +2536,7 @@
                                 <ComboBoxItem Content="IEC 60870-5-103 - Protection relay serial" />
                                 <ComboBoxItem Content="IEC 60870-5-101 - Telecontrol serial" />
                                 <ComboBoxItem Content="IEC 60870-5-101 - Dual link redundancy" />
-                                <ComboBoxItem Content="IEC 60870-5-101 - Passive Monitor (RX only)" />
+                                <ComboBoxItem Content="IEC 60870-5-101 - Passive Monitor" />
                                 <ComboBoxItem Content="IEC 60870-5-104 - Telecontrol TCP/IP" />
                             </ComboBox>
 
@@ -2571,15 +2571,27 @@
                             </ComboBox>
 
                             <StackPanel x:Name="SerialConnectionPanel">
+                                <StackPanel x:Name="PassiveCaptureSourcePanel" Visibility="Collapsed" Margin="0,0,0,12">
+                                    <TextBlock Text="CAPTURE SOURCE" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                    <ComboBox x:Name="PassiveSourceComboBox" SelectedIndex="0"
+                                              SelectionChanged="PassiveSourceComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Physical RX-only"/>
+                                        <ComboBoxItem Content="Virtual Inline"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="PassiveVirtualHelpText" Visibility="Collapsed" Margin="0,7,0,0"
+                                               TextWrapping="Wrap" FontSize="10.5"
+                                               Foreground="{StaticResource Ink600Brush}"
+                                               Text="Inline forwarding between the two selected serial ports. The opposite endpoints are owned by your Master and Slave applications."/>
+                                </StackPanel>
                                 <TextBlock x:Name="SerialConnectionTitleText" Text="SERIAL CONNECTION" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="PortComboBox" Grid.Column="0" />
+                                    <ComboBox x:Name="PortComboBox" Grid.Column="0" SelectionChanged="PassiveRelayPort_SelectionChanged" />
                                     <Button Grid.Column="2" Content="Refresh" Style="{StaticResource SecondaryButton}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                                    <TextBlock Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="PassiveRtuPortComboBox" ToolTip="Listen to Link A RTU TX using a dedicated receive-only input."/>
+                                    <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
+                                    <ComboBox x:Name="PassiveRtuPortComboBox" SelectionChanged="PassiveRelayPort_SelectionChanged" ToolTip="Physical RX input or selected Slave-side Virtual Inline relay endpoint."/>
                                     <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Content="Also monitor redundant Link B (4 RX ports)"
                                               Margin="0,12,0,6" Checked="PassiveLinkBSelectionChanged" Unchecked="PassiveLinkBSelectionChanged"
                                               ToolTip="Capture both independent IEC-101 full-duplex circuits at the same time. All four COM inputs must be receiver-only."/>

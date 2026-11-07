@@ -58,8 +58,10 @@ public sealed class RelayEventRow
         Address = Protocol is "101" or "104"
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
-        Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
-        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
+        var rawQuality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
+        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, rawQuality,
+            Protocol is "101" or "104", item.TypeId, item.TransactionKind);
+        Quality = quality.Chips.Count == 1 && quality.Chips[0].Text == "—" ? "N/A" : rawQuality;
         QualityChips = quality.Chips;
         QualityDetail = quality.Tooltip;
         IsQualityInvalid = quality.IsInvalid;

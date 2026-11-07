@@ -244,7 +244,11 @@ public sealed partial class EvidenceRow
         UFormatName = "-";
         ObjectCount = Source.AsduDetails?.ObjectCount.ToString(CultureInfo.InvariantCulture) ?? "-";
         SequenceMode = Source.AsduDetails is { } decoded ? (decoded.IsSequence ? "SQ=1" : "SQ=0") : "-";
-        Quality = Source.QualityDetails?.DisplayText ?? (Source.Frame is { IsChecksumValid: false } ? "Invalid frame" :
+        // Preserve restored original frame semantics ahead of legacy JSONL
+        // quality text. TI100 GI and service ASDUs cannot have process QDS.
+        var restoredQuality = BuildQualityText(Source);
+        Quality = restoredQuality == "N/A" ? "N/A" :
+            Source.QualityDetails?.DisplayText ?? (Source.Frame is { IsChecksumValid: false } ? "Invalid frame" :
             string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality);
         Fun = "-";
         Inf = "-";
@@ -561,6 +565,14 @@ public sealed partial class EvidenceRow
 
     private static string BuildQualityText(Iec103MasterEvidenceEvent item)
     {
+        if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+            item.QualityDetails is null && item.InformationObjectDetails?.QualityDetails is null)
+        {
+            var applicability = ProtocolFlagPresentation.QualityState(
+                null, item.QualityText, true, item.TypeId);
+            if (applicability.Chips.Count == 1 && applicability.Chips[0].Text == "—")
+                return "N/A";
+        }
         if (!string.IsNullOrWhiteSpace(item.QualityText))
         {
             return item.QualityText;

@@ -273,6 +273,14 @@ public sealed class PassiveMonitorSession
             WriteManifest(root, Snapshot(id, "Recording", startUtc, startUtc, origin));
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // The active virtual transport must STOP forwarding as soon as its owning
+        // Monitor is cancelled or a virtual read source faults. Passive physical
+        // receivers deliberately keep their independent failure policy.
+        using var virtualRelayStop = _options.CaptureSource == "Virtual Inline (VSPE)" &&
+            _taps[0] is IVirtualInlineIngressAccounting virtualIngress
+                ? stop.Token.Register(static source =>
+                    ((IVirtualInlineIngressAccounting)source!).StopRelay(), virtualIngress)
+                : default;
         var channel = Channel.CreateBounded<OwnedCaptureRecord>(new BoundedChannelOptions(_options.ChannelCapacity)
         {
             SingleReader = true,
@@ -332,6 +340,44 @@ public sealed class PassiveMonitorSession
                 if (tap.DriverErrorCount == 0) continue;
                 Interlocked.Exchange(ref _integrityUncertain, 1);
                 _warnings.Enqueue(tap.PortName + " reported " + tap.DriverErrorCount + " UART driver error notification(s).");
+            }
+            // Virtual forwarding is not capture evidence: reconcile three distinct
+            // byte boundaries AFTER both pumps have quiesced. A user Stop during a
+            // burst may leave ingress chunks in the bounded observation tee.
+            // Never label such an interrupted virtual capture complete.
+            if (_options.CaptureSource == "Virtual Inline (VSPE)")
+            {
+                for (var i = 0; i < _streamCount; i++)
+                {
+                    if (_taps[i] is not IVirtualInlineIngressAccounting ingress)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue("Virtual ingress " + _sources[i].PortName +
+                            " does not expose verified source accounting.");
+                        continue;
+                    }
+                    var evidence = ingress.GetIngressAccounting();
+                    var committed = Interlocked.Read(ref _writtenBytes[i]);
+                    if (evidence.IngressBytes != evidence.CapturedBytes ||
+                        evidence.CapturedBytes != evidence.ConsumedBytes ||
+                        evidence.ConsumedBytes != committed ||
+                        evidence.WriteAttemptedBytes != evidence.IngressBytes ||
+                        evidence.WriteCompletedBytes != evidence.WriteAttemptedBytes ||
+                        evidence.WriteUncertainBytes != 0 || evidence.CaptureRejectedBytes != 0)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue($"Virtual {evidence.IngressPort}: RX {evidence.IngressBytes}, " +
+                            $"tee accepted {evidence.CapturedBytes}, monitor consumed {evidence.ConsumedBytes}, " +
+                            $"writer committed {committed}; TX attempted {evidence.WriteAttemptedBytes}, " +
+                            $"driver completed {evidence.WriteCompletedBytes}, uncertain {evidence.WriteUncertainBytes}, " +
+                            $"tee rejected {evidence.CaptureRejectedBytes}. Capture/transport is incomplete.");
+                    }
+                    if (i == 0 && ingress.RelayFault is { } fault)
+                    {
+                        Interlocked.Exchange(ref _integrityUncertain, 1);
+                        _warnings.Enqueue("Virtual duplex relay fault: " + fault);
+                    }
+                }
             }
             // Writer terminal audit: no accepted source object may vanish
             // between classification and the canonical temporary fact index.
@@ -409,8 +455,11 @@ public sealed class PassiveMonitorSession
                 Interlocked.Exchange(ref _integrityUncertain, 1);
                 _warnings.Enqueue("RX source " + tap.PortName + " failed: " +
                     ex.GetType().Name + ": " + ex.Message +
-                    ". This source stopped; remaining RX sources continue. " +
-                    "Capture completeness is uncertain.");
+                    (_options.CaptureSource == "Virtual Inline (VSPE)"
+                        ? ". Duplex relay and both Monitor directions are stopping; capture incomplete."
+                        : ". This source stopped; remaining RX sources continue. Capture completeness is uncertain."));
+                if (_options.CaptureSource == "Virtual Inline (VSPE)")
+                    stop.Cancel(); // Linked cancellation closes BOTH active virtual endpoints.
                 break;
             }
             finally
@@ -857,6 +906,7 @@ public sealed class PassiveMonitorSession
         {
             SessionId = id,
             Status = status,
+            CaptureSource = _options.CaptureSource,
             Warnings = _warnings.ToArray(),
             StartUtc = started,
             EndUtc = ended,
@@ -868,6 +918,19 @@ public sealed class PassiveMonitorSession
             InformationAddressWidth = _options.InformationAddressWidth,
             FrameGapMilliseconds = _options.FrameGapMilliseconds,
             LinkMode = _options.LinkMode,
+            PhysicalSafetyLimitations = _options.CaptureSource == "Virtual Inline (VSPE)"
+                ? new[]
+                {
+                    "ACTIVE byte relay with two virtual COM ports; NOT a passive electrical tap.",
+                    "Driver write completion does not prove external Master/Slave receipt.",
+                    "VSPE does not prove physical UART timing, modem-line transparency or field connectivity."
+                }
+                : new[]
+                {
+                    "Two RX COMs observe one full-duplex link; four RX COMs observe two separately tapped links.",
+                    "Monitor TXD/RTS/DTR must be physically disconnected from plant; software flags cannot guarantee isolation.",
+                    "Use an approved isolated/high-impedance tap and preserve original handshaking."
+                },
             AcceptedProcessEventObjects = Interlocked.Read(ref _acceptedProcessEvents),
             IndexedProcessEventObjects = Interlocked.Read(ref _indexedProcessEvents),
             UnindexedProcessEventObjects = Interlocked.Read(ref _unindexedProcessEvents),

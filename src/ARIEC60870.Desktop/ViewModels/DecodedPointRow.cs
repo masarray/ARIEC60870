@@ -22,8 +22,12 @@ public sealed record DecodedPointRow(
 
         return asdu.Objects.Select(obj =>
         {
-            var quality = obj.QualityDetails?.DisplayText ??
-                (string.IsNullOrWhiteSpace(obj.QualityText) ? "Not provided" : obj.QualityText);
+            var typedQuality = ProtocolFlagPresentation.QualityState(
+                obj.QualityDetails, obj.QualityText, true, asdu.TypeId);
+            var quality = typedQuality.Chips.Count == 1 && typedQuality.Chips[0].Text == "—"
+                ? "N/A"
+                : obj.QualityDetails?.DisplayText ??
+                    (string.IsNullOrWhiteSpace(obj.QualityText) ? "Not provided" : obj.QualityText);
             if (obj.Issues.Count > 0)
                 quality = "Decode warning · " + quality;
             var raw = obj.RawBytes.Count == 0 ? "No element bytes" :

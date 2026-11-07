@@ -134,6 +134,8 @@ public partial class MainWindow
                 PassiveRtuPortComboBox.SelectedItem = prefs.PassiveRtuPortName;
             }
             PassiveLinkBEnabledCheckBox.IsChecked = prefs.PassiveLinkBEnabled;
+            PassiveSourceComboBox.SelectedIndex =
+                prefs.PassiveCaptureSource == "Virtual Inline (VSPE)" ? 1 : 0;
             if (!string.IsNullOrWhiteSpace(prefs.PassiveLinkBScadaPortName))
             {
                 EnsureComboItem(PassiveLinkBScadaPortComboBox, prefs.PassiveLinkBScadaPortName);
@@ -273,6 +275,8 @@ public partial class MainWindow
                 SelectedInteroperabilitySource = InteroperabilityConventionComboBox?.SelectedIndex == 2 ? "Project"
                     : InteroperabilityConventionComboBox?.SelectedIndex == 1 ? "Historical" : "Generic",
                 CustomInteroperabilityProfileJson = _projectInteroperabilityProfile?.Export() ?? string.Empty,
+                PassiveCaptureSource = IsVirtualInlineSelected()
+                    ? "Virtual Inline (VSPE)" : "Physical RX-only",
                 PassiveRtuPortName = (PassiveRtuPortComboBox.SelectedItem as string)?.Trim() ?? string.Empty,
                 PassiveOutputDirectory = PassiveCaptureFolderBox.Text.Trim(),
                 PassiveLinkWidth = ReadComboInt(PassiveLinkWidthCombo, "Passive link address width"),
@@ -435,6 +439,7 @@ public partial class MainWindow
         public string CustomInteroperabilityProfileJson { get; set; } = string.Empty;
         public bool UseSimulatedSlave { get; set; }
         public string PortName { get; set; } = "COM1";
+        public string PassiveCaptureSource { get; set; } = "Physical RX-only";
         public string PassiveRtuPortName { get; set; } = string.Empty;
         public bool PassiveLinkBEnabled { get; set; }
         public string PassiveLinkBScadaPortName { get; set; } = string.Empty;
