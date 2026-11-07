@@ -91,18 +91,21 @@ public sealed class PassiveWriterGiCasebook
 
         // Most passive traffic is not GI. Parse just the canonical wire/header
         // first and skip ordinary traffic when no GI is active.
-        if (seen.Format == "Variable" &&
-            (!Ft12WireLayout.TryParse(seen.RawBytes, width, out var wire) ||
-             wire.Kind != Ft12WireKind.Variable ||
-             !Iec10xAsduHeader.TryParse(
-                 seen.RawBytes.AsSpan(wire.AsduOffset, wire.AsduLength),
-                 _cotWidth, _caWidth, out var header)))
-            return;
+        var isGiCommand = false;
+        if (seen.Format == "Variable")
+        {
+            if (!Ft12WireLayout.TryParse(seen.RawBytes, width, out var wire) ||
+                wire.Kind != Ft12WireKind.Variable ||
+                !Iec10xAsduHeader.TryParse(
+                    seen.RawBytes.AsSpan(wire.AsduOffset, wire.AsduLength),
+                    _cotWidth, _caWidth, out var header)) return;
+            isGiCommand = header.TypeId == 100;
+        }
 
         lock (_gate)
         {
             if (seen.Format == "Variable" && _casebook.ActiveCount == 0 &&
-                header.TypeId != 100)
+                !isGiCommand)
                 return;
             if (seen.Format == "Fixed" && _casebook.ActiveCount == 0)
                 return;
