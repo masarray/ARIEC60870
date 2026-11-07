@@ -51,7 +51,7 @@ public sealed class PassiveWriterGiCasebookTests
         while (source.TryReadMilestone(out var milestone))
             phases.Add(milestone.Milestone.Phase);
         Assert.Contains("GI request", phases);
-        Assert.Contains("GI acknowledged", phases);
+        Assert.Contains("Positive GI ACTCON", phases);
         Assert.Contains("GI ACTTERM", phases);
         Assert.Equal(0, snapshot.MilestonesNotPresented);
     }
