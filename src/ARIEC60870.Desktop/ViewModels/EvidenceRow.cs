@@ -155,6 +155,10 @@ public sealed partial class EvidenceRow
         ProtocolTraceTitle.IndexOf("] ", StringComparison.Ordinal) is var end && end > 0
             ? ProtocolTraceTitle[(end + 2)..] : ProtocolTraceTitle;
     public string ProtocolTraceMeaning { get; }
+    // Calculated only when the virtualized WPF row enters the viewport.
+    // No multiline formatting is performed in the receive/publish hot path.
+    private ForensicTraceColumns? _forensicTrace;
+    public ForensicTraceColumns TraceForensic => _forensicTrace ??= ForensicTraceLayout.Create(this);
     // Compact high-volume list projection only. Full typed explanation is
     // retained in ProtocolTraceMeaning, Inspector, copy and report exports.
     private string? _compactTraceMeaning;

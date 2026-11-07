@@ -166,6 +166,9 @@ public partial class MainWindow
         if (_traceQuickQuery != trace)
         {
             _traceQuickQuery = trace;
+            // Enter HOLD at the start of an investigation; never chase the tail.
+            if (trace.Length > 0 && IsProtocolTraceTabActive())
+                EnterLineMonitorHoldForUserSelection();
             RefreshQuickFindView(FrameTraceRows);
             ScrollLatestProtocolTraceIfAutoScroll();
         }
