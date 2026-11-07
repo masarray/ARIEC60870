@@ -241,6 +241,19 @@ public sealed class ProtocolFlagPresentationTests
         Assert.DoesNotContain(row.QualityChips, chip => chip.Text is "Unknown" or "Good");
     }
 
+    [Theory]
+    [InlineData(52)]  // not a defined control instruction in this family
+    [InlineData(65)]  // reserved after time-tagged controls
+    [InlineData(108)] // reserved between system and parameter groups
+    [InlineData(115)] // reserved before file transfer group
+    public void ReservedTypeIdsMustNotInventQualityApplicability(int typeId)
+    {
+        var classification = ProtocolFlagPresentation.QualityState(
+            null, "-", true, typeId);
+        Assert.Equal("Unknown", Assert.Single(classification.Chips).Text);
+        Assert.Contains($"TI{typeId}", classification.Tooltip);
+    }
+
     [Fact]
     public void MissingRequiredProcessQualityRemainsUnknown()
     {

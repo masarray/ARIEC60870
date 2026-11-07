@@ -57,8 +57,13 @@ public static class ProtocolFlagPresentation
         typeId switch
         {
             21 => true, // M_ME_ND_1: normalized value WITHOUT quality descriptor
-            >= 45 and <= 70 => true, // control/setpoint/parameter and end of initialization
-            >= 100 and <= 127 => true, // system: GI, counter GI, read, clock sync, reset, tests, ...
+            >= 45 and <= 51 => true, // C_SC/C_DC/C_RC/C_SE/C_BO controls
+            >= 58 and <= 64 => true, // time-tagged control/setpoint ASDUs
+            70 => true, // M_EI_NA_1 end of initialization
+            >= 100 and <= 107 => true, // interrogation, read, clock, reset, test
+            >= 110 and <= 113 => true, // parameter ASDUs
+            >= 120 and <= 127 => true, // file transfer ASDUs
+            // Reserved and private Type IDs are not assumed to lack quality.
             null => transactionKind is "GI" or "Command",
             _ => false
         };
@@ -71,8 +76,8 @@ public static class ProtocolFlagPresentation
             102 => "TI102 · C_RD_NA_1 read command: no process quality descriptor. Evaluate response and COT.",
             103 => "TI103 · C_CS_NA_1 clock synchronization: no process quality descriptor. Evaluate COT and CP56Time2a time validity separately.",
             21 => "TI21 · M_ME_ND_1: normalized measured value explicitly carries no QDS. N/A does not mean Good.",
-            >= 45 and <= 70 => $"TI{typeId}: control, parameter or initialization ASDU; quality descriptor is not part of this service payload. Evaluate COT and the corresponding command/response fields.",
-            >= 100 and <= 127 => $"TI{typeId}: system ASDU without process quality descriptor. Evaluate COT, qualifier and transaction outcome.",
+            >= 45 and <= 51 or >= 58 and <= 64 or 70 => $"TI{typeId}: control or initialization ASDU; quality descriptor is not part of this service payload. Evaluate COT and the corresponding command/response fields.",
+            >= 100 and <= 107 or >= 110 and <= 113 or >= 120 and <= 127 => $"TI{typeId}: system, parameter or file-service ASDU without process quality descriptor. Evaluate COT, qualifier and transaction outcome.",
             _ => transactionKind is "GI" or "Command"
                 ? $"{transactionKind} transaction without a decoded process quality descriptor. Evaluate its COT and protocol evidence."
                 : "Quality descriptor not applicable to this ASDU type."
