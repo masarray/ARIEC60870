@@ -424,11 +424,13 @@ public partial class MainWindow : Window
                 }
                 MappingProfileStatusText.Text = $"Default IOA seed available: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points). Copy/edit JSON for project-specific IOA database.";
                 RefreshIoaProfileRows();
-                if (GetSelectedProtocolMode() != Iec60870ProtocolMode.Iec103)
-                {
-                    ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: !_savedSetupPreferencesLoaded);
-                }
-                AppendSessionLog($"Default IOA seed profile loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points).");
+                // The packaged utility FAT profile is an editable example, NOT
+                // the target station's validated serial/ASDU configuration.
+                // It must never override an operator's saved common address (or
+                // silently set CA=105 on a fresh real-device installation).
+                // Explicitly importing/editing a project profile is the only
+                // path that can apply its default communication settings.
+                AppendSessionLog($"Example IOA seed loaded for reference: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} points). Bundled example defaults were NOT applied to connection settings; verify link address and ASDU CA independently.");
                 return;
             }
             catch (Exception ex)
