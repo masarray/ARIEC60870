@@ -44,6 +44,7 @@ public sealed class SignalListEditorWindow : Window
     private static readonly Brush SuccessSoftBrush = BrushFromRgb(0xEC, 0xFD, 0xF3);
 
     private readonly ObservableCollection<SignalListEditorRow> _rows = new();
+    private readonly int? _observedCommonAddress;
     private readonly TextBox _profileNameBox = new();
     private readonly TextBox _pathBox = new();
     private readonly TextBox _searchBox = new();
@@ -63,8 +64,11 @@ public sealed class SignalListEditorWindow : Window
     private string? _pendingCellEditText;
     private bool _replaceNextCellText;
 
-    public SignalListEditorWindow(Iec10xPointMappingProfile profile, string? profilePath)
+    public SignalListEditorWindow(Iec10xPointMappingProfile profile, string? profilePath,
+        int? observedCommonAddress = null)
     {
+        _observedCommonAddress = observedCommonAddress is >= 0 and <= 65535
+            ? observedCommonAddress : null;
         _template = CloneProfile(profile?.HasPoints == true ? profile : CreateBlankProfile());
         SavedProfilePath = profilePath ?? string.Empty;
         Profile = CloneProfile(_template);
@@ -203,6 +207,8 @@ public sealed class SignalListEditorWindow : Window
         AddToolbarButton(toolbar, "Save", SaveList_Click);
         AddToolbarButton(toolbar, "Save As", SaveAs_Click);
         AddToolbarButton(toolbar, "Validate", Validate_Click);
+        if (_observedCommonAddress.HasValue)
+            AddToolbarButton(toolbar, $"Align to CA {_observedCommonAddress.Value}", AlignToObservedCa_Click);
         AddToolbarButton(toolbar, "Save & Apply", SaveApply_Click, isPrimary: true);
         Grid.SetColumn(toolbar, 1);
         actionRow.Children.Add(toolbar);
@@ -884,6 +890,44 @@ public sealed class SignalListEditorWindow : Window
         AddEditorRow(copy, markDirty: true);
         SetCurrentCell(copy);
         UpdateStatus("Selected signal duplicated. Review IOA and feedback IOA before saving.");
+    }
+
+    private void AlignToObservedCa_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_observedCommonAddress.HasValue)
+            return;
+
+        try
+        {
+            _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+            _grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var original = BuildProfileFromRows();
+            // This operation must refuse mixed-CA profiles rather than
+            // silently reinterpret points belonging to multiple stations.
+            var aligned = original.RebindSingleStationCommonAddress(_observedCommonAddress.Value);
+            var decision = ModernMessageBox.Show(this,
+                $"Rebind ALL {aligned.Points.Count} points (including command/feedback definitions) " +
+                $"to ASDU CA={_observedCommonAddress.Value}? This does NOT change IEC-101 link address, " +
+                "rewrite prior wire evidence, or establish that the RTU signal list is approved. " +
+                "The existing file will be preserved; Save & Apply opens Save As for a new profile copy.",
+                "Confirm single-station CA alignment", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (decision != MessageBoxResult.Yes)
+                return;
+
+            _template = aligned;
+            _profileNameBox.Text = aligned.ProfileName;
+            LoadRowsFromProfile(aligned);
+            SavedProfilePath = string.Empty; // Never overwrite the shipped/profile source.
+            _pathBox.Text = "New profile copy — choose Save As";
+            _saved = false;
+            MarkDirty();
+            UpdateStatus($"Prepared CA={_observedCommonAddress.Value} for {aligned.Points.Count} points. Save & Apply a new copy, then reconnect.");
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.Show(this, ex.Message, "Align profile CA", MessageBoxButton.OK, MessageBoxImage.Warning);
+            UpdateStatus("CA alignment refused. Inspect mixed-CA profile or invalid entries.", danger: true);
+        }
     }
 
     private void LoadList_Click(object sender, RoutedEventArgs e)

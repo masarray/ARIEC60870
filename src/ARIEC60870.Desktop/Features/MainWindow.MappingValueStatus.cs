@@ -31,6 +31,8 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
+
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
@@ -106,7 +108,8 @@ public partial class MainWindow
             return;
         }
 
-        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty, SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text))
+        var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty,
+            SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text), _firstObservedRuntimeCa)
         {
             Owner = this
         };
@@ -137,6 +140,40 @@ public partial class MainWindow
         if (!item.InformationObjectAddress.HasValue) return null;
         return _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
             item.InformationObjectAddress.Value, item.TypeId);
+    }
+
+    private void ReportUnmatchedProfileCommonAddress(Iec103MasterEvidenceEvent item)
+    {
+        if (item.Direction != FrameDirection.SlaveToMaster ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            item.CommonAddressNumber is not int observedCa ||
+            item.InformationObjectAddress is not int ioa ||
+            item.TypeId is not int type)
+            return;
+
+        var expectedCa = _ioaProfile.FindUniqueMismatchedCommonAddress(observedCa, ioa, type);
+        if (!expectedCa.HasValue)
+            return;
+
+        var source = string.IsNullOrWhiteSpace(item.PhysicalSource) ? "SINGLE" : item.PhysicalSource;
+        var warningKey = $"{item.ProtocolMode}|{source}|observed:{observedCa}|profile:{expectedCa.Value}";
+        if (!_reportedProfileCaMismatchSources.Add(warningKey))
+            return;
+
+        var explanation =
+            $"Trusted RX on {source} has ASDU CA={observedCa}, IOA={ioa}, Type={type}; " +
+            $"the loaded Signal List describes this IOA under CA={expectedCa.Value}. " +
+            "The physical link address is independent. Unmapped RX is preserved, " +
+            "and profile placeholders remain separate until explicit operator alignment.";
+        AddUiDiagnostic("Warning", "Mapping", "IEC10X-PROFILE-CA-MISMATCH",
+            $"Observed ASDU CA {observedCa} differs from Signal List CA {expectedCa.Value}",
+            explanation,
+            "Check the RTU's ASDU CA. For a single-station profile open Signal List Editor, choose " +
+            "'Align to observed CA', confirm and Save As a project copy, then reconnect. " +
+            "Do not change the link address to force a CA match.");
+        MappingProfileStatusText.Text =
+            $"CA mismatch: RX CA {observedCa} / profile CA {expectedCa.Value} — see Diagnostics; Signal List Editor can align a copy.";
+        AppendSessionLog("Profile CA mismatch: " + explanation);
     }
 
     private static string ExtractSimpleStateToken(string value)
@@ -196,6 +233,8 @@ public partial class MainWindow
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
+        if (ioaPoint is null && shouldShowValue)
+            ReportUnmatchedProfileCommonAddress(item);
         var key = BuildValueKey(item);
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
         if (shouldShowValue)

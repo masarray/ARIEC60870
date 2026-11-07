@@ -602,6 +602,7 @@ public partial class MainWindow
     {
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
+        _reportedProfileCaMismatchSources.Clear();
         _giClass2CollectionWindowActive = false;
         _giClass2CollectionUntilUtc = DateTime.MinValue;
         _firstObservedRuntimeCa = null;
