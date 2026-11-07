@@ -19,10 +19,9 @@ public static class Iec10xIoaPresentation
         var low = address & 0xFF;
         var mid = (address >> 8) & 0xFF;
         var high = (address >> 16) & 0xFF;
-        return $"IOA {address.ToString(CultureInfo.InvariantCulture)} = 0x{address:X6} (24-bit display)\n" +
-               $"IOA1 (LOW)   = {low}  / 0x{low:X2}\n" +
-               $"IOA2 (MID)   = {mid}  / 0x{mid:X2}\n" +
-               $"IOA3 (HIGH) = {high}  / 0x{high:X2}\n" +
-               $"If the configured IOA width is 3 octets, wire order = {low:X2} {mid:X2} {high:X2} (LOW MID HIGH).";
+        return $"IOA {address.ToString(CultureInfo.InvariantCulture)}\n" +
+               $"IOA1 (LOW)  = {low}\n" +
+               $"IOA2 (MID)  = {mid}\n" +
+               $"IOA3 (HIGH) = {high}";
     }
 }

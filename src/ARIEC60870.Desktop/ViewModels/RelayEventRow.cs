@@ -59,8 +59,11 @@ public sealed class RelayEventRow
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
-        QualityChips = ProtocolFlagPresentation.Quality(item.QualityDetails, Quality, Protocol is "101" or "104");
-        QualityDetail = item.QualityDetails?.BitDetails ?? Quality;
+        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
+        QualityChips = quality.Chips;
+        QualityDetail = quality.Tooltip;
+        QualityRawLabel = quality.CleanRawLabel;
+        IsQualityInvalid = quality.IsInvalid;
         Mapped = item.IsMapped ? "Yes" : "No";
         RawHex = item.RawHex;
     }
@@ -99,6 +102,8 @@ public sealed class RelayEventRow
     public string Address { get; }
     public string Quality { get; }
     public string QualityDetail { get; }
+    public string QualityRawLabel { get; }
+    public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }
     public string RawHex { get; }

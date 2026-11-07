@@ -66,8 +66,11 @@ public sealed class ValueRow : INotifyPropertyChanged
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
         QualityFlags = item.QualityDetails;
         RawValue = item.RawValue;
-        QualityChips = ProtocolFlagPresentation.Quality(item.QualityDetails, Quality, Protocol is "101" or "104");
-        QualityDetail = item.QualityDetails?.BitDetails ?? Quality;
+        var quality = ProtocolFlagPresentation.QualityState(item.QualityDetails, Quality, Protocol is "101" or "104");
+        QualityChips = quality.Chips;
+        QualityDetail = quality.Tooltip;
+        QualityRawLabel = quality.CleanRawLabel;
+        IsQualityInvalid = quality.IsInvalid;
         Address = Protocol is "101" or "104"
             ? (IoAddress == "-" ? "-" : (string.IsNullOrWhiteSpace(PhysicalSource) ? "" : PhysicalSource + " · ") + "IOA " + IoAddress)
             : (FunInf == "-" ? "-" : "FUN/INF " + FunInf);
@@ -114,6 +117,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     public Iec10xQualityDetails? QualityFlags { get; }
     public string RawValue { get; }
     public string QualityDetail { get; }
+    public string QualityRawLabel { get; }
+    public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; }
     public string RawHex { get; }

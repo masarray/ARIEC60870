@@ -100,6 +100,9 @@
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
+        <!-- Shared amber attention language for profile-vs-wire CA/TI discrepancies. -->
+        <SolidColorBrush x:Key="ProtocolMismatchFill" Color="#FFFBEB"/>
+        <SolidColorBrush x:Key="ProtocolMismatchStroke" Color="#FDE68A"/>
         <!-- Shared, compact visual for digital states, numeric measurements and command stages.
              The typed category is independent of the exact value and is never a verdict. -->
         <DataTemplate x:Key="DigitalValueCellTemplate">
@@ -142,16 +145,30 @@
                     <Setter TargetName="StateChip" Property="BorderBrush" Value="#FCD34D"/>
                     <Setter TargetName="StateChipText" Property="Foreground" Value="#92400E"/>
                 </DataTrigger>
+                <!-- A decoded ON/OFF state with IV=1 is not a verified healthy state. -->
+                <DataTrigger Binding="{Binding IsQualityInvalid}" Value="True">
+                    <Setter TargetName="StateChip" Property="Background" Value="#FFF7ED"/>
+                    <Setter TargetName="StateChip" Property="BorderBrush" Value="#FDBA74"/>
+                    <Setter TargetName="StateChipText" Property="Foreground" Value="#9A3412"/>
+                </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
         <DataTemplate x:Key="ForensicQualityCellTemplate">
-            <ItemsControl ItemsSource="{Binding QualityChips}" ToolTip="{Binding QualityDetail}"
-                          Focusable="False" VerticalAlignment="Center"
-                          ItemTemplate="{StaticResource ForensicFlagChipTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
+            <!-- Enable only the quality-cell tooltip, even when the live grid's
+                 broad row-hover tooltips are disabled to avoid visual noise. -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                        ToolTip="{Binding QualityDetail}" ToolTipService.IsEnabled="True"
+                        ToolTipService.InitialShowDelay="550">
+                <ItemsControl ItemsSource="{Binding QualityChips}" Focusable="False"
+                              ItemTemplate="{StaticResource ForensicFlagChipTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <TextBlock Text="{Binding QualityRawLabel}" FontSize="10.0"
+                           Foreground="{StaticResource Ink600Brush}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="ForensicCotCellTemplate">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
@@ -1126,9 +1143,11 @@
                                                 </Border>
                                                 <DataTemplate.Triggers>
                                                     <DataTrigger Binding="{Binding IsTiMismatch}" Value="True">
-                                                        <Setter TargetName="TiIndicator" Property="Background" Value="#FFF3CD"/>
+                                                        <Setter TargetName="TiIndicator" Property="Background" Value="{StaticResource ProtocolMismatchFill}"/>
+                                                        <Setter TargetName="TiIndicator" Property="BorderBrush" Value="{StaticResource ProtocolMismatchStroke}"/>
+                                                        <Setter TargetName="TiIndicator" Property="BorderThickness" Value="1"/>
                                                         <Setter TargetName="TiText" Property="Foreground" Value="#B45309"/>
-                                                        <Setter TargetName="TiText" Property="FontWeight" Value="SemiBold"/>
+                                                        <Setter TargetName="TiText" Property="FontWeight" Value="Normal"/>
                                                     </DataTrigger>
                                                 </DataTemplate.Triggers>
                                             </DataTemplate>
@@ -1165,7 +1184,7 @@
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock x:Name="CaNumber" Text="{Binding CommonAddress}" FontSize="11.4"
                                                                    Foreground="#334155" VerticalAlignment="Center"/>
-                                                        <Path x:Name="CaWarningIcon" Width="13" Height="13" Margin="5,0,0,0"
+                                                        <Path x:Name="CaWarningIcon" Width="12" Height="12" Margin="4,0,0,0"
                                                               Stroke="#B42318" StrokeThickness="1.9" StrokeLineJoin="Round"
                                                               StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                                               Stretch="Uniform" Fill="Transparent" Visibility="Collapsed"
@@ -1174,11 +1193,11 @@
                                                 </Border>
                                                 <DataTemplate.Triggers>
                                                     <DataTrigger Binding="{Binding IsCaMismatch}" Value="True">
-                                                        <Setter TargetName="CaBadge" Property="Background" Value="#FFF5F1"/>
-                                                        <Setter TargetName="CaBadge" Property="BorderBrush" Value="#FED7CB"/>
+                                                        <Setter TargetName="CaBadge" Property="Background" Value="{StaticResource ProtocolMismatchFill}"/>
+                                                        <Setter TargetName="CaBadge" Property="BorderBrush" Value="{StaticResource ProtocolMismatchStroke}"/>
                                                         <Setter TargetName="CaBadge" Property="BorderThickness" Value="1"/>
                                                         <Setter TargetName="CaNumber" Property="Foreground" Value="#B42318"/>
-                                                        <Setter TargetName="CaNumber" Property="FontWeight" Value="Bold"/>
+                                                        <Setter TargetName="CaNumber" Property="FontWeight" Value="Normal"/>
                                                         <Setter TargetName="CaWarningIcon" Property="Visibility" Value="Visible"/>
                                                     </DataTrigger>
                                                 </DataTemplate.Triggers>

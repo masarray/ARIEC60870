@@ -232,11 +232,9 @@ public sealed class Iec10xProfileVariantTests
     public void StructuredIoaTooltipShowsAllThreeOctetsInCorrectWireOrder()
     {
         var tooltip = Iec10xIoaPresentation.StructuredTooltip(16712694);
-        Assert.Contains("0xFF03F6", tooltip);
-        Assert.Contains("IOA1 (LOW)   = 246  / 0xF6", tooltip);
-        Assert.Contains("IOA2 (MID)   = 3  / 0x03", tooltip);
-        Assert.Contains("IOA3 (HIGH) = 255  / 0xFF", tooltip);
-        Assert.Contains("F6 03 FF", tooltip);
+        Assert.Equal("IOA 16712694\nIOA1 (LOW)  = 246\nIOA2 (MID)  = 3\nIOA3 (HIGH) = 255", tooltip);
+        Assert.DoesNotContain("0x", tooltip);
+        Assert.DoesNotContain("wire order", tooltip);
     }
 
     [Fact]
