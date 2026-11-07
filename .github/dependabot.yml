@@ -1,4 +1,6 @@
 version: 2
+# Dependabot labels are intentionally omitted until matching repository labels
+# exist. Explicit nonexistent labels caused Dependabot PR warnings (#12).
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -19,9 +21,6 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
-    labels:
-      - "dependencies"
-      - "github-actions"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -61,9 +60,6 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
-    labels:
-      - "dependencies"
-      - "dotnet"
     commit-message:
       prefix: "deps"
       include: "scope"
