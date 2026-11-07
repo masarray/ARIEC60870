@@ -237,7 +237,7 @@ public sealed class ProtocolFlagPresentationTests
         });
         Assert.Equal("N/A", row.Quality);
         Assert.Equal("—", Assert.Single(row.QualityChips).Text);
-        Assert.Contains("WITHOUT", row.QualityDetail);
+        Assert.Contains("without QDS", row.QualityDetail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(row.QualityChips, chip => chip.Text is "Unknown" or "Good");
     }
 
