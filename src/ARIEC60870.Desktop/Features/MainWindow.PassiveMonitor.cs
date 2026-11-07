@@ -48,6 +48,9 @@ public partial class MainWindow
     private Task<(string Directory, PassiveCaptureManifest Manifest)>? _passiveCaptureTask;
     private (string Directory, PassiveCaptureManifest Manifest)? _passiveCaptureResult;
     private bool _closingAfterPassiveStop;
+    // A repeated Windows WM_CLOSE during async capture/transport shutdown must
+    // never bypass the first Close cancellation before cleanup is verified.
+    private bool _closeValidatedForExit;
     private Iec10xAsduDecoder? _passiveAsduDecoder;
     // Typed, bounded operator interpretation. Never drives TX or the raw journal.
     private readonly Iec10xObservedControlTimeline _passiveControlTimeline = new();
@@ -116,6 +119,23 @@ public partial class MainWindow
     /// <summary>Windows CI verifies the actual integrated Setup-to-Trace workflow without any COM calls.</summary>
     public void RunPassiveGuiSmokeProbe()
     {
+        // Real WPF regression: even a second Close request while shutdown is
+        // pending must not destroy the window before writer/transport cleanup.
+        _closingAfterPassiveStop = true;
+        _closeValidatedForExit = false;
+        try
+        {
+            Close();
+            if (!IsVisible)
+                throw new InvalidOperationException(
+                    "Repeated WM_CLOSE bypassed pending protocol shutdown.");
+        }
+        finally
+        {
+            _closingAfterPassiveStop = false;
+            _closeValidatedForExit = false;
+        }
+
         var index = -1;
         for (var i = 0; i < ProtocolModeComboBox.Items.Count; i++)
         {
@@ -1786,6 +1806,13 @@ public partial class MainWindow
     {
         if (_closingAfterPassiveStop)
         {
+            if (!_closeValidatedForExit)
+            {
+                // Inno/Restart Manager can repeat WM_CLOSE while the async
+                // Closing handler is awaiting transport and journal finalizers.
+                e.Cancel = true;
+                return;
+            }
             ReleaseSessionTraceHistory();
             return;
         }
@@ -1829,11 +1856,13 @@ public partial class MainWindow
 
                 await master.Task;
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+                _closeValidatedForExit = true;
                 Close();
             }
             catch (Exception ex)
             {
                 _closingAfterPassiveStop = false;
+                _closeValidatedForExit = false;
                 IsEnabled = true;
                 AppendSessionLog("Close deferred: " + ex.Message);
                 AddUiDiagnostic("Warning", "Desktop", "IEC10X-CLOSE-ACTIVE",
@@ -1858,6 +1887,7 @@ public partial class MainWindow
             catch (OperationCanceledException) { }
             catch (Exception ex) { AppendSessionLog("Offline replay shutdown: " + ex.Message); }
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            _closeValidatedForExit = true;
             Close();
             return;
         }
@@ -1879,6 +1909,7 @@ public partial class MainWindow
         {
             // Finish the UI async continuation before closing the owner.
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            _closeValidatedForExit = true;
             Close();
         }
     }
