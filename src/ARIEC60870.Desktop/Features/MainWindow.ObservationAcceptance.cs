@@ -888,6 +888,29 @@ public partial class MainWindow
             !pointRow.IsVisible || pointRow.ActualHeight < 12)
             throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
         interpretedPointRows = DecodedPointGrid.Items.Count;
+        // Field screenshot acceptance: decoded inspector exposes expandable,
+        // source-backed children. No synthetic quality/IOA bits are fabricated.
+        var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "VSQ");
+        var ioaRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "IOA");
+        var qualityRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Quality");
+        if (vsqRow?.Children is not { Count: 3 } ||
+            vsqRow.Children[0].Value != "False" ||
+            vsqRow.Children[1].Value != "2" ||
+            ioaRow?.Children is not { Count: 3 } ||
+            ioaRow.Children[0].Field != "IOA1 (low)" ||
+            ioaRow.Children[2].Field != "IOA3 (high)" ||
+            qualityRow?.Children is not { Count: > 1 } ||
+            !qualityRow.Children.Any(x => x.Field == "Invalid (IV)" && x.Value == "False"))
+            throw new InvalidOperationException(
+                "Selected-frame structured VSQ/IOA/Quality children are missing or incorrect.");
+        FramePropertiesGrid.SelectedItem = vsqRow;
+        FramePropertiesGrid.ScrollIntoView(vsqRow);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FramePropertiesGrid.ItemContainerGenerator.ContainerFromItem(vsqRow) is not DataGridRow vsqVisual ||
+            vsqVisual.DetailsVisibility != Visibility.Visible)
+            throw new InvalidOperationException(
+                "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
         _traceInspectorForcedOpen = false;
 
