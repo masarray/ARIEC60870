@@ -4,6 +4,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using ARIEC60870.Core.Mapping;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 
@@ -14,7 +15,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     private bool _isRecentlyChanged;
 
     public ValueRow(Iec103ValuePoint item, int? wireDl = null, int? configuredDl = null,
-        int? configuredCa = null, int? mappedCa = null, bool readOnlyAlias = false)
+        int? configuredCa = null, int? mappedCa = null, bool readOnlyAlias = false,
+        int? mappedTi = null)
     {
         Key = item.Key;
         PhysicalSource = item.PhysicalSource;
@@ -36,6 +38,12 @@ public sealed class ValueRow : INotifyPropertyChanged
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        TiLabel = item.TypeId.HasValue ? $"TI{item.TypeId.Value}" : "-";
+        IsTiMismatch = mappedTi.HasValue && item.TypeId.HasValue &&
+            !Iec10xPointTypeFamily.SameObservationFamily(mappedTi.Value, item.TypeId.Value);
+        TiExplanation = IsTiMismatch
+            ? $"Signal List TI{mappedTi}, actual received TI{item.TypeId}. Name associated by unique IOA only; raw TI determines process value and quality. No profile state conversion."
+            : $"Received {TiLabel}. Type ID is decoded from original ASDU.";
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
@@ -52,6 +60,7 @@ public sealed class ValueRow : INotifyPropertyChanged
             (readOnlyAlias ? "Read-only name alignment: trusted wire CA and command target remain unchanged."
                            : "Displayed value comes from accepted RX; no CA modification.");
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        IoaTooltip = Iec10xIoaPresentation.StructuredTooltip(item.InformationObjectAddress);
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
         Quality = string.IsNullOrWhiteSpace(item.QualityText) ? "-" : item.QualityText;
@@ -82,6 +91,9 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string Inf { get; }
     public string FunInf { get; }
     public string TypeId { get; }
+    public string TiLabel { get; }
+    public bool IsTiMismatch { get; }
+    public string TiExplanation { get; }
     public int TypeSortKey { get; }
     public string Type { get; }
     public string Cot { get; }
@@ -95,6 +107,7 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string DlExplanation { get; }
     public string CaExplanation { get; }
     public string IoAddress { get; }
+    public string IoaTooltip { get; }
     public int IoaSortKey { get; }
     public string Address { get; }
     public string Quality { get; }

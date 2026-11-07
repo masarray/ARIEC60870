@@ -229,6 +229,38 @@ public sealed class Iec10xProfileVariantTests
     }
 
     [Fact]
+    public void StructuredIoaTooltipShowsAllThreeOctetsInCorrectWireOrder()
+    {
+        var tooltip = Iec10xIoaPresentation.StructuredTooltip(16712694);
+        Assert.Contains("0xFF03F6", tooltip);
+        Assert.Contains("IOA1 (LOW)   = 246  / 0xF6", tooltip);
+        Assert.Contains("IOA2 (MID)   = 3  / 0x03", tooltip);
+        Assert.Contains("IOA3 (HIGH) = 255  / 0xFF", tooltip);
+        Assert.Contains("F6 03 FF", tooltip);
+    }
+
+    [Fact]
+    public void ValueShowsReceivedTiAndHighlightsOnlyDifferentTypeFamily()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "wire", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            CommonAddress = 1, TypeId = 1,
+            InformationObjectAddress = 16712694, SignalName = "LOCAL REMOTE CB"
+        }, wireDl: 105, configuredDl: 105, mappedTi: 31);
+        Assert.Equal("TI1", row.TiLabel);
+        Assert.True(row.IsTiMismatch);
+        Assert.Contains("TI31", row.TiExplanation);
+        Assert.Contains("IOA3 (HIGH)", row.IoaTooltip);
+        var compatible = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "wire2", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TypeId = 1, InformationObjectAddress = 1
+        }, mappedTi: 30);
+        Assert.False(compatible.IsTiMismatch);
+    }
+
+    [Fact]
     public void WrongFamilyOrAmbiguousProfileDoesNotFabricateSignal()
     {
         var profile = new Iec10xPointMappingProfile
