@@ -826,28 +826,28 @@
     <Style x:Key="ProtocolTraceLineItem" TargetType="ListBoxItem">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,0,3" />
+        <Setter Property="Margin" Value="0,0,0,2" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource Ink800Brush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
                     <Border x:Name="LineChrome" Background="{TemplateBinding Background}"
-                            BorderThickness="0" CornerRadius="6" Padding="10,7">
+                            BorderThickness="0,0,0,1" BorderBrush="#DCE5EC" CornerRadius="0" Padding="10,8,10,10">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">
                             <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#ECF3FA" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#FAFCFE" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Rx">
                             <Setter Property="Foreground" Value="{StaticResource GoodBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#EAF4F1" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#FFFFFF" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TrafficTone}" Value="Error">
                             <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
-                            <Setter TargetName="LineChrome" Property="Background" Value="#FFF1F0" />
+                            <Setter TargetName="LineChrome" Property="Background" Value="#FFF8F6" />
                         </DataTrigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="LineChrome" Property="Background" Value="#E9EEF3" />

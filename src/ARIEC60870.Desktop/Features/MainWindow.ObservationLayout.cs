@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private double _lastTraceInspectorWidth = 300;
-    private bool _traceInspectorPreferredVisible = true;
+    private bool _traceInspectorPreferredVisible = false;
     private bool _traceInspectorForcedOpen;
 
     // Responsive decisions run on Window size/command layout changes, not on
@@ -22,8 +22,7 @@ public partial class MainWindow
         if (TraceInspectorColumn is null || FrameInterpreterPanel is null) return;
         var widthAvailable = ActualWidth - 160 - CommandDockColumn.ActualWidth;
         var enoughRoom = widthAvailable >= 990;
-        ApplyTraceInspectorVisibility(_traceInspectorPreferredVisible &&
-            (enoughRoom || _traceInspectorForcedOpen));
+        ApplyTraceInspectorVisibility(_traceInspectorForcedOpen || (_traceInspectorPreferredVisible && enoughRoom));
     }
 
     private void ApplyTraceInspectorVisibility(bool visible)

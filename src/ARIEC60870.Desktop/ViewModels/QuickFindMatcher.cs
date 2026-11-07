@@ -35,6 +35,8 @@ public static class QuickFindMatcher
                 !Has(r.Category,"warning") && !Has(r.Category,"error"),
             _ => false
         }) return false;
+        var typedBit = ForensicTraceLayout.MatchFlag(r, query);
+        if (typedBit.HasValue) return typedBit.Value;
         return MatchesText(query,r.ProtocolTraceHeader,r.ProtocolTraceMeaning,r.RawHex,
             r.IoAddress,r.CommonAddress,r.CotCode,r.TypeId,r.SignalOrAddress,
             r.Category,r.Time,r.Source.PhysicalSource,r.Source.EvidenceReference);

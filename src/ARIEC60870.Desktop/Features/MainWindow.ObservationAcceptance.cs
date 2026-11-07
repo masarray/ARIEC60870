@@ -36,6 +36,17 @@ public partial class MainWindow
         return false;
     }
 
+    private static bool HasVisibleForensicHeading(DependencyObject node, string expected)
+    {
+        if (node is TextBlock text && text.Text == expected &&
+            text.Visibility == Visibility.Visible && text.IsVisible)
+            return true;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+            if (HasVisibleForensicHeading(VisualTreeHelper.GetChild(node, i), expected))
+                return true;
+        return false;
+    }
+
     private static PassiveFramePreparation.Prepared AssertSinglePreparedForUi(
         PassiveObservedFrame observed) =>
         PassiveFramePreparation.PrepareBatch([observed], 1, 2, 2, 3)[0];
@@ -358,6 +369,12 @@ public partial class MainWindow
             !HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
             throw new InvalidOperationException(
                 "Unselected RAW FRAME row hides the source HEX line.");
+        if (!HasVisibleForensicHeading(unselectedContainer, "LINK LAYER") ||
+            !HasVisibleForensicHeading(unselectedContainer, "ASDU HEADER") ||
+            !HasVisibleForensicHeading(unselectedContainer, "INFORMATION OBJECTS") ||
+            !HasVisibleForensicHeading(unselectedContainer, "FRAME VALIDATION"))
+            throw new InvalidOperationException(
+                "Real WPF unselected frame did not render all three forensic columns and integrity.");
 
         var selected = FrameTraceRows[Math.Max(0, FrameTraceRows.Count - 120)];
         FrameTraceGrid.SelectedItem = selected;
