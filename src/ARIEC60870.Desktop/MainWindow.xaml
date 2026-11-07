@@ -630,7 +630,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem Header="Raw Frames">
+                    <TabItem Header="Raw Frames" ToolTipService.IsEnabled="False">
                         <Grid Margin="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" MinWidth="300" />
@@ -978,20 +978,7 @@
                                                   RowBackground="White" AlternatingRowBackground="#F3F7FA"
                                                   BorderBrush="#D7E2EA" BorderThickness="1"
                                                   HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                            <DataGrid.RowStyle>
-                                                <Style TargetType="{x:Type DataGridRow}">
-                                                    <Setter Property="ToolTip">
-                                                        <Setter.Value>
-                                                            <MultiBinding StringFormat="{}{0} · {1} · {2} · raw: {3}">
-                                                                <Binding Path="Quality"/>
-                                                                <Binding Path="RelayTime"/>
-                                                                <Binding Path="Provenance"/>
-                                                                <Binding Path="RawHex"/>
-                                                            </MultiBinding>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </DataGrid.RowStyle>
+                                            
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="IOA" Binding="{Binding Address}" Width="79"/>
                                                 <DataGridTextColumn Header="STATE / VALUE" Binding="{Binding Value}" Width="*"/>
@@ -1000,6 +987,7 @@
                                         </DataGrid>
                                     </StackPanel>
                                     <DataGrid Grid.Row="4" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
+                                              ToolTipService.IsEnabled="False" RowDetailsVisibilityMode="VisibleWhenSelected"
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"
@@ -1009,20 +997,43 @@
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               BorderThickness="1" BorderBrush="#D7E2EA" Background="#F8FAFC">
+                                        <DataGrid.RowDetailsTemplate>
+                                            <DataTemplate>
+                                                <ItemsControl ItemsSource="{Binding Children}" Margin="14,0,8,6">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="3,3,3,3">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="1.05*"/>
+                                                                    <ColumnDefinition Width="0.85*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Field}" FontSize="11.5"
+                                                                           Foreground="{StaticResource Ink700Brush}"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11.5"
+                                                                           Foreground="{StaticResource Ink900Brush}"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </DataTemplate>
+                                        </DataGrid.RowDetailsTemplate>
                                         <DataGrid.Columns>
                                             <DataGridTemplateColumn Header="PROPERTY" Width="0.95*" MinWidth="84" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Field}" FontSize="12.7" FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap"
-                                                                   VerticalAlignment="Center" Margin="9,6,6,6"/>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="9,6,6,6">
+                                                            <TextBlock Text="{Binding ExpansionMark}" FontSize="11.5"
+                                                                       Foreground="{StaticResource Ink600Brush}" Margin="0,0,3,0"/>
+                                                            <TextBlock Text="{Binding Field}" FontSize="12.3" FontWeight="Medium"
+                                                                       Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap"/>
+                                                        </StackPanel>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Header="VALUE" Width="1.55*" MinWidth="90">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Value}" ToolTip="{Binding Detail}" FontSize="12.9"
+                                                        <TextBlock Text="{Binding Value}" FontSize="12.3"
                                                                    Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap"
                                                                    VerticalAlignment="Center" Margin="9,6,8,6"/>
                                                     </DataTemplate>
@@ -1131,7 +1142,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="TI" Width="59" MinWidth="55" ClipboardContentBinding="{Binding TiLabel}">
+                                    <DataGridTemplateColumn Header="TI" Width="67" MinWidth="63" ClipboardContentBinding="{Binding TiLabel}">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Border x:Name="TiIndicator" Padding="4,2" HorizontalAlignment="Left" CornerRadius="4"
@@ -1183,11 +1194,7 @@
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock x:Name="CaNumber" Text="{Binding CommonAddress}" FontSize="11.4"
                                                                    Foreground="#334155" VerticalAlignment="Center"/>
-                                                        <Path x:Name="CaWarningIcon" Width="12" Height="12" Margin="4,0,0,0"
-                                                              Stroke="#B42318" StrokeThickness="1.9" StrokeLineJoin="Round"
-                                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                                              Stretch="Uniform" Fill="Transparent" Visibility="Collapsed"
-                                                              Data="M21.73,18 L13.73,4 A2,2 0 0 0 10.25,4 L2.25,18 A2,2 0 0 0 4,21 H20 A2,2 0 0 0 21.73,18 M12,9 V13 M12,17 H12.01"/>
+                                                        
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
@@ -1195,9 +1202,9 @@
                                                         <Setter TargetName="CaBadge" Property="Background" Value="{StaticResource ProtocolMismatchFill}"/>
                                                         <Setter TargetName="CaBadge" Property="BorderBrush" Value="{StaticResource ProtocolMismatchStroke}"/>
                                                         <Setter TargetName="CaBadge" Property="BorderThickness" Value="1"/>
-                                                        <Setter TargetName="CaNumber" Property="Foreground" Value="#B42318"/>
+                                                        <Setter TargetName="CaNumber" Property="Foreground" Value="#92400E"/>
                                                         <Setter TargetName="CaNumber" Property="FontWeight" Value="Normal"/>
-                                                        <Setter TargetName="CaWarningIcon" Property="Visibility" Value="Visible"/>
+                                                        
                                                     </DataTrigger>
                                                 </DataTemplate.Triggers>
                                             </DataTemplate>
@@ -1374,7 +1381,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="59" MinWidth="55">
+                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="67" MinWidth="63">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
                                                 <Setter Property="ToolTip" Value="{Binding TiExplanation}"/>
