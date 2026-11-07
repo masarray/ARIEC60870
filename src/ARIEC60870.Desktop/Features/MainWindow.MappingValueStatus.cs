@@ -337,6 +337,15 @@ public partial class MainWindow
                  item.Frame?.LinkControl is { IsPrimaryRequestClass1: true })
             _giCasesDirty = true;
         }
+        // The indexed passive writer is the sole authoritative process-value source.
+        // Loses preview frames must never replace its resolved signal names with
+        // placeholder IOA labels. GI milestones above still advance normally.
+        if (_passiveLedgerOwnsProcessEvents && !_passiveLedgerFactProjection &&
+            item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+            item.PollingReason is "PASSIVE-IEC101" or "PASSIVE-POINT" &&
+            IsIec10xProcessValue(item))
+            return;
+
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
@@ -712,6 +721,7 @@ public partial class MainWindow
     private long _eventProjectionMismatchCount;
     private int _eventProjectionSourceCount;
     private int _eventProjectionFilteredCount;
+    private long _eventNewWhileHeld; // viewport only; source events still ingested
 
     private static readonly string[] EventCategories =
         ["Digital", "Measurement", "Commands", "GI", "Other"];
@@ -757,6 +767,7 @@ public partial class MainWindow
         _eventProjectionVersion++;
         _eventProjectionSourceCount = recent.Count;
         _eventProjectionFilteredCount = rows.Count;
+        _eventNewWhileHeld = 0;
         if (RelayEventRows.Count != rows.Count) _eventProjectionMismatchCount++;
         if (EventsQuickCountText is not null)
             EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
@@ -824,6 +835,10 @@ public partial class MainWindow
 
     private void RegisterActualEventFact()
     {
+        // Count actual new facts, not dispatcher flush batches, while the
+        // operator holds an immutable Events viewport snapshot.
+        if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
+            _eventNewWhileHeld++;
         _dpiCount++;
         PulseLed(EventLed);
         _liveCountersDirty = true;
@@ -1141,6 +1156,8 @@ public partial class MainWindow
         _eventProjectionMismatchCount = 0;
         _eventProjectionSourceCount = 0;
         _eventProjectionFilteredCount = 0;
+        _eventNewWhileHeld = 0;
+        _eventRowsDeferredWhileManualScroll = false;
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
         _evidenceSummarySignatureByKey.Clear();

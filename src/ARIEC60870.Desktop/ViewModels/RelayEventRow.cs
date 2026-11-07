@@ -47,6 +47,7 @@ public sealed class RelayEventRow
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         TiLabel = item.TypeId.HasValue ? $"TI{item.TypeId.Value}" : "-";
+        TiExplanation = Iec10xTypeIdPresentation.Tooltip(item.TypeId);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
         CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
@@ -92,6 +93,7 @@ public sealed class RelayEventRow
     public string FunInf { get; }
     public string TypeId { get; }
     public string TiLabel { get; }
+    public string TiExplanation { get; }
     public string Type { get; }
     public string Cot { get; }
     public string CotLabel { get; }
@@ -114,7 +116,9 @@ public sealed class RelayEventRow
             return entry.CauseDetails is { Negative: true } ? "GI rejected · NEG" :
                 entry.CauseDetails?.Code == 6 ? "GI requested" :
                 entry.CauseDetails?.Code == 7 ? "GI acknowledged" :
-                entry.CauseDetails?.Code == 10 ? "GI ended · coverage unknown" : "GI observation";
+                entry.CauseDetails?.Code == 10 ?
+                    (full.StartsWith("GI ended ·", StringComparison.Ordinal) ? full : "GI ended") :
+                    "GI observation";
 
         if (entry.TransactionKind == "Command")
         {

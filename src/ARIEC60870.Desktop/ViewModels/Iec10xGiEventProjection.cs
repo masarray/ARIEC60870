@@ -31,9 +31,11 @@ public static class Iec10xGiEventProjection
             SignalName = "GI #" + c.CaseId + " · " + c.Description,
             SignalGroup = "GI",
             SignalType = "GI",
-            NewValue = milestone.Phase + " · " + c.Status +
-                (milestone.Phase == "GI ACTTERM" ?
-                    $" · {c.DataFrames} frames / {c.DataObjects} objects / {c.UniqueIoas} unique IOAs · coverage unknown" : ""),
+            // ACTTERM is a lifecycle fact, not verified profile coverage.
+            // Full counters, Class 1 activity and uncertainty remain in GI Cases.
+            NewValue = milestone.Phase == "GI ACTTERM"
+                ? $"GI ended · {c.UniqueIoas} IOAs observed"
+                : milestone.Phase + " · " + c.Status,
             EdgeReason = frame.DirectionText + " observed · source-matched evidence",
             CauseOfTransmission = frame.AsduDetails?.CotNameWithFlags ?? "",
             AsduType = frame.AsduType ?? "",

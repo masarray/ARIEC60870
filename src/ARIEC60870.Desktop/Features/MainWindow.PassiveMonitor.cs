@@ -300,10 +300,31 @@ public partial class MainWindow
             _passiveLedgerFactProjection = false;
             if (ResolveIoaPoint(accepted) is not null)
                 throw new InvalidOperationException("A preview-only passive frame unexpectedly promoted a CA-alias Signal List name.");
+
+            // Reproduce field screenshot: after the writer emits a trustworthy
+            // CA-aligned name, a later lossy frame preview used to overwrite
+            // the same Value with a bare IOA while Event Log stayed named.
+            _passiveLedgerOwnsProcessEvents = true;
+            _passiveLedgerFactProjection = true;
+            UpdateValueAndEventViews(accepted);
+            _passiveLedgerFactProjection = false;
+            FlushUiQueues();
+            if (!ValueRows.Any(row => row.Signal == "Observed GI status" &&
+                    row.IoAddress == "7" && row.CommonAddress == "1"))
+                throw new InvalidOperationException(
+                    "Writer-owned accepted process fact did not update named Values.");
+            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 200,
+                DateTime.UtcNow, "Variable", true, testFrame));
+            FlushUiQueues();
+            if (!ValueRows.Any(row => row.Signal == "Observed GI status" &&
+                    row.IoAddress == "7" && row.CommonAddress == "1"))
+                throw new InvalidOperationException(
+                    "Preview overwrote writer-owned Values Signal List name with IOA placeholder.");
         }
         finally
         {
             _passiveLedgerFactProjection = false;
+            _passiveLedgerOwnsProcessEvents = false;
             _ioaProfile = savedIoaProfile;
             _runtimeCaReconciler = savedAliasReconciler;
             _sessionSubtitleBeforeCaRecovery = savedCaRecoverySubtitle;
