@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Mapping;
+using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Master.Model;
 using Xunit;
 
 namespace ARIEC60870.Desktop.Tests;
@@ -145,6 +147,50 @@ public sealed class Iec10xProfileVariantTests
             ]
         };
         Assert.Throws<InvalidOperationException>(() => profile.RebindSingleStationCommonAddress(1));
+    }
+
+    [Fact]
+    public void ValuesCarriesObservedDl105AndCa1WithProfileMismatch()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "frame", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            CommonAddress = 1, InformationObjectAddress = 16712686,
+            SignalName = "CIRCUIT BREAKER", DisplayValue = "OFF"
+        }, wireDl: 105, configuredDl: 105, configuredCa: 105,
+           mappedCa: 105, readOnlyAlias: true);
+        Assert.Equal("105", row.LinkAddress);
+        Assert.Equal("1", row.CommonAddress);
+        Assert.True(row.IsCaMismatch);
+        Assert.False(row.IsDlMismatch);
+        Assert.Contains("Read-only", row.CaExplanation);
+        Assert.Contains("16712686", row.Address);
+    }
+
+    [Fact]
+    public void ValuesDifferentiatesDlMismatchFromCaMismatch()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "frame", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            CommonAddress = 1, InformationObjectAddress = 10
+        }, wireDl: 106, configuredDl: 105, configuredCa: 1, mappedCa: 1);
+        Assert.True(row.IsDlMismatch);
+        Assert.False(row.IsCaMismatch);
+    }
+
+    [Fact]
+    public void ValuesNeverInventsObservedDlForProfilePlaceholder()
+    {
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "pending", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            CommonAddress = 105, InformationObjectAddress = 10,
+            DisplayValue = "awaiting live value"
+        });
+        Assert.Equal("-", row.LinkAddress);
+        Assert.False(row.IsDlMismatch);
+        Assert.False(row.IsCaMismatch);
     }
 
     [Fact]

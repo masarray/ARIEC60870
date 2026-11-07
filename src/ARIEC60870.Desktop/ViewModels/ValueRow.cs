@@ -13,7 +13,8 @@ public sealed class ValueRow : INotifyPropertyChanged
 {
     private bool _isRecentlyChanged;
 
-    public ValueRow(Iec103ValuePoint item)
+    public ValueRow(Iec103ValuePoint item, int? wireDl = null, int? configuredDl = null,
+        int? configuredCa = null, int? mappedCa = null, bool readOnlyAlias = false)
     {
         Key = item.Key;
         PhysicalSource = item.PhysicalSource;
@@ -41,6 +42,15 @@ public sealed class ValueRow : INotifyPropertyChanged
         CotChips = ProtocolFlagPresentation.Cot(item.CauseDetails);
         CotDetail = item.CauseDetails?.Detail ?? Cot;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        LinkAddress = wireDl?.ToString(CultureInfo.InvariantCulture) ?? "-";
+        IsDlMismatch = wireDl.HasValue && configuredDl.HasValue && wireDl.Value != configuredDl.Value;
+        IsCaMismatch = item.CommonAddress.HasValue &&
+            ((configuredCa.HasValue && item.CommonAddress.Value != configuredCa.Value) ||
+             (mappedCa.HasValue && item.CommonAddress.Value != mappedCa.Value));
+        DlExplanation = $"Observed FT1.2 DL={LinkAddress}; configured DL={configuredDl?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}. DL and ASDU CA are independent.";
+        CaExplanation = $"Observed ASDU CA={CommonAddress}; configured CA={configuredCa?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}; Signal List CA={mappedCa?.ToString(CultureInfo.InvariantCulture) ?? "unmapped"}. " +
+            (readOnlyAlias ? "Read-only name alignment: trusted wire CA and command target remain unchanged."
+                           : "Displayed value comes from accepted RX; no CA modification.");
         IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         IoaSortKey = item.InformationObjectAddress ?? int.MaxValue;
         TypeSortKey = item.TypeId ?? int.MaxValue;
@@ -79,6 +89,11 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string CotDetail { get; }
     public IReadOnlyList<ProtocolFlagChip> CotChips { get; }
     public string CommonAddress { get; }
+    public string LinkAddress { get; }
+    public bool IsDlMismatch { get; }
+    public bool IsCaMismatch { get; }
+    public string DlExplanation { get; }
+    public string CaExplanation { get; }
     public string IoAddress { get; }
     public int IoaSortKey { get; }
     public string Address { get; }

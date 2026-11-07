@@ -209,6 +209,20 @@ public partial class MainWindow
         AppendSessionLog("Profile CA mismatch: " + explanation);
     }
 
+    private int? ConfiguredDlForSource(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
+            _passiveLedgerFactProjection || IsIec101PassiveMonitorSelected())
+            return null;
+
+        // Standby physical link may have a different link-layer address.
+        var isBackup = IsIec101DualLinkModeSelected() &&
+            (item.PhysicalSource.Equals("LINK B", StringComparison.OrdinalIgnoreCase) ||
+             item.PhysicalSource.Equals("B", StringComparison.OrdinalIgnoreCase));
+        var field = isBackup ? BackupLinkAddressBox : LinkAddressBox;
+        return int.TryParse(field.Text, out var address) ? address : null;
+    }
+
     private static string ExtractSimpleStateToken(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -348,7 +362,16 @@ public partial class MainWindow
                 QualityText = ExtractQualityTextFromEvidence(item),
                 QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
-            })
+            },
+            item.LinkAddress ?? item.Frame?.LinkAddress,
+            ConfiguredDlForSource(item),
+            item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                !_passiveLedgerFactProjection && !IsIec101PassiveMonitorSelected() &&
+                int.TryParse(CommonAddressBox.Text, out var configuredCa) ? configuredCa : null,
+            ioaPoint is null ? null : ioaPoint.Ca ?? _ioaProfile.CommonAddress,
+            ioaPoint is not null && item.CommonAddressNumber.HasValue &&
+                (ioaPoint.Ca ?? _ioaProfile.CommonAddress) is int profileCa &&
+                profileCa != item.CommonAddressNumber.Value)
             {
                 IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
             };
