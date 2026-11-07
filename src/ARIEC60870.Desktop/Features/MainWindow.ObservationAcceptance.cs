@@ -818,6 +818,54 @@ public partial class MainWindow
             }
             SaveRealWpfBitmap(outputDirectory, "field-1366x768-" + view.Name + ".png");
         }
+        // Real WPF hold regression: one thousand incoming event facts cannot
+        // mutate the inspected DataGrid viewport or selected item. The bounded
+        // source ring must continue accepting data independently.
+        MainTabControl.SelectedIndex = 3;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        SetEventFilters(EventCategories, Array.Empty<string>());
+        EventsAutoScrollButton.IsChecked = true;
+        ApplyRelayEventFilter();
+        if (RelayEventRows.Count == 0)
+            throw new InvalidOperationException("No initial Events for AUTO OFF acceptance.");
+        var heldEvents = RelayEventRows.ToArray();
+        var heldRow = heldEvents[heldEvents.Length / 2];
+        RelayEventGrid.ScrollIntoView(heldRow);
+        RelayEventGrid.SelectedItem = heldRow;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        var eventScroll = RelayEventGrid.Template.FindName("DG_ScrollViewer", RelayEventGrid) as ScrollViewer;
+        var heldOffset = eventScroll?.VerticalOffset;
+        EventsAutoScrollButton.IsChecked = false;
+        for (var i = 0; i < 1000; i++)
+            AppendProtocolEvent(new Iec103RelayEventLogEntry
+            {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                SignalName = "Synthetic event viewport regression",
+                NewValue = (i % 31).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                TypeId = 13
+            });
+        FlushUiQueues();
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (RelayEventRows.Count != heldEvents.Length ||
+            !RelayEventRows.SequenceEqual(heldEvents) ||
+            !ReferenceEquals(RelayEventGrid.SelectedItem, heldRow) ||
+            _eventNewWhileHeld != 1000 ||
+            heldOffset is double previous && eventScroll is not null &&
+                Math.Abs(eventScroll.VerticalOffset - previous) > 0.5)
+            throw new InvalidOperationException(
+                $"Events AUTO OFF moved frozen view: projected={RelayEventRows.Count}/{heldEvents.Length}, " +
+                $"selected={ReferenceEquals(RelayEventGrid.SelectedItem, heldRow)}, " +
+                $"pending={_eventNewWhileHeld}, source={_relayEventStore.Snapshot().Count}.");
+        EventsAutoScrollButton.IsChecked = true;
+        FlushUiQueues();
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        if (_eventNewWhileHeld != 0 ||
+            RelayEventRows.Count != _relayEventStore.Snapshot().Count ||
+            RelayEventRows.Count > MaxVisibleRelayEventRows)
+            throw new InvalidOperationException("Events AUTO ON did not catch up to bounded source ring.");
+
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         TraceQuickScopeCombo.SelectedIndex = 1;

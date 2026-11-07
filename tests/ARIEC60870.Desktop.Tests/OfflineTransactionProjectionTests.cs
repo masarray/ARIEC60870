@@ -48,7 +48,9 @@ public sealed class OfflineTransactionProjectionTests
         Assert.Equal("GI", row.TransactionKind);
         Assert.Equal(done.Case.CaseId, row.TransactionCaseId);
         Assert.Equal(105, done.Case.LinkAddress);
-        Assert.Contains("coverage unknown", row.NewValue);
+        Assert.Equal("GI ended · 0 IOAs observed", row.NewValue);
+        Assert.Contains("coverage unknown", done.Case.Status);
+        Assert.DoesNotContain("coverage unknown", row.CompactDisplayValue);
         Assert.Equal(0, gi.ActiveCount);
     }
 

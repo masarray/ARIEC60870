@@ -835,6 +835,10 @@ public partial class MainWindow
 
     private void RegisterActualEventFact()
     {
+        // Count actual new facts, not dispatcher flush batches, while the
+        // operator holds an immutable Events viewport snapshot.
+        if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
+            _eventNewWhileHeld++;
         _dpiCount++;
         PulseLed(EventLed);
         _liveCountersDirty = true;

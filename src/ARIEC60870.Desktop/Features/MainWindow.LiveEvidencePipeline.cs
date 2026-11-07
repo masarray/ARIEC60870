@@ -926,10 +926,9 @@ public partial class MainWindow
                 // A frozen WPF viewport cannot tolerate head removals from the
                 // rolling ring. Hold only the bounded projection, never ingestion.
                 _eventRowsDeferredWhileManualScroll = true;
-                _eventNewWhileHeld++;
                 if (EventsQuickCountText is not null)
                     EventsQuickCountText.Text =
-                        $"{RelayEventRows.Count} visible · new events pending";
+                        $"{RelayEventRows.Count} visible · +{_eventNewWhileHeld:N0} new";
                 _relayEventRowsDirty = false;
             }
             else
