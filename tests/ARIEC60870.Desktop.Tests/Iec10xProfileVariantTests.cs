@@ -30,6 +30,65 @@ public sealed class Iec10xProfileVariantTests
     }
 
     [Fact]
+    public void AutoCaMapsSimulator22SignalsWithoutChangingProjectCommonAddress()
+    {
+        int[] sp = [8388714,8388715,8388716,8388717,8388725,8388754,
+            16712694,16712701,16712708,16712709,16712710];
+        int[] dp = [16712686,16712689,16712704];
+        int[] analog = [790446,790447,790438,790439,790442,790443,790449];
+        var profile = new Iec10xPointMappingProfile { CommonAddress = 105 };
+        foreach (var ioa in sp) profile.Points.Add(new() { Ca=105, Ioa=ioa, TypeId=30, Name=$"SP {ioa}" });
+        foreach (var ioa in dp) profile.Points.Add(new() { Ca=105, Ioa=ioa, TypeId=31, Name=$"DP {ioa}" });
+        foreach (var ioa in analog) profile.Points.Add(new() { Ca=105, Ioa=ioa, TypeId=13, Name=$"AI {ioa}" });
+        profile.Points.Add(new() { Ca=105, Ioa=790448, TypeId=32, Name="Tap" });
+        var adapter = new Iec10xRuntimeCaReconciler(profile);
+        Assert.True(adapter.IsSingleStation);
+        int matched = 0, first = 0;
+        foreach (var point in profile.Points)
+        {
+            var outcome = adapter.Observe("SINGLE", 1, point.Ioa, point.TypeId!.Value);
+            if (outcome.Point is not null) matched++;
+            if (outcome.FirstAlias) first++;
+            Assert.True(outcome.ReadOnlyAlias);
+            Assert.Equal(point.Name, outcome.Point?.Name);
+        }
+        Assert.Equal(22, matched);
+        Assert.Equal(1, first);
+        Assert.Equal(105, profile.CommonAddress);
+        Assert.All(profile.Points, p => Assert.Equal(105, p.Ca));
+        Assert.Null(profile.ResolveObservedSignal(1, 16712686, 31));
+    }
+
+    [Fact]
+    public void SmartCaIsFailClosedForWrongFamilyMultiStationOrMixedSource()
+    {
+        var profile = new Iec10xPointMappingProfile
+        {
+            CommonAddress = 105,
+            Points =
+            [
+                new() { Ca=105, Ioa=16712686, TypeId=31, Name="CB" },
+                new() { Ca=105, Ioa=8388714, TypeId=30, Name="Alarm" }
+            ]
+        };
+        var reconciler = new Iec10xRuntimeCaReconciler(profile);
+        Assert.Null(reconciler.Observe("LINK A", 1, 16712686, 13).Point);
+        Assert.Equal("CB", reconciler.Observe("LINK A", 1, 16712686, 31).Point?.Name);
+        Assert.True(reconciler.Observe("LINK A", 2, 8388714, 30).SourceCaConflict);
+        Assert.Null(reconciler.Observe("LINK A", 1, 8388714, 30).Point);
+        Assert.Equal("Alarm", reconciler.Observe("LINK B", 1, 8388714, 30).Point?.Name);
+        var multi = new Iec10xPointMappingProfile
+        {
+            CommonAddress = 105,
+            Points = [new() { Ca=105, Ioa=5, TypeId=30, Name="A" },
+                      new() { Ca=106, Ioa=5, TypeId=30, Name="B" }]
+        };
+        var blocked = new Iec10xRuntimeCaReconciler(multi);
+        Assert.False(blocked.IsSingleStation);
+        Assert.Null(blocked.Observe("SINGLE", 1, 5, 30).Point);
+    }
+
+    [Fact]
     public void MismatchedCaIsDiagnosedButNeverAliasedAutomatically()
     {
         var profile = new Iec10xPointMappingProfile

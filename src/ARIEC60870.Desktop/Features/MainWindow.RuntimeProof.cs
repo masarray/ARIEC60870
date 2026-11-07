@@ -554,54 +554,32 @@ public partial class MainWindow
             return;
         }
 
+        // A GI negative ACTCON or service echo is not evidence of the
+        // effective process CA. Never persist or redirect command CA from RX.
+        if (item.Direction != FrameDirection.SlaveToMaster ||
+            !IsIec10xProcessValue(item) ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item))
+            return;
         _firstObservedRuntimeCa ??= observedCa;
         if (!int.TryParse(CommonAddressBox.Text, out var configuredCa) || configuredCa == observedCa)
-        {
             return;
-        }
-
-        // Wait until an actual process value, not a command echo/noise, to avoid false warnings.
-        if (!item.IsRelayValue && item.TypeId is not (1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36))
-        {
-            return;
-        }
 
         _runtimeCaMismatchReported = true;
-        ApplyObservedCommonAddressToSetupPreferences(observedCa, configuredCa);
         AddUiDiagnostic(
             "Warning",
             "IEC-101",
             "IEC101-RUNTIME-CA-MISMATCH",
             "Runtime ASDU common address differs from setup/profile",
             $"Live process data is arriving with CA={observedCa}, but setup/profile uses CA={configuredCa}. Station GI sent to the wrong CA can be negatively confirmed and may prevent SPS/DPS snapshots from arriving.",
-            "Use the observed CA for GI/test runs, or keep auto CA-learning retry enabled. The Values still maps values by IOA where possible.");
-        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. Auto CA-learning in IEC-101 session will retry GI using observed CA; setup preferences were updated for the next run.");
-    }
-
-    private void ApplyObservedCommonAddressToSetupPreferences(int observedCa, int configuredCa)
-    {
-        if (observedCa <= 0 || observedCa > 65535)
-        {
-            return;
-        }
-
-        var observedText = observedCa.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var configuredText = configuredCa.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        CommonAddressBox.Text = observedText;
-        if (CommandCaBox is not null
-            && (string.IsNullOrWhiteSpace(CommandCaBox.Text)
-                || string.Equals(CommandCaBox.Text.Trim(), configuredText, StringComparison.OrdinalIgnoreCase)))
-        {
-            CommandCaBox.Text = observedText;
-        }
-
-        SaveSetupPreferencesFromUi(silent: true);
+            "Validated observed CA may be used for bounded GI retry and read-only Values/Events signal-name alignment. Setup, command address and mapping file are not silently changed.");
+        AppendSessionLog($"Runtime CA mismatch: live ASDU CA={observedCa}, configured CA={configuredCa}. No persistent settings or command address were modified.");
     }
 
     private void SeedValueViewerFromIoaProfile(Iec60870ProtocolMode protocolMode)
     {
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
+        _runtimeCaReconciler = new Iec10xRuntimeCaReconciler(_ioaProfile);
         _reportedProfileCaMismatchSources.Clear();
         _giClass2CollectionWindowActive = false;
         _giClass2CollectionUntilUtc = DateTime.MinValue;
@@ -681,21 +659,18 @@ public partial class MainWindow
     private static string BuildGiKey(int? ca, int ioa)
         => $"CA:{(ca?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*")}|IOA:{ioa}";
 
-    private void MarkGiValueReceived(Iec103MasterEvidenceEvent item)
+    private void MarkGiValueReceived(Iec103MasterEvidenceEvent item, Iec10xPointMappingEntry mappedPoint)
     {
         if (!_giCompletenessWatchActive || !item.InformationObjectAddress.HasValue ||
             item.Direction != ARIEC60870.Core.Model.FrameDirection.SlaveToMaster ||
             item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal))
             return;
 
-        var observed = BuildGiKey(item.CommonAddressNumber, item.InformationObjectAddress.Value);
-        if (_giExpectedValueKeys.Contains(observed))
-            _giReceivedValueKeys.Add(observed);
-        else
-        {
-            var wildcard = BuildGiKey(null, item.InformationObjectAddress.Value);
-            if (_giExpectedValueKeys.Contains(wildcard)) _giReceivedValueKeys.Add(wildcard);
-        }
+        // Expected coverage is keyed by the explicit matched profile point.
+        // Trusted RX retains its real CA in the separate physical Values key.
+        var expected = BuildProfileGiKey(mappedPoint);
+        if (_giExpectedValueKeys.Contains(expected))
+            _giReceivedValueKeys.Add(expected);
     }
 
     private void ReportGiCompletenessIfReady(Iec103MasterEvidenceEvent item)

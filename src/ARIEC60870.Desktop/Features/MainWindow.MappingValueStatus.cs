@@ -32,6 +32,7 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
+    private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
 
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
     {
@@ -135,11 +136,43 @@ public partial class MainWindow
             return null;
         }
 
-        // No inferred IOA-only mapping on a CA mismatch. A differently addressed
-        // station is a different physical point; it remains visible but unmapped.
         if (!item.InformationObjectAddress.HasValue) return null;
-        return _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
+        var strict = _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
             item.InformationObjectAddress.Value, item.TypeId);
+        // The adapter is read-only and requires a trusted active IEC-101
+        // process observation. Passive and multi-CA profiles remain strict.
+        if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
+            item.Direction != FrameDirection.SlaveToMaster ||
+            !IsIec10xProcessValue(item) ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            _passiveLedgerFactProjection || IsIec101PassiveMonitorSelected() ||
+            item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal) ||
+            item.CommonAddressNumber is not int ca || item.TypeId is not int type)
+            return strict;
+        _runtimeCaReconciler ??= new Iec10xRuntimeCaReconciler(_ioaProfile);
+        var match = _runtimeCaReconciler.Observe(item.PhysicalSource, ca,
+            item.InformationObjectAddress.Value, type);
+        if (match.SourceCaConflict)
+        {
+            AddUiDiagnostic("Warning", "IEC-101", "IEC101-SMART-CA-AMBIGUOUS",
+                "Multiple RTU common addresses on one source",
+                $"Observed more than one ASDU CA on {item.PhysicalSource}; read-only auto-name alignment is suspended. Raw CA/IOA physical identities remain separate.",
+                "Review station addressing before associating a project signal name. No settings, wire frames or control targets were changed.");
+            AppendSessionLog("Smart CA alignment suspended: conflicting station CAs on the same source.");
+        }
+        if (match.FirstAlias)
+        {
+            var originalCa = _ioaProfile.CommonAddress?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?";
+            var message = $"Configured CA={CommonAddressBox.Text}, Signal List CA={originalCa}, observed RTU CA={ca}; " +
+                $"IEC-101 Link Address={LinkAddressBox.Text} remains unchanged. Read-only signal-name/coverage alignment is active " +
+                "for this one station and source. Protocol GI retry uses validated observed CA. No settings, profile, command address or evidence bytes are changed.";
+            AddUiDiagnostic("Warning", "IEC-101", "IEC101-SMART-CA-AUTO-ALIGNED",
+                $"Smart CA recovery: profile {originalCa} → RTU {ca}", message,
+                "Communication and Values continue automatically. Review CA in Setup; optional 'Align to observed CA' can save a separate project profile. Control commands require an explicit CA.");
+            MappingProfileStatusText.Text = $"Smart CA: observed {ca} / profile {originalCa} — read-only aligned; Diagnostics has details.";
+            AppendSessionLog("Smart CA recovery: " + message);
+        }
+        return match.Point ?? strict;
     }
 
     private void ReportUnmatchedProfileCommonAddress(Iec103MasterEvidenceEvent item)
@@ -240,7 +273,7 @@ public partial class MainWindow
         if (shouldShowValue)
         {
             // Only a point compatible with the configured CA/Type can satisfy GI.
-            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item);
+            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item, ioaPoint);
             // In dual-link mode (or wildcard-CA mapping) an actual physical point
             // has a different key than the seeded SINGLE placeholder. Remove the
             // stale placeholder without merging Link A/B process snapshots.
@@ -1029,6 +1062,7 @@ public partial class MainWindow
         _evidenceSummaryLastAnalogUtcByKey.Clear();
         _giExpectedValueKeys.Clear();
         _giReceivedValueKeys.Clear();
+        _runtimeCaReconciler = null;
         _giCompletenessWatchActive = false;
         _giCompletenessReported = false;
         _firstObservedRuntimeCa = null;
