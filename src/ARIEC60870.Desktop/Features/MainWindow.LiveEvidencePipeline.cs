@@ -921,12 +921,25 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            // FOLLOW OFF stops auto-scroll, not additions to the Event Log.
-            ApplyRelayEventFilter();
-            batchRows += RelayEventRows.Count;
-            _relayEventRowsDirty = false;
-            _eventRowsDeferredWhileManualScroll = false;
-            ScrollLatestEventIfAutoScroll();
+            if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
+            {
+                // A frozen WPF viewport cannot tolerate head removals from the
+                // rolling ring. Hold only the bounded projection, never ingestion.
+                _eventRowsDeferredWhileManualScroll = true;
+                _eventNewWhileHeld++;
+                if (EventsQuickCountText is not null)
+                    EventsQuickCountText.Text =
+                        $"{RelayEventRows.Count} visible · new events pending";
+                _relayEventRowsDirty = false;
+            }
+            else
+            {
+                ApplyRelayEventFilter();
+                batchRows += RelayEventRows.Count;
+                _relayEventRowsDirty = false;
+                _eventRowsDeferredWhileManualScroll = false;
+                ScrollLatestEventIfAutoScroll();
+            }
         }
 
         if (_pendingFindingUiRows.Count > 0)

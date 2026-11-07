@@ -22,6 +22,17 @@ public sealed class OperatorValueAndEventCategoryTests
         string protocol, string typeId, string value, string expected) =>
         Assert.Equal(expected, IecOperatorValueFormatter.ForGrid(protocol, typeId, value));
 
+    [Theory]
+    [InlineData("101", "5", "ST=7", "7")]
+    [InlineData("104", "32", "ST=-64", "-64")]
+    [InlineData("101", "5", "ST=64", "ST=64")]
+    [InlineData("101", "32", "ST=7, TRANSIENT=1", "ST=7, TRANSIENT=1")]
+    [InlineData("101", "5", "ST=invalid", "ST=invalid")]
+    [InlineData("103", "5", "ST=7", "ST=7")]
+    public void StepPositionPresentationIsLosslessOutsideBareValidNumber(
+        string protocol, string typeId, string raw, string expected)
+        => Assert.Equal(expected, IecOperatorValueFormatter.ForGrid(protocol, typeId, raw));
+
     [Fact]
     public void IncludeAndExcludeAreIndependentAndExclusionWins()
     {
