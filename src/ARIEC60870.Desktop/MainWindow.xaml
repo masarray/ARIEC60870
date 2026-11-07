@@ -2151,10 +2151,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="32"/>
                                 <RowDefinition Height="6"/>
-                                <RowDefinition Height="2*"/>
-                                <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="24"/>
+                                <RowDefinition Height="6"/>
+                                <RowDefinition Height="2.25*"/>
+                                <RowDefinition Height="54"/>
                             </Grid.RowDefinitions>
                             <!-- Compact single-line case toolbar: Search flush left | actual count right.
                                  Copy/open original frame live on both case and stage context menus. -->
@@ -2233,13 +2233,15 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Host UTC" Binding="{Binding HostUtc, StringFormat={}{0:HH:mm:ss.fff}}" Width="120"/>
                                     <DataGridTextColumn Header="TX/RX" Binding="{Binding Direction}" Width="65"/>
-                                    <DataGridTextColumn Header="GI stage" Binding="{Binding Phase}" Width="240"/>
-                                    <DataGridTextColumn Header="Frame #" Binding="{Binding Sequence}" Width="90"/>
+                                    <DataGridTextColumn Header="TI" Binding="{Binding TiLabel}" Width="61"/>
+                                    <DataGridTextColumn Header="COT" Binding="{Binding CotLabel}" Width="72"/>
+                                    <DataGridTextColumn Header="GI event / observed response" Binding="{Binding OperatorEvent}" Width="*" MinWidth="235"/>
+                                    <DataGridTextColumn Header="Frame #" Binding="{Binding Sequence}" Width="78"/>
                                     <DataGridTextColumn Header="Original evidence reference" Binding="{Binding EvidenceReference}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock x:Name="GiCaseDetailsBox" Grid.Row="5" Text="Select GI conversation. ACTTERM never proves complete point coverage."
-                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="22" Foreground="{StaticResource Ink600Brush}" FontSize="12.2" Margin="4,2,4,0"/>
+                            <TextBlock x:Name="GiCaseDetailsBox" Grid.Row="5" Text="Select a GI conversation for protocol events and drain progress."
+                                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="51" Foreground="{StaticResource Ink700Brush}" FontSize="11.7" Margin="4,4,4,0"/>
                         </Grid>
                     </TabItem>
 

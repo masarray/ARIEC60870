@@ -303,7 +303,9 @@ public partial class MainWindow
             _giCasesDirty = true;
             AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone), item);
         }
-        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 })
+        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 } ||
+                 _giCasebook.ActiveCount > 0 && item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                 item.Frame?.LinkControl is { IsPrimaryRequestClass1: true })
             _giCasesDirty = true;
         }
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
