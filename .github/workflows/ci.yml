@@ -101,6 +101,60 @@ jobs:
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
+      - name: Build Inno Setup installer and verify in-place install/reinstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to acquire Inno Setup compiler.' }
+          }
+          if (!(Test-Path $iscc)) { throw "Missing Inno Setup compiler: $iscc" }
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          New-Item -ItemType Directory -Force -Path artifacts/installer | Out-Null
+          $source = (Resolve-Path artifacts/passive-gui-publish).Path
+          $output = (Resolve-Path artifacts/installer).Path
+          & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          if (!(Test-Path $setup)) { throw 'Missing Inno installer artifact.' }
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content (Join-Path $output 'SHA256SUMS.txt') "$hash  $(Split-Path $setup -Leaf)" -Encoding ascii
+          $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
+          $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NORESTARTAPPLICATIONS')
+          $fresh = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($fresh.ExitCode -ne 0) { throw "Fresh installer failed: $($fresh.ExitCode)" }
+          $exe = Join-Path $installDir 'ARIEC60870.exe'
+          if (!(Test-Path $exe)) { throw 'Installed ARIEC60870.exe was not found.' }
+          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru
+          if ($smoke.ExitCode -ne 0) { throw "Installed WPF smoke failed: $($smoke.ExitCode)" }
+          $userData = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
+          New-Item -ItemType Directory -Force -Path $userData | Out-Null
+          $sentinel = Join-Path $userData 'ci-install-preservation.txt'
+          'preserve' | Set-Content $sentinel
+          $again = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($again.ExitCode -ne 0) { throw "In-place reinstall failed: $($again.ExitCode)" }
+          if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Reinstall lost app or user data.' }
+          $matches = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
+            Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq 'ARIEC60870 Evidence Analyzer' })
+          if ($matches.Count -ne 1) { throw "Expected one uninstall registration, found $($matches.Count)." }
+          $uninstall = Join-Path $installDir 'unins000.exe'
+          if (!(Test-Path $uninstall)) { throw 'Missing registered uninstaller.' }
+          $removed = Start-Process -FilePath $uninstall -ArgumentList @('/VERYSILENT', '/NORESTART') -Wait -PassThru
+          if ($removed.ExitCode -ne 0) { throw "Uninstall failed: $($removed.ExitCode)" }
+          if (Test-Path $exe) { throw 'Uninstall left application executable behind.' }
+          if (!(Test-Path $sentinel)) { throw 'Uninstall deleted user data.' }
+
+      - name: Upload Inno Setup installer and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-InnoSetup-win-x64
+          path: artifacts/installer/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Package independent IEC-101 2/4-RX field test tools
         shell: pwsh
         run: |
