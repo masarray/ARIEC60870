@@ -847,8 +847,11 @@
                                         <DataTemplate>
                                             <Grid Margin="0,2,0,3">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="0.90*"/>
-                                                    <ColumnDefinition Width="1.10*"/>
+                                                    <!-- Give the inline engineer interpreter 68% of the
+                                                         frame row, while keeping the raw wire
+                                                         timeline and original HEX on the left. -->
+                                                    <ColumnDefinition Width="0.64*"/>
+                                                    <ColumnDefinition Width="1.36*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Left: real on-wire evidence. Original bytes
                                                      remain intact, readable and independent of
@@ -893,15 +896,33 @@
                                                                    FontWeight="SemiBold" Foreground="#253B51"
                                                                    TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                                                                    MaxHeight="35"/>
+                                                        <!-- Each IOA/Value is separated by an actual
+                                                             newline, not joined as a horizontal
+                                                             text run. Only 3 source objects are
+                                                             previewed to keep live rows bounded. -->
                                                         <TextBlock Text="{Binding TimelineSignalDigest}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="62">
+                                                                   MaxHeight="112">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding HasTimelineSignalDigest}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding TimelineSignalOverflow}"
+                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.3"
+                                                                   Foreground="#59728A" Margin="0,2,0,0"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding HasTimelineSignalOverflow}" Value="False">
                                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>

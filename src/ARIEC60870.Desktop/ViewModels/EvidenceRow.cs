@@ -249,10 +249,27 @@ public sealed partial class EvidenceRow
 
     // The left observation row has two independent reading lanes:
     // original bytes on the left, typed engineering interpretation on the right.
-    // Only construct a short signal digest for realized/visible rows.
+    // Each process signal gets its own line. A bounded preview avoids a large
+    // ASDU turning one virtualized trace row into hundreds of pixels; the
+    // selected-frame properties still contain every original object.
+    private const int InlineSignalPreviewLimit = 3;
     private string? _timelineSignalDigest;
     public string TimelineSignalDigest => _timelineSignalDigest ??= BuildTimelineSignalDigest();
     public bool HasTimelineSignalDigest => TimelineSignalDigest.Length > 0;
+    public string TimelineSignalOverflow
+    {
+        get
+        {
+            var count = Source.AsduDetails is { Issues.Count: 0 } asdu &&
+                asdu.TypeId != 100 ? asdu.Objects.Count : 0;
+            var extra = count - InlineSignalPreviewLimit;
+            return extra > 0
+                ? "+" + extra.ToString(CultureInfo.InvariantCulture) +
+                  " more signals · open Frame Details for all objects"
+                : string.Empty;
+        }
+    }
+    public bool HasTimelineSignalOverflow => TimelineSignalOverflow.Length > 0;
 
     private string BuildTimelineSignalDigest()
     {
@@ -270,22 +287,16 @@ public sealed partial class EvidenceRow
         if (asdu.TypeId == 100 && asdu.CommandDetails?.QualifierValue is int qualifier)
             return "GI request · QOI " + qualifier.ToString(CultureInfo.InvariantCulture);
 
-        // A multi-object ASDU must never be represented as only the first IOA.
-        // The selected inspector contains all objects, not this short digest.
-        var sample = asdu.Objects.Take(2).Select(obj =>
+        // Vertical IOA / Value lines are much faster to scan than a long
+        // horizontal sentence joined with "|" during burst traffic.
+        // Only source-typed, real decoded values are displayed.
+        var visible = asdu.Objects.Take(InlineSignalPreviewLimit).Select(obj =>
         {
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
             return Iec10xSignalTraceFormatter.Format(asdu, obj, name);
         });
-        return (asdu.Objects.Count > 1
-                ? asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) + " signals · "
-                : "SIGNAL · ") +
-            string.Join("  |  ", sample) +
-            (asdu.Objects.Count > 2
-                ? "  ·  +" + (asdu.Objects.Count - 2).ToString(CultureInfo.InvariantCulture) +
-                    " more in inspector"
-                : string.Empty);
+        return string.Join(Environment.NewLine, visible);
     }
 
     private string? _timelineCompactContext;

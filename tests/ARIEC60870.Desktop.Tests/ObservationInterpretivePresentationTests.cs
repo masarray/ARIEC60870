@@ -100,12 +100,44 @@ public sealed class ObservationInterpretivePresentationTests
         Assert.Equal("68 0C 0C 68 68 03", row.TimelineHex);
         Assert.Equal("GI data · Double-point", row.TimelineTitle);
         Assert.Equal("CA 1 · TI 3 · COT 20", row.TimelineCompactContext);
-        Assert.Contains("3 signals", row.TimelineSignalDigest);
-        Assert.Contains("IOA 9 (IOA1:9 - IOA2:0 - IOA3:0)  Value: ON (Double Point)", row.TimelineSignalDigest);
-        Assert.Contains("IOA 10 (IOA1:10 - IOA2:0 - IOA3:0)  Value: OFF (Double Point)", row.TimelineSignalDigest);
-        Assert.Contains("+1 more in inspector", row.TimelineSignalDigest);
-        Assert.DoesNotContain("IOA 11 (", row.TimelineSignalDigest);
+        // One real signal per display line (not 2 objects joined by |).
+        var signals = row.TimelineSignalDigest.Split(Environment.NewLine);
+        Assert.Equal(3, signals.Length);
+        Assert.StartsWith("IOA 9 (IOA1:9 - IOA2:0 - IOA3:0)  Value: ON (Double Point)", signals[0]);
+        Assert.StartsWith("IOA 10 (IOA1:10 - IOA2:0 - IOA3:0)  Value: OFF (Double Point)", signals[1]);
+        Assert.StartsWith("IOA 11 (IOA1:11 - IOA2:0 - IOA3:0)  Value: INDETERMINATE (Double Point)", signals[2]);
+        Assert.DoesNotContain(" | ", row.TimelineSignalDigest);
+        Assert.False(row.HasTimelineSignalOverflow);
         Assert.True(row.HasTimelineSignalDigest);
+    }
+
+    [Fact]
+    public void BurstyMultiObjectFramesRemainBoundedAndExposeRemainingCount()
+    {
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 1, InformationObjectAddressWidth = 3, ObjectCount = 40,
+            Objects = Enumerable.Range(0, 40).Select(i => new Iec10xInformationObject
+            {
+                Index = i + 1, InformationObjectAddress = 1000 + i,
+                ValueText = i % 2 == 0 ? "SP=ON" : "SP=OFF"
+            }).ToArray()
+        };
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu
+        });
+        var visible = row.TimelineSignalDigest.Split(Environment.NewLine);
+        Assert.Equal(3, visible.Length);
+        Assert.Contains("IOA 1000", visible[0]);
+        Assert.Contains("Value: ON (Single Point)", visible[0]);
+        Assert.Contains("IOA 1001", visible[1]);
+        Assert.Contains("IOA 1002", visible[2]);
+        Assert.DoesNotContain("IOA 1003", row.TimelineSignalDigest);
+        Assert.True(row.HasTimelineSignalOverflow);
+        Assert.Equal("+37 more signals · open Frame Details for all objects", row.TimelineSignalOverflow);
+        // Lazy projection must produce stable cached strings while live traffic arrives.
+        Assert.Same(row.TimelineSignalDigest, row.TimelineSignalDigest);
     }
 
     [Fact]
