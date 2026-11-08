@@ -971,6 +971,17 @@ public partial class MainWindow
         if (DecodedPointGrid.ItemContainerGenerator.ContainerFromItem(lastPoint) is not DataGridRow pointRow ||
             !pointRow.IsVisible || pointRow.ActualHeight < 12)
             throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
+        // Only three narrow-screen scan columns; device time, raw element
+        // bytes and provenance remain in the selected object's row details.
+        if (DecodedPointGrid.Columns.Count != 3)
+            throw new InvalidOperationException("Narrow inspector restored clipped time/HEX table columns.");
+        DecodedPointGrid.SelectedItem = lastPoint;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (pointRow.DetailsVisibility != Visibility.Visible ||
+            string.IsNullOrWhiteSpace(lastPoint.RawHex) ||
+            string.IsNullOrWhiteSpace(lastPoint.RelayTime))
+            throw new InvalidOperationException("Object drilldown lost original bytes or device-time status.");
         interpretedPointRows = DecodedPointGrid.Items.Count;
         // Field screenshot acceptance: decoded inspector exposes expandable,
         // source-backed children. No synthetic quality/IOA bits are fabricated.
