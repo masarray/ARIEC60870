@@ -33,9 +33,13 @@ public static class SelectedFrameProtocolText
             Line(b, "Stream", (source.PhysicalStreamId?.ToString(CultureInfo.InvariantCulture) ?? "?") +
                 "  Offset=" + (source.RawStreamOffset?.ToString(CultureInfo.InvariantCulture) ?? "?"));
 
+        // Some capture projections carry the decoded physical FT1.2 address
+        // only on the frame; never replace it with the unrelated ASDU CA.
+        var linkAddress = source.LinkAddress ?? frame?.LinkAddress;
+        var address = linkAddress?.ToString(CultureInfo.InvariantCulture) ?? "-";
         if (link is not null)
         {
-            var control = "Address=" + row.LinkAddress +
+            var control = "Address=" + address +
                 "  PRM=" + Bit(link.Prm) +
                 "  FC=" + link.FunctionCode.ToString(CultureInfo.InvariantCulture);
             if (link.Prm)
@@ -45,8 +49,8 @@ public static class SelectedFrameProtocolText
             Line(b, "LINK", control);
             Line(b, "Function", link.FunctionName);
         }
-        else if (row.LinkAddress != "-")
-            Line(b, "LINK", "Address=" + row.LinkAddress);
+        else if (linkAddress.HasValue)
+            Line(b, "LINK", "Address=" + address);
 
         if (asdu is not null)
         {
@@ -74,8 +78,9 @@ public static class SelectedFrameProtocolText
                     .Append("  Quality=").Append(quality)
                     .Append("  RTU Time=").Append(SingleLine(time));
                 if (obj.Cp56TimeDetails is { } clock)
-                    b.Append("  TimeIV=").Append(Bit(!clock.IsValid))
-                        .Append("  GEN=").Append(Bit(clock.SubstitutedFlag));
+                    b.Append("  TimeIV=").Append(Bit(clock.InvalidFlag))
+                        .Append("  GEN=").Append(Bit(clock.SubstitutedFlag))
+                        .Append("  Calendar=").Append(clock.CalendarInRange ? "In range" : "Invalid");
                 b.AppendLine();
                 if (obj.Issues.Count > 0)
                     Line(b, "Decode issue", string.Join("; ", obj.Issues));
