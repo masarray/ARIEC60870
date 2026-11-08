@@ -124,9 +124,10 @@ public sealed class ForensicTraceLayoutTests
         var view = ForensicTraceLayout.Create(Row(TimedFrame, asdu));
         Assert.Contains("OBJECT #1", view.InformationObjects);
         Assert.Contains("├─ SPI     : 1 · ON", view.InformationObjects);
-        Assert.Contains("├─ RES1    : 0 · Genuine time", view.InformationObjects);
-        Assert.Contains("├─ SU      : 0 · Standard time", view.InformationObjects);
-        Assert.Contains("2026-11-07 20:56:01.132", view.InformationObjects);
+        Assert.Contains("Signal time : 2026-11-07 20:56:01.132", view.AsduHeader);
+        Assert.Contains("├─ RES1    : 0 · Genuine", view.AsduHeader);
+        Assert.Contains("├─ SU      : 0 · Standard", view.AsduHeader);
+        Assert.DoesNotContain("Signal time", view.InformationObjects);
         Assert.Contains("Time bytes  : 6C 04 38 14 07 0B 1A", view.InformationObjects);
         Assert.DoesNotContain("Quality     : Valid", view.InformationObjects);
     }
@@ -143,8 +144,8 @@ public sealed class ForensicTraceLayoutTests
         Assert.Empty(decoded.Issues);
         var row = Row(changed, decoded);
         var view = ForensicTraceLayout.Create(row);
-        Assert.Contains("RES1    : 1 · Substituted time", view.InformationObjects);
-        Assert.Contains("SU      : 1 · Summer time", view.InformationObjects);
+        Assert.Contains("RES1    : 1 · Substituted", view.AsduHeader);
+        Assert.Contains("SU      : 1 · Summer", view.AsduHeader);
         Assert.Contains("#1 RES1=1", view.ActiveFlags);
         Assert.True(ForensicTraceLayout.MatchFlag(row, "RES1=1") == true);
         Assert.True(ForensicTraceLayout.MatchFlag(row, "SU=1") == true);
@@ -166,7 +167,7 @@ public sealed class ForensicTraceLayoutTests
         Assert.False(t.InvalidFlag);
         Assert.Contains("invalid-time", t.TimestampText);
         var view = ForensicTraceLayout.Create(row);
-        Assert.Contains("Invalid date/range", view.InformationObjects);
+        Assert.Contains("Bad time range", view.AsduHeader);
         Assert.Contains("TIME IV/range", view.ActiveFlags);
     }
 
@@ -204,6 +205,32 @@ public sealed class ForensicTraceLayoutTests
         Assert.Equal(-1, Assert.Single(negative.Objects).StepDetails!.Value);
         Assert.False(negative.Objects[0].StepDetails!.Transient);
         Assert.Equal("ST=-1", negative.Objects[0].ShortValue);
+    }
+
+    [Fact]
+    public void Ti11ScaledValueHasNoSignalTimestampAndMustNeverBorrowHostTime()
+    {
+        // TI 11 M_ME_NB_1: scaled value, NOT time-tagged. TI 12 adds CP24;
+        // TI 35 adds a full CP56Time2a clock. No host time substitution.
+        var payload = new byte[]
+        {
+            11, 1, 20, 0, 1, 0,
+            44, 0, 0, 0x34, 0x12, 0
+        };
+        var l = payload.Length + 3;
+        var raw = new byte[l + 6];
+        raw[0] = 0x68; raw[1] = (byte)l; raw[2] = (byte)l;
+        raw[3] = 0x68; raw[4] = 0x28; raw[5] = 0x69; raw[6] = 0;
+        payload.CopyTo(raw, 7);
+        raw[^2] = (byte)(raw.Skip(4).Take(l).Sum(v => v) & 255);
+        raw[^1] = 0x16;
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(payload);
+        Assert.Empty(asdu.Issues);
+        var view = ForensicTraceLayout.Create(Row(raw, asdu));
+        Assert.Contains("Type        : 11", view.AsduHeader);
+        Assert.Contains("Signal time : Not encoded in TI 11", view.AsduHeader);
+        Assert.DoesNotContain("2026-11-08", view.AsduHeader);
+        Assert.Contains("4660", view.InformationObjects);
     }
 
     [Fact]

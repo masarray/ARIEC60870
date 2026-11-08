@@ -109,6 +109,15 @@ public partial class MainWindow
             FrameTraceGrid?.SelectedItems.Count > 0 && IsFollowLiveEnabled())
             EnterLineMonitorHoldForUserSelection();
 
+        if (ReferenceEquals(sender, FrameTraceGrid) &&
+            FrameInterpreterPanel.Visibility != Visibility.Visible)
+        {
+            // No hidden WPF property-grid rebuild on selection/auto RX.
+            // The selected frame is decoded only when the engineer explicitly
+            // invokes Frame Details from the frame context menu.
+            return;
+        }
+
         if (_isProtocolTraceSelectionBatching && ReferenceEquals(sender, FrameTraceGrid))
         {
             _pendingProtocolTraceSelectionInspectorRefresh = true;

@@ -861,6 +861,43 @@
         </Setter>
     </Style>
 
+    <!-- Frame Trace only: source-typed priority; no keyword-based error guesses.
+         Pure presentation. Rows are never removed/coalesced or replaced. -->
+    <Style x:Key="ProtocolTraceForensicLineItem" TargetType="ListBoxItem"
+           BasedOn="{StaticResource ProtocolTraceLineItem}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="TraceChrome" Background="White"
+                            BorderThickness="0,0,0,1" BorderBrush="#DEE7EC"
+                            Padding="12,8,12,10">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Routine">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#F5F7F9" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="GI">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#F3F8F5" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Command">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#F2F6FC" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Attention">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#FFF6F0" />
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#E9EEF3" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#DCE8F1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="TrafficDataGridRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding TrafficTone}" Value="Tx">

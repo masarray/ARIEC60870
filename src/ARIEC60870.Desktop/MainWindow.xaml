@@ -631,11 +631,11 @@
                     </TabItem>
 
                     <TabItem Header="Raw Frames" ToolTipService.IsEnabled="False">
-                        <Grid Margin="12">
+                        <Grid Margin="12" TextElement.FontFamily="Cascadia Mono, Consolas">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" MinWidth="300" />
-                                <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="6" />
-                                <ColumnDefinition x:Name="TraceInspectorColumn" Width="300" MinWidth="0" />
+                                <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="0" />
+                                <ColumnDefinition x:Name="TraceInspectorColumn" Width="0" MinWidth="0" />
                             </Grid.ColumnDefinitions>
 
                             <!-- One physical toolbar line: responsive Search | compact counter | AUTO.
@@ -678,7 +678,7 @@
                                                   StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
                                                   Margin="5,0,8,0" VerticalAlignment="Center"/>
                                             <TextBox x:Name="TraceQuickFindBox" BorderThickness="0" Background="Transparent"
-                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5"
+                                                     FontFamily="Cascadia Mono, Consolas" FontSize="12.5"
                                                      Foreground="#334155" VerticalContentAlignment="Center"
                                                      TextChanged="QuickFindTextChanged"
                                                     />
@@ -799,16 +799,17 @@
                                          LostMouseCapture="FrameTraceGrid_LostMouseCapture"
                                          PreviewMouseRightButtonDown="FrameTraceGrid_PreviewMouseRightButtonDown"
                                          PreviewMouseWheel="TraceScroll_PreviewMouseWheel"
-                                         FontFamily="{StaticResource AppFont}"
+                                         FontFamily="Cascadia Mono, Consolas"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                          TextOptions.TextFormattingMode="Ideal"
                                          TextOptions.TextRenderingMode="ClearType"
                                          TextOptions.TextHintingMode="Fixed">
                                     <ListBox.ItemContainerStyle>
-                                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceLineItem}">
+                                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceForensicLineItem}">
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
-                                        <ContextMenu>
+                                        <ContextMenu FontFamily="Cascadia Mono, Consolas">
                                             <MenuItem x:Name="TraceOlderContextMenuItem" Header="‹ Older session frames"
                                                       Visibility="Collapsed" Click="TraceOlder_Click"/>
                                             <MenuItem x:Name="TraceNewerContextMenuItem" Header="Newer session frames ›"
@@ -831,7 +832,7 @@
                                             <MenuItem Header="Show GI" Tag="GI" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Show negative / errors" Tag="Negative / errors" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Find in recorded archive..." Click="TraceArchiveMode_Click"/>
-                                            <MenuItem Header="Show / hide frame details" Click="TraceInspectorToggle_Click"/>
+                                            <MenuItem Header="Frame Details..." Click="TraceFrameDetails_Click" />
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
@@ -852,51 +853,53 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding Direction}" FontSize="11.5"
-                           FontFamily="Cascadia Mono, Consolas" Foreground="#37516C"
+                           FontFamily="Cascadia Mono, Consolas" Foreground="{Binding TraceInk}"
                            FontWeight="Normal" VerticalAlignment="Top"/>
                 <TextBlock Grid.Column="1" Text="{Binding Time}" FontSize="11.5"
-                           FontFamily="Cascadia Mono, Consolas" Foreground="#52647B"
+                           FontFamily="Cascadia Mono, Consolas" Foreground="{Binding TraceInk}"
                            FontWeight="Normal" VerticalAlignment="Top"/>
                 <TextBlock Grid.Column="2" Text="{Binding ProtocolTraceHeader}"
-                           FontSize="12" FontWeight="Normal" TextWrapping="Wrap"
-                           Foreground="#182B3C"/>
+                           FontFamily="Cascadia Mono, Consolas"
+                           FontSize="11.5" FontWeight="Normal" TextWrapping="Wrap"
+                           Foreground="{Binding TraceInk}"/>
             </Grid>
             <!-- Entire original HEX stays visible; no ellipsis or second decode. -->
             <TextBlock Grid.Row="1" Text="{Binding ProtocolTraceRaw}"
-                       FontFamily="Cascadia Mono, Consolas" FontSize="10.6"
-                       Foreground="#52647B" TextWrapping="Wrap"
+                       FontFamily="Cascadia Mono, Consolas" FontSize="10.4"
+                       Foreground="{Binding TraceInk}" TextWrapping="Wrap"
                        Margin="0,0,0,7"/>
             <!-- One physical frame, three simultaneous forensic sections. -->
-            <Grid Grid.Row="2">
+            <Grid Grid.Row="2" MinWidth="1140">
+                <!-- Do not wrap forensic tree into visually unrelated columns. Scroll narrow viewports. -->
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.1*" MinWidth="0"/>
-                    <ColumnDefinition Width="1.18*" MinWidth="0"/>
-                    <ColumnDefinition Width="1.64*" MinWidth="0"/>
+                    <ColumnDefinition Width="1.02*" MinWidth="305"/>
+                    <ColumnDefinition Width="1.05*" MinWidth="315"/>
+                    <ColumnDefinition Width="1.65*" MinWidth="455"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,11,0">
-                    <TextBlock Text="LINK LAYER" FontSize="10.5" Foreground="#52647B"
+                <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                    <TextBlock Text="LINK LAYER" FontSize="10.5" Foreground="{Binding TraceInk}"
                                Margin="0,0,0,4" FontWeight="Normal"/>
                     <TextBlock Text="{Binding TraceForensic.LinkLayer}"
                                FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                               LineHeight="15" Foreground="#20354B"
-                               TextWrapping="Wrap" FontWeight="Normal"/>
+                               LineHeight="15" Foreground="{Binding TraceInk}"
+                               TextWrapping="NoWrap" FontWeight="Normal"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,11,0">
-                    <TextBlock Text="ASDU HEADER" FontSize="10.5" Foreground="#52647B"
+                <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                    <TextBlock Text="ASDU HEADER" FontSize="10.5" Foreground="{Binding TraceInk}"
                                Margin="0,0,0,4" FontWeight="Normal"/>
                     <TextBlock Text="{Binding TraceForensic.AsduHeader}"
                                FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                               LineHeight="15" Foreground="#20354B"
-                               TextWrapping="Wrap" FontWeight="Normal"/>
+                               LineHeight="15" Foreground="{Binding TraceInk}"
+                               TextWrapping="NoWrap" FontWeight="Normal"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="INFORMATION OBJECTS" FontSize="10.5"
-                               Foreground="#52647B" Margin="0,0,0,4"
+                               Foreground="{Binding TraceInk}" Margin="0,0,0,4"
                                FontWeight="Normal"/>
                     <TextBlock Text="{Binding TraceForensic.InformationObjects}"
                                FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                               LineHeight="15" Foreground="#20354B"
-                               TextWrapping="Wrap" FontWeight="Normal"/>
+                               LineHeight="15" Foreground="{Binding TraceInk}"
+                               TextWrapping="NoWrap" FontWeight="Normal"/>
                 </StackPanel>
             </Grid>
             <TextBlock Grid.Row="3" Text="{Binding TraceForensic.ActiveFlags}"
@@ -915,10 +918,10 @@
             <StackPanel Grid.Row="4" Margin="0,7,0,0">
                 <Border Height="1" Background="#E2E9EF" Margin="0,0,0,5"/>
                 <TextBlock FontSize="10.5" Text="FRAME VALIDATION"
-                           Foreground="#52647B" FontWeight="Normal"/>
+                           Foreground="{Binding TraceInk}" FontWeight="Normal"/>
                 <TextBlock Text="{Binding TraceForensic.Validation}"
                            FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                           LineHeight="15" TextWrapping="Wrap" Foreground="#20354B"/>
+                           LineHeight="15" TextWrapping="Wrap" Foreground="{Binding TraceInk}"/>
             </StackPanel>
         </Grid>
     </DataTemplate>
@@ -953,7 +956,7 @@
                                               VirtualizingPanel.VirtualizationMode="Recycling"
                                               ClipboardCopyMode="IncludeHeader"
                                               HeadersVisibility="Column" RowHeight="24"
-                                              FontFamily="{StaticResource AppFont}" FontSize="11.2"
+                                              FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                               RowBackground="White" AlternatingRowBackground="#F2F6FA">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="UART Time" Binding="{Binding Utc}" Width="110"/>
@@ -965,8 +968,8 @@
                                 </StackPanel>
                             </Grid>
 
-                            <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
-                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" ToolTipService.IsEnabled="False" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+                            <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Visibility="Collapsed" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
+                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Visibility="Collapsed" TextElement.FontFamily="{StaticResource AppFont}" ToolTipService.IsEnabled="False" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -976,7 +979,13 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="Frame details" FontSize="13.2" FontWeight="Medium" Foreground="{StaticResource Ink900Brush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button DockPanel.Dock="Right" Content="×" Width="25" Height="24"
+                                                    Style="{StaticResource SecondaryButton}" Padding="0"
+                                                    Click="TraceFrameDetailsClose_Click" ToolTip="Close Frame Details"/>
+                                            <TextBlock Text="Frame details" FontSize="13.2" FontWeight="Medium"
+                                                       Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
+                                        </DockPanel>
                                         <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
                                                    Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
                                         <TextBlock x:Name="SelectedLineSummaryText" Visibility="Collapsed" Text="Click a TX/RX frame to view its decoded properties." FontSize="12.3"
