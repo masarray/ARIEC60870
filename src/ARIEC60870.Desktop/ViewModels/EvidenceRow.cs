@@ -322,8 +322,9 @@ public sealed partial class EvidenceRow
             ? "Link " + link.Value.ToString(CultureInfo.InvariantCulture)
             : "Link address not encoded";
         var asdu = Source.AsduDetails;
-        if (asdu is null)
+        if (asdu is null || !asdu.IsHeaderValid)
         {
+            if (asdu is { IsHeaderValid: false }) return station + " · ASDU header not decoded";
             var function = Source.Frame?.LinkControl;
             return function is null ? station :
                 station + " · FC " + function.FunctionCode.ToString(CultureInfo.InvariantCulture) +
@@ -338,6 +339,7 @@ public sealed partial class EvidenceRow
     {
         var asdu = Source.AsduDetails;
         if (asdu is null) return string.Empty;
+        if (!asdu.IsHeaderValid) return "COT not decoded · malformed ASDU";
         return "COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
             " (" + (asdu.CauseOfTransmission == 20
                 ? "Interrogated by General Interrogation"
@@ -371,6 +373,7 @@ public sealed partial class EvidenceRow
         var asdu = Source.AsduDetails;
         if (asdu is null)
             return LinkAddress == "-" ? string.Empty : "Station " + LinkAddress;
+        if (!asdu.IsHeaderValid) return "ASDU header not decoded";
         return "CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture) +
             " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
             " · COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture);

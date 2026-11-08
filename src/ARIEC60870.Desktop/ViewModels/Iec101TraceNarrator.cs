@@ -146,6 +146,13 @@ public static class Iec101TraceNarrator
 
     private static void AppendAsdu(StringBuilder builder, Iec10xAsduDecode asdu)
     {
+        if (!asdu.IsHeaderValid)
+        {
+            builder.Append('\n').Append("ASDU header not decoded; original bytes retained.");
+            if (asdu.Issues.Count > 0)
+                builder.Append(" Decoder issues: ").Append(string.Join("; ", asdu.Issues));
+            return;
+        }
         builder.Append('\n').Append("ASDU: Type ID ").Append(asdu.TypeId)
             .Append(" <").Append(HumanTypeName(asdu)).Append("> Count ").Append(asdu.ObjectCount)
             .Append(" · TI").Append(asdu.TypeId);
