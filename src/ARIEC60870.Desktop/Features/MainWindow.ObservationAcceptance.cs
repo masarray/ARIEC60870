@@ -36,6 +36,19 @@ public partial class MainWindow
         return false;
     }
 
+    private static TextBlock? FindVisibleTraceText(DependencyObject node, string expected)
+    {
+        if (node is TextBlock text && text.Text == expected &&
+            text.Visibility == Visibility.Visible && text.IsVisible)
+            return text;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found = FindVisibleTraceText(VisualTreeHelper.GetChild(node, i), expected);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
     private static bool HasVisibleForensicHeading(DependencyObject node, string expected)
     {
         if (node is TextBlock text && text.Text == expected &&
@@ -401,6 +414,27 @@ public partial class MainWindow
             !HasVisibleRawLine(unselectedContainer, unselected.TimelineHex))
             throw new InvalidOperationException(
                 "Engineer Frame Trace must render actual HEX bytes in each unselected timeline row.");
+        // The red-marked field reference requires actual two-lane geometry:
+        // frame number/time + HEX BELOW them on the left, with the source-typed
+        // interpretation beside—not under—the HEX. Merely binding both texts
+        // to a vertical StackPanel is a product regression.
+        var rawTextBlock = FindVisibleTraceText(unselectedContainer, unselected.TimelineHex);
+        var meaningTextBlock = FindVisibleTraceText(unselectedContainer, unselected.TimelineTitle);
+        var timeTextBlock = FindVisibleTraceText(unselectedContainer, unselected.Time);
+        if (rawTextBlock is null || meaningTextBlock is null || timeTextBlock is null)
+            throw new InvalidOperationException("Raw-first two-lane frame observation is not rendered.");
+        var rawTop = rawTextBlock.TranslatePoint(new Point(), unselectedContainer);
+        var rawRight = rawTextBlock.TranslatePoint(
+            new Point(rawTextBlock.ActualWidth, 0), unselectedContainer).X;
+        var meaningLeft = meaningTextBlock.TranslatePoint(new Point(), unselectedContainer).X;
+        var timeTop = timeTextBlock.TranslatePoint(new Point(), unselectedContainer);
+        if (rawTop.Y <= timeTop.Y + 4 || rawTop.X >= meaningLeft ||
+            rawRight > meaningLeft - 2 || meaningTextBlock.ActualWidth < 90 ||
+            rawTextBlock.ActualWidth < 80)
+            throw new InvalidOperationException(
+                $"Frame Trace HEX/interpretation lanes overlap or are stacked: " +
+                $"raw=({rawTop.X:0},{rawTop.Y:0})..{rawRight:0}, " +
+                $"meaningX={meaningLeft:0}, timeY={timeTop.Y:0}.");
         if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Disabled)
             throw new InvalidOperationException(
                 "Compact timeline should trim long text rather than force horizontal scrolling.");
@@ -1032,6 +1066,9 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "IV=1 is not simultaneously visible on the original frame row and decoded signal inspector.");
         SaveRealWpfBitmap(outputDirectory, "engineer-trace-iv-flag.png");
+        // This screenshot captures both visually separate lanes under an
+        // actual GI/IV selected frame for human acceptance on field laptops.
+        SaveRealWpfBitmap(outputDirectory, "engineer-trace-two-lane-evidence.png");
         FrameTraceGrid.SelectedItem = multiObjectRow;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         // One Engineer Mode: selection changes naturally; no close/reopen
