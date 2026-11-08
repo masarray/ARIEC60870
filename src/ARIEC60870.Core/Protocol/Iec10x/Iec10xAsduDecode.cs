@@ -28,8 +28,6 @@ public sealed class Iec10xAsduDecode
     public string ValueText { get; init; } = string.Empty;
     public string QualityText { get; init; } = string.Empty;
     public string TimestampText { get; init; } = string.Empty;
-    /// <summary>Canonical physical CP56Time2a flags from the decoder (never from UI hex).</summary>
-    public Iec10xCp56Time2aDetails? Cp56TimeDetails { get; init; }
     public bool IsControlCommand { get; init; }
     public IReadOnlyList<Iec10xInformationObject> Objects { get; init; } = Array.Empty<Iec10xInformationObject>();
     public IReadOnlyList<string> Issues { get; init; } = Array.Empty<string>();
@@ -73,6 +71,8 @@ public sealed class Iec10xInformationObject
     public int InformationObjectOffset { get; init; } = -1;
     public int InformationElementOffset { get; init; } = -1;
     public string TimestampText { get; init; } = string.Empty;
+    /// <summary>Canonical physical CP56Time2a flags from the decoder (never from UI hex).</summary>
+    public Iec10xCp56Time2aDetails? Cp56TimeDetails { get; init; }
     public string ElementSummary { get; init; } = string.Empty;
     public IReadOnlyList<byte> RawBytes { get; init; } = Array.Empty<byte>();
     public IReadOnlyList<string> Issues { get; init; } = Array.Empty<string>();
