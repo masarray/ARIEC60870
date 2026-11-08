@@ -24,9 +24,11 @@ public static class TraceRetentionPolicy
         if (overflow <= 0) return Array.Empty<int>();
 
         var removals = new List<int>(overflow);
-        // The last 64 (or less if the configured window is smaller) represent
-        // recently arriving evidence and must survive while old rows exist.
-        var olderLimit = rows.Count - Math.Min(latestTailReserve, maximumRows);
+        // All newly arriving frames must remain eligible for display, even
+        // when every old row is selected. Protect at least the overflow count
+        // of newest frames, plus the normal 64-row recent tail.
+        var reservedTail = Math.Min(maximumRows, Math.Max(latestTailReserve, overflow));
+        var olderLimit = rows.Count - reservedTail;
         for (var i = 0; i < olderLimit && removals.Count < overflow; i++)
             if (!selected.Contains(rows[i])) removals.Add(i);
 
