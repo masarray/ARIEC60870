@@ -332,7 +332,17 @@ public partial class MainWindow
             // the same Value with a bare IOA while Event Log stayed named.
             _passiveLedgerOwnsProcessEvents = true;
             _passiveLedgerFactProjection = true;
-            UpdateValueAndEventViews(accepted);
+            UpdateValueAndEventViews(accepted); // event only: never overwrites snapshot
+            _passiveLedgerFactProjection = false;
+            FlushUiQueues();
+            if (ValueRows.Any(row => row.Signal == "Observed GI status" &&
+                    row.IoAddress == "7" && row.CommonAddress == "1"))
+                throw new InvalidOperationException(
+                    "Indexed Event fact unexpectedly became the Values snapshot authority.");
+            _passiveLedgerFactProjection = true;
+            _passiveLedgerSnapshotProjection = true;
+            UpdateValueAndEventViews(accepted); // latest-point state projection
+            _passiveLedgerSnapshotProjection = false;
             _passiveLedgerFactProjection = false;
             FlushUiQueues();
             if (!ValueRows.Any(row => row.Signal == "Observed GI status" &&
