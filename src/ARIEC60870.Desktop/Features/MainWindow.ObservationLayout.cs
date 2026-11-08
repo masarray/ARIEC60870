@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Windows;
+using ARIEC60870.Desktop.ViewModels;
 
 namespace ARIEC60870.Desktop;
 
@@ -65,6 +66,35 @@ public partial class MainWindow
             _traceInspectorForcedOpen = true; // explicit action overrides auto-collapse
         }
         ApplyTraceInspectorVisibility(!visible);
+    }
+
+    // Operator-only inspector. Default layout is full-width and never opens
+    // merely because frames arrive or the selection moves.
+    private void TraceFrameDetails_Click(object sender, RoutedEventArgs e)
+    {
+        var row = FrameTraceGrid.SelectedItems.OfType<EvidenceRow>()
+            .OrderBy(frame => frame.Sequence).LastOrDefault()
+            ?? FrameTraceGrid.SelectedItem as EvidenceRow;
+        if (row is null) return;
+        _traceInspectorPreferredVisible = true;
+        _traceInspectorForcedOpen = true;
+        ApplyTraceInspectorVisibility(true);
+        ApplySelectedEvidenceRowToInspector(row);
+    }
+
+    private void TraceFrameDetailsClose_Click(object sender, RoutedEventArgs e)
+    {
+        _traceInspectorPreferredVisible = false;
+        _traceInspectorForcedOpen = false;
+        ApplyTraceInspectorVisibility(false);
+        // Clear only the expensive detail projections; keep frame selection,
+        // immutable raw bytes and the session store entirely untouched.
+        SelectedFrameProperties.Clear();
+        SelectedDecodedPoints.Clear();
+        SelectedHexSegments.Clear();
+        SelectedProtocolMapLines.Clear();
+        DecodedPointSection.Visibility = Visibility.Collapsed;
+        _selectedFrameRow = null;
     }
 
     private void TraceArchiveMode_Click(object sender, RoutedEventArgs e)

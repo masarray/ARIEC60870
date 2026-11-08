@@ -47,6 +47,31 @@ public partial class MainWindow
         return false;
     }
 
+    private static ScrollViewer? FindTraceScroller(DependencyObject node)
+    {
+        if (node is ScrollViewer viewer) return viewer;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found = FindTraceScroller(VisualTreeHelper.GetChild(node, i));
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private static bool HasTraceInk(DependencyObject node, string text, string ink)
+    {
+        if (node is TextBlock block && block.Text == text &&
+            block.Foreground is SolidColorBrush brush &&
+            string.Equals(brush.Color.ToString(), "#FF" + ink.TrimStart('#'),
+                StringComparison.OrdinalIgnoreCase) &&
+            block.FontFamily.Source.Contains("Mono", StringComparison.OrdinalIgnoreCase))
+            return true;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+            if (HasTraceInk(VisualTreeHelper.GetChild(node, i), text, ink))
+                return true;
+        return false;
+    }
+
     private static PassiveFramePreparation.Prepared AssertSinglePreparedForUi(
         PassiveObservedFrame observed) =>
         PassiveFramePreparation.PrepareBatch([observed], 1, 2, 2, 3)[0];
@@ -66,6 +91,13 @@ public partial class MainWindow
         // the SAME MainWindow. Simulate the actual new passive Start boundary:
         // clear their historical fixture frames before testing zero-RX UX.
         ClearSessionView(clearLog: false);
+        // The real operator starts with a full-width forensic canvas and zero
+        // detail-grid work, regardless of screen width.
+        if (!_traceInspectorPreferredVisible && !_traceInspectorForcedOpen &&
+            (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+             TraceInspectorColumn.Width.Value > 0.01))
+            throw new InvalidOperationException(
+                "Frame Details became visible without explicit operator action.");
         if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
             throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
         // Field-empty-state acceptance: display wire counters and distinguish
@@ -369,6 +401,9 @@ public partial class MainWindow
             !HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
             throw new InvalidOperationException(
                 "Unselected RAW FRAME row hides the source HEX line.");
+        if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Auto)
+            throw new InvalidOperationException(
+                "Forensic detail has no horizontal scroll fallback on narrow viewports.");
         if (!HasVisibleForensicHeading(unselectedContainer, "LINK LAYER") ||
             !HasVisibleForensicHeading(unselectedContainer, "ASDU HEADER") ||
             !HasVisibleForensicHeading(unselectedContainer, "INFORMATION OBJECTS") ||
@@ -555,6 +590,23 @@ public partial class MainWindow
         // not a silently narrowed inspection view.
         TraceQuickScopeCombo.SelectedIndex = 1;
         ApplyQuickFind();
+        // Real WPF bindings: TX is dark blue, RX dark green, regardless of
+        // the narrative wording. Purely visual classification retains all rows.
+        foreach (var probeRow in new[]
+        {
+            FrameTraceRows.Last(row => row.Direction == "TX"),
+            FrameTraceRows.Last(row => row.Direction == "RX")
+        })
+        {
+            FrameTraceGrid.ScrollIntoView(probeRow);
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(probeRow)
+                    is not ListBoxItem container ||
+                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
+                throw new InvalidOperationException(
+                    "Frame Trace TX/RX direction ink or monospace WPF binding not rendered.");
+        }
 
         var layouts = new (string Name, double Width, double Height)[]
         {
@@ -580,6 +632,15 @@ public partial class MainWindow
                 throw new InvalidOperationException("Passive RX-only layout exposes active command controls.");
             if (FrameTraceGrid.ActualWidth < 300 || FrameTraceGrid.ActualHeight < 95)
                 throw new InvalidOperationException($"Trace viewport too small at {viewport.Name}: {FrameTraceGrid.ActualWidth:0}x{FrameTraceGrid.ActualHeight:0}.");
+            if (viewport.Width <= 1024)
+            {
+                // The semantic columns must stay readable rather than wrap.
+                // Verify real scrollable extent, not merely the attached setting.
+                var scroller = FindTraceScroller(FrameTraceGrid);
+                if (scroller is null || scroller.ScrollableWidth < 30)
+                    throw new InvalidOperationException(
+                        $"Narrow forensic grid has no horizontal reading space at {viewport.Name}.");
+            }
             var shouldAutoCollapse = viewport.Width < 1150;
             if (shouldAutoCollapse && TraceInspectorColumn.ActualWidth > 1)
                 throw new InvalidOperationException($"Inspector retained width on narrow viewport {viewport.Name}.");
@@ -886,10 +947,9 @@ public partial class MainWindow
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         TraceQuickScopeCombo.SelectedIndex = 1;
-        _traceInspectorPreferredVisible = true;
-        _traceInspectorForcedOpen = true;
-        UpdateObservationViewportLayout();
+        // Explicit selected-frame context command, never auto-open on RX.
         FrameTraceGrid.SelectedItem = multiObjectRow;
+        TraceFrameDetails_Click(this, new RoutedEventArgs());
         FrameTraceGrid.ScrollIntoView(multiObjectRow);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
@@ -929,7 +989,12 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
-        _traceInspectorForcedOpen = false;
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
+        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            TraceInspectorColumn.Width.Value != 0 ||
+            SelectedDecodedPoints.Count != 0)
+            throw new InvalidOperationException(
+                "Closing inspector did not release width and selected detail rows.");
 
         // Reproduce field failure: a full live Event journal suddenly became one
         // row when a narrower engine result arrived at end of session. Also

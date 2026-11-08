@@ -68,9 +68,12 @@ public sealed class Iec10xInformationObject
     public string EngineeringValue { get; init; } = string.Empty;
     public string QualityText { get; init; } = string.Empty;
     public Iec10xQualityDetails? QualityDetails { get; init; }
+    public Iec10xStepPositionDetails? StepDetails { get; init; }
     public int InformationObjectOffset { get; init; } = -1;
     public int InformationElementOffset { get; init; } = -1;
     public string TimestampText { get; init; } = string.Empty;
+    /// <summary>Canonical physical CP56Time2a flags from the decoder (never from UI hex).</summary>
+    public Iec10xCp56Time2aDetails? Cp56TimeDetails { get; init; }
     public string ElementSummary { get; init; } = string.Empty;
     public IReadOnlyList<byte> RawBytes { get; init; } = Array.Empty<byte>();
     public IReadOnlyList<string> Issues { get; init; } = Array.Empty<string>();
