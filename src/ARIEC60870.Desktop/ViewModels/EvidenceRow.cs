@@ -543,12 +543,12 @@ public sealed partial class EvidenceRow
         FunInf = "-";
         SemanticLabel = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
         SemanticCategory = "Offline Capture";
-        SemanticState = is10x ? (trusted10x is null
-            ? "-" : Source.InformationObjectDetails?.ShortValue ?? "-") :
+        var verifiedValue = trusted10x is null ? null : Source.InformationObjectDetails?.ShortValue;
+        SemanticState = is10x ? (string.IsNullOrWhiteSpace(verifiedValue) ? "-" : verifiedValue) :
             string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
         ProfileName = "ARIEC capture";
-        RelayTime = is10x ? (trusted10x is null
-            ? "-" : Source.InformationObjectDetails?.TimestampText ?? "-") :
+        var verifiedRelayTime = trusted10x is null ? null : Source.InformationObjectDetails?.TimestampText;
+        RelayTime = is10x ? (string.IsNullOrWhiteSpace(verifiedRelayTime) ? "-" : verifiedRelayTime) :
             string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
         Edge = "-";
         Mapped = "-";
