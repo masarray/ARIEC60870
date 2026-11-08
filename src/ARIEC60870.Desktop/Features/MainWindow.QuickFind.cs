@@ -192,9 +192,14 @@ public partial class MainWindow
             (_traceQuickScope == "Activity focus" ? " · Focus" :
                 _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope);
         var values = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
+            (_passiveLatestPointCount > 0 ? $" · {_passiveLatestPointCount:N0} RX points" : "") +
             (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
         var controls = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
-        var gi = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} cases";
+        var requests = GiCaseRows.Count(x => x.Stages.Count > 0 && x.Stages[0].Phase == "GI request");
+        var unmatched = GiCaseRows.Count(x => x.Status == "Unmatched response · request not observed");
+        var gi = $"{GiCasesGrid.Items.Count} / {GiCaseRows.Count} GI records" +
+            (GiCaseRows.Count > 0 ? $" · {requests} requests" : "") +
+            (unmatched > 0 ? $" · {unmatched} unmatched" : "");
         if (TraceQuickCountText.Text != trace) TraceQuickCountText.Text = trace;
         if (ValuesQuickCountText.Text != values) ValuesQuickCountText.Text = values;
         if (ControlsQuickCountText.Text != controls) ControlsQuickCountText.Text = controls;

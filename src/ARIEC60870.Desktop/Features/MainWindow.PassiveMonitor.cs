@@ -39,6 +39,13 @@ public partial class MainWindow
     private PassiveProcessEventHistory? _passiveProcessEventHistory;
     private bool _passiveLedgerOwnsProcessEvents;
     private bool _passiveLedgerFactProjection;
+    private bool _passiveLedgerSnapshotProjection;
+    private long _passiveLatestPointRevision;
+    private int _passiveLatestPointCount;
+    private long _passiveLatestPointCapacityRejected;
+    private long _passiveLatestPointProjectionRejected;
+    private PassiveWriterGiSnapshot? _passiveWriterGiSnapshot;
+    private long _passiveWriterGiRevision;
     private bool _passiveLedgerChangedAtSource;
     private bool _passiveLedgerHadBaselineAtSource;
     private bool _passiveLedgerReadFailed;
@@ -326,7 +333,17 @@ public partial class MainWindow
             // the same Value with a bare IOA while Event Log stayed named.
             _passiveLedgerOwnsProcessEvents = true;
             _passiveLedgerFactProjection = true;
-            UpdateValueAndEventViews(accepted);
+            UpdateValueAndEventViews(accepted); // event only: never overwrites snapshot
+            _passiveLedgerFactProjection = false;
+            FlushUiQueues();
+            if (ValueRows.Any(row => row.Signal == "Observed GI status" &&
+                    row.IoAddress == "7" && row.CommonAddress == "1"))
+                throw new InvalidOperationException(
+                    "Indexed Event fact unexpectedly became the Values snapshot authority.");
+            _passiveLedgerFactProjection = true;
+            _passiveLedgerSnapshotProjection = true;
+            UpdateValueAndEventViews(accepted); // latest-point state projection
+            _passiveLedgerSnapshotProjection = false;
             _passiveLedgerFactProjection = false;
             FlushUiQueues();
             if (!ValueRows.Any(row => row.Signal == "Observed GI status" &&
@@ -711,6 +728,13 @@ public partial class MainWindow
         _passiveFrameSequence = 0;
         _passiveLedgerOwnsProcessEvents = false;
         _passiveLedgerFactProjection = false;
+        _passiveLedgerSnapshotProjection = false;
+        _passiveLatestPointRevision = 0;
+        _passiveLatestPointCount = 0;
+        _passiveLatestPointCapacityRejected = 0;
+        _passiveLatestPointProjectionRejected = 0;
+        _passiveWriterGiSnapshot = null;
+        _passiveWriterGiRevision = 0;
         _passiveLedgerReadFailed = false;
         _passiveLedgerCursor = 0;
         _passiveLedgerPresentationSkipped = 0;
@@ -993,6 +1017,20 @@ public partial class MainWindow
             if (transport.Fault is not null)
                 PassiveIntegrityText.Text = "Virtual relay fault · capture incomplete";
         }
+        var writerGi = session.GetWriterGiSnapshot();
+        if (_passiveWriterGiSnapshot is null || writerGi.Revision != _passiveWriterGiRevision)
+        {
+            _passiveWriterGiSnapshot = writerGi;
+            _passiveWriterGiRevision = writerGi.Revision;
+            _giCasesDirty = true;
+        }
+        var writerGiEventCount = 0;
+        while (writerGiEventCount < 96 && session.TryReadWriterGiMilestone(out var giMilestone))
+        {
+            AppendProtocolEvent(Iec10xGiEventProjection.Project(
+                giMilestone.Evidence, giMilestone.Milestone), giMilestone.Evidence);
+            writerGiEventCount++;
+        }
         var eventProgress = session.GetProcessEventProgress();
         // These are typed process observations, not a claim that all are
         // physical SOEs or that missing remote FIFO events were transmitted.
@@ -1002,13 +1040,18 @@ public partial class MainWindow
             (eventProgress.PreviewFramesDropped > 0 ? $" · {eventProgress.PreviewFramesDropped:N0} frame previews skipped" : "") +
             (progress.RawPreviewDropped > 0 ? $" · {progress.RawPreviewDropped:N0} raw chunk previews skipped" : "") +
             (_passiveLedgerPresentationSkipped > 0 ? $" · {_passiveLedgerPresentationSkipped:N0} older event rows not visible" : "") +
+            (_passiveLatestPointCapacityRejected > 0 ? $" · {_passiveLatestPointCapacityRejected:N0} point identities beyond snapshot capacity" : "") +
+            (_passiveLatestPointProjectionRejected > 0 ? $" · {_passiveLatestPointProjectionRejected:N0} point snapshots not projected" : "") +
+            (writerGi.MilestonesNotPresented > 0 ? $" · {writerGi.MilestonesNotPresented:N0} old GI event chips not shown" : "") +
             (eventProgress.DecodeAccounting is { } decode && decode.InvalidVariableFrames > 0
                 ? $" · {decode.InvalidVariableFrames:N0} invalid FT1.2" : "") +
             (eventProgress.DecodeAccounting is { } counted && counted.AsdusRejected > 0
                 ? $" · {counted.AsdusRejected:N0} rejected ASDUs" : "");
         PassiveIntegrityText.Foreground = (Brush)FindResource(
             progress.IntegrityWarning || eventProgress.UnindexedObjects > 0 ||
-            _passiveLedgerReadFailed || eventProgress.DecodeAccounting is
+            _passiveLedgerReadFailed || _passiveLatestPointCapacityRejected > 0 ||
+            _passiveLatestPointProjectionRejected > 0 || writerGi.MilestonesNotPresented > 0 ||
+            eventProgress.DecodeAccounting is
                 { InvalidVariableFrames: > 0 } or { AsdusRejected: > 0 }
                 ? "BadBrush" : "Ink900Brush");
         if (!string.IsNullOrWhiteSpace(progress.CaptureDirectory))
@@ -1108,6 +1151,31 @@ public partial class MainWindow
             }
         }
 
+        // A separate writer-owned latest-point authority keeps ALL valid
+        // process snapshots (including unchanged GI digital baselines). It is
+        // independent of selected SOE events and the 512-frame UI preview.
+        // Page only the changed latest identities; coalesce superseded values.
+        var latestPointPage = session.ReadLatestProcessPointsAfter(_passiveLatestPointRevision, 120);
+        _passiveLatestPointCapacityRejected = latestPointPage.CapacityRejected;
+        if (_passiveLatestPointCount != latestPointPage.PointCount)
+        {
+            _passiveLatestPointCount = latestPointPage.PointCount;
+            UpdateQuickFindCounts();
+        }
+        if (latestPointPage.Points.Count > 0)
+        {
+            var latestFacts = latestPointPage.Points.Select(point => new PassiveProcessEventFact(
+                point.Revision, point.Frame, point.ObjectIndex,
+                point.WasChanged, point.HadBaseline)).ToArray();
+            var preparedPoints = await Task.Run(() => PassiveProcessEventPreparation.PreparePage(
+                latestFacts, _passiveLinkAddressWidth, _passiveCotWidth, _passiveCaWidth, _passiveIoaWidth));
+            if (!ReferenceEquals(session, _passiveMonitorSession)) return;
+            foreach (var point in preparedPoints)
+                if (!ProjectPassiveProcessEventFact(point, snapshotOnly: true))
+                    _passiveLatestPointProjectionRejected++;
+            _passiveLatestPointRevision = latestPointPage.ThroughRevision;
+        }
+
         // Dedicated five-second summaries, never per-frame rendering.
         var summaryCount = 0;
         while (summaryCount < 24 && session.TryReadTimelineWindow(out var window))
@@ -1150,7 +1218,8 @@ public partial class MainWindow
     /// Event Log consumes source-qualified writer facts. A valid event survives
     /// WPF preview rollover; event provenance is its original physical frame.
     /// </summary>
-    private bool ProjectPassiveProcessEventFact(PassiveProcessEventPreparation.Prepared prepared)
+    private bool ProjectPassiveProcessEventFact(PassiveProcessEventPreparation.Prepared prepared,
+        bool snapshotOnly = false)
     {
         if (!prepared.Trusted || prepared.Frame is null ||
             prepared.Asdu is not { } decode || prepared.Object is not { } obj)
@@ -1202,12 +1271,14 @@ public partial class MainWindow
             RelayTimestampInvalid = obj.TimestampText.Contains("invalid", StringComparison.OrdinalIgnoreCase)
         };
         _passiveLedgerFactProjection = true;
+        _passiveLedgerSnapshotProjection = snapshotOnly;
         _passiveLedgerChangedAtSource = prepared.Fact.WasChanged;
         _passiveLedgerHadBaselineAtSource = prepared.Fact.HadBaseline;
         try { UpdateValueAndEventViews(item); }
         finally
         {
             _passiveLedgerFactProjection = false;
+            _passiveLedgerSnapshotProjection = false;
             _passiveLedgerChangedAtSource = false;
             _passiveLedgerHadBaselineAtSource = false;
         }
