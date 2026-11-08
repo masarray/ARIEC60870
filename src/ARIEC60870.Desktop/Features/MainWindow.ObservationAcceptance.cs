@@ -1026,7 +1026,8 @@ public partial class MainWindow
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
             SelectedLineAlertText.Visibility != Visibility.Visible ||
             !SelectedLineAlertText.Text.Contains("IV=1", StringComparison.Ordinal) ||
-            SelectedDecodedPoints.Count == 0 ||
+            SelectedDecodedPoints.Count != 1 ||
+            DecodedPointGrid.Height > 110 ||
             !SelectedDecodedPoints.Any(x => x.QualityValidity.Contains("IV=1", StringComparison.Ordinal)))
             throw new InvalidOperationException(
                 "IV=1 is not simultaneously visible on the original frame row and decoded signal inspector.");
