@@ -165,6 +165,24 @@ public sealed class EngineerFramePresentationTests
     }
 
     [Fact]
+    public void E5SingleCharacterDoesNotFabricateChecksumOrAsdu()
+    {
+        var frame = new Ft12Parser(1).Decode([0xE5]);
+        var source = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            RawHex = "E5",
+            Frame = frame
+        };
+        var text = SelectedFrameProtocolText.Format(new EvidenceRow(source));
+        Assert.Contains("HEX  E5", text);
+        Assert.Contains("no checksum/length encoded", text);
+        Assert.DoesNotContain("Checksum=OK", text);
+        Assert.DoesNotContain("IOA ", text);
+    }
+
+    [Fact]
     public void MultiObjectTextIncludesEveryObjectInOriginalSourceOrder()
     {
         var decoded = new Iec10xAsduDecode
