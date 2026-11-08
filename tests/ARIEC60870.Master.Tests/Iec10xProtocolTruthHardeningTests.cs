@@ -78,7 +78,7 @@ public sealed class Iec10xProtocolTruthHardeningTests
         Assert.Empty(delay.Issues);
         Assert.Equal("C_CD_NA_1 delay acquisition", delay.TypeName);
         Assert.Contains("4660 ms", delay.ValueText);
-        Assert.Equal(new byte[]{ 0x34, 0x12 }, delay.FirstObject!.RawBytes);
+        Assert.Equal(new byte[] { 0x34, 0x12 }, delay.FirstObject!.RawBytes);
     }
 
     [Fact]
@@ -86,11 +86,11 @@ public sealed class Iec10xProtocolTruthHardeningTests
     {
         var d = new Iec10xAsduDecoder();
         var normal = d.Decode(Asdu(13, 1, 5, 3,
-            BitConverter.GetBytes(0.12345679f).Concat(new byte[]{ 0 }).ToArray()));
+            BitConverter.GetBytes(0.12345679f).Concat(new byte[] { 0 }).ToArray()));
         Assert.Empty(normal.Issues);
         Assert.Equal("Float=0.12345679", normal.ValueText);
         var nan = d.Decode(Asdu(13, 1, 5, 3,
-            BitConverter.GetBytes(float.NaN).Concat(new byte[]{ 0 }).ToArray()));
+            BitConverter.GetBytes(float.NaN).Concat(new byte[] { 0 }).ToArray()));
         Assert.Contains(nan.Issues, x => x.Contains("non-finite", StringComparison.Ordinal));
         Assert.Equal(5, nan.FirstObject!.RawBytes.Count);
     }
@@ -102,28 +102,40 @@ public sealed class Iec10xProtocolTruthHardeningTests
         var complete = d.Decode(Asdu(1, 1, 5, 3, 1));
         var partial = d.Decode(Asdu(1, 1, 5, 3));
         Assert.True(Iec10xObservationIdentity.HasTrustedDecodedPayload(
-            new Iec103MasterEvidenceEvent { AsduDetails = complete, Category = "RX" }));
+            new Iec103MasterEvidenceEvent
+            {
+                AsduDetails = complete,
+                Category = "RX"
+            }));
         Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
             new Iec103MasterEvidenceEvent { Category = "RX" }));
         Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
-            new Iec103MasterEvidenceEvent { AsduDetails = partial, Category = "RX" }));
+            new Iec103MasterEvidenceEvent
+            {
+                AsduDetails = partial,
+                Category = "RX"
+            }));
     }
 
     [Fact]
     public void OnlyValidTi100Cot10CanEndGi()
     {
         var d = new Iec10xAsduDecoder();
-        var valid = Asdu(100, 1, 0, 3, 20); valid[2] = 10;
+        var valid = Asdu(100, 1, 0, 3, 20);
+        valid[2] = 10;
         Assert.True(Iec10xGiTermination.IsObserved(d.Decode(valid)));
-        var command = Asdu(45, 1, 0, 3, 1); command[2] = 10;
+        var command = Asdu(45, 1, 0, 3, 1);
+        command[2] = 10;
         Assert.False(Iec10xGiTermination.IsObserved(d.Decode(command)));
-        foreach (var flags in new byte[]{ 0x4A, 0x8A })
+        foreach (var flags in new byte[] { 0x4A, 0x8A })
         {
-            var changed = valid.ToArray(); changed[2] = flags;
+            var changed = valid.ToArray();
+            changed[2] = flags;
             Assert.False(Iec10xGiTermination.IsObserved(d.Decode(changed)));
         }
         Assert.False(Iec10xGiTermination.IsObserved(d.Decode(valid[..^1])));
-        var wrongIoa = Asdu(100, 1, 1, 3, 20); wrongIoa[2] = 10;
+        var wrongIoa = Asdu(100, 1, 1, 3, 20);
+        wrongIoa[2] = 10;
         Assert.False(Iec10xGiTermination.IsObserved(d.Decode(wrongIoa)));
     }
 }

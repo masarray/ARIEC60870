@@ -23,11 +23,11 @@ public static class Iec10xSignalTraceFormatter
         var width = asdu.InformationObjectAddressWidth;
         var ioaInRange = width is >= 1 and <= 3 && address >= 0 &&
             address <= (1 << (8 * width)) - 1;
-        var parts = !ioaInRange ? "IOA out of configured range · inspect original HEX" : width is >= 1 and <= 3
-            ? "IOA1:" + Octet(address, 0) +
+        var parts = width is < 1 or > 3 ? "IOA1:? - IOA2:? - IOA3:? (width unknown)" :
+            !ioaInRange ? "IOA out of configured range · inspect original HEX" :
+            "IOA1:" + Octet(address, 0) +
               " - IOA2:" + (width >= 2 ? Octet(address, 1) : "N/A") +
-              " - IOA3:" + (width >= 3 ? Octet(address, 2) : "N/A")
-            : "IOA1:? - IOA2:? - IOA3:? (width unknown)";
+              " - IOA3:" + (width >= 3 ? Octet(address, 2) : "N/A");
         var implied = asdu.IsSequence && obj.Index > 1
             ? " · SQ=1 implied (no IOA octets repeated)" : "";
         if (ioaInRange && asdu.RawBytes.Count > 0 && width is >= 1 and <= 3 &&

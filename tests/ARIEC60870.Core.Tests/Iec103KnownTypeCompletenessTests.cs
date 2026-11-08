@@ -20,7 +20,7 @@ public sealed class Iec103KnownTypeCompletenessTests
     [InlineData(20, 0)]
     public void KnownTypeWithMissingMandatoryElementsIsNotOk(byte type, int bytes)
     {
-        var raw = new byte[]{ type, 1, 1, 1, 0xC0, 0x24 }
+        var raw = new byte[] { type, 1, 1, 1, 0xC0, 0x24 }
             .Concat(Enumerable.Repeat((byte)0, bytes)).ToArray();
         var result = new AsduDecoder().Decode(raw);
         Assert.Equal(DecodeStatus.Error, result.Status);
@@ -38,6 +38,6 @@ public sealed class Iec103KnownTypeCompletenessTests
         var result = new AsduDecoder().Decode(raw);
         Assert.Equal(DecodeStatus.Ok, result.Status);
         Assert.Equal(-32768.0, result.NumericValue);
-        Assert.Equal(new byte[]{ 0, 0x80 }, result.DataBytes);
+        Assert.Equal(new byte[] { 0, 0x80 }, result.DataBytes);
     }
 }

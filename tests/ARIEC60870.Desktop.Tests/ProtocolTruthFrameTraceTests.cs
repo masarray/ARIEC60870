@@ -16,9 +16,13 @@ public sealed class ProtocolTruthFrameTraceTests
         var decoded = new Iec10xAsduDecoder().Decode([1, 1, 3, 0, 1]);
         var row = new EvidenceRow(new Iec103MasterEvidenceEvent
         {
-            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = decoded,
-            TypeId = 0, CauseOfTransmission = 0, CommonAddressNumber = 0,
-            VariableStructureQualifier = 0, ObjectCount = 0
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            AsduDetails = decoded,
+            TypeId = 0,
+            CauseOfTransmission = 0,
+            CommonAddressNumber = 0,
+            VariableStructureQualifier = 0,
+            ObjectCount = 0
         });
         Assert.Contains("ASDU header not decoded", row.TimelineEngineeringIdentity);
         Assert.Contains("COT not decoded", row.TimelineEngineeringCause);
@@ -38,10 +42,16 @@ public sealed class ProtocolTruthFrameTraceTests
     [Fact]
     public void OutOfRangeSyntheticIoaIsNeverPresentedAsWrappedPhysicalOctets()
     {
-        var asdu = new Iec10xAsduDecode { TypeId = 1, InformationObjectAddressWidth = 3 };
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 1,
+            InformationObjectAddressWidth = 3
+        };
         var objectWithInvalidAddress = new Iec10xInformationObject
         {
-            Index = 2, InformationObjectAddress = 16777216, ValueText = "SP=ON"
+            Index = 2,
+            InformationObjectAddress = 16777216,
+            ValueText = "SP=ON"
         };
         var label = Iec10xSignalTraceFormatter.Format(asdu, objectWithInvalidAddress);
         Assert.Contains("out of configured range", label);
@@ -57,7 +67,8 @@ public sealed class ProtocolTruthFrameTraceTests
         Assert.Empty(asdu.Issues);
         var row = new EvidenceRow(new Iec103MasterEvidenceEvent
         {
-            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            AsduDetails = asdu
         });
         Assert.Contains("Value: Normalized=0.5 (Normalized)", row.TimelineSignalDigest);
         Assert.Equal("N/A", Assert.Single(DecodedPointRow.FromAsdu(asdu)).Quality);
