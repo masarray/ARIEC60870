@@ -21,14 +21,16 @@ public static class Iec10xSignalTraceFormatter
         ArgumentNullException.ThrowIfNull(obj);
         var address = obj.InformationObjectAddress;
         var width = asdu.InformationObjectAddressWidth;
-        var parts = width is >= 1 and <= 3
-            ? "IOA1:" + Octet(address, 0) +
+        var ioaInRange = width is >= 1 and <= 3 && address >= 0 &&
+            address <= (1 << (8 * width)) - 1;
+        var parts = width is < 1 or > 3 ? "IOA1:? - IOA2:? - IOA3:? (width unknown)" :
+            !ioaInRange ? "IOA out of configured range · inspect original HEX" :
+            "IOA1:" + Octet(address, 0) +
               " - IOA2:" + (width >= 2 ? Octet(address, 1) : "N/A") +
-              " - IOA3:" + (width >= 3 ? Octet(address, 2) : "N/A")
-            : "IOA1:? - IOA2:? - IOA3:? (width unknown)";
+              " - IOA3:" + (width >= 3 ? Octet(address, 2) : "N/A");
         var implied = asdu.IsSequence && obj.Index > 1
             ? " · SQ=1 implied (no IOA octets repeated)" : "";
-        if (asdu.RawBytes.Count > 0 && width is >= 1 and <= 3 &&
+        if (ioaInRange && asdu.RawBytes.Count > 0 && width is >= 1 and <= 3 &&
             obj.InformationObjectOffset >= 0 &&
             obj.InformationObjectOffset + width <= asdu.RawBytes.Count &&
             !(asdu.IsSequence && obj.Index > 1))
@@ -44,7 +46,7 @@ public static class Iec10xSignalTraceFormatter
             ? authoritativeName.Trim() + " · " : "";
         var signalKind = Kind(asdu.TypeId);
         // Unknown decoder output cannot be silently displayed as a real state.
-        var value = obj.Issues.Count > 0 ? "Decode warning" :
+        var value = !ioaInRange || obj.Issues.Count > 0 ? "Decode warning" :
             string.IsNullOrWhiteSpace(obj.ShortValue) ? "Not decoded" :
             TrimKnownTypedPrefix(obj.ShortValue, signalKind);
 
@@ -60,14 +62,16 @@ public static class Iec10xSignalTraceFormatter
         1 or 2 or 30 => "Single Point",
         3 or 4 or 31 => "Double Point",
         13 or 14 or 36 => "Float",
-        9 or 10 or 34 => "Normalized",
+        9 or 10 or 21 or 34 => "Normalized",
         11 or 12 or 35 => "Scaled",
         5 or 6 or 32 => "Step Position",
         7 or 8 or 33 => "Bitstring",
         15 or 16 or 37 => "Counter",
         45 or 46 or 47 or 58 or 59 or 60 => "Command",
         48 or 49 or 50 or 61 or 62 or 63 => "Setpoint Command",
+        70 => "Initialization",
         100 => "GI Command",
+        106 => "Delay Acquisition",
         _ => "Information Object"
     };
 

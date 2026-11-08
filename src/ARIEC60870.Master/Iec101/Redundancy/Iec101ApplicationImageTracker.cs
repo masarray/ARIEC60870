@@ -48,7 +48,7 @@ public sealed class Iec101ApplicationImageTracker
             }
         }
 
-        if (asdu.CauseOfTransmission == 10 && asdu.TypeId == 100)
+        if (Iec10xGiTermination.IsObserved(asdu))
         {
             LastGiCompletedUtc = utcNow;
             State = Iec101ApplicationImageState.Ready;

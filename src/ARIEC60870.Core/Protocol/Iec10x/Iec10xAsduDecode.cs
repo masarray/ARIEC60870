@@ -10,6 +10,8 @@ public sealed class Iec10xAsduDecode
     public int CotWidth { get; init; }
     public int CommonAddressWidth { get; init; }
     public int InformationObjectAddressWidth { get; init; }
+    // False means header fields are unavailable; default numeric zeros are not wire data.
+    public bool IsHeaderValid { get; init; } = true;
     public byte TypeId { get; init; }
     public string TypeName { get; init; } = string.Empty;
     public byte VariableStructureQualifier { get; init; }
@@ -46,12 +48,13 @@ public sealed class Iec10xAsduDecode
         }
     }
 
-    public string CotDisplay => $"{CauseOfTransmission} · {CotNameWithFlags}";
+    public string CotDisplay => IsHeaderValid ? $"{CauseOfTransmission} · {CotNameWithFlags}" : "Not decoded";
 
     public string ShortMeaning
     {
         get
         {
+            if (!IsHeaderValid) return "Malformed ASDU · header not decoded · original bytes retained";
             var address = InformationObjectAddress.HasValue ? $", IOA={InformationObjectAddress.Value}" : string.Empty;
             var value = string.IsNullOrWhiteSpace(ValueText) ? string.Empty : $", {ValueText}";
             var quality = string.IsNullOrWhiteSpace(QualityText) || QualityText == "Good" ? string.Empty : $", Quality={QualityText}";

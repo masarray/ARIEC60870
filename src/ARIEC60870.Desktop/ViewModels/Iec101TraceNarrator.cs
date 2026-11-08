@@ -78,6 +78,7 @@ public static class Iec101TraceNarrator
         {
             var asdu = item.AsduDetails;
             var title = asdu is null ? "User data received" :
+                !asdu.IsHeaderValid ? "User data received · malformed ASDU" :
                 ApplicationTitle(asdu, item.Direction);
             var builder = new StringBuilder(220);
             builder.Append("Data Link: User Data ").Append(secondary)
@@ -88,7 +89,7 @@ public static class Iec101TraceNarrator
                 builder.Append('\n').Append("ASDU: Not decoded; check COT, CA, IOA and link-width settings.");
             if (!string.IsNullOrWhiteSpace(item.ControlObservation))
                 builder.Append('\n').Append("Control sequence: ").Append(item.ControlObservation);
-            return (prefix + title + (asdu is null ? "" : $" · TI{asdu.TypeId}"), builder.ToString());
+            return (prefix + title + (asdu is { IsHeaderValid: true } ? $" · TI{asdu.TypeId}" : ""), builder.ToString());
         }
 
         string meaning;
@@ -129,7 +130,9 @@ public static class Iec101TraceNarrator
 
         if (item.AsduDetails is { } extra)
         {
-            label = ApplicationTitle(extra, item.Direction) + $" · TI{extra.TypeId}";
+            label = extra.IsHeaderValid
+                ? ApplicationTitle(extra, item.Direction) + $" · TI{extra.TypeId}"
+                : "Malformed ASDU · inspect original HEX";
             var builder = new StringBuilder(meaning);
             AppendAsdu(builder, extra);
             meaning = builder.ToString();
@@ -146,6 +149,13 @@ public static class Iec101TraceNarrator
 
     private static void AppendAsdu(StringBuilder builder, Iec10xAsduDecode asdu)
     {
+        if (!asdu.IsHeaderValid)
+        {
+            builder.Append('\n').Append("ASDU header not decoded; original bytes retained.");
+            if (asdu.Issues.Count > 0)
+                builder.Append(" Decoder issues: ").Append(string.Join("; ", asdu.Issues));
+            return;
+        }
         builder.Append('\n').Append("ASDU: Type ID ").Append(asdu.TypeId)
             .Append(" <").Append(HumanTypeName(asdu)).Append("> Count ").Append(asdu.ObjectCount)
             .Append(" · TI").Append(asdu.TypeId);
@@ -235,6 +245,7 @@ public static class Iec101TraceNarrator
     public static string ApplicationTitle(Iec10xAsduDecode asdu, FrameDirection direction)
     {
         ArgumentNullException.ThrowIfNull(asdu);
+        if (!asdu.IsHeaderValid) return "Malformed ASDU header · raw only";
         var cause = asdu.CauseOfTransmission;
         var negative = asdu.IsNegativeConfirm || asdu.CauseDetails?.Negative == true;
         var fromMaster = direction == FrameDirection.MasterToSlave;

@@ -63,6 +63,12 @@ public sealed class AsduDecoder
 
             case 2:
                 meaning = "Protection/status message with relative-time context. Often seen in event or disturbance-related sequences.";
+                if (fun is null || inf is null || data.Length < 1)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 2: FUN/INF and DPI byte required.");
+                    break;
+                }
                 if (data.Length >= 1)
                 {
                     dpi = data[0];
@@ -85,6 +91,12 @@ public sealed class AsduDecoder
 
             case 6:
                 meaning = "Clock synchronization message.";
+                if (fun is null || inf is null || data.Length < 4)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 6: FUN/INF and four time octets required.");
+                    break;
+                }
                 if (data.Length >= 4)
                 {
                     time = Cp32Time2aDecoder.TryDecode(data.Take(Math.Min(5, data.Length)).ToArray());
@@ -93,16 +105,34 @@ public sealed class AsduDecoder
 
             case 7:
                 meaning = "General Interrogation command/request.";
+                if (fun is null || inf is null || data.Length == 0)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 7: FUN/INF and interrogation qualifier required.");
+                    break;
+                }
                 if (data.Length > 0) notes.Add($"Scan/qualifier byte: 0x{data[0]:X2}");
                 break;
 
             case 8:
                 meaning = "End of General Interrogation.";
+                if (fun is null || inf is null || data.Length == 0)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 8: FUN/INF and interrogation qualifier required.");
+                    break;
+                }
                 if (data.Length > 0) notes.Add($"Scan/qualifier byte: 0x{data[0]:X2}");
                 break;
 
             case 9:
                 meaning = "Measurand or monitored data ASDU. ARIEC60870 decodes the first signed 16-bit value as a universal numeric hint; final scaling/name comes from the user mapping profile.";
+                if (fun is null || inf is null || data.Length < 2)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 9: FUN/INF and two measurand octets required.");
+                    break;
+                }
                 if (data.Length >= 2)
                 {
                     var raw = (short)(data[0] | (data[1] << 8));
@@ -114,6 +144,12 @@ public sealed class AsduDecoder
 
             case 20:
                 meaning = "General command ASDU. Command semantics are project/relay-specific and must be validated against the user mapping/profile.";
+                if (fun is null || inf is null || data.Length == 0)
+                {
+                    status = DecodeStatus.Error;
+                    notes.Add("Incomplete IEC-103 Type 20: FUN/INF and command qualifier required.");
+                    break;
+                }
                 if (data.Length > 0) notes.Add($"Command qualifier/value byte: 0x{data[0]:X2}");
                 break;
 

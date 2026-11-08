@@ -802,7 +802,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
 
         // COT10 is also used by ordinary controls: only TI100 terminates a GI.
-        if (asdu?.TypeId == 100 && asdu.CauseOfTransmission == 10)
+        if (Iec10xGiTermination.IsObserved(asdu))
             _counters.GiEndResponses++;
         if (asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
         AddEvent(new Iec103MasterEvidenceEvent
@@ -837,8 +837,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             CommonAddressNumber = asdu?.CommonAddress,
             InformationObjectAddress = asdu?.FirstObject?.InformationObjectAddress,
             ObjectSummary = asdu?.ObjectSummary ?? string.Empty,
-            IsRelayValue = asdu is not null && (asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
-            IsRelayEdgeEvent = asdu is not null && (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
+            IsRelayValue = asdu is { IsHeaderValid: true, Issues.Count: 0 } && (asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
+            IsRelayEdgeEvent = asdu is { IsHeaderValid: true, Issues.Count: 0 } && (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
             SignalKey = asdu?.FirstObject is null ? string.Empty : $"IOA:{asdu.FirstObject.InformationObjectAddress}",
             SignalName = asdu?.FirstObject is null ? string.Empty : $"IOA {asdu.FirstObject.InformationObjectAddress}",
             SignalGroup = "IEC-101",
@@ -929,8 +929,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 InformationObjectAddress = obj.InformationObjectAddress,
                 ObjectSummary = obj.ElementSummary,
                 QualityText = obj.QualityText,
-                IsRelayValue = asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
-                IsRelayEdgeEvent = (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
+                IsRelayValue = asdu is { IsHeaderValid: true, Issues.Count: 0 } && asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
+                IsRelayEdgeEvent = asdu is { IsHeaderValid: true, Issues.Count: 0 } && (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
                 SignalKey = $"IOA:{obj.InformationObjectAddress}",
                 SignalName = $"IOA {obj.InformationObjectAddress}",
                 SignalGroup = "IEC-101",
@@ -981,7 +981,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private static string BuildReceiveAction(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu)
     {
         if (decoded.Format == Ft12FrameFormat.Malformed || !decoded.IsChecksumValid) return "Check serial settings, converter direction control, line quality, and address configuration.";
-        if (asdu is not null && asdu.TypeId == 100 && asdu.CauseOfTransmission == 10) return "General interrogation completed; continue normal background scan.";
+        if (Iec10xGiTermination.IsObserved(asdu)) return "General interrogation completed; continue normal background scan.";
         if (decoded.IsSingleCharacterNack) return "Treat as a negative link-layer response; inspect polling class, link address, FCB/FCV and outstation busy/no-data policy.";
         if (decoded.LinkControl?.Acd == true) return "Drain Class 1 in a bounded loop; do not storm the link blindly.";
         return "Continue configured IEC-101 polling policy.";
