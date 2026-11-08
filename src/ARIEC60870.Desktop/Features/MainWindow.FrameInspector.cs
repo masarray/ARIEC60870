@@ -125,8 +125,9 @@ public partial class MainWindow
                 "A negative application confirmation is distinct from a link NACK.");
             Add("Test indication", asdu.IsTest ? "Yes" : "No",
                 "The application message is marked as test traffic only when this bit is set.");
-            Add("Originator address", asdu.OriginatorAddress.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                "Application originator identifier; encoded only when supported by the configured cause-field width.");
+            if (asdu.CotWidth == 2)
+                Add("Originator address", asdu.OriginatorAddress.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    "Application originator identifier from the second cause-of-transmission byte.");
         }
         Add("Common address", row.CommonAddress,
             "ASDU common address, not the data-link address.");
