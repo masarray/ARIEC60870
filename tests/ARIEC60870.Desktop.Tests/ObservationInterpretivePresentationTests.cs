@@ -77,6 +77,84 @@ public sealed class ObservationInterpretivePresentationTests
     }
 
     [Fact]
+    public void TwoColumnLineMonitorKeepsGiSignalValuesBesideOriginalHex()
+    {
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 3, CommonAddress = 1, CauseOfTransmission = 20,
+            ObjectCount = 3,
+            Objects =
+            [
+                new Iec10xInformationObject { InformationObjectAddress = 9, ValueText = "DP=ON" },
+                new Iec10xInformationObject { InformationObjectAddress = 10, ValueText = "DP=OFF" },
+                new Iec10xInformationObject { InformationObjectAddress = 11, ValueText = "DP=INDETERMINATE" }
+            ]
+        };
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            RawHex = "680C0C686803",
+            AsduDetails = asdu
+        });
+        Assert.Equal("68 0C 0C 68 68 03", row.TimelineHex);
+        Assert.Equal("GI data · Double-point", row.TimelineTitle);
+        Assert.Equal("CA 1 · TI 3 · COT 20", row.TimelineCompactContext);
+        Assert.Contains("3 signals", row.TimelineSignalDigest);
+        Assert.Contains("IOA 9 = DP=ON", row.TimelineSignalDigest);
+        Assert.Contains("IOA 10 = DP=OFF", row.TimelineSignalDigest);
+        Assert.Contains("+1 more in inspector", row.TimelineSignalDigest);
+        Assert.DoesNotContain("IOA 11 =", row.TimelineSignalDigest);
+        Assert.True(row.HasTimelineSignalDigest);
+    }
+
+    [Fact]
+    public void SingleSignalHasMappedNameOnlyWhenSourceIsAuthoritative()
+    {
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 1, CommonAddress = 2, CauseOfTransmission = 3, ObjectCount = 1,
+            Objects = [new Iec10xInformationObject
+            {
+                InformationObjectAddress = 342, ValueText = "ON"
+            }]
+        };
+        var mapped = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
+            SignalName = "Breaker 110 kV position", IsMappedSignal = true
+        });
+        var unmapped = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
+            SignalName = "Unverified label", IsMappedSignal = false
+        });
+        Assert.Contains("Breaker 110 kV position (IOA 342) = ON", mapped.TimelineSignalDigest);
+        Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 = ON", unmapped.TimelineSignalDigest);
+        Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
+    }
+
+    [Fact]
+    public void UndecodedAndRoutineFramesNeverGetFabricatedSignalStates()
+    {
+        var routine = LinkFrame(true, 11);
+        Assert.False(routine.HasTimelineSignalDigest);
+        Assert.Empty(routine.TimelineSignalDigest);
+        var badAsdu = new Iec10xAsduDecode
+        {
+            TypeId = 3, Issues = ["Incomplete ASDU"], ObjectCount = 1,
+            Objects = [new Iec10xInformationObject { InformationObjectAddress = 9, ValueText = "ON" }]
+        };
+        var frame = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = badAsdu
+        });
+        Assert.Equal("ASDU decode warning · inspect selected frame", frame.TimelineSignalDigest);
+        Assert.DoesNotContain("= ON", frame.TimelineSignalDigest);
+    }
+
+    [Fact]
     public void MultiObjectProjectionShowsAllObjectsAndNeverFabricatesSqAddressBytes()
     {
         var items = Enumerable.Range(0, 40).Select(i => new Iec10xInformationObject
