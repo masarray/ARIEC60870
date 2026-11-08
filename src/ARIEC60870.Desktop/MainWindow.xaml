@@ -1030,9 +1030,9 @@
                                                  FontFamily="Cascadia Mono, Consolas" FontSize="10.7"
                                                  Foreground="#263F54" Background="White"
                                                  BorderBrush="#D3E0EA" BorderThickness="1"
-                                                 Padding="7,5" TextWrapping="NoWrap"
+                                                 Padding="7,5" TextWrapping="Wrap"
                                                  AcceptsReturn="True" MinHeight="78" Height="136"
-                                                 HorizontalScrollBarVisibility="Auto"
+                                                 HorizontalScrollBarVisibility="Disabled"
                                                  VerticalScrollBarVisibility="Auto"
                                                  ToolTip="Read-only decoded fields. Select any bytes or fields and press Ctrl+C."/>
                                     </StackPanel>
