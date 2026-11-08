@@ -57,7 +57,7 @@ public sealed class FrameByteInspectorProjectionTests
         Assert.Contains(projection.Fields, f => f.Key == "ca" && f.Hex == "01 00");
         Assert.Contains(projection.Fields, f => f.Key == "object-1" && f.Hex == "6C 00 80");
         Assert.Contains(projection.Fields, f => f.Key == "quality-1" && f.Hex == "01");
-        var minute = Assert.Single(projection.Fields.Where(f => f.Key == "cp56-minute-1"));
+        var minute = Assert.Single(projection.Fields, f => f.Key == "cp56-minute-1");
         Assert.Contains("GEN=0 Genuine", minute.Meaning);
         Assert.Equal("27", minute.Hex);
         Assert.Equal(minute, projection.BestFieldAt(minute.Offset));
