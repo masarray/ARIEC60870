@@ -206,6 +206,93 @@ public sealed partial class EvidenceRow
     public string ProtocolTraceRaw { get; }
     public string ProtocolTraceMeta { get; }
 
+    // Virtualized, scan-first projection. The raw wire bytes, full narration and
+    // ASDU object collection remain in Source; these properties are lazy so
+    // thousands of invisible rows never allocate an extra inspector graph.
+    private string? _timelineTitle;
+    private string? _timelineContext;
+    public string TimelineTitle => _timelineTitle ??= BuildTimelineTitle();
+    public string TimelineContext => _timelineContext ??= BuildTimelineContext();
+
+    private string BuildTimelineTitle()
+    {
+        if (ProtocolMode != "101") return ProtocolTraceHeader;
+
+        var frame = Source.Frame;
+        if (frame?.IsSingleCharacterAck == true)
+            return "Short link acknowledgement (E5) — request context required";
+        if (frame?.IsSingleCharacterNack == true)
+            return "Single-character negative response — verify device profile";
+        if (frame is { IsChecksumValid: false } or { IsLengthValid: false })
+            return "Invalid link frame — inspect original bytes";
+        if (Source.AsduDetails is { } asdu)
+            return Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
+        var link = frame?.LinkControl;
+        if (link is null) return "Undecoded IEC-101 frame — inspect original bytes";
+
+        var meaning = link.Prm
+            ? link.FunctionCode switch
+            {
+                10 => "Master requests Class 1 data",
+                11 => "Master requests Class 2 data",
+                0 => "Master resets the remote link",
+                9 => "Master requests link status",
+                _ => link.FunctionName
+            }
+            : link.FunctionCode switch
+            {
+                0 => "Remote station acknowledges link request",
+                1 => "Remote station sends link negative acknowledgement",
+                8 => "Remote station sends user data",
+                9 => "No requested data available",
+                11 => "Remote station reports link status",
+                _ => link.FunctionName
+            };
+
+        if (!link.Prm && link.Acd == true)
+            meaning += " · Class 1 data pending";
+        if (LinkAddress != "-")
+            meaning += " · Station " + LinkAddress;
+        return meaning;
+    }
+
+    private string BuildTimelineContext()
+    {
+        var fields = new List<string>(8);
+        if (!string.IsNullOrWhiteSpace(Source.PhysicalSource))
+            fields.Add(Source.PhysicalSource);
+        if (LinkAddress != "-")
+            fields.Add("Link address " + LinkAddress);
+        if (Source.AsduDetails is { } asdu)
+        {
+            fields.Add("Common address " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
+            fields.Add("Type " + asdu.TypeId.ToString(CultureInfo.InvariantCulture));
+            fields.Add(asdu.CauseName + " (cause " +
+                asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) + ")");
+            if (asdu.Objects.Count == 1)
+            {
+                var ioa = asdu.Objects[0].InformationObjectAddress;
+                fields.Add(!string.IsNullOrWhiteSpace(SemanticLabel)
+                    ? SemanticLabel + " · IOA " + ioa.ToString(CultureInfo.InvariantCulture)
+                    : "Information object " + ioa.ToString(CultureInfo.InvariantCulture));
+                fields.Add(asdu.Objects[0].ShortValue);
+            }
+            else if (asdu.Objects.Count > 1)
+                fields.Add(asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) + " decoded objects");
+            if (asdu.IsNegativeConfirm) fields.Add("Negative confirmation");
+            if (asdu.IsTest) fields.Add("Test frame");
+        }
+        else if (DataClass != "-" && !string.IsNullOrWhiteSpace(DataClass))
+            fields.Add(DataClass);
+        if (Source.Frame?.LinkControl is { Prm: false, Acd: true })
+            fields.Add("Class 1 pending (ACD=1)");
+        if (Source.Frame?.LinkControl is { Prm: false, Dfc: true })
+            fields.Add("Data flow restricted (DFC=1)");
+        if (TraceVisualClass == "Attention") fields.Add("Review frame");
+        return string.Join(" · ", fields);
+    }
+
+
 
 
     public EvidenceRow(CaptureFrameSnapshot capture)
