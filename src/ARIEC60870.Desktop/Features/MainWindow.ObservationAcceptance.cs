@@ -1005,6 +1005,29 @@ public partial class MainWindow
             !multiObjectRow.TimelineEngineeringIdentity.Contains("Link ", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Inline engineering decode must expose verified Link/TI/COT while Frame Details is closed.");
+
+        // Real WPF geometry and text acceptance: the original raw lane must be
+        // narrower than the interpreter, and separate IOA/Value objects must
+        // actually occupy distinct visual lines, not a single | delimited row.
+        if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(multiObjectRow)
+                is not ListBoxItem multiVisual)
+            throw new InvalidOperationException("Selected multi-object frame was not realized.");
+        var rawSignalHex = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineHex);
+        var visibleSignalText = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineSignalDigest);
+        var signalLines = multiObjectRow.TimelineSignalDigest.Split(Environment.NewLine);
+        if (rawSignalHex is null || visibleSignalText is null ||
+            signalLines.Length != 2 ||
+            !signalLines[0].Contains("IOA ", StringComparison.Ordinal) ||
+            !signalLines[1].Contains("IOA ", StringComparison.Ordinal) ||
+            visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
+            visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
+            visibleSignalText.ActualHeight < 24)
+            throw new InvalidOperationException(
+                $"Source-backed vertical signals or 32:68 raw/interpreter layout failed: " +
+                $"IOA-lines={signalLines.Length}, hexWidth={rawSignalHex?.ActualWidth:0.0}, " +
+                $"meaningWidth={visibleSignalText?.ActualWidth:0.0}, " +
+                $"meaningHeight={visibleSignalText?.ActualHeight:0.0}.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-vertical-signal-lines.png");
         SaveRealWpfBitmap(outputDirectory, "engineer-inline-full-width-trace.png");
 
         // Open and close the actual right-edge details dock. All source-decoded
