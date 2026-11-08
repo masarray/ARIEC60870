@@ -122,6 +122,74 @@ public sealed class EngineerFramePresentationTests
     }
 
     [Fact]
+    public void TextViewShowsExactRawHexAndTypedIec101AddressCauseAndBadQuality()
+    {
+        var decoded = MeasuredAsdu(0x81);
+        var source = Event(decoded);
+        var view = SelectedFrameProtocolText.Format(new EvidenceRow(source));
+        Assert.Contains("HEX  10 29 69 92 16", view);
+        Assert.Contains("ASDU  TI=13", view);
+        Assert.Contains("COT  3", view);
+        Assert.Contains("CA  1", view);
+        Assert.Contains("IOA 44", view);
+        Assert.Contains("IV=1", view);
+        Assert.Contains("OV=1", view);
+        Assert.Contains("RTU Time=Not encoded", view);
+        Assert.DoesNotContain("RTU Time=2026", view);
+        Assert.DoesNotContain("AI", view);
+    }
+
+    [Fact]
+    public void TextViewDistinguishesDeviceTimeInvalidFromSubstituted()
+    {
+        var genuine = SelectedFrameProtocolText.Format(new EvidenceRow(Event(TimedMeasuredAsdu(22))));
+        Assert.Contains("TimeIV=0  GEN=0", genuine);
+        var substituted = SelectedFrameProtocolText.Format(new EvidenceRow(Event(TimedMeasuredAsdu(0x40 | 22))));
+        Assert.Contains("TimeIV=0  GEN=1", substituted);
+        var invalid = SelectedFrameProtocolText.Format(new EvidenceRow(Event(TimedMeasuredAsdu(0x80 | 22))));
+        Assert.Contains("TimeIV=1  GEN=0", invalid);
+    }
+
+    [Fact]
+    public void LinkOnlyTextReportsAcdWithoutInventingAnAsdu()
+    {
+        var wire = Convert.FromHexString("1029699216");
+        var frame = new Ft12Parser(1).Decode(wire);
+        var source = Event(frame: frame);
+        var text = SelectedFrameProtocolText.Format(new EvidenceRow(source));
+        Assert.Contains("LINK  Address=", text);
+        Assert.Contains("ACD=1", text);
+        Assert.Contains("ASDU  Not decoded / not encoded", text);
+        Assert.DoesNotContain("IOA ", text);
+        Assert.DoesNotContain("RTU Time=", text);
+    }
+
+    [Fact]
+    public void MultiObjectTextIncludesEveryObjectInOriginalSourceOrder()
+    {
+        var decoded = new Iec10xAsduDecode
+        {
+            TypeId = 3,
+            ObjectCount = 3,
+            CommonAddress = 5,
+            CauseOfTransmission = 20,
+            Objects =
+            [
+                new Iec10xInformationObject { InformationObjectAddress = 501, ValueText = "ON" },
+                new Iec10xInformationObject { InformationObjectAddress = 502, ValueText = "OFF" },
+                new Iec10xInformationObject { InformationObjectAddress = 503, ValueText = "INTERMEDIATE" }
+            ]
+        };
+        var text = SelectedFrameProtocolText.Format(new EvidenceRow(Event(decoded)));
+        var first = text.IndexOf("IOA 501", StringComparison.Ordinal);
+        var second = text.IndexOf("IOA 502", StringComparison.Ordinal);
+        var third = text.IndexOf("IOA 503", StringComparison.Ordinal);
+        Assert.True(first >= 0 && second > first && third > second);
+        Assert.Contains("Objects=3/3", text);
+        Assert.Contains("CA  5", text);
+    }
+
+    [Fact]
     public void SignalNameAppearsOnlyFromExplicitResolver()
     {
         var asdu = MeasuredAsdu(0);
