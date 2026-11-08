@@ -91,6 +91,8 @@ public sealed partial class EvidenceRow
         ProtocolTraceRaw = BuildProtocolTraceRaw();
         ProtocolTraceMeta = narration is null ? $"#{Sequence}  {Time}  {ProtocolName}" : string.Empty;
         TrafficTone = ResolveTrafficTone();
+        TraceVisualClass = FrameTraceVisualPolicy.Classify(item);
+        TraceInk = FrameTraceVisualPolicy.Ink(Direction, TraceVisualClass);
     }
 
     public Iec103MasterEvidenceEvent Source { get; }
@@ -98,6 +100,9 @@ public sealed partial class EvidenceRow
     public string Time { get; }
     public string Direction { get; }
     public string TrafficTone { get; }
+    /// <summary>Presentation-only priority. Never filters, suppresses or drops physical frames.</summary>
+    public string TraceVisualClass { get; }
+    public string TraceInk { get; }
     public string State { get; }
     public string ProtocolMode { get; }
     public string ProtocolName { get; }
@@ -211,6 +216,8 @@ public sealed partial class EvidenceRow
         Time = string.IsNullOrWhiteSpace(capture.Time) ? "-" : capture.Time;
         Direction = string.IsNullOrWhiteSpace(capture.Direction) ? "STATE" : capture.Direction;
         TrafficTone = string.Equals(Direction, "TX", StringComparison.OrdinalIgnoreCase) ? "Tx" : string.Equals(Direction, "RX", StringComparison.OrdinalIgnoreCase) ? "Rx" : "Status";
+        TraceVisualClass = FrameTraceVisualPolicy.Classify(Source);
+        TraceInk = FrameTraceVisualPolicy.Ink(Direction, TraceVisualClass);
         State = string.IsNullOrWhiteSpace(capture.State) ? "OfflineCapture" : capture.State;
         ProtocolMode = string.IsNullOrWhiteSpace(capture.ProtocolMode) ? "-" : capture.ProtocolMode;
         ProtocolName = string.IsNullOrWhiteSpace(capture.ProtocolName) ? "ARIEC capture" : capture.ProtocolName;
