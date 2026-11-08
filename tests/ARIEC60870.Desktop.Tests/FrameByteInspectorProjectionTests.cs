@@ -62,7 +62,7 @@ public sealed class FrameByteInspectorProjectionTests
         Assert.Equal("27", minute.Hex);
         Assert.Equal(minute, projection.BestFieldAt(minute.Offset));
         Assert.Equal(minute.Count, minute.EndExclusive - minute.Offset);
-        Assert.Equal("27", projection.ExportSelectedField(minute).Split(' ')[^1].Split('\n')[0]);
+        Assert.Contains("  27" + Environment.NewLine, projection.ExportSelectedField(minute));
         Assert.Contains("HEX  " + row.RawHex, projection.ExportAllFields());
         Assert.DoesNotContain("└─", projection.ExportAllFields());
     }
