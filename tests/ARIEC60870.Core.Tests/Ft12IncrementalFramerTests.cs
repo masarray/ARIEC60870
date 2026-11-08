@@ -157,6 +157,55 @@ public sealed class Ft12IncrementalFramerTests
         Assert.Equal(candidate, result.RawBytes);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void DeterministicNoiseChecksumAndFragmentationMatrixPreservesEveryBoundary(int width)
+    {
+        // 96 reproducible split patterns; absolutely no wall-clock assertion,
+        // timers, threads or artificial serial baud assumption.
+        var goodFixed = Fixed(width);
+        var goodVariable = Variable(width, [0x1F, 0x01, 0x03, 0x00, 0x69, 0x00]);
+        var badChecksum = goodVariable.ToArray();
+        badChecksum[^2] ^= 0x80;
+        byte[] noise = [0x00, 0xFF, 0x33];
+        var wire = noise.Concat(badChecksum).Concat(goodFixed)
+            .Concat(goodVariable).Concat(new byte[] { 0xA2, 0xE5 }).ToArray();
+
+        for (var seed = 0; seed < 96; seed++)
+        {
+            var framer = new Ft12IncrementalFramer(width,
+                permitAlternateLinkWidths: false, returnMalformedEnd: true);
+            var observed = new List<Ft12StreamCandidate>();
+            var origin = (long)seed * 1000;
+            var step = seed % 13 + 1;
+            for (var offset = 0; offset < wire.Length; offset += step)
+            {
+                var count = Math.Min(step, wire.Length - offset);
+                framer.Feed(wire.AsSpan(offset, count), origin + offset,
+                    observed.Add, flushNoiseAtEnd: false);
+            }
+
+            var candidates = observed.Where(x => x.Format != "Noise").ToArray();
+            Assert.Equal(new[] { "Variable", "Fixed", "Variable", "Single", "Single" },
+                candidates.Select(x => x.Format));
+            Assert.Equal(new[] { false, true, true, true, true },
+                candidates.Select(x => x.ChecksumValid));
+            Assert.Equal(badChecksum, candidates[0].RawBytes);
+            Assert.Equal(goodFixed, candidates[1].RawBytes);
+            Assert.Equal(goodVariable, candidates[2].RawBytes);
+            Assert.Equal(new byte[] { 0xA2 }, candidates[3].RawBytes);
+            Assert.Equal(new byte[] { 0xE5 }, candidates[4].RawBytes);
+            Assert.Equal(origin + noise.Length, candidates[0].ByteOffset);
+            Assert.Equal(origin + noise.Length + badChecksum.Length,
+                candidates[1].ByteOffset);
+            Assert.Equal(noise.Length, framer.NoiseBytes);
+            Assert.Equal(0, framer.IncompleteBytes);
+            Assert.Null(framer.ExpireIncomplete());
+        }
+    }
+
     [Fact]
     public void FiftyThousandFt12FramesRemainBoundedAndAccountedFor()
     {

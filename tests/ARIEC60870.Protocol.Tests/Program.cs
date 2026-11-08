@@ -89,16 +89,28 @@ internal static class Program
 
     private static async Task TestReaderResynchronizesAfterNoise()
     {
-        await using var transport = new ScriptedTransport();
-        transport.EnqueueIncoming(new byte[] { 0x00, 0xFF, 0x33 });
-        transport.EnqueueIncoming(SecondaryFixed(functionCode: 9, acd: true));
-
-        var reader = new Ft12StreamReader(transport);
-        var raw = await reader.ReadFrameAsync(timeoutMs: 200, CancellationToken.None).ConfigureAwait(false);
-
-        AssertNotNull(raw, "reader must return a frame after noise");
-        AssertEqual(5, raw!.Length, "fixed frame length");
-        AssertEqual((byte)0x10, raw[0], "first returned byte must be FT1.2 fixed-frame start");
+        // Fully preloaded, synchronous byte reads: no Channel scheduler race or
+        // arbitrary 200 ms Windows runner timing masquerading as a parser fault.
+        // The production serial deadline is not changed by this fixture.
+        var valid = SecondaryFixed(functionCode: 9, acd: true);
+        for (var iteration = 0; iteration < 48; iteration++)
+        {
+            var noise = (iteration % 3) switch
+            {
+                0 => new byte[] { 0x00, 0xFF, 0x33 },
+                1 => new byte[] { 0x68, 0x10, 0x11, 0x68, 0x99 },
+                _ => new byte[] { 0x55, 0x00, 0xFF }
+            };
+            await using var transport = new PrefilledByteTransport(
+                noise.Concat(valid).ToArray());
+            var reader = new Ft12StreamReader(transport);
+            var raw = await reader.ReadFrameAsync(timeoutMs: 2000,
+                CancellationToken.None).ConfigureAwait(false);
+            AssertNotNull(raw, "preloaded reader must resynchronize after noise");
+            AssertTrue(raw!.SequenceEqual(valid),
+                "reader must deliver exactly the first valid fixed response");
+            AssertEqual(0, transport.WriteCount, "RX framing must not transmit");
+        }
     }
 
     private static async Task TestSingleCharacterNackA2()
@@ -109,10 +121,10 @@ internal static class Program
         AssertTrue(nack.IsSingleCharacterNack, "A2 must be classified as single-character NACK");
         AssertEqual("Single character NACK", nack.ShortMeaning, "NACK short meaning");
 
-        await using var transport = new ScriptedTransport();
-        transport.EnqueueIncoming(new byte[] { 0x55, 0xA2 });
+        await using var transport = new PrefilledByteTransport([0x55, 0xA2]);
         var reader = new Ft12StreamReader(transport);
-        var raw = await reader.ReadFrameAsync(timeoutMs: 200, CancellationToken.None).ConfigureAwait(false);
+        var raw = await reader.ReadFrameAsync(timeoutMs: 2000,
+            CancellationToken.None).ConfigureAwait(false);
         AssertNotNull(raw, "reader must return single-character NACK after noise");
         AssertEqual((byte)0xA2, raw![0], "reader must preserve A2");
     }
@@ -467,6 +479,50 @@ internal static class Program
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
             throw new InvalidOperationException($"{message}: expected={expected}, actual={actual}");
+        }
+    }
+
+    /// <summary>Fail-fast prefilled RX byte schedule. Never waits on a real
+    /// OS scheduler, clock or serial port; each read supplies exactly one byte.
+    /// Timeout/empty reads remain covered by separate Master integration tests.</summary>
+    private sealed class PrefilledByteTransport : IByteTransport
+    {
+        private readonly byte[] _bytes;
+        private int _position;
+        private bool _open = true;
+
+        public PrefilledByteTransport(byte[] bytes) => _bytes = bytes;
+        public bool IsOpen => _open;
+        public int WriteCount { get; private set; }
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            _open = true;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            _open = false;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
+        {
+            WriteCount++;
+            throw new InvalidOperationException("The RX-only framing fixture may not send bytes.");
+        }
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (buffer.IsEmpty) return ValueTask.FromResult(0);
+            if (_position >= _bytes.Length)
+                throw new InvalidOperationException("Reader requested more bytes than the script contains.");
+            buffer.Span[0] = _bytes[_position++];
+            return ValueTask.FromResult(1);
+        }
+        public void Dispose() => _open = false;
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return ValueTask.CompletedTask;
         }
     }
 
