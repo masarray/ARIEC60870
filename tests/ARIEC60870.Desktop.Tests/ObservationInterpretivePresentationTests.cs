@@ -82,7 +82,7 @@ public sealed class ObservationInterpretivePresentationTests
         var asdu = new Iec10xAsduDecode
         {
             TypeId = 3, CommonAddress = 1, CauseOfTransmission = 20,
-            ObjectCount = 3,
+            InformationObjectAddressWidth = 3, ObjectCount = 3,
             Objects =
             [
                 new Iec10xInformationObject { InformationObjectAddress = 9, ValueText = "DP=ON" },
@@ -101,10 +101,10 @@ public sealed class ObservationInterpretivePresentationTests
         Assert.Equal("GI data · Double-point", row.TimelineTitle);
         Assert.Equal("CA 1 · TI 3 · COT 20", row.TimelineCompactContext);
         Assert.Contains("3 signals", row.TimelineSignalDigest);
-        Assert.Contains("IOA 9 = DP=ON", row.TimelineSignalDigest);
-        Assert.Contains("IOA 10 = DP=OFF", row.TimelineSignalDigest);
+        Assert.Contains("IOA 9 (IOA1:9 - IOA2:0 - IOA3:0)  Value: ON (Double Point)", row.TimelineSignalDigest);
+        Assert.Contains("IOA 10 (IOA1:10 - IOA2:0 - IOA3:0)  Value: OFF (Double Point)", row.TimelineSignalDigest);
         Assert.Contains("+1 more in inspector", row.TimelineSignalDigest);
-        Assert.DoesNotContain("IOA 11 =", row.TimelineSignalDigest);
+        Assert.DoesNotContain("IOA 11 (", row.TimelineSignalDigest);
         Assert.True(row.HasTimelineSignalDigest);
     }
 
@@ -113,7 +113,8 @@ public sealed class ObservationInterpretivePresentationTests
     {
         var asdu = new Iec10xAsduDecode
         {
-            TypeId = 1, CommonAddress = 2, CauseOfTransmission = 3, ObjectCount = 1,
+            TypeId = 1, CommonAddress = 2, CauseOfTransmission = 3,
+            InformationObjectAddressWidth = 3, ObjectCount = 1,
             Objects = [new Iec10xInformationObject
             {
                 InformationObjectAddress = 342, ValueText = "ON"
@@ -129,9 +130,9 @@ public sealed class ObservationInterpretivePresentationTests
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
             SignalName = "Unverified label", IsMappedSignal = false
         });
-        Assert.Contains("Breaker 110 kV position (IOA 342) = ON", mapped.TimelineSignalDigest);
+        Assert.Contains("Breaker 110 kV position · IOA 342 (IOA1:86 - IOA2:1 - IOA3:0)  Value: ON (Single Point)", mapped.TimelineSignalDigest);
         Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
-        Assert.Contains("IOA 342 = ON", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 (IOA1:86 - IOA2:1 - IOA3:0)  Value: ON (Single Point)", unmapped.TimelineSignalDigest);
         Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
     }
 
