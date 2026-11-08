@@ -444,7 +444,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 break;
             }
 
-            if (response.Asdu?.CauseOfTransmission == 10)
+            if (Iec10xGiTermination.IsObserved(response.Asdu))
             {
                 _counters.GiEndResponses++;
                 stoppedByGiEnd = true;
@@ -1007,7 +1007,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         _imageTracker.Observe(asdu, utcNow);
         ObserveAsduCommonAddress(asdu);
-        if (asdu?.CauseOfTransmission == 10 && asdu.TypeId == 100)
+        if (Iec10xGiTermination.IsObserved(asdu))
         {
             AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 GI activation termination observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
         }

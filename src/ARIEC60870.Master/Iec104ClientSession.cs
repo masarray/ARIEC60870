@@ -290,7 +290,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             received++;
             // A rejected APDU may carry COT10 in its raw bytes. It is not a GI
             // completion and cannot abbreviate the remaining receive window.
-            if (outcome.AcceptedI && outcome.Apdu.Asdu?.CauseOfTransmission == 10) break;
+            if (outcome.AcceptedI && Iec10xGiTermination.IsObserved(outcome.Apdu.Asdu)) break;
         }
     }
 
@@ -393,7 +393,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             {
                 _counters.UserDataResponses++;
                 _receiveSequence = Iec104SequenceWindow.Next(_receiveSequence);
-                if (decoded.Asdu?.CauseOfTransmission == 10) _counters.GiEndResponses++;
+                if (Iec10xGiTermination.IsObserved(decoded.Asdu)) _counters.GiEndResponses++;
                 if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
             }
             // A malformed APCI is retained as evidence, not acknowledged as
@@ -451,7 +451,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             CommonAddressNumber = decoded.Asdu?.CommonAddress,
             InformationObjectAddress = decoded.Asdu?.FirstObject?.InformationObjectAddress,
             ObjectSummary = decoded.Asdu?.ObjectSummary ?? string.Empty,
-            IsRelayValue = acceptedI && decoded.Asdu is not null && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
+            IsRelayValue = acceptedI && decoded.Asdu is not null && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37),
             IsRelayEdgeEvent = acceptedI && decoded.Asdu is not null && (decoded.Asdu.CauseOfTransmission is 3 or 11 or 12) && (decoded.Asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
             SignalKey = decoded.Asdu?.FirstObject is null ? string.Empty : $"IOA:{decoded.Asdu.FirstObject.InformationObjectAddress}",
             SignalName = decoded.Asdu?.FirstObject is null ? string.Empty : $"IOA {decoded.Asdu.FirstObject.InformationObjectAddress}",
@@ -515,7 +515,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
                 InformationObjectAddress = obj.InformationObjectAddress,
                 ObjectSummary = obj.ElementSummary,
                 QualityText = obj.QualityText,
-                IsRelayValue = asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
+                IsRelayValue = asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
                 IsRelayEdgeEvent = (asdu.CauseOfTransmission is 3 or 11 or 12) && (asdu.TypeId is 1 or 2 or 3 or 4 or 30 or 31),
                 SignalKey = $"IOA:{obj.InformationObjectAddress}",
                 SignalName = $"IOA {obj.InformationObjectAddress}",
