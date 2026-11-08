@@ -15,6 +15,14 @@ public partial class MainWindow
 {
     public ARIEC60870.Desktop.ViewModels.ObservableRangeCollection<Iec10xGiCasebook.GiStage> GiCaseStages { get; } = new();
     private bool _restoringGiCaseSelection;
+    private bool _giExpandedStages;
+
+    private void GiStagesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _giExpandedStages = !_giExpandedStages;
+        GiStagesToggleButton.Content = _giExpandedStages ? "Focus stages" : "Show all stages";
+        RefreshSelectedGiCaseStages();
+    }
 
     private void RefreshGiCasesIfVisible(bool force = false)
     {
@@ -23,7 +31,10 @@ public partial class MainWindow
         _restoringGiCaseSelection = true;
         try
         {
-            GiCaseRows.ReconcileByKey(_giCasebook.Snapshot().Reverse().ToArray(),
+            // Monitor GI is authored by the complete RX writer; the bounded
+            // WPF frame preview is never a transaction authority.
+            var sourceCases = _passiveWriterGiSnapshot?.Cases ?? _giCasebook.Snapshot();
+            GiCaseRows.ReconcileByKey(sourceCases.Reverse().ToArray(),
                 row => (row.Protocol, row.Source, row.CaseId));
             _giCasesDirty = false;
             var match = selected.HasValue ? GiCaseRows.FirstOrDefault(x => x.CaseId == selected.Value) : null;
@@ -46,12 +57,37 @@ public partial class MainWindow
         if (GiCasesGrid?.SelectedItem is not Iec10xGiCasebook.GiCase c)
         {
             if (GiCaseStages.Count > 0) GiCaseStages.Clear();
+            if (GiStageSummaryText is not null) GiStageSummaryText.Text = "Select a GI case to inspect its milestones";
             if (GiCaseDetailsBox is not null) GiCaseDetailsBox.Text = "Select a GI conversation.";
             return;
         }
-        GiCaseStages.ReconcileByKey(c.Stages, stage => (stage.Sequence, stage.EvidenceReference));
+        // Readable default: preserve the original stages, but focus on
+        // lifecycle, first/last GI data and anomalies instead of poll spam.
+        var firstData = c.Stages.FirstOrDefault(x => x.Phase == "First interrogated data" ||
+            x.Phase.StartsWith("GI data #", StringComparison.Ordinal));
+        var lastData = c.Stages.LastOrDefault(x => x.Phase == "First interrogated data" ||
+            x.Phase.StartsWith("GI data #", StringComparison.Ordinal));
+        var stages = _giExpandedStages ? c.Stages : c.Stages.Where((stage, i) =>
+            i == 0 || i == c.Stages.Count - 1 ||
+            ReferenceEquals(stage, firstData) || ReferenceEquals(stage, lastData) ||
+            !(stage.Phase.StartsWith("Master requested Class 1 data", StringComparison.Ordinal) ||
+              stage.Phase.StartsWith("Class 1 NO DATA", StringComparison.Ordinal) ||
+              stage.Phase.StartsWith("GI data #", StringComparison.Ordinal))).ToArray();
+        GiCaseStages.ReconcileByKey(stages, stage => (stage.Sequence, stage.EvidenceReference));
+        if (GiStageSummaryText is not null)
+            GiStageSummaryText.Text = $"{stages.Count} / {c.Stages.Count} observed stages" +
+                (_giExpandedStages ? " · complete timeline" : " · key milestones");
         if (GiCaseDetailsBox is not null)
-            GiCaseDetailsBox.Text = c.OperatorSummary;
+            GiCaseDetailsBox.Text =
+                $"GI #{c.CaseId} · DL {c.LinkAddress?.ToString() ?? "?"} / CA {c.CommonAddress} / QOI {c.Qoi}" +
+                $" · {c.DataFrames} data frames · {c.UniqueIoas} unique IOAs · {c.InvalidQualityObjects} bad quality. " +
+                (c.Status switch
+                {
+                    "ACTTERM observed · coverage unknown" => "ACTCON + ACTTERM observed; full point coverage unverified.",
+                    "ACTTERM without observed ACTCON · incomplete" => "ACTTERM seen, but matching ACTCON not observed. Check original evidence.",
+                    "Unmatched response · request not observed" => "Response cannot be linked to an observed GI request.",
+                    _ => c.Status + ". Coverage is not automatically proven."
+                });
     }
 
     private void GiCaseCopy_Click(object sender, RoutedEventArgs e)

@@ -315,7 +315,10 @@ public partial class MainWindow
 
         // These lifecycle engines already consumed the original frame on
         // the normal trace path. A writer-owned SOE fact must not re-advance them.
-        if (!_passiveLedgerFactProjection)
+        if (!_passiveLedgerFactProjection &&
+            !(item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+              _passiveMonitorSession is not null &&
+              item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal)))
         {
         // Every actual typed TX/RX application command is an event fact, independently
         // of whether a process value changed. No fabricated RTU success on ACTCON.
@@ -347,6 +350,11 @@ public partial class MainWindow
             return;
 
         var shouldShowValue = item.IsRelayValue || IsIec10xProcessValue(item);
+        // In live passive capture the indexed Event facts and latest-point
+        // snapshots have different jobs. An old Event page cannot overwrite
+        // a more recent Values snapshot when the UI falls behind source RX.
+        var shouldPublishValue = shouldShowValue &&
+            (!_passiveLedgerFactProjection || _passiveLedgerSnapshotProjection);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
         var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
@@ -405,7 +413,7 @@ public partial class MainWindow
             ? _passiveLedgerChangedAtSource : HasKnownStateTransition(previousValue, displayValue);
         var keepValueHighlight = _valueHighlightExpiryByKey.TryGetValue(key, out var highlightUntil) && highlightUntil > DateTime.UtcNow;
 
-        if (shouldShowValue)
+        if (shouldPublishValue)
         {
             var valueRow = new ValueRow(new Iec103ValuePoint
             {
@@ -472,6 +480,9 @@ public partial class MainWindow
         // Event Log is an observation journal, not merely an edge detector:
         // every trusted RX measurement/counter (including cyclic/GI) is retained.
         // Values remains the latest per-point snapshot, raw evidence unchanged.
+        // A snapshot is not an event, even when it is the first ever
+        // observation of a digital point. Event authority remains unchanged.
+        if (_passiveLedgerSnapshotProjection) return;
         var recordIec10xProcess = _passiveLedgerFactProjection ||
             Iec10xObservationIdentity.ShouldRecordProcessEvent(item, hasMeaningfulChange);
         if (shouldShowEdgeEvent || (shouldShowValue && recordIec10xProcess))
@@ -1093,6 +1104,9 @@ public partial class MainWindow
         FrameTraceRows.Clear();
         _commandCasebook.Reset();
         _giCasebook.Reset();
+        _passiveLatestPointCount = 0;
+        _passiveWriterGiSnapshot = null;
+        _passiveWriterGiRevision = 0;
         GiCaseRows.Clear();
         GiCaseStages.Clear();
         _giCasesDirty = false;
