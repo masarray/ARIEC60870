@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build-test:
-    name: Protocol, regression and real-WPF acceptance
+    # Preserve the historic required check context `build-test` for branch rules.
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
