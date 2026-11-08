@@ -493,41 +493,63 @@ public sealed partial class EvidenceRow
         Acd = string.IsNullOrWhiteSpace(capture.Acd) ? "-" : capture.Acd;
         Dfc = string.IsNullOrWhiteSpace(capture.Dfc) ? "-" : capture.Dfc;
         LinkFlags = BuildLinkFlags(null, Acd, Dfc);
-        AsduType = string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
-        TypeId = string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
+        // Archived captions/labels are not protocol authority. For IEC-101/104
+        // only a complete decode of original bytes under recorded widths may
+        // populate typed fields. Preserve IEC-103's separate FUN/INF semantics.
+        var is10x = ProtocolMode is "101" or "104" or "IEC-101" or "IEC-104";
+        var trusted10x = is10x && Source.AsduDetails is { IsHeaderValid: true, Issues.Count: 0 }
+            ? Source.AsduDetails : null;
+        AsduType = is10x ? trusted10x?.TypeName ?? "Not decoded" :
+            string.IsNullOrWhiteSpace(capture.AsduType) ? "-" : capture.AsduType;
+        TypeId = is10x ? trusted10x?.TypeId.ToString(CultureInfo.InvariantCulture) ?? "-" :
+            string.IsNullOrWhiteSpace(capture.TypeId) ? "-" : capture.TypeId;
         TypeIdName = TypeId == "-" ? AsduType : $"{TypeId} · {AsduType}";
-        // Capture display metadata cannot forge a badge: use restored typed
-        // original ASDU, never saved TypeId text from the JSONL row.
-        TypeBadge = Source.AsduDetails is { Issues.Count: 0 } validAsdu
-            ? IecSignalTypeBadge.FromDecoded(ProtocolMode, validAsdu.TypeId) : null;
-        Vsq = Source.AsduDetails is { } asdu ? $"0x{asdu.VariableStructureQualifier:X2}" : "-";
-        CotCode = Source.CauseDetails is { } cause ? cause.Code.ToString(CultureInfo.InvariantCulture) :
+        TypeBadge = trusted10x is not null
+            ? IecSignalTypeBadge.FromDecoded(ProtocolMode, trusted10x.TypeId) : null;
+        Vsq = trusted10x is not null ? $"0x{trusted10x.VariableStructureQualifier:X2}" : "-";
+        CotCode = is10x ? trusted10x?.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) ?? "-" :
+            Source.CauseDetails is { } cause ? cause.Code.ToString(CultureInfo.InvariantCulture) :
             string.IsNullOrWhiteSpace(capture.CotCode) ? "-" : capture.CotCode;
-        Cot = string.IsNullOrWhiteSpace(capture.Cot) ? "-" : capture.Cot;
+        Cot = is10x ? trusted10x?.CotNameWithFlags ?? "Not decoded" :
+            string.IsNullOrWhiteSpace(capture.Cot) ? "-" : capture.Cot;
         CotDisplay = CotCode == "-" ? Cot : $"{CotCode} · {Cot}";
-        LinkAddress = string.IsNullOrWhiteSpace(capture.LinkAddress) ? "-" : capture.LinkAddress;
-        CommonAddress = string.IsNullOrWhiteSpace(capture.CommonAddress) ? "-" : capture.CommonAddress;
-        IoAddress = string.IsNullOrWhiteSpace(capture.Ioa) ? "-" : capture.Ioa;
+        LinkAddress = is10x ? Source.LinkAddress?.ToString(CultureInfo.InvariantCulture) ?? "-" :
+            string.IsNullOrWhiteSpace(capture.LinkAddress) ? "-" : capture.LinkAddress;
+        CommonAddress = is10x ? trusted10x?.CommonAddress.ToString(CultureInfo.InvariantCulture) ?? "-" :
+            string.IsNullOrWhiteSpace(capture.CommonAddress) ? "-" : capture.CommonAddress;
+        IoAddress = is10x ? (trusted10x is null ? null :
+            Source.InformationObjectDetails?.InformationObjectAddress.ToString(CultureInfo.InvariantCulture)) ?? "-" :
+            string.IsNullOrWhiteSpace(capture.Ioa) ? "-" : capture.Ioa;
         ApciFormat = string.IsNullOrWhiteSpace(Source.ApciFormat) ? "-" : Source.ApciFormat;
         SendSequence = "-";
         ReceiveSequence = "-";
         UFormatName = "-";
         ObjectCount = Source.AsduDetails?.ObjectCount.ToString(CultureInfo.InvariantCulture) ?? "-";
         SequenceMode = Source.AsduDetails is { } decoded ? (decoded.IsSequence ? "SQ=1" : "SQ=0") : "-";
-        // Preserve restored original frame semantics ahead of legacy JSONL
-        // quality text. TI100 GI and service ASDUs cannot have process QDS.
+        // A recorded "Good" label cannot override undecoded or malformed
+        // original bytes. Non-process/link-service frames encode no QDS.
         var restoredQuality = BuildQualityText(Source);
-        Quality = restoredQuality == "N/A" ? "N/A" :
-            Source.QualityDetails?.DisplayText ?? (Source.Frame is { IsChecksumValid: false } ? "Invalid frame" :
-            string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality);
+        Quality = is10x ? trusted10x is not null
+            ? Source.QualityDetails?.DisplayText ?? "N/A"
+            : Source.Frame is { IsChecksumValid: false } or { IsLengthValid: false }
+                ? "Invalid frame"
+                : Source.Frame is { IsChecksumValid: true, IsLengthValid: true, AsduBytes.Count: 0 }
+                  || Source.ApciFormat is "S" or "U" ? "N/A" : "Not verified"
+            : restoredQuality == "N/A" ? "N/A" :
+              Source.QualityDetails?.DisplayText ?? (Source.Frame is { IsChecksumValid: false }
+                  ? "Invalid frame" : string.IsNullOrWhiteSpace(capture.Quality) ? "-" : capture.Quality);
         Fun = "-";
         Inf = "-";
         FunInf = "-";
         SemanticLabel = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
         SemanticCategory = "Offline Capture";
-        SemanticState = string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
+        SemanticState = is10x ? (trusted10x is null
+            ? "-" : Source.InformationObjectDetails?.ShortValue ?? "-") :
+            string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
         ProfileName = "ARIEC capture";
-        RelayTime = string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
+        RelayTime = is10x ? (trusted10x is null
+            ? "-" : Source.InformationObjectDetails?.TimestampText ?? "-") :
+            string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
         Edge = "-";
         Mapped = "-";
         SignalOrAddress = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
@@ -561,7 +583,10 @@ public sealed partial class EvidenceRow
         {
             try
             {
-                var hex = string.Concat(capture.RawHex.Where(Uri.IsHexDigit));
+                // Reject arbitrary text masquerading as a HEX frame. Silently
+                // deleting non-HEX characters can turn corrupt raw evidence
+                // into a different, apparently valid frame.
+                var hex = capture.RawHex.Replace(" ", "", StringComparison.Ordinal);
                 var raw = Convert.FromHexString(hex);
                 decoded = Iec10xArchivedFrameDecoder.Decode(mode, raw, capture.LinkWidth,
                     capture.CotWidth, capture.CaWidth, capture.IoaWidth);
@@ -584,7 +609,7 @@ public sealed partial class EvidenceRow
             try
             {
                 var original = Convert.FromHexString(
-                    string.Concat(capture.RawHex.Where(Uri.IsHexDigit)));
+                    capture.RawHex.Replace(" ", "", StringComparison.Ordinal));
                 decoded103 = new Ft12Parser(capture.LinkWidth.Value).Decode(original);
             }
             catch (FormatException)
@@ -626,22 +651,31 @@ public sealed partial class EvidenceRow
             ReceiveSequence = decoded?.TcpFrame?.ReceiveSequence,
             UFormatName = decoded?.TcpFrame?.UFormatName ?? string.Empty,
             TypeId = asdu?.TypeId,
-            TypeName = asdu?.TypeName ?? capture.AsduType,
+            TypeName = asdu?.TypeName ??
+                (mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                    ? string.Empty : capture.AsduType),
             VariableStructureQualifier = asdu?.VariableStructureQualifier,
             IsSequenceAsdu = asdu?.IsSequence,
             ObjectCount = asdu?.ObjectCount,
             CauseOfTransmission = asdu?.CauseOfTransmission,
-            CauseName = asdu?.CotNameWithFlags ?? capture.Cot,
+            CauseName = asdu?.CotNameWithFlags ??
+                (mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                    ? string.Empty : capture.Cot),
             CauseDetails = asdu?.CauseDetails,
             CommandDetails = asdu?.CommandDetails,
             CommonAddressNumber = asdu?.CommonAddress,
             OriginatorAddress = asdu?.OriginatorAddress,
             InformationObjectAddress = first?.InformationObjectAddress,
             QualityDetails = first?.QualityDetails,
-            QualityText = first?.QualityText ?? capture.Quality,
+            QualityText = first?.QualityText ??
+                (mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                    ? string.Empty : capture.Quality),
             RelayTimestampText = first?.TimestampText ?? capture.RelayTime,
-            IsRelayValue = asdu?.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
-            SignalDisplayValue = first?.ShortValue ?? capture.Value
+            IsRelayValue = asdu is { IsHeaderValid: true, Issues.Count: 0 } &&
+                asdu.TypeId is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37,
+            SignalDisplayValue = first?.ShortValue ??
+                (mode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                    ? string.Empty : capture.Value)
         };
     }
 

@@ -59,6 +59,27 @@ public sealed class Iec10xArchivedFrameDecoderTests
         Assert.Equal("SELECT", d.Asdu.CommandDetails!.Operation);
     }
 
+    [Theory]
+    [InlineData(1, 2, 3)]
+    [InlineData(2, 1, 3)]
+    [InlineData(2, 2, 1)]
+    [InlineData(2, 2, 2)]
+    [InlineData(null, 2, 3)]
+    public void Iec104NeverPromotesAlternativeOrMissingAsduWidths(
+        int? cotWidth, int? caWidth, int? ioaWidth)
+    {
+        byte[] asdu = [46, 1, 7, 0, 1, 0, 123, 0, 0, 0x82];
+        var frame = new byte[] { 0x68, (byte)(asdu.Length + 4), 0, 0, 0, 0 }
+            .Concat(asdu).ToArray();
+        var decoded = Iec10xArchivedFrameDecoder.Decode(Iec60870ProtocolMode.Iec104,
+            frame, null, cotWidth, caWidth, ioaWidth);
+        Assert.False(decoded.IsIntegrityValid);
+        Assert.Null(decoded.TcpFrame);
+        Assert.Null(decoded.Asdu);
+        // Profile refusal is not a claim the original APDU bytes are corrupt.
+        Assert.Equal((byte)0x68, frame[0]);
+    }
+
     private static byte[] SerialVariable(byte control, byte linkAddress, byte[] asdu)
     {
         var data = new byte[] { control, linkAddress }.Concat(asdu).ToArray();

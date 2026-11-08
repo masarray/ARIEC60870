@@ -38,7 +38,11 @@ public static class Iec10xArchivedFrameDecoder
             return new Iec10xArchivedDecode(serial, null, asdu, asdu.Issues.Count == 0);
         }
 
-        if (protocol == Iec60870ProtocolMode.Iec104 && ValidAsduProfile(cotWidth, caWidth, ioaWidth))
+        // IEC-104 has fixed 2/2/3 COT/CA/IOA widths. Allowing IEC-101
+        // alternatives here can misinterpret the same valid APCI bytes as
+        // different but seemingly trustworthy objects in offline replay.
+        if (protocol == Iec60870ProtocolMode.Iec104 &&
+            cotWidth == 2 && caWidth == 2 && ioaWidth == 3)
         {
             var frame = new Iec104ApduParser(cotWidth!.Value, caWidth!.Value, ioaWidth!.Value)
                 .Decode(raw);

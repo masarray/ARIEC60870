@@ -72,6 +72,51 @@ public sealed class ArchivedEvidenceRowTests
     }
 
     [Fact]
+    public void ArchivedIec104TypedColumnsUseOriginalBytesNotForgedMetadata()
+    {
+        byte[] asdu = [46, 1, 7, 0, 1, 0, 123, 0, 0, 0x82];
+        var frame = new byte[] { 0x68, (byte)(asdu.Length + 4), 0, 0, 0, 0 }
+            .Concat(asdu).ToArray();
+        var capture = new CaptureFrameSnapshot
+        {
+            ProtocolMode = "104", Direction = "RX",
+            RawHex = Convert.ToHexString(frame), DecoderSchema = "IEC10X-OBJECT-V1",
+            CotWidth = 2, CaWidth = 2, IoaWidth = 3,
+            TypeId = "1", CotCode = "3", Cot = "spontaneous",
+            CommonAddress = "999", Ioa = "999", Quality = "Good",
+            Value = "ON", RelayTime = "2030-01-01"
+        };
+        var restored = new EvidenceRow(capture);
+        Assert.NotNull(restored.Source.AsduDetails);
+        Assert.Equal("46", restored.TypeId);
+        Assert.Equal("7", restored.CotCode);
+        Assert.Equal("1", restored.CommonAddress);
+        Assert.Equal("123", restored.IoAddress);
+        Assert.Equal("N/A", restored.Quality);
+        Assert.Equal("-", restored.RelayTime);
+
+        capture.CotWidth = 1;
+        var refused = new EvidenceRow(capture);
+        Assert.Null(refused.Source.AsduDetails);
+        Assert.Equal("-", refused.TypeId);
+        Assert.Equal("-", refused.CotCode);
+        Assert.Equal("-", refused.CommonAddress);
+        Assert.Equal("-", refused.IoAddress);
+        Assert.Equal("Not verified", refused.Quality);
+        Assert.Equal("-", refused.SemanticState);
+        Assert.Equal("-", refused.RelayTime);
+        Assert.Equal(Convert.ToHexString(frame), refused.RawHex);
+
+        capture.CotWidth = 2;
+        capture.RawHex = "junk" + Convert.ToHexString(frame);
+        var malformed = new EvidenceRow(capture);
+        Assert.Null(malformed.Source.AsduDetails);
+        Assert.Equal("-", malformed.TypeId);
+        Assert.Equal("Not verified", malformed.Quality);
+        Assert.Equal(capture.RawHex, malformed.RawHex);
+    }
+
+    [Fact]
     public void NewIec103ArchiveReplaysTrueLinkFrameAndFunInfWithoutSynthesizingIoa()
     {
         var asdu = new byte[] { 1, 1, 3, 1, 7, 2, 0x81 };
@@ -95,6 +140,21 @@ public sealed class ArchivedEvidenceRowTests
         Assert.Equal("07", fields.Single(x => x.Key == "fun").Hex);
         Assert.Equal("02", fields.Single(x => x.Key == "inf").Hex);
         Assert.Equal(209, restored.Source.RawStreamOffset);
+    }
+
+    [Fact]
+    public void Iec103RawTextGarbageNeverSilentlyBecomesValidFt12Bytes()
+    {
+        var raw = SerialVariable(0x08, 0x69, [1, 1, 3, 1, 7, 2, 0x81]);
+        var capture = new CaptureFrameSnapshot
+        {
+            ProtocolMode = "103", Direction = "RX",
+            DecoderSchema = "IEC103-FT12-V1", LinkWidth = 1,
+            RawHex = "junk" + Convert.ToHexString(raw)
+        };
+        var restored = new EvidenceRow(capture);
+        Assert.Null(restored.Source.Frame);
+        Assert.Equal(capture.RawHex, restored.RawHex);
     }
 
     [Fact]
