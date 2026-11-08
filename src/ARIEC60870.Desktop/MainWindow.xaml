@@ -835,7 +835,10 @@
                                             <MenuItem Header="Frame Details..." Click="TraceFrameDetails_Click" />
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
-                                    <!-- One source frame per virtualized row; deep decode belongs to the selected inspector. -->
+                                    <!-- Every frame shows actual source bytes without a second click.
+                                         Only full decoder fields are deferred to the selected inspector.
+                                         HEX text stays one line and trims on narrow viewports; selection
+                                         opens the complete, nontruncated source in the right panel. -->
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,1,0,1" ToolTip="{Binding TimelineContext}">
@@ -858,6 +861,16 @@
                                                     <TextBlock Text="{Binding TimelineTitle}" FontSize="11.7" FontFamily="{StaticResource AppFont}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                                                Foreground="#25394B"/>
+                                                    <DockPanel Margin="0,3,0,0" LastChildFill="True">
+                                                        <TextBlock DockPanel.Dock="Left" Text="HEX" FontSize="10"
+                                                                   FontWeight="SemiBold" Foreground="#486A86"
+                                                                   Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding TimelineHex}" FontSize="11"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   Foreground="#284D70" TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   VerticalAlignment="Center"/>
+                                                    </DockPanel>
                                                     <TextBlock Text="{Binding TimelineContext}" FontSize="10.6" FontFamily="{StaticResource AppFont}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                                                Foreground="#566B7A" Margin="0,2,0,0">
@@ -925,6 +938,8 @@
                                         <RowDefinition Height="7"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="7"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="7"/>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
@@ -946,9 +961,26 @@
                                         <TextBlock x:Name="SelectedLineSummaryText" Visibility="Visible" Text="Select a TX or RX frame on the left to understand what happened." FontSize="12"
                                                    Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                     </StackPanel>
+                                    <!-- The complete original byte stream must be visible on selection.
+                                         A protocol trace must never hide its HEX behind an expander. -->
+                                    <Border Grid.Row="2" BorderBrush="#CDDAE5" BorderThickness="1"
+                                            Background="#FFFFFF" CornerRadius="5" Padding="7">
+                                        <StackPanel>
+                                            <TextBlock Text="ORIGINAL FRAME · HEX" FontSize="10.5"
+                                                       FontWeight="SemiBold" Foreground="#48647B" Margin="1,0,0,4"/>
+                                            <TextBox x:Name="TraceInspectorRawText" IsReadOnly="True"
+                                                     Text="Select a frame to see complete original bytes."
+                                                     TextWrapping="Wrap" FontFamily="Cascadia Mono, Consolas" FontSize="11"
+                                                     Background="#FFFFFF" Foreground="#193D5B"
+                                                     BorderThickness="0" Padding="2"
+                                                     MinHeight="28" MaxHeight="94"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     HorizontalScrollBarVisibility="Disabled"/>
+                                        </StackPanel>
+                                    </Border>
                                     <!-- Decoded object values are a virtualized selection-only projection.
                                          Each ASDU stays ONE trace row; large object lists never inflate the timeline. -->
-                                    <StackPanel x:Name="DecodedPointSection" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,4">
+                                    <StackPanel x:Name="DecodedPointSection" Grid.Row="4" Visibility="Collapsed" Margin="0,0,0,4">
                                         <TextBlock x:Name="DecodedPointHeaderText" Text="Decoded points" FontSize="11.4"
                                                    FontWeight="Medium" Foreground="{StaticResource Ink800Brush}" Margin="2,0,0,4"/>
                                         <DataGrid x:Name="DecodedPointGrid" ItemsSource="{Binding SelectedDecodedPoints}"
@@ -983,7 +1015,7 @@
                                             </DataGrid.Columns>
                                         </DataGrid>
                                     </StackPanel>
-                                    <DataGrid Grid.Row="4" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
+                                    <DataGrid Grid.Row="6" x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}"
                                               ToolTipService.IsEnabled="False" RowDetailsVisibilityMode="VisibleWhenSelected"
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
@@ -1052,13 +1084,9 @@
                                             </DataGridTemplateColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <Expander Grid.Row="5" Header="Original HEX and byte-by-byte evidence" IsExpanded="False"
+                                    <Expander Grid.Row="7" Header="Byte field breakdown · offsets and meaning" IsExpanded="False"
                                               FontSize="11.5" Foreground="{StaticResource Ink800Brush}" Margin="0,6,0,0">
                                         <StackPanel Margin="0,4,0,0">
-                                            <TextBox x:Name="TraceInspectorRawText" IsReadOnly="True" TextWrapping="Wrap"
-                                                     FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Background="#FFFFFF"
-                                                     Foreground="#223749" BorderBrush="#D7E2EA" Padding="7" MinHeight="45"
-                                                     VerticalScrollBarVisibility="Auto" MaxHeight="110"/>
                                             <ListBox ItemsSource="{Binding SelectedProtocolMapLines}" Height="156"
                                                      FontSize="11" Background="White" BorderThickness="0"
                                                      VirtualizingPanel.IsVirtualizing="True"

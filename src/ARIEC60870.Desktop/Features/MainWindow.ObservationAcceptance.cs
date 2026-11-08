@@ -387,8 +387,8 @@ public partial class MainWindow
         ApplyQuickFind();
         AssertTraceCountInSync();
 
-        // The unselected timeline must stay compact. Original bytes are shown
-        // only in the selected-frame inspector, without losing wire fidelity.
+        // The unselected timeline always displays actual wire bytes alongside
+        // meaning. Complete bytes remain in the selected-frame inspector.
         FrameTraceGrid.SelectedItems.Clear();
         var unselected = FrameTraceRows[^15];
         FrameTraceGrid.ScrollIntoView(unselected);
@@ -398,9 +398,9 @@ public partial class MainWindow
             FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(unselected) as ListBoxItem;
         if (unselectedContainer is null ||
             !HasVisibleRawLine(unselectedContainer, unselected.TimelineTitle) ||
-            HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
+            !HasVisibleRawLine(unselectedContainer, unselected.TimelineHex))
             throw new InvalidOperationException(
-                "Timeline did not render the human title, or leaked the full raw dump into an unselected row.");
+                "Engineer Frame Trace must render actual HEX bytes in each unselected timeline row.");
         if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Disabled)
             throw new InvalidOperationException(
                 "Compact timeline should trim long text rather than force horizontal scrolling.");
@@ -420,7 +420,8 @@ public partial class MainWindow
                 "Selecting a raw frame left automatic tail-follow enabled.");
         if (!ReferenceEquals(_selectedFrameRow, selected) ||
             SelectedLineSummaryText.Text != FrameInspectorFieldPresentation.HumanSummary(selected) ||
-            TraceInspectorRawText.Text != selected.RawHex)
+            TraceInspectorRawText.Text != selected.TimelineHex ||
+            !TraceInspectorRawText.IsVisible)
             throw new InvalidOperationException(
                 "Selecting the frame did not immediately update meaning and original bytes.");
         FrameTraceGrid.ScrollIntoView(selected);
@@ -1010,7 +1011,8 @@ public partial class MainWindow
         // workflow or hidden detail toggle is required.
         if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
             SelectedDecodedPoints.Count != 2 ||
-            TraceInspectorRawText.Text != multiObjectRow.RawHex)
+            TraceInspectorRawText.Text != multiObjectRow.TimelineHex ||
+            !TraceInspectorRawText.IsVisible)
             throw new InvalidOperationException(
                 "Persistent inspector lost selected multi-object evidence.");
 
