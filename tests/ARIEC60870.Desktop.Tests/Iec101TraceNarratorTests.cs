@@ -64,6 +64,33 @@ public sealed class Iec101TraceNarratorTests
     }
 
     [Fact]
+    public void IntegratedTotalsAreDescribedInPlainEngineeringLanguage()
+    {
+        var asduBytes = new byte[]
+        {
+            15, 1, 3, 0, 1, 0, 44, 0, 0,
+            1, 0, 0, 0, 0
+        };
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(asduBytes);
+        Assert.Empty(asdu.Issues);
+        var wire = MakeVariableFrame(0x08, 0x69, asduBytes);
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            Frame = new Ft12Parser(1).Decode(wire),
+            AsduDetails = asdu,
+            LinkAddress = 105,
+            RawHex = Convert.ToHexString(wire)
+        });
+        Assert.Contains("Integrated totals (counter)", row.TimelineTitle);
+        Assert.DoesNotContain("M_IT_NA", row.TimelineTitle);
+        Assert.Contains("Integrated totals (counter)",
+            FrameInspectorFieldPresentation.HumanSummary(row));
+        Assert.Contains("Type 15", row.TimelineContext);
+    }
+
+    [Fact]
     public void SecondaryNoDataWithAcdRemainsVisibleAsPendingClassOne()
     {
         var row = new EvidenceRow(LinkFrame("10 29 69 92 16", "Class 2"));
