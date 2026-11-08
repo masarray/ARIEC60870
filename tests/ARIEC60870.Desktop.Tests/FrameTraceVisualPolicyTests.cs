@@ -34,14 +34,14 @@ public sealed class FrameTraceVisualPolicyTests
     }
 
     [Fact]
-    public void Class2EmptyAndRoutineRequestAreMutedButNeverRemovedFromFrameModel()
+    public void Class2EmptyAndRoutineRequestAreReadableButDeEmphasizedAndNeverRemovedFromFrameModel()
     {
         var poll = Row(Convert.FromHexString("105B6900C416"), true);
         var empty = Row(Convert.FromHexString("100969007216"), false);
         Assert.Equal("Routine", poll.TraceVisualClass);
         Assert.Equal("Routine", empty.TraceVisualClass);
-        Assert.Equal("#8497A8", poll.TraceInk);
-        Assert.Equal("#849D8E", empty.TraceInk);
+        Assert.Equal("#425D79", poll.TraceInk);
+        Assert.Equal("#3F6551", empty.TraceInk);
         Assert.NotEmpty(poll.RawHex);
         Assert.NotEmpty(empty.RawHex);
     }
