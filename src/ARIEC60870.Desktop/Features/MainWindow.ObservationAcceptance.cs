@@ -1021,6 +1021,21 @@ public partial class MainWindow
         interpretedPointRows = DecodedPointGrid.Items.Count;
         // Field screenshot acceptance: decoded inspector exposes expandable,
         // source-backed children. No synthetic quality/IOA bits are fabricated.
+        // Frame Properties are intentionally collapsed by default. The
+        // selected-frame decoder stays visible, selectable and copy-faithful
+        // while deep property expansion does not waste viewport height.
+        if (FramePropertiesExpander.IsExpanded ||
+            SelectedFrameProtocolTextBox.Text != SelectedFrameProtocolText.Format(multiObjectRow) ||
+            !SelectedFrameProtocolTextBox.IsReadOnly ||
+            !SelectedFrameProtocolTextBox.Text.Contains("IOA ", StringComparison.Ordinal) ||
+            !SelectedFrameProtocolTextBox.Text.Contains("CA  ", StringComparison.Ordinal) ||
+            !SelectedFrameProtocolTextBox.Text.Contains("COT  ", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Frame Properties must start collapsed; source decoded text must be selectable and accurate.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-decoded-frame-properties-collapsed.png");
+        FramePropertiesExpander.IsExpanded = true;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
         var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Value structure (VSQ)");
         var ioaRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "IOA");
         var qualityRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Quality");
@@ -1043,6 +1058,11 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
+        FramePropertiesExpander.IsExpanded = false;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        if (FramePropertiesExpander.IsExpanded ||
+            !ReferenceEquals(FrameTraceGrid.SelectedItem, multiObjectRow))
+            throw new InvalidOperationException("Collapse must not clear the selected original frame.");
         // Assert actual source-quality IV warning is visible in the left
         // original-frame row and the right summary, not only in view-model data.
         var invalidPointFrame = FrameTraceRows.LastOrDefault(x =>
@@ -1076,7 +1096,8 @@ public partial class MainWindow
         if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
             SelectedDecodedPoints.Count != 2 ||
             TraceInspectorRawText.Text != multiObjectRow.TimelineHex ||
-            SelectedLineTrustText.Text != EngineerFramePresentation.TrustSummary(multiObjectRow.Source))
+            SelectedLineTrustText.Text != EngineerFramePresentation.TrustSummary(multiObjectRow.Source) ||
+            SelectedFrameProtocolTextBox.Text != SelectedFrameProtocolText.Format(multiObjectRow))
             throw new InvalidOperationException(
                 "Persistent inspector lost selected multi-object evidence.");
 
