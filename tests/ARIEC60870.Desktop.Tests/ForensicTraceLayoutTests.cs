@@ -170,6 +170,42 @@ public sealed class ForensicTraceLayoutTests
         Assert.Contains("TIME IV/range", view.ActiveFlags);
     }
 
+
+    [Fact]
+    public void StepPositionVtiPreservesSignedSevenBitValueSeparateFromTransient()
+    {
+        // Actual TI32 FT1.2 layout: VTI at original physical byte offset 16.
+        var raw = Convert.FromHexString(
+            "68151568286900200114000100B00F0C07006C043814070B1A8116");
+        Assert.True(new Ft12Parser(2).Decode(raw).IsChecksumValid);
+
+        byte[] Modify(byte vti)
+        {
+            var changed = (byte[])raw.Clone();
+            changed[16] = vti;
+            changed[^2] = (byte)(changed.Skip(4)
+                .Take(changed.Length - 6).Sum(b => b) & 0xFF);
+            return changed;
+        }
+
+        var transientBytes = Modify(0x87);
+        var transient = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            transientBytes.Skip(7).Take(transientBytes.Length - 9).ToArray());
+        var first = Assert.Single(transient.Objects);
+        Assert.Equal(7, first.StepDetails!.Value);
+        Assert.True(first.StepDetails.Transient);
+        Assert.Equal("ST=7", first.ShortValue);
+        Assert.Contains("T       : 1 · Transient",
+            ForensicTraceLayout.Create(Row(transientBytes, transient)).InformationObjects);
+
+        var minusOne = Modify(0x7F);
+        var negative = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            minusOne.Skip(7).Take(minusOne.Length - 9).ToArray());
+        Assert.Equal(-1, Assert.Single(negative.Objects).StepDetails!.Value);
+        Assert.False(negative.Objects[0].StepDetails!.Transient);
+        Assert.Equal("ST=-1", negative.Objects[0].ShortValue);
+    }
+
     [Fact]
     public void NoQualityDescriptorIsNeverFabricatedAsGood()
     {

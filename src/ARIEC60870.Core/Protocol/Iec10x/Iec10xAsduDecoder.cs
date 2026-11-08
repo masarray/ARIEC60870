@@ -160,7 +160,10 @@ public sealed class Iec10xAsduDecoder
     private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, int objectOffset, int elementOffset, IReadOnlyList<string> existingIssues)
     {
         var issues = existingIssues.ToList();
-        var value = DecodeValueText(type, data, issues);
+        var stepDetails = type is 5 or 6 or 32 && data.Length > 0
+            ? Iec10xStepPositionDetails.Decode(data[0]) : null;
+        var value = stepDetails is not null
+            ? $"ST={stepDetails.Value}" : DecodeValueText(type, data, issues);
         var qualityDetails = Iec10xQualityDetails.Decode(type, data);
         var quality = qualityDetails?.DisplayText ?? string.Empty;
         var timeTag = Iec10xCp56Time2aDetails.FromInformationElement(type, data);
@@ -173,6 +176,7 @@ public sealed class Iec10xAsduDecoder
             InformationObjectOffset = objectOffset,
             InformationElementOffset = elementOffset,
             QualityDetails = qualityDetails,
+            StepDetails = stepDetails,
             ValueText = value,
             EngineeringValue = value,
             QualityText = quality,
@@ -246,7 +250,7 @@ public sealed class Iec10xAsduDecoder
             {
                 1 or 2 or 30 => data.Length >= 1 ? $"SP={DecodeSinglePoint(data[0])}" : string.Empty,
                 3 or 4 or 31 => data.Length >= 1 ? $"DP={DecodeDoublePoint(data[0])}" : string.Empty,
-                5 or 6 or 32 => data.Length >= 1 ? $"ST={unchecked((sbyte)data[0])}" : string.Empty,
+                5 or 6 or 32 => data.Length >= 1 ? $"ST={Iec10xStepPositionDetails.Decode(data[0]).Value}" : string.Empty,
                 7 or 8 or 33 => data.Length >= 4 ? $"Bitstring=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 9 or 10 or 34 => data.Length >= 2 ? $"Normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
                 11 or 12 or 35 => data.Length >= 2 ? $"Scaled={BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2))}" : string.Empty,

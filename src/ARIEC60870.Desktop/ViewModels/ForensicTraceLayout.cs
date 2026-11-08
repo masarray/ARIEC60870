@@ -158,13 +158,13 @@ public static class ForensicTraceLayout
         var quality = obj.QualityDetails;
         var humanValue = HumanValue(obj, asdu.TypeId);
         var digital = quality?.Kind is Iec10xQualityKind.Siq or Iec10xQualityKind.Diq;
-        var step = asdu.TypeId is 5 or 6 or 32 && obj.RawBytes.Count > 0;
+        var step = obj.StepDetails is not null;
         if (!digital && !step)
             Add(text, "Value", humanValue);
         if (step)
         {
             Add(text, "Step (VTI)", humanValue);
-            Child(text, "T", (obj.RawBytes[0] & 0x80) != 0 ? "1 · Transient" : "0 · Stable", last: true);
+            Child(text, "T", obj.StepDetails!.Transient ? "1 · Transient" : "0 · Stable", last: true);
         }
 
         if (quality is { } q)

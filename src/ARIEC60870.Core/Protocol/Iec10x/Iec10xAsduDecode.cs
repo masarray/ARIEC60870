@@ -68,6 +68,7 @@ public sealed class Iec10xInformationObject
     public string EngineeringValue { get; init; } = string.Empty;
     public string QualityText { get; init; } = string.Empty;
     public Iec10xQualityDetails? QualityDetails { get; init; }
+    public Iec10xStepPositionDetails? StepDetails { get; init; }
     public int InformationObjectOffset { get; init; } = -1;
     public int InformationElementOffset { get; init; } = -1;
     public string TimestampText { get; init; } = string.Empty;
