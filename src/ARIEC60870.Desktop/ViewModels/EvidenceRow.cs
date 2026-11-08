@@ -241,6 +241,12 @@ public sealed partial class EvidenceRow
     private string? _timelineContext;
     public string TimelineTitle => _timelineTitle ??= BuildTimelineTitle();
     public string TimelineContext => _timelineContext ??= BuildTimelineContext();
+    // Lazy, strictly typed protocol flags for visible Frame Trace rows.
+    // Inapplicable, undecoded or absent bits never become false/Good by default.
+    private string? _timelineAlerts;
+    public string TimelineAlerts => _timelineAlerts ??= EngineerFramePresentation.Alerts(Source);
+    public bool HasTimelineAlerts => TimelineAlerts.Length > 0;
+
 
     private string BuildTimelineTitle()
     {
