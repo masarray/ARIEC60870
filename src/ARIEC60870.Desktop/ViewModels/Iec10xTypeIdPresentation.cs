@@ -29,7 +29,6 @@ public static class Iec10xTypeIdPresentation
         14 => "Floating-point measurement with short timestamp",
         15 or 37 => "Counter" + Timestamp(typeId),
         16 => "Counter with short timestamp",
-        33 => "32-bit status with timestamp",
         45 => "Single command",
         46 => "Double command",
         47 => "Step command",
