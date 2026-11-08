@@ -90,6 +90,43 @@ public sealed class FrameByteInspectorProjection
             Add(source.Key, Group(source.Key), source.Title, source.Offset, source.Count, source.Meaning);
         }
 
+        // Reveal CP56Time2a as interactive byte fields, not text-art
+        // connectors. These offsets are derived only from the validated
+        // production value-element range for this exact information object.
+        if (row.Source.AsduDetails is { Issues.Count: 0 } asdu &&
+            asdu.TypeId is 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37 or
+                58 or 59 or 60 or 61 or 62 or 63 or 64 or 103)
+        {
+            foreach (var obj in asdu.Objects)
+            {
+                if (obj.Cp56TimeDetails is not { } t) continue;
+                var value = fields.FirstOrDefault(x =>
+                    x.Key == "value-" + obj.Index.ToString(CultureInfo.InvariantCulture) &&
+                    x.Count >= 7);
+                if (value is null) continue;
+                var offset = value.EndExclusive - 7;
+                var prefix = "IOA " + obj.InformationObjectAddress.ToString(CultureInfo.InvariantCulture);
+                Add("cp56-ms-" + obj.Index, "Device time", prefix + " · milliseconds", offset, 2,
+                    "CP56 milliseconds in minute: " + t.MillisecondsInMinute);
+                Add("cp56-minute-" + obj.Index, "Device time", prefix + " · minute", offset + 2, 1,
+                    "Minute " + t.Minute + (t.InvalidFlag ? " · IV=1 Invalid" : " · IV=0") +
+                    (t.SubstitutedFlag ? " · GEN=1 Substituted" : " · GEN=0 Genuine"));
+                Add("cp56-hour-" + obj.Index, "Device time", prefix + " · hour", offset + 3, 1,
+                    "Hour " + t.Hour + (t.SummerTimeFlag ? " · Summer time" : " · Standard time"));
+                Add("cp56-day-" + obj.Index, "Device time", prefix + " · day", offset + 4, 1,
+                    "Day " + t.Day);
+                Add("cp56-month-" + obj.Index, "Device time", prefix + " · month", offset + 5, 1,
+                    "Month " + t.Month);
+                Add("cp56-year-" + obj.Index, "Device time", prefix + " · year", offset + 6, 1,
+                    "Year " + t.Year);
+                if (asdu.TypeId is 30 or 31 && obj.QualityDetails is { } quality &&
+                    value.Offset >= 0)
+                    Add("quality-" + obj.Index, "Information objects",
+                        prefix + " · " + (asdu.TypeId == 30 ? "SIQ" : "DIQ"),
+                        value.Offset, 1, quality.BitDetails);
+            }
+        }
+
         if (frame is { Format: Ft12FrameFormat.FixedLength or Ft12FrameFormat.VariableLength } &&
             bytes.Length >= 5)
         {
