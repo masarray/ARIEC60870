@@ -31,7 +31,9 @@ public sealed class PassiveWriterGiCasebook
     private readonly Iec10xAsduDecoder _decoder;
     private readonly Iec10xGiCasebook _casebook = new();
     private readonly Queue<PassiveWriterGiMilestone> _milestones = new();
-    private readonly Dictionary<(int Circuit, int Dl), (bool Class1, DateTime Utc)> _polls = new();
+    // IEC101 unbalanced: at most one outstanding request per physical circuit.
+    // Fixed two-slot state cannot grow under malformed or multi-DL traffic.
+    private readonly (int Dl, bool Class1, DateTime Utc)?[] _pendingPolls = new (int, bool, DateTime)?[2];
     private long _sequence;
     private long _revision;
     private long _milestonesNotPresented;
@@ -73,6 +75,7 @@ public sealed class PassiveWriterGiCasebook
     {
         lock (_gate)
         {
+            Array.Clear(_pendingPolls);
             if (_casebook.ActiveCount == 0) return;
             _casebook.EndObservation();
             _revision++;
@@ -124,22 +127,25 @@ public sealed class PassiveWriterGiCasebook
 
             var circuit = seen.StreamId / 2;
             var dl = frame.LinkAddress ?? -1;
-            var key = (circuit, dl);
             var dataClass = "-";
             if (direction == FrameDirection.MasterToSlave &&
                 control.Prm && control.FunctionCode is 10 or 11)
             {
-                _polls[key] = (control.FunctionCode == 10, seen.EstimatedUtc);
+                _pendingPolls[circuit] = (dl, control.FunctionCode == 10, seen.EstimatedUtc);
                 dataClass = control.FunctionCode == 10 ? "Class 1" : "Class 2";
             }
             else if (direction == FrameDirection.SlaveToMaster)
             {
-                if (control.IsSecondaryUserData &&
-                    _polls.Remove(key, out var poll) &&
-                    (seen.EstimatedUtc - poll.Utc).Duration() <= TimeSpan.FromSeconds(30))
-                    dataClass = poll.Class1 ? "Class 1" : "Class 2";
+                if (control.IsSecondaryUserData)
+                {
+                    var poll = _pendingPolls[circuit];
+                    _pendingPolls[circuit] = null;
+                    if (poll is { } matched && matched.Dl == dl &&
+                        (seen.EstimatedUtc - matched.Utc).Duration() <= TimeSpan.FromSeconds(30))
+                        dataClass = matched.Class1 ? "Class 1" : "Class 2";
+                }
                 else if (control.FunctionCode == 9)
-                    _polls.Remove(key);
+                    _pendingPolls[circuit] = null;
             }
 
             var evidence = new Iec103MasterEvidenceEvent

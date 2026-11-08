@@ -1120,7 +1120,7 @@
                                 </Border>
                                     </Grid>
                                 <TextBlock x:Name="ValuesQuickCountText" Grid.Column="1"
-                                           Text="Current values" MaxWidth="152"
+                                           Text="Current values" MaxWidth="250"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Margin="8,0,0,0" VerticalAlignment="Center"
                                            Foreground="#64748B" FontSize="11.1"/>
@@ -2280,6 +2280,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock x:Name="GiStageSummaryText" Text="Select a GI case to inspect its milestones"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Foreground="#64748B" FontSize="11.3" VerticalAlignment="Center"/>
                                 <Button x:Name="GiStagesToggleButton" Grid.Column="1" Content="Show all stages"
                                         FontSize="11" FontWeight="Normal" Padding="9,2"

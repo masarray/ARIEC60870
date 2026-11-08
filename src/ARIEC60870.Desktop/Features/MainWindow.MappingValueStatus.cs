@@ -1104,6 +1104,7 @@ public partial class MainWindow
         FrameTraceRows.Clear();
         _commandCasebook.Reset();
         _giCasebook.Reset();
+        _passiveLatestPointCount = 0;
         _passiveWriterGiSnapshot = null;
         _passiveWriterGiRevision = 0;
         GiCaseRows.Clear();

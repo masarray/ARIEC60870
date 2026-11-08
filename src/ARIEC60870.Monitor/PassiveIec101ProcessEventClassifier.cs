@@ -49,6 +49,10 @@ public sealed class PassiveIec101ProcessEventClassifier
     private const int MaxLatestPoints = 65536;
     private readonly object _latestGate = new();
     private readonly Dictionary<LatestKey, PassiveLatestPoint> _latestPoints = new();
+    // Version index is bounded by live point cardinality, not observation count.
+    // Pages are O(log N + page) rather than sorting every point on every UI tick.
+    private readonly SortedSet<long> _latestRevisions = new();
+    private readonly Dictionary<long, PassiveLatestPoint> _latestByRevision = new();
     private long _latestRevision;
     private long _latestCapacityRejected;
     private readonly record struct LatestKey(int Circuit, int CommonAddress, int Ioa);
@@ -100,8 +104,8 @@ public sealed class PassiveIec101ProcessEventClassifier
             if (revision >= _latestRevision)
                 return new PassiveLatestPointPage(_latestRevision, _latestRevision,
                     _latestPoints.Count, _latestCapacityRejected, Array.Empty<PassiveLatestPoint>());
-            var page = _latestPoints.Values.Where(x => x.Revision > revision)
-                .OrderBy(x => x.Revision).Take(limit).ToArray();
+            var page = _latestRevisions.GetViewBetween(revision + 1, _latestRevision)
+                .Take(limit).Select(version => _latestByRevision[version]).ToArray();
             return new PassiveLatestPointPage(page.Length > 0 ? page[^1].Revision : _latestRevision,
                 _latestRevision, _latestPoints.Count, _latestCapacityRejected, page);
         }
@@ -118,8 +122,16 @@ public sealed class PassiveIec101ProcessEventClassifier
                 _latestCapacityRejected++;
                 return;
             }
-            _latestPoints[key] = new PassiveLatestPoint(++_latestRevision, frame,
+            if (_latestPoints.TryGetValue(key, out var previous))
+            {
+                _latestRevisions.Remove(previous.Revision);
+                _latestByRevision.Remove(previous.Revision);
+            }
+            var latest = new PassiveLatestPoint(++_latestRevision, frame,
                 objectIndex, typeId, ca, ioa, changed, hadBaseline);
+            _latestPoints[key] = latest;
+            _latestRevisions.Add(latest.Revision);
+            _latestByRevision.Add(latest.Revision, latest);
         }
     }
 
