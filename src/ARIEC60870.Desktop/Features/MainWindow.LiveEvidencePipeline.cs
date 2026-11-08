@@ -804,25 +804,28 @@ public partial class MainWindow
     {
         var toRemove = Math.Max(0, FrameTraceRows.Count - MaxVisibleFrameTraceRows);
         if (toRemove == 0) return;
+
+        // Common case: no held frame. Keep WPF's precise single-row Remove
+        // notifications (not Reset), but do not allocate a selection planner.
         var selected = new HashSet<EvidenceRow>(
             FrameTraceGrid.SelectedItems.OfType<EvidenceRow>());
-        for (var n = 0; n < toRemove; n++)
+        if (selected.Count == 0)
         {
-            var removeIndex = 0;
-            if (selected.Contains(FrameTraceRows[0]))
-            {
-                // Keep the newest portion visible even when most of the old
-                // window was selected: do not eliminate just-arrived frames.
-                var limit = Math.Max(0, FrameTraceRows.Count - 64);
-                while (removeIndex < limit &&
-                       selected.Contains(FrameTraceRows[removeIndex]))
-                    removeIndex++;
-                if (removeIndex >= limit) removeIndex = 0;
-            }
-            if (removeIndex != 0) _protocolTraceViewDirtyWhileFrozen = true;
-            FrameTraceRows.RemoveAt(removeIndex);
-            _visibleEvidenceDropped++;
+            _visibleEvidenceDropped += FrameTraceRows.TrimStart(MaxVisibleFrameTraceRows);
+            return;
         }
+
+        // Previous implementation scanned the selected prefix again for each
+        // eviction, making long selected ranges quadratic during large bursts.
+        // One source-typed plan keeps the exact selected EvidenceRow references
+        // whenever possible, while reserving space for fresh TX/RX evidence.
+        var removalIndices = TraceRetentionPolicy.PlanRemovalIndices(
+            FrameTraceRows, MaxVisibleFrameTraceRows, selected);
+        if (removalIndices.Any(index => index >= toRemove))
+            _protocolTraceViewDirtyWhileFrozen = true;
+        foreach (var index in removalIndices)
+            FrameTraceRows.RemoveAt(index);
+        _visibleEvidenceDropped += removalIndices.Count;
     }
 
     private void FlushVisibleUiBatches()
