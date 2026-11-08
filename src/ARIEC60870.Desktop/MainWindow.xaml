@@ -897,7 +897,7 @@
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="36">
+                                                                   MaxHeight="62">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
