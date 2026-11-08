@@ -274,13 +274,9 @@ public sealed partial class EvidenceRow
         // The selected inspector contains all objects, not this short digest.
         var sample = asdu.Objects.Take(2).Select(obj =>
         {
-            var address = "IOA " + obj.InformationObjectAddress.ToString(CultureInfo.InvariantCulture);
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
-                !string.IsNullOrWhiteSpace(SemanticLabel)
-                ? SemanticLabel + " (" + address + ")" : address;
-            var state = obj.Issues.Count == 0 && !string.IsNullOrWhiteSpace(obj.ShortValue)
-                ? " = " + obj.ShortValue : " · decode warning";
-            return name + state;
+                !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
+            return Iec10xSignalTraceFormatter.Format(asdu, obj, name);
         });
         return (asdu.Objects.Count > 1
                 ? asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) + " signals · "
