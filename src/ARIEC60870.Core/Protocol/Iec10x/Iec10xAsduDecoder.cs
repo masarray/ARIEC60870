@@ -163,7 +163,8 @@ public sealed class Iec10xAsduDecoder
         var value = DecodeValueText(type, data, issues);
         var qualityDetails = Iec10xQualityDetails.Decode(type, data);
         var quality = qualityDetails?.DisplayText ?? string.Empty;
-        var time = DecodeTimestampText(type, data);
+        var timeTag = Iec10xCp56Time2aDetails.FromInformationElement(type, data);
+        var time = timeTag?.TimestampText ?? DecodeTimestampText(type, data);
 
         return new Iec10xInformationObject
         {
@@ -176,6 +177,7 @@ public sealed class Iec10xAsduDecoder
             EngineeringValue = value,
             QualityText = quality,
             TimestampText = time,
+            Cp56TimeDetails = timeTag,
             ElementSummary = BuildElementSummary(value, quality, time, data),
             RawBytes = data,
             Issues = issues
@@ -355,24 +357,7 @@ public sealed class Iec10xAsduDecoder
     public static string DecodeCp56Time2a(byte[] data) => data.Length < 7 ? "invalid" : DecodeCp56Time2a(data.AsSpan(0, 7));
 
     public static string DecodeCp56Time2a(ReadOnlySpan<byte> data)
-    {
-        if (data.Length < 7) return "invalid";
-        var ms = data[0] | (data[1] << 8);
-        var second = ms / 1000;
-        var millisecond = ms % 1000;
-        var minuteInvalid = (data[2] & 0x80) != 0;
-        var minute = data[2] & 0x3F;
-        var hour = data[3] & 0x1F;
-        // CP56 day-of-week occupies day octet bits 5..7: bit 7 is NOT invalid.
-        var day = data[4] & 0x1F;
-        var month = data[5] & 0x0F;
-        var year = 2000 + (data[6] & 0x7F);
-        var validDate = month is >= 1 and <= 12 && day >= 1 &&
-            day <= DateTime.DaysInMonth(year, Math.Clamp(month, 1, 12));
-        var invalid = minuteInvalid || minute > 59 || ms >= 60000 || hour > 23 || !validDate
-            ? " invalid-time" : string.Empty;
-        return $"{year:0000}-{month:00}-{day:00} {hour:00}:{minute:00}:{second:00}.{millisecond:000}{invalid}";
-    }
+        => Iec10xCp56Time2aDetails.Decode(data)?.TimestampText ?? "invalid";
 
     public static string TypeName(byte type) => type switch
     {
