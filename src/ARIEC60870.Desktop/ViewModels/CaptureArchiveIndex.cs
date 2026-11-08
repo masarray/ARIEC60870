@@ -121,7 +121,9 @@ public sealed class CaptureArchiveIndex : IDisposable
             finally { ArrayPool<byte>.Shared.Return(scratch); }
         }
 
-        return new CaptureArchiveReader.Result(rows.OrderBy(row => row.Sequence).ToArray(),
+        // Indexed offsets follow original JSONL byte order. Do not sort by
+        // a per-source Sequence field: multiple physical sources may reuse it.
+        return new CaptureArchiveReader.Result(rows.ToArray(),
             _verified.TotalRows, _verified.IntegrityVerified, _verified.TrustDescription)
         {
             MatchingRows = _matchingRows,

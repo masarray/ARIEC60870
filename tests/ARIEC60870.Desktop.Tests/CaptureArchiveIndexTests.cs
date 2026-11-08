@@ -44,6 +44,59 @@ public sealed class CaptureArchiveIndexTests
     }
 
     [Fact]
+    public void MultiSourceArchivePreservesOriginalAppendOrderEvenWhenSequencesRepeatOrReset()
+    {
+        // JSONL is a physical source-ordered journal. Sequence can reset on
+        // a second link or imported session; sorting destroys source chronology.
+        CaptureFrameSnapshot[] originals =
+        [
+            new() { Sequence = 41, PhysicalSource = "Link A", PhysicalStreamId = 0, RawStreamOffset = 0, Direction = "RX", ProtocolMode = "101", RawHex = "E5" },
+            new() { Sequence = 1, PhysicalSource = "Link B", PhysicalStreamId = 1, RawStreamOffset = 0, Direction = "RX", ProtocolMode = "101", RawHex = "E5" },
+            new() { Sequence = 42, PhysicalSource = "Link A", PhysicalStreamId = 0, RawStreamOffset = 1, Direction = "RX", ProtocolMode = "101", RawHex = "E5" },
+            new() { Sequence = 1, PhysicalSource = "Link B", PhysicalStreamId = 1, RawStreamOffset = 1, Direction = "RX", ProtocolMode = "101", RawHex = "E5" },
+            new() { Sequence = 2, PhysicalSource = "Link A", PhysicalStreamId = 0, RawStreamOffset = 2, Direction = "RX", ProtocolMode = "101", RawHex = "E5" }
+        ];
+        var path = Path.Join(Path.GetTempPath(),
+            "ariec-wire-order-" + Guid.NewGuid().ToString("N") + ".ariec");
+        try
+        {
+            var frames = string.Concat(originals.Select(x => JsonSerializer.Serialize(x) + "\n"));
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(frames)));
+            using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
+            {
+                using (var writer = new StreamWriter(zip.CreateEntry("frames.jsonl").Open(),
+                    new UTF8Encoding(false)))
+                    writer.Write(frames);
+                using var manifest = new StreamWriter(zip.CreateEntry("manifest.json").Open(),
+                    new UTF8Encoding(false));
+                manifest.Write(JsonSerializer.Serialize(new { FramesSha256 = hash, RowCount = originals.Length }));
+            }
+
+            var preview = CaptureArchiveReader.Read(path, previewLimit: 3);
+            Assert.True(preview.IntegrityVerified);
+            Assert.Equal(new long[] { 42, 1, 2 }, preview.Rows.Select(x => x.Sequence));
+            Assert.Equal(new int?[] { 0, 1, 0 }, preview.Rows.Select(x => x.PhysicalStreamId));
+            var plainSearch = CaptureArchiveReader.Search(path,
+                CaptureArchiveQuery.Parse("source:A"), pageSize: 5);
+            Assert.Equal(new long[] { 41, 42, 2 }, plainSearch.Rows.Select(x => x.Sequence));
+            Assert.Equal(new long?[] { 0, 1, 2 }, plainSearch.Rows.Select(x => x.RawStreamOffset));
+
+            using var index = CaptureArchiveReader.OpenIndexed(path);
+            var first = index.Search(new CaptureArchiveQuery(), pageSize: 2);
+            Assert.Equal(new long[] { 41, 1 }, first.Rows.Select(x => x.Sequence));
+            Assert.Equal(new int?[] { 0, 1 }, first.Rows.Select(x => x.PhysicalStreamId));
+            var middle = index.Search(new CaptureArchiveQuery(), skipMatching: 2, pageSize: 3);
+            Assert.Equal(new long[] { 42, 1, 2 }, middle.Rows.Select(x => x.Sequence));
+            var onlyB = index.Search(CaptureArchiveQuery.Parse("source:B"), pageSize: 5);
+            Assert.Equal(new long[] { 1, 1 }, onlyB.Rows.Select(x => x.Sequence));
+            Assert.Equal(new long?[] { 0, 1 }, onlyB.Rows.Select(x => x.RawStreamOffset));
+            var onlyA = index.Search(CaptureArchiveQuery.Parse("source:A"), pageSize: 5);
+            Assert.Equal(new long[] { 41, 42, 2 }, onlyA.Rows.Select(x => x.Sequence));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
     public void QueryChangesCommitAtomicallyAndOffsetsRespectPhysicalSource()
     {
         var path = CreateArchive(1_000);

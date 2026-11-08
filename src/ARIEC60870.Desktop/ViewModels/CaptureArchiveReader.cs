@@ -187,7 +187,10 @@ public static class CaptureArchiveReader
         if (manifestCount.HasValue && !string.IsNullOrWhiteSpace(requiredHash)
             && manifestCount.Value != rowsSeen)
             throw new InvalidDataException("Capture row count does not match the signed manifest metadata.");
-        return new Result(retained.OrderBy(x => x.Sequence).ToArray(), rowsSeen,
+        // frames.jsonl append order is the capture authority. Per-link or
+        // replay Sequence values can reset, collide or be out of order;
+        // resorting them would rewrite the observed timeline.
+        return new Result(retained.ToArray(), rowsSeen,
             !string.IsNullOrWhiteSpace(requiredHash),
             string.IsNullOrWhiteSpace(requiredHash) ? "LEGACY · hash not available" : "SHA-256 VERIFIED")
         {
