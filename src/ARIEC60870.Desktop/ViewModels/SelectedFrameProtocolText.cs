@@ -25,14 +25,6 @@ public static class SelectedFrameProtocolText
         b.Append('#').Append(row.Sequence).Append("  ")
             .Append(row.Time).Append("  ").Append(row.Direction)
             .Append("  ").AppendLine(row.ProtocolName);
-        b.Append("HEX  ").AppendLine(row.RawHex);
-
-        if (!string.IsNullOrWhiteSpace(source.PhysicalSource))
-            Line(b, "Source", source.PhysicalSource);
-        if (source.PhysicalStreamId.HasValue || source.RawStreamOffset.HasValue)
-            Line(b, "Stream", (source.PhysicalStreamId?.ToString(CultureInfo.InvariantCulture) ?? "?") +
-                "  Offset=" + (source.RawStreamOffset?.ToString(CultureInfo.InvariantCulture) ?? "?"));
-
         // Some capture projections carry the decoded physical FT1.2 address
         // only on the frame; never replace it with the unrelated ASDU CA.
         var linkAddress = source.LinkAddress ?? frame?.LinkAddress;
@@ -101,6 +93,15 @@ public static class SelectedFrameProtocolText
         if (row.HasTimelineAlerts)
             Line(b, "FLAGS", row.TimelineAlerts);
 
+        // In the scroll-limited inspector the engineer must see Address, TI,
+        // COT and CA first, not a long HEX paragraph. Original source bytes
+        // still appear verbatim in this exact clipboard/export text at the end.
+        if (!string.IsNullOrWhiteSpace(source.PhysicalSource))
+            Line(b, "Source", source.PhysicalSource);
+        if (source.PhysicalStreamId.HasValue || source.RawStreamOffset.HasValue)
+            Line(b, "Stream", (source.PhysicalStreamId?.ToString(CultureInfo.InvariantCulture) ?? "?") +
+                "  Offset=" + (source.RawStreamOffset?.ToString(CultureInfo.InvariantCulture) ?? "?"));
+        b.Append("HEX  ").AppendLine(row.RawHex);
         return b.ToString().TrimEnd();
     }
 
