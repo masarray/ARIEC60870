@@ -17,6 +17,7 @@ public sealed class FrameByteMapWindow : Window
     private readonly TextBox _diagram;
 
     public string DiagramText => _diagram.Text;
+    public double DiagramViewportHeight => _diagram.ActualHeight;
 
     public FrameByteMapWindow(EvidenceRow row)
     {
@@ -34,7 +35,11 @@ public sealed class FrameByteMapWindow : Window
         FontSize = 12;
         Background = new SolidColorBrush(Color.FromRgb(246, 249, 252));
 
-        var layout = new Grid { Margin = new Thickness(14, 11, 14, 11) };
+        var layout = new Grid
+        {
+            Margin = new Thickness(14, 11, 14, 11),
+            Background = new SolidColorBrush(Color.FromRgb(246, 249, 252))
+        };
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -52,6 +57,16 @@ public sealed class FrameByteMapWindow : Window
 
         _diagram = new TextBox
         {
+            // The application's implicit single-line TextBox style hardcodes
+            // Height=36 and a vertically centered PART_ContentHost. Explicit
+            // empty style restores the WPF multiline scroll host; dimensions
+            // are then governed by the parent Grid's star-height row.
+            Style = new Style(typeof(TextBox)),
+            Height = double.NaN,
+            MinHeight = 220,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Top,
             IsReadOnly = true,
             IsReadOnlyCaretVisible = true,
             Text = FrameByteTreeFormatter.Format(row),
