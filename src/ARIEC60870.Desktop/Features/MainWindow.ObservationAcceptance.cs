@@ -1049,8 +1049,10 @@ public partial class MainWindow
         var window = new FrameByteMapWindow(multiObjectRow) { Owner = this };
         window.Show();
         await Dispatcher.Yield(DispatcherPriority.Loaded);
+        await Dispatcher.Yield(DispatcherPriority.Render);
         window.UpdateLayout();
-        if (!window.IsVisible || !window.DiagramText.Contains("HEX  ", StringComparison.Ordinal) ||
+        if (!window.IsVisible || window.DiagramViewportHeight < 240 ||
+            !window.DiagramText.Contains("HEX  ", StringComparison.Ordinal) ||
             !window.DiagramText.Contains("Offset ", StringComparison.Ordinal) ||
             !window.DiagramText.Contains("└─ ", StringComparison.Ordinal))
         {
