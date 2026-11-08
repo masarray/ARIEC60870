@@ -135,7 +135,7 @@ public sealed class ObservationInterpretivePresentationTests
         Assert.Contains("IOA 1002", visible[2]);
         Assert.DoesNotContain("IOA 1003", row.TimelineSignalDigest);
         Assert.True(row.HasTimelineSignalOverflow);
-        Assert.Equal("+37 more signals · select frame for all objects", row.TimelineSignalOverflow);
+        Assert.Equal("+37 more signals · open Frame Details for all objects", row.TimelineSignalOverflow);
         // Lazy projection must produce stable cached strings while live traffic arrives.
         Assert.Same(row.TimelineSignalDigest, row.TimelineSignalDigest);
     }
