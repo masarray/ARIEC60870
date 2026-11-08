@@ -291,9 +291,17 @@ public partial class MainWindow
         SelectedLineAlertText.Text = row.TimelineAlerts;
         SelectedLineAlertText.Visibility = row.HasTimelineAlerts
             ? Visibility.Visible : Visibility.Collapsed;
-        UpdateFrameInterpreterTone(row);
-        PopulateFrameProperties(row);
-        RebuildProtocolMap(row);
+        // The inline Frame Trace already owns the readable source-typed
+        // interpretation. The optional right dock is collapsed by default:
+        // do not rebuild its full object tree, decoder byte map and WPF
+        // ObservableCollections for every offscreen selection. Opening the
+        // dock invokes this method again and materializes the CURRENT frame.
+        if (FrameInterpreterPanel.Visibility == Visibility.Visible)
+        {
+            UpdateFrameInterpreterTone(row);
+            PopulateFrameProperties(row);
+            RebuildProtocolMap(row);
+        }
     }
 
 

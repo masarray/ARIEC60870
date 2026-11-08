@@ -1117,15 +1117,28 @@ public partial class MainWindow
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineHex) ||
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
             !invalidPointFrame.TimelineEngineeringIdentity.Contains("CA ", StringComparison.Ordinal) ||
-            !SelectedDecodedPoints.Any(x => x.QualityValidity.Contains("IV=1", StringComparison.Ordinal)))
+            invalidPointFrame.Source.AsduDetails?.Objects.Any(
+                x => x.QualityDetails?.Invalid == true) != true)
             throw new InvalidOperationException(
                 "IV=1, Link/CA identity, and original HEX are not visible or source-backed.");
         SaveRealWpfBitmap(outputDirectory, "engineer-inline-invalid-quality.png");
         FrameTraceGrid.SelectedItem = multiObjectRow;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
-            SelectedFrameProperties.Count(x => x.Field.StartsWith("Object #", StringComparison.Ordinal)) != 2)
-            throw new InvalidOperationException("Selected multi-object source must persist with properties folded.");
+            !ReferenceEquals(_selectedFrameRow, multiObjectRow) ||
+            SelectedFrameProperties.Count != 0 || SelectedDecodedPoints.Count != 0)
+            throw new InvalidOperationException(
+                "Collapsed Full Properties must defer projections while preserving selected source.");
+
+        // Reopening after another frame was selected must build the ACTUAL
+        // current source frame rather than resurrect stale offscreen objects.
+        TraceFrameDetails_Click(this, new RoutedEventArgs());
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            SelectedFrameProperties.Count(x => x.Field.StartsWith("Object #", StringComparison.Ordinal)) != 2 ||
+            TraceInspectorRawText.Text != multiObjectRow.TimelineHex)
+            throw new InvalidOperationException("Reopened Full Properties lost the current decoded frame.");
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
 
         // Reproduce field failure: a full live Event journal suddenly became one
         // row when a narrower engine result arrived at end of session. Also

@@ -43,6 +43,14 @@ public partial class MainWindow
             TraceInspectorGutterColumn.Width = new GridLength(0);
             TraceInspectorColumn.MinWidth = 0;
             TraceInspectorColumn.Width = new GridLength(0);
+
+            // Release only the optional dock projections once on collapse,
+            // not on each Frame Trace selection. Original evidence and the
+            // selected frame stay in their authoritative source stores.
+            SelectedFrameProperties.Clear();
+            SelectedDecodedPoints.Clear();
+            SelectedProtocolMapLines.Clear();
+            SelectedHexSegments.Clear();
         }
 
         TraceInspectorToggle.Content = visible ? "Frame Details ›" : "‹ Frame Details";
