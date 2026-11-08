@@ -114,6 +114,34 @@ public sealed partial class EvidenceRow
     public string ProtocolMeaning { get; }
     public string OperatorAction { get; }
     public string RawHex { get; }
+
+    // Always-visible engineering wire bytes. This presentation inserts spaces
+    // between octets only when the canonical source contains contiguous HEX.
+    // RawHex, Copy HEX, archive export and field-level byte offsets are never
+    // rewritten; formatting is lazy for realized WPF timeline rows.
+    private string? _timelineHex;
+    public string TimelineHex => _timelineHex ??= FormatTimelineHex(RawHex);
+
+    private static string FormatTimelineHex(string original)
+    {
+        if (string.IsNullOrWhiteSpace(original) || original == "-")
+            return "No raw bytes available";
+        if (original.Length % 2 != 0) return original;
+        for (var i = 0; i < original.Length; i++)
+            if (!Uri.IsHexDigit(original[i])) return original;
+        return string.Create(original.Length + original.Length / 2 - 1, original,
+            static (target, source) =>
+            {
+                var index = 0;
+                for (var i = 0; i < source.Length; i += 2)
+                {
+                    if (i > 0) target[index++] = ' ';
+                    target[index++] = source[i];
+                    target[index++] = source[i + 1];
+                }
+            });
+    }
+
     public string PollingReason { get; }
     public string Category { get; }
     public string Acd { get; }
