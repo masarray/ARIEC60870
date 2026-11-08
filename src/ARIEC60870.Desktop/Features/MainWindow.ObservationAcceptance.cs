@@ -66,6 +66,13 @@ public partial class MainWindow
         // the SAME MainWindow. Simulate the actual new passive Start boundary:
         // clear their historical fixture frames before testing zero-RX UX.
         ClearSessionView(clearLog: false);
+        // The real operator starts with a full-width forensic canvas and zero
+        // detail-grid work, regardless of screen width.
+        if (!_traceInspectorPreferredVisible && !_traceInspectorForcedOpen &&
+            (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+             TraceInspectorColumn.Width.Value > 0.01))
+            throw new InvalidOperationException(
+                "Frame Details became visible without explicit operator action.");
         if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
             throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
         // Field-empty-state acceptance: display wire counters and distinguish
@@ -369,6 +376,9 @@ public partial class MainWindow
             !HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
             throw new InvalidOperationException(
                 "Unselected RAW FRAME row hides the source HEX line.");
+        if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Auto)
+            throw new InvalidOperationException(
+                "Forensic detail has no horizontal scroll fallback on narrow viewports.");
         if (!HasVisibleForensicHeading(unselectedContainer, "LINK LAYER") ||
             !HasVisibleForensicHeading(unselectedContainer, "ASDU HEADER") ||
             !HasVisibleForensicHeading(unselectedContainer, "INFORMATION OBJECTS") ||
@@ -886,10 +896,9 @@ public partial class MainWindow
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         TraceQuickScopeCombo.SelectedIndex = 1;
-        _traceInspectorPreferredVisible = true;
-        _traceInspectorForcedOpen = true;
-        UpdateObservationViewportLayout();
+        // Explicit selected-frame context command, never auto-open on RX.
         FrameTraceGrid.SelectedItem = multiObjectRow;
+        TraceFrameDetails_Click(this, new RoutedEventArgs());
         FrameTraceGrid.ScrollIntoView(multiObjectRow);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
@@ -929,7 +938,12 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
-        _traceInspectorForcedOpen = false;
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
+        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            TraceInspectorColumn.Width.Value != 0 ||
+            SelectedDecodedPoints.Count != 0)
+            throw new InvalidOperationException(
+                "Closing inspector did not release width and selected detail rows.");
 
         // Reproduce field failure: a full live Event journal suddenly became one
         // row when a narrower engine result arrived at end of session. Also
