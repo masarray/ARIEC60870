@@ -58,6 +58,16 @@ public partial class MainWindow
         var decodedPoints = DecodedPointRow.FromAsdu(asdu, signalName);
         foreach (var point in decodedPoints)
             SelectedDecodedPoints.Add(point);
+        // A single point must not waste half the inspector with an empty fixed
+        // table. Two-point and burst ASDUs grow only within a bounded viewport.
+        // No resize work occurs on receive; selected-frame UI projection only.
+        DecodedPointGrid.Height = decodedPoints.Count switch
+        {
+            0 => 0,
+            1 => 108,
+            2 => 164,
+            _ => 224
+        };
         DecodedPointSection.Visibility = decodedPoints.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         DecodedPointHeaderText.Text = decodedPoints.Count > 0
             ? $"Information objects · {decodedPoints.Count} / {asdu!.ObjectCount}"
