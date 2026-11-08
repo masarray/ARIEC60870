@@ -72,7 +72,9 @@ public static class EngineerFramePresentation
             "Link integrity: checksum and length valid";
 
         if (asdu is null)
-            return linkStatus + "   ·   Process quality: not encoded   ·   Device time: not encoded";
+            return frame is { IsChecksumValid: true, IsLengthValid: true }
+                ? "FT1.2 checksum and length OK · No process quality or device time encoded"
+                : linkStatus + " · No process quality or device time encoded";
 
         var objects = asdu.Objects;
         var withQuality = objects.Where(o => o.QualityDetails is not null).ToArray();
