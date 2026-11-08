@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Text;
+using ARIEC60870.Core.Model;
 
 namespace ARIEC60870.Desktop.ViewModels;
 
@@ -85,8 +86,13 @@ public static class SelectedFrameProtocolText
 
         if (frame is not null)
         {
-            Line(b, "FT1.2", "Checksum=" + (frame.IsChecksumValid ? "OK" : "INVALID") +
-                "  Length=" + (frame.IsLengthValid ? "OK" : "INVALID"));
+            // E5/A2 one-character link responses contain no FT1.2 checksum
+            // or length octet. Never present an inapplicable check as PASS.
+            if (frame.Format == Ft12FrameFormat.SingleCharacter)
+                Line(b, "FT1.2", "Single-character response · no checksum/length encoded");
+            else
+                Line(b, "FT1.2", "Checksum=" + (frame.IsChecksumValid ? "OK" : "INVALID") +
+                    "  Length=" + (frame.IsLengthValid ? "OK" : "INVALID"));
             if (frame.Issues.Count > 0)
                 Line(b, "LINK issues", string.Join("; ", frame.Issues));
         }
