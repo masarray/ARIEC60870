@@ -71,9 +71,9 @@ public static class FrameTraceVisualPolicy
         var muted = classification == "Routine";
         return direction switch
         {
-            "TX" => muted ? "#8497A8" : "#173E68",
-            "RX" => muted ? "#849D8E" : "#18583B",
-            _ => muted ? "#8E97A1" : "#344456"
+            "TX" => muted ? "#425D79" : "#173E68",
+            "RX" => muted ? "#3F6551" : "#18583B",
+            _ => muted ? "#526070" : "#344456"
         };
     }
 }

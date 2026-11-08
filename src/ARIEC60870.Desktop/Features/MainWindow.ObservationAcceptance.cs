@@ -63,8 +63,7 @@ public partial class MainWindow
         if (node is TextBlock block && block.Text == text &&
             block.Foreground is SolidColorBrush brush &&
             string.Equals(brush.Color.ToString(), "#FF" + ink.TrimStart('#'),
-                StringComparison.OrdinalIgnoreCase) &&
-            block.FontFamily.Source.Contains("Mono", StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase))
             return true;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
             if (HasTraceInk(VisualTreeHelper.GetChild(node, i), text, ink))
@@ -91,13 +90,13 @@ public partial class MainWindow
         // the SAME MainWindow. Simulate the actual new passive Start boundary:
         // clear their historical fixture frames before testing zero-RX UX.
         ClearSessionView(clearLog: false);
-        // The real operator starts with a full-width forensic canvas and zero
-        // detail-grid work, regardless of screen width.
-        if (!_traceInspectorPreferredVisible && !_traceInspectorForcedOpen &&
-            (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
-             TraceInspectorColumn.Width.Value > 0.01))
+        // The single Engineer Mode always starts with selected-frame details
+        // visible; before selection, it displays a short actionable empty state.
+        if (!_traceInspectorPreferredVisible ||
+            FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            TraceInspectorColumn.Width.Value <= 0)
             throw new InvalidOperationException(
-                "Frame Details became visible without explicit operator action.");
+                "Engineer Frame Trace inspector was not visible by default.");
         if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
             throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
         // Field-empty-state acceptance: display wire counters and distinguish
@@ -388,8 +387,8 @@ public partial class MainWindow
         ApplyQuickFind();
         AssertTraceCountInSync();
 
-        // An unselected frame must show original HEX in the scrolling row,
-        // not just after opening the inspector.
+        // The unselected timeline must stay compact. Original bytes are shown
+        // only in the selected-frame inspector, without losing wire fidelity.
         FrameTraceGrid.SelectedItems.Clear();
         var unselected = FrameTraceRows[^15];
         FrameTraceGrid.ScrollIntoView(unselected);
@@ -398,18 +397,19 @@ public partial class MainWindow
         var unselectedContainer =
             FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(unselected) as ListBoxItem;
         if (unselectedContainer is null ||
-            !HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
+            !HasVisibleRawLine(unselectedContainer, unselected.TimelineTitle) ||
+            HasVisibleRawLine(unselectedContainer, unselected.ProtocolTraceRaw))
             throw new InvalidOperationException(
-                "Unselected RAW FRAME row hides the source HEX line.");
-        if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Auto)
+                "Timeline did not render the human title, or leaked the full raw dump into an unselected row.");
+        if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Disabled)
             throw new InvalidOperationException(
-                "Forensic detail has no horizontal scroll fallback on narrow viewports.");
-        if (!HasVisibleForensicHeading(unselectedContainer, "LINK LAYER") ||
-            !HasVisibleForensicHeading(unselectedContainer, "ASDU HEADER") ||
-            !HasVisibleForensicHeading(unselectedContainer, "INFORMATION OBJECTS") ||
-            !HasVisibleForensicHeading(unselectedContainer, "FRAME VALIDATION"))
+                "Compact timeline should trim long text rather than force horizontal scrolling.");
+        if (HasVisibleForensicHeading(unselectedContainer, "LINK LAYER") ||
+            HasVisibleForensicHeading(unselectedContainer, "ASDU HEADER") ||
+            HasVisibleForensicHeading(unselectedContainer, "INFORMATION OBJECTS") ||
+            HasVisibleForensicHeading(unselectedContainer, "FRAME VALIDATION"))
             throw new InvalidOperationException(
-                "Real WPF unselected frame did not render all three forensic columns and integrity.");
+                "Old multi-column forensic dump still appears inside a timeline row.");
 
         var selected = FrameTraceRows[Math.Max(0, FrameTraceRows.Count - 120)];
         FrameTraceGrid.SelectedItem = selected;
@@ -418,6 +418,11 @@ public partial class MainWindow
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException(
                 "Selecting a raw frame left automatic tail-follow enabled.");
+        if (!ReferenceEquals(_selectedFrameRow, selected) ||
+            SelectedLineSummaryText.Text != FrameInspectorFieldPresentation.HumanSummary(selected) ||
+            TraceInspectorRawText.Text != selected.RawHex)
+            throw new InvalidOperationException(
+                "Selecting the frame did not immediately update meaning and original bytes.");
         FrameTraceGrid.ScrollIntoView(selected);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
@@ -605,7 +610,7 @@ public partial class MainWindow
                     is not ListBoxItem container ||
                 !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
                 throw new InvalidOperationException(
-                    "Frame Trace TX/RX direction ink or monospace WPF binding not rendered.");
+                    "Frame Trace TX/RX direction or source-typed semantic ink was not rendered.");
         }
 
         var layouts = new (string Name, double Width, double Height)[]
@@ -634,16 +639,17 @@ public partial class MainWindow
                 throw new InvalidOperationException($"Trace viewport too small at {viewport.Name}: {FrameTraceGrid.ActualWidth:0}x{FrameTraceGrid.ActualHeight:0}.");
             if (viewport.Width <= 1024)
             {
-                // The semantic columns must stay readable rather than wrap.
-                // Verify real scrollable extent, not merely the attached setting.
+                // No inherited wide forensic grid may force a horizontal pan
+                // across the compact timeline at laptop-sized resolutions.
                 var scroller = FindTraceScroller(FrameTraceGrid);
-                if (scroller is null || scroller.ScrollableWidth < 30)
+                if (scroller is null || scroller.ScrollableWidth > 6)
                     throw new InvalidOperationException(
-                        $"Narrow forensic grid has no horizontal reading space at {viewport.Name}.");
+                        $"Timeline overflows horizontally at {viewport.Name}.");
             }
-            var shouldAutoCollapse = viewport.Width < 1150;
-            if (shouldAutoCollapse && TraceInspectorColumn.ActualWidth > 1)
-                throw new InvalidOperationException($"Inspector retained width on narrow viewport {viewport.Name}.");
+            if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+                TraceInspectorColumn.ActualWidth < 200)
+                throw new InvalidOperationException(
+                    $"The engineer inspector disappeared on viewport {viewport.Name}.");
             if (!TraceAutoScrollButton.IsVisible ||
                 TraceWindowSearchBar.Visibility != Visibility.Visible ||
                 TraceArchiveSearchBar.Visibility != Visibility.Collapsed)
@@ -964,6 +970,17 @@ public partial class MainWindow
         if (DecodedPointGrid.ItemContainerGenerator.ContainerFromItem(lastPoint) is not DataGridRow pointRow ||
             !pointRow.IsVisible || pointRow.ActualHeight < 12)
             throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
+        // Only three narrow-screen scan columns; device time, raw element
+        // bytes and provenance remain in the selected object's row details.
+        if (DecodedPointGrid.Columns.Count != 3)
+            throw new InvalidOperationException("Narrow inspector restored clipped time/HEX table columns.");
+        DecodedPointGrid.SelectedItem = lastPoint;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (pointRow.DetailsVisibility != Visibility.Visible ||
+            string.IsNullOrWhiteSpace(lastPoint.RawHex) ||
+            string.IsNullOrWhiteSpace(lastPoint.RelayTime))
+            throw new InvalidOperationException("Object drilldown lost original bytes or device-time status.");
         interpretedPointRows = DecodedPointGrid.Items.Count;
         // Field screenshot acceptance: decoded inspector exposes expandable,
         // source-backed children. No synthetic quality/IOA bits are fabricated.
@@ -989,12 +1006,13 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
-        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
-        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
-            TraceInspectorColumn.Width.Value != 0 ||
-            SelectedDecodedPoints.Count != 0)
+        // One Engineer Mode: selection changes naturally; no close/reopen
+        // workflow or hidden detail toggle is required.
+        if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            SelectedDecodedPoints.Count != 2 ||
+            TraceInspectorRawText.Text != multiObjectRow.RawHex)
             throw new InvalidOperationException(
-                "Closing inspector did not release width and selected detail rows.");
+                "Persistent inspector lost selected multi-object evidence.");
 
         // Reproduce field failure: a full live Event journal suddenly became one
         // row when a narrower engine result arrived at end of session. Also

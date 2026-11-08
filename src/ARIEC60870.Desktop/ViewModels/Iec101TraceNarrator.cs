@@ -147,7 +147,7 @@ public static class Iec101TraceNarrator
     private static void AppendAsdu(StringBuilder builder, Iec10xAsduDecode asdu)
     {
         builder.Append('\n').Append("ASDU: Type ID ").Append(asdu.TypeId)
-            .Append(" <").Append(GetTypeLabel(asdu)).Append("> Count ").Append(asdu.ObjectCount)
+            .Append(" <").Append(HumanTypeName(asdu)).Append("> Count ").Append(asdu.ObjectCount)
             .Append(" · TI").Append(asdu.TypeId);
         builder.Append('\n').Append("Cause of transmission: ").Append(asdu.CauseOfTransmission)
             .Append(" (").Append(asdu.CauseName).Append(") | Origin: ")
@@ -273,41 +273,56 @@ public static class Iec101TraceNarrator
             if (cause == 9) return "Command deactivation confirmed · DEACTCON";
             if (cause == 6 && fromMaster)
                 return "Send " + (asdu.CommandDetails?.Operation ?? "command") +
-                    " · " + GetTypeLabel(asdu);
+                    " · " + HumanTypeName(asdu);
             return "Command " + (negative ? "negative reply" : "reply") +
-                " · " + GetTypeLabel(asdu);
+                " · " + HumanTypeName(asdu);
         }
         if (asdu.TypeId == 101) return cause == 6 && fromMaster ? "Send Counter Interrogation" : "Counter interrogation · " + asdu.CauseName;
         if (asdu.TypeId == 102) return cause == 6 && fromMaster ? "Send Read Command" : "Read response · " + asdu.CauseName;
         if (asdu.TypeId == 103) return cause == 6 && fromMaster ? "Send Clock Synchronization" : "Clock synchronization · " + asdu.CauseName;
         if (cause is >= 20 and <= 36)
-            return "GI data · " + GetTypeLabel(asdu);
+            return "GI data · " + HumanTypeName(asdu);
         if (cause == 3 && !fromMaster)
-            return GetTypeLabel(asdu) + " · spontaneous";
+            return HumanTypeName(asdu) + " · spontaneous";
         if (cause is 11 or 12 && !fromMaster)
-            return "Process feedback · " + GetTypeLabel(asdu);
-        return GetTypeLabel(asdu) + (fromMaster ? " request" : " response");
+            return "Process feedback · " + HumanTypeName(asdu);
+        return HumanTypeName(asdu) + (fromMaster ? " request" : " response");
     }
 
-    private static string GetTypeLabel(Iec10xAsduDecode asdu) => asdu.TypeId switch
+    /// <summary>
+    /// One deterministic type-name authority for the IEC-101 timeline and the
+    /// selected inspector. Preserve the numeric Type ID elsewhere as evidence;
+    /// never expose a cryptic M_* identifier when a known human name exists.
+    /// </summary>
+    public static string HumanTypeName(Iec10xAsduDecode asdu)
     {
-        1 => "Single-point",
-        3 => "Double-point",
-        30 => "Single-point with date/time",
-        31 => "Double-point with date/time",
-        9 => "Normalized measurement",
-        11 => "Scaled measurement",
-        13 => "Floating measurement",
-        45 or 58 => "Single command",
-        46 or 59 => "Double command",
-        47 or 60 => "Regulating step",
-        48 or 61 => "Normalized setpoint",
-        49 or 62 => "Scaled setpoint",
-        50 or 63 => "Floating setpoint",
-        51 or 64 => "Bitstring command",
-        100 => "General interrogation",
-        _ => asdu.TypeName
-    };
+        ArgumentNullException.ThrowIfNull(asdu);
+        return asdu.TypeId switch
+        {
+            // Preserve previously tested wording for common IEC-101 traffic;
+            // extend coverage only where fallback exposed cryptic Type names.
+            1 => "Single-point",
+            3 => "Double-point",
+            9 => "Normalized measurement",
+            11 => "Scaled measurement",
+            13 => "Floating measurement",
+            15 => "Integrated totals (counter)",
+            16 => "Integrated totals (counter) with short device time tag",
+            30 => "Single-point with date/time",
+            31 => "Double-point with date/time",
+            37 => "Integrated totals (counter) with device date/time",
+            45 or 58 => "Single command",
+            46 or 59 => "Double command",
+            47 or 60 => "Regulating step",
+            48 or 61 => "Normalized setpoint",
+            49 or 62 => "Scaled setpoint",
+            50 or 63 => "Floating setpoint",
+            51 or 64 => "Bitstring command",
+            100 => "General interrogation",
+            _ => Iec10xTypeIdPresentation.Name(asdu.TypeId) is var friendly &&
+                friendly != "Unknown or reserved type" ? friendly : asdu.TypeName
+        };
+    }
 
     private static string GetRequestedClass(string? dataClass)
     {
