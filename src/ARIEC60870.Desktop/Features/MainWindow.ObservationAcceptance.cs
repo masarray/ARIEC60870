@@ -1138,6 +1138,11 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "Session epoch protection also blocked current trusted process evidence.");
         var staleEpochReceptionPassed = true;
+        // Stage D: measure the actual two-panel WPF renderer with 10,000
+        // synthetic original frames after the protocol/epoch probes.
+        // This runs once in the same Windows CI acceptance, not as another
+        // scheduled workflow, timer, or independent UI implementation.
+        var frameTraceLoad = await MeasureFrameTraceUnderLoadAsync(outputDirectory);
         testStart.Stop();
         File.WriteAllText(Path.Join(outputDirectory, "metrics.json"),
             JsonSerializer.Serialize(new
@@ -1162,6 +1167,7 @@ public partial class MainWindow
                 retainedTraceRows = totalFrames,
                 steadyStateCollectionResetEvents = resetEvents,
                 syntheticAppendAndFlushMilliseconds = appendAndFlush.Elapsed.TotalMilliseconds,
+                frameTraceLoad,
                 entireProbeMilliseconds = testStart.Elapsed.TotalMilliseconds,
                 syntheticNoHardware = true,
                 eventGridRealizedRows,
