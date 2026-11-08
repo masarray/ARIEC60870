@@ -460,7 +460,8 @@ public partial class MainWindow
             .OrderBy(item => item.Sequence)
             .LastOrDefault();
 
-        ApplySelectedEvidenceRowToInspector(row);
+        if (FrameInterpreterPanel.Visibility == Visibility.Visible)
+            ApplySelectedEvidenceRowToInspector(row);
     }
 
     private void ApplyProtocolTraceSelectionGesture(ListBox listBox, int index, ModifierKeys modifiers)
@@ -522,7 +523,8 @@ public partial class MainWindow
         _protocolTraceSelectionAnchorIndex = visible.Length > 0 ? 0 : -1;
         _protocolTraceSelectionAnchorRow = visible.FirstOrDefault();
         EndProtocolTraceSelectionBatch(FrameTraceGrid);
-        ApplySelectedEvidenceRowToInspector(visible.LastOrDefault());
+        if (FrameInterpreterPanel.Visibility == Visibility.Visible)
+            ApplySelectedEvidenceRowToInspector(visible.LastOrDefault());
     }
 
     private void ClearProtocolTraceSelection_Click(object sender, RoutedEventArgs e)
