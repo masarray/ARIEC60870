@@ -1009,7 +1009,7 @@
                                                 </DataTemplate>
                                             </DataGrid.RowDetailsTemplate>
                                             <DataGrid.Columns>
-                                                <DataGridTemplateColumn Header="SIGNAL · IOA · VALUE" Width="1.12*">
+                                                <DataGridTemplateColumn Header="SIGNAL / VALUE" Width="1.12*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="5,4,3,3">
@@ -1025,7 +1025,7 @@
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
-                                                <DataGridTemplateColumn Header="QUALITY · DEVICE TIME" Width="1.55*">
+                                                <DataGridTemplateColumn Header="QUALITY / TIME" Width="1.55*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="5,3,4,3">
