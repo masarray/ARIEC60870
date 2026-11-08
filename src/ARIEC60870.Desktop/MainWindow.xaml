@@ -849,16 +849,16 @@
                                                            FontSize="10.5" Foreground="#68798A" FontFamily="Cascadia Mono, Consolas"
                                                            VerticalAlignment="Top" Margin="0,1,5,0"/>
                                                 <TextBlock Grid.Column="1" Text="{Binding Direction}"
-                                                           FontSize="11.3" Foreground="{Binding TraceInk}" FontWeight="SemiBold"
+                                                           FontSize="11.3" FontFamily="{StaticResource AppFont}" Foreground="{Binding TraceInk}" FontWeight="SemiBold"
                                                            VerticalAlignment="Top"/>
                                                 <TextBlock Grid.Column="2" Text="{Binding Time}" FontSize="11.2"
                                                            Foreground="#405366" FontFamily="Cascadia Mono, Consolas"
                                                            VerticalAlignment="Top"/>
                                                 <StackPanel Grid.Column="3" Margin="2,0,0,0">
-                                                    <TextBlock Text="{Binding TimelineTitle}" FontSize="11.7"
+                                                    <TextBlock Text="{Binding TimelineTitle}" FontSize="11.7" FontFamily="{StaticResource AppFont}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                                                Foreground="#25394B"/>
-                                                    <TextBlock Text="{Binding TimelineContext}" FontSize="10.6"
+                                                    <TextBlock Text="{Binding TimelineContext}" FontSize="10.6" FontFamily="{StaticResource AppFont}"
                                                                TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                                                Foreground="#566B7A" Margin="0,2,0,0">
                                                         <TextBlock.Style>
@@ -930,21 +930,21 @@
                                     </Grid.RowDefinitions>
                                     <StackPanel>
                                         <DockPanel LastChildFill="True">
-                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                <Button Content="Copy summary" Style="{StaticResource SecondaryButton}" FontSize="10.5"
-                                                        Padding="6,3" Margin="0,0,4,0" Click="CopySelectedSummary_Click"/>
-                                                <Button Content="Copy decode" Style="{StaticResource SecondaryButton}" FontSize="10.5"
-                                                        Padding="6,3" Margin="0,0,4,0" Click="CopySelectedFrameDecode_Click"/>
-                                                <Button Content="Copy HEX" Style="{StaticResource SecondaryButton}" FontSize="10.5"
-                                                        Padding="6,3" Click="CopySelectedRawFrame_Click"/>
-                                            </StackPanel>
+                                            <Menu DockPanel.Dock="Right" Background="Transparent" BorderThickness="0"
+                                                  FontSize="11" VerticalAlignment="Center">
+                                                <MenuItem Header="Copy ▾" Padding="5,3">
+                                                    <MenuItem Header="Copy human summary" Click="CopySelectedSummary_Click"/>
+                                                    <MenuItem Header="Copy decoded details" Click="CopySelectedFrameDecode_Click"/>
+                                                    <MenuItem Header="Copy original HEX" Click="CopySelectedRawFrame_Click"/>
+                                                </MenuItem>
+                                            </Menu>
                                             <TextBlock Text="Frame details" FontSize="13.2" FontWeight="Medium"
                                                        Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
                                         </DockPanel>
                                         <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="13.1" FontWeight="Medium"
                                                    Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Visible" Text="Select a TX or RX frame on the left to understand what happened." FontSize="12.3"
-                                                   Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" MaxHeight="46" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Visible" Text="Select a TX or RX frame on the left to understand what happened." FontSize="12"
+                                                   Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                     </StackPanel>
                                     <!-- Decoded object values are a virtualized selection-only projection.
                                          Each ASDU stays ONE trace row; large object lists never inflate the timeline. -->
@@ -957,18 +957,29 @@
                                                   CanUserResizeRows="False" EnableRowVirtualization="True"
                                                   EnableColumnVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                                   HeadersVisibility="Column" ColumnHeaderHeight="24" RowHeight="25"
+                                                  RowDetailsVisibilityMode="VisibleWhenSelected"
                                                   FontSize="11.5" FontFamily="{StaticResource AppFont}"
                                                   GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E4EDF4"
                                                   RowBackground="White" AlternatingRowBackground="#F3F7FA"
                                                   BorderBrush="#D7E2EA" BorderThickness="1"
-                                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                            
+                                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                            <DataGrid.RowDetailsTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="9,4,5,6">
+                                                        <TextBlock FontSize="10.7" Foreground="#526478" Text="Device event time:"/>
+                                                        <TextBlock FontSize="11" Text="{Binding RelayTime}" TextWrapping="Wrap"/>
+                                                        <TextBlock FontSize="10.7" Foreground="#526478" Text="Original object bytes:" Margin="0,4,0,0"/>
+                                                        <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
+                                                                   Text="{Binding RawHex}" TextWrapping="Wrap"/>
+                                                        <TextBlock FontSize="10.6" Text="{Binding Provenance}" TextWrapping="Wrap"
+                                                                   Foreground="#617487" Margin="0,4,0,0"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGrid.RowDetailsTemplate>
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="IOA" Binding="{Binding Address}" Width="79"/>
                                                 <DataGridTextColumn Header="STATE / VALUE" Binding="{Binding Value}" Width="*"/>
-                                                <DataGridTextColumn Header="QUALITY" Binding="{Binding Quality}" Width="110"/>
-                                                <DataGridTextColumn Header="DEVICE TIME" Binding="{Binding RelayTime}" Width="170"/>
-                                                <DataGridTextColumn Header="OBJECT BYTES" Binding="{Binding RawHex}" Width="170"/>
+                                                <DataGridTextColumn Header="QUALITY" Binding="{Binding Quality}" Width="90"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
                                     </StackPanel>
@@ -985,7 +996,10 @@
                                               BorderThickness="1" BorderBrush="#D7E2EA" Background="#F8FAFC">
                                         <DataGrid.RowDetailsTemplate>
                                             <DataTemplate>
-                                                <ItemsControl ItemsSource="{Binding Children}" Margin="14,0,8,6">
+                                                <StackPanel Margin="14,0,8,6">
+                                                    <TextBlock Text="{Binding Detail}" FontSize="10.9" Foreground="#526478" TextWrapping="Wrap"
+                                                               Margin="0,0,0,5"/>
+                                                    <ItemsControl ItemsSource="{Binding Children}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <Grid Margin="3,3,3,3">
@@ -1004,7 +1018,8 @@
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                                    </ItemsControl>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </DataGrid.RowDetailsTemplate>
                                         <DataGrid.Columns>
@@ -1028,12 +1043,10 @@
                                             <DataGridTemplateColumn Header="VALUE" Width="1.35*" MinWidth="104">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <StackPanel Margin="9,5,8,5">
-                                                            <TextBlock Text="{Binding Value}" FontSize="11.9"
-                                                                       Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap"/>
-                                                            <TextBlock Text="{Binding Detail}" FontSize="10.8" Margin="0,3,0,0"
-                                                                       Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap"/>
-                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Value}" FontSize="11.7"
+                                                                   Foreground="{StaticResource Ink900Brush}" TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Value}"
+                                                                   VerticalAlignment="Center" Margin="9,5,8,5"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
