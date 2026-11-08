@@ -32,6 +32,7 @@ public sealed class Iec10xAsduDecoder
                 CommonAddressWidth = _caSize,
                 InformationObjectAddressWidth = _ioaSize,
                 TypeName = "Malformed ASDU",
+                IsHeaderValid = false,
                 CauseName = "Unknown",
                 Issues = new[] { $"ASDU too short for configured header. Length={raw.Length}, COT={_cotSize}, CA={_caSize}." }
             };
@@ -65,6 +66,7 @@ public sealed class Iec10xAsduDecoder
             CommonAddressWidth = _caSize,
             InformationObjectAddressWidth = _ioaSize,
             TypeId = type,
+            IsHeaderValid = true,
             TypeName = TypeName(type),
             VariableStructureQualifier = vsq,
             IsSequence = sq,
@@ -83,7 +85,7 @@ public sealed class Iec10xAsduDecoder
             QualityText = first?.QualityText ?? string.Empty,
             TimestampText = first?.TimestampText ?? string.Empty,
             Objects = objects,
-            IsControlCommand = type is >= 45 and <= 51 or 58 or 59 or 60 or 61 or 62 or 63 or 64 or 100 or 101 or 102 or 103 or 104 or 105 or 107,
+            IsControlCommand = type is >= 45 and <= 51 or 58 or 59 or 60 or 61 or 62 or 63 or 64 or 100 or 101 or 102 or 103 or 104 or 105 or 106 or 107,
             Issues = issues.Concat(objects.SelectMany(x => x.Issues.Select(issue => $"Object {x.Index}: {issue}"))).ToArray()
         };
     }
@@ -103,6 +105,8 @@ public sealed class Iec10xAsduDecoder
         }
 
         int? sequenceBaseIoa = null;
+        // SQ=1 derived addresses cannot overflow the configured physical IOA width.
+        var maxIoa = (1 << (8 * _ioaSize)) - 1;
         for (var i = 0; i < objectCount; i++)
         {
             var objectOffset = sq && i > 0 ? -1 : offset;
@@ -126,6 +130,11 @@ public sealed class Iec10xAsduDecoder
             }
 
             var ioa = sq ? sequenceBaseIoa!.Value + i : sequenceBaseIoa!.Value;
+            if (ioa > maxIoa)
+            {
+                issues.Add($"SQ=1 implied IOA #{i + 1}={ioa} exceeds {_ioaSize}-octet IOA maximum {maxIoa}; remaining elements are untrusted.");
+                break;
+            }
             var elementOffset = offset;
             var remaining = raw.Length - offset;
             var take = dataLength >= 0 ? Math.Min(dataLength, Math.Max(0, remaining)) : Math.Max(0, remaining);
@@ -207,6 +216,7 @@ public sealed class Iec10xAsduDecoder
         7 => 5,
         8 => 8,
         9 or 11 => 3,
+        21 => 2, // NVA without a QDS octet
         10 or 12 => 6,
         13 or 15 => 5,
         14 or 16 => 8,
@@ -223,10 +233,11 @@ public sealed class Iec10xAsduDecoder
         61 or 62 => 10,
         63 => 12,
         64 => 11,
+        70 => 1, // end of initialization COI
         100 or 101 or 105 => 1,
         102 => 0,
         103 => 7,
-        104 => 2,
+        104 or 106 => 2, // test / delay CP16Time2a
         107 => 9,
         _ => -1
     };
@@ -252,19 +263,21 @@ public sealed class Iec10xAsduDecoder
                 3 or 4 or 31 => data.Length >= 1 ? $"DP={DecodeDoublePoint(data[0])}" : string.Empty,
                 5 or 6 or 32 => data.Length >= 1 ? $"ST={Iec10xStepPositionDetails.Decode(data[0]).Value}" : string.Empty,
                 7 or 8 or 33 => data.Length >= 4 ? $"Bitstring=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
-                9 or 10 or 34 => data.Length >= 2 ? $"Normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
+                9 or 10 or 21 or 34 => data.Length >= 2 ? $"Normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
                 11 or 12 or 35 => data.Length >= 2 ? $"Scaled={BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2))}" : string.Empty,
-                13 or 14 or 36 => data.Length >= 4 ? $"Float={BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(0, 4)).ToString("0.###", CultureInfo.InvariantCulture)}" : string.Empty,
+                13 or 14 or 36 => data.Length >= 4 ? DecodeIeeeFloat(data, "Float", issues) : string.Empty,
                 15 or 16 or 37 => data.Length >= 4 ? DecodeBcrValue(data) : string.Empty,
                 45 or 58 => data.Length >= 1 ? DecodeSingleCommand(data[0]) : string.Empty,
                 46 or 59 => data.Length >= 1 ? DecodeDoubleCommand(data[0]) : string.Empty,
                 47 or 60 => data.Length >= 1 ? $"Regulating step RCO=0x{data[0]:X2}" : string.Empty,
                 48 or 61 => data.Length >= 2 ? $"Setpoint normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
                 49 or 62 => data.Length >= 2 ? $"Setpoint scaled={BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2))}" : string.Empty,
-                50 or 63 => data.Length >= 4 ? $"Setpoint float={BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(0, 4)).ToString("0.###", CultureInfo.InvariantCulture)}" : string.Empty,
+                50 or 63 => data.Length >= 4 ? DecodeIeeeFloat(data, "Setpoint float", issues) : string.Empty,
                 51 or 64 => data.Length >= 4 ? $"Bitstring command=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 100 => data.Length >= 1 ? $"Interrogation qualifier QOI={data[0]}" : string.Empty,
                 101 => data.Length >= 1 ? $"Counter interrogation qualifier QCC=0x{data[0]:X2}" : string.Empty,
+                 70 => data.Length >= 1 ? $"Initialization COI={data[0] & 0x7F}, LPC={((data[0] & 0x80) != 0 ? 1 : 0)}" : string.Empty,
+                 106 => data.Length >= 2 ? $"Delay acquisition={BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2))} ms (CP16Time2a)" : string.Empty,
                 102 => "Read command",
                 103 => data.Length >= 7 ? "Clock sync" : string.Empty,
                 _ => data.Length > 0 ? $"Payload={ToHex(data)}" : string.Empty
@@ -327,6 +340,15 @@ public sealed class Iec10xAsduDecoder
         return $"Double command={state}, {select}, QU={qualifier}";
     }
 
+    private static string DecodeIeeeFloat(byte[] data, string prefix, List<string> issues)
+    {
+        var value = BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(0, 4));
+        if (!float.IsFinite(value))
+            issues.Add("IEEE-754 non-finite value; raw bytes retained, not a trusted process measurement.");
+        // Preserve IEEE-754 value with round-trip formatting rather than 0.###.
+        return $"{prefix}={value.ToString("R", CultureInfo.InvariantCulture)}";
+    }
+
     private static string DecodeBcrValue(byte[] data)
     {
         if (data.Length < 5)
@@ -381,6 +403,7 @@ public sealed class Iec10xAsduDecoder
         14 => "M_ME_TC_1 short floating measured value with CP24Time2a",
         15 => "M_IT_NA_1 integrated totals",
         16 => "M_IT_TA_1 integrated totals with CP24Time2a",
+        21 => "M_ME_ND_1 normalized measured value without QDS",
         30 => "M_SP_TB_1 single-point with CP56Time2a",
         31 => "M_DP_TB_1 double-point with CP56Time2a",
         32 => "M_ST_TB_1 step position with CP56Time2a",
@@ -402,12 +425,14 @@ public sealed class Iec10xAsduDecoder
         62 => "C_SE_TB_1 setpoint scaled with CP56Time2a",
         63 => "C_SE_TC_1 setpoint short float",
         64 => "C_BO_TA_1 bitstring command with CP56Time2a",
+        70 => "M_EI_NA_1 end of initialization",
         100 => "C_IC_NA_1 interrogation command",
         101 => "C_CI_NA_1 counter interrogation",
         102 => "C_RD_NA_1 read command",
         103 => "C_CS_NA_1 clock synchronization",
         104 => "C_TS_NA_1 test command",
         105 => "C_RP_NA_1 reset process command",
+        106 => "C_CD_NA_1 delay acquisition",
         107 => "C_TS_TA_1 test command with CP56Time2a",
         _ => $"Type {type}"
     };
