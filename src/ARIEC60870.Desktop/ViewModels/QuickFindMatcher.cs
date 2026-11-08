@@ -31,7 +31,8 @@ public static class QuickFindMatcher
                 !(int.TryParse(r.TypeId, out var ti) && ti is (>= 45 and <= 51 or >= 58 and <= 64)),
             "GI" => r.TypeId != "100" && !Has(r.ProtocolTraceMeaning,"GI") &&
                 !Has(r.ProtocolTraceMeaning,"interrogation"),
-            "Negative / errors" => r.Source.CauseDetails?.Negative != true &&
+            "Negative / errors" => r.TraceVisualClass != "Attention" &&
+                r.Source.CauseDetails?.Negative != true &&
                 !Has(r.Category,"warning") && !Has(r.Category,"error"),
             _ => false
         }) return false;

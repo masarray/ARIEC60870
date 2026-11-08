@@ -251,4 +251,19 @@ public sealed class ForensicTraceLayoutTests
         Assert.False(ForensicTraceLayout.MatchFlag(row, "IV=0") == true);
         Assert.False(ForensicTraceLayout.MatchFlag(row, "OV=0") == true);
     }
+    [Fact]
+    public void StructuredInvalidSignalTimeSearchDoesNotRequireTimeIvBitToBeSet()
+    {
+        var changed = (byte[])TimedFrame.Clone();
+        changed[19] = 63; // illegal minute value, time IV remains zero.
+        changed[^2] = (byte)(changed.Skip(4).Take(changed.Length - 6).Sum(b => b) & 255);
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            changed.Skip(7).Take(changed.Length - 9).ToArray());
+        var row = Row(changed, asdu);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "TIMEBAD=1"));
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "TIV=0"));
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.True(QuickFindMatcher.MatchesTrace(row, "", "Negative / errors"));
+    }
+
 }
