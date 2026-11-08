@@ -50,7 +50,11 @@ public static class Iec10xTypeIdPresentation
         if (canonical.StartsWith("Type ", StringComparison.Ordinal))
             return "Unknown or reserved type";
         var descriptionOffset = canonical.IndexOf(' ');
-        return descriptionOffset >= 0 ? canonical[(descriptionOffset + 1)..] : canonical;
+        var description = descriptionOffset >= 0 ? canonical[(descriptionOffset + 1)..] : canonical;
+        // Brief UI labels communicate timestamp presence, while the selected
+        // inspector retains exact CP24/CP56 fields and underlying source bytes.
+        return description.Replace("with CP56Time2a", "with timestamp", StringComparison.Ordinal)
+            .Replace("with CP24Time2a", "with short timestamp", StringComparison.Ordinal);
     }
 
     private static string Timestamp(int? typeId)
