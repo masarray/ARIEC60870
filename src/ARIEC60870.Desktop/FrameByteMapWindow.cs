@@ -63,7 +63,7 @@ public sealed class FrameByteMapWindow : Window
         FontSize = 11.5;
         Background = SolidColorBrushFrom(246, 249, 252);
 
-        var root = new Grid { Margin = new Thickness(13, 12, 13, 12) };
+        var root = new Grid { Background = SolidColorBrushFrom(246, 249, 252) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(92) });
@@ -207,7 +207,14 @@ public sealed class FrameByteMapWindow : Window
         Grid.SetRow(actions, 3);
         root.Children.Add(actions);
 
-        Content = root;
+        // The root capture surface must be opaque, including the margins;
+        // transparent WPF screenshot gaps otherwise appear as black blocks.
+        Content = new Border
+        {
+            Background = SolidColorBrushFrom(246, 249, 252),
+            Padding = new Thickness(13, 12, 13, 12),
+            Child = root
+        };
         if (_source.Fields.Count > 0) _fieldList.SelectedIndex = 0;
         else SelectFieldInternal(null, -1);
     }
