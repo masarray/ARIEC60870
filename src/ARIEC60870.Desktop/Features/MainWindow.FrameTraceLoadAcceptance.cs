@@ -119,7 +119,7 @@ public partial class MainWindow
         UpdateLayout();
         var heldSelectionSurvived = ReferenceEquals(FrameTraceGrid.SelectedItem, held) &&
             ReferenceEquals(_selectedFrameRow, held) && FrameTraceRows.Contains(held) &&
-            TraceInspectorRawText.Text == held.RawHex;
+            TraceInspectorRawText.Text == held.TimelineHex;
         var newestFrameObserved =
             FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset == 5L * (framesToFeed - 1);
         if (!heldSelectionSurvived || !newestFrameObserved || resets != 0 ||
@@ -143,7 +143,7 @@ public partial class MainWindow
             samples[sample] = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             if (!ReferenceEquals(_selectedFrameRow, row) ||
                 SelectedLineSummaryText.Text != FrameInspectorFieldPresentation.HumanSummary(row) ||
-                TraceInspectorRawText.Text != row.RawHex ||
+                TraceInspectorRawText.Text != row.TimelineHex ||
                 SelectedFrameProperties.Count == 0)
                 throw new InvalidOperationException(
                     $"Stale inspector or lost source HEX after selection sample {sample}.");
