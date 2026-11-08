@@ -114,9 +114,9 @@ public sealed class FrameByteMapWindow : Window
             FontFamily = uiFont,
             FontSize = 11.1,
             Margin = new Thickness(5, 5, 3, 5),
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            ScrollViewer = { VerticalScrollBarVisibility = ScrollBarVisibility.Auto }
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
+        ScrollViewer.SetVerticalScrollBarVisibility(_fieldList, ScrollBarVisibility.Auto);
         foreach (var field in _source.Fields)
         {
             var item = new ListBoxItem
