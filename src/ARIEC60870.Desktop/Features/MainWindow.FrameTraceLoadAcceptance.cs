@@ -152,6 +152,13 @@ public partial class MainWindow
         var p50 = samples[(int)Math.Ceiling(samples.Length * 0.50) - 1];
         var p95 = samples[(int)Math.Ceiling(samples.Length * 0.95) - 1];
 
+        // Quick Find counters are intentionally coalesced at Background
+        // priority rather than recomputed for every Add/Remove. The synthetic
+        // probe previously rendered at Loaded priority before that queued
+        // refresh could execute, producing a misleading "0 / 0" screenshot.
+        // Require the same eventual consistency a real idle UI promises.
+        await Dispatcher.Yield(DispatcherPriority.Background);
+        AssertTraceCountInSync();
         SaveRealWpfBitmap(outputDirectory, "engineer-trace-10000-frames.png");
         return new FrameTraceLoadMetrics(
             framesToFeed, FrameTraceRows.Count, resets,
