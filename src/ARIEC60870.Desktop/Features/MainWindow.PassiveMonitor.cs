@@ -41,6 +41,7 @@ public partial class MainWindow
     private bool _passiveLedgerFactProjection;
     private bool _passiveLedgerSnapshotProjection;
     private long _passiveLatestPointRevision;
+    private int _passiveLatestPointCount;
     private long _passiveLatestPointCapacityRejected;
     private long _passiveLatestPointProjectionRejected;
     private PassiveWriterGiSnapshot? _passiveWriterGiSnapshot;
@@ -729,6 +730,7 @@ public partial class MainWindow
         _passiveLedgerFactProjection = false;
         _passiveLedgerSnapshotProjection = false;
         _passiveLatestPointRevision = 0;
+        _passiveLatestPointCount = 0;
         _passiveLatestPointCapacityRejected = 0;
         _passiveLatestPointProjectionRejected = 0;
         _passiveWriterGiSnapshot = null;
@@ -1155,6 +1157,11 @@ public partial class MainWindow
         // Page only the changed latest identities; coalesce superseded values.
         var latestPointPage = session.ReadLatestProcessPointsAfter(_passiveLatestPointRevision, 120);
         _passiveLatestPointCapacityRejected = latestPointPage.CapacityRejected;
+        if (_passiveLatestPointCount != latestPointPage.PointCount)
+        {
+            _passiveLatestPointCount = latestPointPage.PointCount;
+            UpdateQuickFindCounts();
+        }
         if (latestPointPage.Points.Count > 0)
         {
             var latestFacts = latestPointPage.Points.Select(point => new PassiveProcessEventFact(

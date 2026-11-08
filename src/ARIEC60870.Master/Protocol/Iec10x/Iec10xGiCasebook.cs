@@ -69,6 +69,16 @@ public sealed class Iec10xGiCasebook
         int Class1Requests, int Class1Responses, bool CountLimited,
         long FirstSequence, long LastSequence, IReadOnlyList<GiStage> Stages)
     {
+        public string OperatorStatus => Status switch
+        {
+            "ACTTERM observed · coverage unknown" => "Ended · coverage unverified",
+            "ACTTERM without observed ACTCON · incomplete" => "ACTTERM · ACTCON not seen",
+            "Unmatched response · request not observed" => "Unmatched response",
+            "GI acknowledged" => "ACTCON · collecting",
+            "GI requested" => "GI requested · pending",
+            _ => Status
+        };
+        public string Class1Progress => $"{Class1Requests} / {Class1Responses}";
         public string Description => (Qoi == 20 ? "Station GI · TI100" : $"Group GI {Qoi - 20} · TI100") +
             $" · CA {CommonAddress} · {Source}";
         public string Coverage => "Unknown — expected IOA mapping and complete capture not proven";

@@ -287,6 +287,13 @@ public sealed class PassiveProcessEventLedgerTests
         Assert.Equal(30000, stats.ObjectsAccepted);
         Assert.Equal(20000, stats.ObjectsExcluded);
         Assert.Equal(30000, identities.Count);
+        // Values state includes 50k accepted process identities even when only
+        // 30k of them qualified as Event facts (SOE) in this workload.
+        var latest = classifier.ReadLatestPointsAfter(0, 120);
+        Assert.Equal(50000, latest.PointCount);
+        Assert.Equal(120, latest.Points.Count);
+        Assert.Equal(0, latest.CapacityRejected);
+        Assert.True(latest.ThroughRevision < latest.LatestRevision);
         Assert.InRange(allocated, 1, long.MaxValue);
         Assert.True(watch.Elapsed > TimeSpan.Zero);
         // Measured on the running CI machine only. No unmeasured p95 GUI claim.

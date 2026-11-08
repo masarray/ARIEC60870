@@ -2209,7 +2209,7 @@
                                 <RowDefinition Height="32"/>
                                 <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="6"/>
+                                <RowDefinition Height="30"/>
                                 <RowDefinition Height="2.25*"/>
                                 <RowDefinition Height="54"/>
                             </Grid.RowDefinitions>
@@ -2244,7 +2244,7 @@
                                 <TextBlock x:Name="GiQuickCountText" Grid.Column="1"
                                            Text="GI cases"
                                            FontSize="11.1" Foreground="#64748B" VerticalAlignment="Center"
-                                           MaxWidth="165" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           MaxWidth="310" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Margin="8,0,0,0"/>
                             </Grid>
                             <DataGrid x:Name="GiCasesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="2" ItemsSource="{Binding GiCaseRows}"
@@ -2264,16 +2264,28 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="GI" Binding="{Binding CaseId}" Width="46"/>
                                     <DataGridTextColumn Header="Station / QOI" Binding="{Binding Description}" Width="1.5*" MinWidth="130"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.35*" MinWidth="125"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding OperatorStatus}" Width="1.35*" MinWidth="125"/>
                                     <DataGridTextColumn Header="Frames" Binding="{Binding DataFrames}" Width="58"/>
                                     <DataGridTextColumn Header="Objects" Binding="{Binding DataObjects}" Width="60"/>
                                     <DataGridTextColumn Header="IOAs" Binding="{Binding UniqueIoas}" Width="54"/>
                                     <DataGridTextColumn Header="Bad Q" Binding="{Binding InvalidQualityObjects}" Width="56"/>
-                                    <DataGridTextColumn Header="C1" Binding="{Binding Class1Requests}" Width="45"/>
+                                    <DataGridTextColumn Header="C1 TX/RX" Binding="{Binding Class1Progress}" Width="76"/>
                                     <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="78"/>
                                     <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
+                            <Grid Grid.Row="3" Margin="3,3,1,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="GiStageSummaryText" Text="Select a GI case to inspect its milestones"
+                                           Foreground="#64748B" FontSize="11.3" VerticalAlignment="Center"/>
+                                <Button x:Name="GiStagesToggleButton" Grid.Column="1" Content="Show all stages"
+                                        FontSize="11" FontWeight="Normal" Padding="9,2"
+                                        BorderBrush="#CBD5E1" Background="#F8FAFC" Foreground="#334155"
+                                        Click="GiStagesToggle_Click"/>
+                            </Grid>
                             <DataGrid x:Name="GiStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
                                       AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                                       FontSize="12.3" EnableRowVirtualization="True"
