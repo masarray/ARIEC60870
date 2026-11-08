@@ -266,6 +266,10 @@ public sealed partial class EvidenceRow
             return string.Empty;
         }
 
+        // An interrogation command carries a QOI (not process signal state).
+        if (asdu.TypeId == 100 && asdu.CommandDetails?.QualifierValue is int qualifier)
+            return "GI request · QOI " + qualifier.ToString(CultureInfo.InvariantCulture);
+
         // A multi-object ASDU must never be represented as only the first IOA.
         // The selected inspector contains all objects, not this short digest.
         var sample = asdu.Objects.Take(2).Select(obj =>
@@ -290,6 +294,70 @@ public sealed partial class EvidenceRow
 
     private string? _timelineCompactContext;
     public string TimelineCompactContext => _timelineCompactContext ??= BuildTimelineCompactContext();
+
+    // Source-typed engineer fields beside original HEX, built only for realized
+    // rows. No textual keyword detection and no fabricated station names/time.
+    private string? _timelineEngineeringIdentity;
+    private string? _timelineEngineeringCause;
+    private string? _timelineDeviceTimestamp;
+
+    public string TimelineEngineeringIdentity =>
+        _timelineEngineeringIdentity ??= BuildTimelineEngineeringIdentity();
+    public string TimelineEngineeringCause =>
+        _timelineEngineeringCause ??= BuildTimelineEngineeringCause();
+    public string TimelineDeviceTimestamp =>
+        _timelineDeviceTimestamp ??= BuildTimelineDeviceTimestamp();
+
+    private string BuildTimelineEngineeringIdentity()
+    {
+        var link = Source.LinkAddress ?? Source.Frame?.LinkAddress;
+        var station = link.HasValue
+            ? "Link " + link.Value.ToString(CultureInfo.InvariantCulture)
+            : "Link address not encoded";
+        var asdu = Source.AsduDetails;
+        if (asdu is null)
+        {
+            var function = Source.Frame?.LinkControl;
+            return function is null ? station :
+                station + " · FC " + function.FunctionCode.ToString(CultureInfo.InvariantCulture) +
+                " (" + function.FunctionName + ")";
+        }
+        return station + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture) +
+            " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
+            " (" + Iec101TraceNarrator.HumanTypeName(asdu) + ")";
+    }
+
+    private string BuildTimelineEngineeringCause()
+    {
+        var asdu = Source.AsduDetails;
+        if (asdu is null) return string.Empty;
+        return "COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
+            " (" + (asdu.CauseOfTransmission == 20
+                ? "Interrogated by General Interrogation"
+                : asdu.CauseName) + ")" +
+            (asdu.IsNegativeConfirm ? " · Negative confirmation" : "") +
+            (asdu.IsTest ? " · Test" : "");
+    }
+
+    private string BuildTimelineDeviceTimestamp()
+    {
+        var asdu = Source.AsduDetails;
+        if (asdu is null) return string.Empty;
+        var times = asdu.Objects.Where(o => !string.IsNullOrWhiteSpace(o.TimestampText))
+            .Take(2).Select(o =>
+                "IOA " + o.InformationObjectAddress.ToString(CultureInfo.InvariantCulture) +
+                " · RTU " + o.TimestampText +
+                (o.Cp56TimeDetails is { } cp56
+                    ? " · " + (cp56.IsValid ? "Time valid" : "Time invalid") +
+                      (cp56.SubstitutedFlag ? " · Substituted" : " · Genuine")
+                    : "")).ToArray();
+        if (times.Length == 0) return string.Empty;
+        var withTime = asdu.Objects.Count(o => !string.IsNullOrWhiteSpace(o.TimestampText));
+        return string.Join(" | ", times) +
+            (withTime > times.Length ? " · +" +
+              (withTime - times.Length).ToString(CultureInfo.InvariantCulture) + " more time tags" : "");
+    }
+
 
     private string BuildTimelineCompactContext()
     {
