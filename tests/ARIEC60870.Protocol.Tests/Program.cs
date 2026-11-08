@@ -95,7 +95,7 @@ internal static class Program
         var valid = SecondaryFixed(functionCode: 9, acd: true);
         for (var iteration = 0; iteration < 48; iteration++)
         {
-            var noise = iteration % 3 switch
+            var noise = (iteration % 3) switch
             {
                 0 => new byte[] { 0x00, 0xFF, 0x33 },
                 1 => new byte[] { 0x68, 0x10, 0x11, 0x68, 0x99 },
