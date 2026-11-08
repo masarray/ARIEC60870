@@ -983,6 +983,11 @@
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Visibility="Visible" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
                              <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Visibility="Visible" TextElement.FontFamily="{StaticResource AppFont}" ToolTipService.IsEnabled="False" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="7" Padding="10">
+                                <!-- On short field laptops, never clip the decoded content
+                                     behind the two-panel viewport. Scroll the existing
+                                     inspector rather than hiding or adding a mode. -->
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              CanContentScroll="False" Focusable="False">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -1208,6 +1213,7 @@
                                         <CheckBox x:Name="PinProtocolMapCheckBox"/>
                                     </StackPanel>
                                 </Grid>
+                                </ScrollViewer>
                             </Border>
                         </Grid>
                     </TabItem>
