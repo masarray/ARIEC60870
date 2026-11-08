@@ -921,7 +921,7 @@
                            Foreground="{Binding TraceInk}" FontWeight="Normal"/>
                 <TextBlock Text="{Binding TraceForensic.Validation}"
                            FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                           LineHeight="15" TextWrapping="NoWrap" Foreground="{Binding TraceInk}"/>
+                           LineHeight="15" TextWrapping="Wrap" Foreground="{Binding TraceInk}"/>
             </StackPanel>
         </Grid>
     </DataTemplate>
