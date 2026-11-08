@@ -53,7 +53,7 @@ public static class FrameInspectorFieldPresentation
             return (source.Direction == FrameDirection.SlaveToMaster
                 ? "The remote station transmitted " : "The master transmitted ") +
                 asdu.Objects.Count + " decoded information object(s) of type " +
-                asdu.TypeId + " (" + asdu.TypeName + ") with cause " +
+                asdu.TypeId + " (" + Iec101TraceNarrator.HumanTypeName(asdu) + ") with cause " +
                 asdu.CauseOfTransmission + " (" + asdu.CauseName + ").";
         return "This link message contains no decoded application values. Review its function, status bits and original frame bytes below.";
     }
