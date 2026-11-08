@@ -9,7 +9,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// <summary>Selection-only children from decoded protocol facts; no inferred wire quality.</summary>
 public static class FrameInspectorFieldPresentation
 {
-    public sealed record DetailRow(string Field, string Value);
+    public sealed record DetailRow(string Field, string Value, string Explanation = "");
 
     /// <summary>
     /// Selected-frame narrative only. Every statement is derived from the
@@ -112,21 +112,34 @@ public static class FrameInspectorFieldPresentation
     public static IReadOnlyList<DetailRow> Quality(Iec10xQualityDetails? quality)
     {
         if (quality is null) return []; // Unknown must NOT be displayed as False.
-        var children = new List<DetailRow>(9) { new("Invalid (IV)", quality.Invalid.ToString()) };
-        static void Add(List<DetailRow> target, string name, bool? bit)
+        var children = new List<DetailRow>(9)
         {
-            if (bit.HasValue) target.Add(new(name, bit.Value.ToString()));
+            new("Invalid (IV)", quality.Invalid.ToString(),
+                "When set, the device marks this process value as invalid.")
+        };
+        static void Add(List<DetailRow> target, string name, bool? bit, string meaning)
+        {
+            if (bit.HasValue) target.Add(new(name, bit.Value.ToString(), meaning));
         }
-        Add(children, "Overflow (OV)", quality.Overflow);
-        Add(children, "Not topical (NT)", quality.NotTopical);
-        Add(children, "Blocked (BL)", quality.Blocked);
-        Add(children, "Substituted (SB)", quality.Substituted);
-        Add(children, "Carry (CY)", quality.Carry);
-        Add(children, "Adjusted (CA)", quality.Adjusted);
+        Add(children, "Overflow (OV)", quality.Overflow,
+            "The value exceeds its representable measurement range.");
+        Add(children, "Not topical (NT)", quality.NotTopical,
+            "The process value may not represent the latest source state.");
+        Add(children, "Blocked (BL)", quality.Blocked,
+            "The source marks the value as blocked.");
+        Add(children, "Substituted (SB)", quality.Substituted,
+            "The value is marked as substituted rather than the ordinary process reading.");
+        Add(children, "Carry (CY)", quality.Carry,
+            "The integrated counter indicates a carry or rollover condition.");
+        Add(children, "Adjusted (CA)", quality.Adjusted,
+            "The integrated counter is marked as adjusted.");
         if (quality.CounterSequence.HasValue)
             children.Add(new("Counter sequence", quality.CounterSequence.Value.ToString(
-                System.Globalization.CultureInfo.InvariantCulture)));
-        children.Add(new("Raw quality", $"0x{quality.Raw:X2}"));
+                System.Globalization.CultureInfo.InvariantCulture),
+                "Sequence counter encoded for this integrated total."));
+        children.Add(new("Raw quality", $"0x{quality.Raw:X2}",
+            "Original decoded quality octet; checksum validity is a separate field."));
         return children;
     }
+
 }
