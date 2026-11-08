@@ -63,8 +63,7 @@ public partial class MainWindow
         if (node is TextBlock block && block.Text == text &&
             block.Foreground is SolidColorBrush brush &&
             string.Equals(brush.Color.ToString(), "#FF" + ink.TrimStart('#'),
-                StringComparison.OrdinalIgnoreCase) &&
-            block.FontFamily.Source.Contains("Mono", StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase))
             return true;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
             if (HasTraceInk(VisualTreeHelper.GetChild(node, i), text, ink))
@@ -611,7 +610,7 @@ public partial class MainWindow
                     is not ListBoxItem container ||
                 !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
                 throw new InvalidOperationException(
-                    "Frame Trace TX/RX direction ink or monospace WPF binding not rendered.");
+                    "Frame Trace TX/RX direction or source-typed semantic ink was not rendered.");
         }
 
         var layouts = new (string Name, double Width, double Height)[]
