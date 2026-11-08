@@ -103,9 +103,23 @@ public static class ForensicTraceLayout
 
         if (IsTrustedAsdu(row) && asdu is not null)
         {
-            var typeParts = asdu.TypeName.Split(' ', 2);
-            Add(header, "Type", $"{asdu.TypeId} · {typeParts[0]}");
-            if (typeParts.Length > 1) Add(header, "Meaning", typeParts[1]);
+            var typeCode = asdu.TypeName.Split(' ', 2)[0];
+            Add(header, "Type", $"{asdu.TypeId} · {typeCode}");
+            Add(header, "Meaning", ShortTypeMeaning(asdu.TypeId));
+            // Time belongs to the physical information element, not to the
+            // host timestamp. For one object put it immediately after TI:
+            // engineers must not dig through QDS to find their SOE time.
+            if (asdu.Objects.Count == 1 && asdu.Objects[0].Cp56TimeDetails is not null)
+                AppendCp56(header, flags, asdu.Objects[0]);
+            else if (asdu.Objects.Count == 1 &&
+                     !string.IsNullOrWhiteSpace(asdu.Objects[0].TimestampText))
+                Add(header, "Signal time", asdu.Objects[0].TimestampText + " · partial CP24");
+            else if (asdu.Objects.Count > 1 &&
+                     asdu.Objects.Any(o => o.Cp56TimeDetails is not null ||
+                                           !string.IsNullOrWhiteSpace(o.TimestampText)))
+                Add(header, "Signal time", "Per object (right column)");
+            else if (asdu.TypeId is >= 1 and <= 16 or >= 30 and <= 37)
+                Add(header, "Signal time", $"Not encoded in TI {asdu.TypeId}");
             Add(header, "VSQ", $"{asdu.ObjectCount} object(s), SQ={(asdu.IsSequence ? 1 : 0)}");
             Add(header, "Cause", $"{asdu.CauseOfTransmission} · {HumanCause(asdu)}");
             Child(header, "NEG", asdu.IsNegativeConfirm ? "1 · Negative" : "0 · Normal");
@@ -205,35 +219,59 @@ public static class ForensicTraceLayout
                 ? "N/A · not encoded" : "Unknown · not decoded");
         }
 
-        if (obj.Cp56TimeDetails is { } time)
-        {
-            Add(text, "Timestamp", time.TimestampText);
-            Child(text, "IV", (time.InvalidFlag ? "1 · Invalid time" :
-                time.CalendarInRange ? "0 · Valid time" : "0 · Invalid date/range"));
-            Child(text, "RES1", time.SubstitutedFlag ? "1 · Substituted time" : "0 · Genuine time");
-            Child(text, "SU", time.SummerTimeFlag ? "1 · Summer time" : "0 · Standard time");
-            Child(text, "DOW", $"{time.DayOfWeek} · {time.DayOfWeekText}", last: true);
-            if (time.DayOfWeekMatchesCalendar == false)
-            {
-                Add(text, "Time warning", "Day of week differs from date");
-                flags.Add($"#{obj.Index} TIME DOW mismatch");
-            }
-            if (time.UnexpectedReservedBits)
-            {
-                Add(text, "Reserved bits",
-                    $"RES2={time.Reserved2} RES3={time.Reserved3} RES4={time.Reserved4}");
-                flags.Add($"#{obj.Index} TIME reserved bits");
-            }
-            if (obj.RawBytes.Count >= 7)
-                Add(text, "Time bytes", Hex(obj.RawBytes.Skip(obj.RawBytes.Count - 7).ToArray()));
-            if (!time.IsValid) flags.Add($"#{obj.Index} TIME IV/range");
-            if (time.SubstitutedFlag) flags.Add($"#{obj.Index} RES1=1");
-        }
-        else if (!string.IsNullOrWhiteSpace(obj.TimestampText))
-            Add(text, "Time (CP24)", obj.TimestampText);
+        // A single object's readable timestamp and bits are shown directly
+        // below its TI in the ASDU header; never repeat the whole tree here.
+        // With SQ=1/VSQ>1, each object retains its independent timestamp.
+        if (obj.Cp56TimeDetails is not null && asdu.Objects.Count > 1)
+            AppendCp56(text, flags, obj);
+        else if (obj.Cp56TimeDetails is null && asdu.Objects.Count > 1 &&
+                 !string.IsNullOrWhiteSpace(obj.TimestampText))
+            Add(text, "Signal time", obj.TimestampText + " · partial CP24");
+
+        if (obj.Cp56TimeDetails is not null && obj.RawBytes.Count >= 7)
+            Add(text, "Time bytes", Hex(obj.RawBytes.Skip(obj.RawBytes.Count - 7).ToArray()));
 
         if (obj.Issues.Count > 0) Add(text, "Decode issue", string.Join("; ", obj.Issues));
     }
+
+    private static void AppendCp56(StringBuilder text, List<string> flags,
+        Iec10xInformationObject obj)
+    {
+        var time = obj.Cp56TimeDetails!;
+        Add(text, "Signal time", time.TimestampText);
+        Child(text, "IV", time.InvalidFlag ? "1 · Invalid" :
+            time.CalendarInRange ? "0 · Valid" : "0 · Bad time range");
+        Child(text, "RES1", time.SubstitutedFlag ? "1 · Substituted" : "0 · Genuine");
+        Child(text, "SU", time.SummerTimeFlag ? "1 · Summer" : "0 · Standard");
+        Child(text, "DOW", $"{time.DayOfWeek} · {time.DayOfWeekText}", last: true);
+        if (time.DayOfWeekMatchesCalendar == false)
+        {
+            Add(text, "Time warning", "Weekday/date mismatch");
+            flags.Add($"#{obj.Index} TIME DOW mismatch");
+        }
+        if (time.UnexpectedReservedBits)
+        {
+            Add(text, "Reserved bits",
+                $"RES2={time.Reserved2} RES3={time.Reserved3} RES4={time.Reserved4}");
+            flags.Add($"#{obj.Index} TIME reserved bits");
+        }
+        if (!time.IsValid) flags.Add($"#{obj.Index} TIME IV/range");
+        if (time.SubstitutedFlag) flags.Add($"#{obj.Index} RES1=1");
+    }
+
+    private static string ShortTypeMeaning(byte type) => type switch
+    {
+        1 or 30 => "Single-point" + (type == 30 ? " + time" : ""),
+        3 or 31 => "Double-point" + (type == 31 ? " + time" : ""),
+        5 or 32 => "Step position" + (type == 32 ? " + time" : ""),
+        9 or 34 => "Normalized" + (type == 34 ? " + time" : ""),
+        11 or 35 => "Scaled" + (type == 35 ? " + time" : ""),
+        13 or 36 => "Float" + (type == 36 ? " + time" : ""),
+        15 or 37 => "Counter" + (type == 37 ? " + time" : ""),
+        100 => "Station GI request",
+        101 => "Counter GI request",
+        _ => Iec10xTypeIdPresentation.Name(type)
+    };
 
     // UI only: remove the canonical decoder's already-known value prefix.
     // This does not parse raw bytes or duplicate electrical state decoding.
@@ -261,7 +299,7 @@ public static class ForensicTraceLayout
         6 => "Activation",
         7 => "Activation confirmation",
         10 => "Activation termination",
-        20 => "Station interrogation (GI)",
+        20 => "Station GI",
         >= 21 and <= 36 => $"Group interrogation {asdu.CauseOfTransmission - 20}",
         _ => asdu.CauseName
     };
