@@ -16,7 +16,9 @@ public sealed class ProtocolTruthFrameTraceTests
         var decoded = new Iec10xAsduDecoder().Decode([1, 1, 3, 0, 1]);
         var row = new EvidenceRow(new Iec103MasterEvidenceEvent
         {
-            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = decoded
+            ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = decoded,
+            TypeId = 0, CauseOfTransmission = 0, CommonAddressNumber = 0,
+            VariableStructureQualifier = 0, ObjectCount = 0
         });
         Assert.Contains("ASDU header not decoded", row.TimelineEngineeringIdentity);
         Assert.Contains("COT not decoded", row.TimelineEngineeringCause);
@@ -24,6 +26,13 @@ public sealed class ProtocolTruthFrameTraceTests
         Assert.DoesNotContain("TI 0", row.TimelineEngineeringIdentity);
         Assert.DoesNotContain("CA 0", row.TimelineEngineeringIdentity);
         Assert.Contains("ASDU decode warning", row.TimelineSignalDigest);
+        Assert.Contains("Malformed ASDU header", row.TimelineTitle);
+        Assert.Contains("ASDU header not decoded", row.TimelineContext);
+        Assert.Equal("-", row.TypeId);
+        Assert.Equal("-", row.CotCode);
+        Assert.Equal("-", row.CommonAddress);
+        Assert.Equal("-", row.Vsq);
+        Assert.Equal("Not decoded", row.TypeIdName);
     }
 
     [Fact]

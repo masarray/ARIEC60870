@@ -45,24 +45,25 @@ public sealed partial class EvidenceRow
         Acd = ResolveLinkFlagText(item.Acd, item, "ACD");
         Dfc = ResolveLinkFlagText(item.Dfc, item, "DFC");
         LinkFlags = BuildLinkFlags(item.Frame?.LinkControl?.Prm, Acd, Dfc);
-        AsduType = item.AsduType ?? "-";
-        TypeId = item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        var decodedAsduHeader = item.AsduDetails?.IsHeaderValid != false;
+        AsduType = decodedAsduHeader ? item.AsduType ?? "-" : "Not decoded";
+        TypeId = decodedAsduHeader && item.TypeId.HasValue ? item.TypeId.Value.ToString(CultureInfo.InvariantCulture) : "-";
         TypeIdName = BuildTypeIdName(item);
         TypeBadge = item.AsduDetails is { Issues.Count: 0 } validAsdu
             ? IecSignalTypeBadge.FromDecoded(ProtocolMode, validAsdu.TypeId) : null;
-        Vsq = item.VariableStructureQualifier.HasValue ? $"0x{item.VariableStructureQualifier.Value:X2}" : "-";
-        CotCode = item.CauseOfTransmission.HasValue ? item.CauseOfTransmission.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        Cot = item.Cot ?? "-";
+        Vsq = decodedAsduHeader && item.VariableStructureQualifier.HasValue ? $"0x{item.VariableStructureQualifier.Value:X2}" : "-";
+        CotCode = decodedAsduHeader && item.CauseOfTransmission.HasValue ? item.CauseOfTransmission.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        Cot = decodedAsduHeader ? item.Cot ?? "-" : "Not decoded";
         CotDisplay = CotCode == "-" ? Cot : $"{CotCode} · {Cot}";
         LinkAddress = item.LinkAddress.HasValue ? item.LinkAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        CommonAddress = item.CommonAddressNumber.HasValue ? item.CommonAddressNumber.Value.ToString(CultureInfo.InvariantCulture) : (item.Frame?.Asdu?.CommonAddress.ToString(CultureInfo.InvariantCulture) ?? "-");
-        IoAddress = item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        CommonAddress = !decodedAsduHeader ? "-" : item.CommonAddressNumber.HasValue ? item.CommonAddressNumber.Value.ToString(CultureInfo.InvariantCulture) : (item.Frame?.Asdu?.CommonAddress.ToString(CultureInfo.InvariantCulture) ?? "-");
+        IoAddress = decodedAsduHeader && item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         ApciFormat = string.IsNullOrWhiteSpace(item.ApciFormat) ? "-" : item.ApciFormat;
         SendSequence = item.SendSequence.HasValue ? item.SendSequence.Value.ToString(CultureInfo.InvariantCulture) : "-";
         ReceiveSequence = item.ReceiveSequence.HasValue ? item.ReceiveSequence.Value.ToString(CultureInfo.InvariantCulture) : "-";
         UFormatName = string.IsNullOrWhiteSpace(item.UFormatName) ? "-" : item.UFormatName;
-        ObjectCount = item.ObjectCount.HasValue ? item.ObjectCount.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        SequenceMode = item.IsSequenceAsdu.HasValue ? (item.IsSequenceAsdu.Value ? "SQ=1" : "SQ=0") : "-";
+        ObjectCount = decodedAsduHeader && item.ObjectCount.HasValue ? item.ObjectCount.Value.ToString(CultureInfo.InvariantCulture) : "-";
+        SequenceMode = decodedAsduHeader && item.IsSequenceAsdu.HasValue ? (item.IsSequenceAsdu.Value ? "SQ=1" : "SQ=0") : "-";
         Quality = BuildQualityText(item);
         Fun = item.FunctionType.HasValue ? item.FunctionType.Value.ToString(CultureInfo.InvariantCulture) : "-";
         Inf = item.InformationNumber.HasValue ? item.InformationNumber.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -392,6 +393,8 @@ public sealed partial class EvidenceRow
             return "Single-character negative response — verify device profile";
         if (frame is { IsChecksumValid: false } or { IsLengthValid: false })
             return "Invalid link frame — inspect original bytes";
+        if (Source.AsduDetails is { IsHeaderValid: false })
+            return "Malformed ASDU header — inspect original HEX";
         if (Source.AsduDetails is { } asdu)
             return Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
         var link = frame?.LinkControl;
@@ -430,7 +433,9 @@ public sealed partial class EvidenceRow
             fields.Add(Source.PhysicalSource);
         if (LinkAddress != "-")
             fields.Add("Link address " + LinkAddress);
-        if (Source.AsduDetails is { } asdu)
+        if (Source.AsduDetails is { IsHeaderValid: false })
+            fields.Add("ASDU header not decoded");
+        else if (Source.AsduDetails is { } asdu)
         {
             fields.Add("Common address " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
             fields.Add("Type " + asdu.TypeId.ToString(CultureInfo.InvariantCulture));
@@ -783,6 +788,7 @@ public sealed partial class EvidenceRow
 
     private static string BuildTypeIdName(Iec103MasterEvidenceEvent item)
     {
+        if (item.AsduDetails is { IsHeaderValid: false }) return "Not decoded";
         if (!item.TypeId.HasValue)
         {
             return item.AsduType ?? "-";
@@ -870,7 +876,7 @@ public sealed partial class EvidenceRow
 
     private string BuildReadableMeaning(Iec103MasterEvidenceEvent item)
     {
-        if (item.IsRelayValue)
+        if (item.IsRelayValue && item.AsduDetails is not { Issues.Count: > 0 })
         {
             var signal = string.IsNullOrWhiteSpace(SemanticLabel) ? BuildSignalOrAddress() : SemanticLabel;
             var value = string.IsNullOrWhiteSpace(SemanticState) ? item.SignalRawValue : SemanticState;
