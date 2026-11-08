@@ -19,17 +19,27 @@ public static class FrameTraceVisualPolicy
         var asdu = source.AsduDetails;
         var control = frame?.LinkControl;
 
+        // Inspect canonical fields ONLY. All applicable quality alarms count,
+        // including blocked/substituted/stale values and BCR carry/adjustment.
+        // A plausible checksum alone does not certify the information objects.
         if (frame is { IsChecksumValid: false } or { IsLengthValid: false } ||
             frame?.Issues.Count > 0 || asdu?.Issues.Count > 0 ||
             frame?.IsSingleCharacterNack == true ||
             control?.Dfc == true ||
             control is { Prm: false, FunctionCode: 1 } ||
             asdu?.IsNegativeConfirm == true || asdu?.IsTest == true ||
+            asdu?.CauseOfTransmission is >= 44 and <= 47 ||
             source.CauseDetails?.Negative == true || source.CauseDetails?.Test == true ||
-            asdu?.Objects.Any(o => o.QualityDetails is { Invalid: true } ||
-                o.QualityDetails?.Overflow == true ||
-                o.Cp56TimeDetails is { IsValid: false } ||
-                o.Cp56TimeDetails?.SubstitutedFlag == true) == true)
+            source.CauseDetails?.Code is >= 44 and <= 47 ||
+            asdu?.Objects.Any(o =>
+                o.Issues.Count > 0 ||
+                (o.QualityDetails is { } q &&
+                    (q.Invalid || q.Overflow == true || q.Blocked == true ||
+                     q.Substituted == true || q.NotTopical == true ||
+                     q.Carry == true || q.Adjusted == true)) ||
+                (o.Cp56TimeDetails is { } t &&
+                    (!t.IsValid || t.SubstitutedFlag || t.UnexpectedReservedBits ||
+                     t.DayOfWeekMatchesCalendar == false))) == true)
             return "Attention";
 
         if (asdu is not null)

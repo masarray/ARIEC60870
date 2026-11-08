@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
@@ -119,4 +120,44 @@ public sealed class SelectedFrameShareFormatterTests
         Assert.Contains("Selected frames: 0", result);
         Assert.DoesNotContain("## Frame", result);
     }
+    [Fact]
+    public void ClipboardMatchesVisibleHexAndActiveFlagsWithPhysicalProvenance()
+    {
+        var raw = Convert.FromHexString(
+            "681111682869000D0114000100AE0F0C9A994941003A16");
+        raw[^3] = 0xF1; // OV, BL, SB, NT, IV physically present in QDS.
+        raw[^2] = (byte)(raw.Skip(4).Take(raw.Length - 6).Sum(b => b) & 255);
+        var decode = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            raw.Skip(7).Take(raw.Length - 9).ToArray());
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 1042,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            TimestampUtc = new DateTime(2026, 11, 8, 1, 2, 3, DateTimeKind.Utc),
+            PhysicalSource = "Link B",
+            PhysicalStreamId = 3,
+            RawStreamOffset = 128766,
+            RawHex = Convert.ToHexString(raw),
+            Frame = new Ft12Parser(2).Decode(raw),
+            AsduDetails = decode,
+            LinkAddress = 105
+        });
+        var copy = SelectedFrameShareFormatter.FormatForClipboard(new[] { row });
+        Assert.Contains("[1042]  Host ", copy);
+        Assert.Contains("Link B | stream 3 | byte offset 128766", copy);
+        Assert.Contains(row.ProtocolTraceRaw, copy);
+        Assert.Contains(row.TraceForensic.LinkLayer, copy);
+        Assert.Contains(row.TraceForensic.AsduHeader, copy);
+        Assert.Contains(row.TraceForensic.InformationObjects, copy);
+        Assert.Contains(row.TraceForensic.Validation, copy);
+        Assert.Contains("ACTIVE FLAGS: " + row.TraceForensic.ActiveFlags, copy);
+        Assert.Contains("#1 OV=1", copy);
+        Assert.Contains("#1 BL=1", copy);
+        Assert.Contains("#1 SB=1", copy);
+        Assert.Contains("#1 NT=1", copy);
+        Assert.Contains("#1 IV=1", copy);
+        Assert.DoesNotContain("Good |", copy);
+    }
+
 }

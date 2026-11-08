@@ -74,6 +74,10 @@ public static class ForensicTraceLayout
                         Child(link, "ACD", $"{Flag(ctl.Acd)} · {(ctl.Acd == true ? "Class 1 pending" : "No Class 1 indicated")}");
                         Child(link, "DFC", $"{Flag(ctl.Dfc)} · {(ctl.Dfc == true ? "Flow restricted" : "Ready")}");
                         if (ctl.Dfc == true) flags.Add("DFC=1");
+                        // On a link-only empty response, ACD still demands a
+                        // Class 1 drain. Keep it visible when Class 2 is empty.
+                        if (ctl.Acd == true && asdu is null)
+                            flags.Add("ACD=1 · Class 1 pending");
                     }
                     Child(link, "Function", $"{ctl.FunctionCode} · {ctl.FunctionName}", last: true);
                 }
@@ -129,6 +133,8 @@ public static class ForensicTraceLayout
             Add(header, "CA", asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
             if (asdu.IsNegativeConfirm) flags.Add("NEG=1");
             if (asdu.IsTest) flags.Add("TEST=1");
+            if (asdu.CauseOfTransmission is >= 44 and <= 47)
+                flags.Add($"COT={asdu.CauseOfTransmission} · protocol error");
             if (asdu.Objects.Count != asdu.ObjectCount)
                 Add(check, "Objects", $"{asdu.Objects.Count}/{asdu.ObjectCount} decoded");
             if (asdu.Objects.Count == 0) Add(objects, "Objects", "None decoded");
@@ -211,6 +217,8 @@ public static class ForensicTraceLayout
             if (q.Blocked == true) flags.Add($"#{obj.Index} BL=1");
             if (q.Substituted == true) flags.Add($"#{obj.Index} SB=1");
             if (q.NotTopical == true) flags.Add($"#{obj.Index} NT=1");
+            if (q.Carry == true) flags.Add($"#{obj.Index} CY=1");
+            if (q.Adjusted == true) flags.Add($"#{obj.Index} BCR CA=1");
         }
         else
         {
@@ -363,6 +371,15 @@ public static class ForensicTraceLayout
             "BL" => BitFromObjects(q => q.Blocked),
             "SB" => BitFromObjects(q => q.Substituted),
             "NT" => BitFromObjects(q => q.NotTopical),
+            "CY" or "CARRY" => BitFromObjects(q => q.Carry),
+            // CA without a prefix is commonly understood as Common Address.
+            // Use ADJ to avoid treating 'CA=1' as a BCR flag search.
+            "ADJ" or "BCRCA" => BitFromObjects(q => q.Adjusted),
+            "TIMEBAD" => asdu is not null && asdu.Objects.Any(o =>
+                o.Cp56TimeDetails is { } t && !t.IsValid == expected),
+            "TIMEWARN" => asdu is not null && asdu.Objects.Any(o =>
+                o.Cp56TimeDetails is { } t &&
+                (t.UnexpectedReservedBits || t.DayOfWeekMatchesCalendar == false) == expected),
             "NEG" or "NEGATIVE" => asdu is not null &&
                 asdu.IsNegativeConfirm == expected,
             "TEST" => asdu is not null && asdu.IsTest == expected,

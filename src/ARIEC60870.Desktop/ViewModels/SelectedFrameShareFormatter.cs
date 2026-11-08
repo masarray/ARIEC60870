@@ -24,15 +24,30 @@ public static class SelectedFrameShareFormatter
                 ? row.Source.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd ", CultureInfo.InvariantCulture) + row.Time
                 : row.Time;
             var arrow = row.Direction == "TX" ? "↑ TX" : row.Direction == "RX" ? "↓ RX" : row.Direction;
-            sb.Append(stamp).Append("  ").Append(arrow).Append("  ")
-                .AppendLine(row.ProtocolTraceHeader);
+            sb.Append('[').Append(row.Sequence.ToString(CultureInfo.InvariantCulture))
+                .Append("]  Host ").Append(stamp).Append("  ").Append(arrow)
+                .Append("  ").AppendLine(row.ProtocolTraceHeader);
+            // Source identity is essential when a dual-direction capture has
+            // two independent streams with identical link addresses/timestamps.
+            var source = row.Source;
+            var provenance = new List<string>(3);
+            if (!string.IsNullOrWhiteSpace(source.PhysicalSource))
+                provenance.Add(source.PhysicalSource);
+            if (source.PhysicalStreamId.HasValue)
+                provenance.Add("stream " + source.PhysicalStreamId.Value.ToString(CultureInfo.InvariantCulture));
+            if (source.RawStreamOffset.HasValue)
+                provenance.Add("byte offset " + source.RawStreamOffset.Value.ToString(CultureInfo.InvariantCulture));
+            if (provenance.Count > 0)
+                sb.Append("Source: ").AppendLine(string.Join(" | ", provenance));
             if (row.ProtocolMode == "101" && row.Source.Frame is not null)
             {
                 // Copy uses exactly the same lazy decoder-backed presentation
                 // as the WPF three-column forensic viewer. Plain-text sections
                 // remain readable when pasted into Notepad or a support ticket.
                 var trace = row.TraceForensic;
-                sb.AppendLine("Raw Frame: " + row.RawHex);
+                // The copied raw line is byte-for-byte the already visible row,
+                // not a second normalization that could disagree with WPF.
+                sb.AppendLine(row.ProtocolTraceRaw);
                 sb.AppendLine();
                 sb.AppendLine("LINK LAYER");
                 sb.AppendLine(trace.LinkLayer);
@@ -46,6 +61,8 @@ public static class SelectedFrameShareFormatter
                     sb.AppendLine("INFORMATION OBJECTS");
                     sb.AppendLine(trace.InformationObjects);
                 }
+                if (!string.IsNullOrWhiteSpace(trace.ActiveFlags))
+                    sb.Append("ACTIVE FLAGS: ").AppendLine(trace.ActiveFlags);
                 sb.AppendLine("FRAME VALIDATION");
                 sb.Append(trace.Validation);
             }

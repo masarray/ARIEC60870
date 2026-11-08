@@ -84,4 +84,81 @@ public sealed class FrameTraceVisualPolicyTests
         Assert.Equal("#18583B", invalid.TraceInk);
         Assert.Equal("681100", invalid.RawHex);
     }
+    [Fact]
+    public void EveryApplicableProcessQualityAlarmGetsAttentionAndStructuredSearch()
+    {
+        foreach (var (rawQuality, predicate) in new (byte Quality, string Search)[]
+        {
+            (0x01, "OV=1"), (0x10, "BL=1"), (0x20, "SB=1"),
+            (0x40, "NT=1"), (0x80, "IV=1")
+        })
+        {
+            var raw = (byte[])FloatFrame.Clone();
+            raw[^3] = rawQuality;
+            raw[^2] = (byte)(raw.Skip(4).Take(raw.Length - 6).Sum(b => b) & 255);
+            var row = Row(raw, false, decodeAsdu: true);
+            Assert.True(row.Source.Frame!.IsChecksumValid);
+            Assert.Empty(row.Source.AsduDetails!.Issues);
+            Assert.Equal("Attention", row.TraceVisualClass);
+            Assert.True(ForensicTraceLayout.MatchFlag(row, predicate));
+            Assert.True(QuickFindMatcher.MatchesTrace(row, "", "Negative / errors"));
+            Assert.Contains(predicate, row.TraceForensic.ActiveFlags);
+            Assert.Equal(Convert.ToHexString(raw), row.RawHex);
+        }
+    }
+
+    [Fact]
+    public void BcrCarryAndAdjustedAreNotTreatedAsQuietValidMeasurements()
+    {
+        var payload = new byte[]
+        {
+            15, 1, 3, 0, 1, 0, 44, 0, 0,
+            1, 0, 0, 0, 0xE1 // BCR SQ=1; carry, adjusted and invalid
+        };
+        var l = payload.Length + 3;
+        var raw = new byte[l + 6];
+        raw[0] = 0x68; raw[1] = (byte)l; raw[2] = (byte)l;
+        raw[3] = 0x68; raw[4] = 0x28; raw[5] = 0x69; raw[6] = 0;
+        payload.CopyTo(raw, 7);
+        raw[^2] = (byte)(raw.Skip(4).Take(l).Sum(b => b) & 255);
+        raw[^1] = 0x16;
+        var row = Row(raw, false, decodeAsdu: true);
+        Assert.Empty(row.Source.AsduDetails!.Issues);
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "CY=1"));
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "ADJ=1"));
+        Assert.Contains("#1 CY=1", row.TraceForensic.ActiveFlags);
+        Assert.Contains("#1 BCR CA=1", row.TraceForensic.ActiveFlags);
+        Assert.Null(ForensicTraceLayout.MatchFlag(row, "CA=1"));
+    }
+
+    [Fact]
+    public void Cp56CalendarAndReservedBitAnomaliesAreAttentionEvenIfTimeIvBitIsClear()
+    {
+        var raw = Convert.FromHexString(
+            "681414682869001E01140001000604FF016C043814070B1AB716");
+        raw[21] |= 0xE0; // DOW=7 (Sunday), but November 7 2026 is Saturday
+        raw[22] |= 0x10; // unexpected month reserved bit
+        raw[^2] = (byte)(raw.Skip(4).Take(raw.Length - 6).Sum(b => b) & 255);
+        var row = Row(raw, false, decodeAsdu: true);
+        Assert.Empty(row.Source.AsduDetails!.Issues);
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "TIMEWARN=1"));
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "TIV=0"));
+        Assert.Contains("TIME DOW mismatch", row.TraceForensic.ActiveFlags);
+        Assert.Contains("TIME reserved bits", row.TraceForensic.ActiveFlags);
+    }
+
+    [Fact]
+    public void COTUnknownAddressErrorIsNotConsideredNormalUserData()
+    {
+        var raw = (byte[])FloatFrame.Clone();
+        raw[9] = 46; // IEC 60870 cause 46: unknown common address
+        raw[^2] = (byte)(raw.Skip(4).Take(raw.Length - 6).Sum(b => b) & 255);
+        var row = Row(raw, false, decodeAsdu: true);
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.Contains("COT=46", row.TraceForensic.ActiveFlags);
+        Assert.True(QuickFindMatcher.MatchesTrace(row, "", "Negative / errors"));
+    }
+
 }
