@@ -13,9 +13,14 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public sealed record DecodedPointRow(
     int Index, string Address, string Value, string Quality, string RelayTime,
-    string RawHex, string Provenance)
+    string RawHex, string Provenance, string SignalName = "",
+    string QualityValidity = "", string TimeFlags = "")
 {
-    public static IReadOnlyList<DecodedPointRow> FromAsdu(Iec10xAsduDecode? asdu)
+    public string DisplaySignal => string.IsNullOrWhiteSpace(SignalName) ? Address : SignalName;
+    public string SignalAddress => string.IsNullOrWhiteSpace(SignalName) ? "" : Address;
+
+    public static IReadOnlyList<DecodedPointRow> FromAsdu(
+        Iec10xAsduDecode? asdu, Func<int, string?>? resolveSignalName = null)
     {
         if (asdu is null || asdu.Objects.Count == 0)
             return Array.Empty<DecodedPointRow>();
@@ -38,6 +43,24 @@ public sealed record DecodedPointRow(
                     ? "IOA address bytes at ASDU offset " +
                       obj.InformationObjectOffset.ToString(System.Globalization.CultureInfo.InvariantCulture)
                     : "IOA offset unavailable; never infer raw address bytes";
+            // A canonical descriptor may be missing; Unknown must not be
+            // mislabeled Good or invalid. Values and time have different IV bits.
+            var validity = obj.Issues.Count > 0 ? "Decode warning" :
+                obj.QualityDetails is { Invalid: true } ? "IV=1 · Invalid value" :
+                obj.QualityDetails is { Invalid: false } ? "IV=0 · Not marked invalid" :
+                "Quality flag not encoded / unknown";
+
+            var timeFlags = obj.Cp56TimeDetails is { } cp56
+                ? "CP56: " + (cp56.IsValid ? "Valid (time IV=0)" : "Invalid time/date") +
+                    " · " + (cp56.SubstitutedFlag ? "Substituted (GEN=1)" : "Genuine (GEN=0)") +
+                    (cp56.UnexpectedReservedBits ? " · Reserved bits set" : "")
+                : string.IsNullOrWhiteSpace(obj.TimestampText)
+                    ? "No device event timestamp encoded"
+                    : "Device time present · no decoded CP56 GEN/validity flags";
+
+            // This is a read-only strict signal-list lookup. Unmapped IOAs are
+            // still displayed by exact source address, never invented names.
+            var mapped = resolveSignalName?.Invoke(obj.InformationObjectAddress);
             return new DecodedPointRow(
                 obj.Index,
                 "IOA " + obj.InformationObjectAddress.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -45,7 +68,8 @@ public sealed record DecodedPointRow(
                 quality,
                 string.IsNullOrWhiteSpace(obj.TimestampText) ? "No device timestamp" : obj.TimestampText,
                 raw,
-                source);
+                source,
+                mapped ?? string.Empty, validity, timeFlags);
         }).ToArray();
     }
 }
