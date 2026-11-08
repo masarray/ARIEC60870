@@ -265,7 +265,7 @@ public sealed partial class EvidenceRow
             var extra = count - InlineSignalPreviewLimit;
             return extra > 0
                 ? "+" + extra.ToString(CultureInfo.InvariantCulture) +
-                  " more signals · select frame for all objects"
+                  " more signals · open Frame Details for all objects"
                 : string.Empty;
         }
     }
