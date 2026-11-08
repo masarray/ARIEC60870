@@ -156,13 +156,14 @@ public static class ForensicTraceLayout
                 .Take(obj.InformationElementOffset - obj.InformationObjectOffset).ToArray()));
 
         var quality = obj.QualityDetails;
+        var humanValue = HumanValue(obj, asdu.TypeId);
         var digital = quality?.Kind is Iec10xQualityKind.Siq or Iec10xQualityKind.Diq;
         var step = asdu.TypeId is 5 or 6 or 32 && obj.RawBytes.Count > 0;
         if (!digital && !step)
-            Add(text, "Value", string.IsNullOrWhiteSpace(obj.ShortValue) ? "Not decoded" : obj.ShortValue);
+            Add(text, "Value", humanValue);
         if (step)
         {
-            Add(text, "Step (VTI)", obj.ShortValue);
+            Add(text, "Step (VTI)", humanValue);
             Child(text, "T", (obj.RawBytes[0] & 0x80) != 0 ? "1 · Transient" : "0 · Stable", last: true);
         }
 
@@ -171,9 +172,9 @@ public static class ForensicTraceLayout
             Add(text, q.Kind.ToString().ToUpperInvariant(), $"{q.Raw} (hex {q.Raw:X2})");
             var bits = new List<(string Name, string Text)>();
             if (q.Kind == Iec10xQualityKind.Siq)
-                bits.Add(("SPI", $"{q.Raw & 1} · {obj.ShortValue}"));
+                bits.Add(("SPI", $"{q.Raw & 1} · {humanValue}"));
             if (q.Kind == Iec10xQualityKind.Diq)
-                bits.Add(("DPI", $"{q.Raw & 3} · {obj.ShortValue}"));
+                bits.Add(("DPI", $"{q.Raw & 3} · {humanValue}"));
             if (q.Overflow.HasValue)
                 bits.Add(("OV", $"{Flag(q.Overflow)} · {(q.Overflow.Value ? "Overflow" : "No overflow")}"));
             if (q.Blocked.HasValue)
@@ -232,6 +233,26 @@ public static class ForensicTraceLayout
             Add(text, "Time (CP24)", obj.TimestampText);
 
         if (obj.Issues.Count > 0) Add(text, "Decode issue", string.Join("; ", obj.Issues));
+    }
+
+    // UI only: remove the canonical decoder's already-known value prefix.
+    // This does not parse raw bytes or duplicate electrical state decoding.
+    private static string HumanValue(Iec10xInformationObject obj, byte type)
+    {
+        var original = obj.ShortValue;
+        if (string.IsNullOrWhiteSpace(original)) return "Not decoded";
+        var prefix = type switch
+        {
+            1 or 2 or 30 => "SP=",
+            3 or 4 or 31 => "DP=",
+            5 or 6 or 32 => "ST=",
+            9 or 10 or 34 => "Normalized=",
+            11 or 12 or 35 => "Scaled=",
+            13 or 14 or 36 => "Float=",
+            _ => string.Empty
+        };
+        return prefix.Length > 0 && original.StartsWith(prefix, StringComparison.Ordinal)
+            ? original[prefix.Length..] : original;
     }
 
     private static string HumanCause(Iec10xAsduDecode asdu) => asdu.CauseOfTransmission switch
