@@ -805,7 +805,7 @@
                                          TextOptions.TextRenderingMode="ClearType"
                                          TextOptions.TextHintingMode="Fixed">
                                     <ListBox.ItemContainerStyle>
-                                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceLineItem}">
+                                        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ProtocolTraceForensicLineItem}">
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
