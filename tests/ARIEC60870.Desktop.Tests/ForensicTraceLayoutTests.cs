@@ -176,10 +176,13 @@ public sealed class ForensicTraceLayoutTests
         var asdu = new Iec10xAsduDecode
         {
             TypeId = 100, TypeName = "C_IC_NA_1", ObjectCount = 1,
-            Objects = new[] {new Iec10xInformationObject
+            Objects = new[]
             {
-                Index = 1, InformationObjectAddress = 0, ValueText = "QOI 20"
-            }}
+                new Iec10xInformationObject
+                {
+                    Index = 1, InformationObjectAddress = 0, ValueText = "QOI 20"
+                }
+            }
         };
         var row = Row(FloatFrame, asdu);
         Assert.False(ForensicTraceLayout.MatchFlag(row, "IV=0") == true);
