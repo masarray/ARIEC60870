@@ -209,7 +209,7 @@ public partial class MainWindow
             _selectedFrameRow = null;
             SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
             SelectedRawText.Text = "-";
-            TraceInspectorRawText.Text = "";
+            TraceInspectorRawText.Text = "Select a frame to see complete original bytes.";
             _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
             SelectedLineSummaryText.Text = _selectedFrameExplanation;
             SelectedLineDirectionText.Text = "Select a frame";
@@ -237,7 +237,7 @@ public partial class MainWindow
         var explanation = BuildCompactFrameExplanation(row);
         SelectedDetailText.Text = explanation + Environment.NewLine + Environment.NewLine + "Raw: " + row.RawHex;
         SelectedRawText.Text = row.RawHex;
-        TraceInspectorRawText.Text = row.RawHex;
+        TraceInspectorRawText.Text = row.TimelineHex;
         _selectedFrameExplanation = explanation;
         SelectedLineDirectionText.Text = "#" + row.Sequence + " · " + row.Direction +
             " · " + row.Time + " · " + row.TimelineTitle;
