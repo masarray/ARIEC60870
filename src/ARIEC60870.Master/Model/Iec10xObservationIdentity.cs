@@ -104,7 +104,8 @@ public static class Iec10xObservationIdentity
     public static bool HasTrustedDecodedPayload(Iec103MasterEvidenceEvent item)
         => item.Frame?.IsChecksumValid != false &&
            !string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase) &&
-           item.AsduDetails is { IsHeaderValid: true, Issues.Count: 0 } &&
+           item.AsduDetails is not { IsHeaderValid: false } &&
+           (item.AsduDetails?.Issues.Count ?? 0) == 0 &&
            (item.InformationObjectDetails?.Issues.Count ?? 0) == 0;
 
     /// <summary>Each validated spontaneous/return-information object is a

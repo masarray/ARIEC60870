@@ -96,19 +96,25 @@ public sealed class Iec10xProtocolTruthHardeningTests
     }
 
     [Fact]
-    public void MissingOrPartialAsduCannotBecomeTrustedProcessEvidence()
+    public void MalformedOrPartialAsduCannotBecomeTrustedProcessEvidence()
     {
         var d = new Iec10xAsduDecoder();
         var complete = d.Decode(Asdu(1, 1, 5, 3, 1));
         var partial = d.Decode(Asdu(1, 1, 5, 3));
+        var malformed = d.Decode([1, 1, 3, 0, 1]);
         Assert.True(Iec10xObservationIdentity.HasTrustedDecodedPayload(
             new Iec103MasterEvidenceEvent
             {
                 AsduDetails = complete,
                 Category = "RX"
             }));
-        Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
+        // Legacy source-typed journal facts can legitimately omit an attached
+        // decoder object; preserve their classification and explicitly reject
+        // decoded malformed/partial ASDU evidence instead.
+        Assert.True(Iec10xObservationIdentity.HasTrustedDecodedPayload(
             new Iec103MasterEvidenceEvent { Category = "RX" }));
+        Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
+            new Iec103MasterEvidenceEvent { AsduDetails = malformed, Category = "RX" }));
         Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
             new Iec103MasterEvidenceEvent
             {
