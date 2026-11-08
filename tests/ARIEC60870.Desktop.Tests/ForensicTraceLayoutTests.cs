@@ -38,13 +38,13 @@ public sealed class ForensicTraceLayoutTests
             FloatFrame.Skip(7).Take(FloatFrame.Length - 9).ToArray());
         Assert.Empty(asdu.Issues);
         var view = ForensicTraceLayout.Create(Row(FloatFrame, asdu));
-        Assert.Contains("ACD          : 1", view.LinkLayer);
-        Assert.Contains("Type ID      : 13", view.AsduHeader);
-        Assert.Contains("IOA          : 790446", view.InformationObjects);
-        Assert.Contains("OV           : 0", view.InformationObjects);
-        Assert.Contains("IV           : 0", view.InformationObjects);
-        Assert.Contains("Checksum test: PASS", view.Validation);
-        Assert.Contains("Calculated   : 0x3A", view.Validation);
+        Assert.Contains("├─ ACD     : 1 · Class 1 pending", view.LinkLayer);
+        Assert.Contains("Type        : 13 · M_ME_NC_1", view.AsduHeader);
+        Assert.Contains("IOA         : 790446", view.InformationObjects);
+        Assert.Contains("OV      : 0 · No overflow", view.InformationObjects);
+        Assert.Contains("IV      : 0 · Valid", view.InformationObjects);
+        Assert.Contains("Checksum    : PASS · 58", view.Validation);
+        Assert.DoesNotContain("calc", view.Validation);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ForensicTraceLayoutTests
         var corrupted = (byte[])FloatFrame.Clone();
         corrupted[^2] ^= 0x01;
         var view = ForensicTraceLayout.Create(Row(corrupted, asdu));
-        Assert.Contains("Checksum test: FAIL", view.Validation);
+        Assert.Contains("Checksum    : FAIL", view.Validation);
         Assert.Contains("Unverified", view.AsduHeader);
         Assert.DoesNotContain("790446", view.InformationObjects);
     }
@@ -84,8 +84,8 @@ public sealed class ForensicTraceLayoutTests
         var row = Row(bytes, asdu);
         var view = ForensicTraceLayout.Create(row);
         Assert.Contains("OBJECT #2", view.InformationObjects);
-        Assert.Contains("IOA raw      : 0A 00 00", view.InformationObjects);
-        Assert.Contains("IOA raw      : 0B 00 00", view.InformationObjects);
+        Assert.Contains("IOA bytes   : 0A 00 00", view.InformationObjects);
+        Assert.Contains("IOA bytes   : 0B 00 00", view.InformationObjects);
         Assert.Contains("#2 OV=1", view.ActiveFlags);
         Assert.True(ForensicTraceLayout.MatchFlag(row, "OV=1") == true);
         Assert.True(ForensicTraceLayout.MatchFlag(row, "OV=0") == true);
@@ -103,7 +103,107 @@ public sealed class ForensicTraceLayoutTests
             bytes.Skip(7).Take(bytes.Length - 9).ToArray());
         var row = Row(bytes, asdu);
         Assert.True(ForensicTraceLayout.MatchFlag(row, "NEG=1") == true);
-        Assert.Contains("NEG          : 1", ForensicTraceLayout.Create(row).AsduHeader);
+        Assert.Contains("NEG     : 1 · Negative", ForensicTraceLayout.Create(row).AsduHeader);
+    }
+
+
+    private static readonly byte[] TimedFrame = Convert.FromHexString(
+        "681414682869001E01140001000604FF016C043814070B1AB716");
+
+    [Fact]
+    public void TimedSinglePointUsesNestedSiqAndCanonicalCp56Flags()
+    {
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            TimedFrame.Skip(7).Take(TimedFrame.Length - 9).ToArray());
+        Assert.Empty(asdu.Issues);
+        var point = Assert.Single(asdu.Objects);
+        Assert.NotNull(point.Cp56TimeDetails);
+        Assert.True(point.Cp56TimeDetails!.IsValid);
+        Assert.False(point.Cp56TimeDetails.SubstitutedFlag);
+        Assert.False(point.Cp56TimeDetails.SummerTimeFlag);
+        var view = ForensicTraceLayout.Create(Row(TimedFrame, asdu));
+        Assert.Contains("OBJECT #1", view.InformationObjects);
+        Assert.Contains("├─ SPI     : 1 · ON", view.InformationObjects);
+        Assert.Contains("├─ RES1    : 0 · Genuine time", view.InformationObjects);
+        Assert.Contains("├─ SU      : 0 · Standard time", view.InformationObjects);
+        Assert.Contains("2026-11-07 20:56:01.132", view.InformationObjects);
+        Assert.Contains("Time bytes  : 6C 04 38 14 07 0B 1A", view.InformationObjects);
+        Assert.DoesNotContain("Quality     : Valid", view.InformationObjects);
+    }
+
+    [Fact]
+    public void TimestampSubstitutionAndSummerTimeAreIndependentOfProcessQuality()
+    {
+        var changed = (byte[])TimedFrame.Clone();
+        changed[19] |= 0x40; // CP56 minute bit 6 / RES1 substituted.
+        changed[20] |= 0x80; // CP56 hour bit 7 / SU summer.
+        changed[^2] = (byte)(changed.Skip(4).Take(changed.Length - 6).Sum(b => b) & 0xFF);
+        var decoded = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            changed.Skip(7).Take(changed.Length - 9).ToArray());
+        Assert.Empty(decoded.Issues);
+        var row = Row(changed, decoded);
+        var view = ForensicTraceLayout.Create(row);
+        Assert.Contains("RES1    : 1 · Substituted time", view.InformationObjects);
+        Assert.Contains("SU      : 1 · Summer time", view.InformationObjects);
+        Assert.Contains("#1 RES1=1", view.ActiveFlags);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "RES1=1") == true);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "SU=1") == true);
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "IV=0") == true); // process SIQ
+        Assert.True(ForensicTraceLayout.MatchFlag(row, "TIV=0") == true); // time
+    }
+
+    [Fact]
+    public void CorruptedTimeRangeCannotBeCalledValidEvenWhenIvBitIsClear()
+    {
+        var changed = (byte[])TimedFrame.Clone();
+        changed[19] = 63; // minute out of range; time IV=0.
+        changed[^2] = (byte)(changed.Skip(4).Take(changed.Length - 6).Sum(b => b) & 0xFF);
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            changed.Skip(7).Take(changed.Length - 9).ToArray());
+        var row = Row(changed, asdu);
+        var t = Assert.Single(asdu.Objects).Cp56TimeDetails!;
+        Assert.False(t.IsValid);
+        Assert.False(t.InvalidFlag);
+        Assert.Contains("invalid-time", t.TimestampText);
+        var view = ForensicTraceLayout.Create(row);
+        Assert.Contains("Invalid date/range", view.InformationObjects);
+        Assert.Contains("TIME IV/range", view.ActiveFlags);
+    }
+
+
+    [Fact]
+    public void StepPositionVtiPreservesSignedSevenBitValueSeparateFromTransient()
+    {
+        // Actual TI32 FT1.2 layout: VTI at original physical byte offset 16.
+        var raw = Convert.FromHexString(
+            "68151568286900200114000100B00F0C07006C043814070B1A8116");
+        Assert.True(new Ft12Parser(2).Decode(raw).IsChecksumValid);
+
+        byte[] Modify(byte vti)
+        {
+            var changed = (byte[])raw.Clone();
+            changed[16] = vti;
+            changed[^2] = (byte)(changed.Skip(4)
+                .Take(changed.Length - 6).Sum(b => b) & 0xFF);
+            return changed;
+        }
+
+        var transientBytes = Modify(0x87);
+        var transient = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            transientBytes.Skip(7).Take(transientBytes.Length - 9).ToArray());
+        var first = Assert.Single(transient.Objects);
+        Assert.Equal(7, first.StepDetails!.Value);
+        Assert.True(first.StepDetails.Transient);
+        Assert.Equal("ST=7", first.ShortValue);
+        Assert.Contains("T       : 1 · Transient",
+            ForensicTraceLayout.Create(Row(transientBytes, transient)).InformationObjects);
+
+        var minusOne = Modify(0x7F);
+        var negative = new Iec10xAsduDecoder(2, 2, 3).Decode(
+            minusOne.Skip(7).Take(minusOne.Length - 9).ToArray());
+        Assert.Equal(-1, Assert.Single(negative.Objects).StepDetails!.Value);
+        Assert.False(negative.Objects[0].StepDetails!.Transient);
+        Assert.Equal("ST=-1", negative.Objects[0].ShortValue);
     }
 
     [Fact]
@@ -112,10 +212,13 @@ public sealed class ForensicTraceLayoutTests
         var asdu = new Iec10xAsduDecode
         {
             TypeId = 100, TypeName = "C_IC_NA_1", ObjectCount = 1,
-            Objects = new[] {new Iec10xInformationObject
+            Objects = new[]
             {
-                Index = 1, InformationObjectAddress = 0, ValueText = "QOI 20"
-            }}
+                new Iec10xInformationObject
+                {
+                    Index = 1, InformationObjectAddress = 0, ValueText = "QOI 20"
+                }
+            }
         };
         var row = Row(FloatFrame, asdu);
         Assert.False(ForensicTraceLayout.MatchFlag(row, "IV=0") == true);

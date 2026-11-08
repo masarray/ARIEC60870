@@ -160,10 +160,14 @@ public sealed class Iec10xAsduDecoder
     private static Iec10xInformationObject BuildObject(byte type, int index, int ioa, byte[] data, int objectOffset, int elementOffset, IReadOnlyList<string> existingIssues)
     {
         var issues = existingIssues.ToList();
-        var value = DecodeValueText(type, data, issues);
+        var stepDetails = type is 5 or 6 or 32 && data.Length > 0
+            ? Iec10xStepPositionDetails.Decode(data[0]) : null;
+        var value = stepDetails is not null
+            ? $"ST={stepDetails.Value}" : DecodeValueText(type, data, issues);
         var qualityDetails = Iec10xQualityDetails.Decode(type, data);
         var quality = qualityDetails?.DisplayText ?? string.Empty;
-        var time = DecodeTimestampText(type, data);
+        var timeTag = Iec10xCp56Time2aDetails.FromInformationElement(type, data);
+        var time = timeTag?.TimestampText ?? DecodeTimestampText(type, data);
 
         return new Iec10xInformationObject
         {
@@ -172,10 +176,12 @@ public sealed class Iec10xAsduDecoder
             InformationObjectOffset = objectOffset,
             InformationElementOffset = elementOffset,
             QualityDetails = qualityDetails,
+            StepDetails = stepDetails,
             ValueText = value,
             EngineeringValue = value,
             QualityText = quality,
             TimestampText = time,
+            Cp56TimeDetails = timeTag,
             ElementSummary = BuildElementSummary(value, quality, time, data),
             RawBytes = data,
             Issues = issues
@@ -244,7 +250,7 @@ public sealed class Iec10xAsduDecoder
             {
                 1 or 2 or 30 => data.Length >= 1 ? $"SP={DecodeSinglePoint(data[0])}" : string.Empty,
                 3 or 4 or 31 => data.Length >= 1 ? $"DP={DecodeDoublePoint(data[0])}" : string.Empty,
-                5 or 6 or 32 => data.Length >= 1 ? $"ST={unchecked((sbyte)data[0])}" : string.Empty,
+                5 or 6 or 32 => data.Length >= 1 ? $"ST={Iec10xStepPositionDetails.Decode(data[0]).Value}" : string.Empty,
                 7 or 8 or 33 => data.Length >= 4 ? $"Bitstring=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 9 or 10 or 34 => data.Length >= 2 ? $"Normalized={ReadNormalized(data).ToString("0.#####", CultureInfo.InvariantCulture)}" : string.Empty,
                 11 or 12 or 35 => data.Length >= 2 ? $"Scaled={BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan(0, 2))}" : string.Empty,
@@ -355,24 +361,7 @@ public sealed class Iec10xAsduDecoder
     public static string DecodeCp56Time2a(byte[] data) => data.Length < 7 ? "invalid" : DecodeCp56Time2a(data.AsSpan(0, 7));
 
     public static string DecodeCp56Time2a(ReadOnlySpan<byte> data)
-    {
-        if (data.Length < 7) return "invalid";
-        var ms = data[0] | (data[1] << 8);
-        var second = ms / 1000;
-        var millisecond = ms % 1000;
-        var minuteInvalid = (data[2] & 0x80) != 0;
-        var minute = data[2] & 0x3F;
-        var hour = data[3] & 0x1F;
-        // CP56 day-of-week occupies day octet bits 5..7: bit 7 is NOT invalid.
-        var day = data[4] & 0x1F;
-        var month = data[5] & 0x0F;
-        var year = 2000 + (data[6] & 0x7F);
-        var validDate = month is >= 1 and <= 12 && day >= 1 &&
-            day <= DateTime.DaysInMonth(year, Math.Clamp(month, 1, 12));
-        var invalid = minuteInvalid || minute > 59 || ms >= 60000 || hour > 23 || !validDate
-            ? " invalid-time" : string.Empty;
-        return $"{year:0000}-{month:00}-{day:00} {hour:00}:{minute:00}:{second:00}.{millisecond:000}{invalid}";
-    }
+        => Iec10xCp56Time2aDetails.Decode(data)?.TimestampText ?? "invalid";
 
     public static string TypeName(byte type) => type switch
     {

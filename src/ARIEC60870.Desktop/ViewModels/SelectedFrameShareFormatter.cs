@@ -26,10 +26,36 @@ public static class SelectedFrameShareFormatter
             var arrow = row.Direction == "TX" ? "↑ TX" : row.Direction == "RX" ? "↓ RX" : row.Direction;
             sb.Append(stamp).Append("  ").Append(arrow).Append("  ")
                 .AppendLine(row.ProtocolTraceHeader);
-            if (!string.IsNullOrWhiteSpace(row.ProtocolTraceCompactMeaning))
-                sb.AppendLine(row.ProtocolTraceCompactMeaning.Trim());
-            sb.Append(row.ProtocolTraceRaw.StartsWith("Hex Frame:", StringComparison.Ordinal)
-                ? row.ProtocolTraceRaw : "Hex Frame: " + row.RawHex);
+            if (row.ProtocolMode == "101" && row.Source.Frame is not null)
+            {
+                // Copy uses exactly the same lazy decoder-backed presentation
+                // as the WPF three-column forensic viewer. Plain-text sections
+                // remain readable when pasted into Notepad or a support ticket.
+                var trace = row.TraceForensic;
+                sb.AppendLine("Raw Frame: " + row.RawHex);
+                sb.AppendLine();
+                sb.AppendLine("LINK LAYER");
+                sb.AppendLine(trace.LinkLayer);
+                if (!string.IsNullOrWhiteSpace(trace.AsduHeader))
+                {
+                    sb.AppendLine("ASDU HEADER");
+                    sb.AppendLine(trace.AsduHeader);
+                }
+                if (!string.IsNullOrWhiteSpace(trace.InformationObjects))
+                {
+                    sb.AppendLine("INFORMATION OBJECTS");
+                    sb.AppendLine(trace.InformationObjects);
+                }
+                sb.AppendLine("FRAME VALIDATION");
+                sb.Append(trace.Validation);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(row.ProtocolTraceCompactMeaning))
+                    sb.AppendLine(row.ProtocolTraceCompactMeaning.Trim());
+                sb.Append(row.ProtocolTraceRaw.StartsWith("Hex Frame:", StringComparison.Ordinal)
+                    ? row.ProtocolTraceRaw : "Hex Frame: " + row.RawHex);
+            }
         }
         return sb.ToString();
     }
