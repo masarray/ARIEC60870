@@ -51,6 +51,73 @@ public sealed class Iec101TraceNarratorTests
     }
 
     [Fact]
+    public void EngineerTimelineShowsPollingAsOneHumanReadableRowWithoutRawDump()
+    {
+        var row = new EvidenceRow(LinkFrame("10 4B 69 B4 16", "Class 2"));
+        Assert.Equal("Master requests Class 2 data · Station 105", row.TimelineTitle);
+        Assert.Contains("Link address 105", row.TimelineContext);
+        Assert.DoesNotContain("Hex Frame:", row.TimelineTitle);
+        Assert.Equal("Routine", row.TraceVisualClass);
+        Assert.Contains("asks the remote station for Class 2 data",
+            FrameInspectorFieldPresentation.HumanSummary(row));
+        Assert.Equal("Hex Frame: 10 4B 69 B4 16", row.ProtocolTraceRaw);
+    }
+
+    [Fact]
+    public void SecondaryNoDataWithAcdRemainsVisibleAsPendingClassOne()
+    {
+        var row = new EvidenceRow(LinkFrame("10 29 69 92 16", "Class 2"));
+        Assert.Contains("No requested data available", row.TimelineTitle);
+        Assert.Contains("Class 1 data pending", row.TimelineTitle);
+        Assert.Contains("Class 1 pending (ACD=1)", row.TimelineContext);
+        Assert.DoesNotContain("rejected", FrameInspectorFieldPresentation.HumanSummary(row));
+        Assert.Contains("this specific request", FrameInspectorFieldPresentation.HumanSummary(row));
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.Contains("Class 1 data is pending", FrameInspectorFieldPresentation.AccessDemand(true));
+        Assert.Contains("does not indicate", FrameInspectorFieldPresentation.DataFlowControl(false));
+    }
+
+    [Fact]
+    public void GiActivationConfirmationIsNotMisrepresentedAsGiCompletion()
+    {
+        var bytes = new byte[] { 100, 1, 7, 0, 1, 0, 0, 0, 0, 20 };
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(bytes);
+        var wire = MakeVariableFrame(0x08, 0x69, bytes);
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            Frame = new Ft12Parser(1).Decode(wire),
+            AsduDetails = asdu,
+            LinkAddress = 105,
+            RawHex = Convert.ToHexString(wire)
+        });
+        Assert.Contains("GI accepted", row.TimelineTitle);
+        var summary = FrameInspectorFieldPresentation.HumanSummary(row);
+        Assert.Contains("accepted the station interrogation", summary);
+        Assert.Contains("does not mean that all interrogation values have arrived", summary);
+        Assert.DoesNotContain("complete", row.TimelineTitle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BadChecksumIsHighlightedWithoutTrustingDecodedApplicationMeaning()
+    {
+        var bytes = Convert.FromHexString("104B69B416");
+        bytes[3] ^= 0x01;
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.MasterToSlave,
+            Frame = new Ft12Parser(1).Decode(bytes),
+            RawHex = Convert.ToHexString(bytes)
+        });
+        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.Contains("Invalid link frame", row.TimelineTitle);
+        Assert.Contains("failed the link-layer integrity check",
+            FrameInspectorFieldPresentation.HumanSummary(row));
+    }
+
+    [Fact]
     public void Class2NoDataAndAcd1ShowsAvailableClass1WithoutClaimingDeliveredData()
     {
         var f = LinkFrame("10 29 69 92 16", "Class 2");
