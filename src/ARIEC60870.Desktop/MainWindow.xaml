@@ -809,7 +809,7 @@
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
-                                        <ContextMenu>
+                                        <ContextMenu FontFamily="Cascadia Mono, Consolas">
                                             <MenuItem x:Name="TraceOlderContextMenuItem" Header="‹ Older session frames"
                                                       Visibility="Collapsed" Click="TraceOlder_Click"/>
                                             <MenuItem x:Name="TraceNewerContextMenuItem" Header="Newer session frames ›"
@@ -956,7 +956,7 @@
                                               VirtualizingPanel.VirtualizationMode="Recycling"
                                               ClipboardCopyMode="IncludeHeader"
                                               HeadersVisibility="Column" RowHeight="24"
-                                              FontFamily="{StaticResource AppFont}" FontSize="11.2"
+                                              FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                               RowBackground="White" AlternatingRowBackground="#F2F6FA">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="UART Time" Binding="{Binding Utc}" Width="110"/>
