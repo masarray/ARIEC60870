@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop.Tests;
 
 public sealed class EngineerFramePresentationTests
 {
-    private static Iec103MasterEvidenceEvent Event(Iec10xAsduDecode? asdu = null, Ft12Frame? frame = null) =>
+    private static Iec103MasterEvidenceEvent Event(Iec10xAsduDecode? asdu = null, Ft12FrameDecode? frame = null) =>
         new()
         {
             ProtocolMode = Iec60870ProtocolMode.Iec101,
