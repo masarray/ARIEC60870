@@ -870,21 +870,21 @@
                 <ControlTemplate TargetType="ListBoxItem">
                     <Border x:Name="TraceChrome" Background="White"
                             BorderThickness="0,0,0,1" BorderBrush="#DEE7EC"
-                            Padding="12,8,12,10">
+                            Padding="7,4,7,4">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
                         <DataTrigger Binding="{Binding TraceVisualClass}" Value="Routine">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#F5F7F9" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#FAFBFC" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TraceVisualClass}" Value="GI">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#F3F8F5" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#F8FAFC" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TraceVisualClass}" Value="Command">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#F2F6FC" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#F8FAFC" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TraceVisualClass}" Value="Attention">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#FFF6F0" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#FFF8F2" />
                         </DataTrigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="TraceChrome" Property="Background" Value="#E9EEF3" />
