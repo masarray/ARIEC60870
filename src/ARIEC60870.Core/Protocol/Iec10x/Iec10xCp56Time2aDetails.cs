@@ -32,7 +32,7 @@ public sealed record Iec10xCp56Time2aDetails
     public bool IsValid => !InvalidFlag && CalendarInRange;
     public bool UnexpectedReservedBits => Reserved2 != 0 || Reserved3 != 0 || Reserved4 != 0;
     public string DayOfWeekText => DayOfWeek == 0 ? "Not supplied" :
-        ((System.DayOfWeek)DayOfWeek).ToString();
+        DayOfWeek == 7 ? "Sunday" : ((System.DayOfWeek)DayOfWeek).ToString();
 
     /// <summary>Display is wall-clock time as supplied; never invent UTC or TZ.</summary>
     public string TimestampText =>
