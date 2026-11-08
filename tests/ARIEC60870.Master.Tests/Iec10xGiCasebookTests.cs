@@ -197,6 +197,46 @@ public sealed class Iec10xGiCasebookTests
     }
 
     [Fact]
+    public void StructurallyCompleteButInvalidGiIoaDoesNotStartOrEndTransaction()
+    {
+        var book = new Iec10xGiCasebook();
+        // A TI100 decoder can parse these bytes, but GI service IOA must be zero.
+        byte[] wrongStart = [100, 1, 6, 0, 1, 0, 1, 0, 0, 20];
+        Assert.Null(book.Observe(Decode(wrongStart, rtu: false)));
+        Assert.Equal(0, book.ActiveCount);
+
+        book.Observe(Gi(6));
+        book.Observe(Gi(7, rtu: true));
+        byte[] wrongEnd = [100, 1, 10, 0, 1, 0, 1, 0, 0, 20];
+        Assert.Null(book.Observe(Decode(wrongEnd, rtu: true)));
+        Assert.Null(book.Observe(Gi(10, rtu: true, negative: true)));
+        Assert.Equal(1, book.ActiveCount);
+        Assert.Equal("GI acknowledged", book.Snapshot().Single().Status);
+
+        var actual = book.Observe(Gi(10, rtu: true))!;
+        Assert.Equal("ACTTERM observed · coverage unknown", actual.Case.Status);
+        Assert.Equal(0, book.ActiveCount);
+    }
+
+    [Fact]
+    public void CommandWithInterrogatedCotCannotInflateGiProcessDataOrCoverage()
+    {
+        var book = new Iec10xGiCasebook();
+        book.Observe(Gi(6));
+        book.Observe(Gi(7, rtu: true));
+        // COT20 alone is not enough: TI45 and TI102 are commands, not process data.
+        byte[] command = [45, 1, 20, 0, 1, 0, 100, 0, 0, 1];
+        byte[] read = [102, 1, 20, 0, 1, 0, 100, 0, 0];
+        Assert.Null(book.Observe(Decode(command, rtu: true)));
+        Assert.Null(book.Observe(Decode(read, rtu: true)));
+        Assert.Null(book.Observe(TwoObjects()));
+        var end = book.Observe(Gi(10, rtu: true))!.Case;
+        Assert.Equal(1, end.DataFrames);
+        Assert.Equal(2, end.DataObjects);
+        Assert.Equal(2, end.UniqueIoas);
+    }
+
+    [Fact]
     public void OverlapBecomesAmbiguousNeverLastWins()
     {
         var b = new Iec10xGiCasebook();

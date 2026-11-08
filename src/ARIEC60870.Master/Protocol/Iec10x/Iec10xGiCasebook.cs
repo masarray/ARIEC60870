@@ -135,6 +135,7 @@ public sealed class Iec10xGiCasebook
             item.Direction is not (FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster) ||
             item.Frame is { IsChecksumValid: false } ||
             item.Frame is { IsLengthValid: false } ||
+            item.AsduDetails is { IsHeaderValid: false } ||
             item.AsduDetails?.Issues.Count > 0 ||
             string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -178,6 +179,13 @@ public sealed class Iec10xGiCasebook
 
         if (asdu.TypeId == 100 && cot.Code is 6 or 7 or 10)
         {
+            // GI has one fixed IOA=0, one QOI and one information object.
+            // A syntactically decoded TI100 is not transaction proof if its
+            // on-wire object address is nonzero or its structure is incomplete.
+            if (!asdu.IsHeaderValid || asdu.ObjectCount != 1 ||
+                asdu.Objects.Count != 1 || asdu.InformationObjectAddress != 0 ||
+                (cot.Code == 10 && !Iec10xGiTermination.IsObserved(asdu)))
+                return null;
             var qoi = asdu.CommandDetails?.QualifierValue;
             if (qoi is null || qoi.Value < 20 || qoi.Value > 36) return null;
             var key = new GiKey(item.ProtocolMode, source, link, asdu.CommonAddress,
@@ -206,7 +214,11 @@ public sealed class Iec10xGiCasebook
         }
 
         if (item.Direction != FrameDirection.SlaveToMaster ||
-            cot.Code is not (>= 20 and <= 36)) return null;
+            cot.Code is not (>= 20 and <= 36) ||
+            asdu.Objects.Count == 0 ||
+            !(Iec10xProcessEventPolicy.IsDigitalProcessType(asdu.TypeId) ||
+              Iec10xProcessEventPolicy.IsMeasurementOrCounterType(asdu.TypeId)))
+            return null;
 
         // Interrogated data can share an ASDU with multiple decoded SQ=0/SQ=1 IOAs.
         // Never attribute data across CA, source, or two overlapping GI transactions.
