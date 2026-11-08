@@ -1,8 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Globalization;
-
 namespace ARIEC60870.Master.Protocol.Iec10x;
 
 /// <summary>
@@ -34,7 +32,7 @@ public sealed record Iec10xCp56Time2aDetails
     public bool IsValid => !InvalidFlag && CalendarInRange;
     public bool UnexpectedReservedBits => Reserved2 != 0 || Reserved3 != 0 || Reserved4 != 0;
     public string DayOfWeekText => DayOfWeek == 0 ? "Not supplied" :
-        ((DayOfWeek)DayOfWeek).ToString();
+        ((System.DayOfWeek)DayOfWeek).ToString();
 
     /// <summary>Display is wall-clock time as supplied; never invent UTC or TZ.</summary>
     public string TimestampText =>
