@@ -144,10 +144,26 @@ public partial class MainWindow
             if (!ReferenceEquals(_selectedFrameRow, row) ||
                 SelectedLineSummaryText.Text != FrameInspectorFieldPresentation.HumanSummary(row) ||
                 TraceInspectorRawText.Text != row.TimelineHex ||
-                SelectedFrameProperties.Count == 0)
+                (FrameInterpreterPanel.Visibility == Visibility.Visible &&
+                 SelectedFrameProperties.Count == 0))
                 throw new InvalidOperationException(
                     $"Stale inspector or lost source HEX after selection sample {sample}.");
         }
+        // Exercise the operator's on-demand reveal after fast, collapsed
+        // selection: Full Properties must be exact for the latest frame.
+        var lastSelected = FrameTraceGrid.SelectedItem as EvidenceRow
+            ?? throw new InvalidOperationException("Selection vanished before dock reopen.");
+        TraceFrameDetails_Click(this, new RoutedEventArgs());
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            SelectedFrameProperties.FirstOrDefault(x => x.Field == "Observed frame number")?.Value
+                != lastSelected.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture) ||
+            TraceInspectorRawText.Text != lastSelected.TimelineHex)
+            throw new InvalidOperationException("Lazy Full Properties did not hydrate the latest selection.");
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
+        if (SelectedFrameProperties.Count != 0 || SelectedDecodedPoints.Count != 0)
+            throw new InvalidOperationException("Collapsed inspector retained expensive UI projections.");
+
         Array.Sort(samples);
         var p50 = samples[(int)Math.Ceiling(samples.Length * 0.50) - 1];
         var p95 = samples[(int)Math.Ceiling(samples.Length * 0.95) - 1];
