@@ -407,6 +407,7 @@ public sealed class Iec10xAsduDecoder
         30 => "M_SP_TB_1 single-point with CP56Time2a",
         31 => "M_DP_TB_1 double-point with CP56Time2a",
         32 => "M_ST_TB_1 step position with CP56Time2a",
+        33 => "M_BO_TB_1 bitstring with CP56Time2a",
         34 => "M_ME_TD_1 normalized measured value with CP56Time2a",
         35 => "M_ME_TE_1 scaled measured value with CP56Time2a",
         36 => "M_ME_TF_1 short floating measured value with CP56Time2a",

@@ -16,6 +16,12 @@ public sealed class Iec10xTypeIdPresentationTests
     [InlineData(36, "Floating-point measurement with timestamp")]
     [InlineData(45, "Single command")]
     [InlineData(100, "General interrogation")]
+    [InlineData(21, "Normalized measurement without quality descriptor")]
+    [InlineData(33, "32-bit status with timestamp")]
+    [InlineData(70, "End of initialization")]
+    [InlineData(106, "Delay acquisition")]
+    [InlineData(48, "setpoint normalized")]
+    [InlineData(64, "bitstring command with")]
     public void KnownTypeIdRetainsWireNumberAndStandardIdentifier(int ti, string symbol)
     {
         var tooltip = Iec10xTypeIdPresentation.Tooltip(ti);
@@ -40,6 +46,24 @@ public sealed class Iec10xTypeIdPresentationTests
             Iec10xTypeIdPresentation.Tooltip(31, "103"));
         Assert.Contains("Double point with timestamp",
             Iec10xTypeIdPresentation.Tooltip(31, "101"));
+    }
+
+    [Theory]
+    [InlineData(200)]
+    [InlineData(256)]
+    [InlineData(-1)]
+    public void UnknownAndOutOfRangeTypeIdsStayUnclassified(int typeId)
+    {
+        Assert.Contains("Unknown", Iec10xTypeIdPresentation.Tooltip(typeId));
+    }
+
+    [Fact]
+    public void NewlySupportedTypeUsesCoreCanonicalDescription()
+    {
+        Assert.Contains("M_BO_TB_1",
+            ARIEC60870.Master.Protocol.Iec10x.Iec10xAsduDecoder.TypeName(33));
+        Assert.Contains("End of initialization", Iec10xTypeIdPresentation.Name(70));
+        Assert.Equal("TI-33 — IEC-103 ASDU", Iec10xTypeIdPresentation.Tooltip(33, "103"));
     }
 
     [Fact]
