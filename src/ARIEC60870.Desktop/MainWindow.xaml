@@ -995,8 +995,12 @@
                                                                 </Grid.ColumnDefinitions>
                                                                 <TextBlock Text="{Binding Field}" FontSize="11.5"
                                                                            Foreground="{StaticResource Ink700Brush}"/>
-                                                                <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11.5"
-                                                                           Foreground="{StaticResource Ink900Brush}"/>
+                                                                <StackPanel Grid.Column="1">
+                                                                    <TextBlock Text="{Binding Value}" FontSize="11.5"
+                                                                               Foreground="{StaticResource Ink900Brush}"/>
+                                                                    <TextBlock Text="{Binding Explanation}" FontSize="10.7"
+                                                                               Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap"/>
+                                                                </StackPanel>
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
