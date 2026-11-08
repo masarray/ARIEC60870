@@ -103,13 +103,14 @@ public partial class MainWindow
         // the SAME MainWindow. Simulate the actual new passive Start boundary:
         // clear their historical fixture frames before testing zero-RX UX.
         ClearSessionView(clearLog: false);
-        // The single Engineer Mode always starts with selected-frame details
-        // visible; before selection, it displays a short actionable empty state.
-        if (!_traceInspectorPreferredVisible ||
-            FrameInterpreterPanel.Visibility != Visibility.Visible ||
-            TraceInspectorColumn.Width.Value <= 0)
+        // Engineer observation starts with full-width raw+decoded trace,
+        // while the optional right properties panel is folded to the edge.
+        if (_traceInspectorPreferredVisible ||
+            FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            TraceInspectorColumn.Width.Value > 0 ||
+            TraceInspectorToggle.Visibility != Visibility.Visible)
             throw new InvalidOperationException(
-                "Engineer Frame Trace inspector was not visible by default.");
+                "The optional Frame Details panel is not fully collapsed on startup.");
         if (FrameTraceRows.Count != 0 || FrameTraceGrid.Items.Count != 0)
             throw new InvalidOperationException("New capture scope retained earlier smoke-probe frames.");
         // Field-empty-state acceptance: display wire counters and distinguish
@@ -683,10 +684,11 @@ public partial class MainWindow
                     throw new InvalidOperationException(
                         $"Timeline overflows horizontally at {viewport.Name}.");
             }
-            if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
-                TraceInspectorColumn.ActualWidth < 200)
+            if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+                TraceInspectorColumn.ActualWidth > 1 ||
+                !TraceInspectorToggle.IsVisible)
                 throw new InvalidOperationException(
-                    $"The engineer inspector disappeared on viewport {viewport.Name}.");
+                    $"Collapsed Frame Details occupies trace width at {viewport.Name}.");
             if (!TraceAutoScrollButton.IsVisible ||
                 TraceWindowSearchBar.Visibility != Visibility.Visible ||
                 TraceArchiveSearchBar.Visibility != Visibility.Collapsed)
@@ -732,7 +734,7 @@ public partial class MainWindow
         // rendered from source-backed IEC101 two-object values; no mock panels.
         if (TraceQuickScopeCombo.Visibility != Visibility.Collapsed ||
             TraceArchiveModeButton.Visibility != Visibility.Collapsed ||
-            TraceInspectorToggle.Visibility != Visibility.Collapsed)
+            TraceInspectorToggle.Visibility != Visibility.Visible)
             throw new InvalidOperationException("Trace wastes toolbar space on secondary actions/filters.");
 
         // One frame ledger; verify each view displays its own bound data.
@@ -990,52 +992,36 @@ public partial class MainWindow
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         TraceQuickScopeCombo.SelectedIndex = 1;
-        // Explicit selected-frame context command, never auto-open on RX.
+        // Frame selection never opens the optional property dock on its own.
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
         FrameTraceGrid.SelectedItem = multiObjectRow;
-        TraceFrameDetails_Click(this, new RoutedEventArgs());
         FrameTraceGrid.ScrollIntoView(multiObjectRow);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
-        if (DecodedPointSection.Visibility != Visibility.Visible ||
-            SelectedDecodedPoints.Count != 2 || DecodedPointGrid.Items.Count != 2 ||
-            FrameInterpreterPanel.Visibility != Visibility.Visible)
-            throw new InvalidOperationException("Multi-object frame has no visible decoded IOA/value/quality inspector.");
-        var lastPoint = SelectedDecodedPoints[1];
-        DecodedPointGrid.ScrollIntoView(lastPoint);
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-        UpdateLayout();
-        if (DecodedPointGrid.ItemContainerGenerator.ContainerFromItem(lastPoint) is not DataGridRow pointRow ||
-            !pointRow.IsVisible || pointRow.ActualHeight < 12)
-            throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
-        // Two scan-friendly columns keep signal/value and quality/device time
-        // visible even on a narrow field laptop; full bytes stay in row details.
-        if (DecodedPointGrid.Columns.Count != 2)
-            throw new InvalidOperationException("Selected signal/value/quality/time grid is not the two-column engineer layout.");
-        DecodedPointGrid.SelectedItem = lastPoint;
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-        UpdateLayout();
-        if (pointRow.DetailsVisibility != Visibility.Visible ||
-            string.IsNullOrWhiteSpace(lastPoint.RawHex) ||
-            string.IsNullOrWhiteSpace(lastPoint.RelayTime))
-            throw new InvalidOperationException("Object drilldown lost original bytes or device-time status.");
-        interpretedPointRows = DecodedPointGrid.Items.Count;
-        // Field screenshot acceptance: decoded inspector exposes expandable,
-        // source-backed children. No synthetic quality/IOA bits are fabricated.
-        // Frame Properties are intentionally collapsed by default. The
-        // selected-frame decoder stays visible, selectable and copy-faithful
-        // while deep property expansion does not waste viewport height.
-        if (FramePropertiesExpander.IsExpanded ||
-            SelectedFrameProtocolTextBox.Text != SelectedFrameProtocolText.Format(multiObjectRow) ||
-            !SelectedFrameProtocolTextBox.IsReadOnly ||
-            !SelectedFrameProtocolTextBox.Text.Contains("IOA ", StringComparison.Ordinal) ||
-            !SelectedFrameProtocolTextBox.Text.Contains("CA  ", StringComparison.Ordinal) ||
-            !SelectedFrameProtocolTextBox.Text.Contains("COT  ", StringComparison.Ordinal))
+        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            TraceInspectorColumn.ActualWidth > 1 ||
+            !multiObjectRow.TimelineEngineeringIdentity.Contains("TI ", StringComparison.Ordinal) ||
+            !multiObjectRow.TimelineEngineeringCause.Contains("COT ", StringComparison.Ordinal) ||
+            !multiObjectRow.TimelineEngineeringIdentity.Contains("Link ", StringComparison.Ordinal))
             throw new InvalidOperationException(
-                "Frame Properties must start collapsed; source decoded text must be selectable and accurate.");
-        SaveRealWpfBitmap(outputDirectory, "engineer-decoded-frame-properties-collapsed.png");
-        FramePropertiesExpander.IsExpanded = true;
+                "Inline engineering decode must expose verified Link/TI/COT while Frame Details is closed.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-inline-full-width-trace.png");
+
+        // Open and close the actual right-edge details dock. All source-decoded
+        // IOAs, quality flags, and event time must reside in ONE properties list.
+        TraceFrameDetails_Click(this, new RoutedEventArgs());
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
+        if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            TraceInspectorColumn.ActualWidth < 200 ||
+            !FramePropertiesExpander.IsExpanded ||
+            SelectedDecodedPoints.Count != 2 ||
+            SelectedFrameProperties.Count(x => x.Field.StartsWith("Object #", StringComparison.Ordinal)) != 2 ||
+            SelectedLineDirectionText.IsVisible ||
+            DecodedPointGrid.IsVisible)
+            throw new InvalidOperationException(
+                "Right dock must display only Full Properties, with all decoded source IOAs.");
+        interpretedPointRows = SelectedDecodedPoints.Count;
         var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Value structure (VSQ)");
         var ioaRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "IOA");
         var qualityRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Quality");
@@ -1048,23 +1034,46 @@ public partial class MainWindow
             qualityRow?.Children is not { Count: > 1 } ||
             !qualityRow.Children.Any(x => x.Field == "Invalid (IV)" && x.Value == "False"))
             throw new InvalidOperationException(
-                "Selected-frame structured VSQ/IOA/Quality children are missing or incorrect.");
+                "The retained canonical VSQ/IOA/quality byte details are incorrect.");
         FramePropertiesGrid.SelectedItem = vsqRow;
         FramePropertiesGrid.ScrollIntoView(vsqRow);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
-        if (FramePropertiesGrid.ItemContainerGenerator.ContainerFromItem(vsqRow) is not DataGridRow vsqVisual ||
-            vsqVisual.DetailsVisibility != Visibility.Visible)
-            throw new InvalidOperationException(
-                "VSQ inspector child rows cannot be expanded in real WPF.");
-        SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
-        FramePropertiesExpander.IsExpanded = false;
+        if (FramePropertiesGrid.ItemContainerGenerator.ContainerFromItem(vsqRow)
+                is not DataGridRow vsqVisual || vsqVisual.DetailsVisibility != Visibility.Visible)
+            throw new InvalidOperationException("Full Properties row drilldown is not visible in real WPF.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-right-full-properties-only.png");
+
+        // Modeless visual byte diagram is generated from real source-backed
+        // segments, not from the example ASCII art or a second decoder.
+        var window = new FrameByteMapWindow(multiObjectRow) { Owner = this };
+        window.Show();
         await Dispatcher.Yield(DispatcherPriority.Loaded);
-        if (FramePropertiesExpander.IsExpanded ||
+        await Dispatcher.Yield(DispatcherPriority.Render);
+        window.UpdateLayout();
+        if (!window.IsVisible || window.DiagramViewportHeight < 240 ||
+            !window.DiagramText.Contains("HEX  ", StringComparison.Ordinal) ||
+            !window.DiagramText.Contains("Offset ", StringComparison.Ordinal) ||
+            !window.DiagramText.Contains("└─ ", StringComparison.Ordinal))
+        {
+            window.Close();
+            throw new InvalidOperationException("Floating physical byte map is missing original HEX or offset connectors.");
+        }
+        SaveRealWpfElementBitmap(outputDirectory, "engineer-floating-hex-byte-tree.png",
+            (FrameworkElement)window.Content);
+        window.Close();
+
+        TraceFrameDetailsClose_Click(this, new RoutedEventArgs());
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            TraceInspectorColumn.ActualWidth > 1 ||
             !ReferenceEquals(FrameTraceGrid.SelectedItem, multiObjectRow))
-            throw new InvalidOperationException("Collapse must not clear the selected original frame.");
-        // Assert actual source-quality IV warning is visible in the left
-        // original-frame row and the right summary, not only in view-model data.
+            throw new InvalidOperationException(
+                "Closing properties must restore full trace width and retain held selection.");
+
+        // Active invalid quality must remain readable directly in the inline
+        // interpreter when the optional property dock is hidden.
         var invalidPointFrame = FrameTraceRows.LastOrDefault(x =>
             x.TimelineAlerts.Contains("IV=1", StringComparison.Ordinal));
         if (invalidPointFrame is null)
@@ -1078,28 +1087,16 @@ public partial class MainWindow
         if (invalidContainer is null ||
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineHex) ||
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
-            SelectedLineAlertText.Visibility != Visibility.Visible ||
-            !SelectedLineAlertText.Text.Contains("IV=1", StringComparison.Ordinal) ||
-            SelectedDecodedPoints.Count != 1 ||
-            DecodedPointGrid.Height > 110 ||
+            !invalidPointFrame.TimelineEngineeringIdentity.Contains("CA ", StringComparison.Ordinal) ||
             !SelectedDecodedPoints.Any(x => x.QualityValidity.Contains("IV=1", StringComparison.Ordinal)))
             throw new InvalidOperationException(
-                "IV=1 is not simultaneously visible on the original frame row and decoded signal inspector.");
-        SaveRealWpfBitmap(outputDirectory, "engineer-trace-iv-flag.png");
-        // This screenshot captures both visually separate lanes under an
-        // actual GI/IV selected frame for human acceptance on field laptops.
-        SaveRealWpfBitmap(outputDirectory, "engineer-trace-two-lane-evidence.png");
+                "IV=1, Link/CA identity, and original HEX are not visible or source-backed.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-inline-invalid-quality.png");
         FrameTraceGrid.SelectedItem = multiObjectRow;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
-        // One Engineer Mode: selection changes naturally; no close/reopen
-        // workflow or hidden detail toggle is required.
-        if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
-            SelectedDecodedPoints.Count != 2 ||
-            TraceInspectorRawText.Text != multiObjectRow.TimelineHex ||
-            SelectedLineTrustText.Text != EngineerFramePresentation.TrustSummary(multiObjectRow.Source) ||
-            SelectedFrameProtocolTextBox.Text != SelectedFrameProtocolText.Format(multiObjectRow))
-            throw new InvalidOperationException(
-                "Persistent inspector lost selected multi-object evidence.");
+        if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
+            SelectedFrameProperties.Count(x => x.Field.StartsWith("Object #", StringComparison.Ordinal)) != 2)
+            throw new InvalidOperationException("Selected multi-object source must persist with properties folded.");
 
         // Reproduce field failure: a full live Event journal suddenly became one
         // row when a narrower engine result arrived at end of session. Also
@@ -1314,6 +1311,19 @@ public partial class MainWindow
         var prefix = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} ";
         if (!TraceQuickCountText.Text.StartsWith(prefix, StringComparison.Ordinal))
             throw new InvalidOperationException($"Trace counter does not match actual WPF view: {TraceQuickCountText.Text}, expected {prefix}.");
+    }
+
+    private void SaveRealWpfElementBitmap(string output, string filename, FrameworkElement visual)
+    {
+        visual.UpdateLayout();
+        var width = Math.Max(1, (int)Math.Ceiling(visual.ActualWidth));
+        var height = Math.Max(1, (int)Math.Ceiling(visual.ActualHeight));
+        var rendered = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        rendered.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rendered));
+        using var stream = File.Create(Path.Join(output, filename));
+        encoder.Save(stream);
     }
 
     private void SaveRealWpfBitmap(string output, string filename)

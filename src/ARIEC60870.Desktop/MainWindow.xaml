@@ -634,8 +634,8 @@
                         <Grid Margin="10" TextElement.FontFamily="{StaticResource AppFont}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="3*" MinWidth="260" />
-                                <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="6" />
-                                <ColumnDefinition x:Name="TraceInspectorColumn" Width="2*" MinWidth="285" />
+                                <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="0" />
+                                <ColumnDefinition x:Name="TraceInspectorColumn" Width="0" MinWidth="0" />
                             </Grid.ColumnDefinitions>
 
                             <!-- One physical toolbar line: responsive Search | compact counter | AUTO.
@@ -732,9 +732,11 @@
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,7,0" Padding="7,3"/>
                                         </StackPanel>
-                                        <Button x:Name="TraceInspectorToggle" Content="Hide details"
+                                        <Button x:Name="TraceInspectorToggle" Content="‹ Frame Details"
+                                                FontFamily="{StaticResource AppFont}" FontSize="10.8"
+                                                Margin="0,0,9,0" Padding="8,4"
                                                 Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click"
-                                                Visibility="Collapsed"/>
+                                                Visibility="Visible"/>
                                         <TextBlock FontSize="10.9"
                                                    FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0">
                                             <TextBlock.Style>
@@ -787,7 +789,7 @@
                                                Foreground="{StaticResource Ink600Brush}" FontSize="10.7"
                                                TextTrimming="CharacterEllipsis" Margin="1,3,0,0"/>
                                 </StackPanel>
-                                <ListBox x:Name="FrameTraceGrid" ToolTipService.IsEnabled="False"
+                                <ListBox x:Name="FrameTraceGrid" ToolTipService.IsEnabled="False" MouseDoubleClick="FrameTraceGrid_MouseDoubleClick"
                                          Grid.Row="4"
                                          ItemsSource="{Binding FrameTraceRows}"
                                          Style="{StaticResource ProtocolTraceListBox}"
@@ -809,7 +811,7 @@
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ContextMenu>
-                                        <ContextMenu FontFamily="Cascadia Mono, Consolas">
+                                        <ContextMenu FontFamily="{StaticResource AppFont}" FontSize="11.5" ToolTipService.IsEnabled="False">
                                             <MenuItem x:Name="TraceOlderContextMenuItem" Header="‹ Older session frames"
                                                       Visibility="Collapsed" Click="TraceOlder_Click"/>
                                             <MenuItem x:Name="TraceNewerContextMenuItem" Header="Newer session frames ›"
@@ -833,6 +835,7 @@
                                             <MenuItem Header="Show negative / errors" Tag="Negative / errors" Click="TraceScopeMenu_Click"/>
                                             <MenuItem Header="Find in recorded archive..." Click="TraceArchiveMode_Click"/>
                                             <MenuItem Header="Frame Details..." Click="TraceFrameDetails_Click" />
+                                             <MenuItem Header="Frame HEX byte detail..." Click="TraceFrameHexByteDetail_Click" />
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
                                     <!-- Paired evidence/interpretation lanes, not a stacked
@@ -905,20 +908,20 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
-                                                        <TextBlock Text="{Binding TimelineCompactContext}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.2"
-                                                                   Foreground="#657889" Margin="0,2,0,0"
-                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Routine">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding TimelineEngineeringIdentity}"
+                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.5"
+                                                                   Foreground="#3C5670" Margin="0,3,0,0"
+                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                                   MaxHeight="34"/>
+                                                        <TextBlock Text="{Binding TimelineEngineeringCause}"
+                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.4"
+                                                                   Foreground="#405973" Margin="0,2,0,0"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding TimelineDeviceTimestamp}"
+                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.4"
+                                                                   Foreground="#13656A" Margin="0,2,0,0"
+                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                                   MaxHeight="38"/>
                                                         <TextBlock Text="{Binding TimelineAlerts}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    FontWeight="SemiBold" Foreground="#9B3F24"
@@ -982,136 +985,31 @@
                             </Grid>
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Visibility="Visible" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
-                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Visibility="Visible" TextElement.FontFamily="{StaticResource AppFont}" ToolTipService.IsEnabled="False" Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="7" Padding="10">
-                                <!-- On short field laptops, never clip the decoded content
-                                     behind the two-panel viewport. Scroll the existing
-                                     inspector rather than hiding or adding a mode. -->
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                              CanContentScroll="False" Focusable="False">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="6"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="6"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel>
-                                        <DockPanel LastChildFill="True">
-                                            <Menu DockPanel.Dock="Right" Background="Transparent" BorderThickness="0"
-                                                  FontSize="11" VerticalAlignment="Center">
-                                                <MenuItem Header="Copy ▾" Padding="5,3">
-                                                    <MenuItem Header="Copy human summary" Click="CopySelectedSummary_Click"/>
-                                                    <MenuItem Header="Copy decoded fields" Click="CopySelectedFrameDecode_Click"/>
-                                                    <MenuItem Header="Copy original HEX" Click="CopySelectedRawFrame_Click"/>
-                                                    <Separator/>
-                                                    <MenuItem Header="Export decoded fields (.txt)..." Click="ExportSelectedFrameDecode_Click"/>
-                                                </MenuItem>
-                                            </Menu>
-                                            <TextBlock Text="What happened · Selected frame" FontSize="12.4" FontWeight="Medium"
-                                                       Foreground="{StaticResource Ink900Brush}" VerticalAlignment="Center"/>
-                                        </DockPanel>
-                                        <TextBlock x:Name="SelectedLineDirectionText" Text="Select a frame" FontSize="11.3" FontWeight="Medium"
-                                                   Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                        <TextBlock x:Name="SelectedLineSummaryText" Visibility="Visible" Text="Select a TX or RX frame on the left to understand what happened." FontSize="11.8"
-                                                   Foreground="{StaticResource Ink800Brush}" TextWrapping="Wrap" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="SelectedLineTrustText" FontSize="10.7"
-                                                   Foreground="#526779" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                                        <TextBlock x:Name="SelectedLineAlertText" Visibility="Collapsed"
-                                                   FontSize="10.8" FontWeight="SemiBold" Foreground="#9B3F24"
-                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
-                                        <!-- Source-typed, selectable plaintext; identical to Copy
-                                             and Export, no alternate GUI-only interpretation. -->
-                                        <TextBox x:Name="SelectedFrameProtocolTextBox"
-                                                 Margin="0,7,0,0" IsReadOnly="True"
-                                                 IsReadOnlyCaretVisible="True"
-                                                 Text="Select a frame to decode link, ASDU and information objects."
-                                                 FontFamily="Cascadia Mono, Consolas" FontSize="10.7"
-                                                 Foreground="#263F54" Background="White"
-                                                 BorderBrush="#D3E0EA" BorderThickness="1"
-                                                 Padding="7,5" TextWrapping="Wrap"
-                                                 AcceptsReturn="True" MinHeight="78" Height="136"
-                                                 HorizontalScrollBarVisibility="Disabled"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 ToolTip="Read-only decoded fields. Select any bytes or fields and press Ctrl+C."/>
-                                    </StackPanel>
-                                    <!-- Decoded object values are a virtualized selection-only projection.
-                                         Each ASDU stays ONE trace row; large object lists never inflate the timeline. -->
-                                    <StackPanel x:Name="DecodedPointSection" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,4">
-                                        <TextBlock x:Name="DecodedPointHeaderText" Text="Signals · values · quality · device time" FontSize="11.4"
-                                                   FontWeight="Medium" Foreground="{StaticResource Ink800Brush}" Margin="2,0,0,4"/>
-                                        <DataGrid x:Name="DecodedPointGrid" ItemsSource="{Binding SelectedDecodedPoints}"
-                                                  Height="224" IsReadOnly="True" AutoGenerateColumns="False"
-                                                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
-                                                  CanUserResizeRows="False" EnableRowVirtualization="True"
-                                                  EnableColumnVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling"
-                                                  HeadersVisibility="Column" ColumnHeaderHeight="24" RowHeight="68"
-                                                  RowDetailsVisibilityMode="VisibleWhenSelected"
-                                                  FontSize="11.5" FontFamily="{StaticResource AppFont}"
-                                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E4EDF4"
-                                                  RowBackground="White" AlternatingRowBackground="#F3F7FA"
-                                                  BorderBrush="#D7E2EA" BorderThickness="1"
-                                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                                            <DataGrid.RowDetailsTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Margin="9,4,5,6">
-                                                        <TextBlock FontSize="10.7" Foreground="#526478" Text="Device event time and flags:"/>
-                                                        <TextBlock FontSize="11" Text="{Binding RelayTime}" TextWrapping="Wrap"/>
-                                                        <TextBlock FontSize="10.8" Text="{Binding TimeFlags}" TextWrapping="Wrap"/>
-                                                        <TextBlock FontSize="10.8" Text="{Binding QualityValidity}" TextWrapping="Wrap"/>
-                                                        <TextBlock FontSize="10.7" Foreground="#526478" Text="Original object bytes:" Margin="0,4,0,0"/>
-                                                        <TextBlock FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
-                                                                   Text="{Binding RawHex}" TextWrapping="Wrap"/>
-                                                        <TextBlock FontSize="10.6" Text="{Binding Provenance}" TextWrapping="Wrap"
-                                                                   Foreground="#617487" Margin="0,4,0,0"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGrid.RowDetailsTemplate>
-                                            <DataGrid.Columns>
-                                                <DataGridTemplateColumn Header="SIGNAL / VALUE" Width="1.12*">
-                                                    <DataGridTemplateColumn.CellTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Margin="5,4,3,3">
-                                                                <TextBlock Text="{Binding DisplaySignal}" FontWeight="Medium"
-                                                                           Foreground="#263F57" FontSize="10.8"
-                                                                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding SignalAddress}" FontSize="10.2"
-                                                                           Foreground="#6A7D8E" TextWrapping="NoWrap"/>
-                                                                <TextBlock Text="{Binding Value}" FontSize="11.2"
-                                                                           Foreground="#233D54" TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis"/>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </DataGridTemplateColumn.CellTemplate>
-                                                </DataGridTemplateColumn>
-                                                <DataGridTemplateColumn Header="QUALITY / TIME" Width="1.55*">
-                                                    <DataGridTemplateColumn.CellTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Margin="5,3,4,3">
-                                                                <TextBlock Text="{Binding Quality}" FontSize="10.7"
-                                                                           Foreground="#455B6B" TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding RelayTime}" FontSize="10.5"
-                                                                           Foreground="#354F63" TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding TimeFlags}" FontSize="10.2"
-                                                                           Foreground="#566C7D" TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           ToolTip="{Binding TimeFlags}"/>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </DataGridTemplateColumn.CellTemplate>
-                                                </DataGridTemplateColumn>
-                                            </DataGrid.Columns>
-                                        </DataGrid>
-                                    </StackPanel>
-                                    <Expander x:Name="FramePropertiesExpander" Grid.Row="4"
-                                              Header="Frame details · full properties" IsExpanded="False"
-                                              FontSize="11.4" Foreground="{StaticResource Ink800Brush}"
-                                              Margin="0,3,0,0"
-                                              ToolTip="Expand to inspect all decoded link and ASDU properties. Collapsed by default.">
-                                    <DataGrid x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}" Height="246"
+                             <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Visibility="Collapsed"
+                                     TextElement.FontFamily="{StaticResource AppFont}" ToolTipService.IsEnabled="False"
+                                     Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}"
+                                     BorderThickness="1" CornerRadius="7" Padding="9">
+                                 <Grid>
+                                     <Grid.RowDefinitions>
+                                         <RowDefinition Height="Auto"/>
+                                         <RowDefinition Height="*"/>
+                                     </Grid.RowDefinitions>
+                                     <DockPanel Grid.Row="0" Margin="1,0,0,8">
+                                         <Button DockPanel.Dock="Right" Content="›" FontSize="17"
+                                                 Width="27" Height="25" Padding="0"
+                                                 Style="{StaticResource SecondaryButton}"
+                                                 Click="TraceFrameDetailsClose_Click"
+                                                 AutomationProperties.Name="Collapse Frame Details to right"/>
+                                         <TextBlock Text="Frame Details · Full Properties" FontSize="12.4"
+                                                    FontWeight="Medium" Foreground="#223B54"
+                                                    VerticalAlignment="Center"/>
+                                     </DockPanel>
+                                     <Expander Grid.Row="1" x:Name="FramePropertiesExpander"
+                                               IsExpanded="True" Header="Decoded properties"
+                                               FontFamily="{StaticResource AppFont}"
+                                               FontSize="11.3" Foreground="#344C65"
+                                               VerticalAlignment="Stretch">
+<DataGrid x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}" MinHeight="0"
                                               ToolTipService.IsEnabled="False" RowDetailsVisibilityMode="VisibleWhenSelected"
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
@@ -1173,48 +1071,42 @@
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}" FontSize="11.7"
                                                                    Foreground="{StaticResource Ink900Brush}" TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Value}"
+                                                                   TextTrimming="CharacterEllipsis"
                                                                    VerticalAlignment="Center" Margin="9,5,8,5"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    </Expander>
-                                    <Expander Grid.Row="5" Header="Original HEX and field-byte mapping" IsExpanded="False"
-                                              FontSize="11.5" Foreground="{StaticResource Ink800Brush}" Margin="0,6,0,0">
-                                        <StackPanel Margin="0,4,0,0">
-                                            <TextBox x:Name="TraceInspectorRawText" IsReadOnly="True"
-                                                     FontFamily="Cascadia Mono, Consolas" FontSize="10.7"
-                                                     TextWrapping="Wrap" BorderThickness="0" Background="White"
-                                                     Foreground="#1C496C" MaxHeight="96"
-                                                     VerticalScrollBarVisibility="Auto"/>
-                                            <ListBox ItemsSource="{Binding SelectedProtocolMapLines}" Height="156"
-                                                     FontSize="11" Background="White" BorderThickness="0"
-                                                     VirtualizingPanel.IsVirtualizing="True"
-                                                     VirtualizingPanel.VirtualizationMode="Recycling"
-                                                     ScrollViewer.CanContentScroll="True">
-                                                <ListBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Margin="4,4,2,6">
-                                                            <TextBlock Text="{Binding Title}" FontWeight="Medium" Foreground="#213D58"/>
-                                                            <TextBlock Text="{Binding Evidence}" FontFamily="Cascadia Mono, Consolas"
-                                                                       Foreground="#304E68" TextWrapping="Wrap" FontSize="10.6"/>
-                                                            <TextBlock Text="{Binding Meaning}" Foreground="#526478" TextWrapping="Wrap" FontSize="10.8"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ListBox.ItemTemplate>
-                                            </ListBox>
-                                        </StackPanel>
-                                    </Expander>
-                                    <StackPanel Visibility="Collapsed">
-                                        <TextBlock x:Name="ActiveProtocolMapText"/>
-                                        <TextBlock x:Name="RawFrameGroupingHintText"/>
-                                        <CheckBox x:Name="PinProtocolMapCheckBox"/>
-                                    </StackPanel>
-                                </Grid>
-                                </ScrollViewer>
-                            </Border>
+                                     </Expander>
+                                     <!-- Retained binding targets for internal selected-frame
+                                          navigation; the former duplicated summary, signal
+                                          table, and HEX panel are not rendered. -->
+                                     <StackPanel Visibility="Collapsed" Grid.Row="0">
+                                         <TextBlock x:Name="SelectedLineDirectionText"/>
+                                         <TextBlock x:Name="SelectedLineSummaryText"/>
+                                         <TextBlock x:Name="SelectedLineTrustText"/>
+                                         <TextBlock x:Name="SelectedLineAlertText"/>
+                                         <TextBox x:Name="SelectedFrameProtocolTextBox" IsReadOnly="True"/>
+                                         <StackPanel x:Name="DecodedPointSection">
+                                             <TextBlock x:Name="DecodedPointHeaderText"/>
+                                             <DataGrid x:Name="DecodedPointGrid"
+                                                       ItemsSource="{Binding SelectedDecodedPoints}"
+                                                       Height="110" AutoGenerateColumns="False"
+                                                       RowDetailsVisibilityMode="VisibleWhenSelected">
+                                                 <DataGrid.Columns>
+                                                     <DataGridTextColumn Header="IOA" Binding="{Binding Address}"/>
+                                                     <DataGridTextColumn Header="Value" Binding="{Binding Value}"/>
+                                                 </DataGrid.Columns>
+                                             </DataGrid>
+                                         </StackPanel>
+                                         <TextBox x:Name="TraceInspectorRawText"/>
+                                         <TextBlock x:Name="ActiveProtocolMapText"/>
+                                         <TextBlock x:Name="RawFrameGroupingHintText"/>
+                                         <CheckBox x:Name="PinProtocolMapCheckBox"/>
+                                     </StackPanel>
+                                 </Grid>
+                             </Border>
                         </Grid>
                     </TabItem>
 

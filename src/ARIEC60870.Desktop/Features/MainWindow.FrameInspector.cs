@@ -95,8 +95,9 @@ public partial class MainWindow
         Add("Receive stream", row.Source.PhysicalStreamId?.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Add("Physical stream byte offset", row.Source.RawStreamOffset?.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Add("Evidence reference", row.Source.EvidenceReference);
-        Add("Link address", row.LinkAddress,
-            "Data-link station address; independent from the ASDU common address.");
+        Add("Link address", (row.Source.LinkAddress ?? frame?.LinkAddress)?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? row.LinkAddress,
+            "FT1.2 link station address; this is NOT the ASDU common address.");
 
         // Link layer: primary and secondary control bits have different meanings.
         if (link is not null)
@@ -154,6 +155,27 @@ public partial class MainWindow
                 : null);
         if (row.ProtocolMode == "103") Add("FUN / INF", row.FunInf);
         Add("Object count", row.ObjectCount);
+        // Every source-decoded information object belongs in the one Full
+        // Properties grid; the old separate point-card table is no longer
+        // rendered. No 16-object truncation or inferred name/time/quality.
+        foreach (var point in decodedPoints)
+        {
+            var pointFields = new List<FrameInspectorFieldPresentation.DetailRow>
+            {
+                new("Information object address", point.Address),
+                new("Signal name", string.IsNullOrWhiteSpace(point.SignalName) ? "Not mapped" : point.SignalName),
+                new("Value", point.Value),
+                new("Quality", point.Quality),
+                new("Quality validity", point.QualityValidity),
+                new("Device event time", point.RelayTime),
+                new("Time source flags", point.TimeFlags),
+                new("Original element bytes", point.RawHex),
+                new("Byte provenance", point.Provenance)
+            };
+            Add($"Object #{point.Index} · {point.Address}", point.Value,
+                "Quality: " + point.Quality + " | RTU time: " + point.RelayTime,
+                pointFields);
+        }
         Add("Signal name", row.SemanticLabel,
             "A name is displayed only when supplied by the captured signal mapping.");
         Add("Value", row.SemanticState);

@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop;
 /// </summary>
 public partial class MainWindow
 {
-    private bool _traceInspectorPreferredVisible = true;
+    private bool _traceInspectorPreferredVisible = false;
     private bool _traceInspectorForcedOpen;
 
     // Responsive decisions run on Window size/command layout changes, not on
@@ -30,6 +30,7 @@ public partial class MainWindow
         if (TraceInspectorColumn is null) return;
         if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
         {
+            TraceInspectorColumn.MinWidth = 285;
             TraceInspectorColumn.Width = new GridLength(2, GridUnitType.Star);
             TraceInspectorGutterColumn.Width = new GridLength(6);
             FrameInterpreterPanel.Visibility = Visibility.Visible;
@@ -40,13 +41,13 @@ public partial class MainWindow
             FrameInterpreterPanel.Visibility = Visibility.Collapsed;
             TraceInspectorSplitter.Visibility = Visibility.Collapsed;
             TraceInspectorGutterColumn.Width = new GridLength(0);
+            TraceInspectorColumn.MinWidth = 0;
             TraceInspectorColumn.Width = new GridLength(0);
         }
 
-        TraceInspectorToggle.Content = visible ? "Hide details" : "Show details";
-        TraceInspectorToggle.ToolTip = visible
-            ? "Hide the selected frame inspector and return width to Trace"
-            : "Open the selected frame inspector; on narrow windows its width may reduce Trace";
+        TraceInspectorToggle.Content = visible ? "Frame Details ›" : "‹ Frame Details";
+        // No hover tooltips in the observation workstation.
+        TraceInspectorToggle.ToolTip = null;
     }
 
     private void TraceInspectorToggle_Click(object sender, RoutedEventArgs e)
@@ -63,9 +64,11 @@ public partial class MainWindow
             _traceInspectorForcedOpen = true; // explicit action overrides auto-collapse
         }
         ApplyTraceInspectorVisibility(!visible);
+        if (!visible && FrameTraceGrid.SelectedItem is EvidenceRow selected)
+            ApplySelectedEvidenceRowToInspector(selected);
     }
 
-    // The inspector is an always-visible part of the single Engineer workspace.
+    // The inspector is optional. The trace's own decode always remains visible.
     // Existing context-menu commands can focus it without building a second panel.
     private void TraceFrameDetails_Click(object sender, RoutedEventArgs e)
     {
@@ -84,14 +87,8 @@ public partial class MainWindow
         _traceInspectorPreferredVisible = false;
         _traceInspectorForcedOpen = false;
         ApplyTraceInspectorVisibility(false);
-        // Clear only the expensive detail projections; keep frame selection,
-        // immutable raw bytes and the session store entirely untouched.
-        SelectedFrameProperties.Clear();
-        SelectedDecodedPoints.Clear();
-        SelectedHexSegments.Clear();
-        SelectedProtocolMapLines.Clear();
-        DecodedPointSection.Visibility = Visibility.Collapsed;
-        _selectedFrameRow = null;
+        // Preserve selected evidence, user HOLD state, and source-backed
+        // decoded projections. A later reopen must show the same frame.
     }
 
     private void TraceArchiveMode_Click(object sender, RoutedEventArgs e)
