@@ -32,6 +32,21 @@ public partial class MainWindow
         bool SelectionP95Under100Milliseconds,
         string TimingScope);
 
+    private void DrainFrameTraceLoadBatch()
+    {
+        // Live production intentionally consumes only a bounded number of
+        // queued frames per dispatcher tick. Test ingestion can be faster than
+        // those ticks; wait for the existing budgeted UI path to consume every
+        // source frame before checking visible counts. Do not bypass the
+        // queue or raise the production budget just to satisfy acceptance.
+        var ticks = 0;
+        while (!_pendingEvidence.IsEmpty && ticks++ < 32)
+            FlushUiQueues();
+        if (!_pendingEvidence.IsEmpty)
+            throw new InvalidOperationException(
+                $"WPF test queue failed to drain after {ticks} bounded flushes: {_pendingEvidence.Count} pending.");
+    }
+
     private async Task<FrameTraceLoadMetrics> MeasureFrameTraceUnderLoadAsync(string outputDirectory)
     {
         const int framesToFeed = 10_000;
@@ -55,11 +70,13 @@ public partial class MainWindow
             FeedPassiveFrameToExistingViews(new PassiveObservedFrame(
                 0, 5L * i, baseline.AddMilliseconds(40d * i),
                 "Fixed", true, fixedFrame));
-            if ((i + 1) % batchSize == 0) FlushUiQueues();
+            if ((i + 1) % batchSize == 0) DrainFrameTraceLoadBatch();
         }
-        FlushUiQueues();
+        DrainFrameTraceLoadBatch();
         if (FrameTraceRows.Count != MaxVisibleFrameTraceRows)
-            throw new InvalidOperationException("Initial 1,300 WPF stress frames did not fill the bounded live preview.");
+            throw new InvalidOperationException(
+                $"Initial 1,300 frames did not fill the live preview: visible={FrameTraceRows.Count}, " +
+                $"source={_protocolTraceStore.Count}, queued={_pendingEvidence.Count}, activeTab={MainTabControl.SelectedIndex}.");
 
         var held = FrameTraceRows[300];
         FrameTraceGrid.SelectedItem = held;
@@ -85,12 +102,12 @@ public partial class MainWindow
                     "Fixed", true, fixedFrame));
                 if ((i + 1) % batchSize == 0)
                 {
-                    FlushUiQueues();
+                    DrainFrameTraceLoadBatch();
                     if (FrameTraceRows.Count > MaxVisibleFrameTraceRows)
                         throw new InvalidOperationException("Live Frame Trace exceeded its bounded window.");
                 }
             }
-            FlushUiQueues();
+            DrainFrameTraceLoadBatch();
         }
         finally
         {
