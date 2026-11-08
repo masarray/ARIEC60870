@@ -227,6 +227,7 @@ public partial class MainWindow
             SelectedDetailText.Text = "Select evidence row to inspect decoded meaning.";
             SelectedRawText.Text = "-";
             TraceInspectorRawText.Text = "Select a frame to see complete original bytes.";
+            SelectedFrameProtocolTextBox.Text = "Select a frame to decode link, ASDU and information objects.";
             _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
             SelectedLineSummaryText.Text = _selectedFrameExplanation;
             SelectedLineDirectionText.Text = "Select a frame";
@@ -258,6 +259,7 @@ public partial class MainWindow
         SelectedDetailText.Text = explanation + Environment.NewLine + Environment.NewLine + "Raw: " + row.RawHex;
         SelectedRawText.Text = row.RawHex;
         TraceInspectorRawText.Text = row.TimelineHex;
+        SelectedFrameProtocolTextBox.Text = SelectedFrameProtocolText.Format(row);
         _selectedFrameExplanation = explanation;
         SelectedLineDirectionText.Text = "#" + row.Sequence + " · " + row.Time +
             " · " + row.Direction + " · " + row.ProtocolName;
@@ -875,25 +877,29 @@ public partial class MainWindow
 
     private void CopySelectedFrameDecode_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedFrameRow is null)
-        {
-            return;
-        }
+        if (_selectedFrameRow is not { } row) return;
+        // The exact same compact, source-typed text is displayed in the
+        // selectable read-only inspector and written to TXT on export.
+        Clipboard.SetText(SelectedFrameProtocolText.Format(row));
+    }
 
-        var builder = new StringBuilder();
-        builder.AppendLine($"Frame #{_selectedFrameRow.Sequence} {BuildLineMonitorTitle(_selectedFrameRow)}");
-        if (_selectedFrameRow.ProtocolMode is "101" or "103" or "104")
+    private void ExportSelectedFrameDecode_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedFrameRow is not { } row) return;
+        var dialog = new SaveFileDialog
         {
-            var fields = IecForensicByteInspector.Explain(_selectedFrameRow.Source);
-            foreach (var field in fields)
-                builder.AppendLine($"{field.Hex}  @ byte {field.Offset} [{field.Count}] → {field.Title}: {field.Meaning}");
-            if (fields.Count == 0) builder.AppendLine("No verified byte map. Retain raw evidence.");
-        }
-        else builder.AppendLine(BuildCompactFrameExplanation(_selectedFrameRow));
-        builder.AppendLine();
-        builder.AppendLine("Raw: " + _selectedFrameRow.RawHex);
-        Clipboard.SetText(builder.ToString());
-        AppendSessionLog($"Copied decoded frame #{_selectedFrameRow.Sequence} to clipboard.");
+            Title = "Export decoded frame and original HEX",
+            Filter = "Plain text (*.txt)|*.txt|All files (*.*)|*.*",
+            FileName = $"ARIEC60870-Frame-{row.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture)}.txt",
+            AddExtension = true,
+            DefaultExt = ".txt"
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        // No automatically inserted commentary, retention banner or AI text.
+        // Original source HEX remains byte-faithful and is not re-encoded.
+        File.WriteAllText(dialog.FileName, SelectedFrameProtocolText.Format(row) + Environment.NewLine,
+            Encoding.UTF8);
+        AppendSessionLog($"Decoded frame #{row.Sequence} exported to TXT.");
     }
 
     private void SetActiveProtocolMap(string key)
