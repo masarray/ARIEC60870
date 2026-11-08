@@ -861,8 +861,8 @@
                                                 <StackPanel Grid.Column="3" Margin="2,0,0,0">
                                                     <TextBlock Text="{Binding TimelineHex}"
                                                                FontFamily="Cascadia Mono, Consolas" FontSize="11.1"
-                                                               Foreground="#1C496C" TextWrapping="NoWrap"
-                                                               TextTrimming="CharacterEllipsis"/>
+                                                               Foreground="#1C496C" TextWrapping="Wrap"
+                                                               TextTrimming="CharacterEllipsis" MaxHeight="34"/>
                                                     <TextBlock Text="{Binding TimelineTitle}" Margin="0,2,0,0"
                                                                FontFamily="{StaticResource AppFont}" FontSize="10.9"
                                                                Foreground="#384C5E" TextWrapping="NoWrap"
