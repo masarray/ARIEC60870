@@ -1,6 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
+using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
 using Xunit;
 
@@ -92,6 +93,20 @@ public sealed class Iec10xProtocolTruthHardeningTests
             BitConverter.GetBytes(float.NaN).Concat(new byte[]{ 0 }).ToArray()));
         Assert.Contains(nan.Issues, x => x.Contains("non-finite", StringComparison.Ordinal));
         Assert.Equal(5, nan.FirstObject!.RawBytes.Count);
+    }
+
+    [Fact]
+    public void MissingOrPartialAsduCannotBecomeTrustedProcessEvidence()
+    {
+        var d = new Iec10xAsduDecoder();
+        var complete = d.Decode(Asdu(1, 1, 5, 3, 1));
+        var partial = d.Decode(Asdu(1, 1, 5, 3));
+        Assert.True(Iec10xObservationIdentity.HasTrustedDecodedPayload(
+            new Iec103MasterEvidenceEvent { AsduDetails = complete, Category = "RX" }));
+        Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
+            new Iec103MasterEvidenceEvent { Category = "RX" }));
+        Assert.False(Iec10xObservationIdentity.HasTrustedDecodedPayload(
+            new Iec103MasterEvidenceEvent { AsduDetails = partial, Category = "RX" }));
     }
 
     [Fact]
