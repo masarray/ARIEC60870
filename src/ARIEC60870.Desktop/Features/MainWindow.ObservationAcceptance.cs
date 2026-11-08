@@ -1044,22 +1044,28 @@ public partial class MainWindow
             throw new InvalidOperationException("Full Properties row drilldown is not visible in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "engineer-right-full-properties-only.png");
 
-        // Modeless visual byte diagram is generated from real source-backed
-        // segments, not from the example ASCII art or a second decoder.
+        // Interactive hex inspector must render actual original byte CELLS,
+        // verified field ranges, and field-to-byte selection/highlighting.
+        // A giant ASCII diagram TextBox is explicitly forbidden.
         var window = new FrameByteMapWindow(multiObjectRow) { Owner = this };
         window.Show();
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         await Dispatcher.Yield(DispatcherPriority.Render);
         window.UpdateLayout();
-        if (!window.IsVisible || window.DiagramViewportHeight < 240 ||
-            !window.DiagramText.Contains("HEX  ", StringComparison.Ordinal) ||
-            !window.DiagramText.Contains("Offset ", StringComparison.Ordinal) ||
-            !window.DiagramText.Contains("└─ ", StringComparison.Ordinal))
+        if (!window.IsVisible || window.HexViewportHeight < 180 ||
+            window.OriginalByteCount < 10 || window.FieldCount < 5 ||
+            !window.SelectField("asdu-type") ||
+            window.SelectedFieldKey != "asdu-type" ||
+            window.SelectedFieldHex.Length != 2 ||
+            window.HighlightedByteCount != 1 ||
+            !window.FieldReport.Contains("Type ID", StringComparison.Ordinal) ||
+            window.FieldReport.Contains("└─", StringComparison.Ordinal))
         {
             window.Close();
-            throw new InvalidOperationException("Floating physical byte map is missing original HEX or offset connectors.");
+            throw new InvalidOperationException(
+                "Interactive HEX field selector, physical source range or 16-octet view failed.");
         }
-        SaveRealWpfElementBitmap(outputDirectory, "engineer-floating-hex-byte-tree.png",
+        SaveRealWpfElementBitmap(outputDirectory, "engineer-interactive-hex-field-inspector.png",
             (FrameworkElement)window.Content);
         window.Close();
 
