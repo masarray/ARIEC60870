@@ -12,8 +12,7 @@ namespace ARIEC60870.Desktop;
 /// </summary>
 public partial class MainWindow
 {
-    private double _lastTraceInspectorWidth = 300;
-    private bool _traceInspectorPreferredVisible = false;
+    private bool _traceInspectorPreferredVisible = true;
     private bool _traceInspectorForcedOpen;
 
     // Responsive decisions run on Window size/command layout changes, not on
@@ -21,9 +20,9 @@ public partial class MainWindow
     private void UpdateObservationViewportLayout()
     {
         if (TraceInspectorColumn is null || FrameInterpreterPanel is null) return;
-        var widthAvailable = ActualWidth - 160 - CommandDockColumn.ActualWidth;
-        var enoughRoom = widthAvailable >= 990;
-        ApplyTraceInspectorVisibility(_traceInspectorForcedOpen || (_traceInspectorPreferredVisible && enoughRoom));
+        // One Engineer Mode: inspector stays available at every viewport size.
+        // A narrow window may scroll, but must never silently hide frame details.
+        ApplyTraceInspectorVisibility(_traceInspectorPreferredVisible || _traceInspectorForcedOpen);
     }
 
     private void ApplyTraceInspectorVisibility(bool visible)
@@ -31,15 +30,13 @@ public partial class MainWindow
         if (TraceInspectorColumn is null) return;
         if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
         {
-            TraceInspectorColumn.Width = new GridLength(Math.Max(240, _lastTraceInspectorWidth));
+            TraceInspectorColumn.Width = new GridLength(2, GridUnitType.Star);
             TraceInspectorGutterColumn.Width = new GridLength(6);
             FrameInterpreterPanel.Visibility = Visibility.Visible;
             TraceInspectorSplitter.Visibility = Visibility.Visible;
         }
         else if (!visible && FrameInterpreterPanel.Visibility != Visibility.Collapsed)
         {
-            if (TraceInspectorColumn.ActualWidth > 0)
-                _lastTraceInspectorWidth = TraceInspectorColumn.ActualWidth;
             FrameInterpreterPanel.Visibility = Visibility.Collapsed;
             TraceInspectorSplitter.Visibility = Visibility.Collapsed;
             TraceInspectorGutterColumn.Width = new GridLength(0);
@@ -68,8 +65,8 @@ public partial class MainWindow
         ApplyTraceInspectorVisibility(!visible);
     }
 
-    // Operator-only inspector. Default layout is full-width and never opens
-    // merely because frames arrive or the selection moves.
+    // The inspector is an always-visible part of the single Engineer workspace.
+    // Existing context-menu commands can focus it without building a second panel.
     private void TraceFrameDetails_Click(object sender, RoutedEventArgs e)
     {
         var row = FrameTraceGrid.SelectedItems.OfType<EvidenceRow>()
