@@ -36,6 +36,19 @@ public partial class MainWindow
         return false;
     }
 
+    private static TextBlock? FindVisibleTraceText(DependencyObject node, string expected)
+    {
+        if (node is TextBlock text && text.Text == expected &&
+            text.Visibility == Visibility.Visible && text.IsVisible)
+            return text;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+        {
+            var found = FindVisibleTraceText(VisualTreeHelper.GetChild(node, i), expected);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
     private static bool HasVisibleForensicHeading(DependencyObject node, string expected)
     {
         if (node is TextBlock text && text.Text == expected &&
@@ -401,6 +414,27 @@ public partial class MainWindow
             !HasVisibleRawLine(unselectedContainer, unselected.TimelineHex))
             throw new InvalidOperationException(
                 "Engineer Frame Trace must render actual HEX bytes in each unselected timeline row.");
+        // The red-marked field reference requires actual two-lane geometry:
+        // frame number/time + HEX BELOW them on the left, with the source-typed
+        // interpretation beside—not under—the HEX. Merely binding both texts
+        // to a vertical StackPanel is a product regression.
+        var rawTextBlock = FindVisibleTraceText(unselectedContainer, unselected.TimelineHex);
+        var meaningTextBlock = FindVisibleTraceText(unselectedContainer, unselected.TimelineTitle);
+        var timeTextBlock = FindVisibleTraceText(unselectedContainer, unselected.Time);
+        if (rawTextBlock is null || meaningTextBlock is null || timeTextBlock is null)
+            throw new InvalidOperationException("Raw-first two-lane frame observation is not rendered.");
+        var rawTop = rawTextBlock.TranslatePoint(new Point(), unselectedContainer);
+        var rawRight = rawTextBlock.TranslatePoint(
+            new Point(rawTextBlock.ActualWidth, 0), unselectedContainer).X;
+        var meaningLeft = meaningTextBlock.TranslatePoint(new Point(), unselectedContainer).X;
+        var timeTop = timeTextBlock.TranslatePoint(new Point(), unselectedContainer);
+        if (rawTop.Y <= timeTop.Y + 4 || rawTop.X >= meaningLeft ||
+            rawRight > meaningLeft - 2 || meaningTextBlock.ActualWidth < 90 ||
+            rawTextBlock.ActualWidth < 80)
+            throw new InvalidOperationException(
+                $"Frame Trace HEX/interpretation lanes overlap or are stacked: " +
+                $"raw=({rawTop.X:0},{rawTop.Y:0})..{rawRight:0}, " +
+                $"meaningX={meaningLeft:0}, timeY={timeTop.Y:0}.");
         if (ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Disabled)
             throw new InvalidOperationException(
                 "Compact timeline should trim long text rather than force horizontal scrolling.");
@@ -421,7 +455,7 @@ public partial class MainWindow
         if (!ReferenceEquals(_selectedFrameRow, selected) ||
             SelectedLineSummaryText.Text != FrameInspectorFieldPresentation.HumanSummary(selected) ||
             TraceInspectorRawText.Text != selected.TimelineHex ||
-            !TraceInspectorRawText.IsVisible)
+            SelectedLineTrustText.Text != EngineerFramePresentation.TrustSummary(selected.Source))
             throw new InvalidOperationException(
                 "Selecting the frame did not immediately update meaning and original bytes.");
         FrameTraceGrid.ScrollIntoView(selected);
@@ -562,7 +596,9 @@ public partial class MainWindow
         // both visual types and two distinct state backgrounds.
         for (var i = 0; i < 2; i++)
         {
-            var dpAsdu = new byte[] { 3, 1, 20, 0, 1, 0, (byte)(9 + i), 0, 0, (byte)(i == 0 ? 2 : 1) };
+            // The first DP event is ON with the source IV flag active.
+            // State still decodes as ON; an engineer must also see IV=1.
+            var dpAsdu = new byte[] { 3, 1, 20, 0, 1, 0, (byte)(9 + i), 0, 0, (byte)(i == 0 ? 0x82 : 1) };
             var dpPayload = new byte[] { 0x08, 0x69 }.Concat(dpAsdu).ToArray();
             var dpWire = new byte[] { 0x68, (byte)dpPayload.Length, (byte)dpPayload.Length, 0x68 }
                 .Concat(dpPayload)
@@ -971,10 +1007,10 @@ public partial class MainWindow
         if (DecodedPointGrid.ItemContainerGenerator.ContainerFromItem(lastPoint) is not DataGridRow pointRow ||
             !pointRow.IsVisible || pointRow.ActualHeight < 12)
             throw new InvalidOperationException("Decoded point count exists but the second IOA row is not visible in WPF.");
-        // Only three narrow-screen scan columns; device time, raw element
-        // bytes and provenance remain in the selected object's row details.
-        if (DecodedPointGrid.Columns.Count != 3)
-            throw new InvalidOperationException("Narrow inspector restored clipped time/HEX table columns.");
+        // Two scan-friendly columns keep signal/value and quality/device time
+        // visible even on a narrow field laptop; full bytes stay in row details.
+        if (DecodedPointGrid.Columns.Count != 2)
+            throw new InvalidOperationException("Selected signal/value/quality/time grid is not the two-column engineer layout.");
         DecodedPointGrid.SelectedItem = lastPoint;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
@@ -1007,12 +1043,40 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "VSQ inspector child rows cannot be expanded in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "interpretive-trace-2-points-inspector.png");
+        // Assert actual source-quality IV warning is visible in the left
+        // original-frame row and the right summary, not only in view-model data.
+        var invalidPointFrame = FrameTraceRows.LastOrDefault(x =>
+            x.TimelineAlerts.Contains("IV=1", StringComparison.Ordinal));
+        if (invalidPointFrame is null)
+            throw new InvalidOperationException("WPF fixture lost its IV=1 process-quality frame.");
+        FrameTraceGrid.SelectedItem = invalidPointFrame;
+        FrameTraceGrid.ScrollIntoView(invalidPointFrame);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        var invalidContainer =
+            FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(invalidPointFrame) as ListBoxItem;
+        if (invalidContainer is null ||
+            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineHex) ||
+            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
+            SelectedLineAlertText.Visibility != Visibility.Visible ||
+            !SelectedLineAlertText.Text.Contains("IV=1", StringComparison.Ordinal) ||
+            SelectedDecodedPoints.Count != 1 ||
+            DecodedPointGrid.Height > 110 ||
+            !SelectedDecodedPoints.Any(x => x.QualityValidity.Contains("IV=1", StringComparison.Ordinal)))
+            throw new InvalidOperationException(
+                "IV=1 is not simultaneously visible on the original frame row and decoded signal inspector.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-trace-iv-flag.png");
+        // This screenshot captures both visually separate lanes under an
+        // actual GI/IV selected frame for human acceptance on field laptops.
+        SaveRealWpfBitmap(outputDirectory, "engineer-trace-two-lane-evidence.png");
+        FrameTraceGrid.SelectedItem = multiObjectRow;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
         // One Engineer Mode: selection changes naturally; no close/reopen
         // workflow or hidden detail toggle is required.
         if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
             SelectedDecodedPoints.Count != 2 ||
             TraceInspectorRawText.Text != multiObjectRow.TimelineHex ||
-            !TraceInspectorRawText.IsVisible)
+            SelectedLineTrustText.Text != EngineerFramePresentation.TrustSummary(multiObjectRow.Source))
             throw new InvalidOperationException(
                 "Persistent inspector lost selected multi-object evidence.");
 

@@ -48,9 +48,26 @@ public partial class MainWindow
         var link = frame?.LinkControl;
 
         // Only the selected row pays for the full point and field projections.
-        var decodedPoints = DecodedPointRow.FromAsdu(asdu);
+        // Strict, read-only signal-list lookup for every decoded object.
+        // Do not apply source-CA alias learning or invent names in the inspector.
+        Func<int, string?>? signalName = asdu is { Issues.Count: 0 } &&
+            row.Direction == "RX" && row.ProtocolMode is "101" or "104"
+            ? ioa => _ioaProfile.ResolveObservedSignal(
+                asdu.CommonAddress, ioa, asdu.TypeId)?.Name
+            : null;
+        var decodedPoints = DecodedPointRow.FromAsdu(asdu, signalName);
         foreach (var point in decodedPoints)
             SelectedDecodedPoints.Add(point);
+        // A single point must not waste half the inspector with an empty fixed
+        // table. Two-point and burst ASDUs grow only within a bounded viewport.
+        // No resize work occurs on receive; selected-frame UI projection only.
+        DecodedPointGrid.Height = decodedPoints.Count switch
+        {
+            0 => 0,
+            1 => 108,
+            2 => 164,
+            _ => 224
+        };
         DecodedPointSection.Visibility = decodedPoints.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         DecodedPointHeaderText.Text = decodedPoints.Count > 0
             ? $"Information objects · {decodedPoints.Count} / {asdu!.ObjectCount}"
@@ -213,7 +230,10 @@ public partial class MainWindow
             _selectedFrameExplanation = "Select a frame. This panel translates raw bytes into commissioning meaning.";
             SelectedLineSummaryText.Text = _selectedFrameExplanation;
             SelectedLineDirectionText.Text = "Select a frame";
-            SelectedLineSummaryText.Text = "The selected IEC 60870 frame will be decoded into transport/link layer, ASDU/APCI fields, address, value/time, and integrity groups.";
+            SelectedLineSummaryText.Text = "Select a frame on the left to inspect communication, signals, quality and device time.";
+            SelectedLineTrustText.Text = "";
+            SelectedLineAlertText.Text = "";
+            SelectedLineAlertText.Visibility = Visibility.Collapsed;
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();
             SelectedFrameProperties.Clear();
@@ -239,10 +259,14 @@ public partial class MainWindow
         SelectedRawText.Text = row.RawHex;
         TraceInspectorRawText.Text = row.TimelineHex;
         _selectedFrameExplanation = explanation;
-        SelectedLineDirectionText.Text = "#" + row.Sequence + " · " + row.Direction +
-            " · " + row.Time + " · " + row.TimelineTitle;
+        SelectedLineDirectionText.Text = "#" + row.Sequence + " · " + row.Time +
+            " · " + row.Direction + " · " + row.ProtocolName;
         SelectedLineSummaryText.Text = FrameInspectorFieldPresentation.HumanSummary(row);
         SelectedLineSummaryText.Visibility = Visibility.Visible;
+        SelectedLineTrustText.Text = EngineerFramePresentation.TrustSummary(row.Source);
+        SelectedLineAlertText.Text = row.TimelineAlerts;
+        SelectedLineAlertText.Visibility = row.HasTimelineAlerts
+            ? Visibility.Visible : Visibility.Collapsed;
         UpdateFrameInterpreterTone(row);
         PopulateFrameProperties(row);
         RebuildProtocolMap(row);

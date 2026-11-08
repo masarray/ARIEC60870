@@ -241,6 +241,67 @@ public sealed partial class EvidenceRow
     private string? _timelineContext;
     public string TimelineTitle => _timelineTitle ??= BuildTimelineTitle();
     public string TimelineContext => _timelineContext ??= BuildTimelineContext();
+    // Lazy, strictly typed protocol flags for visible Frame Trace rows.
+    // Inapplicable, undecoded or absent bits never become false/Good by default.
+    private string? _timelineAlerts;
+    public string TimelineAlerts => _timelineAlerts ??= EngineerFramePresentation.Alerts(Source);
+    public bool HasTimelineAlerts => TimelineAlerts.Length > 0;
+
+    // The left observation row has two independent reading lanes:
+    // original bytes on the left, typed engineering interpretation on the right.
+    // Only construct a short signal digest for realized/visible rows.
+    private string? _timelineSignalDigest;
+    public string TimelineSignalDigest => _timelineSignalDigest ??= BuildTimelineSignalDigest();
+    public bool HasTimelineSignalDigest => TimelineSignalDigest.Length > 0;
+
+    private string BuildTimelineSignalDigest()
+    {
+        if (Source.AsduDetails is not { } asdu) return string.Empty;
+        if (asdu.Issues.Count > 0) return "ASDU decode warning · inspect selected frame";
+
+        if (asdu.Objects.Count == 0)
+        {
+            if (asdu.TypeId == 100 && asdu.CommandDetails?.QualifierValue is int qoi)
+                return "GI qualifier QOI " + qoi.ToString(CultureInfo.InvariantCulture);
+            return string.Empty;
+        }
+
+        // A multi-object ASDU must never be represented as only the first IOA.
+        // The selected inspector contains all objects, not this short digest.
+        var sample = asdu.Objects.Take(2).Select(obj =>
+        {
+            var address = "IOA " + obj.InformationObjectAddress.ToString(CultureInfo.InvariantCulture);
+            var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
+                !string.IsNullOrWhiteSpace(SemanticLabel)
+                ? SemanticLabel + " (" + address + ")" : address;
+            var state = obj.Issues.Count == 0 && !string.IsNullOrWhiteSpace(obj.ShortValue)
+                ? " = " + obj.ShortValue : " · decode warning";
+            return name + state;
+        });
+        return (asdu.Objects.Count > 1
+                ? asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) + " signals · "
+                : "SIGNAL · ") +
+            string.Join("  |  ", sample) +
+            (asdu.Objects.Count > 2
+                ? "  ·  +" + (asdu.Objects.Count - 2).ToString(CultureInfo.InvariantCulture) +
+                    " more in inspector"
+                : string.Empty);
+    }
+
+    private string? _timelineCompactContext;
+    public string TimelineCompactContext => _timelineCompactContext ??= BuildTimelineCompactContext();
+
+    private string BuildTimelineCompactContext()
+    {
+        var asdu = Source.AsduDetails;
+        if (asdu is null)
+            return LinkAddress == "-" ? string.Empty : "Station " + LinkAddress;
+        return "CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture) +
+            " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
+            " · COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture);
+    }
+
+
 
     private string BuildTimelineTitle()
     {
