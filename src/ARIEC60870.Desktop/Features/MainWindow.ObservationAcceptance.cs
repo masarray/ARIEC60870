@@ -1000,7 +1000,7 @@ public partial class MainWindow
         UpdateLayout();
         if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
             TraceInspectorColumn.ActualWidth > 1 ||
-            !multiObjectRow.TimelineEngineeringIdentity.Contains("TI ", StringComparison.Ordinal) ||
+            !multiObjectRow.TimelineSignalDigest.Contains("TI-", StringComparison.Ordinal) ||
             !multiObjectRow.TimelineEngineeringCause.Contains("COT ", StringComparison.Ordinal) ||
             !multiObjectRow.TimelineEngineeringIdentity.Contains("Link ", StringComparison.Ordinal))
             throw new InvalidOperationException(
