@@ -189,7 +189,10 @@ public partial class MainWindow
             TcpHostBox.Text = string.IsNullOrWhiteSpace(prefs.TcpHost) ? "127.0.0.1" : prefs.TcpHost;
             TcpPortBox.Text = prefs.TcpPort <= 0 ? "2404" : prefs.TcpPort.ToString();
             LinkAddressBox.Text = prefs.LinkAddress.ToString();
-            BackupLinkAddressBox.Text = prefs.BackupLinkAddress.ToString();
+            _backupLinkAddressExplicit = BackupLinkAddressPolicy.IsExplicit(
+                prefs.BackupLinkAddressExplicit, prefs.LinkAddress, prefs.BackupLinkAddress);
+            BackupLinkAddressBox.Text = BackupLinkAddressPolicy.InitialAddress(
+                prefs.LinkAddress, prefs.BackupLinkAddress, _backupLinkAddressExplicit).ToString();
             CommonAddressBox.Text = prefs.CommonAddress.ToString();
             CommandCaBox.Text = prefs.CommonAddress.ToString();
             SelectComboContent(LinkAddressSizeComboBox, Math.Clamp(prefs.LinkAddressSize, 0, 2).ToString());
@@ -232,6 +235,7 @@ public partial class MainWindow
         finally
         {
             _isApplyingSavedSetup = false;
+            UpdateBackupAddressAdvisory();
         }
     }
 
@@ -297,6 +301,7 @@ public partial class MainWindow
                 LinkAddress = settings.LinkAddress,
                 BackupPortName = (BackupPortComboBox.SelectedItem as string)?.Trim() ?? BackupPortComboBox.Text.Trim(),
                 BackupLinkAddress = int.TryParse(BackupLinkAddressBox.Text, out var backupLinkAddress) ? backupLinkAddress : settings.LinkAddress,
+                BackupLinkAddressExplicit = _backupLinkAddressExplicit,
                 CommonAddress = settings.CommonAddress,
                 LinkAddressSize = settings.LinkAddressSize,
                 CauseOfTransmissionSize = settings.CauseOfTransmissionSize,
@@ -461,6 +466,7 @@ public partial class MainWindow
         public int LinkAddress { get; set; } = 1;
         public string BackupPortName { get; set; } = string.Empty;
         public int BackupLinkAddress { get; set; } = 1;
+        public bool? BackupLinkAddressExplicit { get; set; }
         public int CommonAddress { get; set; } = 1;
         public int LinkAddressSize { get; set; } = 1;
         public int CauseOfTransmissionSize { get; set; } = 2;

@@ -210,6 +210,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Fresh standby defaults follow Link A until the engineer explicitly edits B.
+        // Hook only after InitializeComponent so XAML initialization is not mistaken
+        // for a deliberate address edit.
+        BackupLinkAddressBox.Text = LinkAddressBox.Text;
+        LinkAddressBox.TextChanged += LinkAAddress_TextChanged;
+        BackupLinkAddressBox.TextChanged += LinkBAddress_TextChanged;
         DataContext = this;
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         _uiFlushTimer = new DispatcherTimer(DispatcherPriority.Background)

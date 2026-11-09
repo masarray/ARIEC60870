@@ -549,6 +549,73 @@ public partial class MainWindow
         return new Iec101DualLinkRedundancySession(options, linkATransport, linkBTransport);
     }
 
+    // Address synchronization is a setup convenience, never a runtime remapping.
+    // An explicitly typed B address survives reconnect and preference restore.
+    private bool _backupLinkAddressExplicit;
+    private bool _synchronizingBackupLinkAddress;
+    private string? _acknowledgedBackupAddressPair;
+
+    private void LinkAAddress_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isApplyingSavedSetup) return;
+        SyncBackupAddressWhenUnconfigured();
+        UpdateBackupAddressAdvisory();
+    }
+
+    private void LinkBAddress_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isApplyingSavedSetup || _synchronizingBackupLinkAddress) return;
+        _backupLinkAddressExplicit = true;
+        UpdateBackupAddressAdvisory();
+    }
+
+    private void SyncBackupAddressWhenUnconfigured()
+    {
+        if (_backupLinkAddressExplicit || _sessionCancellation is not null ||
+            BackupLinkAddressBox is null || LinkAddressBox is null ||
+            !int.TryParse(LinkAddressBox.Text, out var address) || address is < 0 or > 65535)
+            return;
+        _synchronizingBackupLinkAddress = true;
+        try { BackupLinkAddressBox.Text = address.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+        finally { _synchronizingBackupLinkAddress = false; }
+    }
+
+    private void UpdateBackupAddressAdvisory()
+    {
+        if (BackupAddressAdvisory is null || BackupLinkAddressHint is null ||
+            ProtocolModeComboBox is null) return;
+        var isDual = IsIec101DualLinkModeSelected();
+        var hasAddresses = int.TryParse(LinkAddressBox?.Text, out var a) &&
+            int.TryParse(BackupLinkAddressBox?.Text, out var b);
+        var different = isDual && hasAddresses && BackupLinkAddressPolicy.IsDifferent(a, b);
+        var pair = hasAddresses ? a + ":" + b : string.Empty;
+        BackupLinkAddressHint.Visibility = different ? Visibility.Visible : Visibility.Collapsed;
+        BackupAddressAdvisory.Visibility = different &&
+            _acknowledgedBackupAddressPair != pair ? Visibility.Visible : Visibility.Collapsed;
+        if (different)
+            BackupAddressAdvisoryAddresses.Text = $"Link A: {a}  ·  Link B: {b}";
+    }
+
+    private void BackupAddressInfo_Click(object sender, RoutedEventArgs e)
+    {
+        _acknowledgedBackupAddressPair = null;
+        UpdateBackupAddressAdvisory();
+    }
+
+    private void BackupAddressReview_Click(object sender, RoutedEventArgs e)
+    {
+        BackupLinkAddressBox.Focus();
+        BackupLinkAddressBox.SelectAll();
+    }
+
+    private void BackupAddressContinue_Click(object sender, RoutedEventArgs e)
+    {
+        if (int.TryParse(LinkAddressBox.Text, out var a) &&
+            int.TryParse(BackupLinkAddressBox.Text, out var b))
+            _acknowledgedBackupAddressPair = a + ":" + b;
+        UpdateBackupAddressAdvisory();
+    }
+
     private Iec103MasterSettings BuildDualLinkBackupSettings(Iec103MasterSettings activeSettings)
     {
         var backup = activeSettings.CreateReportSnapshot();
@@ -583,7 +650,10 @@ public partial class MainWindow
             : "-";
         var commandGate = snapshot.ControllerState == Iec101RedundancyControllerState.Switching ? "Blocked" : "Ready";
 
-        DualLinkHealthStripText.Text = $"{snapshot.ControllerState} · Active {activeName} · Standby {standbyName} · Probe {standbyAge} · Image {snapshot.ApplicationImageState} · Command {commandGate}";
+        var standbyStatus = !snapshot.LinkB.IsHealthy && snapshot.LinkB.LinkAddressMismatchFrames > 0
+            ? "Link B address mismatch"
+            : snapshot.LinkB.IsHealthy ? "Standby healthy" : "Standby unavailable";
+        DualLinkHealthStripText.Text = $"{snapshot.ControllerState} · {activeName} active · {standbyStatus} · Image {snapshot.ApplicationImageState} · Command {commandGate}";
         DualLinkALineText.Text = FormatDualLinkLine(snapshot.LinkA);
         DualLinkBLineText.Text = FormatDualLinkLine(snapshot.LinkB);
         DualLinkADetailText.Text = FormatDualLinkDetail(snapshot.LinkA);
@@ -642,7 +712,9 @@ public partial class MainWindow
     }
 
     private static string FormatDualLinkLine(Iec101RedundancyChannelSnapshot channel)
-        => $"{channel.Role} · {channel.State}";
+        => !channel.IsHealthy && channel.LinkAddressMismatchFrames > 0
+            ? $"{channel.Role} · Address mismatch"
+            : $"{channel.Role} · {channel.State}";
 
     private static string FormatDualLinkDetail(Iec101RedundancyChannelSnapshot channel)
     {
@@ -652,7 +724,8 @@ public partial class MainWindow
         var acd = channel.Acd ? "1" : "0";
         var dfc = channel.Dfc ? "1" : "0";
         var fcb = channel.FrameCountBit ? "1" : "0";
-        return $"{channel.PortName} · addr {channel.LinkAddress} · last RX {lastRx} · timeout {channel.ConsecutiveTimeouts} · ACD {acd} · DFC {dfc} · FCB {fcb}";
+        var eligibility = channel.IsHealthy ? "healthy" : "not eligible";
+        return $"{channel.PortName} · Link {channel.LinkAddress} · RX {lastRx} · timeouts {channel.ConsecutiveTimeouts} · rejected {channel.RejectedFrames} · {eligibility} · ACD {acd} / DFC {dfc} / FCB {fcb}";
     }
 
     private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)
@@ -819,6 +892,7 @@ public partial class MainWindow
         ApplyCommandDockLayout();
         UpdateConnectToggleVisual(_sessionCancellation is not null);
         DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateBackupAddressAdvisory();
         TcpConnectionPanel.Visibility = tcpVisibility;
         SerialPollingPanel.Visibility = is104 || isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         Iec10xProfilePanel.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
