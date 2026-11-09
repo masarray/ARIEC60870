@@ -1121,8 +1121,25 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     $"Frame lanes overlap at {viewport.Name}: {expectedLayout}, HEX ({hexX:0},{hexY:0}), interpret ({signalX:0},{signalY:0}).");
 
-            if (FindTraceScroller(FrameTraceGrid) is { } adaptiveScroll && adaptiveScroll.ScrollableWidth > 6)
-                throw new InvalidOperationException($"Frame Trace horizontal overflow with inspector at {viewport.Name}.");
+            // VirtualizingStackPanel can overreport ScrollableWidth for recycled
+            // offscreen row extents after width changes, even with horizontal
+            // scrolling disabled. Test the actual visible WPF evidence bounds:
+            // bytes, interpretation, Link/CA and COT must fit in the viewport.
+            var scroller = FindTraceScroller(FrameTraceGrid);
+            if (scroller is null ||
+                ScrollViewer.GetHorizontalScrollBarVisibility(FrameTraceGrid) != ScrollBarVisibility.Disabled)
+                throw new InvalidOperationException("Frame Trace permits horizontal panning when docked.");
+            var viewportRight = scroller.TranslatePoint(
+                new Point(scroller.ViewportWidth, 0), adaptiveRow).X;
+            foreach (var text in new[] { hex, signals, identity, cause })
+            {
+                var right = text.TranslatePoint(new Point(text.ActualWidth, 0), adaptiveRow).X;
+                if (right > viewportRight + 3)
+                    throw new InvalidOperationException(
+                        $"Docked Frame Trace visual evidence crosses viewport at {viewport.Name}: " +
+                        $"text={text.Text[..Math.Min(32, text.Text.Length)]}, right={right:0}, viewport={viewportRight:0}, " +
+                        $"trace={FrameTraceGrid.ActualWidth:0}, layout={expectedLayout}.");
+            }
             SaveRealWpfBitmap(outputDirectory, "engineer-inspector-open-" + viewport.Name + ".png");
         }
         Width = 1366;
