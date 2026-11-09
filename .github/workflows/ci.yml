@@ -218,36 +218,13 @@ jobs:
           [xml]$props = Get-Content Directory.Build.props
           $version = [string]$props.Project.PropertyGroup.Version
           if ([version]$version -le [version]'3.6.7') { throw 'This upgrade acceptance requires a version newer than v3.6.7.' }
-          $oldVersion = '3.6.7'
           New-Item -ItemType Directory -Force -Path artifacts/installer | Out-Null
           $source = (Resolve-Path artifacts/passive-gui-publish).Path
           $output = (Resolve-Path artifacts/installer).Path
-          $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-old-release'
-          New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
-          $oldZip = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous.zip'
-          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
-          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$oldVersion-win-x64.zip"
-          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous release.' }
-          $sumFile = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous-sums.txt'
-          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sumFile "$baseUrl/SHA256SUMS.txt"
-          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous checksums.' }
-          $expected = Get-Content $sumFile | Where-Object { $_ -match 'ARIEC60870-v3\.6\.7-win-x64\.zip$' } | Select-Object -First 1
-          if (!$expected) { throw 'Previous release ZIP is absent from published SHA256SUMS.' }
-          $digest = ([regex]::Match($expected, '^[0-9a-fA-F]{64}')).Value
-          if (!(($digest) -and ((Get-FileHash $oldZip -Algorithm SHA256).Hash -ieq $digest))) {
-            throw 'Previous release ZIP checksum mismatch.'
-          }
-          Expand-Archive -Path $oldZip -DestinationPath $oldSource -Force
-          if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
-            throw 'Old public release does not contain the expected application EXE.'
-          }
-          & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
-          if ($LASTEXITCODE -ne 0) { throw 'Previous-version installer compilation failed.' }
-          $oldSetup = Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"
           & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
           if ($LASTEXITCODE -ne 0) { throw 'Current-version Inno compilation failed.' }
           $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
-          if (!(Test-Path $setup) -or !(Test-Path $oldSetup)) { throw 'Installer artifacts missing.' }
+          if (!(Test-Path $setup)) { throw 'Current installer artifact missing.' }
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content (Join-Path $output 'SHA256SUMS.txt') "$hash  $(Split-Path $setup -Leaf)" -Encoding ascii
           # Publishable only as a TEST installer until upgrade validation is green.
@@ -286,6 +263,29 @@ jobs:
           $version = [string]$props.Project.PropertyGroup.Version
           $oldVersion = '3.6.7'
           $output = (Resolve-Path artifacts/installer).Path
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) { throw "Missing Inno Setup compiler: $iscc" }
+          $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-old-release'
+          New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
+          $oldZip = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous.zip'
+          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$oldVersion-win-x64.zip"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous release.' }
+          $sumFile = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous-sums.txt'
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sumFile "$baseUrl/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous checksums.' }
+          $expected = Get-Content $sumFile | Where-Object { $_ -match 'ARIEC60870-v3\.6\.7-win-x64\.zip$' } | Select-Object -First 1
+          if (!$expected) { throw 'Previous release ZIP is absent from published SHA256SUMS.' }
+          $digest = ([regex]::Match($expected, '^[0-9a-fA-F]{64}')).Value
+          if (!(($digest) -and ((Get-FileHash $oldZip -Algorithm SHA256).Hash -ieq $digest))) {
+            throw 'Previous release ZIP checksum mismatch.'
+          }
+          Expand-Archive -Path $oldZip -DestinationPath $oldSource -Force
+          if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
+            throw 'Old public release does not contain the expected application EXE.'
+          }
+          & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Previous-version installer compilation failed.' }
           $oldSetup = Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"
           $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
           if (!(Test-Path $oldSetup) -or !(Test-Path $setup)) {
@@ -351,5 +351,4 @@ jobs:
           name: ARIEC60870-installer-upgrade-acceptance
           path: artifacts/installer/UPGRADE-ACCEPTANCE.txt
           if-no-files-found: ignore
-          retention-days: 14
           retention-days: 14
