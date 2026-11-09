@@ -205,21 +205,10 @@ jobs:
           name: ARIEC60870-installer-input
           path: artifacts/passive-gui-publish/
 
-      - name: Build Inno Setup and prove older-release upgrade plus active-Master shutdown
+      - name: Compile the tested Windows Inno Setup installer
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          # Do not allow silent installers/upgrades to wait indefinitely on a
-          # WPF process, Windows Restart Manager, or an invisible UI dialog.
-          function Invoke-BoundedProcess {
-            param([string]$Path, [string[]]$Arguments, [int]$Seconds = 180)
-            $child = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru
-            if (!$child.WaitForExit($Seconds * 1000)) {
-              try { $child.Kill($true) } catch { }
-              throw "Timed out after $Seconds seconds: $Path"
-            }
-            return [pscustomobject]@{ ExitCode = $child.ExitCode }
-          }
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
           if (!(Test-Path $iscc)) {
             choco install innosetup --no-progress -y
@@ -266,6 +255,42 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts/installer-deliverable | Out-Null
           Copy-Item $setup artifacts/installer-deliverable/ -Force
           Copy-Item (Join-Path $output 'SHA256SUMS.txt') artifacts/installer-deliverable/ -Force
+
+      - name: Upload compiled installer before upgrade validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-InnoSetup-win-x64
+          path: artifacts/installer-deliverable/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Verify previous release upgrade and active Master shutdown
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Tests are intentionally separate from artifact publication. Each process
+          # is bounded; a failed/hung upgrade cannot suppress a compiled test setup.
+          # Do not allow silent installers/upgrades to wait indefinitely on a
+          # WPF process, Windows Restart Manager, or an invisible UI dialog.
+          function Invoke-BoundedProcess {
+            param([string]$Path, [string[]]$Arguments, [int]$Seconds = 180)
+            $child = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru
+            if (!$child.WaitForExit($Seconds * 1000)) {
+              try { $child.Kill($true) } catch { }
+              throw "Timed out after $Seconds seconds: $Path"
+            }
+            return [pscustomobject]@{ ExitCode = $child.ExitCode }
+          }
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          $oldVersion = '3.6.7'
+          $output = (Resolve-Path artifacts/installer).Path
+          $oldSetup = Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"
+          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          if (!(Test-Path $oldSetup) -or !(Test-Path $setup)) {
+            throw 'Compiled old/current setups missing before upgrade acceptance.'
+          }
           $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
           $exe = Join-Path $installDir 'ARIEC60870.exe'
           $userData = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
@@ -319,11 +344,12 @@ jobs:
           "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
-      - name: Upload Inno Setup installer and checksum
+      - name: Upload successful installer upgrade acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-InnoSetup-win-x64
-          path: artifacts/installer-deliverable/*
-          if-no-files-found: warn
+          name: ARIEC60870-installer-upgrade-acceptance
+          path: artifacts/installer/UPGRADE-ACCEPTANCE.txt
+          if-no-files-found: ignore
+          retention-days: 14
           retention-days: 14
