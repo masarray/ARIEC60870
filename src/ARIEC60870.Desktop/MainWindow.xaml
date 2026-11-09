@@ -819,6 +819,7 @@
                                                TextTrimming="CharacterEllipsis" Margin="1,3,0,0"/>
                                 </StackPanel>
                                 <ListBox x:Name="FrameTraceGrid" ToolTipService.IsEnabled="False" MouseDoubleClick="FrameTraceGrid_MouseDoubleClick"
+                                         SizeChanged="FrameTraceGrid_SizeChanged"
                                          Grid.Row="4"
                                          ItemsSource="{Binding FrameTraceRows}"
                                          Style="{StaticResource ProtocolTraceListBox}"
@@ -875,17 +876,20 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,2,0,3">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
-                                                    <!-- Give the inline engineer interpreter 68% of the
-                                                         frame row, while keeping the raw wire
-                                                         timeline and original HEX on the left. -->
+                                                    <!-- Responsive WPF template: wide trace uses paired lanes;
+                                                         narrow trace stacks HEX above interpretation. -->
                                                     <ColumnDefinition Width="0.64*"/>
                                                     <ColumnDefinition Width="1.36*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Left: real on-wire evidence. Original bytes
                                                      remain intact, readable and independent of
                                                      narrative; no decoder work in this XAML. -->
-                                                <Grid Grid.Column="0" Margin="1,0,7,0">
+                                                <Grid x:Name="TraceRowWireLane" Grid.Column="0" Grid.Row="0" Margin="1,0,7,0">
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
@@ -917,14 +921,15 @@
                                                 <!-- Right: engineer's immediate interpretation.
                                                      Signal/value, GI and source quality are
                                                      adjacent to the exact physical frame. -->
-                                                <Border Grid.Column="1" BorderBrush="#C9D8E4"
+                                                <Border x:Name="TraceRowInterpreterLane" Grid.Column="1" Grid.Row="0"
+                                                        BorderBrush="#C9D8E4"
                                                         BorderThickness="1,0,0,0" Padding="8,0,3,0">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding TimelineTitle}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="11"
                                                                    FontWeight="SemiBold" Foreground="#253B51"
-                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="35"/>
+                                                                   TextWrapping="Wrap" TextTrimming="None"
+                                                                   MaxHeight="90"/>
                                                         <!-- Each IOA/Value is separated by an actual
                                                              newline, not joined as a horizontal
                                                              text run. Only 3 source objects are
@@ -932,8 +937,8 @@
                                                         <TextBlock Text="{Binding TimelineSignalDigest}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
-                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="112">
+                                                                   TextWrapping="Wrap" TextTrimming="None"
+                                                                   MaxHeight="280">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
@@ -947,7 +952,7 @@
                                                         <TextBlock Text="{Binding TimelineSignalOverflow}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.3"
                                                                    Foreground="#59728A" Margin="0,2,0,0"
-                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                                   TextWrapping="Wrap" TextTrimming="None">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
@@ -961,18 +966,19 @@
                                                         <TextBlock Text="{Binding TimelineEngineeringIdentity}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.5"
                                                                    Foreground="#3C5670" Margin="0,3,0,0"
-                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="34"/>
+                                                                   TextWrapping="Wrap" TextTrimming="None"
+                                                                   MaxHeight="88"/>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.4"
                                                                    Foreground="#405973" Margin="0,2,0,0"
-                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                                                   TextWrapping="Wrap" TextTrimming="None"
+                                                                   MaxHeight="110"/>
                                                         <!-- RTU timestamp is rendered only beside its own typed signal above. -->
                                                         <TextBlock Text="{Binding TimelineAlerts}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    FontWeight="SemiBold" Foreground="#9B3F24"
-                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="36" Margin="0,3,0,0">
+                                                                   TextWrapping="Wrap" TextTrimming="None"
+                                                                   MaxHeight="110" Margin="0,3,0,0">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
@@ -987,6 +993,20 @@
                                                 </Border>
                                             </Grid>
                                         </DataTemplate>
+                                        <DataTemplate.Triggers>
+                                            <!-- Responsive only on measured ListBox width, never RX frame rate.
+                                                 Avoid squeezing long IOA/time/quality evidence into
+                                                 a 150px interpretation lane beside an open inspector. -->
+                                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                                         Value="Stacked">
+                                                <Setter TargetName="TraceRowWireLane" Property="Grid.ColumnSpan" Value="2"/>
+                                                <Setter TargetName="TraceRowInterpreterLane" Property="Grid.Column" Value="0"/>
+                                                <Setter TargetName="TraceRowInterpreterLane" Property="Grid.Row" Value="1"/>
+                                                <Setter TargetName="TraceRowInterpreterLane" Property="Grid.ColumnSpan" Value="2"/>
+                                                <Setter TargetName="TraceRowInterpreterLane" Property="BorderThickness" Value="0,1,0,0"/>
+                                                <Setter TargetName="TraceRowInterpreterLane" Property="Padding" Value="1,5,3,0"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                                 <!-- Zero-frame evidence: show the physical RX state in the
@@ -994,7 +1014,7 @@
                                 <StackPanel x:Name="TracePassiveEmptyState" Grid.Row="4"
                                             Visibility="Collapsed"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            Width="520" Margin="22,0">
+                                            MaxWidth="520" Margin="14,0">
                                     <TextBlock x:Name="TracePassiveEmptyTitleText"
                                                Text="Waiting for IEC-101 receive evidence"
                                                FontSize="13" FontWeight="Medium"
@@ -1080,10 +1100,12 @@
                                                                     <ColumnDefinition Width="0.85*"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <TextBlock Text="{Binding Field}" FontSize="11.5"
-                                                                           Foreground="{StaticResource Ink700Brush}"/>
+                                                                           Foreground="{StaticResource Ink700Brush}"
+                                                                           TextWrapping="Wrap"/>
                                                                 <StackPanel Grid.Column="1">
                                                                     <TextBlock Text="{Binding Value}" FontSize="11.5"
-                                                                               Foreground="{StaticResource Ink900Brush}"/>
+                                                                               Foreground="{StaticResource Ink900Brush}"
+                                                                               TextWrapping="Wrap" TextTrimming="None"/>
                                                                     <TextBlock Text="{Binding Explanation}" FontSize="10.7"
                                                                                Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap"/>
                                                                 </StackPanel>
@@ -1116,8 +1138,8 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}" FontSize="11.7"
-                                                                   Foreground="{StaticResource Ink900Brush}" TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap"
+                                                                   TextTrimming="None"
                                                                    VerticalAlignment="Center" Margin="9,5,8,5"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
