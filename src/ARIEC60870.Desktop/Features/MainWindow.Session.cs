@@ -653,9 +653,9 @@ public partial class MainWindow
         var commandGate = snapshot.ControllerState == Iec101RedundancyControllerState.Switching ? "Blocked" : "Ready";
 
         var standbyStatus = !snapshot.LinkB.IsHealthy && snapshot.LinkB.LinkAddressMismatchFrames > 0
-            ? "Link B address mismatch"
-            : snapshot.LinkB.IsHealthy ? "Standby healthy" : "Standby unavailable";
-        DualLinkHealthStripText.Text = $"{snapshot.ControllerState} · {activeName} active · {standbyStatus} · Image {snapshot.ApplicationImageState} · Command {commandGate}";
+            ? $"{standbyName} address mismatch"
+            : snapshot.LinkB.IsHealthy ? $"{standbyName} healthy" : $"{standbyName} unavailable";
+        DualLinkHealthStripText.Text = $"{snapshot.ControllerState} · {activeName} active · {standbyStatus} · probe {standbyAge} · Image {snapshot.ApplicationImageState} · Command {commandGate}";
         DualLinkALineText.Text = FormatDualLinkLine(snapshot.LinkA);
         DualLinkBLineText.Text = FormatDualLinkLine(snapshot.LinkB);
         DualLinkADetailText.Text = FormatDualLinkDetail(snapshot.LinkA);
@@ -746,7 +746,7 @@ public partial class MainWindow
         DualLinkTimelineDetails.Visibility = Visibility.Visible;
     }
 
-    private void DualLinkManualFailover_Click
+    private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)
     {
         if (_activeDualLinkSession is null)
         {

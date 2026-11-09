@@ -2819,7 +2819,7 @@
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Link B addr" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                             <TextBox x:Name="BackupLinkAddressBox" Text="1" ToolTip="Defaults to Link A unless explicitly configured differently." />
-                                            <Button x:Name="BackupLinkAddressHint" Content="ⓘ Different addresses"
+                                            <Button x:Name="BackupLinkAddressHint" Content="ⓘ"
                                                     Visibility="Collapsed" Style="{StaticResource SecondaryButton}"
                                                     HorizontalAlignment="Left" Padding="4,2" Margin="0,4,0,0"
                                                     FontSize="10" Foreground="#4B647C"
