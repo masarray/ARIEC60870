@@ -992,7 +992,6 @@
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
-                                        </DataTemplate>
                                         <DataTemplate.Triggers>
                                             <!-- Responsive only on measured ListBox width, never RX frame rate.
                                                  Avoid squeezing long IOA/time/quality evidence into
@@ -1007,6 +1006,7 @@
                                                 <Setter TargetName="TraceRowInterpreterLane" Property="Padding" Value="1,5,3,0"/>
                                             </DataTrigger>
                                         </DataTemplate.Triggers>
+                                        </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                                 <!-- Zero-frame evidence: show the physical RX state in the
