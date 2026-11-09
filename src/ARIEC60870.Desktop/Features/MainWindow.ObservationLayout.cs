@@ -23,6 +23,22 @@ public partial class MainWindow
         // One Engineer Mode: inspector stays available at every viewport size.
         // A narrow window may scroll, but must never silently hide frame details.
         ApplyTraceInspectorVisibility(_traceInspectorPreferredVisible || _traceInspectorForcedOpen);
+        UpdateTraceRowLayout();
+    }
+
+    private void FrameTraceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Changes only when the actual row viewport crosses the readable-width
+        // threshold. No per-frame layout work or async dispatcher timers.
+        if (e.WidthChanged) UpdateTraceRowLayout();
+    }
+
+    private void UpdateTraceRowLayout()
+    {
+        if (FrameTraceGrid is null || FrameTraceGrid.ActualWidth <= 0) return;
+        var target = FrameTraceViewportPolicy.RowLayout(FrameTraceGrid.ActualWidth);
+        if (!Equals(FrameTraceGrid.Tag, target))
+            FrameTraceGrid.Tag = target;
     }
 
     private void ApplyTraceInspectorVisibility(bool visible)
