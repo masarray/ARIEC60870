@@ -1067,6 +1067,69 @@ public partial class MainWindow
             throw new InvalidOperationException("Full Properties row drilldown is not visible in real WPF.");
         SaveRealWpfBitmap(outputDirectory, "engineer-right-full-properties-only.png");
 
+        // Real responsive WPF acceptance with the dock OPEN: a narrower frame
+        // viewport must stack the actual HEX above the decoded interpretation.
+        // Test actual sizes, not requested top-level dimensions (runner may clamp).
+        foreach (var viewport in new (string Name, double Width, double Height)[]
+        {
+            ("desktop-1540x960", 1540, 960),
+            ("field-1366x768", 1366, 768),
+            ("compact-1024x576", 1024, 576)
+        })
+        {
+            Width = viewport.Width;
+            Height = viewport.Height;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            UpdateLayout();
+            UpdateTraceRowLayout();
+            FrameTraceGrid.ScrollIntoView(multiObjectRow);
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
+                FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(multiObjectRow)
+                    is not ListBoxItem adaptiveRow)
+                throw new InvalidOperationException("Inspector-open adaptive Frame Trace lost the selected physical row.");
+
+            var expectedLayout = FrameTraceViewportPolicy.RowLayout(FrameTraceGrid.ActualWidth);
+            if (!Equals(FrameTraceGrid.Tag, expectedLayout))
+                throw new InvalidOperationException(
+                    $"Incorrect responsive layout at {viewport.Name}: actual width={FrameTraceGrid.ActualWidth:0}, tag={FrameTraceGrid.Tag}, expected={expectedLayout}.");
+
+            var hex = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineHex);
+            var signals = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineSignalDigest);
+            var identity = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringIdentity);
+            var cause = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringCause);
+            if (hex is null || signals is null || identity is null || cause is null ||
+                signals.TextWrapping != TextWrapping.Wrap ||
+                signals.TextTrimming != TextTrimming.None ||
+                identity.TextTrimming != TextTrimming.None ||
+                cause.TextWrapping != TextWrapping.Wrap ||
+                cause.TextTrimming != TextTrimming.None ||
+                signals.ActualWidth < 130 || signals.ActualHeight < 16 ||
+                !signals.Text.Contains("IOA ", StringComparison.Ordinal) ||
+                !cause.Text.Contains("COT ", StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Frame interpreter clipped/hidden at {viewport.Name}: trace={FrameTraceGrid.ActualWidth:0}, layout={expectedLayout}, signals={signals?.ActualWidth:0}x{signals?.ActualHeight:0}.");
+
+            var hexX = hex.TranslatePoint(new Point(0, 0), adaptiveRow).X;
+            var hexY = hex.TranslatePoint(new Point(0, 0), adaptiveRow).Y;
+            var signalX = signals.TranslatePoint(new Point(0, 0), adaptiveRow).X;
+            var signalY = signals.TranslatePoint(new Point(0, 0), adaptiveRow).Y;
+            if (expectedLayout == "Stacked"
+                ? signalY < hexY + hex.ActualHeight - 1
+                : signalX <= hexX + hex.ActualWidth - 3)
+                throw new InvalidOperationException(
+                    $"Frame lanes overlap at {viewport.Name}: {expectedLayout}, HEX ({hexX:0},{hexY:0}), interpret ({signalX:0},{signalY:0}).");
+
+            if (FindTraceScroller(FrameTraceGrid) is { } adaptiveScroll && adaptiveScroll.ScrollableWidth > 6)
+                throw new InvalidOperationException($"Frame Trace horizontal overflow with inspector at {viewport.Name}.");
+            SaveRealWpfBitmap(outputDirectory, "engineer-inspector-open-" + viewport.Name + ".png");
+        }
+        Width = 1366;
+        Height = 768;
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        UpdateLayout();
+
         // Interactive hex inspector must render actual original byte CELLS,
         // verified field ranges, and field-to-byte selection/highlighting.
         // A giant ASCII diagram TextBox is explicitly forbidden.
