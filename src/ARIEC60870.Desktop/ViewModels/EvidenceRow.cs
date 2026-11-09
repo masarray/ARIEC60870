@@ -295,7 +295,14 @@ public sealed partial class EvidenceRow
         {
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
-            return Iec10xSignalTraceFormatter.Format(asdu, obj, name);
+            var label = Iec10xSignalTraceFormatter.Format(asdu, obj, name) +
+                " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture);
+            if (string.IsNullOrWhiteSpace(obj.TimestampText)) return label;
+            var trust = obj.Cp56TimeDetails is { } cp56
+                ? " · " + (cp56.IsValid ? "Time valid" : "Time invalid") +
+                  (cp56.SubstitutedFlag ? " · Substituted" : " · Genuine")
+                : string.Empty;
+            return label + " · RTU " + obj.TimestampText + trust;
         });
         return string.Join(Environment.NewLine, visible);
     }
@@ -331,8 +338,10 @@ public sealed partial class EvidenceRow
                 station + " · FC " + function.FunctionCode.ToString(CultureInfo.InvariantCulture) +
                 " (" + function.FunctionName + ")";
         }
-        return station + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture) +
-            " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
+        var context = station + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture);
+        // TI already appears next to each typed signal; don't print it again below.
+        return asdu.Issues.Count == 0 && asdu.Objects.Count > 0 ? context :
+            context + " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
             " (" + Iec101TraceNarrator.HumanTypeName(asdu) + ")";
     }
 

@@ -585,8 +585,10 @@ public partial class MainWindow
         if (BackupAddressAdvisory is null || BackupLinkAddressHint is null ||
             ProtocolModeComboBox is null) return;
         var isDual = IsIec101DualLinkModeSelected();
-        var hasAddresses = int.TryParse(LinkAddressBox?.Text, out var a) &&
-            int.TryParse(BackupLinkAddressBox?.Text, out var b);
+        var a = 0;
+        var b = 0;
+        var hasAddresses = int.TryParse(LinkAddressBox?.Text, out a) &&
+            int.TryParse(BackupLinkAddressBox?.Text, out b);
         var different = isDual && hasAddresses && BackupLinkAddressPolicy.IsDifferent(a, b);
         var pair = hasAddresses ? a + ":" + b : string.Empty;
         BackupLinkAddressHint.Visibility = different ? Visibility.Visible : Visibility.Collapsed;
@@ -728,7 +730,23 @@ public partial class MainWindow
         return $"{channel.PortName} · Link {channel.LinkAddress} · RX {lastRx} · timeouts {channel.ConsecutiveTimeouts} · rejected {channel.RejectedFrames} · {eligibility} · ACD {acd} / DFC {dfc} / FCB {fcb}";
     }
 
-    private void DualLinkManualFailover_Click(object sender, RoutedEventArgs e)
+    private void DualLinkTimelineGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DualLinkTimelineDetails is null || DualLinkTimelineDetailBox is null ||
+            DualLinkTimelineGrid is null) return;
+        if (DualLinkTimelineGrid.SelectedItem is not DualLinkTimelineRow row)
+        {
+            DualLinkTimelineDetails.Visibility = Visibility.Collapsed;
+            return;
+        }
+        DualLinkTimelineDetailBox.Text =
+            row.Time + " · " + row.Link + " · " + row.Event +
+            Environment.NewLine + row.FullReason +
+            Environment.NewLine + row.FullResult;
+        DualLinkTimelineDetails.Visibility = Visibility.Visible;
+    }
+
+    private void DualLinkManualFailover_Click
     {
         if (_activeDualLinkSession is null)
         {

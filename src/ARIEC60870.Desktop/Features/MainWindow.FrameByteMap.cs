@@ -14,14 +14,15 @@ public partial class MainWindow
 
     private void FrameTraceGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        // Only a genuine frame-row double click opens a byte diagram; a
-        // scrollbar, header or empty trace background must do nothing.
+        // Double-click opens the source-backed Frame Details dock.
+        // The separate HEX byte-map window remains in the context menu.
+        // Scrollbar and empty background double-clicks must do nothing.
         if (e.ChangedButton != MouseButton.Left ||
             e.OriginalSource is not DependencyObject origin ||
             ItemsControl.ContainerFromElement(FrameTraceGrid, origin) is not ListBoxItem item ||
             item.DataContext is not EvidenceRow row)
             return;
-        OpenPhysicalByteMap(row);
+        OpenTraceInspectorForRow(row);
         e.Handled = true;
     }
 

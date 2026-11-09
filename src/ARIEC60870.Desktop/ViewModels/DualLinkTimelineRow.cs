@@ -14,8 +14,19 @@ public sealed class DualLinkTimelineRow
         Time = item.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Link = ResolveLink(item);
         Event = string.IsNullOrWhiteSpace(item.Category) ? item.State.ToString() : item.Category;
-        Reason = string.IsNullOrWhiteSpace(item.Summary) ? item.OperatorMessage : item.Summary;
-        Result = string.IsNullOrWhiteSpace(item.Detail) ? item.ProtocolMeaning : item.Detail;
+        FullReason = string.IsNullOrWhiteSpace(item.Summary) ? item.OperatorMessage : item.Summary;
+        FullResult = string.IsNullOrWhiteSpace(item.Detail) ? item.ProtocolMeaning : item.Detail;
+        if (item.PollingReason == "IEC101-RX-LINK-ADDRESS-MISMATCH" &&
+            item.ExpectedLinkAddress is int expected && item.Frame?.LinkAddress is int actual)
+        {
+            Reason = $"Expected {expected} · Received {actual}";
+            Result = "Rejected · Verify RTU address and converter routing";
+        }
+        else
+        {
+            Reason = Compact(FullReason, 90);
+            Result = Compact(string.IsNullOrWhiteSpace(item.ProtocolMeaning) ? FullResult : item.ProtocolMeaning, 95);
+        }
     }
 
     public long Sequence { get; }
@@ -24,6 +35,11 @@ public sealed class DualLinkTimelineRow
     public string Event { get; }
     public string Reason { get; }
     public string Result { get; }
+    public string FullReason { get; }
+    public string FullResult { get; }
+
+    private static string Compact(string text, int limit) =>
+        text.Length <= limit ? text : text[..(limit - 1)].TrimEnd() + "…";
 
     private static string ResolveLink(Iec103MasterEvidenceEvent item)
     {

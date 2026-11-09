@@ -54,6 +54,8 @@ public sealed class Iec103MasterEvidenceEvent
     // COT, CA and IOA. IEC-104 additionally exposes APCI I/S/U format and sequence numbers.
     public Iec60870ProtocolMode ProtocolMode { get; init; } = Iec60870ProtocolMode.Iec103;
     public int? LinkAddress { get; init; }
+    /// <summary>Configured channel address during RX validation (null for ordinary frames).</summary>
+    public int? ExpectedLinkAddress { get; init; }
     public string ApciFormat { get; init; } = string.Empty;
     public int? SendSequence { get; init; }
     public int? ReceiveSequence { get; init; }
