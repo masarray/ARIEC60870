@@ -637,6 +637,34 @@
                                 <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="0" />
                                 <ColumnDefinition x:Name="TraceInspectorColumn" Width="0" MinWidth="0" />
                             </Grid.ColumnDefinitions>
+                            <Grid.Resources>
+                                <Style x:Key="TraceChevronStyle" TargetType="Button">
+                                    <Setter Property="Width" Value="26"/>
+                                    <Setter Property="Height" Value="26"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="FontSize" Value="15"/>
+                                    <Setter Property="Foreground" Value="#38536B"/>
+                                    <Setter Property="Background" Value="#F8FBFE"/>
+                                    <Setter Property="BorderBrush" Value="#C7D6E4"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="ChevronCircle" CornerRadius="13"
+                                                        Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="1">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ChevronCircle" Property="Background" Value="#EAF2FC"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Grid.Resources>
 
                             <!-- One physical toolbar line: responsive Search | compact counter | AUTO.
                                  The frame ListBox begins immediately below. Archive controls
@@ -732,11 +760,12 @@
                                                 Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
                                                 Margin="0,0,7,0" Padding="7,3"/>
                                         </StackPanel>
-                                        <Button x:Name="TraceInspectorToggle" Content="‹ Frame Details"
-                                                FontFamily="{StaticResource AppFont}" FontSize="10.8"
-                                                Margin="0,0,9,0" Padding="8,4"
-                                                Style="{StaticResource SecondaryButton}" Click="TraceInspectorToggle_Click"
-                                                Visibility="Visible"/>
+                                        <Button x:Name="TraceInspectorToggle" Content="‹"
+                                                Margin="0,0,9,0"
+                                                Style="{StaticResource TraceChevronStyle}" Click="TraceInspectorToggle_Click"
+                                                ToolTip="Expand Frame Details; double-click any frame"
+                                                AutomationProperties.Name="Expand Frame Details"
+                                                ToolTipService.IsEnabled="True" Visibility="Visible"/>
                                         <TextBlock FontSize="10.9"
                                                    FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0">
                                             <TextBlock.Style>
@@ -938,11 +967,7 @@
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.4"
                                                                    Foreground="#405973" Margin="0,2,0,0"
                                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding TimelineDeviceTimestamp}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.4"
-                                                                   Foreground="#13656A" Margin="0,2,0,0"
-                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                                   MaxHeight="38"/>
+                                                        <!-- RTU timestamp is rendered only beside its own typed signal above. -->
                                                         <TextBlock Text="{Binding TimelineAlerts}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    FontWeight="SemiBold" Foreground="#9B3F24"
@@ -1016,11 +1041,11 @@
                                          <RowDefinition Height="*"/>
                                      </Grid.RowDefinitions>
                                      <DockPanel Grid.Row="0" Margin="1,0,0,8">
-                                         <Button DockPanel.Dock="Right" Content="›" FontSize="17"
-                                                 Width="27" Height="25" Padding="0"
-                                                 Style="{StaticResource SecondaryButton}"
+                                         <Button DockPanel.Dock="Right" Content="›"
+                                                 Style="{StaticResource TraceChevronStyle}"
                                                  Click="TraceFrameDetailsClose_Click"
-                                                 AutomationProperties.Name="Collapse Frame Details to right"/>
+                                                 ToolTip="Collapse Frame Details" ToolTipService.IsEnabled="True"
+                                                 AutomationProperties.Name="Collapse Frame Details"/>
                                          <TextBlock Text="Frame Details · Full Properties" FontSize="12.4"
                                                     FontWeight="Medium" Foreground="#223B54"
                                                     VerticalAlignment="Center"/>
@@ -1962,6 +1987,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
                                 <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <Border Grid.Row="0" Style="{StaticResource Card}" Padding="12,9">
@@ -2029,7 +2055,8 @@
                                 </Border>
                             </Grid>
 
-                            <DataGrid Grid.Row="4"
+                            <DataGrid x:Name="DualLinkTimelineGrid" Grid.Row="4"
+                                      SelectionChanged="DualLinkTimelineGrid_SelectionChanged"
                                       ItemsSource="{Binding DualLinkTimelineRows}"
                                       IsReadOnly="True"
                                       AutoGenerateColumns="False"
@@ -2043,10 +2070,20 @@
                                     <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="105" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Link" Binding="{Binding Link}" Width="95" ElementStyle="{StaticResource GridCellText}" />
                                     <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="170" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" MinWidth="260" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="2*" MinWidth="320" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" MinWidth="190" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="2*" MinWidth="210" ElementStyle="{StaticResource GridCellText}" />
                                 </DataGrid.Columns>
                             </DataGrid>
+                            <Border x:Name="DualLinkTimelineDetails" Grid.Row="5" Visibility="Collapsed"
+                                    Margin="0,7,0,0" Padding="9" CornerRadius="8"
+                                    Background="#F7FAFD" BorderThickness="1" BorderBrush="#D2DEE9">
+                                <TextBox x:Name="DualLinkTimelineDetailBox"
+                                         Text="Select a redundancy event to inspect full diagnostics."
+                                         IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                         FontFamily="Cascadia Mono, Consolas" FontSize="10.5"
+                                         TextWrapping="Wrap" AcceptsReturn="True"
+                                         MaxHeight="115" VerticalScrollBarVisibility="Auto"/>
+                            </Border>
                         </Grid>
                     </TabItem>
                     <TabItem Header="Passive Monitor">
@@ -2781,9 +2818,36 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Link B addr" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                            <TextBox x:Name="BackupLinkAddressBox" Text="1" ToolTip="Use the outstation standby-link address if it differs from Link A. Many dual-link RTU profiles use the same link address on both paths." />
+                                            <TextBox x:Name="BackupLinkAddressBox" Text="1" ToolTip="Defaults to Link A unless explicitly configured differently." />
+                                            <Button x:Name="BackupLinkAddressHint" Content="ⓘ"
+                                                    Visibility="Collapsed" Style="{StaticResource SecondaryButton}"
+                                                    HorizontalAlignment="Left" Padding="4,2" Margin="0,4,0,0"
+                                                    FontSize="10" Foreground="#4B647C"
+                                                    Click="BackupAddressInfo_Click"
+                                                    ToolTip="Show link address guidance."/>
                                         </StackPanel>
                                     </Grid>
+                                </Border>
+                                <Border x:Name="BackupAddressAdvisory" Visibility="Collapsed"
+                                        Margin="0,7,0,0" Padding="11,9"
+                                        CornerRadius="9" Background="#F4F8FD"
+                                        BorderBrush="#C7D8EA" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="Different Link Addresses Detected" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#27415C"/>
+                                        <TextBlock x:Name="BackupAddressAdvisoryAddresses"
+                                                   Margin="0,3,0,0" FontSize="11" Foreground="#27415C"/>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" FontSize="10.8"
+                                                   Foreground="#425B74"
+                                                   Text="In most redundant IEC-101 configurations, both links use the same Link Address. Please verify that these addresses match your RTU configuration. Different addresses are supported when intentionally configured."/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Content="Review Settings" Click="BackupAddressReview_Click"
+                                                    Style="{StaticResource SecondaryButton}" Padding="9,4" FontSize="10.5"/>
+                                            <Button Content="Continue Anyway" Click="BackupAddressContinue_Click"
+                                                    Style="{StaticResource SecondaryButton}" Padding="9,4"
+                                                    FontSize="10.5" Margin="6,0,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
                                 </Border>
                                 <TextBlock Text="Standby Link B is supervised only. It must not poll Class 1/Class 2 or issue commands until promoted active." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,6,0,0" />
                             </StackPanel>

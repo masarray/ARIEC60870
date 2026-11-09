@@ -567,6 +567,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             Frame = decoded,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             LinkAddress = decoded.LinkAddress,
+            ExpectedLinkAddress = _settings.LinkAddress,
             SignalGroup = "IEC-101 Link Diagnostics"
         });
     }

@@ -53,9 +53,11 @@ public partial class MainWindow
             SelectedHexSegments.Clear();
         }
 
-        TraceInspectorToggle.Content = visible ? "Frame Details ›" : "‹ Frame Details";
-        // No hover tooltips in the observation workstation.
-        TraceInspectorToggle.ToolTip = null;
+        TraceInspectorToggle.Content = visible ? "›" : "‹";
+        TraceInspectorToggle.ToolTip = visible
+            ? "Collapse Frame Details" : "Expand Frame Details; double-click any frame";
+        System.Windows.Automation.AutomationProperties.SetName(TraceInspectorToggle,
+            visible ? "Collapse Frame Details" : "Expand Frame Details");
     }
 
     private void TraceInspectorToggle_Click(object sender, RoutedEventArgs e)
@@ -84,6 +86,11 @@ public partial class MainWindow
             .OrderBy(frame => frame.Sequence).LastOrDefault()
             ?? FrameTraceGrid.SelectedItem as EvidenceRow;
         if (row is null) return;
+        OpenTraceInspectorForRow(row);
+    }
+
+    private void OpenTraceInspectorForRow(EvidenceRow row)
+    {
         _traceInspectorPreferredVisible = true;
         _traceInspectorForcedOpen = true;
         ApplyTraceInspectorVisibility(true);

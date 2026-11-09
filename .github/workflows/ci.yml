@@ -261,6 +261,11 @@ jobs:
           if (!(Test-Path $setup) -or !(Test-Path $oldSetup)) { throw 'Installer artifacts missing.' }
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content (Join-Path $output 'SHA256SUMS.txt') "$hash  $(Split-Path $setup -Leaf)" -Encoding ascii
+          # Publishable only as a TEST installer until upgrade validation is green.
+          # Preserve the exact compiled installer independently of the long FAT.
+          New-Item -ItemType Directory -Force -Path artifacts/installer-deliverable | Out-Null
+          Copy-Item $setup artifacts/installer-deliverable/ -Force
+          Copy-Item (Join-Path $output 'SHA256SUMS.txt') artifacts/installer-deliverable/ -Force
           $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
           $exe = Join-Path $installDir 'ARIEC60870.exe'
           $userData = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
@@ -315,9 +320,10 @@ jobs:
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
       - name: Upload Inno Setup installer and checksum
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-InnoSetup-win-x64
-          path: artifacts/installer/*
-          if-no-files-found: error
+          path: artifacts/installer-deliverable/*
+          if-no-files-found: warn
           retention-days: 14
