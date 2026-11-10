@@ -218,17 +218,19 @@ public sealed class Iec101DualLinkRedundancySessionTests
         var session = new Iec101DualLinkRedundancySession(
             options, linkA, new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
         var result = await session.RunForAsync(TimeSpan.FromMilliseconds(900), CancellationToken.None);
-        var snap = session.CreateSnapshot();
-
         Assert.True(linkA.Transmissions.Count >= 2,
             "The active IEC101 link did not retransmit its first silent read.");
         Assert.Equal(linkA.Transmissions[0], linkA.Transmissions[1]);
         Assert.Contains(result.Events, e =>
             e.Direction == FrameDirection.MasterToSlave &&
             e.PollingReason.Contains("bounded unchanged-FCB read retry #1", StringComparison.Ordinal));
-        Assert.True(snap.LinkA.LastGoodResponseUtc.HasValue,
-            "The matching second attempt should verify the addressed secondary.");
-        Assert.Equal(0, snap.LinkA.ConsecutiveFailures);
+        // The channel resets link-health snapshots on Stop; assert original
+        // source-qualified RX evidence, not post-disposal transient health.
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.PhysicalSource == "Link A" &&
+            e.Frame?.LinkControl is { Prm: false, FunctionCode: 11 });
+        Assert.DoesNotContain(result.Events, e =>
+            e.Summary.Contains("Link A response timeout", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(session.FailoverJournal, e => e.Completed);
     }
 
@@ -325,7 +327,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
             FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly
         };
 
-        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 1);
+        // T02 consumes one lost response via a same-FCB retransmission.
+        // Drop BOTH initial read and its single eligible retry to provoke a
+        // genuine failover. Otherwise the former one-drop fixture now recovers.
+        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 2);
         // Let B first prove a genuine secondary response. Drop its RX only after
         // it is promoted; byte-level damage before promotion no longer counts as
         // health evidence (and should never trigger an unsafe rescue).
@@ -339,7 +344,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             await Task.Delay(20);
         }
         Assert.Contains(session.FailoverJournal, x => x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B");
-        linkB.DropNextResponses(1); // Actively corrupt B's next response after valid promotion.
+        linkB.DropNextResponses(2); // Exhaust B's initial read and unchanged retry after promotion.
         await runTask;
         var completed = session.FailoverJournal.Where(x => x.Completed).ToArray();
         var snapshot = session.CreateSnapshot();
