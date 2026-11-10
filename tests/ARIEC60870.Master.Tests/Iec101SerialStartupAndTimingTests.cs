@@ -84,6 +84,19 @@ public sealed class Iec101SerialStartupAndTimingTests
     }
 
     [Fact]
+    public async Task IncompleteFixedReplyDoesNotConsumeMaximumVariableFrameWindow()
+    {
+        await using var port = new PacedReceiveTransport([0x10], 12);
+        var reader = new Ft12StreamReader(port, 2, baudRate: 1200);
+        var elapsed = Stopwatch.StartNew();
+
+        Assert.Null(await reader.ReadFrameAsync(80, CancellationToken.None));
+
+        Assert.True(elapsed.ElapsedMilliseconds < 1500,
+            "A truncated fixed telegram must use its small wire budget, not a 262-byte variable budget.");
+    }
+
+    [Fact]
     public async Task SerialSilenceStillObeysOriginalDeadlineAt1200Bps()
     {
         await using var port = new PacedReceiveTransport(Array.Empty<byte>(), 10);

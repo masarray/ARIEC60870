@@ -177,6 +177,7 @@ public sealed class Iec101RejectedRxSessionTests
             LinkAddressSize = 2,
             CommonAddress = 105,
             ResponseTimeoutMs = 45,
+            StartupDelayMs = 0, // Fake COM regression must start TX inside its 220–290 ms session window.
             Class2PollIntervalMs = 25,
             Class1DrainDelayMs = 1,
             ResetRemoteLinkOnConnect = false,

@@ -98,7 +98,9 @@ The configured `StartupDelayMs` now applies after opening the COM port(s)
 for both single and dual unbalanced Master modes, before any FT1.2 TX.
 At 1200 bps the maximum FT1.2 telegram can require several seconds on
 the wire, so the reader allows one bounded baud-derived completion window
-after a real `10`/`68` start byte. **Silence retains `ResponseTimeoutMs`**;
+after a real `10`/`68` start byte; fixed and variable telegrams have
+separate wire-time caps so a truncated short reply cannot stall for the
+maximum variable-frame duration. **Silence retains `ResponseTimeoutMs`**;
 invalid checksum, wrong secondary address/PRM, echo and cancellation are
 still rejected or handled as before. This corrects software timing gaps;
 it is not proof that physical SICAM communication has passed FAT.

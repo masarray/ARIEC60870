@@ -19,7 +19,8 @@ public sealed class Ft12StreamReader
     private readonly Action<Ft12StreamCandidate> _onCandidate;
     private byte[]? _frame;
     private long _receivedBytes;
-    private readonly int _frameReceptionBudgetMs;
+    private readonly int _fixedFrameCompletionBudgetMs;
+    private readonly int _variableFrameCompletionBudgetMs;
     // A damaged FT1.2 prefix can contain 0xE5 inside its payload. Its
     // resynchronized single byte is NOT a proved reply to the Master request.
     private bool _uncertainFrameBoundary;
@@ -32,9 +33,13 @@ public sealed class Ft12StreamReader
         // wire time at the selected baud (12 bits/octet covers 8E2) plus a
         // bounded converter/Windows scheduling margin. Silence still uses the
         // configured response timeout; only a physical frame start extends it.
-        _frameReceptionBudgetMs = baudRate > 0
-            ? Math.Clamp((int)Math.Ceiling(262d * 12 * 1000 / baudRate) + 300, 500, 30000)
-            : 0;
+        if (baudRate > 0)
+        {
+            _fixedFrameCompletionBudgetMs = Math.Clamp(
+                (int)Math.Ceiling((linkAddressSize + 4d) * 12 * 1000 / baudRate) + 200, 250, 30000);
+            _variableFrameCompletionBudgetMs = Math.Clamp(
+                (int)Math.Ceiling(262d * 12 * 1000 / baudRate) + 300, 500, 30000);
+        }
         // Master never adopts a different link-address profile implicitly.
         // A complete malformed-end frame is retained for the existing
         // secondary response validator and frame-quality diagnostics.
@@ -89,11 +94,14 @@ public sealed class Ft12StreamReader
                 // Do not time out midway through a legitimate slow serial frame.
                 // A single bounded extension is granted only for a FT1.2 start
                 // byte; noise cannot perpetually prolong the request deadline.
-                if (!frameStartObserved && _frameReceptionBudgetMs > timeoutMs &&
-                    _byte[0] is 0x10 or 0x68)
+                if (!frameStartObserved && _byte[0] is 0x10 or 0x68)
                 {
                     frameStartObserved = true;
-                    deadline.CancelAfter(_frameReceptionBudgetMs);
+                    var completionBudgetMs = _byte[0] == 0x10
+                        ? _fixedFrameCompletionBudgetMs
+                        : _variableFrameCompletionBudgetMs;
+                    if (completionBudgetMs > timeoutMs)
+                        deadline.CancelAfter(completionBudgetMs);
                 }
                 _framer.Feed(_byte.AsSpan(0, read), _receivedBytes,
                     _onCandidate, flushNoiseAtEnd: false);
