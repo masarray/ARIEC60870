@@ -35,7 +35,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
     private int? _dominantObservedCommonAddress;
     private bool _retriedGiWithObservedCommonAddress;
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
+    private readonly ConcurrentQueue<QueuedControl> _controlCommands = new();
+    private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
+        bool ReadyWhenQueued, int LinkGeneration, DateTime QueuedUtc);
+    private bool _controlLinkReady;
+    private int _linkGeneration;
+    private bool _startupClockSyncAttempted;
+    private bool _startupGiAttempted;
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
+
 
     public Iec101MasterSession(Iec103MasterSettings settings, IByteTransport transport)
     {
@@ -55,7 +64,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         if (request is not null)
         {
-            _controlCommands.Enqueue(request);
+            _controlCommands.Enqueue(new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
+                Volatile.Read(ref _linkGeneration), DateTime.UtcNow));
         }
     }
 
@@ -104,8 +114,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             var pendingStartup = _settings.SendClockSyncOnConnect || _settings.SendGeneralInterrogationOnConnect;
             if (_linkVerified && pendingStartup)
             {
-                pendingStartup = false;
-                await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+                pendingStartup = !await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
             }
             else if (!_linkVerified)
             {
@@ -148,8 +157,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
                 if (pendingStartup)
                 {
-                    pendingStartup = false;
-                    await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+                    pendingStartup = !await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -215,18 +223,21 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
 
 
-    private async Task RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
+    // Only UNSENT startup work can be deferred through DFC=1.
+    // A transmitted clock adjustment is never retried after uncertain acknowledgment.
+    private async Task<bool> RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
     {
-        if (!_linkVerified) return;
-        if (_settings.SendClockSyncOnConnect)
+        if (!_linkVerified || _busyGate.IsBusy) return false;
+        if (_settings.SendClockSyncOnConnect && !_startupClockSyncAttempted)
         {
+            _startupClockSyncAttempted = true;
             await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
                 Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now),
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
+            if (_busyGate.IsBusy) return false;
         }
-
-        if (!_settings.SendGeneralInterrogationOnConnect || _busyGate.IsBusy) return;
-
+        if (!_settings.SendGeneralInterrogationOnConnect || _startupGiAttempted) return true;
+        _startupGiAttempted = true;
         _counters.GiCommands++;
         var giResponse = await SendVariableAndReceiveAsync(
             "IEC-101 general interrogation", "Class 2",
@@ -244,13 +255,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "SICAM GI request not confirmed", why,
                 "GI transmitted does not mean GI accepted or data received.",
                 "Inspect response PRM/FC, link address, CA/COT/IOA sizes and SICAM interrogation support.");
-            return;
+            return true; // GI was transmitted; never replay blindly.
         }
 
         await DrainClass1Async("GI follow-up / event queue drain",
             stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
         if (_settings.RequestClass2ImmediatelyAfterStartup)
             await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
@@ -354,11 +366,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> ProcessPendingControlCommandsAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
-        {
+        if (!Volatile.Read(ref _controlLinkReady) || _busyGate.IsBusy)
             return false;
-        }
+        if (!_controlCommands.TryDequeue(out var queued))
+            return false;
 
+        var request = queued.Request;
+        if (IsMutatingCommand(request) &&
+            (!queued.ReadyWhenQueued || queued.LinkGeneration != Volatile.Read(ref _linkGeneration) ||
+             DateTime.UtcNow - queued.QueuedUtc > TimeSpan.FromSeconds(30)))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-STALE-LINK",
+                "IEC-101 mutating command rejected after uncertain or stale serial-link state",
+                $"{request.Summary}; ready-at-queue={queued.ReadyWhenQueued}; " +
+                $"queued-generation={queued.LinkGeneration}, current-generation={_linkGeneration}; " +
+                $"age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "Physical controls and clock synchronization cannot be automatically replayed after recovery.",
+                "Reissue the control deliberately after fresh addressed secondary link proof.");
+            return true;
+        }
         SetState(Iec103MasterState.GeneralInterrogation, "IEC-101 operator command", request.Summary, category: "Command", dataClass: "Class 2");
         var commandSettings = SettingsForCommand(request);
 
@@ -778,6 +804,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         sw.Stop();
         if (acceptedFrame is null)
         {
+            // First uncertain exchange invalidates queued mutating controls,
+            // before the separate three-timeout operator-visible link alarm.
+            if (_controlLinkReady)
+            {
+                _controlLinkReady = false;
+                Interlocked.Increment(ref _linkGeneration);
+            }
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
@@ -802,6 +835,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                     ? $"Suspending Class 1/2, GI and commands; FC9 status only every {Math.Clamp(_settings.BusyBackoffMs, 100, 30000)} ms."
                     : "Validated addressed secondary DFC=0; normal scheduling may resume.",
                 category: _busyGate.IsBusy ? "Warning" : "Info", dataClass: "Link");
+        if (_busyGate.IsBusy && _controlLinkReady)
+        {
+            _controlLinkReady = false;
+            Interlocked.Increment(ref _linkGeneration);
+        }
+        else if (!_busyGate.IsBusy && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
+        {
+            _controlLinkReady = true;
+        }
         if (string.Equals(dataClass, "Class 2", StringComparison.OrdinalIgnoreCase))
         {
             var nowCycle = DateTime.UtcNow;

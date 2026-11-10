@@ -53,6 +53,40 @@ public sealed class Iec101RemoteBusyRecoveryTests
     }
 
     [Fact]
+    public async Task SinglePreStartupPhysicalControlDoesNotReplayAfterValidFc9()
+    {
+        var settings = Settings();
+        await using var port = new RemoteFlowTransport(busyOnStartup: false);
+        var session = new Iec101MasterSession(settings, port);
+        session.QueueControlCommand(new Iec60870ControlCommandRequest
+        {
+            Kind = Iec60870ControlCommandKind.SingleCommand, InformationObjectAddress = 7, Value = 1
+        });
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(480), CancellationToken.None);
+        Assert.True(port.StatusProbes > 0);
+        Assert.True(port.Class2Requests > 0);
+        Assert.Equal(0, port.ControlRequests);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-COMMAND-STALE-LINK");
+    }
+
+    [Fact]
+    public async Task ClockSyncBusyDefersUnsentGiWithoutRepeatingClockSync()
+    {
+        var settings = Settings();
+        settings.SendClockSyncOnConnect = true;
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.MaxClass1DrainFrames = 4;
+        await using var port = new RemoteFlowTransport(busyOnStartup: false, busyAfterClockSync: true);
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(1350), CancellationToken.None);
+        Assert.True(port.StatusProbes >= 4);
+        Assert.Equal(1, port.ClockSyncRequests);
+        Assert.Equal(1, port.GiRequests);
+        Assert.Equal(0, port.DataSentWhileBusy);
+        Assert.Equal(1, result.Counters.GiCommands);
+    }
+
+    [Fact]
     public async Task UnaddressedStartupResetAckCannotSkipFc9OrDispatchGi()
     {
         var settings = Settings();
@@ -177,6 +211,7 @@ public sealed class Iec101RemoteBusyRecoveryTests
     {
         private readonly bool _busyOnStartup;
         private readonly bool _busyAfterFirstClass2;
+        private readonly bool _busyAfterClockSync;
         private readonly bool _unaddressedStatusOnly;
         private readonly int _stopRespondingToStatusAfter;
         private readonly Queue<byte> _rx = new();
@@ -185,10 +220,12 @@ public sealed class Iec101RemoteBusyRecoveryTests
         private int _busyStatusReplies;
 
         public RemoteFlowTransport(bool busyOnStartup, bool busyAfterFirstClass2 = false,
-            bool unaddressedStatusOnly = false, int stopRespondingToStatusAfter = int.MaxValue)
+            bool unaddressedStatusOnly = false, int stopRespondingToStatusAfter = int.MaxValue,
+            bool busyAfterClockSync = false)
         {
             _busyOnStartup = busyOnStartup;
             _busyAfterFirstClass2 = busyAfterFirstClass2;
+            _busyAfterClockSync = busyAfterClockSync;
             _unaddressedStatusOnly = unaddressedStatusOnly;
             _stopRespondingToStatusAfter = stopRespondingToStatusAfter;
             _remoteBusy = busyOnStartup;
@@ -197,6 +234,8 @@ public sealed class Iec101RemoteBusyRecoveryTests
         public bool IsOpen { get; private set; }
         public int StatusProbes { get; private set; }
         public int ControlRequests { get; private set; }
+        public int ClockSyncRequests { get; private set; }
+        public int GiRequests { get; private set; }
         public int Class2Requests { get; private set; }
         public int DataRequests { get; private set; }
         public int DataSentWhileBusy { get; private set; }
@@ -247,10 +286,24 @@ public sealed class Iec101RemoteBusyRecoveryTests
             }
             else if (fc is 10 or 3)
             {
-                if (fc == 3) ControlRequests++;
+                if (fc == 3)
+                {
+                    ControlRequests++;
+                    if (frame.AsduBytes.Count > 0 && frame.AsduBytes[0] == 103) ClockSyncRequests++;
+                    if (frame.AsduBytes.Count > 0 && frame.AsduBytes[0] == 100) GiRequests++;
+                }
                 DataRequests++;
                 if (_remoteBusy) DataSentWhileBusy++;
-                Enqueue(fc == 3 ? new byte[] { 0xE5 } : Ft12FrameBuilder.Fixed(0x09, 105, 2));
+                if (fc == 3 && _busyAfterClockSync && ClockSyncRequests == 1 && ControlRequests == 1)
+                {
+                    _remoteBusy = true;
+                    _busyStatusReplies = 0;
+                    Enqueue(Ft12FrameBuilder.Fixed(0x10, 105, 2)); // FC0 DFC=1.
+                }
+                else
+                {
+                    Enqueue(fc == 3 ? new byte[] { 0xE5 } : Ft12FrameBuilder.Fixed(0x09, 105, 2));
+                }
             }
             else if (fc == 0 || fc == 7)
             {

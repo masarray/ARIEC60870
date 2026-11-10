@@ -193,3 +193,16 @@ Field FAT: take down the active port while a command is queued, let the
 standby become healthy, and verify there is no unintended control transmission;
 then issue a fresh command intentionally. Reproduce silent standby after one
 old good FC11 and ensure it is not promoted.
+
+## P0 single-link command and DFC startup recovery
+
+A physical control or clock adjustment queued before addressed link proof, after
+an uncertain exchange, or more than 30 seconds before dispatch is not blindly
+replayed. The first unknown response invalidates the pending control generation
+even before the operator-visible three-timeout loss alarm. Reissue such a
+command deliberately after verified recovery.
+
+If an optional startup clock-sync receives DFC=1, only the UNSENT startup GI
+is deferred until FC9/DFC=0. Neither transmitted clock sync nor an ambiguous
+GI is retried automatically. Deterministic fake-serial regressions enforce
+one clock adjustment and one deferred GI; physical SICAM FAT remains required.
