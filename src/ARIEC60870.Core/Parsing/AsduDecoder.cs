@@ -62,22 +62,23 @@ public sealed class AsduDecoder
                 break;
 
             case 2:
-                meaning = "Protection/status message with relative-time context. Often seen in event or disturbance-related sequences.";
-                if (fun is null || inf is null || data.Length < 1)
+                meaning = "Protection/status message with relative time, fault number and relay CP32 time.";
+                // IEC-103 M_TMR_TA_3: DPI(1), RET(2), FAN(2), CP32Time2a(4), SIN(1).
+                // Never promote a truncated event to a trusted value or infer
+                // the relay clock from the trailing bytes of an incomplete ASDU.
+                if (fun is null || inf is null || data.Length < 10)
                 {
                     status = DecodeStatus.Error;
-                    notes.Add("Incomplete IEC-103 Type 2: FUN/INF and DPI byte required.");
+                    notes.Add($"Incomplete IEC-103 Type 2: expected FUN/INF plus 10 data octets (DPI, RET, FAN, CP32Time2a, SIN); observed data={data.Length}.");
                     break;
                 }
-                if (data.Length >= 1)
-                {
-                    dpi = data[0];
-                    dpiText = DpiText(dpi.Value);
-                }
-                if (data.Length >= 5)
-                {
-                    time = Cp32Time2aDecoder.TryDecode(data.Skip(Math.Max(0, data.Length - 5)).Take(5).ToArray());
-                }
+
+                dpi = data[0];
+                dpiText = DpiText(dpi.Value);
+                var relativeMs = data[1] | (data[2] << 8);
+                var faultNumber = data[3] | (data[4] << 8);
+                time = Cp32Time2aDecoder.TryDecode(data.AsSpan(5, 4).ToArray());
+                notes.Add($"RET={relativeMs} ms; FAN={faultNumber}; SIN=0x{data[9]:X2}.");
                 break;
 
             case 5:

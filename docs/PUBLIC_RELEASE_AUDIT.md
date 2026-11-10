@@ -4,7 +4,7 @@ This document summarizes the public-release readiness status of the repository. 
 
 ## Current status
 
-ARIEC60870 is prepared for public source review and Windows portable package distribution.
+ARIEC60870 is prepared for public source review and Windows portable package distribution. A **v3.6.8-rc.1** prerelease is intended solely for volunteer engineering test benches. CI passing is not a substitute for low-baud hardware or multi-vendor FAT; release notes list the exact unverified scenarios.
 
 The repository includes:
 

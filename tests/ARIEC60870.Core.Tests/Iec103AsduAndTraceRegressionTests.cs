@@ -57,6 +57,54 @@ public sealed class Iec103AsduAndTraceRegressionTests
         Assert.Contains(asdu.Notes, n => n.Contains("SIN=0xBC", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    public void ShortTypeTwoCannotBecomeAnAuthoritativeProtectionEvent(int count)
+    {
+        // DPI, RET(2), FAN(2), CP32(4), SIN = 10 data octets.
+        byte[] full = [0x02, 0x34, 0x12, 0x78, 0x56, 0x39, 0x30, 0x22, 0x0E, 0xBC];
+        byte[] header = [0x02, 0x01, 0x01, 0x01, 0xC0, 0x24];
+        var input = header.Concat(full.Take(count)).ToArray();
+        var decoded = new AsduDecoder().Decode(input);
+
+        Assert.Equal(DecodeStatus.Error, decoded.Status);
+        Assert.Equal(count, decoded.DataBytes.Count);
+        Assert.Equal(full.Take(count).ToArray(), decoded.DataBytes);
+        Assert.Null(decoded.Dpi);
+        Assert.Null(decoded.Time);
+        Assert.Contains(decoded.Notes, note => note.Contains("Incomplete IEC-103 Type 2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CompleteTypeTwoUsesExactCp32OffsetAndPreservesRetFanSin()
+    {
+        byte[] input =
+        [
+            0x02, 0x01, 0x01, 0x01, 0xC0, 0x24,
+            0x02, 0x34, 0x12, 0x78, 0x56,
+            0x39, 0x30, 0x22, 0x0E, 0xBC
+        ];
+        var decoded = new AsduDecoder().Decode(input);
+
+        Assert.Equal(DecodeStatus.Ok, decoded.Status);
+        Assert.Equal(2, decoded.Dpi);
+        Assert.Equal("14:34:12.345", decoded.Time!.DisplayTime);
+        Assert.Equal(new byte[] { 0x39, 0x30, 0x22, 0x0E }, decoded.Time.RawBytes);
+        Assert.Contains(decoded.Notes, note => note.Contains("RET=4660 ms", StringComparison.Ordinal));
+        Assert.Contains(decoded.Notes, note => note.Contains("FAN=22136", StringComparison.Ordinal));
+        Assert.Contains(decoded.Notes, note => note.Contains("SIN=0xBC", StringComparison.Ordinal));
+        Assert.Equal(input.Skip(6).ToArray(), decoded.DataBytes);
+    }
+
     [Fact]
     public void PrivateVendorAsduIsTransparentRatherThanDiscarded()
     {

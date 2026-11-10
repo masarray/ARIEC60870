@@ -31,6 +31,10 @@ on:
   push:
     tags:
       - 'v*'
+    # Maintainer-only public test release. The version derives from the branch
+    # name, and the normal stable release workflow remains unchanged.
+    branches:
+      - 'release/rc-*'
 
 permissions:
   contents: read
@@ -65,6 +69,16 @@ jobs:
             prerelease="${{ inputs.prerelease }}"
             draft="${{ inputs.draft }}"
             notes_file="${{ inputs.release_notes_file }}"
+          elif [[ "${GITHUB_REF}" == refs/heads/release/rc-* ]]; then
+            version="${GITHUB_REF_NAME#release/rc-}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+              echo "Refuse non-RC version from release branch: $version" >&2
+              exit 1
+            fi
+            publish_release="true"
+            prerelease="true"
+            draft="false"
+            notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
           else
             version="${GITHUB_REF_NAME#v}"
             publish_release="true"
@@ -145,6 +159,26 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip"
 
+      - name: Compile matching Windows Setup EXE for public RC testers
+        if: needs.resolve.outputs.prerelease == 'true'
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler unavailable.' }
+          }
+          if (!(Test-Path $iscc)) { throw 'Missing Inno Setup compiler.' }
+          $source = (Resolve-Path artifacts/publish-desktop-win-x64).Path
+          $output = (Resolve-Path artifacts/release).Path
+          $version = '${{ needs.resolve.outputs.version }}'
+          & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          if (!(Test-Path $setup)) { throw 'Expected matching RC setup executable missing.' }
+
       - name: Generate SPDX dependency SBOM
         shell: pwsh
         run: ./scripts/generate-sbom-lite.ps1 -Version '${{ needs.resolve.outputs.version }}' -OutputPath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json"
@@ -153,7 +187,7 @@ jobs:
         shell: pwsh
         run: |
           $ReleaseRoot = Resolve-Path artifacts/release
-          $files = Get-ChildItem $ReleaseRoot -File | Where-Object { $_.Extension -in '.zip', '.json' } | Sort-Object Name
+          $files = Get-ChildItem $ReleaseRoot -File | Where-Object { $_.Extension -in '.zip', '.json', '.exe' } | Sort-Object Name
           $lines = foreach ($file in $files) {
             $hash = Get-FileHash -Algorithm SHA256 $file.FullName
             "{0}  {1}" -f $hash.Hash.ToLowerInvariant(), $file.Name
