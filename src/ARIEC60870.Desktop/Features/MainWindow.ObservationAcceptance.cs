@@ -746,7 +746,30 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 $"Two-point process ASDU absent after Trace reconciliation: source={sourceMultiObjectCount}, " +
                 $"view={FrameTraceRows.Count(x => x.Source.AsduDetails?.Objects.Count == 2)}, Values={ValueRows.Count}.");
-        TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
+        // Integration proof: production passive frame -> canonical FT1.2/ASDU
+        // -> typed DIQ -> own displayed TI3 value. IV must not change ON[10].
+        var dpOnFrame = FrameTraceRows.LastOrDefault(row =>
+            row.Source.AsduDetails is { TypeId: 3 } asdu &&
+            asdu.Objects.Any(obj => obj.QualityDetails?.Raw == 0x82));
+        var dpOffFrame = FrameTraceRows.LastOrDefault(row =>
+            row.Source.AsduDetails is { TypeId: 3 } asdu &&
+            asdu.Objects.Any(obj => obj.QualityDetails?.Raw == 0x01));
+        if (dpOnFrame is null || dpOffFrame is null ||
+            !dpOnFrame.TimelineSignalDigest.Contains("Value: ON [10]", StringComparison.Ordinal) ||
+            !dpOnFrame.TimelineSignalDigest.Contains("Quality: Invalid", StringComparison.Ordinal) ||
+            !dpOffFrame.TimelineSignalDigest.Contains("Value: OFF [01]", StringComparison.Ordinal) ||
+            !dpOffFrame.TimelineSignalDigest.Contains("Quality: Good", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Live IEC101 DIQ bits must render their exact two-bit state and independent quality.");
+        FrameTraceGrid.ScrollIntoView(dpOnFrame);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        SaveRealWpfBitmap(outputDirectory, "engineer-dp-on-quality-invalid.png");
+        FrameTraceGrid.ScrollIntoView(dpOffFrame);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        SaveRealWpfBitmap(outputDirectory, "engineer-dp-off-quality-good.png");
+                TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
         var txSourceCount = FrameTraceRows.Count(row => row.Direction == "TX");
@@ -773,9 +796,19 @@ public partial class MainWindow
             UpdateLayout();
             if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(probeRow)
                     is not ListBoxItem container ||
-                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
+                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk) ||
+                FindVisibleTraceText(container, probeRow.TimelineHex) is not TextBlock coloredHex ||
+                coloredHex.Foreground is not SolidColorBrush rawHexBrush ||
+                rawHexBrush.Color != (Color)ColorConverter.ConvertFromString(probeRow.TraceInk) ||
+                container.Template.FindName("TraceDirectionStripe", container)
+                    is not Border directionStripe ||
+                directionStripe.Background is not SolidColorBrush stripeBrush ||
+                stripeBrush.Color != (probeRow.Direction == "TX"
+                    ? Color.FromRgb(0x25, 0x63, 0xB8) : Color.FromRgb(0x16, 0x80, 0x5D)))
                 throw new InvalidOperationException(
-                    "Frame Trace TX/RX direction or source-typed semantic ink was not rendered.");
+                    "Frame Trace must keep physically visible, source-typed TX blue / RX green stripes.");
+            SaveRealWpfBitmap(outputDirectory, probeRow.Direction == "TX"
+                ? "engineer-source-tx-blue.png" : "engineer-source-rx-green.png");
         }
 
         var layouts = new (string Name, double Width, double Height)[]
@@ -1228,6 +1261,12 @@ public partial class MainWindow
                     is not ListBoxItem adaptiveRow)
                 throw new InvalidOperationException("Inspector-open adaptive Frame Trace lost the selected physical row.");
 
+            // The narrowed inspector must leave the majority of width for the
+            // frame interpreter at ordinary field-workstation resolutions.
+            if (FrameTraceGrid.ActualWidth >= 840 &&
+                FrameTraceGrid.ActualWidth < TraceInspectorColumn.ActualWidth * 1.6)
+                throw new InvalidOperationException(
+                    "Frame Details expanded too wide relative to the Raw Frames interpreter.");
             var expectedLayout = FrameTraceViewportPolicy.RowLayout(FrameTraceGrid.ActualWidth);
             if (!Equals(FrameTraceGrid.Tag, expectedLayout))
                 throw new InvalidOperationException(

@@ -57,11 +57,64 @@ public sealed class FrameTraceEngineerReadabilityTests
         var partial = new Iec10xInformationObject {
             InformationObjectAddress = 6, ValueText = "SP=OFF", TimestampText = "20:34"
         };
-        Assert.Contains("Timestamp: Not provided", Iec10xSignalTraceFormatter.TraceObject(asdu, without));
+        Assert.Contains("Timestamp: No Timestamp", Iec10xSignalTraceFormatter.TraceObject(asdu, without));
         var line = Iec10xSignalTraceFormatter.TraceObject(asdu, partial);
         Assert.Contains("RTU partial time: 20:34", line);
         Assert.Contains("Timestamp: Partial (CP56 validity / GEN / DST unknown)", line);
         Assert.DoesNotContain("Genuine (GEN=0)", line);
+    }
+
+
+    [Theory]
+    [InlineData(0x00, "Invalid [00]", "Good")]
+    [InlineData(0x01, "OFF [01]", "Good")]
+    [InlineData(0x02, "ON [10]", "Good")]
+    [InlineData(0x03, "Invalid [11]", "Good")]
+    [InlineData(0x82, "ON [10]", "Invalid")]
+    public void DoublePointTraceStatesComeFromTypedDiqBitsNotNarrativeText(
+        byte rawDiq, string expectedState, string expectedQuality)
+    {
+        var obj = new Iec10xInformationObject
+        {
+            Index = 1,
+            InformationObjectAddress = 101,
+            ValueText = "DP=STALE NARRATIVE",
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Diq, rawDiq)
+        };
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 31, InformationObjectAddressWidth = 3, Objects = [obj],
+            ObjectCount = 1
+        };
+        var trace = Iec10xSignalTraceFormatter.TraceObject(asdu, obj);
+        Assert.Contains("TI-31 · Value: " + expectedState, trace);
+        Assert.Contains("Quality: " + expectedQuality, trace);
+        Assert.Contains("Timestamp: No Timestamp", trace);
+        Assert.DoesNotContain("STALE NARRATIVE", trace);
+
+        // Legacy scan remains decoder-facing; no global command/DP rewrite.
+        Assert.Contains("Value: STALE NARRATIVE", Iec10xSignalTraceFormatter.ScanValue(asdu, obj));
+    }
+
+    [Fact]
+    public void MissingDiqCannotInventDpBitPatternAndSinglePointNeverGetsDpBits()
+    {
+        var dp = new Iec10xAsduDecode { TypeId = 3, InformationObjectAddressWidth = 3 };
+        var unknown = new Iec10xInformationObject
+        {
+            InformationObjectAddress = 42, ValueText = "DP=INDETERMINATE"
+        };
+        var withoutWire = Iec10xSignalTraceFormatter.TraceObject(dp, unknown);
+        Assert.Contains("Value: INDETERMINATE", withoutWire);
+        Assert.DoesNotContain("[00]", withoutWire);
+        var single = new Iec10xAsduDecode { TypeId = 30, InformationObjectAddressWidth = 3 };
+        var sp = new Iec10xInformationObject
+        {
+            InformationObjectAddress = 42, ValueText = "SP=ON",
+            QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Siq, 0x01)
+        };
+        Assert.Contains("TI-30 · Value: ON", Iec10xSignalTraceFormatter.TraceObject(single, sp));
+        Assert.DoesNotContain("[01]", Iec10xSignalTraceFormatter.TraceObject(single, sp));
     }
 
     [Fact]

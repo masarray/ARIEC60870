@@ -56,8 +56,9 @@ public partial class MainWindow
         if (TraceInspectorColumn is null) return;
         if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
         {
-            TraceInspectorColumn.MinWidth = 285;
-            TraceInspectorColumn.Width = new GridLength(2, GridUnitType.Star);
+            TraceInspectorColumn.MinWidth = 250;
+            // Interpreter has priority; Frame Details stays resizable by splitter.
+            TraceInspectorColumn.Width = new GridLength(1.1, GridUnitType.Star);
             TraceInspectorGutterColumn.Width = new GridLength(6);
             FrameInterpreterPanel.Visibility = Visibility.Visible;
             TraceInspectorSplitter.Visibility = Visibility.Visible;

@@ -9,7 +9,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class FrameTraceViewportPolicy
 {
-    public const double MinimumPairedLaneWidth = 780;
+    public const double MinimumPairedLaneWidth = 840;
 
     public static string RowLayout(double viewportWidth) =>
         double.IsFinite(viewportWidth) &&

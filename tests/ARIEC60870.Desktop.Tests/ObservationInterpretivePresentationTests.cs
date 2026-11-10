@@ -104,7 +104,7 @@ public sealed class ObservationInterpretivePresentationTests
         var signals = row.TimelineSignalDigest.Split(Environment.NewLine);
         Assert.Equal(6, signals.Length);
         Assert.StartsWith("IOA 9 [ IOA3:0 · IOA2:0 · IOA1:9 ] · TI-3 · Value: ON", signals[0]);
-        Assert.Contains("TI-3 Double Point Signal · Quality: Not provided · Timestamp: Not provided", signals[1]);
+        Assert.Contains("TI-3 Double Point Signal · Quality: Not provided · Timestamp: No Timestamp", signals[1]);
         Assert.StartsWith("IOA 10 [ IOA3:0 · IOA2:0 · IOA1:10 ] · TI-3 · Value: OFF", signals[2]);
         Assert.StartsWith("IOA 11 [ IOA3:0 · IOA2:0 · IOA1:11 ] · TI-3 · Value: INDETERMINATE", signals[4]);
         Assert.DoesNotContain(" | ", row.TimelineSignalDigest);
