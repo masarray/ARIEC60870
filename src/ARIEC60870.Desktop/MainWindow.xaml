@@ -1029,7 +1029,17 @@
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#3C5670" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
-                                                                   MaxHeight="88"/>
+                                                                   MaxHeight="88">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding HasInlineHeadlineIdentity}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#405973" Margin="0,2,0,0"

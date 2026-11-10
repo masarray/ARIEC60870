@@ -28,7 +28,8 @@ public static class FrameTraceRowClipboardFormatter
         };
         if (row.HasTimelineSignalDigest) lines.Add(row.TimelineSignalDigest);
         if (row.HasTimelineSignalOverflow) lines.Add(row.TimelineSignalOverflow);
-        if (!string.IsNullOrWhiteSpace(row.TimelineEngineeringIdentity))
+        if (!row.HasInlineHeadlineIdentity &&
+            !string.IsNullOrWhiteSpace(row.TimelineEngineeringIdentity))
             lines.Add(row.TimelineEngineeringIdentity);
         if (!string.IsNullOrWhiteSpace(row.TimelineEngineeringCause))
             lines.Add(row.TimelineEngineeringCause);

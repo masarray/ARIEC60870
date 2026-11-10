@@ -367,7 +367,7 @@ public partial class MainWindow
             row.Source.AsduDetails.Objects.Any(obj => obj.Cp56TimeDetails is not null));
         if (timedFrameRow is null ||
             !timedFrameRow.TimelineSignalDigest.Contains("05-11-2026", StringComparison.Ordinal) ||
-            !timedFrameRow.TimelineSignalDigest.Contains("Timestamp: Valid", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Timestamp Valid", StringComparison.Ordinal) ||
             !timedFrameRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Source-typed CP56 device time, validity or genuine flag absent from inline Frame Interpreter.");
@@ -1185,7 +1185,7 @@ public partial class MainWindow
             !valueLines[0].Contains("IOA ", StringComparison.Ordinal) ||
             !valueLines[1].Contains("IOA ", StringComparison.Ordinal) ||
             multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
-            (!multiObjectRow.TimelineSignalDigest.Contains("Timestamp: Valid", StringComparison.Ordinal) ||
+            (!multiObjectRow.TimelineSignalDigest.Contains("Timestamp Valid", StringComparison.Ordinal) ||
              !multiObjectRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal)) ||
             visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
@@ -1274,12 +1274,17 @@ public partial class MainWindow
 
             var hex = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineHex);
             var signals = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineSignalDigest);
+            var heading = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineTitle);
             var identity = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringIdentity);
             var cause = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringCause);
-            if (hex is null || signals is null || identity is null || cause is null ||
+            if (hex is null || signals is null || heading is null || cause is null ||
+                (multiObjectRow.HasInlineHeadlineIdentity
+                    ? identity is not null ||
+                      !heading.Text.Contains(" · CA ", StringComparison.Ordinal)
+                    : identity is null) ||
                 signals.TextWrapping != TextWrapping.Wrap ||
                 signals.TextTrimming != TextTrimming.None ||
-                identity.TextTrimming != TextTrimming.None ||
+                heading.TextTrimming != TextTrimming.None ||
                 cause.TextWrapping != TextWrapping.Wrap ||
                 cause.TextTrimming != TextTrimming.None ||
                 signals.ActualWidth < 130 || signals.ActualHeight < 16 ||
@@ -1308,7 +1313,7 @@ public partial class MainWindow
                 throw new InvalidOperationException("Frame Trace permits horizontal panning when docked.");
             var viewportRight = scroller.TranslatePoint(
                 new Point(scroller.ViewportWidth, 0), adaptiveRow).X;
-            foreach (var text in new[] { hex, signals, identity, cause })
+            foreach (var text in new[] { hex, signals, heading, cause })
             {
                 var right = text.TranslatePoint(new Point(text.ActualWidth, 0), adaptiveRow).X;
                 if (right > viewportRight + 3)

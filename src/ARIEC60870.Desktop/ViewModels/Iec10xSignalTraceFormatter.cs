@@ -87,18 +87,20 @@ public static class Iec10xSignalTraceFormatter
                 ? " · RTU partial time: " + obj.TimestampText : "";
         var quality = obj.Issues.Count > 0 ? "Decode warning" :
             obj.QualityDetails?.DisplayText ?? "Not provided";
+        // A missing optional device time is a state, not a property label.
+        // Never call CP24/partial text valid without canonical CP56 proof.
         var timeStatus = cp56 is not null
-            ? (cp56.IsValid ? "Valid" : "Invalid") +
+            ? (cp56.IsValid ? "Timestamp Valid" : "Timestamp Invalid") +
               (cp56.SubstitutedFlag ? " · Substituted (GEN=1)" : " · Genuine (GEN=0)") +
               (cp56.SummerTimeFlag ? " · DST ON" : " · DST OFF") +
               (cp56.UnexpectedReservedBits ? " · Reserved bits SET" : "") +
               (cp56.DayOfWeekMatchesCalendar == false ? " · Day mismatch" : "") +
               (cp56.DayOfWeek > 0 ? " · Day: " + cp56.DayOfWeekText : "")
             : string.IsNullOrWhiteSpace(obj.TimestampText)
-                ? "No Timestamp" : "Partial (CP56 validity / GEN / DST unknown)";
+                ? "No Timestamp" : "Timestamp Partial (CP56 validity / GEN / DST unknown)";
         return f.Identity + " · " + ti + " · Value: " + f.Value + stamp + f.Suffix +
             Environment.NewLine + "  " + ti + " " + f.Kind + " Signal · Quality: " +
-            quality + " · Timestamp: " + timeStatus;
+            quality + " · " + timeStatus;
     }
 
     private readonly record struct ScanFields(string Identity, string Value, string Kind, string Suffix);
