@@ -1,13 +1,15 @@
-# ARIEC60870 Evidence Analyzer
+# ArSee · Open Source IEC 60870-104/103/101 Protocol Tester
 
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3)
 
+**ArSee is the product identity of this existing ARIEC60870 repository, preserving old GitHub URLs, releases and file compatibility.**
+
 **From raw IEC 60870 traffic to inspectable engineering evidence.**
 
-ARIEC60870 is a free, Apache-2.0 open-source Windows protocol tester and evidence analyzer for **IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104**. Inspect original TX/RX frames, supported protocol interpretations, Values, Events, diagnostics, and native PDF evidence for authorized FAT/SAT, commissioning support, research and troubleshooting.
+ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence analyzer for **IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104**. Inspect original TX/RX frames, supported protocol interpretations, Values, Events, diagnostics, and native PDF evidence for authorized FAT/SAT, commissioning support, research and troubleshooting.
 
 **[Product website](https://masarray.github.io/ARIEC60870/)** · **[Download guide](https://masarray.github.io/ARIEC60870/download.html)** · **[Quick Start](https://masarray.github.io/ARIEC60870/quick-start.html)** · **[Field Wiki](https://masarray.github.io/ARIEC60870/wiki.html)**
 
@@ -17,6 +19,8 @@ ARIEC60870 is a free, Apache-2.0 open-source Windows protocol tester and evidenc
 |---|---|---|---|
 | **Latest public prerelease** | **v3.6.8-rc.3** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-win-x64.zip) | Evaluate the latest compact Setup UI and Frame Trace workflow on authorized test equipment |
 | **Latest stable-tagged release** | **v3.6.7** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7) | Last non-prerelease package, without the current RC interface updates |
+
+**Published v3.6.8-rc.3 downloads retain their original ARIEC60870 filenames and old application branding; ArSee appears in a newly built version, not retroactively in prior installers.**
 
 **v3.6.8-rc.3 is a public test candidate, not a stable production release.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/SHA256SUMS.txt) before running unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) also provides SPDX SBOM and the [exact Windows release workflow](https://github.com/masarray/ARIEC60870/actions/runs/42791041890) provides build attestations, xUnit and real-WPF screenshots.
 
@@ -61,7 +65,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 - **IEC-101 SICAM A8000 physical interoperability remains unproven.** The serial transport/FC9/DFC recovery work in **[Draft PR #136](https://github.com/masarray/ARIEC60870/pull/136) is not included in v3.6.8-rc.3**. Simulator and CI success do not substitute for wired FAT.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
-- ARIEC60870 is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
+- ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
 
 ## Build, inspect and contribute
 

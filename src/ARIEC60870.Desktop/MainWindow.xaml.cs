@@ -240,7 +240,7 @@ public partial class MainWindow : Window
         LoadSetupPreferences();
         LoadDefaultIoaSeedProfile();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
-        AppendSessionLog("ARIEC60870 Evidence Analyzer initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
+        AppendSessionLog("ArSee protocol tester initialized. Ready for protocol-aware IEC-101 / IEC-103 / IEC-104 testing.");
         AppendSessionLog("Output model: Values, Events, Trace, and Report stay focused; advanced evidence ledger remains available without crowding the main workspace.");
         Loaded += (_, _) =>
         {

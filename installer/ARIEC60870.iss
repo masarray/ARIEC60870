@@ -17,16 +17,16 @@
 
 [Setup]
 AppId={{{#AppGuid}}
-AppName=ARIEC60870 Evidence Analyzer
+AppName=ArSee
 AppVersion={#AppVersion}
-AppVerName=ARIEC60870 {#AppVersion}
+AppVerName=ArSee {#AppVersion}
 AppPublisher=Ari Sulistiono
 AppPublisherURL=https://github.com/masarray/ARIEC60870
 AppSupportURL=https://github.com/masarray/ARIEC60870/issues
 AppUpdatesURL=https://github.com/masarray/ARIEC60870/releases
 AppCopyright=Copyright (C) 2026 Ari Sulistiono
 DefaultDirName={localappdata}\Programs\ARIEC60870
-DefaultGroupName=ARIEC60870
+DefaultGroupName=ArSee
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
 UsePreviousTasks=yes
@@ -36,7 +36,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 SetupIconFile=..\src\ARIEC60870.Desktop\Assets\Icons\ariec60870-app.ico
 UninstallDisplayIcon={app}\ARIEC60870.exe
-UninstallDisplayName=ARIEC60870 Evidence Analyzer
+UninstallDisplayName=ArSee
 Compression=lzma2
 SolidCompression=yes
 CloseApplications=yes
@@ -54,11 +54,11 @@ Source: "{#SourceRoot}\{#SourceExe}"; DestDir: "{app}"; DestName: "ARIEC60870.ex
 Source: "{#SourceRoot}\*"; Excludes: "ARIEC60870.Desktop.exe,ARIEC60870.exe,*.pdb"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\ARIEC60870"; Filename: "{app}\ARIEC60870.exe"
-Name: "{autodesktop}\ARIEC60870"; Filename: "{app}\ARIEC60870.exe"; Tasks: desktopicon
+Name: "{group}\ArSee"; Filename: "{app}\ARIEC60870.exe"
+Name: "{autodesktop}\ArSee"; Filename: "{app}\ARIEC60870.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\ARIEC60870.exe"; Description: "Launch ARIEC60870"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ARIEC60870.exe"; Description: "Launch ArSee"; Flags: nowait postinstall skipifsilent
 
 ; Intentionally NO [UninstallDelete] for %LOCALAPPDATA%\ARIEC60870
 ; (settings, Signal Lists, capture history and updater state live outside {app}).
