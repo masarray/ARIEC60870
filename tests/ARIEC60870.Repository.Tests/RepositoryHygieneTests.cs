@@ -50,16 +50,58 @@ public sealed class RepositoryHygieneTests
         using var manifest = System.Text.Json.JsonDocument.Parse(
             File.ReadAllText(root.File("site/seo-manifest.json")));
         var published = manifest.RootElement.GetProperty("version").GetString();
-        Assert.True(Version.TryParse(version, out var codeVersion),
+        Assert.True(TryParseReleaseVersion(version, out var codeVersion, out var codeRc),
             $"Invalid source version: {version}");
-        Assert.True(Version.TryParse(published, out var siteVersion),
+        Assert.True(TryParseReleaseVersion(published, out var siteVersion, out var siteRc),
             $"Invalid public site release version: {published}");
-        Assert.True(siteVersion <= codeVersion,
+        // A stable site version X.Y.Z is newer than X.Y.Z-rc.N. Never
+        // publish stable metadata for an RC while claiming it is not final.
+        var siteIsNotNewer = siteVersion < codeVersion ||
+            (siteVersion == codeVersion &&
+             (!codeRc.HasValue || (siteRc.HasValue && siteRc.Value <= codeRc.Value)));
+        Assert.True(siteIsNotNewer,
             $"Public website version {published} exceeds source candidate {version}.");
         var site = File.ReadAllText(root.File("site/index.html"));
         Assert.Contains($"name=\"application-version\" content=\"{published}\"", site);
         Assert.Contains($"\"softwareVersion\":\"{published}\"", site);
         Assert.Contains("IEC 60870", File.ReadAllText(root.File("site/site.webmanifest")));
+    }
+
+    [Theory]
+    [InlineData("3.6.8", true, -1)]
+    [InlineData("3.6.8-rc.1", true, 1)]
+    [InlineData("3.6.8-rc.12", true, 12)]
+    [InlineData("3.6.8-rc.0", false, -1)]
+    [InlineData("3.6.8-RC.1", false, -1)]
+    [InlineData("3.6.8-rc.evil", false, -1)]
+    [InlineData("3.6", false, -1)]
+    [InlineData("3.6.8-beta", false, -1)]
+    public void ReleaseVersionParserAcceptsOnlyStableOrStrictRc(string value, bool valid, int rc)
+    {
+        var accepted = TryParseReleaseVersion(value, out _, out var rcNumber);
+        Assert.Equal(valid, accepted);
+        if (valid) Assert.Equal(rc < 0 ? (int?)null : rc, rcNumber);
+    }
+
+    private static bool TryParseReleaseVersion(string? value, out Version baseVersion, out int? rc)
+    {
+        baseVersion = new Version(0, 0, 0);
+        rc = null;
+        // Keep the public-release version gate strict, including no leading
+        // zeroes on the numeric components or prerelease iteration.
+        var match = Regex.Match(value ?? string.Empty,
+            @"^(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?:-rc\.(?<rc>[1-9][0-9]*))?$",
+            RegexOptions.CultureInvariant);
+        if (!match.Success || !Version.TryParse(match.Groups["base"].Value, out var numeric))
+            return false;
+        if (match.Groups["rc"].Success)
+        {
+            if (!int.TryParse(match.Groups["rc"].Value, out var iteration))
+                return false;
+            rc = iteration;
+        }
+        baseVersion = numeric;
+        return true;
     }
 
     [Fact]
