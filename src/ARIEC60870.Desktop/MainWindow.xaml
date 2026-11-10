@@ -13,7 +13,8 @@
         FontFamily="{StaticResource AppFont}" Loaded="QuickFindWindow_Loaded">
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
-        <!-- Setup only: keep CheckBox semantics, automation peers, IsChecked bindings,
+        <!-- Setup only: compact track optically centered with the caption; preserve
+             real WPF CheckBox semantics, accessible name, IsChecked bindings,
              Checked/Unchecked handlers and keyboard Space support unchanged. -->
         <Style x:Key="SetupSwitchCheckBox" TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
@@ -23,27 +24,29 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type CheckBox}">
-                        <Grid MinHeight="24" Background="Transparent">
+                        <Grid MinHeight="22" Background="Transparent">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="39"/>
+                                <!-- 28 px track + a measured 7 px text gap -->
+                                <ColumnDefinition Width="35"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Border x:Name="SwitchTrack" Width="34" Height="19"
+                            <Border x:Name="SwitchTrack" Width="28" Height="16"
                                     HorizontalAlignment="Left" VerticalAlignment="Center"
-                                    CornerRadius="10" Background="#E2E8F0"
+                                    CornerRadius="8" Background="#E2E8F0"
                                     BorderBrush="#B9C9DC" BorderThickness="1"
                                     SnapsToDevicePixels="True">
                                 <Grid Margin="2">
-                                    <Ellipse x:Name="SwitchThumb" Width="13" Height="13"
+                                    <Ellipse x:Name="SwitchThumb" Width="10" Height="10"
                                              HorizontalAlignment="Left" VerticalAlignment="Center"
-                                             Fill="White" Stroke="#C0CFDD" StrokeThickness="0.6">
+                                             Fill="White" Stroke="#C0CFDD" StrokeThickness="0.5">
                                         <Ellipse.Effect>
                                             <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.16"/>
                                         </Ellipse.Effect>
                                     </Ellipse>
                                 </Grid>
                             </Border>
-                            <ContentPresenter Grid.Column="1" Margin="0,0,0,0"
+                            <ContentPresenter x:Name="SwitchCaption" Grid.Column="1"
+                                              Margin="0" HorizontalAlignment="Left"
                                               VerticalAlignment="Center"
                                               ContentSource="Content"
                                               RecognizesAccessKey="True"/>
