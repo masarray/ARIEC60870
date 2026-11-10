@@ -325,9 +325,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         _transactions.MarkTransmitAttempt(exchange);
         await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         _transactions.MarkAwaitingResponse(exchange);
+        var rxBytesBefore = _reader.ReceivedByteCount;
         var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken,
             deferTimeoutHandling: true).ConfigureAwait(false);
-        if (response.TimedOut && _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
+        if (response.TimedOut && _reader.ReceivedByteCount == rxBytesBefore &&
+            _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
         {
             cancellationToken.ThrowIfCancellationRequested();
             _transactions.MarkTransmitAttempt(exchange);

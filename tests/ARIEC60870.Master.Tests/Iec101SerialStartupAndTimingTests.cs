@@ -217,6 +217,24 @@ public sealed class Iec101SerialStartupAndTimingTests
             "response timeout", StringComparison.OrdinalIgnoreCase));
     }
 
+
+    [Fact]
+    public async Task T02PartialPhysicalRxSuppressesRetryEvenWithoutCompleteFt12Frame()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 65;
+        await using var port = new IncompleteStatusResponderTransport();
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(470), CancellationToken.None);
+
+        Assert.True(port.ReadOctets > 0, "Fixture did not deliver an incomplete FT1.2 start.");
+        Assert.True(port.Transmissions > 0);
+        Assert.DoesNotContain(result.Events, e => e.PollingReason.Contains(
+            "bounded unchanged-FCB read retry #1", StringComparison.Ordinal));
+        Assert.True(result.Counters.Timeouts > 0);
+    }
+
     [Fact]
     public async Task SerialSilenceStillObeysOriginalDeadlineAt1200Bps()
     {
@@ -230,6 +248,40 @@ public sealed class Iec101SerialStartupAndTimingTests
             "No physical start byte means no extended frame-completion deadline.");
     }
 
+
+
+    // Delivers a *partial physical response* after every status request. No
+    // complete frame exists, but the raw octet must forbid a blind T02 retry.
+    private sealed class IncompleteStatusResponderTransport : IByteTransport
+    {
+        private bool _pendingPartial;
+        public int ReadOctets { get; private set; }
+        public int Transmissions { get; private set; }
+        public bool IsOpen { get; private set; }
+
+        public ValueTask OpenAsync(CancellationToken token) { IsOpen = true; return ValueTask.CompletedTask; }
+        public ValueTask CloseAsync(CancellationToken token) { IsOpen = false; return ValueTask.CompletedTask; }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken token)
+        {
+            Transmissions++;
+            if (bytes.Length > 1 && bytes.Span[0] == 0x10 && (bytes.Span[1] & 0x0F) == 9)
+                _pendingPartial = true;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token)
+        {
+            if (_pendingPartial)
+            {
+                _pendingPartial = false;
+                buffer.Span[0] = 0x10;
+                ReadOctets++;
+                return ValueTask.FromResult(1);
+            }
+            return ValueTask.FromResult(0);
+        }
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync() { IsOpen = false; return ValueTask.CompletedTask; }
+    }
 
     // Independent deterministic peer: first link-status FC9 gets no response,
     // byte-identical retry gets addressed FC11; later polls get permitted E5.

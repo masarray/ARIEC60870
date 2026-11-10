@@ -741,9 +741,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _transactions.MarkAwaitingResponse(exchange);
         // Do not register a terminal timeout until this one optional,
         // byte-identical read retransmission has been exhausted. No FC3 replay.
+        var rxBytesBefore = _reader.ReceivedByteCount;
         var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken,
             deferTimeoutHandling: true).ConfigureAwait(false);
-        if (response is null && _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
+        if (response is null && _reader.ReceivedByteCount == rxBytesBefore &&
+            _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
         {
             cancellationToken.ThrowIfCancellationRequested();
             _transactions.MarkTransmitAttempt(exchange);
