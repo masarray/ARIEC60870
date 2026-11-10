@@ -325,7 +325,24 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         _transactions.MarkTransmitAttempt(exchange);
         await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         _transactions.MarkAwaitingResponse(exchange);
-        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        var rxBytesBefore = _reader.ReceivedByteCount;
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken,
+            deferTimeoutHandling: true).ConfigureAwait(false);
+        if (response.TimedOut && _reader.ReceivedByteCount == rxBytesBefore &&
+            _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _transactions.MarkTransmitAttempt(exchange);
+            await SendRawAsync(exchange.OriginalTransmit, summary + " · read retry #1",
+                dataClass, reason + " · bounded unchanged-FCB read retry #1", cancellationToken)
+                .ConfigureAwait(false);
+            _transactions.MarkAwaitingResponse(exchange);
+            response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (response.TimedOut)
+            response = RecordUnconfirmedReadTimeout(dataClass, reason, exchange.RejectedCandidates,
+                DateTime.UtcNow);
         _transactions.Complete(exchange);
         LinkState.FrameCountBit = _transactions.FrameCountBit; // Snapshot only; core owns FCB.
         return response;
@@ -388,7 +405,35 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         });
     }
 
-    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, Iec101PendingExchange exchange, CancellationToken cancellationToken)
+    // Failure accounting and failover visibility happen once, after any
+    // specifically allowed unchanged read retry is exhausted.
+    private Iec101ChannelExchangeResult RecordUnconfirmedReadTimeout(
+        string dataClass, string reason, int rejected, DateTime now)
+    {
+            LinkState.MarkTimeout(now);
+            State = Iec101RedundancyChannelState.TimeoutSuspect;
+            _publish(new Iec103MasterEvidenceEvent
+            {
+                Direction = FrameDirection.Unknown,
+                State = Iec103MasterState.TimeoutRecovery,
+                Category = "Warning",
+                DataClass = DecorateDataClass(dataClass),
+                PollingReason = reason,
+                Summary = $"{Name} response timeout",
+                Detail = $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}. Rejected RX frames={rejected}; total rejected={LinkState.RejectedFrames}; consecutive failures={LinkState.ConsecutiveFailures}.",
+                OperatorMessage = $"{Name} timeout",
+                ProtocolMeaning = "IEC-101 dual-link channel did not receive a valid FT1.2 response in the configured timeout.",
+                OperatorAction = Role == Iec101RedundancyChannelRole.Active ? "Controller may fail over when the active failure threshold is reached." : "Keep active link unchanged; monitor standby recovery.",
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                LinkAddress = _settings.LinkAddress,
+                SignalGroup = "IEC-101 Dual Link"
+            });
+            return new Iec101ChannelExchangeResult { TimedOut = true };
+    }
+
+    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason,
+        Iec101PendingExchange exchange, CancellationToken cancellationToken,
+        bool deferTimeoutHandling = false)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -426,27 +471,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         sw.Stop();
         var now = DateTime.UtcNow;
         if (acceptedFrame is null)
-        {
-            LinkState.MarkTimeout(now);
-            State = Iec101RedundancyChannelState.TimeoutSuspect;
-            _publish(new Iec103MasterEvidenceEvent
-            {
-                Direction = FrameDirection.Unknown,
-                State = Iec103MasterState.TimeoutRecovery,
-                Category = "Warning",
-                DataClass = DecorateDataClass(dataClass),
-                PollingReason = reason,
-                Summary = $"{Name} response timeout",
-                Detail = $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}. Rejected RX frames={rejected}; total rejected={LinkState.RejectedFrames}; consecutive failures={LinkState.ConsecutiveFailures}.",
-                OperatorMessage = $"{Name} timeout",
-                ProtocolMeaning = "IEC-101 dual-link channel did not receive a valid FT1.2 response in the configured timeout.",
-                OperatorAction = Role == Iec101RedundancyChannelRole.Active ? "Controller may fail over when the active failure threshold is reached." : "Keep active link unchanged; monitor standby recovery.",
-                ProtocolMode = Iec60870ProtocolMode.Iec101,
-                LinkAddress = _settings.LinkAddress,
-                SignalGroup = "IEC-101 Dual Link"
-            });
-            return new Iec101ChannelExchangeResult { TimedOut = true };
-        }
+            return deferTimeoutHandling ? new Iec101ChannelExchangeResult { TimedOut = true } :
+                RecordUnconfirmedReadTimeout(dataClass, reason, rejected, now);
 
         var decoded = acceptedFrame;
         var busyChanged = _busyGate.Observe(decoded, now);

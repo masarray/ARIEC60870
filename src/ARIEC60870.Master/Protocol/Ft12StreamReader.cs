@@ -25,6 +25,12 @@ public sealed class Ft12StreamReader
     // resynchronized single byte is NOT a proved reply to the Master request.
     private bool _uncertainFrameBoundary;
     public long AmbiguousShortResponsesSuppressed { get; private set; }
+    /// <summary>
+    /// Total physical octets consumed by this single connection's RX owner.
+    /// This is NOT a validated telegram count. Compare around a read exchange
+    /// to prohibit retransmission when even partial serial response bytes arrived.
+    /// </summary>
+    public long ReceivedByteCount => _receivedBytes;
 
     public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1, int baudRate = 0)
     {

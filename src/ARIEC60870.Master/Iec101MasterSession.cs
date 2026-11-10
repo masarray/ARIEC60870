@@ -739,7 +739,35 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _transactions.MarkTransmitAttempt(exchange);
         await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
         _transactions.MarkAwaitingResponse(exchange);
-        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        // Do not register a terminal timeout until this one optional,
+        // byte-identical read retransmission has been exhausted. No FC3 replay.
+        var rxBytesBefore = _reader.ReceivedByteCount;
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken,
+            deferTimeoutHandling: true).ConfigureAwait(false);
+        if (response is null && _reader.ReceivedByteCount == rxBytesBefore &&
+            _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _transactions.MarkTransmitAttempt(exchange);
+            await SendRawAsync(exchange.OriginalTransmit, summary + " · read retry #1",
+                dataClass, reason + " · bounded unchanged-FCB read retry #1", cancellationToken)
+                .ConfigureAwait(false);
+            _transactions.MarkAwaitingResponse(exchange);
+            response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (response is null)
+        {
+            // The first attempt was deferred while evaluating retry safety;
+            // publish its terminal transport outcome only when retry is forbidden.
+            if (_transport is ITransportExchangeObserver observer)
+            {
+                observer.ObserveExchangeOutcome(exchange.PrimaryFunctionCode, false,
+                    exchange.RejectedCandidates, exchange.RejectedCandidates);
+                DrainTransportDiagnostics("Exchange outcome");
+            }
+            RecordUnconfirmedReadTimeout(dataClass, reason, exchange.RejectedCandidates);
+        }
         _transactions.Complete(exchange);
         return response;
     }
@@ -798,7 +826,33 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, Iec101PendingExchange exchange, CancellationToken cancellationToken)
+    // Only the final failed read exchange reports one terminal timeout.
+    private void RecordUnconfirmedReadTimeout(string dataClass, string reason, int rejected)
+    {
+            // First uncertain exchange invalidates queued mutating controls,
+            // before the separate three-timeout operator-visible link alarm.
+            if (_controlLinkReady)
+            {
+                _controlLinkReady = false;
+                Interlocked.Increment(ref _linkGeneration);
+            }
+            _counters.Timeouts++;
+            _counters.ConsecutiveTimeouts++;
+            _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
+            if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
+            {
+                _linkVerified = false;
+                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
+                    "IEC-101 link no longer responding",
+                    $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
+                    "An open COM port does not prove current RTU connectivity.",
+                    "Inspect serial RX and SICAM link state before retrying GI.");
+            }
+            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
+    }
+
+    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason,
+        Iec101PendingExchange exchange, CancellationToken cancellationToken, bool deferTimeoutHandling = false)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -835,7 +889,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
         }
         sw.Stop();
-        if (_transport is ITransportExchangeObserver exchangeObserver)
+        if ((!deferTimeoutHandling || acceptedFrame is not null) &&
+            _transport is ITransportExchangeObserver exchangeObserver)
         {
             exchangeObserver.ObserveExchangeOutcome(exchange.PrimaryFunctionCode,
                 acceptedFrame is not null, decodedRxFrames, rejected);
@@ -843,26 +898,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         if (acceptedFrame is null)
         {
-            // First uncertain exchange invalidates queued mutating controls,
-            // before the separate three-timeout operator-visible link alarm.
-            if (_controlLinkReady)
-            {
-                _controlLinkReady = false;
-                Interlocked.Increment(ref _linkGeneration);
-            }
-            _counters.Timeouts++;
-            _counters.ConsecutiveTimeouts++;
-            _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
-            if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
-            {
-                _linkVerified = false;
-                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
-                    "IEC-101 link no longer responding",
-                    $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
-                    "An open COM port does not prove current RTU connectivity.",
-                    "Inspect serial RX and SICAM link state before retrying GI.");
-            }
-            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
+            if (!deferTimeoutHandling)
+                RecordUnconfirmedReadTimeout(dataClass, reason, rejected);
             return null;
         }
 

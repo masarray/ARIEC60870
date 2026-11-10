@@ -195,6 +195,46 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
 
     [Fact]
+    public async Task T02DualActiveLinkRecoversLostStatusBySameFcbAndNoFailover()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.ResponseTimeoutMs = 85;
+        settings.SendGeneralInterrogationOnConnect = false;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            ActiveFailureThreshold = 1,
+            StandbyFailureThreshold = 1,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(220),
+            RecoveryBackoff = TimeSpan.FromMilliseconds(150),
+            AntiPingPongWindow = TimeSpan.FromSeconds(30),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+
+        var linkA = new DroppingResponseTransport(
+            new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 1);
+        var session = new Iec101DualLinkRedundancySession(
+            options, linkA, new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(900), CancellationToken.None);
+        Assert.True(linkA.Transmissions.Count >= 2,
+            "The active IEC101 link did not retransmit its first silent read.");
+        Assert.Equal(linkA.Transmissions[0], linkA.Transmissions[1]);
+        Assert.Contains(result.Events, e =>
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.PollingReason.Contains("bounded unchanged-FCB read retry #1", StringComparison.Ordinal));
+        // The channel resets link-health snapshots on Stop; assert original
+        // source-qualified RX evidence, not post-disposal transient health.
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.PhysicalSource == "Link A" &&
+            e.Frame?.LinkControl is { Prm: false, FunctionCode: 11 });
+        Assert.DoesNotContain(result.Events, e =>
+            e.Summary.Contains("Link A response timeout", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(session.FailoverJournal, e => e.Completed);
+    }
+
+    [Fact]
     public async Task ActiveTimeoutPromotesStandbyAndKeepsOldActiveAsRecoveringStandby()
     {
         var settings = CreateFastSimulatedIec101Settings();
@@ -287,7 +327,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
             FailbackPolicy = Iec101DualLinkFailbackPolicy.ManualOnly
         };
 
-        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 1);
+        // T02 consumes one lost response via a same-FCB retransmission.
+        // Drop BOTH initial read and its single eligible retry to provoke a
+        // genuine failover. Otherwise the former one-drop fixture now recovers.
+        var linkA = new DroppingResponseTransport(new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 2);
         // Let B first prove a genuine secondary response. Drop its RX only after
         // it is promoted; byte-level damage before promotion no longer counts as
         // health evidence (and should never trigger an unsafe rescue).
@@ -301,7 +344,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             await Task.Delay(20);
         }
         Assert.Contains(session.FailoverJournal, x => x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B");
-        linkB.DropNextResponses(1); // Actively corrupt B's next response after valid promotion.
+        linkB.DropNextResponses(2); // Exhaust B's initial read and unchanged retry after promotion.
         await runTask;
         var completed = session.FailoverJournal.Where(x => x.Completed).ToArray();
         var snapshot = session.CreateSnapshot();
@@ -341,6 +384,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
     {
         private readonly IByteTransport _inner;
         private int _remainingDroppedResponses;
+        public List<byte[]> Transmissions { get; } = new();
 
         public DroppingResponseTransport(IByteTransport inner, int droppedResponseCount)
         {
@@ -357,6 +401,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
         public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
+            Transmissions.Add(buffer.ToArray());
             while (true)
             {
                 var pending = Volatile.Read(ref _remainingDroppedResponses);
