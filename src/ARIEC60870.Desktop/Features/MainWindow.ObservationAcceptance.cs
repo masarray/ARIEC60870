@@ -500,10 +500,18 @@ public partial class MainWindow
             FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(selected) as ListBoxItem;
         var selectedYBefore = selectedContainer?.TranslatePoint(new Point(), FrameTraceGrid).Y
             ?? double.NaN;
-        for (var i = 1400; i < 1430; i++)
-            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, i * 5L,
-                baseline.AddMilliseconds(i * 40d), "Fixed", true, bytes));
-        FlushUiQueues();
+        var heldFrameRows = FrameTraceRows.ToArray();
+        var heldCollectionChanges = 0;
+        NotifyCollectionChangedEventHandler countHeldChanges = (_, _) => heldCollectionChanges++;
+        FrameTraceRows.CollectionChanged += countHeldChanges;
+        try
+        {
+            for (var i = 1400; i < 1430; i++)
+                FeedPassiveFrameToExistingViews(new PassiveObservedFrame(0, i * 5L,
+                    baseline.AddMilliseconds(i * 40d), "Fixed", true, bytes));
+            FlushUiQueues();
+        }
+        finally { FrameTraceRows.CollectionChanged -= countHeldChanges; }
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
         await Dispatcher.Yield(DispatcherPriority.Loaded);
@@ -514,17 +522,27 @@ public partial class MainWindow
         var selectedYAfter = selectedContainer?.TranslatePoint(new Point(), FrameTraceGrid).Y
             ?? double.NaN;
         if (!double.IsFinite(selectedYBefore) || !double.IsFinite(selectedYAfter) ||
-            Math.Abs(selectedYAfter - selectedYBefore) > 5)
+            Math.Abs(selectedYAfter - selectedYBefore) > 1.25)
             throw new InvalidOperationException(
-                $"Manual raw-frame viewport drifted while new RX/TX arrived: before={selectedYBefore:0.0}, after={selectedYAfter:0.0}.");
-        if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
-            FrameTraceRows.Count > MaxVisibleFrameTraceRows ||
+                $"HOLD raw-frame viewport moved during RX/TX: before={selectedYBefore:0.0}, after={selectedYAfter:0.0}.");
+        if (heldCollectionChanges != 0 || !FrameTraceRows.SequenceEqual(heldFrameRows) ||
+            FrameTraceGrid.Items.Count != heldFrameRows.Length)
+            throw new InvalidOperationException(
+                $"HOLD must not update the WPF ListBox: changes={heldCollectionChanges}, " +
+                $"visible={FrameTraceRows.Count}, original={heldFrameRows.Length}.");
+        if (_protocolTraceStore.Snapshot().LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
+            _protocolTraceStore.Count != MaxVisibleFrameTraceRows ||
+            _protocolTraceRowsDeferredWhileFrozen < 30 ||
             !FrameTraceRows.Contains(selected))
             throw new InvalidOperationException(
-                "Selected Trace must receive new frames with bounded memory while retaining selected evidence.");
+                "HOLD froze source ingestion or dropped the selected visible evidence.");
         if (AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException("Held Trace unexpectedly resumed follow.");
         ResumeLiveViews(clearSelection: true, followLive: true);
+        if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != (1429L * 5) ||
+            _protocolTraceRowsDeferredWhileFrozen != 0 ||
+            _protocolTraceViewDirtyWhileFrozen)
+            throw new InvalidOperationException("AUTO did not catch up to the newest source evidence after HOLD.");
 
         // P0: repeated drag updates at an unchanged range must be true no-ops,
         // not WPF SelectedItems.Clear/repopulate/scroll/flicker cycles.
