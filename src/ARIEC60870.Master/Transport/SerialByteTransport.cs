@@ -8,12 +8,17 @@ using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Master.Transport;
 
-public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSource
+public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSource, ITransportExchangeObserver
 {
     private readonly Iec103MasterSettings _settings;
     private SerialPort? _serialPort;
     private readonly object _diagnosticsLock = new();
     private readonly List<TransportDiagnostic> _diagnostics = new();
+    private long _receivedBytes;
+    private long _writtenBytes;
+    private long _rxBytesAtLastExchange;
+    private int _noFrameExchangeStreak;
+    private int _outOfContextExchangeStreak;
 
     public SerialByteTransport(Iec103MasterSettings settings)
     {
@@ -57,6 +62,11 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             port.DiscardInBuffer();
             port.DiscardOutBuffer();
             _serialPort = port;
+            Interlocked.Exchange(ref _receivedBytes, 0);
+            Interlocked.Exchange(ref _writtenBytes, 0);
+            _rxBytesAtLastExchange = 0;
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak = 0;
             RecordInformational("IEC60870-SERIAL-OPEN-PROFILE",
                 $"Serial open: {_settings.SerialSummary}; {_settings.SerialControlLineSummary}; {ReadModemInputs(port)}.",
                 "This is a local OS/adapter observation, not proof that the SICAM RTU received frames.");
@@ -132,6 +142,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 cancellationToken.ThrowIfCancellationRequested();
                 serialPort.Write(data, 0, data.Length);
             }, cancellationToken).ConfigureAwait(false);
+            Interlocked.Add(ref _writtenBytes, data.Length);
         }
         catch (OperationCanceledException)
         {
@@ -245,6 +256,8 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                         var read = serialPort.Read(destination, destinationOffset, requested);
                         if (read > 0 && rented is not null)
                             rented.AsMemory(0, read).CopyTo(buffer);
+                        if (read > 0)
+                            Interlocked.Add(ref _receivedBytes, read);
                         return read;
                     }
                     catch (TimeoutException)
@@ -270,6 +283,55 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 System.Buffers.ArrayPool<byte>.Shared.Return(rented);
         }
     }
+
+    /// <summary>
+    /// Bounded, read-only modem/driver snapshots. This is NOT a protocol
+    /// recovery action: CTS=0 alone cannot prove RTS/CTS gating when Handshake=None.
+    /// </summary>
+    public void ObserveExchangeOutcome(int primaryFunctionCode, bool acceptedSecondary,
+        int decodedRxFrames, int rejectedRxFrames)
+    {
+        var port = _serialPort;
+        if (port?.IsOpen != true) return;
+
+        var totalRx = Interlocked.Read(ref _receivedBytes);
+        var deltaRx = Math.Max(0, totalRx - _rxBytesAtLastExchange);
+        _rxBytesAtLastExchange = totalRx;
+        if (acceptedSecondary)
+        {
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak = 0;
+            return;
+        }
+
+        if (decodedRxFrames == 0)
+        {
+            _noFrameExchangeStreak++;
+            _outOfContextExchangeStreak = 0;
+            if (!ShouldCaptureExchange(_noFrameExchangeStreak)) return;
+            RecordInformational("IEC60870-SERIAL-NO-FRAME-EVIDENCE",
+                $"Primary FC={primaryFunctionCode}; no completed FT1.2 secondary frame; " +
+                $"RX bytes since previous exchange={deltaRx}; RX bytes since COM open={totalRx}; " +
+                $"TX bytes={Interlocked.Read(ref _writtenBytes)}; no-frame streak={_noFrameExchangeStreak}; " +
+                $"COM={SafePortName(port)}; {_settings.SerialControlLineSummary}; {ReadWriteState(port)}.",
+                "If RX bytes remain zero, compare the same adapter COM and RTS/DTR against IEC_Test and inspect SICAM CTS engineering mode, cabling and port direction. " +
+                "If RX bytes are nonzero, inspect framing noise and serial parity. No automatic station reset or line-toggle was performed.");
+        }
+        else
+        {
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak++;
+            if (!ShouldCaptureExchange(_outOfContextExchangeStreak)) return;
+            RecordInformational("IEC60870-SERIAL-RX-NOT-CORRELATED",
+                $"Primary FC={primaryFunctionCode}; decoded RX frames={decodedRxFrames}; rejected frames={rejectedRxFrames}; " +
+                $"RX bytes since previous exchange={deltaRx}; total RX bytes={totalRx}; " +
+                $"streak={_outOfContextExchangeStreak}; {_settings.SerialControlLineSummary}; {ReadWriteState(port)}.",
+                "Inspect exact TX/RX hex and the IEC-101 rejected-RX code; an addressed FC11 after GI/Class 2 is not the expected response. " +
+                "Check delayed FC9 status and optional operator-approved link/FCB synchronization rather than accepting it as Class data.");
+        }
+    }
+
+    private static bool ShouldCaptureExchange(int count) => count <= 2 || (count & (count - 1)) == 0;
 
     public void Dispose()
     {

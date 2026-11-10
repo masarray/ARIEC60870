@@ -150,6 +150,24 @@ public sealed class Iec101SerialStartupAndTimingTests
     }
 
     [Fact]
+    public async Task ZeroRxFramesEmitsTransportLayerFindingWithoutSendingGi()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 45;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var port = new NoRxEvidenceTransport();
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(900), CancellationToken.None);
+
+        Assert.True(port.ExchangeObservations >= 2);
+        Assert.Equal(0, result.Counters.RxFrames);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-NO-COMPLETE-RX-FRAMES");
+        Assert.Contains(result.Events, e => e.PollingReason == "TEST-NO-RX-OUTCOME");
+    }
+
+    [Fact]
     public async Task SerialSilenceStillObeysOriginalDeadlineAt1200Bps()
     {
         await using var port = new PacedReceiveTransport(Array.Empty<byte>(), 10);
@@ -160,6 +178,37 @@ public sealed class Iec101SerialStartupAndTimingTests
 
         Assert.True(elapsed.ElapsedMilliseconds < 1500,
             "No physical start byte means no extended frame-completion deadline.");
+    }
+
+    private sealed class NoRxEvidenceTransport : IByteTransport, ITransportDiagnosticSource, ITransportExchangeObserver
+    {
+        private readonly Queue<TransportDiagnostic> _events = new();
+        public bool IsOpen { get; private set; }
+        public int ExchangeObservations { get; private set; }
+        public ValueTask OpenAsync(CancellationToken ct) { IsOpen = true; return ValueTask.CompletedTask; }
+        public ValueTask CloseAsync(CancellationToken ct) { IsOpen = false; return ValueTask.CompletedTask; }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) => ValueTask.CompletedTask;
+        public ValueTask<int> ReadAsync(Memory<byte> data, CancellationToken ct) => ValueTask.FromResult(0);
+        public void ObserveExchangeOutcome(int functionCode, bool acceptedSecondary, int decodedRxFrames, int rejectedRxFrames)
+        {
+            ExchangeObservations++;
+            Assert.False(acceptedSecondary);
+            Assert.Equal(0, decodedRxFrames);
+            Assert.Equal(0, rejectedRxFrames);
+            _events.Enqueue(new TransportDiagnostic
+            {
+                Code = "TEST-NO-RX-OUTCOME", Severity = "Info", Source = "Fixture",
+                Message = "Zero physical FT1.2 frame", Detail = $"FC={functionCode}"
+            });
+        }
+        public IReadOnlyList<TransportDiagnostic> DrainDiagnostics()
+        {
+            var list = _events.ToArray();
+            _events.Clear();
+            return list;
+        }
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync() { IsOpen = false; return ValueTask.CompletedTask; }
     }
 
     private sealed class E5StatusOnlyTransport : IByteTransport

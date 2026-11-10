@@ -95,8 +95,15 @@ public static class Iec101SecondaryResponseValidator
                 _ => false
             };
             if (!compatible)
+            {
+                if (functionCode == 11 && pending is 3 or 10 or 11)
+                    return Rejected("IEC101-RX-OUT-OF-CONTEXT-FC11",
+                        $"Secondary FC11 link status after primary FC={pending} is NOT confirmed GI/command/Class data. " +
+                        "It could be a delayed FC9 response, station link/FCB synchronization behavior, or a separate serial bridge response. " +
+                        "Retain physical RX evidence; do not advance FCB or infer an RTU standard violation.");
                 return Rejected("IEC101-RX-UNEXPECTED-FUNCTION",
                     $"Secondary FC={functionCode} cannot answer outstanding primary FC={pending}; retain the original response as out-of-context evidence.");
+            }
 
             // Status with DFC=1 is real secondary evidence but NOT a working
             // station/link-status confirmation; active/standby health must not turn green.

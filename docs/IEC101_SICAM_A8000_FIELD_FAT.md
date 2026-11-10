@@ -206,3 +206,33 @@ If an optional startup clock-sync receives DFC=1, only the UNSENT startup GI
 is deferred until FC9/DFC=0. Neither transmitted clock sync nor an ambiguous
 GI is retried automatically. Deterministic fake-serial regressions enforce
 one clock adjustment and one deferred GI; physical SICAM FAT remains required.
+
+## Field triage: TX but no RX versus valid out-of-context FC11 — 2026-11-10
+
+ARIEC may send FC9 `10 49 69 00 B2 16`, receive an addressed FC11
+`10 0B 69 00 74 16`, and later receive **no bytes at all** after the
+same status request. These are different conditions and must not be
+conflated with a COT/CA/IOA configuration problem:
+
+* `IEC60870-SERIAL-NO-FRAME-EVIDENCE` captures driver RX byte count,
+  modem CTS/DSR/DCD, TX bytes queued, request FC and consecutive exchanges
+  with no completed FT1.2 frame. If driver RX bytes are ZERO, the app cannot
+  claim the RTU replied despite LEDs. If RX bytes are nonzero but no complete
+  FT1.2 frame, inspect UART noise/framing/adapter.
+* `IEC101-NO-COMPLETE-RX-FRAMES` is the end-of-session summary when no
+  complete candidate was ever observed; it explicitly does NOT diagnose
+  whether RTU, converter, wiring or the Windows COM driver dropped the reply.
+* `IEC101-RX-OUT-OF-CONTEXT-FC11` means an FC11 link-status frame was
+  received while outstanding primary FC3/FC10/FC11 expects another service.
+  Retain this as real RX evidence; do not count it as GI/Class data or
+  advance FCB. Investigate delayed FC9 and operator-approved FCB startup.
+* Physical handshake is independently configured. `Handshake=None`
+  with RTS ON is **not** hardware RTS/CTS. CTS=0 by itself is not proof
+  of TX gating. Check exact CP8050 X5/CI8551 port and engineering-interface
+  selection plus local DTR/RTS before changing wiring.
+* Never auto-toggle RTS/DTR, change baud/framing, reset remote link,
+  send clock sync or replay physical controls to diagnose RX silence.
+  Do NOT change COT size for a pure FC9 no-response failure.
+
+This evidence instrumentation is safe to leave in the field build, but
+still requires a real SICAM / known-working IEC_Test A/B FAT.

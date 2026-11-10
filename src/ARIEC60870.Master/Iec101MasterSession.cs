@@ -772,6 +772,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;
         var rejected = 0;
+        var decodedRxFrames = 0;
         while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
                && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
         {
@@ -780,7 +781,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 cancellationToken).ConfigureAwait(false);
             if (raw is null || raw.Length == 0) break;
 
-            _counters.RxFrames++; // Physical RX bytes, not necessarily a valid outstation reply.
+            _counters.RxFrames++; // Completed physical FT1.2 candidates, not necessarily valid secondary replies.
+            decodedRxFrames++;
             var candidate = _ft12.Decode(raw);
             var validation = Iec101SecondaryResponseValidator.Validate(
                 candidate, _settings.LinkAddress, _lastTxFrame,
@@ -802,6 +804,12 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
         }
         sw.Stop();
+        if (_transport is ITransportExchangeObserver exchangeObserver)
+        {
+            exchangeObserver.ObserveExchangeOutcome(pendingPrimaryFunctionCode,
+                acceptedFrame is not null, decodedRxFrames, rejected);
+            DrainTransportDiagnostics("Exchange outcome");
+        }
         if (acceptedFrame is null)
         {
             // First uncertain exchange invalidates queued mutating controls,
@@ -1091,6 +1099,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void BuildPostRunFindings()
     {
+        if (_counters.TxFrames >= 2 && _counters.RxFrames == 0)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-NO-COMPLETE-RX-FRAMES",
+                "Serial link transmitted requests without any completed FT1.2 RX frame",
+                $"TX frames={_counters.TxFrames}; FT1.2 RX candidates=0; accepted secondary responses={_counters.TimedResponses}; " +
+                $"COM={_settings.PortName}; {_settings.SerialControlLineSummary}.",
+                "An open COM handle and TX/RTU LEDs do not prove that Windows received an RTU secondary reply.",
+                "Inspect IEC60870-SERIAL-NO-FRAME-EVIDENCE for actual driver RX bytes and CTS/DSR/DCD; " +
+                "compare IEC_Test with the same physical wiring. Do not change COT for a pure FC9 timeout.");
+        }
         if (_settings.SendGeneralInterrogationOnConnect && _counters.GiCommands > 0 && _counters.GiEndResponses == 0)
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-GI-NO-ACTTERM", "IEC-101 GI did not reach activation termination", $"GI commands={_counters.GiCommands}, termination={_counters.GiEndResponses}.", "Some RTUs return GI data without a clean activation termination, or the address/profile is mismatched.", "Verify COT/CA/IOA size, common address, link address, and outstation interoperability table.");

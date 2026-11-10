@@ -95,10 +95,11 @@ public sealed class Iec101SecondaryResponseValidatorTests
     [InlineData(9, "100869007116", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC8 user-data is not status.
     [InlineData(9, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 no-data is not status.
     [InlineData(9, "100E69007716", "IEC101-RX-LINK-SERVICE-ERROR")]
-    [InlineData(3, "100B69007416", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC11 cannot confirm data.
+    [InlineData(3, "100B69007416", "IEC101-RX-OUT-OF-CONTEXT-FC11")] // FC11 cannot confirm GI.
     [InlineData(3, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 cannot confirm data.
     [InlineData(11, "100069006916", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC0 cannot satisfy class 2.
-    [InlineData(10, "100B69007416", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC11 cannot satisfy class 1.
+    [InlineData(10, "100B69007416", "IEC101-RX-OUT-OF-CONTEXT-FC11")] // FC11 cannot satisfy class 1.
+    [InlineData(11, "100B69007416", "IEC101-RX-OUT-OF-CONTEXT-FC11")] // Field-reported FC11 cannot satisfy class 2.
     public void ASecondaryFunctionMustMatchTheOutstandingPrimaryService(
         int requestFc, string hex, string expectedCode)
     {
