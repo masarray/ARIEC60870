@@ -54,6 +54,18 @@ public sealed class Iec101SecondaryResponseValidatorTests
 
 
     [Fact]
+    public void UnaddressedE5MayAcknowledgeARequestButCannotEstablishFirstLinkIdentity()
+    {
+        var e5 = Parser.Decode([0xE5]);
+        Assert.True(Iec101SecondaryResponseValidator.Validate(e5, 105, Array.Empty<byte>(),
+            pendingPrimaryFunctionCode: 0).IsValid);
+        Assert.False(Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(e5));
+
+        var addressed = Parser.Decode(Convert.FromHexString("100B69007416"));
+        Assert.True(Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(addressed));
+    }
+
+    [Fact]
     public void A2RemainsRawEvidenceButNeverAcknowledgesIec101()
     {
         var frame = Parser.Decode([0xA2]);

@@ -110,6 +110,13 @@ public static class Iec101SecondaryResponseValidator
         return Accepted(advanceFcb: functionCode != 1 && control.Dfc != true);
     }
 
+    // An E5 ACK is a valid response to some requests but carries no address
+    // and no PRM/DFC evidence. It must never establish the first RTU identity
+    // or skip an addressed secondary status probe after startup reset.
+    public static bool ProvidesAddressedLinkProof(Ft12FrameDecode? frame)
+        => frame is { IsChecksumValid: true, IsLengthValid: true,
+            LinkControl: { Prm: false, Dfc: false, FunctionCode: 0 or 8 or 9 or 11 } };
+
     public static bool CanAdvanceFcb(Ft12FrameDecode? frame)
         => frame is { IsChecksumValid: true, IsLengthValid: true }
            && frame.Format != Ft12FrameFormat.Malformed

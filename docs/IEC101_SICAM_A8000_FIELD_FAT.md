@@ -160,3 +160,12 @@ Active/standby each retain independent DFC state. Busy does not cause a
 standby takeover; a DFC=1 standby cannot be promoted based on an old good
 status. Local RTS/CTS is a separate physical flow-control layer.
 A FAT with SICAM and the known-good serial reference remains required.
+
+## Startup short ACK identity safeguard (2026-11-10)
+
+Even when the operator explicitly enables startup FC0 reset, an E5 short ACK
+does not carry Link Address, PRM or DFC. It can acknowledge that exchange
+without establishing verified RTU identity or bypassing FC9 status proof.
+An addressed checksum-valid secondary frame is required for the initial
+link-ready indication, independently for dual-link A/B; tests cover the
+unaddressed-reset case and prevent GI on an unverified active link.

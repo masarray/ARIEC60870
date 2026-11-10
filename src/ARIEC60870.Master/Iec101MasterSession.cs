@@ -813,7 +813,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         _counters.ConsecutiveTimeouts = 0;
         _counters.TimedResponses++;
-        if (!_linkVerified && Iec101SecondaryResponseValidator.CanAdvanceFcb(decoded))
+        if (!_linkVerified && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
         {
             _linkVerified = true;
             SetState(Iec103MasterState.Connected, "IEC-101 secondary link verified",

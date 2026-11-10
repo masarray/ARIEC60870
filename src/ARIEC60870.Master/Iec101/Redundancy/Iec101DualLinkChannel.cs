@@ -443,7 +443,9 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var busyChanged = _busyGate.Observe(decoded, now);
         if (_busyGate.IsBusy)
             LinkState.MarkBusyResponse();
-        else if (validation.AdvancesFcb)
+        else if (validation.AdvancesFcb &&
+                 (LinkState.LastGoodResponseUtc.HasValue ||
+                  Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded)))
             LinkState.MarkGoodResponse(now);
         else
             LinkState.MarkNegativeResponse();

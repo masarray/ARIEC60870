@@ -53,6 +53,46 @@ public sealed class Iec101RemoteBusyRecoveryTests
     }
 
     [Fact]
+    public async Task UnaddressedStartupResetAckCannotSkipFc9OrDispatchGi()
+    {
+        var settings = Settings();
+        settings.ResetRemoteLinkOnConnect = true;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var transport = new RemoteFlowTransport(busyOnStartup: false, unaddressedStatusOnly: true);
+        var result = await new Iec101MasterSession(settings, transport)
+            .RunForAsync(TimeSpan.FromMilliseconds(370), CancellationToken.None);
+
+        Assert.True(transport.StatusProbes > 0, "An E5 reset ACK must not suppress FC9 status verification.");
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, transport.DataRequests);
+    }
+
+    [Fact]
+    public async Task DualUnaddressedResetAckMustNotEnableUnverifiedActiveGi()
+    {
+        var settings = Settings();
+        settings.ResetRemoteLinkOnConnect = true;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var unverified = new RemoteFlowTransport(busyOnStartup: false, unaddressedStatusOnly: true);
+        await using var healthy = new RemoteFlowTransport(busyOnStartup: false);
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "A", PortName = "FAKE-COM-A", LinkAddress = 105 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "B", PortName = "FAKE-COM-B", LinkAddress = 105 },
+            PreferredActiveLink = "A"
+        };
+        var result = await new Iec101DualLinkRedundancySession(options, unverified, healthy)
+            .RunForAsync(TimeSpan.FromMilliseconds(370), CancellationToken.None);
+
+        Assert.True(unverified.StatusProbes > 0);
+        Assert.Equal(0, unverified.DataRequests);
+        Assert.DoesNotContain(result.Events, e => e.Summary.Contains("GI", StringComparison.OrdinalIgnoreCase)
+            && e.Direction == ARIEC60870.Core.Model.FrameDirection.MasterToSlave
+            && e.DataClass.Contains("A/Active", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task DualLinkBusyActiveUsesOnlyStatusProbesAndKeepsHealthyStandby()
     {
         var settings = Settings();
@@ -83,15 +123,17 @@ public sealed class Iec101RemoteBusyRecoveryTests
     {
         private readonly bool _busyOnStartup;
         private readonly bool _busyAfterFirstClass2;
+        private readonly bool _unaddressedStatusOnly;
         private readonly Queue<byte> _rx = new();
         private readonly Ft12Parser _parser = Ft12Parser.ForIec101(2);
         private bool _remoteBusy;
         private int _busyStatusReplies;
 
-        public RemoteFlowTransport(bool busyOnStartup, bool busyAfterFirstClass2 = false)
+        public RemoteFlowTransport(bool busyOnStartup, bool busyAfterFirstClass2 = false, bool unaddressedStatusOnly = false)
         {
             _busyOnStartup = busyOnStartup;
             _busyAfterFirstClass2 = busyAfterFirstClass2;
+            _unaddressedStatusOnly = unaddressedStatusOnly;
             _remoteBusy = busyOnStartup;
         }
 
@@ -123,9 +165,16 @@ public sealed class Iec101RemoteBusyRecoveryTests
             if (fc == 9)
             {
                 StatusProbes++;
-                if (_remoteBusy && ++_busyStatusReplies >= 3)
-                    _remoteBusy = false;
-                Enqueue(Ft12FrameBuilder.Fixed(_remoteBusy ? (byte)0x1B : (byte)0x0B, 105, 2));
+                if (_unaddressedStatusOnly)
+                {
+                    Enqueue(new byte[] { 0xE5 });
+                }
+                else
+                {
+                    if (_remoteBusy && ++_busyStatusReplies >= 3)
+                        _remoteBusy = false;
+                    Enqueue(Ft12FrameBuilder.Fixed(_remoteBusy ? (byte)0x1B : (byte)0x0B, 105, 2));
+                }
             }
             else if (fc == 11)
             {
