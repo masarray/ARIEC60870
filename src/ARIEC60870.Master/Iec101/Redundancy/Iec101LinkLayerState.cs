@@ -29,6 +29,21 @@ public sealed class Iec101LinkLayerState
     public int ForeignPrimaryFrames { get; set; }
     public int LinkAddressMismatchFrames { get; set; }
 
+    // Clear epoch-local health without losing cumulative serial/diagnostic counters.
+    public void ResetConnectionEvidence()
+    {
+        FrameCountBit = false;
+        Acd = false;
+        Dfc = false;
+        LastGoodResponseUtc = null;
+        LastTimeoutUtc = null;
+        LastRecoveryStartedUtc = null;
+        LastRecoveryCompletedUtc = null;
+        ConsecutiveTimeouts = 0;
+        ConsecutiveFailures = 0;
+        ConsecutiveGoodResponses = 0;
+    }
+
     public void MarkGoodResponse(DateTime utcNow)
     {
         LastGoodResponseUtc = utcNow;

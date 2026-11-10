@@ -36,7 +36,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
     private int? _dominantObservedCommonAddress;
     private bool _retriedGiWithObservedCommonAddress;
-    private readonly ConcurrentQueue<QueuedControl> _controlCommands = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
     private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
         bool ReadyWhenQueued, int LinkGeneration, DateTime QueuedUtc);
     private bool _controlLinkReady;
@@ -66,8 +66,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         if (request is not null)
         {
-            _controlCommands.Enqueue(new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
-                Volatile.Read(ref _linkGeneration), DateTime.UtcNow));
+            if (!_controlCommands.TryEnqueue(new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
+                    Volatile.Read(ref _linkGeneration), DateTime.UtcNow)))
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-QUEUE-FULL",
+                    "IEC-101 operator command rejected: bounded queue full",
+                    "Capacity=64; new command was NOT admitted: " + request.Summary,
+                    "The command was not transmitted, dropped from an older slot, or scheduled for later replay.",
+                    "Wait for confirmed exchanges to drain before deliberately issuing a fresh command.");
+            }
         }
     }
 
@@ -87,6 +94,10 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             _transactions.StartConnectionEpoch();
+            _busyGate.Reset();
+            _linkVerified = false;
+            _controlLinkReady = false;
+            Interlocked.Increment(ref _linkGeneration);
             _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
             DrainTransportDiagnostics("Open transport");
             if (_settings.StartupDelayMs > 0)
@@ -106,9 +117,12 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
             if (_settings.ResetFcbOnConnect)
             {
-                await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
+                var resetReply = await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
                     "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
-                _transactions.ResetFrameCount();
+                if (resetReply is not null &&
+                    Iec101SecondaryResponseValidator.Validate(resetReply, _settings.LinkAddress,
+                        _lastTxFrame, pendingPrimaryFunctionCode: 7).AdvancesFcb)
+                    _transactions.ResetFrameCount();
             }
 
             if (!_linkVerified)
@@ -206,6 +220,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         {
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
             _transactions.EndConnectionEpoch();
+            _controlLinkReady = false;
+            _linkVerified = false;
+            Interlocked.Increment(ref _linkGeneration);
+            var discardedCommands = _controlCommands.Clear();
+            if (discardedCommands > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-DISCARDED-ON-STOP",
+                    "IEC-101 queued commands discarded when session stopped",
+                    "Not transmitted: " + discardedCommands + " queued operator request(s).",
+                    "Stale operator controls must not survive COM reconnect or a new session.",
+                    "Reissue intentional commands after new addressed link proof.");
             try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             DrainTransportDiagnostics("Close transport");
             SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);

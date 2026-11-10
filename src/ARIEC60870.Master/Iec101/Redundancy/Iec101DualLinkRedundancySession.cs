@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol;
 using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Master.Transport;
 
@@ -16,7 +17,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101DualLinkChannel _linkA;
     private readonly Iec101DualLinkChannel _linkB;
     private readonly Iec101ApplicationImageTracker _imageTracker = new();
-    private readonly ConcurrentQueue<QueuedControl> _controlCommands = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
     // An operator control belongs to the exact verified active owner present
     // when queued. Never silently replay it after a link switch/recovery.
     private readonly record struct QueuedControl(
@@ -24,7 +25,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private static readonly TimeSpan MaxQueuedMutatingCommandAge = TimeSpan.FromSeconds(30);
     private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
         => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
-    private readonly ConcurrentQueue<string> _manualFailoverRequests = new();
+    private readonly Iec101BoundedFifo<string> _manualFailoverRequests = new(8);
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
@@ -68,8 +69,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (request is not null)
         {
             var active = _active;
-            _controlCommands.Enqueue(new QueuedControl(request, active?.Name,
-                active?.IsHealthy == true, DateTime.UtcNow));
+            if (!_controlCommands.TryEnqueue(new QueuedControl(request, active?.Name,
+                    active?.IsHealthy == true, DateTime.UtcNow)))
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
+                    "IEC-101 dual-link command rejected: bounded queue full",
+                    "Capacity=64; new command was NOT admitted: " + request.Summary,
+                    "Older controls are retained in order; no control is silently dropped or rerouted.",
+                    "Reissue the intended command after the active-link queue drains.");
+            }
         }
     }
 
@@ -79,9 +87,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     /// </summary>
     public void QueueManualFailover(string reason)
     {
-        _manualFailoverRequests.Enqueue(string.IsNullOrWhiteSpace(reason)
-            ? "Operator requested manual dual-link switchover"
-            : reason.Trim());
+        if (!_manualFailoverRequests.TryEnqueue(string.IsNullOrWhiteSpace(reason)
+                ? "Operator requested manual dual-link switchover"
+                : reason.Trim()))
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-FAILOVER-QUEUE-FULL",
+                "IEC-101 manual failover request rejected: bounded queue full",
+                "Capacity=8; no further switchover request was admitted.",
+                "Queued operator intents must be bounded; no implicit repeated switchover.",
+                "Wait for the current failover decision to finish before reissuing.");
     }
 
     public async Task<Iec103MasterRunResult> RunForAsync(TimeSpan duration, CancellationToken cancellationToken)
@@ -119,6 +132,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         {
             SetControllerState(Iec101RedundancyControllerState.Stopping, "Stopping IEC-101 dual-link redundancy", "Closing both link transports.");
             await CloseBothLinksAsync().ConfigureAwait(false);
+            var discardedCommands = _controlCommands.Clear();
+            var discardedSwitches = _manualFailoverRequests.Clear();
+            if (discardedCommands > 0 || discardedSwitches > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-INTENTS-DISCARDED-ON-STOP",
+                    "IEC-101 dual-link queued intents discarded on Stop",
+                    "Unsent commands=" + discardedCommands + "; pending manual switches=" + discardedSwitches + ".",
+                    "Old controls and failover requests must not execute on a new link epoch.",
+                    "Issue fresh operator requests against the verified active link.");
             SetControllerState(Iec101RedundancyControllerState.Stopped, "IEC-101 dual-link redundancy stopped", completion);
         }
 

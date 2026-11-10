@@ -34,6 +34,12 @@ internal sealed class Iec101UnbalancedBusyGate
         return wasBusy != IsBusy;
     }
 
+    public void Reset()
+    {
+        IsBusy = false;
+        NextProbeUtc = default;
+    }
+
     public bool ShouldProbe(DateTime utcNow) => IsBusy && utcNow >= NextProbeUtc;
 
     public int DelayMs(DateTime utcNow) => !IsBusy ? 0

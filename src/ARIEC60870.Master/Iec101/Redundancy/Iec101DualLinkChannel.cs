@@ -72,6 +72,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     {
         Role = role;
         State = Iec101RedundancyChannelState.Opening;
+        LinkState.ResetConnectionEvidence();
+        _busyGate.Reset();
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} opening", $"Role={role}, endpoint={Endpoint}.");
         await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
         _transactions.StartConnectionEpoch();
@@ -86,6 +88,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     {
         State = Iec101RedundancyChannelState.Closed;
         _transactions.EndConnectionEpoch();
+        LinkState.ResetConnectionEvidence();
+        _busyGate.Reset();
         try
         {
             await _transport.CloseAsync(cancellationToken).ConfigureAwait(false);
