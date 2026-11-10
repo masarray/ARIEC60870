@@ -863,34 +863,32 @@
 
     <!-- Frame Trace only: source-typed priority; no keyword-based error guesses.
          Pure presentation. Rows are never removed/coalesced or replaced. -->
+    <!-- Direction first, attention second: ACD alone does NOT make an error row. -->
     <Style x:Key="ProtocolTraceForensicLineItem" TargetType="ListBoxItem"
            BasedOn="{StaticResource ProtocolTraceLineItem}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="TraceChrome" Background="White"
+                    <Border x:Name="TraceChrome" Background="#F9FAFB"
                             BorderThickness="0,0,0,1" BorderBrush="#DEE7EC"
                             Padding="7,4,7,4">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
-                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Routine">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#FAFBFC" />
+                        <DataTrigger Binding="{Binding Direction}" Value="TX">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#EAF3FF" />
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="GI">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#F8FAFC" />
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding TraceVisualClass}" Value="Command">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#F8FAFC" />
+                        <DataTrigger Binding="{Binding Direction}" Value="RX">
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#EAF7F0" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding TraceVisualClass}" Value="Attention">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#FFF8F2" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#FFF2ED" />
                         </DataTrigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#E9EEF3" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#DEE9F4" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="TraceChrome" Property="Background" Value="#DCE8F1" />
+                            <Setter TargetName="TraceChrome" Property="Background" Value="#CBDFF1" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

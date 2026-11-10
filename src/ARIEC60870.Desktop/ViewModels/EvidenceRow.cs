@@ -252,6 +252,15 @@ public sealed partial class EvidenceRow
         _timelineReadableAlerts ??= EngineerFramePresentation.ReadableAlerts(Source);
     public bool HasTimelineReadableAlerts => TimelineReadableAlerts.Length > 0;
 
+    // ACD=1 is a normal IEC-101 pending-data indicator, not a protocol error.
+    public string TimelineAcdPending => Source.Frame?.LinkControl is { Prm: false, Acd: true }
+        ? "Data Class 1 Pending (ACD): TRUE" : string.Empty;
+    public bool HasTimelineAcdPending => TimelineAcdPending.Length > 0;
+    private string? _timelineDiagnosticAlerts;
+    public string TimelineDiagnosticAlerts => _timelineDiagnosticAlerts ??=
+        EngineerFramePresentation.ReadableAlerts(Source, includeAcd: false);
+    public bool HasTimelineDiagnosticAlerts => TimelineDiagnosticAlerts.Length > 0;
+
     // The left observation row has two independent reading lanes:
     // original bytes on the left, typed engineering interpretation on the right.
     // Each process signal gets its own line. A bounded preview avoids a large
@@ -298,9 +307,7 @@ public sealed partial class EvidenceRow
         {
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
-            var value = Iec10xSignalTraceFormatter.ScanValue(asdu, obj, name);
-            var time = Iec10xSignalTraceFormatter.ScanDeviceTime(obj);
-            return time.Length == 0 ? value : value + Environment.NewLine + "  " + time;
+            return Iec10xSignalTraceFormatter.TraceObject(asdu, obj, name);
         });
         return string.Join(Environment.NewLine, visible);
     }
