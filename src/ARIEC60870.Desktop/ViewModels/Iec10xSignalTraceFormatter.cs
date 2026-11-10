@@ -57,6 +57,82 @@ public static class Iec10xSignalTraceFormatter
         return flags.Length == 0 ? label : label + " · " + flags;
     }
 
+    // Scan projection: authoritative ASDU/object facts; no byte reinterpretation
+    // or device-time substitution by the host observation clock.
+    public static string ScanValue(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
+        string? authoritativeName = null)
+    {
+        ArgumentNullException.ThrowIfNull(asdu);
+        ArgumentNullException.ThrowIfNull(obj);
+        var address = obj.InformationObjectAddress;
+        var width = asdu.InformationObjectAddressWidth;
+        var validAddress = width is >= 1 and <= 3 && address >= 0 &&
+            address <= (1 << (8 * width)) - 1;
+        var mismatch = false;
+        if (validAddress && asdu.RawBytes.Count > 0 &&
+            !(asdu.IsSequence && obj.Index > 1) &&
+            obj.InformationObjectOffset >= 0 &&
+            obj.InformationObjectOffset + width <= asdu.RawBytes.Count)
+        {
+            var wire = 0;
+            for (var i = 0; i < width; i++)
+                wire |= asdu.RawBytes[obj.InformationObjectOffset + i] << (8 * i);
+            mismatch = wire != address;
+        }
+
+        var kind = Kind(asdu.TypeId);
+        var value = !validAddress || mismatch || obj.Issues.Count > 0
+            ? "Decode warning" : string.IsNullOrWhiteSpace(obj.ShortValue)
+                ? "Not decoded" : TrimKnownTypedPrefix(obj.ShortValue, kind);
+        var name = string.IsNullOrWhiteSpace(authoritativeName)
+            ? string.Empty : authoritativeName.Trim() + " · ";
+        return name + "IOA " + address.ToString(CultureInfo.InvariantCulture) +
+            " · Value: " + value + " (" + kind + ")" +
+            " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
+            (asdu.IsSequence && obj.Index > 1 ? " · SQ=1 implied IOA" : string.Empty) +
+            (mismatch ? " · IOA bytes mismatch" : string.Empty);
+    }
+
+    // CP24/other timestamp does not establish CP56 GEN, DST or time validity.
+    public static string ScanDeviceTime(Iec10xInformationObject obj)
+    {
+        ArgumentNullException.ThrowIfNull(obj);
+        if (string.IsNullOrWhiteSpace(obj.TimestampText)) return string.Empty;
+        if (obj.Cp56TimeDetails is not { } time)
+            return "RTU " + obj.TimestampText + " · CP56 flags: N/A";
+
+        var result = new List<string>(10)
+        {
+            "RTU " + obj.TimestampText,
+            "Valid: " + Bool(time.IsValid),
+            "Genuine: " + Bool(!time.SubstitutedFlag),
+            "Summer Time: " + Bool(time.SummerTimeFlag)
+        };
+        if (time.InvalidFlag) result.Add("Time invalid (IV): TRUE");
+        if (!time.CalendarInRange) result.Add("Calendar valid: FALSE");
+        if (time.DayOfWeek > 0) result.Add("Day: " + time.DayOfWeekText);
+        if (time.DayOfWeekMatchesCalendar == false) result.Add("Day mismatch: TRUE");
+        if (time.UnexpectedReservedBits) result.Add("Reserved bits: SET");
+        return string.Join(" · ", result);
+    }
+
+    // Only applicable flags that are actually set. Missing flag ≠ False.
+    public static string ScanActiveQuality(Iec10xQualityDetails? quality)
+    {
+        if (quality is null) return string.Empty;
+        var result = new List<string>(7);
+        if (quality.Overflow == true) result.Add("Overflow (OV): TRUE");
+        if (quality.Invalid) result.Add("Invalid (IV): TRUE");
+        if (quality.Blocked == true) result.Add("Blocked (BL): TRUE");
+        if (quality.NotTopical == true) result.Add("Not topical (NT): TRUE");
+        if (quality.Substituted == true) result.Add("Substituted (SB): TRUE");
+        if (quality.Carry == true) result.Add("Carry (CY): TRUE");
+        if (quality.Adjusted == true) result.Add("Adjusted (CA): TRUE");
+        return string.Join(" · ", result);
+    }
+
+    private static string Bool(bool value) => value ? "TRUE" : "FALSE";
+
     public static string Kind(byte type) => type switch
     {
         1 or 2 or 30 => "Single Point",

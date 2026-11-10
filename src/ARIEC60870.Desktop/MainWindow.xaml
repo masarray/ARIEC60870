@@ -938,7 +938,7 @@
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
-                                                                   MaxHeight="280">
+                                                                   MaxHeight="420">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
@@ -974,15 +974,15 @@
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="110"/>
                                                         <!-- RTU timestamp is rendered only beside its own typed signal above. -->
-                                                        <TextBlock Text="{Binding TimelineAlerts}"
+                                                        <TextBlock Text="{Binding TimelineReadableAlerts}"
                                                                    FontFamily="{StaticResource AppFont}" FontSize="10.8"
-                                                                   FontWeight="SemiBold" Foreground="#9B3F24"
+                                                                   FontWeight="Medium" Foreground="#9B3F24"
                                                                    TextWrapping="Wrap" TextTrimming="None"
-                                                                   MaxHeight="110" Margin="0,3,0,0">
+                                                                   MaxHeight="190" Margin="0,4,0,0">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding HasTimelineAlerts}" Value="False">
+                                                                        <DataTrigger Binding="{Binding HasTimelineReadableAlerts}" Value="False">
                                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>

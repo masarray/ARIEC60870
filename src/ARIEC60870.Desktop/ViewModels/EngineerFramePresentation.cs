@@ -58,6 +58,58 @@ public static class EngineerFramePresentation
         return string.Join("   ·   ", result);
     }
 
+    // Readable inline alerts are separate from legacy diagnostic flags used by
+    // search/export. Include IOA provenance and count for large ASDU bursts.
+    public static string ReadableAlerts(Iec103MasterEvidenceEvent source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var result = new List<string>(9);
+        var frame = source.Frame;
+        var asdu = source.AsduDetails;
+        if (frame is { IsChecksumValid: false }) result.Add("Checksum: INVALID");
+        if (frame is { IsLengthValid: false }) result.Add("Frame length: INVALID");
+        if (frame?.Issues.Count > 0) result.Add("Link decode: WARNING");
+        if (frame?.IsSingleCharacterNack == true) result.Add("Link NACK: TRUE");
+        if (frame?.LinkControl is { Prm: false, Acd: true })
+            result.Add("Class 1 pending (ACD): TRUE");
+        if (frame?.LinkControl is { Prm: false, Dfc: true })
+            result.Add("Flow restricted (DFC): TRUE");
+        if (asdu?.IsNegativeConfirm == true || source.CauseDetails?.Negative == true)
+            result.Add("Negative confirmation: TRUE");
+        if (asdu?.IsTest == true || source.CauseDetails?.Test == true)
+            result.Add("Test indication: TRUE");
+        if (asdu?.CauseOfTransmission is >= 44 and <= 47)
+            result.Add("COT protocol error: TRUE");
+        if (asdu?.Issues.Count > 0) result.Add("ASDU decode: WARNING");
+
+        if (asdu is not null)
+        {
+            var flagged = 0;
+            foreach (var obj in asdu.Objects)
+            {
+                var flags = Iec10xSignalTraceFormatter.ScanActiveQuality(obj.QualityDetails);
+                var time = obj.Cp56TimeDetails;
+                if (time is { IsValid: false })
+                    flags += (flags.Length > 0 ? " · " : "") + "Device time valid: FALSE";
+                if (time is { SubstitutedFlag: true })
+                    flags += (flags.Length > 0 ? " · " : "") + "Genuine: FALSE";
+                if (time is { UnexpectedReservedBits: true })
+                    flags += (flags.Length > 0 ? " · " : "") + "Time reserved bits: SET";
+                if (time?.DayOfWeekMatchesCalendar == false)
+                    flags += (flags.Length > 0 ? " · " : "") + "Device day mismatch: TRUE";
+                if (obj.Issues.Count > 0)
+                    flags += (flags.Length > 0 ? " · " : "") + "Object decode: WARNING";
+                if (flags.Length == 0) continue;
+                flagged++;
+                if (flagged <= 3)
+                    result.Add("IOA " + obj.InformationObjectAddress + " · " + flags);
+            }
+            if (flagged > 3)
+                result.Add("+" + (flagged - 3) + " flagged IOAs · see Frame Details");
+        }
+        return string.Join(Environment.NewLine, result);
+    }
+
     public static bool HasAlerts(Iec103MasterEvidenceEvent source) =>
         Alerts(source).Length > 0;
 
