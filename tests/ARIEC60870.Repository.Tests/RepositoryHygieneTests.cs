@@ -83,9 +83,9 @@ public sealed class RepositoryHygieneTests
         if (valid) Assert.Equal(rc < 0 ? (int?)null : rc, rcNumber);
     }
 
-    private static bool TryParseReleaseVersion(string? value, out Version? baseVersion, out int? rc)
+    private static bool TryParseReleaseVersion(string? value, out Version baseVersion, out int? rc)
     {
-        baseVersion = null;
+        baseVersion = new Version(0, 0, 0);
         rc = null;
         // Keep the public-release version gate strict, including no leading
         // zeroes on the numeric components or prerelease iteration.
