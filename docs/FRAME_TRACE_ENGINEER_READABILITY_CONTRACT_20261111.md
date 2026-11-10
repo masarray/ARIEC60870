@@ -22,3 +22,12 @@ Scope: WPF Raw Frames presentation only. The original Core decoder and physical-
 - Real WPF acceptance: CP56 own-device-time/GEN, visible per-object lines, source cause, selected inspector, narrow and wide viewport and original HEX.
 - Merge only after exact-HEAD Windows build, format, all xUnit, screenshots, CodeQL, dependency review and hygiene. Inspect actual screenshots, not just a green runner.
 - This UX work is not evidence of Siemens/SICAM interoperability or active IEC-101 FAT. Keep the engine reliability P0 PR independent.
+
+
+## 2026-11-11 follow-up — DPI, timestamp and engineering density
+
+- Missing CP56/object time reads "Timestamp: No Timestamp", never implying a device or decoder error. Explicit partial CP24 time remains distinct from missing CP56.
+- For TI 3/4/31 only, when canonical typed DIQ is available: 00 = "Invalid [00]" (intermediate state), 01 = "OFF [01]", 10 = "ON [10]", 11 = "Invalid [11]" (indeterminate/fault state). The word Invalid in these **state** labels must not be conflated with quality IV (bit 7); present source quality independently. No inferred DPI from human text when DIQ missing.
+- Raw wire lane 24% / frame interpreter 76% when paired; measured width below 840 DIP stacks rather than clipping the header. Frame Details right dock narrows to a 3 : 1.1 star ratio with 250 DIP minimum and retains operator splitter. No novel panel or user-facing mode.
+- Every TX frame retains a narrow blue direction stripe (#2563B8), every RX frame a green stripe (#16805D), including selected, hovered and attention-overridden rows; raw HEX text uses the same typed direction ink. Row background continues pale-blue/pale-green with semantic attention override.
+- Regression proof: typed four-state DP fixtures, invalid-quality orthogonality and missing-DIQ guard, no-timestamp format, viewport geometry thresholds, true-WPF direction stripe and paired-vs-stacked/inspector layout. Exact-head Windows CI, CodeQL and human review of screenshots remain merge gates.

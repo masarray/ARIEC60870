@@ -95,7 +95,7 @@ public static class Iec10xSignalTraceFormatter
               (cp56.DayOfWeekMatchesCalendar == false ? " · Day mismatch" : "") +
               (cp56.DayOfWeek > 0 ? " · Day: " + cp56.DayOfWeekText : "")
             : string.IsNullOrWhiteSpace(obj.TimestampText)
-                ? "Not provided" : "Partial (CP56 validity / GEN / DST unknown)";
+                ? "No Timestamp" : "Partial (CP56 validity / GEN / DST unknown)";
         return f.Identity + " · " + ti + " · Value: " + f.Value + stamp + f.Suffix +
             Environment.NewLine + "  " + ti + " " + f.Kind + " Signal · Quality: " +
             quality + " · Timestamp: " + timeStatus;
@@ -127,6 +127,19 @@ public static class Iec10xSignalTraceFormatter
         var value = !validAddress || mismatch || obj.Issues.Count > 0
             ? "Decode warning" : string.IsNullOrWhiteSpace(obj.ShortValue)
                 ? "Not decoded" : TrimKnownTypedPrefix(obj.ShortValue, kind);
+        // DPI bits are typed decoder evidence (DIQ), not parsed from strings.
+        // 00/11 describe an indeterminate double-point STATE, not quality IV.
+        // Preserve original Core decoder text for all non-Trace consumers.
+        if (traceDisplay && validAddress && !mismatch && obj.Issues.Count == 0 &&
+            asdu.TypeId is 3 or 4 or 31 &&
+            obj.QualityDetails is { Kind: Iec10xQualityKind.Diq } diq)
+            value = (diq.Raw & 0x03) switch
+            {
+                0 => "Invalid [00]",
+                1 => "OFF [01]",
+                2 => "ON [10]",
+                _ => "Invalid [11]"
+            };
         var name = string.IsNullOrWhiteSpace(authoritativeName)
             ? string.Empty : authoritativeName.Trim() + " · ";
         var byteStructure = validAddress && !mismatch

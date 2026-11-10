@@ -773,9 +773,14 @@ public partial class MainWindow
             UpdateLayout();
             if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(probeRow)
                     is not ListBoxItem container ||
-                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
+                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk) ||
+                container.Template.FindName("TraceDirectionStripe", container)
+                    is not Border directionStripe ||
+                directionStripe.Background is not SolidColorBrush stripeBrush ||
+                stripeBrush.Color != (probeRow.Direction == "TX"
+                    ? Color.FromRgb(0x25, 0x63, 0xB8) : Color.FromRgb(0x16, 0x80, 0x5D)))
                 throw new InvalidOperationException(
-                    "Frame Trace TX/RX direction or source-typed semantic ink was not rendered.");
+                    "Frame Trace must keep physically visible, source-typed TX blue / RX green stripes.");
         }
 
         var layouts = new (string Name, double Width, double Height)[]
@@ -1228,6 +1233,12 @@ public partial class MainWindow
                     is not ListBoxItem adaptiveRow)
                 throw new InvalidOperationException("Inspector-open adaptive Frame Trace lost the selected physical row.");
 
+            // The narrowed inspector must leave the majority of width for the
+            // frame interpreter at ordinary field-workstation resolutions.
+            if (FrameTraceGrid.ActualWidth >= 840 &&
+                FrameTraceGrid.ActualWidth < TraceInspectorColumn.ActualWidth * 1.6)
+                throw new InvalidOperationException(
+                    "Frame Details expanded too wide relative to the Raw Frames interpreter.");
             var expectedLayout = FrameTraceViewportPolicy.RowLayout(FrameTraceGrid.ActualWidth);
             if (!Equals(FrameTraceGrid.Tag, expectedLayout))
                 throw new InvalidOperationException(

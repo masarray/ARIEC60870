@@ -945,8 +945,8 @@
                                                 <Grid.ColumnDefinitions>
                                                     <!-- Responsive WPF template: wide trace uses paired lanes;
                                                          narrow trace stacks HEX above interpretation. -->
-                                                    <ColumnDefinition Width="0.64*"/>
-                                                    <ColumnDefinition Width="1.36*"/>
+                                                    <ColumnDefinition Width="0.48*"/>
+                                                    <ColumnDefinition Width="1.52*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Left: real on-wire evidence. Original bytes
                                                      remain intact, readable and independent of
@@ -976,7 +976,7 @@
                                                     </Grid>
                                                     <TextBlock Grid.Row="1" Text="{Binding TimelineHex}"
                                                                FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                               Foreground="#235076" Margin="0,4,0,0"
+                                                               Foreground="{Binding TraceInk}" Margin="0,4,0,0"
                                                                TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                                                                MaxHeight="68"/>
                                                 </Grid>
