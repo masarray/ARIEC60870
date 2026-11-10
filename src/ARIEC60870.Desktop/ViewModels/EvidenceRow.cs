@@ -241,6 +241,12 @@ public sealed partial class EvidenceRow
     private string? _timelineTitle;
     private string? _timelineContext;
     public string TimelineTitle => _timelineTitle ??= BuildTimelineTitle();
+    // Original Link/CA provenance is promoted to the first interpretation line,
+    // not silently duplicated as a detached footnote below the signal list.
+    // Missing/unverified ASDU headers must never fabricate a CA.
+    public bool HasInlineHeadlineIdentity =>
+        ProtocolMode == "101" &&
+        Source.AsduDetails is { IsHeaderValid: true, Issues.Count: 0 };
     public string TimelineContext => _timelineContext ??= BuildTimelineContext();
     // Lazy, strictly typed protocol flags for visible Frame Trace rows.
     // Inapplicable, undecoded or absent bits never become false/Good by default.
@@ -251,6 +257,15 @@ public sealed partial class EvidenceRow
     public string TimelineReadableAlerts =>
         _timelineReadableAlerts ??= EngineerFramePresentation.ReadableAlerts(Source);
     public bool HasTimelineReadableAlerts => TimelineReadableAlerts.Length > 0;
+
+    // ACD=1 is a normal IEC-101 pending-data indicator, not a protocol error.
+    public string TimelineAcdPending => Source.Frame?.LinkControl is { Prm: false, Acd: true }
+        ? "Data Class 1 Pending (ACD): TRUE" : string.Empty;
+    public bool HasTimelineAcdPending => TimelineAcdPending.Length > 0;
+    private string? _timelineDiagnosticAlerts;
+    public string TimelineDiagnosticAlerts => _timelineDiagnosticAlerts ??=
+        EngineerFramePresentation.ReadableAlerts(Source, includeAcd: false);
+    public bool HasTimelineDiagnosticAlerts => TimelineDiagnosticAlerts.Length > 0;
 
     // The left observation row has two independent reading lanes:
     // original bytes on the left, typed engineering interpretation on the right.
@@ -298,9 +313,7 @@ public sealed partial class EvidenceRow
         {
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
-            var value = Iec10xSignalTraceFormatter.ScanValue(asdu, obj, name);
-            var time = Iec10xSignalTraceFormatter.ScanDeviceTime(obj);
-            return time.Length == 0 ? value : value + Environment.NewLine + "  " + time;
+            return Iec10xSignalTraceFormatter.TraceObject(asdu, obj, name);
         });
         return string.Join(Environment.NewLine, visible);
     }
@@ -347,8 +360,8 @@ public sealed partial class EvidenceRow
     {
         var asdu = Source.AsduDetails;
         if (asdu is null) return string.Empty;
-        if (!asdu.IsHeaderValid) return "COT not decoded · malformed ASDU";
-        return "COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
+        if (!asdu.IsHeaderValid) return "Cause Of Transmission: Not decoded · malformed ASDU";
+        return "Cause Of Transmission: " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
             " (" + (asdu.CauseOfTransmission == 20
                 ? "Interrogated by General Interrogation"
                 : asdu.CauseName) + ")" +
@@ -403,7 +416,19 @@ public sealed partial class EvidenceRow
         if (Source.AsduDetails is { IsHeaderValid: false })
             return "Malformed ASDU header — inspect original HEX";
         if (Source.AsduDetails is { } asdu)
-            return Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
+        {
+            var title = Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
+            if (!HasInlineHeadlineIdentity) return title;
+            // Only display casing changes here; the typed narrator remains
+            // authoritative for COT/type classification throughout the app.
+            title = title.Replace("GI data", "GI Data", StringComparison.Ordinal)
+                .Replace("Single-point", "Single-Point", StringComparison.Ordinal)
+                .Replace("Double-point", "Double-Point", StringComparison.Ordinal);
+            var sourceLink = Source.LinkAddress ?? frame?.LinkAddress;
+            if (sourceLink.HasValue)
+                title += " · Link " + sourceLink.Value.ToString(CultureInfo.InvariantCulture);
+            return title + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture);
+        }
         var link = frame?.LinkControl;
         if (link is null) return "Undecoded IEC-101 frame — inspect original bytes";
 

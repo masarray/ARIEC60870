@@ -30,7 +30,9 @@ public sealed record Iec10xInteroperabilityProfile
     // A profile may describe balanced IEC-101; active balanced TX remains disabled.
     public static Iec10xInteroperabilityProfile Generic(Iec60870ProtocolMode mode) => mode switch
     {
-        Iec60870ProtocolMode.Iec101 => new() { Protocol = mode, Id = "generic-iec101" },
+        Iec60870ProtocolMode.Iec101 => new() { Protocol = mode, Id = "generic-iec101",
+            // Preserve the existing application dual-link default; this is NOT an IEC/NUC mandate.
+            GiAfterSwitch = "OnFailover" },
         Iec60870ProtocolMode.Iec104 => new()
         {
             Protocol = mode, Id = "generic-iec104", LinkWidth = 0, LinkMode = "Tcp"

@@ -26,6 +26,27 @@ public sealed class Iec101DualLinkRedundancyOptions
     public bool AllowStandbyClass2Polling { get; set; } = false;
     public bool CommandOnActiveOnly { get; set; } = true;
 
+    /// <summary>
+    /// Apply the explicitly selected IEC-101 interoperability profile to the actual
+    /// dual-link runtime, not just the report fingerprint. No physical reset, RTS/DTR,
+    /// command replay or NUC convention is inferred from the generic default.
+    /// </summary>
+    public void ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        profile.ValidateActive(BaseSettings);
+        // Historical NUC101 rev2.0 does not mandate a post-switch GI.
+        // "ProjectRequired" and "OnFailover" both express an explicit operator
+        // selection to run GI; "Manual" is never an automatic transmission.
+        PostSwitchGiPolicy = profile.GiAfterSwitch switch
+        {
+            "Disabled" => Iec101PostSwitchGiPolicy.Disabled,
+            "Manual" => Iec101PostSwitchGiPolicy.ManualOnly,
+            "OnFailover" or "ProjectRequired" => Iec101PostSwitchGiPolicy.Required,
+            _ => throw new InvalidDataException("Unsupported IEC-101 GI-after-switch policy.")
+        };
+    }
+
     public void Validate()
     {
         if (BaseSettings is null) throw new InvalidOperationException("IEC-101 base settings are required.");

@@ -58,7 +58,7 @@ public static class FrameTraceVisualPolicy
 
         // ACD=1 is not routine even when FC9 says Class 2 is empty:
         // the RTU still signals Class 1 pending.
-        if (control?.Acd == true) return "Attention";
+        if (control?.Acd == true) return "Pending";
         if (frame?.IsSingleCharacterAck == true) return "Routine";
         if (control is { Prm: true, FunctionCode: 9 or 10 or 11 } ||
             control is { Prm: false, FunctionCode: 0 or 9 or 11 })

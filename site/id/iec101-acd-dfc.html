@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="author" content="Ari Sulistiono" />
     <title>IEC-101 ACD dan DFC | Access Demand dan Data Flow Control</title>
-    <meta name="description" content="Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ARIEC60870 menampilkan evidence di Frame Trace." />
+    <meta name="description" content="Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ArSee menampilkan evidence di Frame Trace." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <link rel="canonical" href="https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html" />
@@ -17,9 +17,9 @@
     <link rel="icon" href="../assets/brand/ariec60870-icon-192.png" type="image/png" />
     <link rel="manifest" href="../site.webmanifest" />
     <meta property="og:type" content="article" />
-    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:site_name" content="ArSee" />
     <meta property="og:title" content="IEC-101 ACD dan DFC | Access Demand dan Data Flow Control" />
-    <meta property="og:description" content="Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ARIEC60870 menampilkan evidence di Frame Trace." />
+    <meta property="og:description" content="Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ArSee menampilkan evidence di Frame Trace." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "headline": "IEC-101 ACD dan DFC | Access Demand dan Data Flow Control",
-  "description": "Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ARIEC60870 menampilkan evidence di Frame Trace.",
+  "description": "Pahami bit ACD dan DFC pada IEC 60870-5-101, arti ACD=1, arti DFC=1, dan bagaimana ArSee menampilkan evidence di Frame Trace.",
   "inLanguage": "id",
   "url": "https://masarray.github.io/ARIEC60870/id/iec101-acd-dfc.html",
   "publisher": {
@@ -41,7 +41,7 @@
     "IEC 60870-5-103",
     "IEC 60870-5-104",
     "SCADA protocol troubleshooting",
-    "ARIEC60870 Evidence Analyzer"
+    "ArSee Evidence Analyzer"
   ]
 }
     </script>
@@ -53,7 +53,7 @@
     {
       "@type": "ListItem",
       "position": 1,
-      "name": "ARIEC60870",
+      "name": "ArSee",
       "item": "https://masarray.github.io/ARIEC60870/"
     },
     {
@@ -71,15 +71,15 @@
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>analyzer evidence IEC 60870</small></span></a>
+      <a class="brand" href="./" aria-label="ArSee home"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ArSee</strong><small>analyzer evidence IEC 60870</small></span></a>
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#home"></use></svg><span>Beranda</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="wiki.html#iec101"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Panduan</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a href="../download.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download</span></a><a class="lang-switch" href="../iec101-acd-dfc.html" aria-label="Switch language to English"><img class="flag-icon" src="../assets/flags/gb.svg" width="24" height="24" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span class="lang-label">EN</span></a></nav>
     </header>
-    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>IEC-101 ACD dan DFC</h1><p>ACD memberi tahu master bahwa data Class 1 menunggu. DFC memberi tahu master bahwa outstation sedang tidak siap menerima data tambahan.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Kembali ke Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download ARIEC60870</span></a></div></section><section class="section split"><div><p class="eyebrow">Artinya</p><h2>IEC-101 ACD dan DFC</h2><p>ACD memberi tahu master bahwa data Class 1 menunggu. DFC memberi tahu master bahwa outstation sedang tidak siap menerima data tambahan.</p></div><div class="report-list"><div class="interactive-surface"><strong>ACD=0</strong><span>Tidak ada permintaan Class 1 yang sedang menunggu.</span></div><div class="interactive-surface"><strong>ACD=1</strong><span>Ada data Class 1 menunggu. Master sebaiknya request Class 1 sebelum kembali ke polling normal.</span></div><div class="interactive-surface"><strong>DFC=0</strong><span>Outstation siap menerima data secara normal.</span></div><div class="interactive-surface"><strong>DFC=1</strong><span>Outstation sedang busy atau flow-controlled. Jangan memaksa traffic tambahan.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">Yang dicek di ARIEC60870</p><h2>Gunakan aplikasi untuk menghubungkan penjelasan dengan evidence frame.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>ACD bukan alarm sendiri. ACD adalah petunjuk scheduling untuk master.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>DFC=1 saat test command bisa menjelaskan response lambat atau hilang.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>Di ARIEC60870, cek Frame Trace dan Smart Findings jika ACD atau DFC terus muncul.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
+    <main class="doc-main"><section class="doc-hero reveal"><p class="eyebrow">Field Wiki</p><h1>IEC-101 ACD dan DFC</h1><p>ACD memberi tahu master bahwa data Class 1 menunggu. DFC memberi tahu master bahwa outstation sedang tidak siap menerima data tambahan.</p><div class="doc-link-row"><a class="button secondary" href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#menu-book"></use></svg><span>Kembali ke Field Wiki</span></a><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/latest"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#download"></use></svg><span>Download ArSee</span></a></div></section><section class="section split"><div><p class="eyebrow">Artinya</p><h2>IEC-101 ACD dan DFC</h2><p>ACD memberi tahu master bahwa data Class 1 menunggu. DFC memberi tahu master bahwa outstation sedang tidak siap menerima data tambahan.</p></div><div class="report-list"><div class="interactive-surface"><strong>ACD=0</strong><span>Tidak ada permintaan Class 1 yang sedang menunggu.</span></div><div class="interactive-surface"><strong>ACD=1</strong><span>Ada data Class 1 menunggu. Master sebaiknya request Class 1 sebelum kembali ke polling normal.</span></div><div class="interactive-surface"><strong>DFC=0</strong><span>Outstation siap menerima data secara normal.</span></div><div class="interactive-surface"><strong>DFC=1</strong><span>Outstation sedang busy atau flow-controlled. Jangan memaksa traffic tambahan.</span></div></div></section><section class="section"><div class="section-heading reveal"><p class="eyebrow">Yang dicek di ArSee</p><h2>Gunakan aplikasi untuk menghubungkan penjelasan dengan evidence frame.</h2></div><div class="proof-grid"><article class="proof-card reveal interactive-surface"><strong>1</strong><span>ACD bukan alarm sendiri. ACD adalah petunjuk scheduling untuk master.</span></article><article class="proof-card reveal interactive-surface"><strong>2</strong><span>DFC=1 saat test command bisa menjelaskan response lambat atau hilang.</span></article><article class="proof-card reveal interactive-surface"><strong>3</strong><span>Di ArSee, cek Frame Trace dan Smart Findings jika ACD atau DFC terus muncul.</span></article></div></section><section class="section split"><div><div class="protocol-console" aria-label="IEC-101 polling example">
       <div><span class="tx">TX</span><code>10 49 01 4A 16</code><small>request link status</small></div>
       <div><span class="rx">RX</span><code>10 0B 01 0C 16</code><small>ACD=1, Class 1 waiting</small></div>
       <div><span class="tx">TX</span><code>10 7A 01 7B 16</code><small>request Class 1 data</small></div>
       <div><span class="rx">RX</span><code>68 ... 16</code><small>event or command confirmation</small></div>
     </div></div><div><p class="eyebrow">Baca berikutnya</p><h2>Ikuti evidence berikutnya.</h2><p>Belajar protokol lebih mudah ketika setiap konsep terhubung ke frame, counter, address, value, event, atau finding yang terlihat.</p><div class="doc-link-row"><a class="button secondary" href="iec101-acd-dfc.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg><span>ACD/DFC</span></a><a class="button secondary" href="iec101-polling-class1-class2.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#sync-alt"></use></svg><span>Class 1/Class 2</span></a><a class="button secondary" href="iec101-command-flow.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#send"></use></svg><span>Command</span></a></div></div></section></main>
-    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ARIEC60870 · Open source Apache-2.0</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
+    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ArSee · Open source Apache-2.0</span><span class="footer-links"><a href="wiki.html">Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Polling</a><a href="iec101-command-flow.html">Command</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

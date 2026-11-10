@@ -58,10 +58,55 @@ public static class Iec10xSignalTraceFormatter
         return flags.Length == 0 ? label : label + " · " + flags;
     }
 
-    // Scan projection: authoritative ASDU/object facts; no byte reinterpretation
-    // or device-time substitution by the host observation clock.
+    // A single typed scan field set backs both legacy scans and Frame Trace.
+    // This is presentation only: Core remains the source of raw/decoded truth.
     public static string ScanValue(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
         string? authoritativeName = null)
+    {
+        var f = BuildScanFields(asdu, obj, authoritativeName);
+        return f.Identity + " · Value: " + f.Value + " (" + f.Kind + ")" +
+            " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture) + f.Suffix;
+    }
+
+    /// <summary>Each IOA's own timestamp and quality stay adjacent in SQ0/SQ1 previews.</summary>
+    public static string TraceObject(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
+        string? authoritativeName = null)
+    {
+        var f = BuildScanFields(asdu, obj, authoritativeName, traceDisplay: true);
+        var ti = "TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture);
+        var cp56 = obj.Cp56TimeDetails;
+        var stamp = cp56 is not null
+            ? " · " + cp56.Day.ToString("00", CultureInfo.InvariantCulture) + "-" +
+              cp56.Month.ToString("00", CultureInfo.InvariantCulture) + "-" +
+              cp56.Year.ToString("0000", CultureInfo.InvariantCulture) + " " +
+              cp56.Hour.ToString("00", CultureInfo.InvariantCulture) + ":" +
+              cp56.Minute.ToString("00", CultureInfo.InvariantCulture) + ":" +
+              (cp56.MillisecondsInMinute / 1000).ToString("00", CultureInfo.InvariantCulture) + "." +
+              (cp56.MillisecondsInMinute % 1000).ToString("000", CultureInfo.InvariantCulture)
+            : !string.IsNullOrWhiteSpace(obj.TimestampText)
+                ? " · RTU partial time: " + obj.TimestampText : "";
+        var quality = obj.Issues.Count > 0 ? "Decode warning" :
+            obj.QualityDetails?.DisplayText ?? "Not provided";
+        // A missing optional device time is a state, not a property label.
+        // Never call CP24/partial text valid without canonical CP56 proof.
+        var timeStatus = cp56 is not null
+            ? (cp56.IsValid ? "Timestamp Valid" : "Timestamp Invalid") +
+              (cp56.SubstitutedFlag ? " · Substituted (GEN=1)" : " · Genuine (GEN=0)") +
+              (cp56.SummerTimeFlag ? " · DST ON" : " · DST OFF") +
+              (cp56.UnexpectedReservedBits ? " · Reserved bits SET" : "") +
+              (cp56.DayOfWeekMatchesCalendar == false ? " · Day mismatch" : "") +
+              (cp56.DayOfWeek > 0 ? " · Day: " + cp56.DayOfWeekText : "")
+            : string.IsNullOrWhiteSpace(obj.TimestampText)
+                ? "No Timestamp" : "Timestamp Partial (CP56 validity / GEN / DST unknown)";
+        return f.Identity + " · " + ti + " · Value: " + f.Value + stamp + f.Suffix +
+            Environment.NewLine + "  " + ti + " " + f.Kind + " Signal · Quality: " +
+            quality + " · " + timeStatus;
+    }
+
+    private readonly record struct ScanFields(string Identity, string Value, string Kind, string Suffix);
+
+    private static ScanFields BuildScanFields(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
+        string? authoritativeName, bool traceDisplay = false)
     {
         ArgumentNullException.ThrowIfNull(asdu);
         ArgumentNullException.ThrowIfNull(obj);
@@ -80,21 +125,34 @@ public static class Iec10xSignalTraceFormatter
                 wire |= asdu.RawBytes[obj.InformationObjectOffset + i] << (8 * i);
             mismatch = wire != address;
         }
-
         var kind = Kind(asdu.TypeId);
         var value = !validAddress || mismatch || obj.Issues.Count > 0
             ? "Decode warning" : string.IsNullOrWhiteSpace(obj.ShortValue)
                 ? "Not decoded" : TrimKnownTypedPrefix(obj.ShortValue, kind);
+        // DPI bits are typed decoder evidence (DIQ), not parsed from strings.
+        // 00/11 describe an indeterminate double-point STATE, not quality IV.
+        // Preserve original Core decoder text for all non-Trace consumers.
+        if (traceDisplay && validAddress && !mismatch && obj.Issues.Count == 0 &&
+            asdu.TypeId is 3 or 4 or 31 &&
+            obj.QualityDetails is { Kind: Iec10xQualityKind.Diq } diq)
+            value = (diq.Raw & 0x03) switch
+            {
+                0 => "Invalid [00]",
+                1 => "OFF [01]",
+                2 => "ON [10]",
+                _ => "Invalid [11]"
+            };
         var name = string.IsNullOrWhiteSpace(authoritativeName)
             ? string.Empty : authoritativeName.Trim() + " · ";
         var byteStructure = validAddress && !mismatch
-            ? " (" + StructuredIoa(address, width) + ")"
-            : string.Empty;
-        return name + "IOA " + address.ToString(CultureInfo.InvariantCulture) +
-            byteStructure + " · Value: " + value + " (" + kind + ")" +
-            " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
-            (asdu.IsSequence && obj.Index > 1 ? " · SQ=1 implied IOA" : string.Empty) +
-            (mismatch ? " · IOA bytes mismatch" : string.Empty);
+            ? traceDisplay
+                ? " [ " + StructuredIoa(address, width).Replace(" - ", " · ", StringComparison.Ordinal) + " ]"
+                : " (" + StructuredIoa(address, width) + ")"
+            : "";
+        return new ScanFields(name + "IOA " + address.ToString(CultureInfo.InvariantCulture) +
+            byteStructure, value, kind,
+            (asdu.IsSequence && obj.Index > 1 ? " · SQ=1 implied IOA" : "") +
+            (mismatch ? " · IOA bytes mismatch" : ""));
     }
 
     // CP24/other timestamp does not establish CP56 GEN, DST or time validity.

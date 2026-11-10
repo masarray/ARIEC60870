@@ -26,6 +26,16 @@ public partial class MainWindow
         UpdateTraceRowLayout();
     }
 
+    private void CopyVisibleTraceRows_Click(object sender, RoutedEventArgs e)
+    {
+        // Right-click retains an existing Ctrl/Shift selection and otherwise
+        // targets the pointed frame. Do not mutate the canonical evidence.
+        var rows = GetSelectedProtocolTraceRowsForCapture();
+        if (rows.Count == 0) return;
+        Clipboard.SetText(FrameTraceRowClipboardFormatter.Format(rows));
+        AppendSessionLog($"Copied {rows.Count} displayed Raw Frames row(s) as plain text.");
+    }
+
     private void FrameTraceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Changes only when the actual row viewport crosses the readable-width
@@ -46,8 +56,9 @@ public partial class MainWindow
         if (TraceInspectorColumn is null) return;
         if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
         {
-            TraceInspectorColumn.MinWidth = 285;
-            TraceInspectorColumn.Width = new GridLength(2, GridUnitType.Star);
+            TraceInspectorColumn.MinWidth = 250;
+            // Interpreter has priority; Frame Details stays resizable by splitter.
+            TraceInspectorColumn.Width = new GridLength(1.1, GridUnitType.Star);
             TraceInspectorGutterColumn.Width = new GridLength(6);
             FrameInterpreterPanel.Visibility = Visibility.Visible;
             TraceInspectorSplitter.Visibility = Visibility.Visible;

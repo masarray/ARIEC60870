@@ -366,9 +366,9 @@ public partial class MainWindow
             row.Source.AsduDetails is { TypeId: 31, ObjectCount: 19 } &&
             row.Source.AsduDetails.Objects.Any(obj => obj.Cp56TimeDetails is not null));
         if (timedFrameRow is null ||
-            !timedFrameRow.TimelineSignalDigest.Contains("RTU ", StringComparison.Ordinal) ||
-            !timedFrameRow.TimelineSignalDigest.Contains("Valid: TRUE", StringComparison.Ordinal) ||
-            !timedFrameRow.TimelineSignalDigest.Contains("Genuine: TRUE", StringComparison.Ordinal))
+            !timedFrameRow.TimelineSignalDigest.Contains("05-11-2026", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Timestamp Valid", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Source-typed CP56 device time, validity or genuine flag absent from inline Frame Interpreter.");
         FrameTraceGrid.SelectedItem = timedFrameRow;
@@ -746,7 +746,39 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 $"Two-point process ASDU absent after Trace reconciliation: source={sourceMultiObjectCount}, " +
                 $"view={FrameTraceRows.Count(x => x.Source.AsduDetails?.Objects.Count == 2)}, Values={ValueRows.Count}.");
-        TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
+        // Source-true presentation requirement: the verified FT1.2 Link 105
+        // and ASDU CA 1 belong on the FIRST GI line, not beneath the IOAs.
+        if (multiObjectRow.TimelineTitle != "GI Data · Single-Point · Link 105 · CA 1" ||
+            !multiObjectRow.HasInlineHeadlineIdentity ||
+            !multiObjectRow.TimelineSignalDigest.Contains("No Timestamp", StringComparison.Ordinal) ||
+            multiObjectRow.TimelineSignalDigest.Contains("Timestamp: No Timestamp", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Physical IEC101 GI must put Link/CA on first heading and avoid a duplicate timestamp label.");
+
+        // Integration proof: production passive frame -> canonical FT1.2/ASDU
+        // -> typed DIQ -> own displayed TI3 value. IV must not change ON[10].
+        var dpOnFrame = FrameTraceRows.LastOrDefault(row =>
+            row.Source.AsduDetails is { TypeId: 3 } asdu &&
+            asdu.Objects.Any(obj => obj.QualityDetails?.Raw == 0x82));
+        var dpOffFrame = FrameTraceRows.LastOrDefault(row =>
+            row.Source.AsduDetails is { TypeId: 3 } asdu &&
+            asdu.Objects.Any(obj => obj.QualityDetails?.Raw == 0x01));
+        if (dpOnFrame is null || dpOffFrame is null ||
+            !dpOnFrame.TimelineSignalDigest.Contains("Value: ON [10]", StringComparison.Ordinal) ||
+            !dpOnFrame.TimelineSignalDigest.Contains("Quality: Invalid", StringComparison.Ordinal) ||
+            !dpOffFrame.TimelineSignalDigest.Contains("Value: OFF [01]", StringComparison.Ordinal) ||
+            !dpOffFrame.TimelineSignalDigest.Contains("Quality: Good", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Live IEC101 DIQ bits must render their exact two-bit state and independent quality.");
+        FrameTraceGrid.ScrollIntoView(dpOnFrame);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        SaveRealWpfBitmap(outputDirectory, "engineer-dp-on-quality-invalid.png");
+        FrameTraceGrid.ScrollIntoView(dpOffFrame);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        SaveRealWpfBitmap(outputDirectory, "engineer-dp-off-quality-good.png");
+                TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
         var txSourceCount = FrameTraceRows.Count(row => row.Direction == "TX");
@@ -760,6 +792,16 @@ public partial class MainWindow
         // not a silently narrowed inspection view.
         TraceQuickScopeCombo.SelectedIndex = 1;
         ApplyQuickFind();
+        FrameTraceGrid.ScrollIntoView(multiObjectRow);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(multiObjectRow)
+                is not ListBoxItem giHeaderRow ||
+            FindVisibleTraceText(giHeaderRow, multiObjectRow.TimelineTitle) is null ||
+            FindVisibleTraceText(giHeaderRow, multiObjectRow.TimelineEngineeringIdentity) is not null)
+            throw new InvalidOperationException(
+                "Real WPF GI headline missing Link/CA or duplicating the identity underneath.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-gi-first-line-link-ca.png");
         // Real WPF bindings: TX is dark blue, RX dark green, regardless of
         // the narrative wording. Purely visual classification retains all rows.
         foreach (var probeRow in new[]
@@ -773,9 +815,19 @@ public partial class MainWindow
             UpdateLayout();
             if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(probeRow)
                     is not ListBoxItem container ||
-                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk))
+                !HasTraceInk(container, probeRow.Direction, probeRow.TraceInk) ||
+                FindVisibleTraceText(container, probeRow.TimelineHex) is not TextBlock coloredHex ||
+                coloredHex.Foreground is not SolidColorBrush rawHexBrush ||
+                rawHexBrush.Color != (Color)ColorConverter.ConvertFromString(probeRow.TraceInk) ||
+                container.Template.FindName("TraceDirectionStripe", container)
+                    is not Border directionStripe ||
+                directionStripe.Background is not SolidColorBrush stripeBrush ||
+                stripeBrush.Color != (probeRow.Direction == "TX"
+                    ? Color.FromRgb(0x25, 0x63, 0xB8) : Color.FromRgb(0x16, 0x80, 0x5D)))
                 throw new InvalidOperationException(
-                    "Frame Trace TX/RX direction or source-typed semantic ink was not rendered.");
+                    "Frame Trace must keep physically visible, source-typed TX blue / RX green stripes.");
+            SaveRealWpfBitmap(outputDirectory, probeRow.Direction == "TX"
+                ? "engineer-source-tx-blue.png" : "engineer-source-rx-green.png");
         }
 
         var layouts = new (string Name, double Width, double Height)[]
@@ -1128,7 +1180,7 @@ public partial class MainWindow
         if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
             TraceInspectorColumn.ActualWidth > 1 ||
             !multiObjectRow.TimelineSignalDigest.Contains("TI-", StringComparison.Ordinal) ||
-            !multiObjectRow.TimelineEngineeringCause.Contains("COT ", StringComparison.Ordinal) ||
+            !multiObjectRow.TimelineEngineeringCause.Contains("Cause Of Transmission: ", StringComparison.Ordinal) ||
             !multiObjectRow.TimelineEngineeringIdentity.Contains("Link ", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Inline engineering decode must expose verified Link/TI/COT while Frame Details is closed.");
@@ -1152,8 +1204,8 @@ public partial class MainWindow
             !valueLines[0].Contains("IOA ", StringComparison.Ordinal) ||
             !valueLines[1].Contains("IOA ", StringComparison.Ordinal) ||
             multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
-            (!multiObjectRow.TimelineSignalDigest.Contains("Valid:", StringComparison.Ordinal) ||
-             !multiObjectRow.TimelineSignalDigest.Contains("Genuine:", StringComparison.Ordinal)) ||
+            (!multiObjectRow.TimelineSignalDigest.Contains("Timestamp Valid", StringComparison.Ordinal) ||
+             !multiObjectRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal)) ||
             visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
             visibleSignalText.ActualHeight < 24)
@@ -1228,6 +1280,12 @@ public partial class MainWindow
                     is not ListBoxItem adaptiveRow)
                 throw new InvalidOperationException("Inspector-open adaptive Frame Trace lost the selected physical row.");
 
+            // The narrowed inspector must leave the majority of width for the
+            // frame interpreter at ordinary field-workstation resolutions.
+            if (FrameTraceGrid.ActualWidth >= 840 &&
+                FrameTraceGrid.ActualWidth < TraceInspectorColumn.ActualWidth * 1.6)
+                throw new InvalidOperationException(
+                    "Frame Details expanded too wide relative to the Raw Frames interpreter.");
             var expectedLayout = FrameTraceViewportPolicy.RowLayout(FrameTraceGrid.ActualWidth);
             if (!Equals(FrameTraceGrid.Tag, expectedLayout))
                 throw new InvalidOperationException(
@@ -1235,17 +1293,22 @@ public partial class MainWindow
 
             var hex = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineHex);
             var signals = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineSignalDigest);
+            var heading = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineTitle);
             var identity = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringIdentity);
             var cause = FindVisibleTraceText(adaptiveRow, multiObjectRow.TimelineEngineeringCause);
-            if (hex is null || signals is null || identity is null || cause is null ||
+            if (hex is null || signals is null || heading is null || cause is null ||
+                (multiObjectRow.HasInlineHeadlineIdentity
+                    ? identity is not null ||
+                      !heading.Text.Contains(" · CA ", StringComparison.Ordinal)
+                    : identity is null) ||
                 signals.TextWrapping != TextWrapping.Wrap ||
                 signals.TextTrimming != TextTrimming.None ||
-                identity.TextTrimming != TextTrimming.None ||
+                heading.TextTrimming != TextTrimming.None ||
                 cause.TextWrapping != TextWrapping.Wrap ||
                 cause.TextTrimming != TextTrimming.None ||
                 signals.ActualWidth < 130 || signals.ActualHeight < 16 ||
                 !signals.Text.Contains("IOA ", StringComparison.Ordinal) ||
-                !cause.Text.Contains("COT ", StringComparison.Ordinal))
+                !cause.Text.Contains("Cause Of Transmission: ", StringComparison.Ordinal))
                 throw new InvalidOperationException(
                     $"Frame interpreter clipped/hidden at {viewport.Name}: trace={FrameTraceGrid.ActualWidth:0}, layout={expectedLayout}, signals={signals?.ActualWidth:0}x{signals?.ActualHeight:0}.");
 
@@ -1269,7 +1332,7 @@ public partial class MainWindow
                 throw new InvalidOperationException("Frame Trace permits horizontal panning when docked.");
             var viewportRight = scroller.TranslatePoint(
                 new Point(scroller.ViewportWidth, 0), adaptiveRow).X;
-            foreach (var text in new[] { hex, signals, identity, cause })
+            foreach (var text in new[] { hex, signals, heading, cause })
             {
                 var right = text.TranslatePoint(new Point(text.ActualWidth, 0), adaptiveRow).X;
                 if (right > viewportRight + 3)

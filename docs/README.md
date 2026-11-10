@@ -1,4 +1,4 @@
-# ARIEC60870 documentation and GitHub Pages mirror
+# ArSee documentation and GitHub Pages mirror
 
 Official site: https://masarray.github.io/ARIEC60870/ · [v3.6.8-rc.3 public prerelease](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) · [Stable v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7).
 
