@@ -195,6 +195,44 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
 
     [Fact]
+    public async Task T02DualActiveLinkRecoversLostStatusBySameFcbAndNoFailover()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.ResponseTimeoutMs = 85;
+        settings.SendGeneralInterrogationOnConnect = false;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            ActiveFailureThreshold = 1,
+            StandbyFailureThreshold = 1,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(220),
+            RecoveryBackoff = TimeSpan.FromMilliseconds(150),
+            AntiPingPongWindow = TimeSpan.FromSeconds(30),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+
+        var linkA = new DroppingResponseTransport(
+            new SimulatedIec101Transport(options.LinkA.ApplyTo(settings)), droppedResponseCount: 1);
+        var session = new Iec101DualLinkRedundancySession(
+            options, linkA, new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(900), CancellationToken.None);
+        var snap = session.CreateSnapshot();
+
+        Assert.True(linkA.Transmissions.Count >= 2,
+            "The active IEC101 link did not retransmit its first silent read.");
+        Assert.Equal(linkA.Transmissions[0], linkA.Transmissions[1]);
+        Assert.Contains(result.Events, e =>
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.PollingReason.Contains("bounded unchanged-FCB read retry #1", StringComparison.Ordinal));
+        Assert.True(snap.LinkA.LastGoodResponseUtc.HasValue,
+            "The matching second attempt should verify the addressed secondary.");
+        Assert.Equal(0, snap.LinkA.ConsecutiveFailures);
+        Assert.DoesNotContain(session.FailoverJournal, e => e.Completed);
+    }
+
+    [Fact]
     public async Task ActiveTimeoutPromotesStandbyAndKeepsOldActiveAsRecoveringStandby()
     {
         var settings = CreateFastSimulatedIec101Settings();
@@ -341,6 +379,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
     {
         private readonly IByteTransport _inner;
         private int _remainingDroppedResponses;
+        public List<byte[]> Transmissions { get; } = new();
 
         public DroppingResponseTransport(IByteTransport inner, int droppedResponseCount)
         {
@@ -357,6 +396,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
 
         public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
+            Transmissions.Add(buffer.ToArray());
             while (true)
             {
                 var pending = Volatile.Read(ref _remainingDroppedResponses);
