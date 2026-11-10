@@ -51,11 +51,21 @@ jobs:
           # still-unreleased source version under test in this pull request.
           $published = (Get-Content site/seo-manifest.json -Raw | ConvertFrom-Json).version
           if (!$published) { throw 'Missing public release version in SEO manifest.' }
-          # System.Version cannot parse SemVer prereleases (e.g. 3.6.8-rc.3).
-          # Compare the numeric base and then rank an rc below the stable
-          # release at that same base; reject malformed/unknown suffixes.
-          function Parse-PublicVersion([string]$value) {
-            $pattern = '^(?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0|[1-9][0-9]*)(?:-rc\.(?<rc>[1-9][0-9]*))?
+          # Strict SemVer RC comparison. System.Version does not parse -rc.N.
+          $pattern = '^(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?:-rc\.(?<rc>[1-9][0-9]*))?$'
+          $source = [regex]::Match($version, $pattern)
+          $public = [regex]::Match($published, $pattern)
+          if (!$source.Success -or !$public.Success) {
+            throw "Invalid source/public SemVer: source=$version; published=$published."
+          }
+          $codeBase = [version]$source.Groups['base'].Value
+          $publicBase = [version]$public.Groups['base'].Value
+          $codeRank = if ($source.Groups['rc'].Success) { [int]$source.Groups['rc'].Value } else { [int]::MaxValue }
+          $publicRank = if ($public.Groups['rc'].Success) { [int]$public.Groups['rc'].Value } else { [int]::MaxValue }
+          if ($publicBase -gt $codeBase -or
+              ($publicBase -eq $codeBase -and $publicRank -gt $codeRank)) {
+            throw "Public metadata $published is newer than code $version."
+          }
           if (!$site.Contains('name="application-version" content="' + $published + '"') -or
               !$site.Contains('"softwareVersion":"' + $published + '"')) {
             throw "site/index.html and site/seo-manifest.json disagree on published version $published."
