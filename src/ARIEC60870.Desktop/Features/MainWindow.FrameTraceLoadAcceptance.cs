@@ -157,8 +157,7 @@ public partial class MainWindow
                 TraceInspectorRawText.Text == held.TimelineHex &&
                 double.IsFinite(heldY) && double.IsFinite(heldYAfter) &&
                 Math.Abs(heldYAfter - heldY) <= 1.25;
-            sourceAdvancedWhileHeld = _protocolTraceStore.Snapshot().LastOrDefault()?
-                .Source.RawStreamOffset == 5L * (framesToFeed - 1) &&
+            sourceAdvancedWhileHeld = _protocolTraceStore.Snapshot().LastOrDefault()?.Source.RawStreamOffset == 5L * (framesToFeed - 1) &&
                 _protocolTraceRowsDeferredWhileFrozen >= framesToFeed - 1500;
             if (!heldSelectionSurvived || !sourceAdvancedWhileHeld ||
                 heldCollectionMutations != 0 || !FrameTraceRows.SequenceEqual(heldWindow) ||
