@@ -165,7 +165,7 @@ public sealed class ObservationInterpretivePresentationTests
         });
         Assert.Contains("Breaker 110 kV position · IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", mapped.TimelineSignalDigest);
         Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
-        Assert.Contains("IOA 342 (IOA3:0 - IOA2:1 - IOA1:86) · TI-1 · Value: ON", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", unmapped.TimelineSignalDigest);
         Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
     }
 
