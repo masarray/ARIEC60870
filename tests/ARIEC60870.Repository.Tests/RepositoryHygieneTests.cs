@@ -139,7 +139,27 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("path: site", pages);
         Assert.Contains("docs/index.html is out of sync", pages);
         Assert.Contains("name: Package", release);
-        Assert.Contains("dotnet test ARIEC60870.sln", release);
+        // The release gate must preserve independently inspectable TRX evidence
+        // for every tested assembly; one solution-wide file silently overwrites suites.
+        var releaseTestProjects = new[]
+        {
+            "ARIEC60870.Core.Tests",
+            "ARIEC60870.Master.Tests",
+            "ARIEC60870.Monitor.Tests",
+            "ARIEC60870.Reporting.Tests",
+            "ARIEC60870.Desktop.Tests",
+            "ARIEC60870.Repository.Tests"
+        };
+        foreach (var project in releaseTestProjects)
+        {
+            Assert.Contains($"'tests/{project}/{project}.csproj'", release);
+        }
+        Assert.Contains("dotnet test $project --configuration Release --no-build", release);
+        Assert.Contains("LogFileName=release-gate-$name.trx", release);
+        Assert.Contains("if ($LASTEXITCODE -ne 0) { throw \"Release regression suite $name failed", release);
+        Assert.DoesNotContain("LogFileName=release-gate.trx", release);
+        Assert.Contains("Attest RC Windows installer", release);
+        Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe", release);
         Assert.Contains("Generate SPDX dependency SBOM", release);
         Assert.Contains("attestations: write", release);
         Assert.Contains("contents: write", release);
