@@ -908,7 +908,7 @@
                                                                    Foreground="#3D5871" TextTrimming="CharacterEllipsis"
                                                                    VerticalAlignment="Center"/>
                                                         <TextBlock Grid.Column="2" Text="{Binding Direction}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.8"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
                                                                    FontWeight="SemiBold" Foreground="{Binding TraceInk}"
                                                                    VerticalAlignment="Center"/>
                                                     </Grid>
@@ -926,7 +926,7 @@
                                                         BorderThickness="1,0,0,0" Padding="8,0,3,0">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding TimelineTitle}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="11"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11"
                                                                    FontWeight="SemiBold" Foreground="#253B51"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="90"/>
@@ -935,7 +935,7 @@
                                                              text run. Only 3 source objects are
                                                              previewed to keep live rows bounded. -->
                                                         <TextBlock Text="{Binding TimelineSignalDigest}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.8"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="420">
@@ -950,7 +950,7 @@
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineSignalOverflow}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.3"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.3"
                                                                    Foreground="#59728A" Margin="0,2,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None">
                                                             <TextBlock.Style>
@@ -964,18 +964,18 @@
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringIdentity}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.5"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.5"
                                                                    Foreground="#3C5670" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="88"/>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.4"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.4"
                                                                    Foreground="#405973" Margin="0,2,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="110"/>
                                                         <!-- RTU timestamp is rendered only beside its own typed signal above. -->
                                                         <TextBlock Text="{Binding TimelineReadableAlerts}"
-                                                                   FontFamily="{StaticResource AppFont}" FontSize="10.8"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
                                                                    FontWeight="Medium" Foreground="#9B3F24"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="190" Margin="0,4,0,0">
@@ -1052,7 +1052,7 @@
 
                             <GridSplitter x:Name="TraceInspectorSplitter" Grid.Column="1" Visibility="Visible" Width="6" Background="Transparent" HorizontalAlignment="Stretch" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
                              <Border x:Name="FrameInterpreterPanel" Grid.Column="2" Visibility="Collapsed"
-                                     TextElement.FontFamily="{StaticResource AppFont}" ToolTipService.IsEnabled="False"
+                                     TextElement.FontFamily="Cascadia Mono, Consolas" ToolTipService.IsEnabled="False"
                                      Background="#F2F6F9" BorderBrush="{StaticResource LineBrush}"
                                      BorderThickness="1" CornerRadius="7" Padding="9">
                                  <Grid>
@@ -1072,10 +1072,10 @@
                                      </DockPanel>
                                      <Expander Grid.Row="1" x:Name="FramePropertiesExpander"
                                                IsExpanded="True" Header="Decoded properties"
-                                               FontFamily="{StaticResource AppFont}"
+                                               FontFamily="Cascadia Mono, Consolas"
                                                FontSize="11.3" Foreground="#344C65"
                                                VerticalAlignment="Stretch">
-<DataGrid x:Name="FramePropertiesGrid" ItemsSource="{Binding SelectedFrameProperties}" MinHeight="0"
+<DataGrid x:Name="FramePropertiesGrid" FontFamily="Cascadia Mono, Consolas" ItemsSource="{Binding SelectedFrameProperties}" MinHeight="0"
                                               ToolTipService.IsEnabled="False" RowDetailsVisibilityMode="VisibleWhenSelected"
                                               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
@@ -1168,7 +1168,7 @@
                                                  </DataGrid.Columns>
                                              </DataGrid>
                                          </StackPanel>
-                                         <TextBox x:Name="TraceInspectorRawText"/>
+                                         <TextBox x:Name="TraceInspectorRawText" FontFamily="Cascadia Mono, Consolas"/>
                                          <TextBlock x:Name="ActiveProtocolMapText"/>
                                          <TextBlock x:Name="RawFrameGroupingHintText"/>
                                          <CheckBox x:Name="PinProtocolMapCheckBox"/>
