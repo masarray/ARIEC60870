@@ -21,7 +21,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
-    private bool _fcb;
+    private readonly Iec101PerLinkTransactionEngine _transactions = new();
+    private Ft12StreamReader _reader;
     private bool _linkVerified;
     private readonly Iec101UnbalancedBusyGate _busyGate;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
@@ -52,6 +53,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _busyGate = new Iec101UnbalancedBusyGate(settings.BusyBackoffMs);
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
+        _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 
@@ -84,6 +86,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         {
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            _transactions.StartConnectionEpoch();
+            _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
             DrainTransportDiagnostics("Open transport");
             if (_settings.StartupDelayMs > 0)
             {
@@ -104,7 +108,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             {
                 await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
                     "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
-                _fcb = false;
+                _transactions.ResetFrameCount();
             }
 
             if (!_linkVerified)
@@ -201,6 +205,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         finally
         {
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
+            _transactions.EndConnectionEpoch();
             try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             DrainTransportDiagnostics("Close transport");
             SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);
@@ -705,21 +710,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
-        if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        using var exchange = _transactions.BeginFixed(functionCode, fcv, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
         return response;
     }
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
-        if (Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
         return response;
     }
 
@@ -765,9 +774,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, int pendingPrimaryFunctionCode, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, Iec101PendingExchange exchange, CancellationToken cancellationToken)
     {
-        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;
@@ -776,7 +784,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
                && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
         {
-            raw = await reader.ReadFrameAsync(
+            raw = await _reader.ReadFrameAsync(
                 Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
                 cancellationToken).ConfigureAwait(false);
             if (raw is null || raw.Length == 0) break;
@@ -784,9 +792,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.RxFrames++; // Completed physical FT1.2 candidates, not necessarily valid secondary replies.
             decodedRxFrames++;
             var candidate = _ft12.Decode(raw);
-            var validation = Iec101SecondaryResponseValidator.Validate(
-                candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes), pendingPrimaryFunctionCode);
+            var validation = _transactions.ValidateCandidate(exchange, candidate,
+                _transmitHistory.MatchesEarlier(candidate.RawBytes));
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;
@@ -806,7 +813,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         sw.Stop();
         if (_transport is ITransportExchangeObserver exchangeObserver)
         {
-            exchangeObserver.ObserveExchangeOutcome(pendingPrimaryFunctionCode,
+            exchangeObserver.ObserveExchangeOutcome(exchange.PrimaryFunctionCode,
                 acceptedFrame is not null, decodedRxFrames, rejected);
             DrainTransportDiagnostics("Exchange outcome");
         }
