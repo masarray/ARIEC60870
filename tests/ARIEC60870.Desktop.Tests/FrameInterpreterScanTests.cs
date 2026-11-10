@@ -80,6 +80,11 @@ public sealed class FrameInterpreterScanTests
         Assert.DoesNotContain("Valid: TRUE", output);
         Assert.DoesNotContain("Genuine: TRUE", output);
         Assert.Empty(Iec10xSignalTraceFormatter.ScanDeviceTime(new Iec10xInformationObject()));
+        var typedOnly = new Iec10xInformationObject { Cp56TimeDetails = GenuineTime };
+        Assert.Contains("RTU 2026-11-09 07:29:16.200",
+            Iec10xSignalTraceFormatter.ScanDeviceTime(typedOnly));
+        Assert.Contains("Genuine: TRUE",
+            Iec10xSignalTraceFormatter.ScanDeviceTime(typedOnly));
     }
 
     [Fact]

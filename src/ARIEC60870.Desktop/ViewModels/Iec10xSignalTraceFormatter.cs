@@ -97,13 +97,17 @@ public static class Iec10xSignalTraceFormatter
     public static string ScanDeviceTime(Iec10xInformationObject obj)
     {
         ArgumentNullException.ThrowIfNull(obj);
-        if (string.IsNullOrWhiteSpace(obj.TimestampText)) return string.Empty;
         if (obj.Cp56TimeDetails is not { } time)
-            return "RTU " + obj.TimestampText + " · CP56 flags: N/A";
+            return string.IsNullOrWhiteSpace(obj.TimestampText) ? string.Empty :
+                "RTU " + obj.TimestampText + " · CP56 flags: N/A";
 
+        // The canonical typed CP56 record contains the remote clock even when
+        // a compact decoder summary is absent. Never backfill from host time.
+        var clock = string.IsNullOrWhiteSpace(obj.TimestampText)
+            ? time.TimestampText : obj.TimestampText;
         var result = new List<string>(10)
         {
-            "RTU " + obj.TimestampText,
+            "RTU " + clock,
             "Valid: " + Bool(time.IsValid),
             "Genuine: " + Bool(!time.SubstitutedFlag),
             "Summer Time: " + Bool(time.SummerTimeFlag)
