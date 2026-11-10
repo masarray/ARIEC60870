@@ -1,5 +1,7 @@
 # ARD — ARIEC60870 Interoperability & Evidence Architecture
 
+> **IEC-101 per-link reliability design authority (2026-11-11):** See [shared exchange/serial plan](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) and [case-ID verification matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) ([issue #143](https://github.com/masarray/ARIEC60870/issues/143)). This is an IEC-101-specific elaboration of ADR-01/02/03: one per-link confirmed exchange authority, persistent serial reader, safe FCB/FCV/DFC, source-qualified evidence, and no ambiguous physical-command replay. Do not treat the design as implementation complete or as a replacement for R6–R9 Event/capture rules.
+
 **Date:** 2026-10-29. **Status:** canonical design/ADR for all threads, **not** a completed implementation claim. Companions: [PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [research basis](IEC10X_NUC_RESEARCH_20261029.md). Respect existing merged Passive P0–P4A, dual-link, command and Quality work. Evolve incrementally, not rewrite.
 
 

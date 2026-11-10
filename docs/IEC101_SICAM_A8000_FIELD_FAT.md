@@ -1,5 +1,7 @@
 # SICAM A8000 ↔ ARIEC60870 IEC-101 — Field FAT/SAT
 
+> **P0 completion and evidence gate:** See [IEC-101 Reliability Implementation Plan](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) and [Verification Matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) (particularly P01–P08) for the strict distinctions between driver RX bytes, complete frames, correlated services, genuine GI and physical FAT. Track work in [issue #143](https://github.com/masarray/ARIEC60870/issues/143); PR #136 is **not included** in public rc.3. A physical comparison must use the **same physical adapter/wiring/port**, not merely an identical COM number.
+
 Read-only engineering checklist for a reproducible diagnosis. Do not disturb a
 live SCADA link or issue control/clock synchronization during initial tests.
 

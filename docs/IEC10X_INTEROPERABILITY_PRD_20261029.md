@@ -1,5 +1,7 @@
 # PRD — ARIEC60870 Professional IEC-101/103/104 Interoperability & Forensics
 
+> **IEC-101 active link P0 addendum (2026-11-11):** The [transaction reliability implementation plan](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md), [verification matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md), and [issue #143](https://github.com/masarray/ARIEC60870/issues/143) detail how PROFILE-01, TRACE-01, CMD-01, RED-01, FINDING-01 and FAT-01 are implemented for IEC-101 unbalanced **single and A/B**. These refine *that component only*; R6–R9 product sequencing and Passive Monitor zero-TX requirements remain in force. Work listed there is **planned**, not proven released or field-tested.
+
 **Date:** 2026-10-29. **Status:** canonical **product-direction** requirements for all implementation threads, not a statement that all features are complete. Read [research](IEC10X_NUC_RESEARCH_20261029.md) and [ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md). Verify live master, open PRs, checks and issue #39/#19/#30 before work; historical component PRDs must not override merged code.
 
 
