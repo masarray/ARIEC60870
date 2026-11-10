@@ -323,6 +323,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
             CauseOfTransmissionSize = 2,
             InformationObjectAddressSize = 3,
             ResponseTimeoutMs = 250,
+            StartupDelayMs = 0, // Fast simulated tests must not inherit the real COM settling default.
             Class2PollIntervalMs = 60,
             Class1DrainDelayMs = 0,
             MaxClass1DrainFrames = 16,

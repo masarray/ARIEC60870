@@ -91,3 +91,20 @@ When troubleshooting a *real* SICAM:
 
 A simulated positive secondary test is necessary for software regression,
 but cannot certify the actual cable, SICAM module role, or GI configuration.
+
+## IEC-101 serial startup and slow telegrams (2026-11-10)
+
+The configured `StartupDelayMs` now applies after opening the COM port(s)
+for both single and dual unbalanced Master modes, before any FT1.2 TX.
+At 1200 bps the maximum FT1.2 telegram can require several seconds on
+the wire, so the reader allows one bounded baud-derived completion window
+after a real `10`/`68` start byte. **Silence retains `ResponseTimeoutMs`**;
+invalid checksum, wrong secondary address/PRM, echo and cancellation are
+still rejected or handled as before. This corrects software timing gaps;
+it is not proof that physical SICAM communication has passed FAT.
+
+For a COM-open but unverified-link report, preserve raw TX/RX and the exact
+`IEC101-RX-*` diagnostics. If RX is empty, isolate the cable, RTS/DTR/flow
+control, baud/framing and the converter. If RX repeats TX, inspect loopback
+or other-master/port routing. Do not bypass secondary proof, automatically
+issue station reset or alter production wiring to force a green connection.

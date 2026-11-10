@@ -73,6 +73,12 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             DrainTransportDiagnostics("Open transport");
+            if (_settings.StartupDelayMs > 0)
+            {
+                SetState(Iec103MasterState.StartupDelay, "IEC-101 serial startup settling",
+                    $"Waiting {_settings.StartupDelayMs} ms after opening {_settings.PortName} before the first FT1.2 request.");
+                await Task.Delay(_settings.StartupDelayMs, cancellationToken).ConfigureAwait(false);
+            }
             // A Windows COM handle does not establish IEC-101 RTU connectivity.
             SetState(Iec103MasterState.OpeningTransport,
                 "IEC-101 COM open — secondary link NOT verified",
@@ -711,7 +717,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
     {
-        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize);
+        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;

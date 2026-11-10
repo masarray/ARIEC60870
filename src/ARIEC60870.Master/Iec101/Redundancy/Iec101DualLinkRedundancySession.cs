@@ -165,6 +165,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         await _active.OpenAsync(Iec101RedundancyChannelRole.Active, cancellationToken).ConfigureAwait(false);
         await _standby.OpenAsync(Iec101RedundancyChannelRole.Standby, cancellationToken).ConfigureAwait(false);
+        if (_options.BaseSettings.StartupDelayMs > 0)
+        {
+            SetControllerState(Iec101RedundancyControllerState.OpeningLinks,
+                "IEC-101 dual-link serial startup settling",
+                $"Waiting {_options.BaseSettings.StartupDelayMs} ms after opening both COM ports before the first FT1.2 request.");
+            await Task.Delay(_options.BaseSettings.StartupDelayMs, cancellationToken).ConfigureAwait(false);
+        }
         PublishSnapshot();
     }
 

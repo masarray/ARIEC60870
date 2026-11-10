@@ -19,14 +19,22 @@ public sealed class Ft12StreamReader
     private readonly Action<Ft12StreamCandidate> _onCandidate;
     private byte[]? _frame;
     private long _receivedBytes;
+    private readonly int _frameReceptionBudgetMs;
     // A damaged FT1.2 prefix can contain 0xE5 inside its payload. Its
     // resynchronized single byte is NOT a proved reply to the Master request.
     private bool _uncertainFrameBoundary;
     public long AmbiguousShortResponsesSuppressed { get; private set; }
 
-    public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1)
+    public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1, int baudRate = 0)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        // One maximum FT1.2 telegram takes up to 262 octets. Reserve the full
+        // wire time at the selected baud (12 bits/octet covers 8E2) plus a
+        // bounded converter/Windows scheduling margin. Silence still uses the
+        // configured response timeout; only a physical frame start extends it.
+        _frameReceptionBudgetMs = baudRate > 0
+            ? Math.Clamp((int)Math.Ceiling(262d * 12 * 1000 / baudRate) + 300, 500, 30000)
+            : 0;
         // Master never adopts a different link-address profile implicitly.
         // A complete malformed-end frame is retained for the existing
         // secondary response validator and frame-quality diagnostics.
@@ -62,6 +70,7 @@ public sealed class Ft12StreamReader
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(Math.Max(1, timeoutMs));
+        var frameStartObserved = false;
         try
         {
             while (true)
@@ -76,6 +85,15 @@ public sealed class Ft12StreamReader
                     // empty reads without claiming that a response arrived.
                     await Task.Delay(1, deadline.Token).ConfigureAwait(false);
                     continue;
+                }
+                // Do not time out midway through a legitimate slow serial frame.
+                // A single bounded extension is granted only for a FT1.2 start
+                // byte; noise cannot perpetually prolong the request deadline.
+                if (!frameStartObserved && _frameReceptionBudgetMs > timeoutMs &&
+                    _byte[0] is 0x10 or 0x68)
+                {
+                    frameStartObserved = true;
+                    deadline.CancelAfter(_frameReceptionBudgetMs);
                 }
                 _framer.Feed(_byte.AsSpan(0, read), _receivedBytes,
                     _onCandidate, flushNoiseAtEnd: false);
