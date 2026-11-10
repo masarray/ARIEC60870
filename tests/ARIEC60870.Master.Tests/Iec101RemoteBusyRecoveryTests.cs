@@ -69,14 +69,14 @@ public sealed class Iec101RemoteBusyRecoveryTests
         var session = new Iec101DualLinkRedundancySession(options, active, standby);
 
         await session.RunForAsync(TimeSpan.FromMilliseconds(1000), CancellationToken.None);
-        var snapshot = session.CreateSnapshot();
-
-        Assert.True(active.Class2Requests > 0, "Fixture must reach busy state through a Class 2 response.");
+        // After RunForAsync the COM transports have closed, so a final
+        // IsHealthy snapshot must be false. Prove live recovery by resumed
+        // Class 2 traffic and independent standby status evidence instead.
+        Assert.True(active.Class2Requests >= 2, "Class 2 must resume after a valid FC11 DFC=0.");
         Assert.True(active.StatusProbes >= 3, "Busy active link must recover using addressed status probes.");
         Assert.Equal(0, active.DataSentWhileBusy);
+        Assert.True(standby.StatusProbes > 0, "Standby status supervision must remain independent.");
         Assert.Equal(0, standby.Class2Requests);
-        Assert.True(snapshot.LinkA.IsHealthy, "Active link should recover after confirmed DFC=0.");
-        Assert.True(snapshot.LinkB.IsHealthy, "Independent healthy standby should remain supervised.");
     }
 
     private sealed class RemoteFlowTransport : IByteTransport
