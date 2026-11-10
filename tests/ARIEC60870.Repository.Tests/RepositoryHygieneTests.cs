@@ -67,6 +67,40 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("IEC 60870", File.ReadAllText(root.File("site/site.webmanifest")));
     }
 
+    [Fact]
+    public void PublicReleaseChannelsAndPagesFallbackMirrorAgree()
+    {
+        var root = FindRepositoryRoot();
+        using var manifest = JsonDocument.Parse(File.ReadAllText(root.File("site/seo-manifest.json")));
+        var version = manifest.RootElement.GetProperty("version").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(version));
+        var releaseUrl = $"https://github.com/masarray/ARIEC60870/releases/tag/v{version}";
+
+        var readme = File.ReadAllText(root.File("README.md"));
+        var home = File.ReadAllText(root.File("site/index.html"));
+        var indonesian = File.ReadAllText(root.File("site/id/index.html"));
+        var download = File.ReadAllText(root.File("site/download.html"));
+        Assert.Contains(releaseUrl, readme);
+        Assert.Contains(releaseUrl, home);
+        Assert.Contains(releaseUrl, indonesian);
+        Assert.Contains(releaseUrl, download);
+        Assert.Contains($"name=\"application-version\" content=\"{version}\"", home);
+        Assert.Contains($"\"softwareVersion\":\"{version}\"", home);
+        Assert.Contains($"ARIEC60870-v{version}-setup-win-x64.exe", download);
+        Assert.Contains($"ARIEC60870-v{version}-win-x64.zip", download);
+
+        foreach (var page in new[]
+        {
+            "index.html", "id/index.html", "download.html", "quick-start.html",
+            "faq.html", "id/faq.html", "styles.css", "seo-manifest.json",
+            "llms.txt", "sitemap.xml"
+        })
+        {
+            Assert.Equal(File.ReadAllText(root.File($"site/{page}")),
+                File.ReadAllText(root.File($"docs/{page}")));
+        }
+    }
+
     [Theory]
     [InlineData("3.6.8", true, -1)]
     [InlineData("3.6.8-rc.1", true, 1)]

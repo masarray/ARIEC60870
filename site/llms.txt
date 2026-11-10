@@ -1,23 +1,23 @@
-# ARIEC60870
+# ARIEC60870 Evidence Analyzer
 
-ARIEC60870 is a field-tested IEC 60870 evidence analyzer and learning-friendly protocol review tool for IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 engineering workflows.
+Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
-## Main pages
-- Home: https://masarray.github.io/ARIEC60870/
-- Indonesian home: https://masarray.github.io/ARIEC60870/id/
+## Published builds
+- Public prerelease v3.6.8-rc.3: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3
+- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-win-x64.zip
+- Last non-prerelease v3.6.7: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7
+- Exact release WPF/CI evidence: https://github.com/masarray/ARIEC60870/actions/runs/42791041890
+- Unmerged SICAM IEC-101 serial changes in PR #136 are excluded and remain subject to physical FAT.
+
+## Pages
+- EN: https://masarray.github.io/ARIEC60870/
+- ID: https://masarray.github.io/ARIEC60870/id/
+- Download: https://masarray.github.io/ARIEC60870/download.html
+- Quick Start: https://masarray.github.io/ARIEC60870/quick-start.html
 - Field Wiki: https://masarray.github.io/ARIEC60870/wiki.html
 - FAQ: https://masarray.github.io/ARIEC60870/faq.html
-- Download: https://masarray.github.io/ARIEC60870/download.html
+- Troubleshooting: https://masarray.github.io/ARIEC60870/troubleshooting.html
 
-## Field Wiki topics
-- IEC-101 ACD and DFC: https://masarray.github.io/ARIEC60870/iec101-acd-dfc.html
-- IEC-101 Class 1 and Class 2 polling: https://masarray.github.io/ARIEC60870/iec101-polling-class1-class2.html
-- IEC-101 command flow: https://masarray.github.io/ARIEC60870/iec101-command-flow.html
-- IEC-101 Common Address vs Link Address: https://masarray.github.io/ARIEC60870/iec101-addressing.html
-- IEC-101 General Interrogation: https://masarray.github.io/ARIEC60870/iec101-general-interrogation.html
-- IEC-104 STARTDT STOPDT TESTFR: https://masarray.github.io/ARIEC60870/iec104-startdt-stopdt-testfr.html
-- IEC-103 relay events: https://masarray.github.io/ARIEC60870/iec103-relay-events.html
-- Smart Findings: https://masarray.github.io/ARIEC60870/smart-findings.html
-
-## Product boundary
-ARIEC60870 is an engineering evidence analyzer. It is not a production SCADA system, gateway, protection device, or certified conformance test suite.
+## Evidence boundary
+An addressed link response is not always an accepted application ASDU. GI is not proof every point was received. HOLD pins only the displayed viewport, not recording. Unverified IEC-101 balanced mode or physical multi-vendor FAT must not be claimed.

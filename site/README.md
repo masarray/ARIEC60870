@@ -1,19 +1,15 @@
-# ARIEC60870 public site
+# ARIEC60870 public website
 
-This folder contains the public ARIEC60870 product site and field-learning pages served by GitHub Pages.
+Canonical English/Indonesian site: https://masarray.github.io/ARIEC60870/
 
-Core pages:
+**Current public preview:** [v3.6.8-rc.3](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) · **last stable:** [v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7). The preview is not physical SICAM FAT certified; draft PR #136 is not released.
 
-- `index.html` — English product landing page.
-- `id/index.html` — Indonesian product landing page.
-- `wiki.html` and `id/wiki.html` — IEC 60870 Field Wiki indexes.
-- `iec101-*.html`, `iec103-*.html`, `iec104-*.html` — practical protocol learning pages.
-- `faq.html` and `id/faq.html` — user-facing FAQ pages.
+- `index.html`, `id/index.html`: bilingual product landing.
+- `download.html`, `quick-start.html`: Windows installer/portable paths and integrity.
+- `wiki.html`, `id/wiki.html`: field-oriented reference content.
+- `faq.html`, `id/faq.html`: honest scope and limitations.
+- `seo-manifest.json`, `sitemap.xml`, `llms.txt`: published release metadata.
 
-Local preview:
+Edit `site/` and run `scripts/sync-github-pages-docs-mirror.ps1` to refresh `docs/`. Do not maintain two separate public sites.
 
-```bash
-python -m http.server 8080 --directory site
-```
-
-Then open `http://localhost:8080`.
+Local preview: `python -m http.server 8080 --directory site`.

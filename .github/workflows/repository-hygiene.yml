@@ -51,8 +51,20 @@ jobs:
           # still-unreleased source version under test in this pull request.
           $published = (Get-Content site/seo-manifest.json -Raw | ConvertFrom-Json).version
           if (!$published) { throw 'Missing public release version in SEO manifest.' }
-          if ([version]$published -gt [version]$version) {
-            throw "Public release metadata $published is newer than source $version."
+          # Compare stable/RC versions; System.Version cannot parse -rc.N.
+          $pattern = '^(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?:-rc\.(?<rc>[1-9][0-9]*))?$'
+          $source = [regex]::Match($version, $pattern)
+          $public = [regex]::Match($published, $pattern)
+          if (!$source.Success -or !$public.Success) {
+            throw "Invalid source/public SemVer: source=$version; published=$published."
+          }
+          $codeBase = [version]$source.Groups['base'].Value
+          $publicBase = [version]$public.Groups['base'].Value
+          $codeRank = if ($source.Groups['rc'].Success) { [int]$source.Groups['rc'].Value } else { [int]::MaxValue }
+          $publicRank = if ($public.Groups['rc'].Success) { [int]$public.Groups['rc'].Value } else { [int]::MaxValue }
+          if ($publicBase -gt $codeBase -or
+              ($publicBase -eq $codeBase -and $publicRank -gt $codeRank)) {
+            throw "Public metadata $published is newer than code $version."
           }
           if (!$site.Contains('name="application-version" content="' + $published + '"') -or
               !$site.Contains('"softwareVersion":"' + $published + '"')) {
