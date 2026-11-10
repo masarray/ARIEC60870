@@ -13,7 +13,8 @@ Unlike a basic protocol tester that only shows pass/fail status or raw frames, A
 > **From raw hex to root cause.** Test IEC 60870, understand the frame, diagnose likely communication issues, and export the evidence.
 
 - Product website and user guide hub: [masarray.github.io/ARIEC60870](https://masarray.github.io/ARIEC60870/)
-- Latest release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
+- Latest stable release: [download the Windows ZIP](https://github.com/masarray/ARIEC60870/releases/latest)
+- Public test release candidate: [v3.6.8-rc.1 portable ZIP / Windows Setup](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.1) — bench testing only; not certified for production SCADA.
 - Demo flow: [watch the GIF walkthrough](https://masarray.github.io/ARIEC60870/demo.html)
 - Evidence-focused alias: **ARIEC60870 Evidence Analyzer**.
 
