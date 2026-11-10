@@ -175,6 +175,52 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip"
 
+      # The exact self-contained executable that enters the public ZIP must
+      # pass a real Windows WPF probe. In particular, HOLD cannot mutate the
+      # visible Frame Trace collection while the canonical source receives.
+      # This runs after publish, not against an earlier CI build artifact.
+      - name: Verify release executable passive GUI and Frame Trace WPF acceptance
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'artifacts/publish-desktop-win-x64/ARIEC60870.Desktop.exe'
+          $output = 'artifacts/release-wpf-evidence'
+          if (!(Test-Path $exe)) { throw 'Exact release GUI executable missing.' }
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
+          if ($smoke.ExitCode -ne 0) { throw "Release GUI smoke failed with exit code $($smoke.ExitCode)." }
+          $accept = Start-Process -FilePath $exe -ArgumentList @('--observation-ui-acceptance', '--observation-out', $output) -Wait -PassThru -NoNewWindow
+          if ($accept.ExitCode -ne 0) {
+            if (Test-Path (Join-Path $output 'failure.txt')) { Get-Content (Join-Path $output 'failure.txt') }
+            throw "Release WPF Frame Trace acceptance failed with exit code $($accept.ExitCode)."
+          }
+          $metricsPath = Join-Path $output 'metrics.json'
+          if (!(Test-Path $metricsPath)) { throw 'Missing real-WPF acceptance metrics.' }
+          $metrics = Get-Content $metricsPath -Raw | ConvertFrom-Json
+          if ($metrics.passed -ne $true -or
+              $metrics.frameTraceLoad.HeldCollectionMutations -ne 0 -or
+              $metrics.frameTraceLoad.SourceAdvancedWhileHeld -ne $true -or
+              $metrics.frameTraceLoad.AutoFollowTailRealized -ne $true -or
+              $metrics.frameTraceLoad.NewestFrameObserved -ne $true -or
+              $metrics.frameTraceLoad.RollingCollectionResets -ne 0) {
+            throw 'Release Frame Trace HOLD/AUTO/source identity invariant failed.'
+          }
+          if ((Get-ChildItem $output -Filter '*.png').Count -lt 7) {
+            throw 'Missing release WPF viewport screenshots.'
+          }
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Real-WPF release gate'
+          Add-Content $env:GITHUB_STEP_SUMMARY 'Exact ZIP executable: GUI smoke + 10,000-frame HOLD/AUTO source/viewport acceptance passed; metrics and screenshot artifact uploaded.'
+
+      - name: Upload release WPF acceptance screenshots and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-wpf-evidence
+          path: artifacts/release-wpf-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Compile matching Windows Setup EXE for public RC testers
         if: needs.resolve.outputs.prerelease == 'true'
         shell: pwsh
