@@ -168,6 +168,33 @@ public sealed class Iec101SerialStartupAndTimingTests
     }
 
     [Fact]
+    public async Task T02SilenceRetriesTheExactOriginalStatusFrameOnlyOncePerExchange()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 45;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var port = new NoRxEvidenceTransport();
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(520), CancellationToken.None);
+
+        // Initial unbalanced status FC9 is a read: after silence it is
+        // retransmitted without recomputing FCB/address/checksum.
+        Assert.True(port.SentFrames.Count >= 2, "No read retransmission was transmitted.");
+        Assert.Equal(port.SentFrames[0], port.SentFrames[1]);
+        Assert.Equal(9, port.SentFrames[0][1] & 0x0F);
+        Assert.Contains(result.Events, e =>
+            e.Direction == ARIEC60870.Core.Model.FrameDirection.MasterToSlave &&
+            e.PollingReason.Contains("bounded unchanged-FCB read retry #1",
+                StringComparison.Ordinal));
+        Assert.Equal(0, result.Counters.GiCommands); // no blind FC3/GI replay
+        Assert.Equal(0, result.Counters.RxFrames);
+        Assert.True(result.Counters.Timeouts > 0);
+        Assert.True(result.Counters.Timeouts < result.Counters.TxFrames,
+            "A two-attempt read must not report two separate terminal timeout failures.");
+    }
+
+    [Fact]
     public async Task SerialSilenceStillObeysOriginalDeadlineAt1200Bps()
     {
         await using var port = new PacedReceiveTransport(Array.Empty<byte>(), 10);
@@ -185,9 +212,14 @@ public sealed class Iec101SerialStartupAndTimingTests
         private readonly Queue<TransportDiagnostic> _events = new();
         public bool IsOpen { get; private set; }
         public int ExchangeObservations { get; private set; }
+        public List<byte[]> SentFrames { get; } = new();
         public ValueTask OpenAsync(CancellationToken ct) { IsOpen = true; return ValueTask.CompletedTask; }
         public ValueTask CloseAsync(CancellationToken ct) { IsOpen = false; return ValueTask.CompletedTask; }
-        public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) => ValueTask.CompletedTask;
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
+        {
+            SentFrames.Add(data.ToArray());
+            return ValueTask.CompletedTask;
+        }
         public ValueTask<int> ReadAsync(Memory<byte> data, CancellationToken ct) => ValueTask.FromResult(0);
         public void ObserveExchangeOutcome(int functionCode, bool acceptedSecondary, int decodedRxFrames, int rejectedRxFrames)
         {
