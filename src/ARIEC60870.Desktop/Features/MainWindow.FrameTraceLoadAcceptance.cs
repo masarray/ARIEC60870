@@ -22,6 +22,9 @@ public partial class MainWindow
         int SourceFramesFed,
         int RetainedRows,
         int RollingCollectionResets,
+        int HeldCollectionMutations,
+        bool SourceAdvancedWhileHeld,
+        bool AutoFollowTailRealized,
         bool HeldSelectionSurvived,
         bool NewestFrameObserved,
         double FeedAndFlushMilliseconds,
@@ -78,55 +81,111 @@ public partial class MainWindow
                 $"Initial 1,300 frames did not fill the live preview: visible={FrameTraceRows.Count}, " +
                 $"source={_protocolTraceStore.Count}, queued={_pendingEvidence.Count}, activeTab={MainTabControl.SelectedIndex}.");
 
-        var held = FrameTraceRows[300];
-        FrameTraceGrid.SelectedItem = held;
-        FrameTraceGrid.ScrollIntoView(held);
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-        UpdateLayout();
-        if (!ReferenceEquals(_selectedFrameRow, held) ||
-            AutoScrollLatestToggleButton.IsChecked != false)
-            throw new InvalidOperationException("Held frame did not pin inspector and disable automatic tail follow.");
-
+        // First exercise continuous AUTO after the live ring is full.
+        // A source sample must reach the actual WPF tail without a Reset.
         var resets = 0;
+        var heldCollectionMutations = 0;
         NotifyCollectionChangedEventHandler monitor = (_, args) =>
         {
             if (args.Action == NotifyCollectionChangedAction.Reset) resets++;
         };
         FrameTraceRows.CollectionChanged += monitor;
+        var autoFollowTailRealized = false;
+        bool sourceAdvancedWhileHeld;
+        bool heldSelectionSurvived;
+        bool newestFrameObserved;
         try
         {
-            for (var i = 1300; i < framesToFeed; i++)
+            for (var i = 1300; i < 1500; i++)
             {
                 FeedPassiveFrameToExistingViews(new PassiveObservedFrame(
                     0, 5L * i, baseline.AddMilliseconds(40d * i),
                     "Fixed", true, fixedFrame));
-                if ((i + 1) % batchSize == 0)
-                {
-                    DrainFrameTraceLoadBatch();
-                    if (FrameTraceRows.Count > MaxVisibleFrameTraceRows)
-                        throw new InvalidOperationException("Live Frame Trace exceeded its bounded window.");
-                }
+                if ((i + 1) % batchSize == 0) DrainFrameTraceLoadBatch();
             }
             DrainFrameTraceLoadBatch();
-        }
-        finally
-        {
-            FrameTraceRows.CollectionChanged -= monitor;
-        }
-        feedClock.Stop();
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            var lastAuto = FrameTraceRows.LastOrDefault();
+            autoFollowTailRealized = lastAuto is not null &&
+                lastAuto.Source.RawStreamOffset == 5L * 1499 &&
+                FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(lastAuto)
+                    is ListBoxItem { IsVisible: true, ActualHeight: > 0 };
+            if (!autoFollowTailRealized || resets != 0 ||
+                FrameTraceRows.Count != MaxVisibleFrameTraceRows)
+                throw new InvalidOperationException(
+                    $"AUTO rollover failed to realize the newest physical frame: " +
+                    $"realized={autoFollowTailRealized}, resets={resets}, shown={FrameTraceRows.Count}.");
 
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-        UpdateLayout();
-        var heldSelectionSurvived = ReferenceEquals(FrameTraceGrid.SelectedItem, held) &&
-            ReferenceEquals(_selectedFrameRow, held) && FrameTraceRows.Contains(held) &&
-            TraceInspectorRawText.Text == held.TimelineHex;
-        var newestFrameObserved =
-            FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset == 5L * (framesToFeed - 1);
-        if (!heldSelectionSurvived || !newestFrameObserved || resets != 0 ||
-            FrameTraceRows.Count != MaxVisibleFrameTraceRows)
-            throw new InvalidOperationException(
-                $"10,000-frame WPF rollover invalid: held={heldSelectionSurvived}, newest={newestFrameObserved}, " +
-                $"reset={resets}, retained={FrameTraceRows.Count}.");
+            var held = FrameTraceRows[300];
+            FrameTraceGrid.SelectedItem = held;
+            FrameTraceGrid.ScrollIntoView(held);
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            if (!ReferenceEquals(_selectedFrameRow, held) ||
+                AutoScrollLatestToggleButton.IsChecked != false)
+                throw new InvalidOperationException(
+                    "Held frame did not pin inspector and disable automatic tail follow.");
+
+            var heldWindow = FrameTraceRows.ToArray();
+            var heldContainer =
+                FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(held) as ListBoxItem;
+            var heldY = heldContainer?.TranslatePoint(new Point(), FrameTraceGrid).Y
+                ?? double.NaN;
+            NotifyCollectionChangedEventHandler heldMonitor = (_, _) => heldCollectionMutations++;
+            FrameTraceRows.CollectionChanged += heldMonitor;
+            try
+            {
+                for (var i = 1500; i < framesToFeed; i++)
+                {
+                    FeedPassiveFrameToExistingViews(new PassiveObservedFrame(
+                        0, 5L * i, baseline.AddMilliseconds(40d * i),
+                        "Fixed", true, fixedFrame));
+                    if ((i + 1) % batchSize == 0)
+                        DrainFrameTraceLoadBatch();
+                }
+                DrainFrameTraceLoadBatch();
+            }
+            finally { FrameTraceRows.CollectionChanged -= heldMonitor; }
+
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            var heldYAfter = (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(held)
+                as ListBoxItem)?.TranslatePoint(new Point(), FrameTraceGrid).Y ?? double.NaN;
+            heldSelectionSurvived = ReferenceEquals(FrameTraceGrid.SelectedItem, held) &&
+                ReferenceEquals(_selectedFrameRow, held) && FrameTraceRows.Contains(held) &&
+                TraceInspectorRawText.Text == held.TimelineHex &&
+                double.IsFinite(heldY) && double.IsFinite(heldYAfter) &&
+                Math.Abs(heldYAfter - heldY) <= 1.25;
+            sourceAdvancedWhileHeld = _protocolTraceStore.Snapshot().LastOrDefault()?
+                .Source.RawStreamOffset == 5L * (framesToFeed - 1) &&
+                _protocolTraceRowsDeferredWhileFrozen >= framesToFeed - 1500;
+            if (!heldSelectionSurvived || !sourceAdvancedWhileHeld ||
+                heldCollectionMutations != 0 || !FrameTraceRows.SequenceEqual(heldWindow) ||
+                FrameTraceGrid.Items.Count != heldWindow.Length ||
+                resets != 0)
+                throw new InvalidOperationException(
+                    $"10,000-frame HOLD viewport instability: selected={heldSelectionSurvived}, " +
+                    $"sourceLatest={sourceAdvancedWhileHeld}, WPF mutations={heldCollectionMutations}, " +
+                    $"resets={resets}, shown={FrameTraceRows.Count}.");
+
+            // Explicit AUTO is one catch-up to the bounded source ring, never a
+            // series of per-frame redraws while the user was examining HOLD.
+            ResumeLiveViews(clearSelection: true, followLive: true);
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            newestFrameObserved =
+                FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset == 5L * (framesToFeed - 1);
+            if (!newestFrameObserved || resets != 0 ||
+                FrameTraceRows.Count != MaxVisibleFrameTraceRows ||
+                _protocolTraceRowsDeferredWhileFrozen != 0 ||
+                _protocolTraceViewDirtyWhileFrozen)
+                throw new InvalidOperationException(
+                    $"AUTO resume failed to reconcile latest source: newest={newestFrameObserved}, " +
+                    $"resets={resets}, retained={FrameTraceRows.Count}.");
+        }
+        finally { FrameTraceRows.CollectionChanged -= monitor; }
+        feedClock.Stop();
 
         // Measure a real selection + ScrollIntoView + Loaded layout for every
         // sample. Do not claim the UI is under 100ms merely from a green CI.
@@ -178,11 +237,14 @@ public partial class MainWindow
         SaveRealWpfBitmap(outputDirectory, "engineer-trace-10000-frames.png");
         return new FrameTraceLoadMetrics(
             framesToFeed, FrameTraceRows.Count, resets,
+            heldCollectionMutations, sourceAdvancedWhileHeld, autoFollowTailRealized,
             heldSelectionSurvived, newestFrameObserved,
             Math.Round(feedClock.Elapsed.TotalMilliseconds, 2),
             samples.Length, Math.Round(p50, 2), Math.Round(p95, 2),
             Math.Round(samples[^1], 2), p95 < 100,
             "Synthetic 10,000 original fixed FT1.2 frames in 100-frame UI batches; " +
+            "AUTO rollover must realize the live tail; HOLD must produce zero WPF collection mutations " +
+            "while source continues receiving; AUTO must catch up without Reset. " +
             "150 deterministic WPF selection/ScrollIntoView/Loaded-layout samples at actual CI viewport. " +
             "Hardware RX rates, 50,000-frame full WPF capture and physical DPI are not measured.");
     }
