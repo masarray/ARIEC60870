@@ -92,9 +92,9 @@ public sealed class SmartRedundancyUxTests
         Assert.Contains("IOA 16712704", trace.TimelineSignalDigest);
         Assert.Equal(1, trace.TimelineSignalDigest.Split("IOA 16712704").Length - 1);
         Assert.Contains("TI-31", trace.TimelineSignalDigest);
-        Assert.Contains("RTU " + deviceTime, trace.TimelineSignalDigest);
+        Assert.Contains("RTU partial time: " + deviceTime, trace.TimelineSignalDigest);
         Assert.DoesNotContain("TI ", trace.TimelineEngineeringIdentity);
         Assert.Contains("Link 105", trace.TimelineEngineeringIdentity);
-        Assert.Contains("COT 20", trace.TimelineEngineeringCause);
+        Assert.Contains("Cause Of Transmission: 20", trace.TimelineEngineeringCause);
     }
 }

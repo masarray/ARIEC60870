@@ -354,8 +354,8 @@ public sealed partial class EvidenceRow
     {
         var asdu = Source.AsduDetails;
         if (asdu is null) return string.Empty;
-        if (!asdu.IsHeaderValid) return "COT not decoded · malformed ASDU";
-        return "COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
+        if (!asdu.IsHeaderValid) return "Cause Of Transmission: Not decoded · malformed ASDU";
+        return "Cause Of Transmission: " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
             " (" + (asdu.CauseOfTransmission == 20
                 ? "Interrogated by General Interrogation"
                 : asdu.CauseName) + ")" +

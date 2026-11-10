@@ -72,7 +72,7 @@ public static class Iec10xSignalTraceFormatter
     public static string TraceObject(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
         string? authoritativeName = null)
     {
-        var f = BuildScanFields(asdu, obj, authoritativeName);
+        var f = BuildScanFields(asdu, obj, authoritativeName, traceDisplay: true);
         var ti = "TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture);
         var cp56 = obj.Cp56TimeDetails;
         var stamp = cp56 is not null
@@ -92,7 +92,8 @@ public static class Iec10xSignalTraceFormatter
               (cp56.SubstitutedFlag ? " · Substituted (GEN=1)" : " · Genuine (GEN=0)") +
               (cp56.SummerTimeFlag ? " · DST ON" : " · DST OFF") +
               (cp56.UnexpectedReservedBits ? " · Reserved bits SET" : "") +
-              (cp56.DayOfWeekMatchesCalendar == false ? " · Day mismatch" : "")
+              (cp56.DayOfWeekMatchesCalendar == false ? " · Day mismatch" : "") +
+              (cp56.DayOfWeek > 0 ? " · Day: " + cp56.DayOfWeekText : "")
             : string.IsNullOrWhiteSpace(obj.TimestampText)
                 ? "Not provided" : "Partial (CP56 validity / GEN / DST unknown)";
         return f.Identity + " · " + ti + " · Value: " + f.Value + stamp + f.Suffix +
@@ -103,7 +104,7 @@ public static class Iec10xSignalTraceFormatter
     private readonly record struct ScanFields(string Identity, string Value, string Kind, string Suffix);
 
     private static ScanFields BuildScanFields(Iec10xAsduDecode asdu, Iec10xInformationObject obj,
-        string? authoritativeName)
+        string? authoritativeName, bool traceDisplay = false)
     {
         ArgumentNullException.ThrowIfNull(asdu);
         ArgumentNullException.ThrowIfNull(obj);
@@ -129,7 +130,10 @@ public static class Iec10xSignalTraceFormatter
         var name = string.IsNullOrWhiteSpace(authoritativeName)
             ? string.Empty : authoritativeName.Trim() + " · ";
         var byteStructure = validAddress && !mismatch
-            ? " (" + StructuredIoa(address, width) + ")" : "";
+            ? traceDisplay
+                ? " [ " + StructuredIoa(address, width).Replace(" - ", " · ", StringComparison.Ordinal) + " ]"
+                : " (" + StructuredIoa(address, width) + ")"
+            : "";
         return new ScanFields(name + "IOA " + address.ToString(CultureInfo.InvariantCulture) +
             byteStructure, value, kind,
             (asdu.IsSequence && obj.Index > 1 ? " · SQ=1 implied IOA" : "") +

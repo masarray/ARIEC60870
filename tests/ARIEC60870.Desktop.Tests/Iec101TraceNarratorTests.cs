@@ -99,7 +99,7 @@ public sealed class Iec101TraceNarratorTests
         Assert.Contains("Class 1 pending (ACD=1)", row.TimelineContext);
         Assert.DoesNotContain("rejected", FrameInspectorFieldPresentation.HumanSummary(row));
         Assert.Contains("this specific request", FrameInspectorFieldPresentation.HumanSummary(row));
-        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.Equal("Pending", row.TraceVisualClass);
         Assert.Contains("Class 1 data is pending", FrameInspectorFieldPresentation.AccessDemand(true));
         Assert.Contains("does not indicate", FrameInspectorFieldPresentation.DataFlowControl(false));
     }

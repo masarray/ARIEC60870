@@ -41,9 +41,9 @@ public sealed class FrameTraceEngineerReadabilityTests
         });
         var parts = row.TimelineSignalDigest.Split(Environment.NewLine);
         Assert.Equal(4, parts.Length);
-        Assert.Contains("IOA 100 (IOA3:0 - IOA2:0 - IOA1:100) · TI-30 · Value: ON · 10-11-2026 20:34:42.365", parts[0]);
+        Assert.Contains("IOA 100 [ IOA3:0 · IOA2:0 · IOA1:100 ] · TI-30 · Value: ON · 10-11-2026 20:34:42.365", parts[0]);
         Assert.Contains("TI-30 Single Point Signal · Quality: Good · Timestamp: Valid · Genuine (GEN=0) · DST OFF", parts[1]);
-        Assert.Contains("IOA 101 (IOA3:0 - IOA2:0 - IOA1:101) · TI-30 · Value: OFF · 10-11-2026 20:34:43.987", parts[2]);
+        Assert.Contains("IOA 101 [ IOA3:0 · IOA2:0 · IOA1:101 ] · TI-30 · Value: OFF · 10-11-2026 20:34:43.987", parts[2]);
         Assert.Contains("Quality: Invalid", parts[3]);
         Assert.Contains("Timestamp: Invalid · Substituted (GEN=1) · DST ON", parts[3]);
         Assert.DoesNotContain("42.365", parts[2]);
