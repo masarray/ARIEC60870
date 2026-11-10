@@ -116,7 +116,7 @@ public static class EvidenceReportLayoutEngine
             var verdictBackground = ResolveVerdictBackground(_model.VerdictTone);
 
             page.Line(Margin, HeaderBottom, PageWidth - Margin, HeaderBottom, Border, 0.8d);
-            page.Text(Margin, 562d, 360d, "ARIEC60870 Evidence Analyzer", EvidenceReportFontKind.Bold, 7.4d, Muted);
+            page.Text(Margin, 562d, 360d, "ArSee Protocol Tester", EvidenceReportFontKind.Bold, 7.4d, Muted);
             page.Text(Margin, 541d, 420d, "IEC 60870 Evidence Report", EvidenceReportFontKind.Bold, 20.5d, BrandNavy);
             page.Text(Margin, 523d, 560d, "Commissioning and FAT/SAT protocol evidence for IEC 60870-5-101 / 103 / 104 communication sessions.", EvidenceReportFontKind.Regular, 7.4d, Muted);
 

@@ -52,7 +52,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("ARIEC60870 failed: " + ex.Message);
+            Console.Error.WriteLine("ArSee failed: " + ex.Message);
             return 1;
         }
     }
@@ -105,7 +105,7 @@ internal static class Program
         var options = MasterOptions.Parse(args);
         var settings = options.ToSettings();
 
-        Console.WriteLine("ARIEC60870 Evidence Analyzer - IEC 60870 CLI");
+        Console.WriteLine("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester - IEC 60870 CLI");
         Console.WriteLine("=======================================");
         Console.WriteLine("Mode      : Single connection active master");
         Console.WriteLine("Target    : " + (settings.UseSimulatedSlave ? "generic relay demo simulated slave" : "protection relay as IEC-103 slave"));
@@ -197,7 +197,7 @@ internal static class Program
         var options = SlaveOptions.Parse(args);
         var settings = options.ToSettings();
 
-        Console.WriteLine("ARIEC60870 - IEC 60870-5-103 Slave Simulator");
+        Console.WriteLine("ArSee - IEC 60870-5-103 Slave Simulator");
         Console.WriteLine("==========================================");
         Console.WriteLine("Mode      : Deterministic IEC-103 slave for active master testing");
         Console.WriteLine("Endpoint  : " + settings.SerialSummary);
@@ -257,7 +257,7 @@ internal static class Program
     private static void PrintConsoleSummary(AnalysisReport report)
     {
         var s = report.Summary;
-        Console.WriteLine("ARIEC60870 - IEC 60870-5-103 Field Forensic Analyzer");
+        Console.WriteLine("ArSee - IEC 60870-5-103 Field Forensic Analyzer");
         Console.WriteLine("====================================================");
         Console.WriteLine($"Source              : {report.SourceFile}");
         Console.WriteLine($"Frames              : {s.TotalFrames}");
@@ -288,7 +288,7 @@ internal static class Program
 
     private static void PrintHelp()
     {
-        Console.WriteLine("ARIEC60870");
+        Console.WriteLine("ArSee");
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  Analyze existing log:");
