@@ -746,6 +746,15 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 $"Two-point process ASDU absent after Trace reconciliation: source={sourceMultiObjectCount}, " +
                 $"view={FrameTraceRows.Count(x => x.Source.AsduDetails?.Objects.Count == 2)}, Values={ValueRows.Count}.");
+        // Source-true presentation requirement: the verified FT1.2 Link 105
+        // and ASDU CA 1 belong on the FIRST GI line, not beneath the IOAs.
+        if (multiObjectRow.TimelineTitle != "GI Data · Single-Point · Link 105 · CA 1" ||
+            !multiObjectRow.HasInlineHeadlineIdentity ||
+            !multiObjectRow.TimelineSignalDigest.Contains("No Timestamp", StringComparison.Ordinal) ||
+            multiObjectRow.TimelineSignalDigest.Contains("Timestamp: No Timestamp", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Physical IEC101 GI must put Link/CA on first heading and avoid a duplicate timestamp label.");
+
         // Integration proof: production passive frame -> canonical FT1.2/ASDU
         // -> typed DIQ -> own displayed TI3 value. IV must not change ON[10].
         var dpOnFrame = FrameTraceRows.LastOrDefault(row =>
@@ -783,6 +792,16 @@ public partial class MainWindow
         // not a silently narrowed inspection view.
         TraceQuickScopeCombo.SelectedIndex = 1;
         ApplyQuickFind();
+        FrameTraceGrid.ScrollIntoView(multiObjectRow);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(multiObjectRow)
+                is not ListBoxItem giHeaderRow ||
+            FindVisibleTraceText(giHeaderRow, multiObjectRow.TimelineTitle) is null ||
+            FindVisibleTraceText(giHeaderRow, multiObjectRow.TimelineEngineeringIdentity) is not null)
+            throw new InvalidOperationException(
+                "Real WPF GI headline missing Link/CA or duplicating the identity underneath.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-gi-first-line-link-ca.png");
         // Real WPF bindings: TX is dark blue, RX dark green, regardless of
         // the narrative wording. Purely visual classification retains all rows.
         foreach (var probeRow in new[]
