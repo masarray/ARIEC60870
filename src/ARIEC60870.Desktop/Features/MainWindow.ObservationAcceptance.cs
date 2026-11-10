@@ -92,9 +92,84 @@ public partial class MainWindow
         PassiveObservedFrame observed) =>
         PassiveFramePreparation.PrepareBatch([observed], 1, 2, 2, 3)[0];
 
+    /// <summary>
+    /// Windows-only real WPF proof of Setup switch geometry; the prior large
+    /// product mockup is not authoritative. Do not open COM or change settings.
+    /// </summary>
+    private async Task VerifySetupSwitchGeometryAsync(string outputDirectory)
+    {
+        var previousMode = ProtocolModeComboBox.SelectedIndex;
+        var previousVisibility = SetupOverlay.Visibility;
+        try
+        {
+            SetupOverlay.Visibility = Visibility.Visible;
+            // Active IEC-101 settings use the same actual CheckBox instances as
+            // normal operation; verify rendered geometry rather than XAML text.
+            ProtocolModeComboBox.SelectedIndex = 1;
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            VerifyVisibleSetupSwitches(
+            [
+                SerialRtsCheckBox, SerialDtrCheckBox,
+                ResetRemoteLinkCheckBox, ResetFcbCheckBox,
+                Class2StartupCheckBox, ClockSyncCheckBox, GiCheckBox
+            ]);
+            SaveRealWpfBitmap(outputDirectory, "setup-iec101-compact-switches.png");
+
+            // Passive mode keeps the identical style and Checked/Unchecked
+            // event handlers. Ensure both conditional switches align too.
+            ProtocolModeComboBox.SelectedIndex = 3;
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            VerifyVisibleSetupSwitches(
+            [
+                PassiveLinkBEnabledCheckBox, PassiveFullRecordingCheckBox
+            ]);
+            SaveRealWpfBitmap(outputDirectory, "setup-passive-compact-switches.png");
+        }
+        finally
+        {
+            ProtocolModeComboBox.SelectedIndex = previousMode;
+            SetupOverlay.Visibility = previousVisibility;
+            UpdateLayout();
+        }
+    }
+
+    private static void VerifyVisibleSetupSwitches(CheckBox[] switches)
+    {
+        foreach (var control in switches)
+        {
+            control.ApplyTemplate();
+            if (control.Template.FindName("SwitchTrack", control) is not Border track ||
+                control.Template.FindName("SwitchThumb", control) is not System.Windows.Shapes.Ellipse thumb ||
+                control.Template.FindName("SwitchCaption", control) is not ContentPresenter caption ||
+                !control.IsVisible)
+                throw new InvalidOperationException(
+                    $"Setup switch {control.Name} is not visible or its template is incomplete.");
+
+            var trackTopLeft = track.TranslatePoint(new Point(), control);
+            var captionTopLeft = caption.TranslatePoint(new Point(), control);
+            var centerY = trackTopLeft.Y + track.ActualHeight / 2;
+            var captionY = captionTopLeft.Y + caption.ActualHeight / 2;
+            var captionGap = captionTopLeft.X - trackTopLeft.X - track.ActualWidth;
+
+            if (Math.Abs(track.ActualWidth - 28) > 0.6 ||
+                Math.Abs(track.ActualHeight - 16) > 0.6 ||
+                Math.Abs(thumb.ActualWidth - 10) > 0.6 ||
+                Math.Abs(thumb.ActualHeight - 10) > 0.6 ||
+                Math.Abs(centerY - captionY) > 1.5 ||
+                captionGap < 5 || captionGap > 9)
+                throw new InvalidOperationException(
+                    $"Setup switch {control.Name} geometry: track={track.ActualWidth:0.0}x{track.ActualHeight:0.0}, " +
+                    $"thumb={thumb.ActualWidth:0.0}x{thumb.ActualHeight:0.0}, " +
+                    $"vertical offset={Math.Abs(centerY-captionY):0.00}, caption gap={captionGap:0.0}.");
+        }
+    }
+
     public async Task RunObservationUiAcceptanceProbeAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
+        await VerifySetupSwitchGeometryAsync(outputDirectory);
         var metrics = new List<object>();
         var constrainedViewportNames = new List<string>();
         var eventGridRealizedRows = 0;
