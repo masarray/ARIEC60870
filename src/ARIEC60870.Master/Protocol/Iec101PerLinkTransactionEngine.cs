@@ -18,6 +18,10 @@ public sealed class Iec101PerLinkTransactionEngine
     private bool _fcb;
     private Iec101PendingExchange? _pending;
 
+    // Exactly one optional retransmission of an unchanged *read* exchange.
+    // No retry on an out-of-context/garbled candidate or mutating FC3.
+    public const int MaxReadRetransmissions = 1;
+
     public long LinkEpoch => _epoch;
     public bool FrameCountBit => _fcb;
     public bool HasPendingExchange => _pending is not null;
@@ -78,9 +82,38 @@ public sealed class Iec101PerLinkTransactionEngine
         return exchange;
     }
 
+    /// <summary>
+    /// Prepare one bounded read retransmission after pure RX silence.
+    /// The very same exchange owns the unchanged physical request/FCB:
+    /// no second exchange can start and no control may be replayed.
+    /// </summary>
+    public bool TryAuthorizeUnchangedReadRetransmission(Iec101PendingExchange exchange)
+    {
+        EnsureActive(exchange);
+        if (!exchange.CanRetryUnchangedReadFrame ||
+            exchange.State != Iec101ExchangeState.AwaitingResponse ||
+            exchange.AcceptedValidation is not null ||
+            exchange.RejectedCandidates != 0 ||
+            exchange.RetryAuthorized ||
+            exchange.ReadRetransmissions >= MaxReadRetransmissions)
+            return false;
+        exchange.RetryAuthorized = true;
+        return true;
+    }
+
     public void MarkTransmitAttempt(Iec101PendingExchange exchange)
     {
         EnsureActive(exchange);
+        if (exchange.State == Iec101ExchangeState.AwaitingResponse && exchange.RetryAuthorized)
+        {
+            exchange.RetryAuthorized = false;
+            exchange.ReadRetransmissions++;
+        }
+        else if (exchange.State != Iec101ExchangeState.Admitted)
+        {
+            throw new InvalidOperationException(
+                "IEC-101 transmit attempt is not new/admitted or a specifically authorized read retransmission.");
+        }
         exchange.State = Iec101ExchangeState.Transmitted;
         exchange.TransmitStartedAt = Stopwatch.GetTimestamp();
     }
@@ -102,6 +135,7 @@ public sealed class Iec101PerLinkTransactionEngine
         var validation = Iec101SecondaryResponseValidator.Validate(candidate,
             exchange.LinkAddress, exchange.OriginalTransmit, matchesEarlierTransmit,
             exchange.PrimaryFunctionCode);
+        if (!validation.IsValid) exchange.RejectedCandidates++;
         if (validation.IsValid && exchange.AcceptedValidation is null)
         {
             exchange.AcceptedValidation = validation;
@@ -204,6 +238,9 @@ public sealed class Iec101PendingExchange : IDisposable
     public bool CanRetryUnchangedReadFrame => Safety == Iec101TransactionSafety.ReadOnly
         && PrimaryFunctionCode is 9 or 10 or 11;
     public Iec101ExchangeState State { get; internal set; }
+    public int ReadRetransmissions { get; internal set; }
+    public int RejectedCandidates { get; internal set; }
+    internal bool RetryAuthorized { get; set; }
     public long TransmitStartedAt { get; internal set; }
     internal Iec101SecondaryResponseValidation? AcceptedValidation { get; set; }
     internal Ft12FrameDecode? AcceptedFrame { get; set; }

@@ -90,6 +90,87 @@ public sealed class Iec101SharedTransactionCoreTests
         Assert.NotEqual(old.ExchangeId, current.ExchangeId);
     }
 
+
+    [Theory]
+    [InlineData(9, false, "100B69007416")]
+    [InlineData(10, true, "100969007216")]
+    [InlineData(11, true, "100969007216")]
+    public void T02SilentReadRetryKeepsOriginalBytesAndFcbAndOnlyOnce(
+        int functionCode, bool usesFcv, string confirmedSecondary)
+    {
+        foreach (var source in new[] { "single", "A", "B" })
+        {
+            var engine = new Iec101PerLinkTransactionEngine();
+            engine.StartConnectionEpoch();
+            using var pending = engine.BeginFixed(functionCode, usesFcv, 105, 2, source);
+            var original = pending.OriginalTransmit.ToArray();
+            var originalFcb = pending.FrameCountBit;
+            engine.MarkTransmitAttempt(pending);
+            engine.MarkAwaitingResponse(pending);
+            Assert.True(engine.TryAuthorizeUnchangedReadRetransmission(pending));
+            Assert.False(engine.TryAuthorizeUnchangedReadRetransmission(pending));
+            Assert.False(engine.FrameCountBit);
+            Assert.Throws<InvalidOperationException>(() =>
+                engine.BeginFixed(11, true, 105, 2, source));
+            engine.MarkTransmitAttempt(pending);
+            Assert.Equal(1, pending.ReadRetransmissions);
+            Assert.Equal(originalFcb, pending.FrameCountBit);
+            Assert.Equal(original, pending.OriginalTransmit);
+            engine.MarkAwaitingResponse(pending);
+            Assert.False(engine.TryAuthorizeUnchangedReadRetransmission(pending));
+            if (functionCode == 9)
+            {
+                var status = engine.ValidateCandidate(pending,
+                    Parser.Decode(Convert.FromHexString(confirmedSecondary)));
+                Assert.True(status.IsValid);
+            }
+            else
+            {
+                var received = engine.ValidateCandidate(pending,
+                    Parser.Decode(Convert.FromHexString(confirmedSecondary)));
+                Assert.True(received.IsValid);
+            }
+            var outcome = engine.Complete(pending);
+            Assert.Equal(usesFcv, outcome.FrameCountAdvanced);
+            Assert.Equal(usesFcv, engine.FrameCountBit);
+            Assert.False(engine.HasPendingExchange);
+        }
+    }
+
+    [Fact]
+    public void T02RejectsMutatingOutOfContextAndOldEpochRetry()
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        using (var control = engine.BeginVariable(
+            new byte[] { 45, 1, 6, 0, 1, 0, 1, 0, 0, 0x81 }, 105, 2, "A"))
+        {
+            engine.MarkTransmitAttempt(control);
+            engine.MarkAwaitingResponse(control);
+            Assert.False(engine.TryAuthorizeUnchangedReadRetransmission(control));
+            Assert.Equal(Iec101ExchangeVerdict.UnknownDelivery, engine.Complete(control).Verdict);
+        }
+        using (var read = engine.BeginFixed(10, true, 105, 2, "A"))
+        {
+            engine.MarkTransmitAttempt(read);
+            engine.MarkAwaitingResponse(read);
+            Assert.Throws<InvalidOperationException>(() => engine.MarkTransmitAttempt(read));
+            var invalid = engine.ValidateCandidate(read,
+                Parser.Decode(Convert.FromHexString("100B69007416")));
+            Assert.False(invalid.IsValid);
+            Assert.Equal(1, read.RejectedCandidates);
+            Assert.False(engine.TryAuthorizeUnchangedReadRetransmission(read));
+            Assert.Equal(Iec101ExchangeVerdict.Unconfirmed, engine.Complete(read).Verdict);
+        }
+        using var old = engine.BeginFixed(11, true, 105, 2, "A");
+        engine.MarkTransmitAttempt(old);
+        engine.MarkAwaitingResponse(old);
+        engine.StartConnectionEpoch();
+        Assert.Throws<InvalidOperationException>(() =>
+            engine.TryAuthorizeUnchangedReadRetransmission(old));
+        Assert.False(engine.FrameCountBit);
+    }
+
     [Fact]
     public void ReadPollingMayPreserveOriginalFrameButMutatingUnknownMustNotReplay()
     {
