@@ -1015,10 +1015,15 @@ public partial class MainWindow
         var rawSignalHex = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineHex);
         var visibleSignalText = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineSignalDigest);
         var signalLines = multiObjectRow.TimelineSignalDigest.Split(Environment.NewLine);
+        var valueLines = signalLines.Where(line =>
+            line.StartsWith("IOA ", StringComparison.Ordinal)).ToArray();
         if (rawSignalHex is null || visibleSignalText is null ||
-            signalLines.Length != 2 ||
-            !signalLines[0].Contains("IOA ", StringComparison.Ordinal) ||
-            !signalLines[1].Contains("IOA ", StringComparison.Ordinal) ||
+            valueLines.Length != 2 ||
+            !valueLines[0].Contains("IOA ", StringComparison.Ordinal) ||
+            !valueLines[1].Contains("IOA ", StringComparison.Ordinal) ||
+            multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
+            (!multiObjectRow.TimelineSignalDigest.Contains("Valid:", StringComparison.Ordinal) ||
+             !multiObjectRow.TimelineSignalDigest.Contains("Genuine:", StringComparison.Ordinal)) ||
             visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
             visibleSignalText.ActualHeight < 24)
@@ -1195,7 +1200,8 @@ public partial class MainWindow
             FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(invalidPointFrame) as ListBoxItem;
         if (invalidContainer is null ||
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineHex) ||
-            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
+            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineReadableAlerts) ||
+            !invalidPointFrame.TimelineReadableAlerts.Contains("Invalid (IV): TRUE", StringComparison.Ordinal) ||
             !invalidPointFrame.TimelineEngineeringIdentity.Contains("CA ", StringComparison.Ordinal) ||
             invalidPointFrame.Source.AsduDetails?.Objects.Any(
                 x => x.QualityDetails?.Invalid == true) != true)
