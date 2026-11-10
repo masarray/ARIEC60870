@@ -52,6 +52,76 @@ public sealed class Iec101SecondaryResponseValidatorTests
         Assert.True(class2.AdvancesFcb);
     }
 
+
+    [Fact]
+    public void A2RemainsRawEvidenceButNeverAcknowledgesIec101()
+    {
+        var frame = Parser.Decode([0xA2]);
+        var result = Iec101SecondaryResponseValidator.Validate(
+            frame, 105, Array.Empty<byte>(), pendingPrimaryFunctionCode: 3);
+
+        Assert.False(result.IsValid);
+        Assert.False(result.AdvancesFcb);
+        Assert.Equal("IEC101-RX-FORBIDDEN-A2", result.Code);
+        Assert.Equal("A2", frame.Hex);
+    }
+
+    [Theory]
+    [InlineData(9, "100069006916", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC0 ACK is not FC11 status.
+    [InlineData(9, "100869007116", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC8 user-data is not status.
+    [InlineData(9, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 no-data is not status.
+    [InlineData(9, "101B69008416", "IEC101-RX-STATUS-BUSY")]         // FC11, DFC=1.
+    [InlineData(9, "100E69007716", "IEC101-RX-LINK-SERVICE-ERROR")]
+    [InlineData(3, "100B69007416", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC11 cannot confirm data.
+    [InlineData(3, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 cannot confirm data.
+    [InlineData(11, "100069006916", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC0 cannot satisfy class 2.
+    [InlineData(10, "100B69007416", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC11 cannot satisfy class 1.
+    public void ASecondaryFunctionMustMatchTheOutstandingPrimaryService(
+        int requestFc, string hex, string expectedCode)
+    {
+        var response = Iec101SecondaryResponseValidator.Validate(
+            Parser.Decode(Convert.FromHexString(hex)), 105, Array.Empty<byte>(),
+            pendingPrimaryFunctionCode: requestFc);
+
+        Assert.False(response.IsValid);
+        Assert.False(response.AdvancesFcb);
+        Assert.Equal(expectedCode, response.Code);
+    }
+
+    [Theory]
+    [InlineData(9, "100B69007416", true)]
+    [InlineData(8, "100B69007416", true)]
+    [InlineData(3, "100069006916", true)]
+    [InlineData(3, "100169006A16", false)] // Genuine fixed FC1 NACK: observed, no FCB.
+    [InlineData(10, "100869007116", true)]
+    [InlineData(10, "100969007216", true)]
+    [InlineData(11, "100869007116", true)]
+    [InlineData(11, "100969007216", true)]
+    public void StandardCompatibleResponsePreservesPositiveAndNegativeSemantics(
+        int requestFc, string hex, bool advancesFcb)
+    {
+        var response = Iec101SecondaryResponseValidator.Validate(
+            Parser.Decode(Convert.FromHexString(hex)), 105, Array.Empty<byte>(),
+            pendingPrimaryFunctionCode: requestFc);
+
+        Assert.True(response.IsValid);
+        Assert.Equal(advancesFcb, response.AdvancesFcb);
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(8)]
+    [InlineData(4)]
+    public void ShortE5CannotCertifyStatusOrNoReplyService(int requestFc)
+    {
+        var response = Iec101SecondaryResponseValidator.Validate(
+            Parser.Decode([0xE5]), 105, Array.Empty<byte>(),
+            pendingPrimaryFunctionCode: requestFc);
+
+        Assert.False(response.IsValid);
+        Assert.False(response.AdvancesFcb);
+    }
+
     [Fact]
     public void PrimaryFromSameAddressButNotMatchingLastTxIsRejected()
     {
@@ -96,7 +166,6 @@ public sealed class Iec101SecondaryResponseValidatorTests
 
     [Theory]
     [InlineData("E5", true)]
-    [InlineData("A2", false)]
     [InlineData("100169006A16", false)] // Secondary NACK function 1.
     [InlineData("101B69008416", false)] // Secondary response with DFC=1 (0x1B).
     public void AckNackAndBusyPreserveFcbSemantics(string hex, bool advances)

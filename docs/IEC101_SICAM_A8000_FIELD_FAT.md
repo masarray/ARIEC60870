@@ -123,3 +123,25 @@ profile on an isolated bench before changing production cabling. A bare E5
 cannot prove FC9 Request Link Status; the Master rejects it with
 `IEC101-RX-UNEXPECTED-E5-STATUS` instead of falsely starting GI. E5 remains
 valid contextually for command ACK and Class 1/2 NO DATA.
+
+## Context-aware unbalanced link response validation (2026-11-10)
+
+Active IEC-101 now validates the pending **primary function code** against each addressed
+secondary reply, following IEC 60870-5-101 Amendment 2, subclause 6.2.1.1 / Table 10:
+
+- FC0/FC1/FC3/FC7 (confirmed services) -> secondary FC0 positive or FC1 NACK;
+  short E5 may confirm success when context permits.
+- FC8/FC9 status request -> secondary FC11 only; DFC=1 is observed busy,
+  **not** verified healthy status. FC0, FC8, FC9, E5 and a link-service error
+  cannot substitute for a positive status confirmation.
+- FC10/FC11 class polling -> secondary FC8 user data, FC9 no data or
+  context-permitted E5 (inferred no-data, without inventing ACD/DFC bits).
+- A2 is preserved raw as an unsupported IEC-101 byte, never promoted to a
+  legitimate IEC-101 NACK/ACK or link health. FC14/FC15 link-service errors
+  remain visible diagnostics, not successful replies.
+
+The same validator serves active single and A/B unbalanced channels. This is
+**not** balanced-mode implementation, NUC certification, serial hardware proof
+or a change to production RTS/CTS, COM-port policy or auto-reset behavior.
+IEC101/103/104 mode-specific interoperability must still be validated against
+real connected equipment and a controlled project-selected profile.
