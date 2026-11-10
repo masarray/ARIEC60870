@@ -188,9 +188,15 @@ public partial class MainWindow
 
     private void UpdateQuickFindCounts()
     {
+        // The count is sourced from the stable displayed viewport. Show how
+        // many live source rows arrived while HOLD pins that viewport, without
+        // changing its ItemsSource or triggering WPF scroll/layout.
         var trace = $"{FrameTraceGrid.Items.Count} / {FrameTraceRows.Count} frames" +
             (_traceQuickScope == "Activity focus" ? " · Focus" :
-                _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope);
+                _traceQuickScope == "All frames" ? "" : " · " + _traceQuickScope) +
+            (IsProtocolTraceViewFrozen() && _protocolTraceRowsDeferredWhileFrozen > 0
+                ? $" · +{_protocolTraceRowsDeferredWhileFrozen:N0} new (HOLD)"
+                : "");
         var values = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
             (_passiveLatestPointCount > 0 ? $" · {_passiveLatestPointCount:N0} RX points" : "") +
             (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);

@@ -369,18 +369,30 @@ public partial class MainWindow
             MappingProfileStatusText.Text = savedMappingStatus;
         }
 
-        // HOLD is a viewport policy, not a loss/drop policy. Verify the real
-        // WPF Trace list accepts a new RX while auto-follow has been disabled.
-        var framesBeforeHold = FrameTraceRows.Count;
+        // HOLD is a stable WPF reading viewport, not a capture pause. The
+        // old test required a constantly mutating ListBox and reproduced the
+        // field flicker at 1,200/1,200 rows. Prove both sides of the contract.
+        var displayedBeforeHold = FrameTraceRows.ToArray();
+        var sourceBeforeHold = _protocolTraceStore.Snapshot();
         EnterLineMonitorHoldForUserSelection();
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 140,
             DateTime.UtcNow.AddMilliseconds(20), "Variable", true, testFrame));
         FlushUiQueues();
-        if (FrameTraceRows.Count <= framesBeforeHold ||
+        var sourceWhileHeld = _protocolTraceStore.Snapshot();
+        if (!FrameTraceRows.SequenceEqual(displayedBeforeHold) ||
+            FrameTraceGrid.Items.Count != displayedBeforeHold.Length ||
+            sourceWhileHeld.Count <= sourceBeforeHold.Count ||
+            sourceWhileHeld[^1].Source.RawStreamOffset != 140 ||
+            _protocolTraceRowsDeferredWhileFrozen < 1 ||
             AutoScrollLatestToggleButton.IsChecked != false)
             throw new InvalidOperationException(
-                "HOLD incorrectly stopped incoming frames from appearing in live Trace.");
+                "HOLD must preserve WPF rows while receiving real source frames.");
         ResumeLiveViews(clearSelection: true, followLive: true);
+        if (FrameTraceRows.LastOrDefault()?.Source.RawStreamOffset != 140 ||
+            _protocolTraceRowsDeferredWhileFrozen != 0 ||
+            AutoScrollLatestToggleButton.IsChecked != true)
+            throw new InvalidOperationException(
+                "AUTO did not reveal the new RX frame after HOLD.");
         // Regression for real field screenshots: a selected Event must still
         // open its exact original frame even AFTER the bounded Trace rolls over.
         // The Event retains the typed evidence, and the Trace pin is read-only.
