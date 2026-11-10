@@ -13,6 +13,65 @@
         FontFamily="{StaticResource AppFont}" Loaded="QuickFindWindow_Loaded">
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
+        <!-- Setup only: keep CheckBox semantics, automation peers, IsChecked bindings,
+             Checked/Unchecked handlers and keyboard Space support unchanged. -->
+        <Style x:Key="SetupSwitchCheckBox" TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid MinHeight="24" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="39"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="SwitchTrack" Width="34" Height="19"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    CornerRadius="10" Background="#E2E8F0"
+                                    BorderBrush="#B9C9DC" BorderThickness="1"
+                                    SnapsToDevicePixels="True">
+                                <Grid Margin="2">
+                                    <Ellipse x:Name="SwitchThumb" Width="13" Height="13"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Fill="White" Stroke="#C0CFDD" StrokeThickness="0.6">
+                                        <Ellipse.Effect>
+                                            <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.16"/>
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                </Grid>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="0,0,0,0"
+                                              VerticalAlignment="Center"
+                                              ContentSource="Content"
+                                              RecognizesAccessKey="True"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{StaticResource AccentDarkBrush}"/>
+                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="SwitchThumb" Property="Stroke" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{StaticResource AccentDarkBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="{StaticResource AccentDarkBrush}"/>
+                                <Setter TargetName="SwitchTrack" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SwitchTrack" Property="Opacity" Value="0.48"/>
+                                <Setter Property="Foreground" Value="{StaticResource Ink500Brush}"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="OptionalTypeBadge" TargetType="ContentControl">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin" Value="0,0,5,0"/>
@@ -2760,7 +2819,7 @@
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
                                     <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
                                     <ComboBox x:Name="PassiveRtuPortComboBox" SelectionChanged="PassiveRelayPort_SelectionChanged" ToolTip="Physical RX input or selected Slave-side Virtual Inline relay endpoint."/>
-                                    <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Content="Also monitor redundant Link B (4 RX ports)"
+                                    <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Also monitor redundant Link B (4 RX ports)"
                                               Margin="0,12,0,6" Checked="PassiveLinkBSelectionChanged" Unchecked="PassiveLinkBSelectionChanged"
                                               ToolTip="Capture both independent IEC-101 full-duplex circuits at the same time. All four COM inputs must be receiver-only."/>
                                     <StackPanel x:Name="PassiveLinkBPortsPanel" Visibility="Collapsed" Margin="0,5,0,0">
@@ -2820,8 +2879,8 @@
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Output lines" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                         <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="SerialRtsCheckBox" Content="RTS" IsChecked="True" Margin="0,5,12,0" ToolTip="RTS forced output only when hardware RTS/CTS flow control is disabled." />
-                                            <CheckBox x:Name="SerialDtrCheckBox" Content="DTR" IsChecked="False" Margin="0,5,0,0" ToolTip="DTR output asserted at COM open. Only enable if the connected device/converter requires it." />
+                                            <CheckBox x:Name="SerialRtsCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="RTS" IsChecked="True" Margin="0,5,12,0" ToolTip="RTS forced output only when hardware RTS/CTS flow control is disabled." />
+                                            <CheckBox x:Name="SerialDtrCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="DTR" IsChecked="False" Margin="0,5,0,0" ToolTip="DTR output asserted at COM open. Only enable if the connected device/converter requires it." />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
@@ -2893,7 +2952,7 @@
                         <StackPanel Grid.Column="2">
                             <StackPanel x:Name="PassiveSetupRightPanel" Visibility="Collapsed">
                                 <TextBlock Text="OPTIONAL FULL SESSION RECORDING" Style="{StaticResource EyebrowText}" Margin="0,0,0,8"/>
-                                <CheckBox x:Name="PassiveFullRecordingCheckBox" Content="Record entire raw session to disk" IsChecked="False" Margin="0,0,0,8"
+                                <CheckBox x:Name="PassiveFullRecordingCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Record entire raw session to disk" IsChecked="False" Margin="0,0,0,8"
                                           ToolTip="Default OFF: Start Monitor only listens and displays live frames. Enable before connecting only when a complete raw journal is required." />
                                 <TextBlock Text="Normally monitor live, select frames in Trace, then save a portable .ariec file." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,9" />
                                 <Grid>
@@ -3088,13 +3147,13 @@
                             </Grid>
 
                             <StackPanel x:Name="Iec103OptionsPanel">
-                                <CheckBox x:Name="ResetRemoteLinkCheckBox" Content="Reset remote link on connect" />
-                                <CheckBox x:Name="ResetFcbCheckBox" Content="Reset FCB on connect" />
-                                <CheckBox x:Name="Class2StartupCheckBox" Content="Request Class 2 after startup" IsChecked="True" />
+                                <CheckBox x:Name="ResetRemoteLinkCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Reset remote link on connect" />
+                                <CheckBox x:Name="ResetFcbCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Reset FCB on connect" />
+                                <CheckBox x:Name="Class2StartupCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Request Class 2 after startup" IsChecked="True" />
                             </StackPanel>
                             <StackPanel x:Name="Iec10xCommandPanel">
-                                <CheckBox x:Name="ClockSyncCheckBox" Content="Send clock sync on connect" />
-                                <CheckBox x:Name="GiCheckBox" Content="General interrogation on connect" IsChecked="True" />
+                                <CheckBox x:Name="ClockSyncCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Send clock sync on connect" />
+                                <CheckBox x:Name="GiCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="General interrogation on connect" IsChecked="True" />
                             </StackPanel>
                             </StackPanel>
                         </StackPanel>
