@@ -43,7 +43,7 @@ These Actions artifacts may require GitHub authentication and obey artifact rete
 
 ## Published asset fingerprints
 
-All SHA256 values below came from the published GitHub Release asset `digest` fields and matched the package build's reported installer attestation subject. The public `SHA256SUMS.txt` was produced from exactly the four-file release staging area before upload.
+All SHA256 values below came from the published GitHub Release asset `digest` fields and matched the package build's reported installer attestation subject. The public `SHA256SUMS.txt` was generated for the ZIP, installer and SBOM before the checksum file itself became the fourth published asset.
 
 | Asset | Bytes | Published SHA256 |
 | --- | ---: | --- |
