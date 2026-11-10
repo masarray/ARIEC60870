@@ -195,6 +195,29 @@ public sealed class Iec101SerialStartupAndTimingTests
     }
 
     [Fact]
+    public async Task T02SingleLinkRecoversFirstSilentStatusWithoutFalseTerminalTimeout()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 60;
+        await using var port = new SecondAttemptStatusResponder();
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+
+        Assert.True(port.StatusWrites >= 2);
+        Assert.True(port.Transmissions.Count >= 2);
+        Assert.Equal(port.Transmissions[0], port.Transmissions[1]);
+        Assert.Equal(9, port.Transmissions[0][1] & 0x0F);
+        Assert.True(result.Counters.RxFrames > 0,
+            "Second unchanged FC9 request must receive an addressed FC11 status.");
+        Assert.Equal(0, result.Counters.Timeouts);
+        Assert.Contains(result.Events, e => e.PollingReason.Contains(
+            "bounded unchanged-FCB read retry #1", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Events, e => e.Summary.Contains(
+            "response timeout", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SerialSilenceStillObeysOriginalDeadlineAt1200Bps()
     {
         await using var port = new PacedReceiveTransport(Array.Empty<byte>(), 10);
@@ -205,6 +228,60 @@ public sealed class Iec101SerialStartupAndTimingTests
 
         Assert.True(elapsed.ElapsedMilliseconds < 1500,
             "No physical start byte means no extended frame-completion deadline.");
+    }
+
+
+    // Independent deterministic peer: first link-status FC9 gets no response,
+    // byte-identical retry gets addressed FC11; later polls get permitted E5.
+    private sealed class SecondAttemptStatusResponder : IByteTransport
+    {
+        private readonly Queue<byte> _rx = new();
+        public List<byte[]> Transmissions { get; } = new();
+        public int StatusWrites { get; private set; }
+        public bool IsOpen { get; private set; }
+
+        public ValueTask OpenAsync(CancellationToken token)
+        {
+            IsOpen = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask CloseAsync(CancellationToken token)
+        {
+            IsOpen = false;
+            _rx.Clear();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken token)
+        {
+            var original = bytes.ToArray();
+            Transmissions.Add(original);
+            if (original.Length > 2 && original[0] == 0x10)
+            {
+                var functionCode = original[1] & 0x0F;
+                if (functionCode == 9)
+                {
+                    if (++StatusWrites > 1)
+                        foreach (var octet in Convert.FromHexString("100B69007416"))
+                            _rx.Enqueue(octet);
+                }
+                else if (functionCode is 10 or 11)
+                    _rx.Enqueue(0xE5);
+            }
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<int> ReadAsync(Memory<byte> destination, CancellationToken token)
+        {
+            var count = 0;
+            while (count < destination.Length && _rx.Count > 0)
+                destination.Span[count++] = _rx.Dequeue();
+            return ValueTask.FromResult(count);
+        }
+
+        public void Dispose() { IsOpen = false; _rx.Clear(); }
+        public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
     }
 
     private sealed class NoRxEvidenceTransport : IByteTransport, ITransportDiagnosticSource, ITransportExchangeObserver

@@ -755,7 +755,17 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 .ConfigureAwait(false);
         }
         else if (response is null)
+        {
+            // The first attempt was deferred while evaluating retry safety;
+            // publish its terminal transport outcome only when retry is forbidden.
+            if (_transport is ITransportExchangeObserver observer)
+            {
+                observer.ObserveExchangeOutcome(exchange.PrimaryFunctionCode, false,
+                    exchange.RejectedCandidates, exchange.RejectedCandidates);
+                DrainTransportDiagnostics("Exchange outcome");
+            }
             RecordUnconfirmedReadTimeout(dataClass, reason, exchange.RejectedCandidates);
+        }
         _transactions.Complete(exchange);
         return response;
     }
@@ -877,7 +887,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
         }
         sw.Stop();
-        if (_transport is ITransportExchangeObserver exchangeObserver)
+        if ((!deferTimeoutHandling || acceptedFrame is not null) &&
+            _transport is ITransportExchangeObserver exchangeObserver)
         {
             exchangeObserver.ObserveExchangeOutcome(exchange.PrimaryFunctionCode,
                 acceptedFrame is not null, decodedRxFrames, rejected);
