@@ -78,8 +78,12 @@ public sealed class SimulatedIec101Transport : IByteTransport
         {
             case 0:
             case 7:
-            case 9:
                 await EnqueueAsync(FixedSecondary(functionCode: 0, acd: HasClass1Pending), cancellationToken).ConfigureAwait(false);
+                break;
+            case 9:
+                // IEC 60870-5-101 FC9 Request Link Status -> secondary FC11,
+                // not FC0 confirmation. Keep the simulated RTU protocol-correct.
+                await EnqueueAsync(FixedSecondary(functionCode: 11, acd: HasClass1Pending), cancellationToken).ConfigureAwait(false);
                 break;
             case 10:
                 if (_class1Queue.Count > 0)

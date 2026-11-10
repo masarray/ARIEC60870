@@ -428,11 +428,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         };
     }
 
-    private async Task DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         if (_active is null)
         {
-            return;
+            return false;
         }
 
         _counters.Class1DrainBursts++;
@@ -449,6 +449,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             if (response.TimedOut || beforeGood == _active.LinkState.LastGoodResponseUtc)
             {
                 break;
+            }
+
+            // A genuine negative station-GI COT arrives in polled Class 1
+            // user data, not as an FC3 link confirmation. Pass that evidence
+            // to the lifecycle so group fallback can occur safely.
+            if (response.Asdu is { TypeId: 100, IsNegativeConfirm: true })
+            {
+                return true;
             }
 
             if (Iec10xGiTermination.IsObserved(response.Asdu))
@@ -486,6 +494,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 stopWhenGiEnds ? "The post-switch or startup application image may be incomplete." : "The outstation may have a large event queue or stuck ACD bit.",
                 "Increase the bounded drain limit for this outstation profile and inspect ACD/NO DATA/ACTTERM behavior.");
         }
+        return false;
     }
 
     private async Task SuperviseStandbyAsync(CancellationToken cancellationToken)
@@ -850,7 +859,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
-        if (IsNegativeConfirmation(response, expectedTypeId: 100))
+        // FC3 link confirmation and GI application confirmation are distinct.
+        // A negative TI100 COT is normally retrieved by Class 1 after FC0 ACK.
+        var stationGiNegative = IsNegativeConfirmation(response, expectedTypeId: 100);
+        if (!stationGiNegative)
+            stationGiNegative = await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+
+        if (stationGiNegative)
         {
             var caText = FormatCommonAddress(effectiveCommonAddress);
             AddApplicationImageEvent(
@@ -864,12 +879,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 $"{lifecycleLabel}; CA={caText}; active={_active.Name}; COT={response.Asdu?.CotDisplay ?? response.Frame?.ShortMeaning ?? "-"}",
                 "The outstation rejected station interrogation, so waiting for a full QOI=20 image can leave mapped points pending.",
                 "Use group interrogation fallback, verify the interoperability list/QOI support, and continue Class 2/background scan for values.");
-            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain after negative station GI", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
             await RunGroupInterrogationFallbackOnActiveAsync($"{lifecycleLabel} negative station GI", effectiveCommonAddress, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
         }
 
         if (_options.BaseSettings.RequestClass2ImmediatelyAfterStartup)

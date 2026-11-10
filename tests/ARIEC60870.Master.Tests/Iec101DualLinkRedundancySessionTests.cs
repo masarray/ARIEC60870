@@ -425,6 +425,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private readonly int _baseIoa;
         private bool _isOpen;
         private bool _groupAccepted;
+        private bool _pendingNegativeStationGi;
         private bool _sentSequence;
         private bool _sentGiEnd;
 
@@ -441,6 +442,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
         {
             _isOpen = true;
             _groupAccepted = false;
+            _pendingNegativeStationGi = false;
             _sentSequence = false;
             _sentGiEnd = false;
             return ValueTask.CompletedTask;
@@ -461,7 +463,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 var qoi = decoded.AsduBytes[^1];
                 if (qoi == 20)
                 {
-                    await EnqueueAsync(UserData(NegativeInterrogationConfirmation(qoi), acd: false), cancellationToken).ConfigureAwait(false);
+                    // FC3 receives link-layer FC0 ACK; negative GI COT is
+                    // queued for the next Class 1 request, never unsolicited.
+                    _pendingNegativeStationGi = true;
+                    await EnqueueAsync(FixedSecondary(functionCode: 0, acd: true), cancellationToken).ConfigureAwait(false);
                     return;
                 }
 
@@ -473,6 +478,13 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
 
                 await EnqueueAsync(UserData(NegativeInterrogationConfirmation(qoi), acd: false), cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (decoded.LinkControl?.FunctionCode == 10 && _pendingNegativeStationGi)
+            {
+                _pendingNegativeStationGi = false;
+                await EnqueueAsync(UserData(NegativeInterrogationConfirmation(20), acd: false), cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -493,7 +505,9 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
-            await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);
+            // Link-status FC9 needs FC11; no-data FC9 is only a Class 1/2 reply.
+            var responseFc = decoded.LinkControl?.FunctionCode == 9 ? 11 : 9;
+            await EnqueueAsync(FixedSecondary(functionCode: responseFc, acd: false), cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
@@ -588,6 +602,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private readonly int _baseIoa;
         private bool _isOpen;
         private bool _learnedGiAccepted;
+        private byte[]? _pendingNegativeGi;
         private bool _sentLearnedSequence;
         private bool _sentLearnedGiEnd;
         private int _class2ValueResponses;
@@ -612,6 +627,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
         {
             _isOpen = true;
             _learnedGiAccepted = false;
+            _pendingNegativeGi = null;
             _sentLearnedSequence = false;
             _sentLearnedGiEnd = false;
             _class2ValueResponses = 0;
@@ -641,9 +657,17 @@ public sealed class Iec101DualLinkRedundancySessionTests
                         return;
                     }
 
-                    await EnqueueAsync(UserData(NegativeInterrogationConfirmation(asdu.CommonAddress, qoi), acd: false), cancellationToken).ConfigureAwait(false);
+                    _pendingNegativeGi = NegativeInterrogationConfirmation(asdu.CommonAddress, qoi);
+                    await EnqueueAsync(FixedSecondary(functionCode: 0, acd: true), cancellationToken).ConfigureAwait(false);
                     return;
                 }
+            }
+
+            if (decoded.LinkControl?.FunctionCode == 10 && _pendingNegativeGi is byte[] pendingNegative)
+            {
+                _pendingNegativeGi = null;
+                await EnqueueAsync(UserData(pendingNegative, acd: false), cancellationToken).ConfigureAwait(false);
+                return;
             }
 
             if (decoded.LinkControl?.FunctionCode == 10 && _learnedGiAccepted)
@@ -671,7 +695,9 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 return;
             }
 
-            await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);
+            // Link-status FC9 needs FC11; no-data FC9 is only a Class 1/2 reply.
+            var responseFc = decoded.LinkControl?.FunctionCode == 9 ? 11 : 9;
+            await EnqueueAsync(FixedSecondary(functionCode: responseFc, acd: false), cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
@@ -823,7 +849,9 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
-            await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);
+            // Link-status FC9 needs FC11; no-data FC9 is only a Class 1/2 reply.
+            var responseFc = decoded.LinkControl?.FunctionCode == 9 ? 11 : 9;
+            await EnqueueAsync(FixedSecondary(functionCode: responseFc, acd: false), cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
