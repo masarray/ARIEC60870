@@ -103,9 +103,9 @@ public sealed class ObservationInterpretivePresentationTests
         // One real signal per display line (not 2 objects joined by |).
         var signals = row.TimelineSignalDigest.Split(Environment.NewLine);
         Assert.Equal(3, signals.Length);
-        Assert.StartsWith("IOA 9 · Value: ON (Double Point) · TI-3", signals[0]);
-        Assert.StartsWith("IOA 10 · Value: OFF (Double Point) · TI-3", signals[1]);
-        Assert.StartsWith("IOA 11 · Value: INDETERMINATE (Double Point) · TI-3", signals[2]);
+        Assert.StartsWith("IOA 9 (IOA3:0 - IOA2:0 - IOA1:9) · Value: ON (Double Point) · TI-3", signals[0]);
+        Assert.StartsWith("IOA 10 (IOA3:0 - IOA2:0 - IOA1:10) · Value: OFF (Double Point) · TI-3", signals[1]);
+        Assert.StartsWith("IOA 11 (IOA3:0 - IOA2:0 - IOA1:11) · Value: INDETERMINATE (Double Point) · TI-3", signals[2]);
         Assert.DoesNotContain(" | ", row.TimelineSignalDigest);
         Assert.False(row.HasTimelineSignalOverflow);
         Assert.True(row.HasTimelineSignalDigest);
@@ -162,9 +162,9 @@ public sealed class ObservationInterpretivePresentationTests
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
             SignalName = "Unverified label", IsMappedSignal = false
         });
-        Assert.Contains("Breaker 110 kV position · IOA 342 · Value: ON (Single Point) · TI-1", mapped.TimelineSignalDigest);
+        Assert.Contains("Breaker 110 kV position · IOA 342 (IOA3:0 - IOA2:1 - IOA1:86) · Value: ON (Single Point) · TI-1", mapped.TimelineSignalDigest);
         Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
-        Assert.Contains("IOA 342 · Value: ON (Single Point) · TI-1", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 (IOA3:0 - IOA2:1 - IOA1:86) · Value: ON (Single Point) · TI-1", unmapped.TimelineSignalDigest);
         Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
     }
 

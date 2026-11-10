@@ -23,11 +23,12 @@ public static class Iec10xSignalTraceFormatter
         var width = asdu.InformationObjectAddressWidth;
         var ioaInRange = width is >= 1 and <= 3 && address >= 0 &&
             address <= (1 << (8 * width)) - 1;
-        var parts = width is < 1 or > 3 ? "IOA1:? - IOA2:? - IOA3:? (width unknown)" :
+        // Display the decimal/unstructured IOA together with its structured
+        // high-to-low components. On the wire IOA1 (least significant) comes
+        // FIRST. In the usual human numeric representation IOA1 is at RIGHT.
+        var parts = width is < 1 or > 3 ? "IOA width unknown" :
             !ioaInRange ? "IOA out of configured range · inspect original HEX" :
-            "IOA1:" + Octet(address, 0) +
-              " - IOA2:" + (width >= 2 ? Octet(address, 1) : "N/A") +
-              " - IOA3:" + (width >= 3 ? Octet(address, 2) : "N/A");
+            StructuredIoa(address, width);
         var implied = asdu.IsSequence && obj.Index > 1
             ? " · SQ=1 implied (no IOA octets repeated)" : "";
         if (ioaInRange && asdu.RawBytes.Count > 0 && width is >= 1 and <= 3 &&
@@ -86,8 +87,11 @@ public static class Iec10xSignalTraceFormatter
                 ? "Not decoded" : TrimKnownTypedPrefix(obj.ShortValue, kind);
         var name = string.IsNullOrWhiteSpace(authoritativeName)
             ? string.Empty : authoritativeName.Trim() + " · ";
+        var byteStructure = validAddress && !mismatch
+            ? " (" + StructuredIoa(address, width) + ")"
+            : string.Empty;
         return name + "IOA " + address.ToString(CultureInfo.InvariantCulture) +
-            " · Value: " + value + " (" + kind + ")" +
+            byteStructure + " · Value: " + value + " (" + kind + ")" +
             " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
             (asdu.IsSequence && obj.Index > 1 ? " · SQ=1 implied IOA" : string.Empty) +
             (mismatch ? " · IOA bytes mismatch" : string.Empty);
@@ -153,6 +157,22 @@ public static class Iec10xSignalTraceFormatter
         100 => "GI Command",
         106 => "Delay Acquisition",
         _ => "Information Object"
+    };
+
+    /// <summary>
+    /// High-to-low STRUCTURED notation of the numeric (unstructured) IOA.
+    /// IOA1 is least-significant, so it is printed last. FT1.2/ASDU wire
+    /// serialization is the reverse order: IOA1, then IOA2, then IOA3.
+    /// For SQ=1 subsequent objects this is a logical address decomposition,
+    /// never a claim that its IOA octets were transmitted.
+    /// </summary>
+    private static string StructuredIoa(int address, int width) => width switch
+    {
+        1 => "IOA1:" + Octet(address, 0),
+        2 => "IOA2:" + Octet(address, 1) + " - IOA1:" + Octet(address, 0),
+        3 => "IOA3:" + Octet(address, 2) + " - IOA2:" + Octet(address, 1) +
+             " - IOA1:" + Octet(address, 0),
+        _ => "IOA width unknown"
     };
 
     private static string Octet(int address, int shift) =>
