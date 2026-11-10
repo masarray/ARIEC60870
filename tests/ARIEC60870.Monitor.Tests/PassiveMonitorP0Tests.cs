@@ -314,15 +314,34 @@ public sealed class PassiveMonitorP0Tests
             var session = new PassiveMonitorSession(Options(folder),
                 new ReplayTap("COM7", Enumerable.Repeat((byte)0xA5, 200).ToArray(), 20),
                 new ReplayTap("COM8", new byte[] { 0x10, 0x49, 0x69, 0x00, 0xB2, 0x16 }, 6));
-            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(140));
-            var result = await session.RunAsync(stop.Token);
+            // Await an actual, fully written source record rather than assuming
+            // a 140 ms CI wall-clock window has completed background capture.
+            // Otherwise ReadByte() can return -1 past EOF; the test then writes
+            // a zero-filled fake record and falsely expects a CRC failure.
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var running = session.RunAsync(stop.Token);
+            for (var attempt = 0; attempt < 350 && !running.IsCompleted; attempt++)
+            {
+                var progress = session.GetProgress();
+                if (progress.ScadaBytes == 200 && progress.RtuBytes == 6) break;
+                await Task.Delay(10);
+            }
+            stop.Cancel();
+            var result = await running;
+            Assert.Equal(200, result.Manifest.Streams[0].Bytes);
+            Assert.Equal(6, result.Manifest.Streams[1].Bytes);
+            var baseline = PassiveJournalVerifier.Verify(result.Directory);
+            Assert.True(baseline.Complete, string.Join("; ", baseline.Problems));
             var file = Path.Combine(result.Directory, "stream-00.bin");
             using (var f = new FileStream(file, FileMode.Open, FileAccess.ReadWrite))
             {
+                Assert.True(f.Length > PassiveJournalFormat.HeaderSize,
+                    "Fixture must have a real data byte to corrupt.");
                 f.Position = PassiveJournalFormat.HeaderSize;
-                var old = f.ReadByte();
-                f.Position--;
-                f.WriteByte((byte)(old ^ 0xFF));
+                var original = f.ReadByte();
+                Assert.InRange(original, 0, 255);
+                f.Position = PassiveJournalFormat.HeaderSize;
+                f.WriteByte((byte)(original ^ 0xFF));
             }
             var damaged = PassiveJournalVerifier.Verify(result.Directory);
             Assert.False(damaged.Complete);
