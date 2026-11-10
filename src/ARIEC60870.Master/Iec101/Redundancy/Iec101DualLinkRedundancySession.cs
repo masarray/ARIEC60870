@@ -16,7 +16,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101DualLinkChannel _linkA;
     private readonly Iec101DualLinkChannel _linkB;
     private readonly Iec101ApplicationImageTracker _imageTracker = new();
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
+    private readonly ConcurrentQueue<QueuedControl> _controlCommands = new();
+    // An operator control belongs to the exact verified active owner present
+    // when queued. Never silently replay it after a link switch/recovery.
+    private readonly record struct QueuedControl(
+        Iec60870ControlCommandRequest Request, string? ActiveName, bool VerifiedOnQueue, DateTime QueuedUtc);
+    private static readonly TimeSpan MaxQueuedMutatingCommandAge = TimeSpan.FromSeconds(30);
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
     private readonly ConcurrentQueue<string> _manualFailoverRequests = new();
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
@@ -60,7 +67,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         if (request is not null)
         {
-            _controlCommands.Enqueue(request);
+            var active = _active;
+            _controlCommands.Enqueue(new QueuedControl(request, active?.Name,
+                active?.IsHealthy == true, DateTime.UtcNow));
         }
     }
 
@@ -267,6 +276,25 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        if (!_active.IsHealthy)
+        {
+            // A COM handle or yesterday's good status is not operational link
+            // proof. First rescue to a freshly verified standby, otherwise
+            // request addressed FC9 status only; never send FC3 or class polls.
+            var failingName = _active.Name;
+            if (ActiveNeedsRescue())
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            if (_active is null || _active.Name != failingName)
+                return; // Ownership changed during emergency supervision.
+            if (!_active.IsHealthy && !_active.IsRemoteBusy)
+                await _active.RequestLinkStatusAsync("Active link unverified — FC9 status only",
+                    cancellationToken).ConfigureAwait(false);
+            if (!_active.IsHealthy)
+                await Task.Delay(Math.Clamp(_options.BaseSettings.ResponseTimeoutMs, 100, 1000),
+                    cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (await ProcessPendingControlCommandAsync(cancellationToken).ConfigureAwait(false))
         {
             return;
@@ -376,14 +404,32 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> ProcessPendingControlCommandAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
+        if (!_controlCommands.TryDequeue(out var queued))
         {
             return false;
         }
 
-        if (_active is null)
+        var request = queued.Request;
+        if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy)
         {
-            RaiseFinding(FindingSeverity.Error, "IEC101-DUAL-COMMAND-NO-ACTIVE", "IEC-101 command blocked because no active link exists", request.Summary, "Operator command cannot be delivered safely.", "Restore at least one healthy active link before issuing controls.");
+            RaiseFinding(FindingSeverity.Error, "IEC101-DUAL-COMMAND-LINK-UNVERIFIED",
+                "IEC-101 command blocked: no verified ready active link",
+                request.Summary, "Command was not sent over an unverified or busy serial link.",
+                "Restore an addressed secondary status before issuing a new command.");
+            return true;
+        }
+
+        if (IsMutatingCommand(request) &&
+            (!queued.VerifiedOnQueue ||
+             !string.Equals(queued.ActiveName, _active.Name, StringComparison.Ordinal) ||
+             DateTime.UtcNow - queued.QueuedUtc > MaxQueuedMutatingCommandAge))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-STALE-OWNER",
+                "IEC-101 mutating command rejected: stale or unverified queue ownership",
+                $"{request.Summary}; queued owner={queued.ActiveName ?? "-"}, verified at queue={queued.VerifiedOnQueue}; " +
+                $"current owner={_active.Name}; queue age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "An old control or clock adjustment must never be silently delivered after failover or extended recovery.",
+                "Reissue the command deliberately against the now-verified active link.");
             return true;
         }
 
@@ -729,8 +775,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         try
         {
             SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", Iec101RedundancyEventKind.FailoverStarted.ToString());
-            _imageTracker.MarkStale();
-
+            if (!to.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()) &&
+                !to.IsRemoteBusy)
+            {
+                // One bounded status probe can refresh an old standby proof.
+                // Do not reset the station or issue class polls while standby.
+                await to.RequestLinkStatusAsync("Pre-promotion fresh standby FC9 proof", cancellationToken)
+                    .ConfigureAwait(false);
+            }
             if (!to.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
             {
                 _failoverJournal.Add(new Iec101FailoverJournalEntry
@@ -747,6 +799,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 return;
             }
 
+            _imageTracker.MarkStale();
             to.PromoteToActive();
             from.DemoteToStandby();
             if (fromWasFailed)

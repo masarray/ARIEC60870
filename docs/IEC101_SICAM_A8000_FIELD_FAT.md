@@ -169,3 +169,27 @@ without establishing verified RTU identity or bypassing FC9 status proof.
 An addressed checksum-valid secondary frame is required for the initial
 link-ready indication, independently for dual-link A/B; tests cover the
 unaddressed-reset case and prevent GI on an unverified active link.
+
+## P0 dual-link freshness and command ownership (2026-11-10)
+
+The dual-link scheduler must verify active link readiness **before** serving
+control-command queues, GI retries or background Class polling. A link with
+COM open but no recent validated secondary reply may send addressed FC9 status
+probes only. Standby promotion requires a fresh, failure-free status as well
+as failure-threshold eligibility; one bounded pre-promotion FC9 probe may
+refresh stale evidence. Historical good status alone cannot authorize an
+automatic or manual switchover.
+
+An IEC-101 physical control, setpoint or clock adjustment is **bound to the
+verified active owner present at queue time**. If it was queued while link
+verification was missing, the active owner changes, or it waits more than
+30 seconds, reject it with `IEC101-DUAL-COMMAND-STALE-OWNER` instead of
+silently sending later to another link. Read and GI are non-mutating and
+remain subject to verified-ready link gating. The operator must explicitly
+reissue a rejected mutating command. This guards against delayed operations
+after failover without changing station reset, RTS/CTS or SCADA controls.
+
+Field FAT: take down the active port while a command is queued, let the
+standby become healthy, and verify there is no unintended control transmission;
+then issue a fresh command intentionally. Reproduce silent standby after one
+old good FC11 and ensure it is not promoted.

@@ -93,6 +93,60 @@ public sealed class Iec101RemoteBusyRecoveryTests
     }
 
     [Fact]
+    public async Task PreStartupControlCannotExecuteOnLaterFailoverOwnerWithoutFreshAuthorization()
+    {
+        var settings = Settings();
+        await using var unverified = new RemoteFlowTransport(busyOnStartup: false, unaddressedStatusOnly: true);
+        await using var standby = new RemoteFlowTransport(busyOnStartup: false);
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "A", PortName = "FAKE-COM-A", LinkAddress = 105 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "B", PortName = "FAKE-COM-B", LinkAddress = 105 },
+            PreferredActiveLink = "A",
+            ActiveFailureThreshold = 1,
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled,
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(250)
+        };
+        var session = new Iec101DualLinkRedundancySession(options, unverified, standby);
+        session.QueueControlCommand(new Iec60870ControlCommandRequest
+        {
+            Kind = Iec60870ControlCommandKind.SingleCommand, InformationObjectAddress = 7, Value = 1
+        });
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1000), CancellationToken.None);
+
+        Assert.True(unverified.StatusProbes > 0);
+        Assert.Equal(0, unverified.DataRequests);
+        Assert.Equal(0, standby.ControlRequests);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-DUAL-COMMAND-STALE-OWNER");
+    }
+
+    [Fact]
+    public async Task SilentStandbyCannotBePromotedFromOldAddressedStatusProof()
+    {
+        var settings = Settings();
+        await using var unverified = new RemoteFlowTransport(busyOnStartup: false, unaddressedStatusOnly: true);
+        await using var standby = new RemoteFlowTransport(busyOnStartup: false, stopRespondingToStatusAfter: 1);
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "A", PortName = "FAKE-COM-A", LinkAddress = 105 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "B", PortName = "FAKE-COM-B", LinkAddress = 105 },
+            PreferredActiveLink = "A",
+            ActiveFailureThreshold = 1,
+            StandbyFailureThreshold = 2,
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        var session = new Iec101DualLinkRedundancySession(options, unverified, standby);
+        await session.RunForAsync(TimeSpan.FromMilliseconds(850), CancellationToken.None);
+
+        Assert.True(standby.StatusProbes >= 2);
+        Assert.Equal(0, unverified.DataRequests);
+        Assert.Equal(0, standby.DataRequests);
+        Assert.DoesNotContain(session.FailoverJournal, x => x.Completed);
+    }
+
+    [Fact]
     public async Task DualLinkBusyActiveUsesOnlyStatusProbesAndKeepsHealthyStandby()
     {
         var settings = Settings();
@@ -124,21 +178,25 @@ public sealed class Iec101RemoteBusyRecoveryTests
         private readonly bool _busyOnStartup;
         private readonly bool _busyAfterFirstClass2;
         private readonly bool _unaddressedStatusOnly;
+        private readonly int _stopRespondingToStatusAfter;
         private readonly Queue<byte> _rx = new();
         private readonly Ft12Parser _parser = Ft12Parser.ForIec101(2);
         private bool _remoteBusy;
         private int _busyStatusReplies;
 
-        public RemoteFlowTransport(bool busyOnStartup, bool busyAfterFirstClass2 = false, bool unaddressedStatusOnly = false)
+        public RemoteFlowTransport(bool busyOnStartup, bool busyAfterFirstClass2 = false,
+            bool unaddressedStatusOnly = false, int stopRespondingToStatusAfter = int.MaxValue)
         {
             _busyOnStartup = busyOnStartup;
             _busyAfterFirstClass2 = busyAfterFirstClass2;
             _unaddressedStatusOnly = unaddressedStatusOnly;
+            _stopRespondingToStatusAfter = stopRespondingToStatusAfter;
             _remoteBusy = busyOnStartup;
         }
 
         public bool IsOpen { get; private set; }
         public int StatusProbes { get; private set; }
+        public int ControlRequests { get; private set; }
         public int Class2Requests { get; private set; }
         public int DataRequests { get; private set; }
         public int DataSentWhileBusy { get; private set; }
@@ -165,6 +223,8 @@ public sealed class Iec101RemoteBusyRecoveryTests
             if (fc == 9)
             {
                 StatusProbes++;
+                if (StatusProbes > _stopRespondingToStatusAfter)
+                    return ValueTask.CompletedTask; // Silent standby after one genuine FC11.
                 if (_unaddressedStatusOnly)
                 {
                     Enqueue(new byte[] { 0xE5 });
@@ -187,6 +247,7 @@ public sealed class Iec101RemoteBusyRecoveryTests
             }
             else if (fc is 10 or 3)
             {
+                if (fc == 3) ControlRequests++;
                 DataRequests++;
                 if (_remoteBusy) DataSentWhileBusy++;
                 Enqueue(fc == 3 ? new byte[] { 0xE5 } : Ft12FrameBuilder.Fixed(0x09, 105, 2));
