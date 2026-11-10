@@ -276,6 +276,33 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "SICAM 2-byte Link Address field SOE did not produce all 19 typed CP56 events in the WPF Event Log.");
 
+        // Verify the actual decoded SICAM CP56 frame renders its remote clock,
+        // validity and GEN flags inside the Engineer Mode Frame Interpreter,
+        // rather than only in the Event Log / Full Properties.
+        MainTabControl.SelectedIndex = 1;
+        TraceQuickScopeCombo.SelectedIndex = 1;
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        var timedFrameRow = FrameTraceRows.LastOrDefault(row =>
+            row.Source.AsduDetails is { TypeId: 31, ObjectCount: 19 } &&
+            row.Source.AsduDetails.Objects.Any(obj => obj.Cp56TimeDetails is not null));
+        if (timedFrameRow is null ||
+            !timedFrameRow.TimelineSignalDigest.Contains("RTU ", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Valid: TRUE", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Genuine: TRUE", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Source-typed CP56 device time, validity or genuine flag absent from inline Frame Interpreter.");
+        FrameTraceGrid.SelectedItem = timedFrameRow;
+        FrameTraceGrid.ScrollIntoView(timedFrameRow);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(timedFrameRow)
+                is not ListBoxItem timedVisual ||
+            !HasVisibleRawLine(timedVisual, timedFrameRow.TimelineSignalDigest))
+            throw new InvalidOperationException(
+                "Actual WPF Frame Interpreter did not display typed CP56 time after frame selection.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-device-time-valid-genuine.png");
+
         // P0-B actual-WPF acceptance: visual frame preview can be retained
         // without producing SOE. The complete writer-owned per-object facts
         // alone add the 19 Event rows, with exact original stream/offset.
@@ -1015,10 +1042,15 @@ public partial class MainWindow
         var rawSignalHex = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineHex);
         var visibleSignalText = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineSignalDigest);
         var signalLines = multiObjectRow.TimelineSignalDigest.Split(Environment.NewLine);
+        var valueLines = signalLines.Where(line =>
+            line.StartsWith("IOA ", StringComparison.Ordinal)).ToArray();
         if (rawSignalHex is null || visibleSignalText is null ||
-            signalLines.Length != 2 ||
-            !signalLines[0].Contains("IOA ", StringComparison.Ordinal) ||
-            !signalLines[1].Contains("IOA ", StringComparison.Ordinal) ||
+            valueLines.Length != 2 ||
+            !valueLines[0].Contains("IOA ", StringComparison.Ordinal) ||
+            !valueLines[1].Contains("IOA ", StringComparison.Ordinal) ||
+            multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
+            (!multiObjectRow.TimelineSignalDigest.Contains("Valid:", StringComparison.Ordinal) ||
+             !multiObjectRow.TimelineSignalDigest.Contains("Genuine:", StringComparison.Ordinal)) ||
             visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
             visibleSignalText.ActualHeight < 24)
@@ -1195,7 +1227,8 @@ public partial class MainWindow
             FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(invalidPointFrame) as ListBoxItem;
         if (invalidContainer is null ||
             !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineHex) ||
-            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineAlerts) ||
+            !HasVisibleRawLine(invalidContainer, invalidPointFrame.TimelineReadableAlerts) ||
+            !invalidPointFrame.TimelineReadableAlerts.Contains("Invalid (IV): TRUE", StringComparison.Ordinal) ||
             !invalidPointFrame.TimelineEngineeringIdentity.Contains("CA ", StringComparison.Ordinal) ||
             invalidPointFrame.Source.AsduDetails?.Objects.Any(
                 x => x.QualityDetails?.Invalid == true) != true)

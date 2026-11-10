@@ -247,6 +247,10 @@ public sealed partial class EvidenceRow
     private string? _timelineAlerts;
     public string TimelineAlerts => _timelineAlerts ??= EngineerFramePresentation.Alerts(Source);
     public bool HasTimelineAlerts => TimelineAlerts.Length > 0;
+    private string? _timelineReadableAlerts;
+    public string TimelineReadableAlerts =>
+        _timelineReadableAlerts ??= EngineerFramePresentation.ReadableAlerts(Source);
+    public bool HasTimelineReadableAlerts => TimelineReadableAlerts.Length > 0;
 
     // The left observation row has two independent reading lanes:
     // original bytes on the left, typed engineering interpretation on the right.
@@ -288,21 +292,15 @@ public sealed partial class EvidenceRow
         if (asdu.TypeId == 100 && asdu.CommandDetails?.QualifierValue is int qualifier)
             return "GI request · QOI " + qualifier.ToString(CultureInfo.InvariantCulture);
 
-        // Vertical IOA / Value lines are much faster to scan than a long
-        // horizontal sentence joined with "|" during burst traffic.
-        // Only source-typed, real decoded values are displayed.
+        // Source-backed, per-IOA decode. Keep the bounded three-object preview;
+        // original octets and every object remain available in Full Properties.
         var visible = asdu.Objects.Take(InlineSignalPreviewLimit).Select(obj =>
         {
             var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
-            var label = Iec10xSignalTraceFormatter.Format(asdu, obj, name) +
-                " · TI-" + asdu.TypeId.ToString(CultureInfo.InvariantCulture);
-            if (string.IsNullOrWhiteSpace(obj.TimestampText)) return label;
-            var trust = obj.Cp56TimeDetails is { } cp56
-                ? " · " + (cp56.IsValid ? "Time valid" : "Time invalid") +
-                  (cp56.SubstitutedFlag ? " · Substituted" : " · Genuine")
-                : string.Empty;
-            return label + " · RTU " + obj.TimestampText + trust;
+            var value = Iec10xSignalTraceFormatter.ScanValue(asdu, obj, name);
+            var time = Iec10xSignalTraceFormatter.ScanDeviceTime(obj);
+            return time.Length == 0 ? value : value + Environment.NewLine + "  " + time;
         });
         return string.Join(Environment.NewLine, visible);
     }
