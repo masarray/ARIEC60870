@@ -36,6 +36,10 @@ public partial class MainWindow
         return false;
     }
 
+    private static bool IsTraceMonospace(TextBlock text) =>
+        text.FontFamily.Source.Contains("Cascadia Mono", StringComparison.Ordinal) &&
+        text.FontFamily.Source.Contains("Consolas", StringComparison.Ordinal);
+
     private static TextBlock? FindVisibleTraceText(DependencyObject node, string expected)
     {
         if (node is TextBlock text && text.Text == expected &&
@@ -451,6 +455,9 @@ public partial class MainWindow
         var timeTextBlock = FindVisibleTraceText(unselectedContainer, unselected.Time);
         if (rawTextBlock is null || meaningTextBlock is null || timeTextBlock is null)
             throw new InvalidOperationException("Raw-first two-lane frame observation is not rendered.");
+        if (!IsTraceMonospace(rawTextBlock) || !IsTraceMonospace(meaningTextBlock) ||
+            !IsTraceMonospace(timeTextBlock))
+            throw new InvalidOperationException("Raw HEX, frame heading and observed time must share a monospace font.");
         var rawTop = rawTextBlock.TranslatePoint(new Point(), unselectedContainer);
         var rawRight = rawTextBlock.TranslatePoint(
             new Point(rawTextBlock.ActualWidth, 0), unselectedContainer).X;
@@ -1041,6 +1048,9 @@ public partial class MainWindow
             throw new InvalidOperationException("Selected multi-object frame was not realized.");
         var rawSignalHex = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineHex);
         var visibleSignalText = FindVisibleTraceText(multiVisual, multiObjectRow.TimelineSignalDigest);
+        if (rawSignalHex is null || visibleSignalText is null ||
+            !IsTraceMonospace(rawSignalHex) || !IsTraceMonospace(visibleSignalText))
+            throw new InvalidOperationException("Original HEX and per-IOA Frame Interpreter must both render in monospace.");
         var signalLines = multiObjectRow.TimelineSignalDigest.Split(Environment.NewLine);
         var valueLines = signalLines.Where(line =>
             line.StartsWith("IOA ", StringComparison.Ordinal)).ToArray();
@@ -1076,6 +1086,9 @@ public partial class MainWindow
             DecodedPointGrid.IsVisible)
             throw new InvalidOperationException(
                 "Right dock must display only Full Properties, with all decoded source IOAs.");
+        if (!FramePropertiesGrid.FontFamily.Source.Contains("Cascadia Mono", StringComparison.Ordinal) ||
+            !TraceInspectorRawText.FontFamily.Source.Contains("Cascadia Mono", StringComparison.Ordinal))
+            throw new InvalidOperationException("Frame Details decoded properties and original HEX must use monospace.");
         interpretedPointRows = SelectedDecodedPoints.Count;
         var vsqRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "Value structure (VSQ)");
         var ioaRow = SelectedFrameProperties.FirstOrDefault(x => x.Field == "IOA");
