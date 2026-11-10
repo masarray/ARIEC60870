@@ -88,7 +88,7 @@ public partial class MainWindow
     private string BuildTextEvidenceRetentionHeader(string exportName)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# ARIEC60870 export integrity marker");
+        builder.AppendLine("# ArSee export integrity marker");
         builder.AppendLine("# Export: " + exportName);
         foreach (var line in BuildEvidenceRetentionPolicyLines())
         {
@@ -473,7 +473,7 @@ public partial class MainWindow
             Sequence = 0,
             Time = "-",
             Direction = "STATE",
-            ProtocolName = "ARIEC60870",
+            ProtocolName = "ArSee",
             ProtocolMode = "101",
             State = "PreviewError",
             Category = "Report",
@@ -500,7 +500,7 @@ public partial class MainWindow
             ProtocolTraceTitle = "Report preview failed",
             ProtocolTraceMeaning = message,
             ProtocolTraceRaw = "RAW -",
-            ProtocolTraceMeta = "#0  -  ARIEC60870"
+            ProtocolTraceMeta = "#0  -  ArSee"
         });
 
         return BuildEvidencePdfReportModel("ARIEC-REPORT-PREVIEW", DateTime.Now, new[] { row }, "Preview");
@@ -515,7 +515,7 @@ public partial class MainWindow
                 Sequence = 0,
                 Time = "-",
                 Direction = "STATE",
-                ProtocolName = "ARIEC60870",
+                ProtocolName = "ArSee",
                 ProtocolMode = "101",
                 State = "Preview",
                 Category = "Report",
@@ -542,7 +542,7 @@ public partial class MainWindow
                 ProtocolTraceTitle = "Report preview placeholder",
                 ProtocolTraceMeaning = "No evidence rows are available yet.",
                 ProtocolTraceRaw = "RAW -",
-                ProtocolTraceMeta = "#0  -  ARIEC60870"
+                ProtocolTraceMeta = "#0  -  ArSee"
             })
         };
     }
@@ -553,7 +553,7 @@ public partial class MainWindow
         var created = DateTime.Now;
         if (rows.Count == 0)
         {
-            return "ARIEC60870 Evidence Analyzer" + Environment.NewLine +
+            return "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester" + Environment.NewLine +
                    "Report Workspace" + Environment.NewLine + Environment.NewLine +
                    "No evidence rows are available yet." + Environment.NewLine +
                    "Run a session, open a capture, or select evidence rows first." + Environment.NewLine + Environment.NewLine +
@@ -577,7 +577,7 @@ public partial class MainWindow
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("ARIEC60870 Evidence Analyzer");
+        builder.AppendLine("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester");
         builder.AppendLine("IEC 60870 Evidence Report");
         builder.AppendLine("Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.");
         builder.AppendLine();
@@ -657,7 +657,7 @@ public partial class MainWindow
     private FlowDocument BuildEmptyReportPreviewDocument(DateTime createdLocal)
     {
         var document = CreatePreviewDocument();
-        document.Blocks.Add(PreviewParagraph("ARIEC60870 Evidence Analyzer", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
+        document.Blocks.Add(PreviewParagraph("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
         document.Blocks.Add(PreviewParagraph("Report Workspace", 25, FontWeights.SemiBold, InkBrush, 8));
         document.Blocks.Add(PreviewParagraph("No evidence rows are available yet. Run a session, open a capture, or select evidence rows first.", 12.5, FontWeights.Normal, MutedBrush, 16));
         AddPreviewKeyValues(document, "Generated", new[]
@@ -677,7 +677,7 @@ public partial class MainWindow
         var framesSha256 = ComputeSha256(BuildCaptureFramesJsonl(orderedRows));
         var document = CreatePreviewDocument();
 
-        document.Blocks.Add(PreviewParagraph("ARIEC60870 EVIDENCE ANALYZER", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
+        document.Blocks.Add(PreviewParagraph("ARSEE PROTOCOL TESTER", 10, FontWeights.Bold, AccentBrush, 3, characterSpacing: true));
         document.Blocks.Add(PreviewParagraph("IEC 60870 Evidence Report", 26, FontWeights.SemiBold, InkBrush, 8));
         document.Blocks.Add(PreviewParagraph("Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.", 12.5, FontWeights.Normal, MutedBrush, 18));
         document.Blocks.Add(PreviewParagraph("Verdict: " + verdict.Status, 16, FontWeights.SemiBold, verdict.CssClass == "pass" ? GoodBrush : verdict.CssClass == "fail" ? BadBrush : WarnBrush, 14));
@@ -880,7 +880,7 @@ public partial class MainWindow
         builder.AppendLine("<title>ARIEC Report Workspace</title>");
         builder.AppendLine(BuildReportCss());
         builder.AppendLine("</head><body><main class=\"page\">");
-        builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ARIEC60870 Evidence Analyzer</div><h1>Report Workspace</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
+        builder.AppendLine("<section class=\"hero\"><div><div class=\"eyebrow\">ArSee · Open Source IEC 60870-104/103/101 Protocol Tester</div><h1>Report Workspace</h1><p>No evidence rows are available yet. Run an IEC session, open a .ariec capture, or select evidence rows first.</p></div><div class=\"verdict attention\"><span>Status</span><strong>EMPTY</strong></div></section>");
         builder.AppendLine("<section class=\"card\"><h2>How to use</h2><ul><li>Run or open capture evidence.</li><li>Review Values, Events, Trace, or the advanced Evidence Ledger only when needed.</li><li>Return here and click Refresh.</li><li>Click Export PDF to create the professional evidence report.</li></ul></section>");
         builder.AppendLine("<section class=\"card\"><h2>Generated</h2><p>" + EscapeHtml(createdLocal.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)) + "</p></section>");
         builder.AppendLine("</main></body></html>");
@@ -1013,7 +1013,7 @@ public partial class MainWindow
         html.AppendLine("<main class=\"page\">");
         html.AppendLine("<section class=\"hero\">");
         html.AppendLine("<div>");
-        html.AppendLine("<div class=\"eyebrow\">ARIEC60870 Evidence Analyzer</div>");
+        html.AppendLine("<div class=\"eyebrow\">ArSee · Open Source IEC 60870-104/103/101 Protocol Tester</div>");
         html.AppendLine("<h1>IEC 60870 Evidence Report</h1>");
         html.AppendLine("<p>Professional protocol evidence summary for commissioning, FAT/SAT review, troubleshooting, and handover records.</p>");
         html.AppendLine("</div>");

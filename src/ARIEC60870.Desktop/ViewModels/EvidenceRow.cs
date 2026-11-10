@@ -241,6 +241,12 @@ public sealed partial class EvidenceRow
     private string? _timelineTitle;
     private string? _timelineContext;
     public string TimelineTitle => _timelineTitle ??= BuildTimelineTitle();
+    // Original Link/CA provenance is promoted to the first interpretation line,
+    // not silently duplicated as a detached footnote below the signal list.
+    // Missing/unverified ASDU headers must never fabricate a CA.
+    public bool HasInlineHeadlineIdentity =>
+        ProtocolMode == "101" &&
+        Source.AsduDetails is { IsHeaderValid: true, Issues.Count: 0 };
     public string TimelineContext => _timelineContext ??= BuildTimelineContext();
     // Lazy, strictly typed protocol flags for visible Frame Trace rows.
     // Inapplicable, undecoded or absent bits never become false/Good by default.
@@ -410,7 +416,19 @@ public sealed partial class EvidenceRow
         if (Source.AsduDetails is { IsHeaderValid: false })
             return "Malformed ASDU header — inspect original HEX";
         if (Source.AsduDetails is { } asdu)
-            return Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
+        {
+            var title = Iec101TraceNarrator.ApplicationTitle(asdu, Source.Direction);
+            if (!HasInlineHeadlineIdentity) return title;
+            // Only display casing changes here; the typed narrator remains
+            // authoritative for COT/type classification throughout the app.
+            title = title.Replace("GI data", "GI Data", StringComparison.Ordinal)
+                .Replace("Single-point", "Single-Point", StringComparison.Ordinal)
+                .Replace("Double-point", "Double-Point", StringComparison.Ordinal);
+            var sourceLink = Source.LinkAddress ?? frame?.LinkAddress;
+            if (sourceLink.HasValue)
+                title += " · Link " + sourceLink.Value.ToString(CultureInfo.InvariantCulture);
+            return title + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture);
+        }
         var link = frame?.LinkControl;
         if (link is null) return "Undecoded IEC-101 frame — inspect original bytes";
 

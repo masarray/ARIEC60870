@@ -17,21 +17,21 @@
     <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
-    <meta property="og:site_name" content="ARIEC60870" />
+    <meta property="og:site_name" content="ArSee" />
     <meta property="og:title" content="IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence" />
     <meta property="og:description" content="A practical IEC 60870 learning center for engineers: protocol family map, frame anatomy, startup flow, polling, commands, relay events, IEC-104 sessions, troubleshooting, and report evidence." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/wiki.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence","description":"Practical IEC 60870 engineering wiki for learning IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 from field evidence.","inLanguage":"en","url":"https://masarray.github.io/ARIEC60870/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ARIEC60870 Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ARIEC60870","item":"https://masarray.github.io/ARIEC60870/"},{"@type":"ListItem","position":2,"name":"Engineering Wiki","item":"https://masarray.github.io/ARIEC60870/wiki.html"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence","description":"Practical IEC 60870 engineering wiki for learning IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 from field evidence.","inLanguage":"en","url":"https://masarray.github.io/ARIEC60870/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ArSee Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ArSee","item":"https://masarray.github.io/ARIEC60870/"},{"@type":"ListItem","position":2,"name":"Engineering Wiki","item":"https://masarray.github.io/ARIEC60870/wiki.html"}]}</script>
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 protocol tester</small></span></a>
+      <a class="brand" href="./" aria-label="ArSee home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ArSee</strong><small>IEC 60870 protocol tester</small></span></a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a>
         <a href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Demo</span></a>
@@ -64,7 +64,7 @@
         <div class="section-heading reveal">
           <p class="eyebrow">Source and legal scope</p>
           <h2>This page is a field guide, not a replacement for the IEC standards.</h2>
-          <p>IEC standards are licensed publications. This wiki uses public descriptions, the ARIEC60870 implementation model, and practical engineering explanations. It intentionally does not reproduce protected normative tables. For formal conformance work, buy and use the official IEC publications.</p>
+          <p>IEC standards are licensed publications. This wiki uses public descriptions, the ArSee implementation model, and practical engineering explanations. It intentionally does not reproduce protected normative tables. For formal conformance work, buy and use the official IEC publications.</p>
         </div>
         <div class="source-link-row">
           <a class="source-link interactive-surface" href="https://webstore.iec.ch/" rel="noopener"><strong>IEC Webstore</strong><span>Official standards source</span></a>
@@ -211,7 +211,7 @@
         <div class="section-heading reveal">
           <p class="eyebrow">Normal sequences</p>
           <h2>Healthy communication has a recognizable rhythm.</h2>
-          <p>When the rhythm breaks, ARIEC60870 should show the missing step and keep the raw frame proof beside the explanation.</p>
+          <p>When the rhythm breaks, ArSee should show the missing step and keep the raw frame proof beside the explanation.</p>
         </div>
         <div class="wiki-sequence-grid">
           <article class="wiki-sequence-card reveal interactive-surface">
@@ -335,9 +335,9 @@
 
       <section class="section split" id="tooling">
         <div>
-          <p class="eyebrow">How ARIEC60870 helps</p>
+          <p class="eyebrow">How ArSee helps</p>
           <h2>Use the tester as a protocol tutor and evidence recorder.</h2>
-          <p>ARIEC60870 is built around an operator-first evidence hierarchy: readable meaning, current values, relay events, frame trace, findings, and report output. Raw hex stays available, but it is not the only language the engineer sees.</p>
+          <p>ArSee is built around an operator-first evidence hierarchy: readable meaning, current values, relay events, frame trace, findings, and report output. Raw hex stays available, but it is not the only language the engineer sees.</p>
           <div class="doc-link-row">
             <a class="button secondary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Watch demo</span></a>
             <a class="button secondary" href="examples/iec104-ca-mismatch-sample-trace.txt"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg><span>Open sample trace</span></a>
@@ -350,6 +350,6 @@
         </div>
       </section>
     </main>
-    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ARIEC60870 · Apache-2.0 open source</span><span class="footer-links"><a href="#protocol-map">Protocol map</a><a href="#learning-path">Learning path</a><a href="#troubleshooting-matrix">Troubleshooting</a><a href="smart-findings.html">Smart Findings</a><a href="download.html">Download</a></span></footer>
+    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ArSee · Apache-2.0 open source</span><span class="footer-links"><a href="#protocol-map">Protocol map</a><a href="#learning-path">Learning path</a><a href="#troubleshooting-matrix">Troubleshooting</a><a href="smart-findings.html">Smart Findings</a><a href="download.html">Download</a></span></footer>
   </body>
 </html>

@@ -6,8 +6,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="author" content="Ari Sulistiono" />
-    <title>ARIEC60870 Quick Start | IEC 60870 Download Setup Evidence PDF</title>
-    <meta name="description" content="Quick start guide for ARIEC60870 Evidence Analyzer: download the Windows ZIP, run ARIEC60870.exe, configure IEC-101, IEC-103, or IEC-104, review evidence, and export a native PDF report." />
+    <title>ArSee Quick Start | IEC 60870 Download Setup Evidence PDF</title>
+    <meta name="description" content="Quick start guide for ArSee Evidence Analyzer: download the Windows ZIP, run ARIEC60870.exe, configure IEC-101, IEC-103, or IEC-104, review evidence, and export a native PDF report." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b6f86" />
     <meta name="msapplication-TileColor" content="#0b6f86" />
@@ -16,41 +16,41 @@
     <link rel="icon" href="assets/brand/ariec60870-icon-192.png" type="image/png" />
     <link rel="manifest" href="site.webmanifest" />
     <meta property="og:type" content="article" />
-    <meta property="og:site_name" content="ARIEC60870" />
-    <meta property="og:title" content="ARIEC60870 Quick Start | Download, Setup, Evidence, PDF" />
+    <meta property="og:site_name" content="ArSee" />
+    <meta property="og:title" content="ArSee Quick Start | Download, Setup, Evidence, PDF" />
     <meta property="og:description" content="Download the Windows ZIP, run ARIEC60870.exe, configure the authorized endpoint, review evidence, and export a native PDF report." />
     <meta property="og:url" content="https://masarray.github.io/ARIEC60870/quick-start.html" />
     <meta property="og:image" content="https://masarray.github.io/ARIEC60870/assets/screenshots/ariec60870-evidence-workspace.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image:alt" content="ARIEC60870 Windows IEC 60870 evidence analyzer screenshot" />
+    <meta name="twitter:image:alt" content="ArSee Windows IEC 60870 evidence analyzer screenshot" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="ambient-grid" aria-hidden="true"></div>
     <header class="site-header">
-      <a class="brand" href="./" aria-label="ARIEC60870 home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ARIEC60870</strong><small>IEC 60870 evidence analyzer</small></span></a>
+      <a class="brand" href="./" aria-label="ArSee home"><img src="assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ArSee</strong><small>IEC 60870 evidence analyzer</small></span></a>
       <nav class="nav-links" aria-label="Main navigation"><a href="./"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#home"></use></svg><span>Home</span></a><a href="wiki.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Wiki</span></a><a href="quick-start.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#play"></use></svg><span>Quick Start</span></a><a href="protocol-coverage.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#lan"></use></svg><span>Protocols</span></a><a href="troubleshooting.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#troubleshoot"></use></svg><span>Troubleshooting</span></a><a href="faq.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#help"></use></svg><span>FAQ</span></a><a class="lang-switch" href="id/" aria-label="Switch language to Bahasa Indonesia"><img class="flag-icon" src="assets/flags/id.svg" width="24" height="24" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span class="lang-label">ID</span></a></nav>
     </header>
     <main class="doc-main">
       <section class="doc-hero reveal">
         <p class="eyebrow">Quick start</p>
         <h1>Download, configure, run a session, review evidence, export PDF.</h1>
-        <p>This page is the user-first walkthrough for ARIEC60870 Evidence Analyzer. It assumes an authorized lab, FAT/SAT, commissioning, or troubleshooting environment and a known IEC 60870 endpoint.</p>
+        <p>This page is the user-first walkthrough for ArSee Evidence Analyzer. It assumes an authorized lab, FAT/SAT, commissioning, or troubleshooting environment and a known IEC 60870 endpoint.</p>
         <div class="doc-link-row"><a class="button primary" href="https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#download"></use></svg><span>Get public RC .3</span></a><a class="button secondary" href="https://github.com/masarray/ARIEC60870/blob/master/docs/USER_GUIDE.md"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#menu-book"></use></svg><span>Full user guide</span></a></div>
       </section>
       <section class="doc-grid">
         <article class="doc-card interactive-surface"><h3>1. Choose the release channel</h3><p>The public RC is <a href="https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3">v3.6.8-rc.3</a>: choose <a href="https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-setup-win-x64.exe">installer</a> or <a href="https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-win-x64.zip">portable ZIP</a>. The last non-prerelease is <a href="https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7">v3.6.7</a>.</p><ul><li>Verify <a href="https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/SHA256SUMS.txt">SHA256SUMS.txt</a>.</li><li>Avoid the GitHub source ZIP unless building from source.</li><li>Physical SICAM FAT has not been established.</li></ul></article>
-        <article class="doc-card interactive-surface"><h3>2. Install or extract</h3><p>Run the per-user Setup EXE or fully extract the portable ZIP and launch ARIEC60870.</p><ul><li>Portable mode does not require an installer.</li><li>No start batch file is needed.</li><li>Never run the app directly in a compressed ZIP viewer.</li></ul></article>
+        <article class="doc-card interactive-surface"><h3>2. Install or extract</h3><p>Run the per-user Setup EXE or fully extract the portable ZIP and launch ArSee.</p><ul><li>Portable mode does not require an installer.</li><li>No start batch file is needed.</li><li>Never run the app directly in a compressed ZIP viewer.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>3. Choose protocol mode</h3><p>Open Setup and choose the mode that matches the authorized target device.</p><ul><li><strong>IEC-101 serial</strong> for RTU or gateway serial checks.</li><li><strong>IEC-103 serial</strong> for protection relay communication checks.</li><li><strong>IEC-104 TCP/IP</strong> for TCP endpoint checks.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>4. Enter approved settings</h3><p>Use the project/device communication sheet. Avoid guessing settings from labels or old screenshots.</p><ul><li>Serial: COM port, baud rate, parity, stop bits, link address, CA, ASDU profile.</li><li>TCP: server IP, TCP port, common address, ASDU profile.</li><li>Mapping: load a user-owned JSON profile when readable signal names are needed.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>5. Start and review</h3><p>Start the session, then review the evidence from high-level rows down to protocol detail.</p><ul><li>Operator Evidence for review-level output.</li><li>Value Viewer and Event Log for decoded point behavior.</li><li>Frame Trace and Diagnostics when the high-level evidence is not enough.</li></ul></article>
         <article class="doc-card interactive-surface"><h3>6. Export native PDF</h3><p>Open Report, refresh the preview when needed, then click Export PDF.</p><ul><li>The report is generated by the built-in native PDF engine.</li><li>Review station names, IP addresses, signal names, and project labels before sharing.</li><li>Store the PDF together with the approved test record when required.</li></ul></article>
       </section>
       <section class="section split">
-        <div><p class="eyebrow">Before you start</p><h2>Minimum information you should have ready.</h2><p>ARIEC60870 is most useful when the communication parameters are known and approved.</p></div>
+        <div><p class="eyebrow">Before you start</p><h2>Minimum information you should have ready.</h2><p>ArSee is most useful when the communication parameters are known and approved.</p></div>
         <div class="report-list"><div class="interactive-surface"><strong>Serial sessions</strong><span>COM port, baud rate, data bits, parity, stop bits, link address length, link address, common address, COT length, IOA length, and timing expectations.</span></div><div class="interactive-surface"><strong>IEC-104 sessions</strong><span>Server IP address, TCP port, common address, ASDU profile, allowed test window, firewall rule, and expected startup sequence.</span></div><div class="interactive-surface"><strong>Evidence naming</strong><span>Use a project-approved JSON mapping profile when the report should show readable signal names instead of raw addresses only.</span></div></div>
       </section>
     </main>
-    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ARIEC60870 · Apache-2.0 open source</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="quick-start.html">Quick Start</a><a href="download.html">Download</a><a href="faq.html">FAQ</a></span></footer>
+    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ArSee · Apache-2.0 open source</span><span class="footer-links"><a href="wiki.html">Field Wiki</a><a href="iec101-acd-dfc.html">ACD/DFC</a><a href="iec101-polling-class1-class2.html">Class 1/Class 2</a><a href="quick-start.html">Quick Start</a><a href="download.html">Download</a><a href="faq.html">FAQ</a></span></footer>
   </body>
 </html>

@@ -1,4 +1,4 @@
-# ARIEC60870 public website
+# ArSee public website
 
 Canonical English/Indonesian site: https://masarray.github.io/ARIEC60870/
 

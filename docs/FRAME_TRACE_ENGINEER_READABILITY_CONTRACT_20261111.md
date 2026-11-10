@@ -26,8 +26,14 @@ Scope: WPF Raw Frames presentation only. The original Core decoder and physical-
 
 ## 2026-11-11 follow-up — DPI, timestamp and engineering density
 
-- Missing CP56/object time reads "Timestamp: No Timestamp", never implying a device or decoder error. Explicit partial CP24 time remains distinct from missing CP56.
+- Missing CP56/object time reads "No Timestamp" (never "Timestamp: No Timestamp"), never implying a device or decoder error. Explicit partial CP24 time remains distinct from missing CP56.
 - For TI 3/4/31 only, when canonical typed DIQ is available: 00 = "Invalid [00]" (intermediate state), 01 = "OFF [01]", 10 = "ON [10]", 11 = "Invalid [11]" (indeterminate/fault state). The word Invalid in these **state** labels must not be conflated with quality IV (bit 7); present source quality independently. No inferred DPI from human text when DIQ missing.
 - Raw wire lane 24% / frame interpreter 76% when paired; measured width below 840 DIP stacks rather than clipping the header. Frame Details right dock narrows to a 3 : 1.1 star ratio with 250 DIP minimum and retains operator splitter. No novel panel or user-facing mode.
 - Every TX frame retains a narrow blue direction stripe (#2563B8), every RX frame a green stripe (#16805D), including selected, hovered and attention-overridden rows; raw HEX text uses the same typed direction ink. Row background continues pale-blue/pale-green with semantic attention override.
 - Regression proof: typed four-state DP fixtures, invalid-quality orthogonality and missing-DIQ guard, no-timestamp format, viewport geometry thresholds, true-WPF direction stripe and paired-vs-stacked/inspector layout. Exact-head Windows CI, CodeQL and human review of screenshots remain merge gates.
+
+## 2026-11-11 correction — operator-directed headline hierarchy
+
+- IEC-101 decoded valid GI frame top heading: `GI Data · Single-Point · Link 105 · CA 1`, with original source Link/CA displayed before per-IOA value/quality/COT. A valid ASDU CA is required; absent physical link is never fabricated. Bad/undecoded ASDU cannot present a default CA 0.
+- Identity is no longer printed as a redundant lower WPF paragraph when the heading already includes it. Plain-text row clipboard mirrors exactly that layout; separate typed identity still available to selected inspector and tests.
+- Missing CP56/object time: `No Timestamp`. Typed CP56 valid: `Timestamp Valid`; typed invalid: `Timestamp Invalid`; CP24/other partial source text: `Timestamp Partial` with limitations. Never treat host arrival time as device timestamp.

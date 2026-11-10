@@ -337,8 +337,8 @@ public partial class MainWindow
         WriteZipTextEntry(archive, "report.md", reportMarkdown);
         WriteZipTextEntry(archive, "analysis.md", analysisMarkdown);
         WriteZipTextEntry(archive, "README.md",
-            "# ARIEC60870 selected frame evidence\n\n" +
-            "Open this .ariec file with ARIEC60870 > Open Capture.\n" +
+            "# ArSee selected frame evidence\n\n" +
+            "Open this .ariec file with ArSee > Open Capture.\n" +
             "For AI or human review, read analysis.md first; report.md is the compact summary.\n" +
             "frames.jsonl holds each selected row including original raw bytes and decoder profile;\n" +
             "manifest.json records its SHA-256 integrity value.\n" +
@@ -358,7 +358,7 @@ public partial class MainWindow
             CaptureKind = $"Selected{sourceWorkspace}Rows",
             SourceWorkspace = sourceWorkspace,
             CreatedUtc = createdUtc,
-            Application = "ARIEC60870 Evidence Analyzer",
+            Application = "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester",
             ProtocolMode = string.IsNullOrWhiteSpace(_evidenceProtocolMode)
                 ? "Unknown (not recorded)" : _evidenceProtocolMode,
             InteroperabilityProfileId = _evidenceProfileId,
@@ -467,7 +467,7 @@ public partial class MainWindow
     private string BuildSelectedCaptureMarkdownReport(CaptureManifest manifest, IReadOnlyList<EvidenceRow> rows, string framesSha256)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# ARIEC60870 Selected Evidence Capture");
+        builder.AppendLine("# ArSee Selected Evidence Capture");
         builder.AppendLine();
         builder.AppendLine($"- Capture ID: `{manifest.CaptureId}`");
         builder.AppendLine($"- Format: `{manifest.Format}`");

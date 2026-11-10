@@ -115,7 +115,7 @@ public partial class MainWindow
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseApiUrl);
-        request.Headers.UserAgent.ParseAdd("ARIEC60870-EvidenceAnalyzer/1.0");
+        request.Headers.UserAgent.ParseAdd("ArSee-ProtocolTester/1.0");
         request.Headers.Accept.ParseAdd("application/vnd.github+json");
         request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
 
@@ -157,10 +157,10 @@ public partial class MainWindow
 
         UpdateAvailableButton.Content = $"Update {latest.TagName}";
         UpdateAvailableButton.Visibility = Visibility.Visible;
-        UpdateAvailableButton.ToolTip = $"New ARIEC60870 release {latest.TagName} is available. Current version: {GetCurrentProductVersionText()}. Click to open the release page.";
+        UpdateAvailableButton.ToolTip = $"New ArSee release {latest.TagName} is available. Current version: {GetCurrentProductVersionText()}. Click to open the release page.";
 
         // Low-noise trace only when there is a real update. No modal dialog, no issue, no diagnostic.
-        AppendSessionLog($"Update available: ARIEC60870 {latest.TagName} is newer than installed version {GetCurrentProductVersionText()}.");
+        AppendSessionLog($"Update available: ArSee {latest.TagName} is newer than installed version {GetCurrentProductVersionText()}.");
     }
 
     private void UpdateAvailable_Click(object sender, RoutedEventArgs e)
@@ -177,7 +177,7 @@ public partial class MainWindow
         {
             ModernMessageBox.Show(
                 this,
-                "Could not open the release page automatically. Please open the ARIEC60870 GitHub releases page manually.",
+                "Could not open the release page automatically. Please open the ArSee GitHub releases page manually.",
                 "Open release page",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

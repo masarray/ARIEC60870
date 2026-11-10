@@ -5,7 +5,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:input="clr-namespace:System.Windows.Input;assembly=PresentationCore"
         xmlns:vm="clr-namespace:ARIEC60870.Desktop.ViewModels"
-        Title="ARIEC60870 Evidence Analyzer"
+        Title="ArSee · Open Source IEC 60870-104/103/101 Protocol Tester"
         Width="1540" Height="960" MinWidth="810" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"
@@ -413,7 +413,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock x:Name="ProductTitleText" Text="ARIEC60870 Evidence Analyzer" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
+                            <TextBlock x:Name="ProductTitleText" Text="ArSee · Open Source IEC 60870-104/103/101 Protocol Tester" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
                             <TextBlock x:Name="SessionSubtitleText" Text="Ready. Setup and connect." Style="{StaticResource SubtleText}" FontSize="10.8" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                             <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>
@@ -1029,7 +1029,17 @@
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#3C5670" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
-                                                                   MaxHeight="88"/>
+                                                                   MaxHeight="88">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding HasInlineHeadlineIdentity}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#405973" Margin="0,2,0,0"

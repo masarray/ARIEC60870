@@ -36,7 +36,7 @@ public sealed class FrameInterpreterScanTests
         var text = row.TimelineSignalDigest;
         Assert.Contains("IOA 16712704 [ IOA3:255 · IOA2:4 · IOA1:0 ] · TI-31 · Value: ON", text);
         Assert.Contains("09-11-2026 07:29:16.200", text);
-        Assert.Contains("Timestamp: Valid", text);
+        Assert.Contains("Timestamp Valid", text);
         Assert.Contains("Genuine (GEN=0)", text);
         Assert.Contains("DST OFF", text);
         Assert.Contains("Day: Monday", text);
