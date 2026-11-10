@@ -145,3 +145,18 @@ The same validator serves active single and A/B unbalanced channels. This is
 or a change to production RTS/CTS, COM-port policy or auto-reset behavior.
 IEC101/103/104 mode-specific interoperability must still be validated against
 real connected equipment and a controlled project-selected profile.
+
+## Remote DFC flow-control recovery (2026-11-10)
+
+An addressed, valid secondary FC11 DFC=1 response to FC9 is genuine remote
+busy evidence, not lost communications or a positive ready-status proof.
+Active IEC-101 unbalanced Master stops Class 1/2 polling, GI and command
+dispatch while busy. It probes FC9 only, after bounded `BusyBackoffMs`
+(minimum 100ms), until addressed, validated DFC=0 clears the state.
+E5 has no DFC bit and cannot clear the busy gate. Class drain and adaptive
+group/GI sweeps stop early upon busy rather than flooding the outstation.
+
+Active/standby each retain independent DFC state. Busy does not cause a
+standby takeover; a DFC=1 standby cannot be promoted based on an old good
+status. Local RTS/CTS is a separate physical flow-control layer.
+A FAT with SICAM and the known-good serial reference remains required.

@@ -101,8 +101,8 @@ public static class Iec101SecondaryResponseValidator
             // Status with DFC=1 is real secondary evidence but NOT a working
             // station/link-status confirmation; active/standby health must not turn green.
             if (pending is 8 or 9 && control.Dfc == true)
-                return Rejected("IEC101-RX-STATUS-BUSY",
-                    $"Secondary FC11 with DFC=1 indicates link busy during primary FC={pending}; do not certify this link as healthy.");
+                return new Iec101SecondaryResponseValidation(true, false, "IEC101-RX-STATUS-BUSY",
+                    $"Secondary FC11 DFC=1 is an observed busy status during FC={pending}; not healthy readiness, silence, or FCB progress.");
         }
 
         // A matching secondary NACK or DFC=1 is evidence, not a positive

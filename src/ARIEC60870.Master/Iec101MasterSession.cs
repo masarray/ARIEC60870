@@ -23,6 +23,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
     private bool _linkVerified;
+    private readonly Iec101UnbalancedBusyGate _busyGate;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
     private readonly Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
@@ -40,6 +41,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _busyGate = new Iec101UnbalancedBusyGate(settings.BusyBackoffMs);
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
@@ -119,6 +121,18 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                if (_busyGate.IsBusy)
+                {
+                    // Remote DFC=1: only FC9 status probes may be sent; pending
+                    // commands and GI remain queued. No implicit RTU reset.
+                    if (_busyGate.ShouldProbe(DateTime.UtcNow))
+                        await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                            "Remote DFC=1 status-only recovery", cancellationToken).ConfigureAwait(false);
+                    else
+                        await Task.Delay(_busyGate.DelayMs(DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 if (!_linkVerified)
                 {
                     // Never flood a silent RTU with GI or Class 1 requests.
@@ -211,7 +225,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
         }
 
-        if (!_settings.SendGeneralInterrogationOnConnect) return;
+        if (!_settings.SendGeneralInterrogationOnConnect || _busyGate.IsBusy) return;
 
         _counters.GiCommands++;
         var giResponse = await SendVariableAndReceiveAsync(
@@ -219,9 +233,10 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             Iec10xAsduBuilder.GeneralInterrogation(_settings),
             "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
 
-        if (giResponse is null || IsNegativeConfirmation(giResponse, 100))
+        if (giResponse is null || _busyGate.IsBusy || IsNegativeConfirmation(giResponse, 100))
         {
-            var why = giResponse is null ? "No secondary reply to GI" : "Negative GI response";
+            var why = _busyGate.IsBusy ? "RTU returned DFC=1 (busy) to GI" :
+                giResponse is null ? "No secondary reply to GI" : "Negative GI response";
             SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 GI not confirmed",
                 $"{why}; Link={_settings.LinkAddress}, CA={_settings.CommonAddress}. " +
                 "Not entering blind Class 1 drain.", category: "Warning", dataClass: "Class 2");
@@ -370,23 +385,23 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 break;
             case Iec60870ControlCommandKind.Read:
                 await SendVariableAndReceiveAsync(request.Summary, "Class 2", Iec10xAsduBuilder.ReadCommand(commandSettings, request.InformationObjectAddress), "Manual command dock read C_RD_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Read command follow-up", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Read command follow-up", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.SingleCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SingleCommand(commandSettings, request.InformationObjectAddress, request.Value != 0, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Single command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Single command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.DoubleCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.DoubleCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_DC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Double command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Double command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.RegulatingStepCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.RegulatingStepCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_RC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Regulating step feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Regulating step feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.SetpointNormalizedCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SetpointNormalizedCommand(commandSettings, request.InformationObjectAddress, request.NumericValue, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SE_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Setpoint feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Setpoint feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
         }
 
@@ -433,6 +448,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
         for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
         {
+            if (_busyGate.IsBusy) break;
             var beforeRx = _counters.RxFrames;
             var beforeNoData = _counters.NoDataResponses;
             var response = await SendVariableAndReceiveAsync(
@@ -442,6 +458,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Group interrogation fallback QOI={qoi}",
                 cancellationToken).ConfigureAwait(false);
 
+            if (_busyGate.IsBusy) break;
             if (response is null || _counters.RxFrames == beforeRx)
             {
                 noResponseGroups++;
@@ -492,6 +509,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var maxSweeps = Math.Clamp(_settings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            if (_busyGate.IsBusy) break;
             // An ACD=1 response means Class 1 is pending even if Class 2 returned
             // FC9. Never continue a post-GI Class 2 sweep while ignoring that signal.
             if (_acd)
@@ -514,6 +532,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.Class2Requests++;
             await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Post-GI Class 2 verification sweep", cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            if (_busyGate.IsBusy) break;
             unresponsiveStreak = _counters.TimedResponses == beforeValidResponses ? unresponsiveStreak + 1 : 0;
             if (unresponsiveStreak >= 2)
             {
@@ -562,9 +581,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var stoppedByAcdClearAfterEvent = false;
         var stoppedByClass2Fairness = false;
         var stoppedByTimeout = false;
+        var stoppedByRemoteBusy = false;
 
         while (!cancellationToken.IsCancellationRequested && drained < _settings.MaxClass1DrainFrames)
         {
+            if (_busyGate.IsBusy) { stoppedByRemoteBusy = true; break; }
             // Normal ACD/event drain must not starve background telemetering. On slow IEC-101
             // serial links, continuous Class 1 requests can prevent Class 2 measurements from
             // being refreshed even when the configured Class 2 interval is already due.
@@ -586,6 +607,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             await SendFixedAndReceiveAsync("Request Class 1", "Class 1", 10, true, reason, cancellationToken).ConfigureAwait(false);
             drained++;
             _counters.Class1DrainFrames++;
+            if (_busyGate.IsBusy) { stoppedByRemoteBusy = true; break; }
             if (_counters.TimedResponses == beforeValidResponses)
             {
                 stoppedByTimeout = true;
@@ -633,7 +655,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         else
         {
-            var stopReason = stoppedByTimeout
+            var stopReason = stoppedByRemoteBusy
+                ? "RTU DFC=1; pause Class 1 until status-only recovery"
+                : stoppedByTimeout
                 ? "RTU did not reply; no blind Class 1 polling"
                 : stoppedByGiEnd
                 ? "ACTTERM observed"
@@ -771,6 +795,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
 
         var decoded = acceptedFrame;
+        if (_busyGate.Observe(decoded, DateTime.UtcNow))
+            SetState(Iec103MasterState.NormalClass2Polling,
+                _busyGate.IsBusy ? "IEC-101 remote DFC=1 — TX paused" : "IEC-101 remote DFC cleared — TX resumed",
+                _busyGate.IsBusy
+                    ? $"Suspending Class 1/2, GI and commands; FC9 status only every {Math.Clamp(_settings.BusyBackoffMs, 100, 30000)} ms."
+                    : "Validated addressed secondary DFC=0; normal scheduling may resume.",
+                category: _busyGate.IsBusy ? "Warning" : "Info", dataClass: "Link");
         if (string.Equals(dataClass, "Class 2", StringComparison.OrdinalIgnoreCase))
         {
             var nowCycle = DateTime.UtcNow;

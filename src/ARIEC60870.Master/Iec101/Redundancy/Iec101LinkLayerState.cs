@@ -37,6 +37,17 @@ public sealed class Iec101LinkLayerState
         ConsecutiveGoodResponses++;
     }
 
+    // Busy or negative replies prove physical RX, not permission for user
+    // data, and must not be miscounted as silence or positive ready probes.
+    public void MarkBusyResponse()
+    {
+        ConsecutiveTimeouts = 0;
+        ConsecutiveFailures = 0;
+        ConsecutiveGoodResponses = 0;
+    }
+
+    public void MarkNegativeResponse() => MarkBusyResponse();
+
     public void MarkTimeout(DateTime utcNow)
     {
         LastTimeoutUtc = utcNow;

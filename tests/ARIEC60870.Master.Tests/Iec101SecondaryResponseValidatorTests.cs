@@ -66,11 +66,22 @@ public sealed class Iec101SecondaryResponseValidatorTests
         Assert.Equal("A2", frame.Hex);
     }
 
+    [Fact]
+    public void AddressedBusyStatusIsObservedWithoutCertifyingLinkOrFcb()
+    {
+        var frame = Parser.Decode(Convert.FromHexString("101B69008416"));
+        var result = Iec101SecondaryResponseValidator.Validate(frame, 105, Array.Empty<byte>(),
+            pendingPrimaryFunctionCode: 9);
+        Assert.True(result.IsValid);
+        Assert.False(result.AdvancesFcb);
+        Assert.Equal("IEC101-RX-STATUS-BUSY", result.Code);
+        Assert.False(Iec101SecondaryResponseValidator.CanAdvanceFcb(frame));
+    }
+
     [Theory]
     [InlineData(9, "100069006916", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC0 ACK is not FC11 status.
     [InlineData(9, "100869007116", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC8 user-data is not status.
     [InlineData(9, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 no-data is not status.
-    [InlineData(9, "101B69008416", "IEC101-RX-STATUS-BUSY")]         // FC11, DFC=1.
     [InlineData(9, "100E69007716", "IEC101-RX-LINK-SERVICE-ERROR")]
     [InlineData(3, "100B69007416", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC11 cannot confirm data.
     [InlineData(3, "100969007216", "IEC101-RX-UNEXPECTED-FUNCTION")] // FC9 cannot confirm data.

@@ -252,6 +252,21 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        if (_active.IsRemoteBusy)
+        {
+            // A busy active RTU cannot receive more user data. Standby only
+            // receives independent status supervision, never active requests.
+            var nowBusy = DateTime.UtcNow;
+            if (nowBusy - _lastStandbySupervisionUtc >= _options.StandbySupervisionInterval
+                && (!_standby.IsRemoteBusy || _standby.BusyStatusProbeDue(nowBusy)))
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            else if (_active.BusyStatusProbeDue(nowBusy))
+                await _active.RequestLinkStatusAsync("Active DFC=1 status-only recovery", cancellationToken).ConfigureAwait(false);
+            else
+                await Task.Delay(Math.Min(50, _active.BusyStatusDelayMs(nowBusy)), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (await ProcessPendingControlCommandAsync(cancellationToken).ConfigureAwait(false))
         {
             return;
@@ -400,7 +415,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         await _active.SendControlCommandAsync(request, cancellationToken).ConfigureAwait(false);
-        if (_active.LinkState.Acd)
+        if (_active.LinkState.Acd && !_active.IsRemoteBusy)
         {
             await DrainClass1OnActiveAsync("Command feedback drain on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
@@ -440,11 +455,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var stoppedByGiEnd = false;
         while (!cancellationToken.IsCancellationRequested && drained < _options.BaseSettings.MaxClass1DrainFrames)
         {
+            if (_active.IsRemoteBusy) break;
             var beforeGood = _active.LinkState.LastGoodResponseUtc;
             _counters.Class1Requests++;
             var response = await _active.RequestClass1Async(reason, cancellationToken).ConfigureAwait(false);
             drained++;
             _counters.Class1DrainFrames++;
+            if (_active.IsRemoteBusy) break;
 
             if (response.TimedOut || beforeGood == _active.LinkState.LastGoodResponseUtc)
             {
@@ -514,6 +531,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        if (_standby.IsRemoteBusy && !_standby.BusyStatusProbeDue(DateTime.UtcNow))
+        {
+            _lastStandbySupervisionUtc = DateTime.UtcNow;
+            return;
+        }
         var response = await _standby.SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
         _lastStandbySupervisionUtc = DateTime.UtcNow;
 
@@ -846,7 +868,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         _imageTracker.MarkGiStarted(DateTime.UtcNow);
         _counters.GiCommands++;
         var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
-        if (response.TimedOut || response.Frame is null ||
+        if (response.TimedOut || response.Frame is null || _active.IsRemoteBusy ||
             (response.Asdu is null && !response.Succeeded))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-GI-UNCONFIRMED",
@@ -910,6 +932,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
         {
+            if (_active.IsRemoteBusy) break;
             var beforeRx = _active.LinkState.RxFrames;
             var response = await _active.SendGeneralInterrogationAsync(
                 $"Group interrogation fallback QOI={qoi}",
@@ -917,6 +940,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 qualifier: (byte)qoi,
                 commonAddress: commonAddress).ConfigureAwait(false);
 
+            if (_active.IsRemoteBusy) break;
             if (response.TimedOut || _active.LinkState.RxFrames == beforeRx)
             {
                 noResponseGroups++;
@@ -982,12 +1006,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var maxSweeps = Math.Clamp(_options.BaseSettings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            if (_active.IsRemoteBusy) break;
             var beforeNoData = _active.LinkState.NoDataResponses;
             var beforeUserData = _active.LinkState.UserDataResponses;
 
             _counters.Class2Requests++;
             var exchange = await _active.RequestClass2Async(reason, cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            if (_active.IsRemoteBusy) break;
             unansweredStreak = exchange.TimedOut ? unansweredStreak + 1 : 0;
             if (unansweredStreak >= 2)
             {
