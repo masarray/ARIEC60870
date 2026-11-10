@@ -1564,3 +1564,13 @@ body h1,
     min-width: 0;
   }
 }
+/* Compact release identity; distinguish a public prerelease from stable. */
+.release-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: fit-content; max-width: 100%; margin: 10px 0 18px; padding: 7px 11px; border: 1px solid rgba(104,138,171,0.19); border-radius: 12px; background: rgba(255,255,255,0.76); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.release-line .release-current { color: var(--ink-strong); font-weight: 600; }
+.release-line a, .release-disclaimer a, .release-caption a { color: var(--brand-ink); text-decoration: underline; text-decoration-color: rgba(14,110,145,0.3); text-underline-offset: 3px; }
+.release-line a:hover, .release-disclaimer a:hover, .release-caption a:hover { text-decoration-color: currentColor; }
+.release-disclaimer { margin: 13px 0 0; max-width: 660px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.release-caption { margin: 10px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.doc-hero .release-line { margin-top: 18px; }
+@media (max-width:620px) { .release-line { gap: 5px 8px; font-size: 11px; } .release-disclaimer, .release-caption { max-width: 100%; } }
+
