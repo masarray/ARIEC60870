@@ -380,8 +380,9 @@ public partial class MainWindow
             AutoScrollLatestToggleButton.IsChecked = false;
         }
 
-        // HOLD is only an auto-scroll choice. Selection must not stop the
-        // streaming WPF projection, and the capture pipeline is independent.
+        // HOLD freezes only the WPF reading viewport. The live engine, source
+        // evidence ring and optional full capture keep receiving every frame.
+        // Repeated selection/scroll must not invalidate already realized rows.
         _evidenceSummaryViewDirtyWhileFrozen = true;
         if (_passiveFrameHistory is not null && IsProtocolTraceTabActive())
         {
@@ -642,8 +643,9 @@ public partial class MainWindow
     {
         if (!IsProtocolTraceTabActive()) return false;
 
-        // HOLD without a selection is a scrolling preference, NOT a pause
-        // of the live line monitor. A selected range pins the rendered window.
+        // An explicit HOLD or selected range pins this WPF reading viewport.
+        // Only its presentation stops changing; RX/TX ingestion and source
+        // evidence are never paused. One reconciliation occurs on resume.
         return _historicalTraceViewActive || _recordedArchiveViewActive ||
                IsLineMonitorHoldRequested() || IsProtocolTraceSelectionPinned();
     }
@@ -859,13 +861,18 @@ public partial class MainWindow
 
         if (_pendingProtocolTraceUiRows.Count > 0)
         {
-            if (_historicalTraceViewActive || _recordedArchiveViewActive)
+            if (IsProtocolTraceViewFrozen())
             {
-                // Offline historical window is immutable; the real writer and
-                // live source continue. Never mix different session windows.
+                // HOLD/selection/history are pinned WPF viewports, not a
+                // stopped protocol capture. Do not Add/Trim any ListBox rows
+                // here: at the 1,200-row limit those two notifications per
+                // incoming frame shifted the scroll extent and flickered even
+                // though the operator explicitly requested HOLD.
+                // The bounded source ring remains the sole catch-up authority.
                 _protocolTraceViewDirtyWhileFrozen = true;
                 _protocolTraceRowsDeferredWhileFrozen += _pendingProtocolTraceUiRows.Count;
                 _pendingProtocolTraceUiRows.Clear();
+                QueueQuickFindCountRefresh();
             }
             else
             {
