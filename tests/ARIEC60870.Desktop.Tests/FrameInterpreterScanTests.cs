@@ -34,11 +34,11 @@ public sealed class FrameInterpreterScanTests
             AsduDetails = asdu, TimestampUtc = new DateTime(2030, 1, 1)
         });
         var text = row.TimelineSignalDigest;
-        Assert.Contains("IOA 16712704 (IOA3:255 - IOA2:4 - IOA1:0) · Value: ON (Double Point) · TI-31", text);
-        Assert.Contains("RTU 2026-11-09 07:29:16.200", text);
-        Assert.Contains("Valid: TRUE", text);
-        Assert.Contains("Genuine: TRUE", text);
-        Assert.Contains("Summer Time: FALSE", text);
+        Assert.Contains("IOA 16712704 [ IOA3:255 · IOA2:4 · IOA1:0 ] · TI-31 · Value: ON", text);
+        Assert.Contains("09-11-2026 07:29:16.200", text);
+        Assert.Contains("Timestamp: Valid", text);
+        Assert.Contains("Genuine (GEN=0)", text);
+        Assert.Contains("DST OFF", text);
         Assert.Contains("Day: Monday", text);
         Assert.DoesNotContain("2030", text);
         Assert.Empty(row.TimelineReadableAlerts);

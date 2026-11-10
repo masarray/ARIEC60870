@@ -366,9 +366,9 @@ public partial class MainWindow
             row.Source.AsduDetails is { TypeId: 31, ObjectCount: 19 } &&
             row.Source.AsduDetails.Objects.Any(obj => obj.Cp56TimeDetails is not null));
         if (timedFrameRow is null ||
-            !timedFrameRow.TimelineSignalDigest.Contains("RTU ", StringComparison.Ordinal) ||
-            !timedFrameRow.TimelineSignalDigest.Contains("Valid: TRUE", StringComparison.Ordinal) ||
-            !timedFrameRow.TimelineSignalDigest.Contains("Genuine: TRUE", StringComparison.Ordinal))
+            !timedFrameRow.TimelineSignalDigest.Contains("05-11-2026", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Timestamp: Valid", StringComparison.Ordinal) ||
+            !timedFrameRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Source-typed CP56 device time, validity or genuine flag absent from inline Frame Interpreter.");
         FrameTraceGrid.SelectedItem = timedFrameRow;
@@ -1128,7 +1128,7 @@ public partial class MainWindow
         if (FrameInterpreterPanel.Visibility != Visibility.Collapsed ||
             TraceInspectorColumn.ActualWidth > 1 ||
             !multiObjectRow.TimelineSignalDigest.Contains("TI-", StringComparison.Ordinal) ||
-            !multiObjectRow.TimelineEngineeringCause.Contains("COT ", StringComparison.Ordinal) ||
+            !multiObjectRow.TimelineEngineeringCause.Contains("Cause Of Transmission: ", StringComparison.Ordinal) ||
             !multiObjectRow.TimelineEngineeringIdentity.Contains("Link ", StringComparison.Ordinal))
             throw new InvalidOperationException(
                 "Inline engineering decode must expose verified Link/TI/COT while Frame Details is closed.");
@@ -1152,8 +1152,8 @@ public partial class MainWindow
             !valueLines[0].Contains("IOA ", StringComparison.Ordinal) ||
             !valueLines[1].Contains("IOA ", StringComparison.Ordinal) ||
             multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
-            (!multiObjectRow.TimelineSignalDigest.Contains("Valid:", StringComparison.Ordinal) ||
-             !multiObjectRow.TimelineSignalDigest.Contains("Genuine:", StringComparison.Ordinal)) ||
+            (!multiObjectRow.TimelineSignalDigest.Contains("Timestamp: Valid", StringComparison.Ordinal) ||
+             !multiObjectRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal)) ||
             visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
             visibleSignalText.ActualHeight < 24)
@@ -1245,7 +1245,7 @@ public partial class MainWindow
                 cause.TextTrimming != TextTrimming.None ||
                 signals.ActualWidth < 130 || signals.ActualHeight < 16 ||
                 !signals.Text.Contains("IOA ", StringComparison.Ordinal) ||
-                !cause.Text.Contains("COT ", StringComparison.Ordinal))
+                !cause.Text.Contains("Cause Of Transmission: ", StringComparison.Ordinal))
                 throw new InvalidOperationException(
                     $"Frame interpreter clipped/hidden at {viewport.Name}: trace={FrameTraceGrid.ActualWidth:0}, layout={expectedLayout}, signals={signals?.ActualWidth:0}x{signals?.ActualHeight:0}.");
 

@@ -25,7 +25,7 @@ public sealed class ProtocolTruthFrameTraceTests
             ObjectCount = 0
         });
         Assert.Contains("ASDU header not decoded", row.TimelineEngineeringIdentity);
-        Assert.Contains("COT not decoded", row.TimelineEngineeringCause);
+        Assert.Contains("Cause Of Transmission: Not decoded", row.TimelineEngineeringCause);
         Assert.Equal("ASDU header not decoded", row.TimelineCompactContext);
         Assert.DoesNotContain("TI 0", row.TimelineEngineeringIdentity);
         Assert.DoesNotContain("CA 0", row.TimelineEngineeringIdentity);
@@ -70,7 +70,8 @@ public sealed class ProtocolTruthFrameTraceTests
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             AsduDetails = asdu
         });
-        Assert.Contains("Value: Normalized=0.5 (Normalized)", row.TimelineSignalDigest);
+        Assert.Contains("TI-21 · Value: Normalized=0.5", row.TimelineSignalDigest);
+        Assert.Contains("TI-21 Normalized Signal · Quality: Not provided", row.TimelineSignalDigest);
         Assert.Equal("N/A", Assert.Single(DecodedPointRow.FromAsdu(asdu)).Quality);
     }
 }

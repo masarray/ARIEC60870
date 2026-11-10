@@ -60,7 +60,7 @@ public static class EngineerFramePresentation
 
     // Readable inline alerts are separate from legacy diagnostic flags used by
     // search/export. Include IOA provenance and count for large ASDU bursts.
-    public static string ReadableAlerts(Iec103MasterEvidenceEvent source)
+    public static string ReadableAlerts(Iec103MasterEvidenceEvent source, bool includeAcd = true)
     {
         ArgumentNullException.ThrowIfNull(source);
         var result = new List<string>(9);
@@ -70,7 +70,7 @@ public static class EngineerFramePresentation
         if (frame is { IsLengthValid: false }) result.Add("Frame length: INVALID");
         if (frame?.Issues.Count > 0) result.Add("Link decode: WARNING");
         if (frame?.IsSingleCharacterNack == true) result.Add("Link NACK: TRUE");
-        if (frame?.LinkControl is { Prm: false, Acd: true })
+        if (includeAcd && frame?.LinkControl is { Prm: false, Acd: true })
             result.Add("Class 1 pending (ACD): TRUE");
         if (frame?.LinkControl is { Prm: false, Dfc: true })
             result.Add("Flow restricted (DFC): TRUE");

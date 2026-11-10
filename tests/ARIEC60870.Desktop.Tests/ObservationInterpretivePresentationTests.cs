@@ -102,10 +102,11 @@ public sealed class ObservationInterpretivePresentationTests
         Assert.Equal("CA 1 · TI 3 · COT 20", row.TimelineCompactContext);
         // One real signal per display line (not 2 objects joined by |).
         var signals = row.TimelineSignalDigest.Split(Environment.NewLine);
-        Assert.Equal(3, signals.Length);
-        Assert.StartsWith("IOA 9 (IOA3:0 - IOA2:0 - IOA1:9) · Value: ON (Double Point) · TI-3", signals[0]);
-        Assert.StartsWith("IOA 10 (IOA3:0 - IOA2:0 - IOA1:10) · Value: OFF (Double Point) · TI-3", signals[1]);
-        Assert.StartsWith("IOA 11 (IOA3:0 - IOA2:0 - IOA1:11) · Value: INDETERMINATE (Double Point) · TI-3", signals[2]);
+        Assert.Equal(6, signals.Length);
+        Assert.StartsWith("IOA 9 [ IOA3:0 · IOA2:0 · IOA1:9 ] · TI-3 · Value: ON", signals[0]);
+        Assert.Contains("TI-3 Double Point Signal · Quality: Not provided · Timestamp: Not provided", signals[1]);
+        Assert.StartsWith("IOA 10 [ IOA3:0 · IOA2:0 · IOA1:10 ] · TI-3 · Value: OFF", signals[2]);
+        Assert.StartsWith("IOA 11 [ IOA3:0 · IOA2:0 · IOA1:11 ] · TI-3 · Value: INDETERMINATE", signals[4]);
         Assert.DoesNotContain(" | ", row.TimelineSignalDigest);
         Assert.False(row.HasTimelineSignalOverflow);
         Assert.True(row.HasTimelineSignalDigest);
@@ -128,11 +129,11 @@ public sealed class ObservationInterpretivePresentationTests
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu
         });
         var visible = row.TimelineSignalDigest.Split(Environment.NewLine);
-        Assert.Equal(3, visible.Length);
+        Assert.Equal(6, visible.Length);
         Assert.Contains("IOA 1000", visible[0]);
-        Assert.Contains("Value: ON (Single Point)", visible[0]);
-        Assert.Contains("IOA 1001", visible[1]);
-        Assert.Contains("IOA 1002", visible[2]);
+        Assert.Contains("TI-1 · Value: ON", visible[0]);
+        Assert.Contains("IOA 1001", visible[2]);
+        Assert.Contains("IOA 1002", visible[4]);
         Assert.DoesNotContain("IOA 1003", row.TimelineSignalDigest);
         Assert.True(row.HasTimelineSignalOverflow);
         Assert.Equal("+37 more signals · open Frame Details for all objects", row.TimelineSignalOverflow);
@@ -162,9 +163,9 @@ public sealed class ObservationInterpretivePresentationTests
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
             SignalName = "Unverified label", IsMappedSignal = false
         });
-        Assert.Contains("Breaker 110 kV position · IOA 342 (IOA3:0 - IOA2:1 - IOA1:86) · Value: ON (Single Point) · TI-1", mapped.TimelineSignalDigest);
+        Assert.Contains("Breaker 110 kV position · IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", mapped.TimelineSignalDigest);
         Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
-        Assert.Contains("IOA 342 (IOA3:0 - IOA2:1 - IOA1:86) · Value: ON (Single Point) · TI-1", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", unmapped.TimelineSignalDigest);
         Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
     }
 
