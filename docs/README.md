@@ -1,21 +1,9 @@
-> **2026-10-29 current design authority:** [IEC 101/103/104 Interoperability PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [Interoperability ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md), and [NUC research](IEC10X_NUC_RESEARCH_20261029.md). This file retains historical implementation context; any older status, scope or convention assumption that conflicts with these design documents is superseded for **future requirements**. Merged master code and exact CI remain the authority for what is already implemented. Do not treat a new design target as completed capability.
+# ARIEC60870 documentation and GitHub Pages mirror
 
-# ARIEC60870 public site
+Official site: https://masarray.github.io/ARIEC60870/ · [v3.6.8-rc.3 public prerelease](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) · [Stable v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7).
 
-This folder contains the public ARIEC60870 product site and field-learning pages served by GitHub Pages.
+**Canonical public site: `site/`.** HTML, CSS and SEO assets copied into `docs/` are a generated **GitHub Pages compatibility mirror**, not a separate website. After editing `site/`, run `scripts/sync-github-pages-docs-mirror.ps1` and the repository tests. Never hand-edit the mirror independently.
 
-Core pages:
+Engineering docs: [User Guide](USER_GUIDE.md), [Quick Start](QUICK_START.md), [Architecture](ARCHITECTURE.md), [Testing Strategy](TESTING_STRATEGY.md), [Release Notes](RELEASE_NOTES.md). Future product targets are defined by [IEC-101/103/104 PRD](IEC10X_INTEROPERABILITY_PRD_20261029.md), [ARD](IEC10X_INTEROPERABILITY_ARD_20261029.md) and [NUC research](IEC10X_NUC_RESEARCH_20261029.md); **only merged code and exact CI** establish released implementation.
 
-- `index.html` — English product landing page.
-- `id/index.html` — Indonesian product landing page.
-- `wiki.html` and `id/wiki.html` — IEC 60870 Field Wiki indexes.
-- `iec101-*.html`, `iec103-*.html`, `iec104-*.html` — practical protocol learning pages.
-- `faq.html` and `id/faq.html` — user-facing FAQ pages.
-
-Local preview:
-
-```bash
-python -m http.server 8080 --directory site
-```
-
-Then open `http://localhost:8080`.
+Draft PRs, simulator results and unverified field behavior must not be marketed as released or certified.

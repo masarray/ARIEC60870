@@ -1,13 +1,13 @@
 # GitHub Pages Deployment
 
-ARIEC60870 keeps the public website source under `site/` and publishes it with the **Deploy GitHub Pages site** workflow.
+ARIEC60870 keeps the public website source under `site/` and publishes it with the **Pages** workflow.
 
 Recommended setup:
 
 1. Open the repository on GitHub.
 2. Go to **Settings → Pages**.
 3. Set **Source** to **GitHub Actions**.
-4. Push to `main` or `master`, or run the **Deploy GitHub Pages site** workflow manually.
+4. Push to `main` or `master`, or run the **Pages** workflow manually.
 
 The workflow uploads `site/` directly as the Pages artifact, so the website root is served at:
 
@@ -39,7 +39,7 @@ Repository hygiene tests verify that important runtime files in `docs/` stay ide
 Check these items in order:
 
 1. Confirm whether GitHub Pages is using **GitHub Actions** or **Deploy from branch**.
-2. If using GitHub Actions, confirm the **Deploy GitHub Pages site** workflow completed successfully.
+2. If using GitHub Actions, confirm the **Pages** workflow completed successfully.
 3. If using **Deploy from branch → /docs**, confirm `docs/index.html`, `docs/styles.css`, `docs/assets/`, `docs/sitemap.xml`, and `docs/site.webmanifest` are committed.
 4. Confirm `site/index.html`, `site/sitemap.xml`, `site/robots.txt`, and `site/site.webmanifest` exist.
 5. Wait a few minutes after the first deployment.

@@ -1,3 +1,12 @@
+## [3.6.8-rc.3] - 2026-11-10 (public prerelease)
+
+### Release and public presentation
+- Published Windows x64 installer and portable ZIP, SHA256 checksums, SPDX SBOM and attested build provenance.
+- Refined nine Setup checkboxes into compact, vertically aligned 28×16 DIP toggles with 10×10 DIP thumbs, preserving serial settings and WPF controls.
+- Added real Windows/WPF switch geometry checks and IEC-101/Passive Setup screenshots to the release acceptance suite. Retained the 10,000-frame HOLD/AUTO Frame Trace regression.
+- Kept the unmerged physical SICAM serial-recovery work in draft PR #136 **out of this public RC** while field FAT is outstanding.
+- Updated the bilingual landing website, download choices, release metadata and GitHub Pages compatibility mirror to accurately distinguish this preview from stable v3.6.7.
+
 ## Unreleased
 
 ### UX polish

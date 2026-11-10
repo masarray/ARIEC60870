@@ -15,7 +15,7 @@ ARIEC60870 is intended to remain legally clean, auditable, and safe for corporat
 Commit only:
 
 - source code under `src/` and `tests/`
-- static landing page files under `landing/`
+- public landing pages and documentation source under `site/`; keep the generated `docs/` compatibility mirror synchronized
 - documentation under `docs/`
 - sanitized samples under `samples/`
 - GitHub workflows/templates under `.github/`
