@@ -149,7 +149,23 @@ jobs:
           dotnet restore ARIEC60870.sln
           dotnet build ARIEC60870.sln --configuration Release --no-restore -p:Version=${{ needs.resolve.outputs.version }} -p:TreatWarningsAsErrors=true
           dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build
-          dotnet test ARIEC60870.sln --configuration Release --no-build --logger "trx;LogFileName=release-gate.trx" --results-directory artifacts/test-results
+          # The solution contains six test projects. A shared TRX filename
+          # silently overwrites earlier suites and destroys release evidence.
+          # Reuse the CI project's explicit per-assembly execution contract.
+          New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
+          $projects = @(
+            'tests/ARIEC60870.Core.Tests/ARIEC60870.Core.Tests.csproj',
+            'tests/ARIEC60870.Master.Tests/ARIEC60870.Master.Tests.csproj',
+            'tests/ARIEC60870.Monitor.Tests/ARIEC60870.Monitor.Tests.csproj',
+            'tests/ARIEC60870.Reporting.Tests/ARIEC60870.Reporting.Tests.csproj',
+            'tests/ARIEC60870.Desktop.Tests/ARIEC60870.Desktop.Tests.csproj',
+            'tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj'
+          )
+          foreach ($project in $projects) {
+            $name = Split-Path (Split-Path $project -Parent) -Leaf
+            dotnet test $project --configuration Release --no-build --logger "trx;LogFileName=release-gate-$name.trx" --results-directory artifacts/test-results
+            if ($LASTEXITCODE -ne 0) { throw "Release regression suite $name failed with exit code $LASTEXITCODE." }
+          }
 
       - name: Build user single-file EXE package
         shell: pwsh
@@ -215,6 +231,15 @@ jobs:
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip
             artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
             artifacts/release/SHA256SUMS.txt
+
+      # The original multi-subject attestation intentionally covers portable
+      # ZIP, SBOM and checksums. The RC setup EXE must also have provenance.
+      # Keep it conditional so stable builds without an installer stay valid.
+      - name: Attest RC Windows installer
+        if: needs.resolve.outputs.prerelease == 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe
 
       - name: Upload release test results
         if: always()
