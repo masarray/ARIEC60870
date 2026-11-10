@@ -52,6 +52,12 @@ public sealed class Iec103MasterSettings
     public string MappingProfilePath { get; set; } = string.Empty;
 
     public int ResponseTimeoutMs { get; set; } = 1500;
+
+    // Driver write completion and remote response are different deadlines.
+    // A full FT1.2 telegram can use 262 octets at up to 12 bits/octet.
+    public int SerialWriteTimeoutMs => Math.Max(
+        Math.Clamp(Math.Max(2000, ResponseTimeoutMs), 2000, 30000),
+        Math.Clamp((int)Math.Ceiling(262d * 12 * 1000 / Math.Max(1, BaudRate)) + 1000, 2000, 30000));
     public int Class2PollIntervalMs { get; set; } = 500;
     public int Class1DrainDelayMs { get; set; } = 20;
     public int BusyBackoffMs { get; set; } = 250;

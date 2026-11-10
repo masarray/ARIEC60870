@@ -658,7 +658,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var fcbBefore = _fcb;
         var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
         if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
         return response;
     }
@@ -668,7 +668,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var fcbBefore = _fcb;
         var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
         await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
         if (Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
         return response;
     }
@@ -715,7 +715,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, int pendingPrimaryFunctionCode, CancellationToken cancellationToken)
     {
         var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
         var sw = Stopwatch.StartNew();
@@ -734,7 +734,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             var candidate = _ft12.Decode(raw);
             var validation = Iec101SecondaryResponseValidator.Validate(
                 candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes));
+                _transmitHistory.MatchesEarlier(candidate.RawBytes), pendingPrimaryFunctionCode);
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;

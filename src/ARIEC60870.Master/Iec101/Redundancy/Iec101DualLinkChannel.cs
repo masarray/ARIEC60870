@@ -306,7 +306,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
         var frame = Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize);
         await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
         if (response.Succeeded && fcv)
         {
             LinkState.FrameCountBit = !fcbBefore;
@@ -320,7 +320,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var control = Ft12FrameBuilder.BuildPrimaryControl(3, fcv: true, fcb: fcbBefore);
         var frame = Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize);
         await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
         if (response.Succeeded)
         {
             LinkState.FrameCountBit = !fcbBefore;
@@ -372,7 +372,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         });
     }
 
-    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, int pendingPrimaryFunctionCode, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -391,7 +391,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             var candidate = _ft12.Decode(raw);
             validation = Iec101SecondaryResponseValidator.Validate(
                 candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes));
+                _transmitHistory.MatchesEarlier(candidate.RawBytes), pendingPrimaryFunctionCode);
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;

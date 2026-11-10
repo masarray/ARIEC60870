@@ -39,7 +39,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             // needs enough room for USB/RS-485 driver latency and OS scheduling. A too-short write
             // timeout creates noisy System.TimeoutException failures before the protocol timeout logic
             // can produce a clean diagnostic row.
-            WriteTimeout = Math.Max(2000, _settings.ResponseTimeoutMs),
+            WriteTimeout = _settings.SerialWriteTimeoutMs,
             Handshake = _settings.SerialHandshake,
             DtrEnable = _settings.SerialDtrEnable
         };
@@ -124,6 +124,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
 
         var data = buffer.ToArray();
+        var writeClock = Stopwatch.StartNew();
         try
         {
             await Task.Run(() =>
@@ -142,13 +143,17 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
         catch (TimeoutException ex)
         {
+            var portState = ReadWriteState(serialPort);
             RecordDiagnostic(
                 code: "IEC60870-TRANSPORT-WRITE-TIMEOUT",
                 message: "Serial write timed out",
                 exception: ex,
-                recommendation: "The serial driver did not accept outgoing bytes before the write timeout. Check USB/RS-485 converter state, COM port ownership, wiring, RTS direction control, and retry after reconnecting the adapter. The protocol session will stop cleanly instead of crashing the UI.");
+                recommendation: _settings.SerialHandshake is Handshake.RequestToSend or Handshake.RequestToSendXOnXOff
+                    ? "RTS/CTS flow control is selected. CTS=0 may withhold TX. Compare the known-working IEC_Test settings and hardware wiring before changing production flow control."
+                    : "CTS flow gating is not selected. CTS=0 alone does not explain this write timeout. Compare the converter, COM driver, baud/framing and RTS/DTR against IEC_Test.",
+                context: $"COM={SafePortName(serialPort)}; attemptedTX={data.Length} bytes; elapsed={writeClock.ElapsedMilliseconds} ms; writeLimit={serialPort.WriteTimeout} ms; {portState}");
             TryDiscardOutputBuffer(serialPort);
-            throw new IOException($"Serial write timed out on {SafePortName(serialPort)} after {serialPort.WriteTimeout} ms. Check USB/RS-485 converter, wiring, RTS direction control, and COM port ownership.", ex);
+            throw new IOException($"Serial write timed out on {SafePortName(serialPort)} after {writeClock.ElapsedMilliseconds} ms (limit {serialPort.WriteTimeout} ms); {portState}.", ex);
         }
         catch (InvalidOperationException ex)
         {
@@ -306,6 +311,17 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
+    private static string ReadWriteState(SerialPort port)
+    {
+        string pending;
+        try { pending = $"TX queued={port.BytesToWrite} bytes"; }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or NotSupportedException)
+        {
+            pending = $"TX queue unavailable ({ex.GetType().Name})";
+        }
+        return $"{ReadModemInputs(port)}, {pending}";
+    }
+
     // CTS/DSR/DCD are locally observed input states, never interpreted as RTU link health.
     private static string ReadModemInputs(SerialPort port)
     {
@@ -344,7 +360,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
-    private void RecordDiagnostic(string code, string message, Exception exception, string recommendation)
+    private void RecordDiagnostic(string code, string message, Exception exception, string recommendation, string? context = null)
     {
         lock (_diagnosticsLock)
         {
@@ -354,7 +370,8 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 Source = "SerialTransport",
                 Code = code,
                 Message = message,
-                Detail = $"{exception.Message}; {_settings.SerialControlLineSummary}",
+                Detail = $"{exception.Message}; {_settings.SerialControlLineSummary}" +
+                         (string.IsNullOrWhiteSpace(context) ? string.Empty : $"; {context}"),
                 Recommendation = recommendation,
                 ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
                 ExceptionMessage = exception.Message,

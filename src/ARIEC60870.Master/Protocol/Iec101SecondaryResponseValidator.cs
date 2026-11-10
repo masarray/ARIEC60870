@@ -15,7 +15,7 @@ public static class Iec101SecondaryResponseValidator
 
     public static Iec101SecondaryResponseValidation Validate(
         Ft12FrameDecode frame, int expectedLinkAddress, ReadOnlySpan<byte> lastTransmit,
-        bool matchesEarlierTransmit = false)
+        bool matchesEarlierTransmit = false, int? pendingPrimaryFunctionCode = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
@@ -27,6 +27,11 @@ public static class Iec101SecondaryResponseValidator
 
         if (frame.Format == Ft12FrameFormat.SingleCharacter)
         {
+            // E5 can acknowledge commands or mean NO DATA after Class 1/2 polling,
+            // but it cannot answer FC9 Request Link Status or prove link health.
+            if (frame.IsSingleCharacterAck && pendingPrimaryFunctionCode == 9)
+                return Rejected("IEC101-RX-UNEXPECTED-E5-STATUS",
+                    "E5 cannot answer FC9 Request Link Status; await an addressed FC11 secondary status reply.");
             if (frame.IsSingleCharacterAck) return Accepted(advanceFcb: true);
             if (frame.IsSingleCharacterNack) return Accepted(advanceFcb: false);
             return Rejected("IEC101-RX-UNSUPPORTED", $"Unexpected single-character reply: {frame.Hex}.");

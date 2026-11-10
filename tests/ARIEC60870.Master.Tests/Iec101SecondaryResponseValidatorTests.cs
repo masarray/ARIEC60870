@@ -38,6 +38,21 @@ public sealed class Iec101SecondaryResponseValidatorTests
     }
 
     [Fact]
+    public void E5CannotProveFc9StatusButCanRepresentClass2NoData()
+    {
+        var frame = Parser.Decode([0xE5]);
+        var status = Iec101SecondaryResponseValidator.Validate(
+            frame, 105, Convert.FromHexString("10496900B216"), pendingPrimaryFunctionCode: 9);
+        Assert.False(status.IsValid);
+        Assert.False(status.AdvancesFcb);
+        Assert.Equal("IEC101-RX-UNEXPECTED-E5-STATUS", status.Code);
+        var class2 = Iec101SecondaryResponseValidator.Validate(
+            frame, 105, Convert.FromHexString("105B6900C416"), pendingPrimaryFunctionCode: 11);
+        Assert.True(class2.IsValid);
+        Assert.True(class2.AdvancesFcb);
+    }
+
+    [Fact]
     public void PrimaryFromSameAddressButNotMatchingLastTxIsRejected()
     {
         var giTx = Convert.FromHexString("680D0D6853690064010600690000000014A416");

@@ -84,6 +84,59 @@ public sealed class Iec101SerialStartupAndTimingTests
     }
 
     [Fact]
+    public async Task E5StatusReplyCannotBootstrapGi()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 60;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var transport = new E5StatusOnlyTransport();
+        var result = await new Iec101MasterSession(settings, transport)
+            .RunForAsync(TimeSpan.FromMilliseconds(380), CancellationToken.None);
+        Assert.True(transport.StatusRequests > 0);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.DoesNotContain(result.Events, e => e.Summary == "IEC-101 secondary link verified");
+        Assert.Contains(result.Findings, e => e.Id == "IEC101-RX-UNEXPECTED-E5-STATUS");
+    }
+
+    [Fact]
+    public async Task DualLinkE5StatusCannotProveHealthy()
+    {
+        var settings = Settings();
+        settings.StartupDelayMs = 0;
+        settings.ResponseTimeoutMs = 80;
+        settings.SendGeneralInterrogationOnConnect = true;
+        await using var a = new E5StatusOnlyTransport();
+        await using var b = new E5StatusOnlyTransport();
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "A", PortName = "TEST-A", LinkAddress = 105 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "B", PortName = "TEST-B", LinkAddress = 105 }
+        };
+        var session = new Iec101DualLinkRedundancySession(options, a, b);
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+        var snapshot = session.CreateSnapshot();
+        Assert.True(a.StatusRequests > 0);
+        Assert.True(b.StatusRequests > 0);
+        Assert.False(snapshot.LinkA.IsHealthy);
+        Assert.False(snapshot.LinkB.IsHealthy);
+        Assert.Equal(0, result.Counters.GiCommands);
+    }
+
+    [Fact]
+    public void SerialWriteTimeoutBudgetCovers1200BpsFullFrames()
+    {
+        var settings = Settings();
+        settings.ResponseTimeoutMs = 120;
+        Assert.True(settings.SerialWriteTimeoutMs >= 3620);
+        settings.BaudRate = 9600;
+        Assert.Equal(2000, settings.SerialWriteTimeoutMs);
+        settings.ResponseTimeoutMs = 6500;
+        Assert.Equal(6500, settings.SerialWriteTimeoutMs);
+    }
+
+    [Fact]
     public async Task IncompleteFixedReplyDoesNotConsumeMaximumVariableFrameWindow()
     {
         await using var port = new PacedReceiveTransport([0x10], 12);
@@ -107,6 +160,34 @@ public sealed class Iec101SerialStartupAndTimingTests
 
         Assert.True(elapsed.ElapsedMilliseconds < 1500,
             "No physical start byte means no extended frame-completion deadline.");
+    }
+
+    private sealed class E5StatusOnlyTransport : IByteTransport
+    {
+        private readonly Queue<byte> _rx = new();
+        public int StatusRequests { get; private set; }
+        public bool IsOpen { get; private set; }
+        public ValueTask OpenAsync(CancellationToken token) { IsOpen = true; return ValueTask.CompletedTask; }
+        public ValueTask CloseAsync(CancellationToken token) { IsOpen = false; return ValueTask.CompletedTask; }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (bytes.Length >= 2 && bytes.Span[0] == 0x10 && (bytes.Span[1] & 0x0F) == 9)
+            {
+                StatusRequests++;
+                _rx.Enqueue(0xE5);
+            }
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask<int> ReadAsync(Memory<byte> bytes, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (_rx.Count == 0) return ValueTask.FromResult(0);
+            bytes.Span[0] = _rx.Dequeue();
+            return ValueTask.FromResult(1);
+        }
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync() { IsOpen = false; return ValueTask.CompletedTask; }
     }
 
     private sealed class FirstWriteProbeTransport : IByteTransport

@@ -110,3 +110,16 @@ For a COM-open but unverified-link report, preserve raw TX/RX and the exact
 control, baud/framing and the converter. If RX repeats TX, inspect loopback
 or other-master/port routing. Do not bypass secondary proof, automatically
 issue station reset or alter production wiring to force a green connection.
+
+## Serial driver write timeouts and status proof (2026-11-10)
+
+`IEC60870-TRANSPORT-WRITE-TIMEOUT` is a local OS/driver write failure, not
+proof that the remote RTU received the frame. The baud-derived driver write
+budget is independent of the protocol response deadline; diagnostics capture
+COM, attempted TX bytes, elapsed time, limit, CTS/DSR/DCD, configured RTS/DTR
+handshake and pending TX bytes. With RTS/CTS flow control, CTS=0 may block TX;
+with Handshake=None CTS=0 alone is not proof. Compare a known-good IEC_Test
+profile on an isolated bench before changing production cabling. A bare E5
+cannot prove FC9 Request Link Status; the Master rejects it with
+`IEC101-RX-UNEXPECTED-E5-STATUS` instead of falsely starting GI. E5 remains
+valid contextually for command ACK and Class 1/2 NO DATA.
