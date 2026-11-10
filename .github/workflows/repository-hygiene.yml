@@ -51,7 +51,7 @@ jobs:
           # still-unreleased source version under test in this pull request.
           $published = (Get-Content site/seo-manifest.json -Raw | ConvertFrom-Json).version
           if (!$published) { throw 'Missing public release version in SEO manifest.' }
-          # Strict SemVer RC comparison. System.Version does not parse -rc.N.
+          # Compare stable/RC versions; System.Version cannot parse -rc.N.
           $pattern = '^(?<base>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?:-rc\.(?<rc>[1-9][0-9]*))?$'
           $source = [regex]::Match($version, $pattern)
           $public = [regex]::Match($published, $pattern)
@@ -65,93 +65,6 @@ jobs:
           if ($publicBase -gt $codeBase -or
               ($publicBase -eq $codeBase -and $publicRank -gt $codeRank)) {
             throw "Public metadata $published is newer than code $version."
-          }
-          if (!$site.Contains('name="application-version" content="' + $published + '"') -or
-              !$site.Contains('"softwareVersion":"' + $published + '"')) {
-            throw "site/index.html and site/seo-manifest.json disagree on published version $published."
-          }
-          if ($manifest -notmatch 'IEC 60870') { throw 'site.webmanifest is not IEC 60870 branded.' }
-          if ($readme -notmatch 'IEC 60870-5-101' -or $readme -notmatch 'IEC 60870-5-104') { throw 'README does not clearly describe 101/104 coverage.' }
-
-      - name: Check site asset hygiene
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -d landing/screenshot ] || [ -d site/screenshot ]; then
-            echo "Raw screenshot folders should not be committed to public site folders."
-            exit 1
-          fi
-          find site/assets -type f -size +750k -print -quit | grep -q . && { echo "Large site asset found; compress before commit."; exit 1; } || true
-
-      - name: Check canonical site ownership and /docs compatibility mirror
-        shell: bash
-        run: |
-          set -euo pipefail
-          forbidden=(
-            landing/index.html landing/styles.css landing/script.js landing/sitemap.xml landing/robots.txt
-          )
-          for file in "${forbidden[@]}"; do
-            if [ -e "$file" ]; then
-              echo "Legacy landing source is not allowed: $file"
-              exit 1
-            fi
-          done
-
-          runtime=(
-            index.html 404.html styles.css script.js robots.txt sitemap.xml site.webmanifest
-            seo-manifest.json llms.txt humans.txt download.html faq.html protocol-coverage.html
-            quick-start.html troubleshooting.html
-          )
-          for file in "${runtime[@]}"; do
-            test -f "site/$file" || { echo "Missing canonical site file: site/$file"; exit 1; }
-            test -f "docs/$file" || { echo "Missing /docs GitHub Pages compatibility file: docs/$file"; exit 1; }
-          done
-          test -d docs/assets || { echo "Missing docs/assets compatibility mirror."; exit 1; }
-
-          if ! cmp -s site/index.html docs/index.html; then
-            echo "::warning::docs/index.html is out of sync with site/index.html. GitHub Pages still deploys canonical site/. Run scripts/sync-github-pages-docs-mirror.ps1 before branch-based /docs publishing."
-          fi
-
-      - name: Check sitemap and canonical coverage
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          manifest = json.loads(Path('site/seo-manifest.json').read_text(encoding='utf-8'))
-          sitemap = Path('site/sitemap.xml').read_text(encoding='utf-8')
-          for page in manifest['pages']:
-              html_path = Path('site') / page['path']
-              html = html_path.read_text(encoding='utf-8')
-              canonical = page['canonical']
-              if f'<link rel="canonical" href="{canonical}"' not in html:
-                  raise SystemExit(f'Missing canonical in {html_path}: {canonical}')
-              if canonical not in sitemap:
-                  raise SystemExit(f'Sitemap missing canonical URL: {canonical}')
-              if 'og:title' not in html or 'og:description' not in html:
-                  raise SystemExit(f'Missing Open Graph metadata: {html_path}')
-          PY
-
-            $matched = [regex]::Match($value, $pattern)
-            if (!$matched.Success) { throw "Invalid public SemVer value: $value" }
-            $base = [version]::new(
-              [int]$matched.Groups['major'].Value,
-              [int]$matched.Groups['minor'].Value,
-              [int]$matched.Groups['patch'].Value)
-            $rank = if ($matched.Groups['rc'].Success) {
-              [int]$matched.Groups['rc'].Value
-            } else {
-              [int]::MaxValue
-            }
-            return [pscustomobject]@{ Base = $base; Rank = $rank }
-          }
-          $sourceParsed = Parse-PublicVersion $version
-          $publishedParsed = Parse-PublicVersion $published
-          if ($publishedParsed.Base -gt $sourceParsed.Base -or
-              ($publishedParsed.Base -eq $sourceParsed.Base -and $publishedParsed.Rank -gt $sourceParsed.Rank)) {
-            throw "Public release metadata $published is newer than source $version."
           }
           if (!$site.Contains('name="application-version" content="' + $published + '"') -or
               !$site.Contains('"softwareVersion":"' + $published + '"')) {
