@@ -89,8 +89,25 @@ public sealed class Iec101SicamFieldRegressionTests
         await using var transport = new ScriptedSicamTransport(responseOnly: false);
         var session = new Iec101MasterSession(settings, transport);
 
-        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+        // The shared Windows runner may pause for longer than 500 ms between
+        // scripted reads. Stop on two source-backed secondary responses instead
+        // of racing its wall clock. The timeout below is a failure guard only.
+        using var completedTwoReplies = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        var acceptedSecondaries = 0;
+        session.EvidenceReceived += (_, observation) =>
+        {
+            if (observation.Category == "RX" &&
+                observation.Frame?.LinkControl?.Prm == false &&
+                Interlocked.Increment(ref acceptedSecondaries) >= 2)
+            {
+                completedTwoReplies.Cancel();
+            }
+        };
 
+        var result = await session.RunAsync(completedTwoReplies.Token);
+
+        Assert.True(Volatile.Read(ref acceptedSecondaries) >= 2,
+            "The scripted SICAM transport must deliver two validated secondary frames.");
         Assert.True(result.Counters.TxFrames >= 2);
         Assert.True(result.Counters.RxFrames >= 2);
         Assert.True(result.Counters.TimedResponses >= 2);
