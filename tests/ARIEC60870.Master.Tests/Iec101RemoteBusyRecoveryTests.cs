@@ -5,6 +5,7 @@ using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master;
 using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol;
 using ARIEC60870.Master.Transport;
 using Xunit;
 
@@ -139,7 +140,7 @@ public sealed class Iec101RemoteBusyRecoveryTests
             {
                 DataRequests++;
                 if (_remoteBusy) DataSentWhileBusy++;
-                Enqueue(fc == 3 ? [0xE5] : Ft12FrameBuilder.Fixed(0x09, 105, 2));
+                Enqueue(fc == 3 ? new byte[] { 0xE5 } : Ft12FrameBuilder.Fixed(0x09, 105, 2));
             }
             else if (fc == 0 || fc == 7)
             {
