@@ -47,10 +47,10 @@ public sealed class FrameTraceVisualPolicyTests
     }
 
     [Fact]
-    public void ACDPendingIsAttentionEvenWhenClass2ResponseIsEmpty()
+    public void ACDPendingIsNormalClass1DemandNotAProtocolError()
     {
         var row = Row(Convert.FromHexString("102969009216"), false);
-        Assert.Equal("Attention", row.TraceVisualClass);
+        Assert.Equal("Pending", row.TraceVisualClass);
         Assert.Equal("#18583B", row.TraceInk);
     }
 

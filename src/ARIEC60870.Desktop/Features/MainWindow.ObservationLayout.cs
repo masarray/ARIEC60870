@@ -26,6 +26,16 @@ public partial class MainWindow
         UpdateTraceRowLayout();
     }
 
+    private void CopyVisibleTraceRows_Click(object sender, RoutedEventArgs e)
+    {
+        // Right-click retains an existing Ctrl/Shift selection and otherwise
+        // targets the pointed frame. Do not mutate the canonical evidence.
+        var rows = GetSelectedProtocolTraceRowsForCapture();
+        if (rows.Count == 0) return;
+        Clipboard.SetText(FrameTraceRowClipboardFormatter.Format(rows));
+        AppendSessionLog($"Copied {rows.Count} displayed Raw Frames row(s) as plain text.");
+    }
+
     private void FrameTraceGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Changes only when the actual row viewport crosses the readable-width

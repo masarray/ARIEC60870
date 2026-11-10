@@ -910,8 +910,8 @@
                                                       Visibility="Collapsed" Click="TraceNewer_Click"/>
                                             <Separator x:Name="TraceHistoryMenuDivider" Visibility="Collapsed"/>
                                             <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
-                                            <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
-                                                      />
+                                            <MenuItem Header="Copy Row (As Displayed)" Click="CopyVisibleTraceRows_Click" />
+                                            <MenuItem Header="Copy Selected Frame (Full Evidence)" Click="CopySelectedCaptureForAi_Click" />
                                             <MenuItem Header="Export Selected Trace Text..." Click="ExportSelectedTrace_Click" />
                                             <Separator />
                                             <MenuItem Header="Select All Visible Trace Rows" Click="SelectAllVisibleTraceRows_Click" />
@@ -963,19 +963,19 @@
                                                             <ColumnDefinition Width="26"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Grid.Column="0" Text="{Binding Sequence}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.5"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#607588" VerticalAlignment="Center"/>
                                                         <TextBlock Grid.Column="1" Text="{Binding Time}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.6"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#3D5871" TextTrimming="CharacterEllipsis"
                                                                    VerticalAlignment="Center"/>
                                                         <TextBlock Grid.Column="2" Text="{Binding Direction}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    FontWeight="SemiBold" Foreground="{Binding TraceInk}"
                                                                    VerticalAlignment="Center"/>
                                                     </Grid>
                                                     <TextBlock Grid.Row="1" Text="{Binding TimelineHex}"
-                                                               FontFamily="Cascadia Mono, Consolas" FontSize="10.7"
+                                                               FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                Foreground="#235076" Margin="0,4,0,0"
                                                                TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                                                                MaxHeight="68"/>
@@ -988,7 +988,7 @@
                                                         BorderThickness="1,0,0,0" Padding="8,0,3,0">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding TimelineTitle}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    FontWeight="SemiBold" Foreground="#253B51"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="90"/>
@@ -997,7 +997,7 @@
                                                              text run. Only 3 source objects are
                                                              previewed to keep live rows bounded. -->
                                                         <TextBlock Text="{Binding TimelineSignalDigest}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#174B73" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="420">
@@ -1012,7 +1012,7 @@
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineSignalOverflow}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.3"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#59728A" Margin="0,2,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None">
                                                             <TextBlock.Style>
@@ -1026,25 +1026,40 @@
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringIdentity}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.5"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#3C5670" Margin="0,3,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="88"/>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.4"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    Foreground="#405973" Margin="0,2,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="110"/>
-                                                        <!-- RTU timestamp is rendered only beside its own typed signal above. -->
-                                                        <TextBlock Text="{Binding TimelineReadableAlerts}"
-                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="10.8"
+                                                        <!-- ACD is a normal Class 1 request flag, not an error. -->
+                                                        <TextBlock Text="{Binding TimelineAcdPending}"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
+                                                                   FontWeight="Medium" Foreground="#995010"
+                                                                   TextWrapping="Wrap" Margin="0,4,0,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding HasTimelineAcdPending}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <!-- Protocol, decoding, time and quality problems only: -->
+                                                        <TextBlock Text="{Binding TimelineDiagnosticAlerts}"
+                                                                   FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    FontWeight="Medium" Foreground="#9B3F24"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="190" Margin="0,4,0,0">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding HasTimelineReadableAlerts}" Value="False">
+                                                                        <DataTrigger Binding="{Binding HasTimelineDiagnosticAlerts}" Value="False">
                                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
