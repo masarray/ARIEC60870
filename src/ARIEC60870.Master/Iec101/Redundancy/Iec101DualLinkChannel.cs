@@ -46,6 +46,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     public Iec101DualLinkEndpoint Endpoint { get; }
     public string Name => Endpoint.Name;
+    public long ConnectionEpoch => _transactions.LinkEpoch;
     public Iec101RedundancyChannelRole Role { get; private set; }
     public Iec101RedundancyChannelState State { get; private set; } = Iec101RedundancyChannelState.Closed;
     public Iec101LinkLayerState LinkState { get; } = new();

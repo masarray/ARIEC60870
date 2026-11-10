@@ -40,6 +40,16 @@ public sealed class Iec101QueueAndEpochSafetyTests
     }
 
     [Fact]
+    public void QueuedPhysicalControlCannotResurrectAfterAtoBtoAOrSamePortReconnect()
+    {
+        var original = new Iec101OwnerStamp("A", 4, 7);
+        Assert.True(original.Matches("A", 4, 7));
+        Assert.False(original.Matches("B", 4, 8));
+        Assert.False(original.Matches("A", 4, 9)); // A -> B -> A, same name, new election.
+        Assert.False(original.Matches("A", 5, 7)); // Same COM identity, new epoch.
+    }
+
+    [Fact]
     public void OpeningNewComEpochInvalidatesPreviousGoodStandbyProof()
     {
         var evidence = new Iec101LinkLayerState();

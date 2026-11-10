@@ -21,7 +21,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     // An operator control belongs to the exact verified active owner present
     // when queued. Never silently replay it after a link switch/recovery.
     private readonly record struct QueuedControl(
-        Iec60870ControlCommandRequest Request, string? ActiveName, bool VerifiedOnQueue, DateTime QueuedUtc);
+        Iec60870ControlCommandRequest Request, Iec101OwnerStamp OwnerAtQueue,
+        bool VerifiedOnQueue, DateTime QueuedUtc);
     private static readonly TimeSpan MaxQueuedMutatingCommandAge = TimeSpan.FromSeconds(30);
     private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
         => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
@@ -41,6 +42,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private DateTime _lastFailoverUtc = DateTime.MinValue;
     private int _lastFailoverLatencyMs;
     private long _sequence;
+    private int _activeGeneration;
     private bool _switchInProgress;
     private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
@@ -69,7 +71,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (request is not null)
         {
             var active = _active;
-            if (!_controlCommands.TryEnqueue(new QueuedControl(request, active?.Name,
+            var ownerStamp = active is null ? default :
+                new Iec101OwnerStamp(active.Name, active.ConnectionEpoch, Volatile.Read(ref _activeGeneration));
+            if (!_controlCommands.TryEnqueue(new QueuedControl(request, ownerStamp,
                     active?.IsHealthy == true, DateTime.UtcNow)))
             {
                 RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
@@ -192,6 +196,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                       || _options.PreferredActiveLink.Equals(_options.LinkB.Name, StringComparison.OrdinalIgnoreCase);
         _active = preferB ? _linkB : _linkA;
         _standby = preferB ? _linkA : _linkB;
+        Interlocked.Increment(ref _activeGeneration);
 
         await _active.OpenAsync(Iec101RedundancyChannelRole.Active, cancellationToken).ConfigureAwait(false);
         await _standby.OpenAsync(Iec101RedundancyChannelRole.Standby, cancellationToken).ConfigureAwait(false);
@@ -442,13 +447,17 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (IsMutatingCommand(request) &&
             (!queued.VerifiedOnQueue ||
-             !string.Equals(queued.ActiveName, _active.Name, StringComparison.Ordinal) ||
+             !queued.OwnerAtQueue.Matches(_active.Name, _active.ConnectionEpoch,
+                 Volatile.Read(ref _activeGeneration)) ||
              DateTime.UtcNow - queued.QueuedUtc > MaxQueuedMutatingCommandAge))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-STALE-OWNER",
                 "IEC-101 mutating command rejected: stale or unverified queue ownership",
-                $"{request.Summary}; queued owner={queued.ActiveName ?? "-"}, verified at queue={queued.VerifiedOnQueue}; " +
-                $"current owner={_active.Name}; queue age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                $"{request.Summary}; queued owner={queued.OwnerAtQueue.PhysicalSource ?? "-"}, " +
+                $"epoch={queued.OwnerAtQueue.LinkEpoch}, generation={queued.OwnerAtQueue.ActiveGeneration}; " +
+                $"verified-at-queue={queued.VerifiedOnQueue}; current owner={_active.Name}, " +
+                $"epoch={_active.ConnectionEpoch}, generation={_activeGeneration}; " +
+                $"queue age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
                 "An old control or clock adjustment must never be silently delivered after failover or extended recovery.",
                 "Reissue the command deliberately against the now-verified active link.");
             return true;
@@ -829,6 +838,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
             _active = to;
             _standby = from;
+            Interlocked.Increment(ref _activeGeneration);
             _lastClass2PollUtc = DateTime.MinValue;
             _lastStandbySupervisionUtc = DateTime.MinValue;
 
