@@ -17,6 +17,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly IByteTransport _transport;
     private readonly Ft12Parser _ft12;
     private readonly Ft12StreamReader _reader;
+    private readonly Iec101UnbalancedBusyGate _busyGate;
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly Func<Iec103MasterEvidenceEvent, long> _publish;
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
@@ -33,10 +34,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _busyGate = new Iec101UnbalancedBusyGate(settings.BusyBackoffMs);
         _publish = publish ?? throw new ArgumentNullException(nameof(publish));
         _observeAsdu = observeAsdu ?? throw new ArgumentNullException(nameof(observeAsdu));
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
-        _reader = new Ft12StreamReader(transport, settings.LinkAddressSize);
+        _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
     
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
@@ -47,18 +49,23 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public Iec101RedundancyChannelState State { get; private set; } = Iec101RedundancyChannelState.Closed;
     public Iec101LinkLayerState LinkState { get; } = new();
     public bool IsOpen => _transport.IsOpen;
-    public bool IsHealthy => IsOpen && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures == 0;
-    public bool IsPromotable(int failureThreshold) => IsOpen && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
+    public bool IsHealthy => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures == 0;
+    public bool IsRemoteBusy => _busyGate.IsBusy;
+    public bool BusyStatusProbeDue(DateTime utcNow) => _busyGate.ShouldProbe(utcNow);
+    public int BusyStatusDelayMs(DateTime utcNow) => _busyGate.DelayMs(utcNow);
+    public bool IsPromotable(int failureThreshold) => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
     public bool HasRecentGoodResponse(TimeSpan window)
         => IsOpen
+           && !LinkState.Dfc
            && LinkState.ConsecutiveFailures == 0
            && LinkState.LastGoodResponseUtc is DateTime lastGood
            && DateTime.UtcNow - lastGood <= window;
 
     public bool CanRescueFailedActive(int failureThreshold, TimeSpan recentGoodWindow)
         // An earlier validated secondary reply is required. Raw RX/COM-open alone never qualify.
-        // Failure counters and active standby supervision still gate subsequent promotion.
-        => IsPromotable(failureThreshold) || HasRecentGoodResponse(recentGoodWindow);
+        // Require BOTH a passing failure threshold AND fresh, failure-free proof;
+        // a months-old status cannot make a currently silent standby promotable.
+        => IsPromotable(failureThreshold) && HasRecentGoodResponse(recentGoodWindow);
 
     public async Task OpenAsync(Iec101RedundancyChannelRole role, CancellationToken cancellationToken)
     {
@@ -306,7 +313,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
         var frame = Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize);
         await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
         if (response.Succeeded && fcv)
         {
             LinkState.FrameCountBit = !fcbBefore;
@@ -320,7 +327,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var control = Ft12FrameBuilder.BuildPrimaryControl(3, fcv: true, fcb: fcbBefore);
         var frame = Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize);
         await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
+        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
         if (response.Succeeded)
         {
             LinkState.FrameCountBit = !fcbBefore;
@@ -372,7 +379,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         });
     }
 
-    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, int pendingPrimaryFunctionCode, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -391,7 +398,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             var candidate = _ft12.Decode(raw);
             validation = Iec101SecondaryResponseValidator.Validate(
                 candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes));
+                _transmitHistory.MatchesEarlier(candidate.RawBytes), pendingPrimaryFunctionCode);
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;
@@ -433,8 +440,22 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             return new Iec101ChannelExchangeResult { TimedOut = true };
         }
 
-        LinkState.MarkGoodResponse(now);
         var decoded = acceptedFrame;
+        var busyChanged = _busyGate.Observe(decoded, now);
+        if (_busyGate.IsBusy)
+            LinkState.MarkBusyResponse();
+        else if (validation.AdvancesFcb &&
+                 (LinkState.LastGoodResponseUtc.HasValue ||
+                  Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded)))
+            LinkState.MarkGoodResponse(now);
+        else
+            LinkState.MarkNegativeResponse();
+        if (busyChanged)
+            PublishState(Iec101RedundancyEventKind.StateChanged,
+                _busyGate.IsBusy ? $"{Name} DFC=1 remote busy" : $"{Name} DFC=0 remote ready",
+                _busyGate.IsBusy
+                    ? $"Only FC9 status probes after {Math.Clamp(_settings.BusyBackoffMs, 100, 30000)} ms; no Class 1/2, GI or commands."
+                    : "Addressed secondary cleared DFC; normal scheduling may resume.");
 
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
         _observeAsdu(asdu, now);

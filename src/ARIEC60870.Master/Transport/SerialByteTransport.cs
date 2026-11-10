@@ -8,12 +8,17 @@ using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Master.Transport;
 
-public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSource
+public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSource, ITransportExchangeObserver
 {
     private readonly Iec103MasterSettings _settings;
     private SerialPort? _serialPort;
     private readonly object _diagnosticsLock = new();
     private readonly List<TransportDiagnostic> _diagnostics = new();
+    private long _receivedBytes;
+    private long _writtenBytes;
+    private long _rxBytesAtLastExchange;
+    private int _noFrameExchangeStreak;
+    private int _outOfContextExchangeStreak;
 
     public SerialByteTransport(Iec103MasterSettings settings)
     {
@@ -39,7 +44,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             // needs enough room for USB/RS-485 driver latency and OS scheduling. A too-short write
             // timeout creates noisy System.TimeoutException failures before the protocol timeout logic
             // can produce a clean diagnostic row.
-            WriteTimeout = Math.Max(2000, _settings.ResponseTimeoutMs),
+            WriteTimeout = _settings.SerialWriteTimeoutMs,
             Handshake = _settings.SerialHandshake,
             DtrEnable = _settings.SerialDtrEnable
         };
@@ -57,6 +62,11 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
             port.DiscardInBuffer();
             port.DiscardOutBuffer();
             _serialPort = port;
+            Interlocked.Exchange(ref _receivedBytes, 0);
+            Interlocked.Exchange(ref _writtenBytes, 0);
+            _rxBytesAtLastExchange = 0;
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak = 0;
             RecordInformational("IEC60870-SERIAL-OPEN-PROFILE",
                 $"Serial open: {_settings.SerialSummary}; {_settings.SerialControlLineSummary}; {ReadModemInputs(port)}.",
                 "This is a local OS/adapter observation, not proof that the SICAM RTU received frames.");
@@ -124,6 +134,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
 
         var data = buffer.ToArray();
+        var writeClock = Stopwatch.StartNew();
         try
         {
             await Task.Run(() =>
@@ -131,6 +142,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 cancellationToken.ThrowIfCancellationRequested();
                 serialPort.Write(data, 0, data.Length);
             }, cancellationToken).ConfigureAwait(false);
+            Interlocked.Add(ref _writtenBytes, data.Length);
         }
         catch (OperationCanceledException)
         {
@@ -142,13 +154,17 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
         catch (TimeoutException ex)
         {
+            var portState = ReadWriteState(serialPort);
             RecordDiagnostic(
                 code: "IEC60870-TRANSPORT-WRITE-TIMEOUT",
                 message: "Serial write timed out",
                 exception: ex,
-                recommendation: "The serial driver did not accept outgoing bytes before the write timeout. Check USB/RS-485 converter state, COM port ownership, wiring, RTS direction control, and retry after reconnecting the adapter. The protocol session will stop cleanly instead of crashing the UI.");
+                recommendation: _settings.SerialHandshake is Handshake.RequestToSend or Handshake.RequestToSendXOnXOff
+                    ? "RTS/CTS flow control is selected. CTS=0 may withhold TX. Compare the known-working IEC_Test settings and hardware wiring before changing production flow control."
+                    : "CTS flow gating is not selected. CTS=0 alone does not explain this write timeout. Compare the converter, COM driver, baud/framing and RTS/DTR against IEC_Test.",
+                context: $"COM={SafePortName(serialPort)}; attemptedTX={data.Length} bytes; elapsed={writeClock.ElapsedMilliseconds} ms; writeLimit={serialPort.WriteTimeout} ms; {portState}");
             TryDiscardOutputBuffer(serialPort);
-            throw new IOException($"Serial write timed out on {SafePortName(serialPort)} after {serialPort.WriteTimeout} ms. Check USB/RS-485 converter, wiring, RTS direction control, and COM port ownership.", ex);
+            throw new IOException($"Serial write timed out on {SafePortName(serialPort)} after {writeClock.ElapsedMilliseconds} ms (limit {serialPort.WriteTimeout} ms); {portState}.", ex);
         }
         catch (InvalidOperationException ex)
         {
@@ -240,6 +256,8 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                         var read = serialPort.Read(destination, destinationOffset, requested);
                         if (read > 0 && rented is not null)
                             rented.AsMemory(0, read).CopyTo(buffer);
+                        if (read > 0)
+                            Interlocked.Add(ref _receivedBytes, read);
                         return read;
                     }
                     catch (TimeoutException)
@@ -265,6 +283,55 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 System.Buffers.ArrayPool<byte>.Shared.Return(rented);
         }
     }
+
+    /// <summary>
+    /// Bounded, read-only modem/driver snapshots. This is NOT a protocol
+    /// recovery action: CTS=0 alone cannot prove RTS/CTS gating when Handshake=None.
+    /// </summary>
+    public void ObserveExchangeOutcome(int primaryFunctionCode, bool acceptedSecondary,
+        int decodedRxFrames, int rejectedRxFrames)
+    {
+        var port = _serialPort;
+        if (port?.IsOpen != true) return;
+
+        var totalRx = Interlocked.Read(ref _receivedBytes);
+        var deltaRx = Math.Max(0, totalRx - _rxBytesAtLastExchange);
+        _rxBytesAtLastExchange = totalRx;
+        if (acceptedSecondary)
+        {
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak = 0;
+            return;
+        }
+
+        if (decodedRxFrames == 0)
+        {
+            _noFrameExchangeStreak++;
+            _outOfContextExchangeStreak = 0;
+            if (!ShouldCaptureExchange(_noFrameExchangeStreak)) return;
+            RecordInformational("IEC60870-SERIAL-NO-FRAME-EVIDENCE",
+                $"Primary FC={primaryFunctionCode}; no completed FT1.2 secondary frame; " +
+                $"RX bytes since previous exchange={deltaRx}; RX bytes since COM open={totalRx}; " +
+                $"TX bytes={Interlocked.Read(ref _writtenBytes)}; no-frame streak={_noFrameExchangeStreak}; " +
+                $"COM={SafePortName(port)}; {_settings.SerialControlLineSummary}; {ReadWriteState(port)}.",
+                "If RX bytes remain zero, compare the same adapter COM and RTS/DTR against IEC_Test and inspect SICAM CTS engineering mode, cabling and port direction. " +
+                "If RX bytes are nonzero, inspect framing noise and serial parity. No automatic station reset or line-toggle was performed.");
+        }
+        else
+        {
+            _noFrameExchangeStreak = 0;
+            _outOfContextExchangeStreak++;
+            if (!ShouldCaptureExchange(_outOfContextExchangeStreak)) return;
+            RecordInformational("IEC60870-SERIAL-RX-NOT-CORRELATED",
+                $"Primary FC={primaryFunctionCode}; decoded RX frames={decodedRxFrames}; rejected frames={rejectedRxFrames}; " +
+                $"RX bytes since previous exchange={deltaRx}; total RX bytes={totalRx}; " +
+                $"streak={_outOfContextExchangeStreak}; {_settings.SerialControlLineSummary}; {ReadWriteState(port)}.",
+                "Inspect exact TX/RX hex and the IEC-101 rejected-RX code; an addressed FC11 after GI/Class 2 is not the expected response. " +
+                "Check delayed FC9 status and optional operator-approved link/FCB synchronization rather than accepting it as Class data.");
+        }
+    }
+
+    private static bool ShouldCaptureExchange(int count) => count <= 2 || (count & (count - 1)) == 0;
 
     public void Dispose()
     {
@@ -306,6 +373,17 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
+    private static string ReadWriteState(SerialPort port)
+    {
+        string pending;
+        try { pending = $"TX queued={port.BytesToWrite} bytes"; }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or NotSupportedException)
+        {
+            pending = $"TX queue unavailable ({ex.GetType().Name})";
+        }
+        return $"{ReadModemInputs(port)}, {pending}";
+    }
+
     // CTS/DSR/DCD are locally observed input states, never interpreted as RTU link health.
     private static string ReadModemInputs(SerialPort port)
     {
@@ -344,7 +422,7 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
         }
     }
 
-    private void RecordDiagnostic(string code, string message, Exception exception, string recommendation)
+    private void RecordDiagnostic(string code, string message, Exception exception, string recommendation, string? context = null)
     {
         lock (_diagnosticsLock)
         {
@@ -354,7 +432,8 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                 Source = "SerialTransport",
                 Code = code,
                 Message = message,
-                Detail = $"{exception.Message}; {_settings.SerialControlLineSummary}",
+                Detail = $"{exception.Message}; {_settings.SerialControlLineSummary}" +
+                         (string.IsNullOrWhiteSpace(context) ? string.Empty : $"; {context}"),
                 Recommendation = recommendation,
                 ExceptionType = exception.GetType().FullName ?? exception.GetType().Name,
                 ExceptionMessage = exception.Message,
