@@ -1025,154 +1025,134 @@ public partial class MainWindow
             if (view.Index == 3)
             {
                 AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
-                    EventsAutoScrollButton, RelayEventGrid, "Events", 9);
+                    null, RelayEventGrid, "Events", 9);
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
-                if (!EventsAutoScrollButton.IsVisible ||
-                    !EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
+                if (!EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
+                    !EventHistoryPreviousButton.IsVisible ||
+                    !EventHistoryNextButton.IsVisible ||
+                    !EventHistoryLatestButton.IsVisible ||
+                    !EventHistoryExportButton.IsVisible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
                     RelayEventGrid.Columns.FirstOrDefault(col =>
-                        string.Equals(col.Header?.ToString(), "State / value", StringComparison.Ordinal))
-                        is not DataGridTemplateColumn eventStateColumn ||
+                        string.Equals(col.Header?.ToString(), "State / value",
+                            StringComparison.Ordinal)) is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
                         { Path.Path: "OperatorValue" })
-                    throw new InvalidOperationException("Event Log compact toolbar/status/clipboard contract missing.");
-                // The Include/Exclude pair must not move as the dynamic count
-                // changes from 2 digits to thousands during long sessions.
+                    throw new InvalidOperationException(
+                        "Unified Event History top toolbar or clipboard contract missing.");
+
                 UpdateLayout();
-                var includeXBefore = EventIncludeToggle.TranslatePoint(new Point(), EventsSearchShell).X;
-                var realCounter = EventsQuickCountText.Text;
-                EventsQuickCountText.Text = "99999 / 99999 recent";
+                var includeXBefore = EventIncludeToggle.TranslatePoint(
+                    new Point(), EventsSearchShell).X;
+                var original = EventsQuickCountText.Text;
+                EventsQuickCountText.Text = "99,999 / 999,999 events";
                 UpdateLayout();
-                var includeXAfter = EventIncludeToggle.TranslatePoint(new Point(), EventsSearchShell).X;
-                EventsQuickCountText.Text = realCounter;
-                UpdateLayout();
+                var includeXAfter = EventIncludeToggle.TranslatePoint(
+                    new Point(), EventsSearchShell).X;
+                EventsQuickCountText.Text = original;
                 if (Math.Abs(includeXAfter - includeXBefore) > 1)
                     throw new InvalidOperationException(
-                        $"Events Include/Exclude controls shifted with counter text: {includeXBefore:0.0} -> {includeXAfter:0.0} DIP.");
+                        "Event History filters moved when the count grew.");
 
-                // A visible counter without any realized WPF event rows must
-                // fail acceptance. The older Stage-C evidence showed 2/2
-                // recent yet a visually empty Event Log.
                 SetEventFilters(EventCategories, Array.Empty<string>());
                 EventsQuickFindBox.Clear();
                 ApplyQuickFind();
-                // Also exercise spontaneous arrivals while Events itself is
-                // visible; the prior acceptance specifically protects this
-                // live collection reconciliation/realization path.
                 SeedSpontaneousEventRows();
-                ApplyRelayEventFilter();
-                // Validate retained SOE projection after leaving and returning
-                // to Events, which previously showed a 2/2 count but blank rows.
-                MainTabControl.SelectedIndex = 1;
-                await Dispatcher.Yield(DispatcherPriority.Loaded);
-                MainTabControl.SelectedIndex = 3;
-                await Dispatcher.Yield(DispatcherPriority.Loaded);
-                ApplyRelayEventFilter();
+                await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
+                await RefreshEventHistoryQueryAsync();
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 UpdateLayout();
-                if (_eventProjectionFilteredCount != RelayEventRows.Count ||
-                    _eventProjectionSourceCount < _eventProjectionFilteredCount ||
-                    _eventProjectionVersion == 0 || _eventLiveResetCount != 0)
+                if (_historicalEventRows.Count == 0 ||
+                    !ReferenceEquals(RelayEventGrid.ItemsSource, _historicalEventRows) ||
+                    RelayEventGrid.Items.Count != _historicalEventRows.Count)
                     throw new InvalidOperationException(
-                        $"Event projection invariant failure: v={_eventProjectionVersion}, source={_eventProjectionSourceCount}, filtered={_eventProjectionFilteredCount}, projected={RelayEventRows.Count}, resets={_eventLiveResetCount}.");
-                if (RelayEventGrid.Items.Count != RelayEventRows.Count)
+                        "Unified Event grid is not backed by its indexed source.");
+                if (_eventHistoryQuery.Count < _historicalEventRows.Count ||
+                    _historicalEventRows.Count > EventHistoryPagination.PageSize)
                     throw new InvalidOperationException(
-                        $"Event bound grid count mismatch: {RelayEventGrid.Items.Count}/{RelayEventRows.Count}.");
-
-                // The prior Events tab showed only spontaneous digital rows,
-                // despite real background/GI float points being present in Values.
-                // All original qualified measurements belong to the journal.
-                var beforeFilterCount = _relayEventStore.Snapshot().Count;
-                if (!_relayEventStore.Snapshot().Any(row => row.TypeBadge?.Label == "FLT") ||
-                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT"))
+                        "Unified Event Journal page exceeded 100 source rows.");
+                if (!_relayEventStore.Snapshot().Any(row => row.TypeBadge?.Label == "FLT"))
                     throw new InvalidOperationException(
-                        "All Events did not retain original decoded floating measurements.");
+                        "Source event ledger missed a floating measurement.");
 
                 SetEventFilters(["Measurement"], Array.Empty<string>());
-                if (RelayEventRows.Count == 0 ||
-                    RelayEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
+                await RefreshEventHistoryQueryAsync();
+                if (_eventHistoryQuery.Count == 0 ||
+                    _historicalEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
                     EventIncludeToggle.Content?.ToString() != "Include: 1")
                     throw new InvalidOperationException(
-                        "Include Measurement checkbox dropped or misclassified actual analog events.");
+                        "Full-history Include Measurement filter missed analog events.");
 
                 SetEventFilters(EventCategories, ["Measurement"]);
-                if (RelayEventRows.Any(row => ClassifyEventCategory(row) == "Measurement") ||
+                await RefreshEventHistoryQueryAsync();
+                if (_historicalEventRows.Any(row =>
+                        ClassifyEventCategory(row) == "Measurement") ||
                     EventExcludeToggle.Content?.ToString() != "Exclude: 1")
                     throw new InvalidOperationException(
-                        "Exclude Measurement did not remove analog rows from view only.");
+                        "Full-history Exclude Measurement filter failed.");
+
                 SetEventFilters(EventCategories, Array.Empty<string>());
-                if (_relayEventStore.Snapshot().Count != beforeFilterCount ||
-                    !RelayEventRows.Any(row => row.TypeBadge?.Label == "FLT") ||
-                    RelayEventGrid.Items.Count != RelayEventRows.Count)
+                await RefreshEventHistoryQueryAsync();
+                if (_eventHistoryQuery.Count == 0 ||
+                    RelayEventGrid.Items.Count != _historicalEventRows.Count)
                     throw new InvalidOperationException(
-                        "Include/Exclude mutated source journal or failed to restore the mixed Event view.");
-                if (!BuildTabSeparatedText(RelayEventGrid).Contains("Single Point ON", StringComparison.Ordinal))
-                    throw new InvalidOperationException("Event status text missing from tab-separated export.");
-                if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
+                        "Removing Event filters failed to restore indexed history.");
+                var lastEvent = _historicalEventRows[^1];
+                RelayEventGrid.ScrollIntoView(lastEvent);
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                if (RelayEventGrid.ItemContainerGenerator.ContainerFromItem(lastEvent)
+                        is not DataGridRow realized ||
+                    !realized.IsVisible || realized.ActualHeight < 12)
                     throw new InvalidOperationException(
-                        $"SOE lost on tab return: source={_relayEventStore.Snapshot().Count()}, projection={RelayEventRows.Count}, bound={RelayEventGrid.Items.Count}, include={EventIncludeToggle.Content}, exclude={EventExcludeToggle.Content}, query='{_eventsQuickQuery}'.");
-                if (RelayEventRows.Count > 0)
-                {
-                    var lastEvent = RelayEventRows[RelayEventRows.Count - 1];
-                    RelayEventGrid.ScrollIntoView(lastEvent);
-                    await Dispatcher.Yield(DispatcherPriority.Loaded);
-                    UpdateLayout();
-                    if (RelayEventGrid.ItemContainerGenerator.ContainerFromItem(lastEvent) is not DataGridRow realized ||
-                        !realized.IsVisible || realized.ActualHeight < 12)
-                        throw new InvalidOperationException(
-                            "Event count is nonzero but newest event has no visible realized WPF DataGridRow.");
-                    eventGridRealizedRows = RelayEventGrid.Items.Count;
-                }
+                        "Indexed Event page has no realized WPF DataGridRow.");
+                eventGridRealizedRows = RelayEventGrid.Items.Count;
             }
             SaveRealWpfBitmap(outputDirectory, "field-1366x768-" + view.Name + ".png");
         }
-        // Real WPF hold regression: one thousand incoming event facts cannot
-        // mutate the inspected DataGrid viewport or selected item. The bounded
-        // source ring must continue accepting data independently.
+        // One source-backed History page stays fixed when 1,000 additional
+        // event observations arrive. No fake AUTO/HOLD mode or 420-row gate.
         MainTabControl.SelectedIndex = 3;
         await Dispatcher.Yield(DispatcherPriority.Loaded);
-        SetEventFilters(EventCategories, Array.Empty<string>());
-        EventsAutoScrollButton.IsChecked = true;
-        ApplyRelayEventFilter();
-        if (RelayEventRows.Count == 0)
-            throw new InvalidOperationException("No initial Events for AUTO OFF acceptance.");
-        var heldEvents = RelayEventRows.ToArray();
-        var heldRow = heldEvents[heldEvents.Length / 2];
-        RelayEventGrid.ScrollIntoView(heldRow);
-        RelayEventGrid.SelectedItem = heldRow;
+        await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
+        await RefreshEventHistoryQueryAsync();
+        await ShowEventHistoryPageAsync(0);
+        if (_historicalEventRows.Count == 0)
+            throw new InvalidOperationException("No indexed Event History for pinned-page regression.");
+        _eventHistoryFollowingLatest = false;
+        var heldRows = _historicalEventRows.ToArray();
+        var heldEvent = heldRows[heldRows.Length / 2];
+        RelayEventGrid.SelectedItem = heldEvent;
+        RelayEventGrid.ScrollIntoView(heldEvent);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
-        var eventScroll = RelayEventGrid.Template.FindName("DG_ScrollViewer", RelayEventGrid) as ScrollViewer;
+        var eventScroll = RelayEventGrid.Template.FindName("DG_ScrollViewer",
+            RelayEventGrid) as ScrollViewer;
         var heldOffset = eventScroll?.VerticalOffset;
-        EventsAutoScrollButton.IsChecked = false;
         for (var i = 0; i < 1000; i++)
             AppendProtocolEvent(new Iec103RelayEventLogEntry
             {
                 ProtocolMode = Iec60870ProtocolMode.Iec101,
-                SignalName = "Synthetic event viewport regression",
+                SignalName = "Synthetic Event History viewport regression",
                 NewValue = (i % 31).ToString(System.Globalization.CultureInfo.InvariantCulture),
                 TypeId = 13
             });
         FlushUiQueues();
+        await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
-        if (RelayEventRows.Count != heldEvents.Length ||
-            !RelayEventRows.SequenceEqual(heldEvents) ||
-            !ReferenceEquals(RelayEventGrid.SelectedItem, heldRow) ||
-            _eventNewWhileHeld != 1000 ||
+        if (!_historicalEventRows.SequenceEqual(heldRows) ||
+            !ReferenceEquals(RelayEventGrid.SelectedItem, heldEvent) ||
             heldOffset is double previous && eventScroll is not null &&
                 Math.Abs(eventScroll.VerticalOffset - previous) > 0.5)
             throw new InvalidOperationException(
-                $"Events AUTO OFF moved frozen view: projected={RelayEventRows.Count}/{heldEvents.Length}, " +
-                $"selected={ReferenceEquals(RelayEventGrid.SelectedItem, heldRow)}, " +
-                $"pending={_eventNewWhileHeld}, source={_relayEventStore.Snapshot().Count}.");
-        EventsAutoScrollButton.IsChecked = true;
-        FlushUiQueues();
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-        if (_eventNewWhileHeld != 0 ||
-            RelayEventRows.Count != _relayEventStore.Snapshot().Count ||
-            RelayEventRows.Count > MaxVisibleRelayEventRows)
-            throw new InvalidOperationException("Events AUTO ON did not catch up to bounded source ring.");
+                "New events moved the operator's pinned Event History page.");
+        RelayEventGrid.SelectedItem = null;
+        await JumpEventHistoryToLatestAsync();
+        if (_historicalEventRows.Count == 0 ||
+            _historicalEventRows[^1].EventNumber != _eventHistoryJournal?.Count)
+            throw new InvalidOperationException(
+                "Latest did not reveal the most recently indexed Event.");
 
         MainTabControl.SelectedIndex = 1;
         await Dispatcher.Yield(DispatcherPriority.Loaded);

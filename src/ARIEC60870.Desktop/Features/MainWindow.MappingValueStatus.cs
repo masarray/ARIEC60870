@@ -733,7 +733,6 @@ public partial class MainWindow
     private long _eventProjectionMismatchCount;
     private int _eventProjectionSourceCount;
     private int _eventProjectionFilteredCount;
-    private long _eventNewWhileHeld; // viewport only; source events still ingested
 
     private static readonly string[] EventCategories =
         ["Digital", "Measurement", "Commands", "GI", "Other"];
@@ -757,34 +756,7 @@ public partial class MainWindow
         "/" + string.Join(",", EventCategories.Where(_eventExcludeCategories.Contains)) +
         "\u001F" + _eventsQuickQuery;
 
-    private void ApplyRelayEventFilter()
-    {
-        if (RelayEventRows is null || _eventHistoryMode) return;
-        var recent = _relayEventStore.Snapshot();
-        // The common All/empty-query view needs no category classification,
-        // text matcher or second array on every rolling event batch.
-        IReadOnlyList<RelayEventRow> rows = _eventExcludeCategories.Count == 0 &&
-            _eventIncludeCategories.SetEquals(EventCategories) &&
-            string.IsNullOrEmpty(_eventsQuickQuery)
-                ? recent
-                : recent.Where(row =>
-                    EventCategoryFilter.Allows(ClassifyEventCategory(row),
-                        _eventIncludeCategories, _eventExcludeCategories) &&
-                    QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
-                    .ToArray();
-        var scopeKey = CurrentEventScopeKey();
-        var changedScope = !string.Equals(scopeKey, _eventCommittedScope, StringComparison.Ordinal);
-        RelayEventRows.ReconcileTail(rows, allowResetForUnrelated: changedScope);
-        _eventCommittedScope = scopeKey;
-        _eventProjectionVersion++;
-        _eventProjectionSourceCount = recent.Count;
-        _eventProjectionFilteredCount = rows.Count;
-        _eventNewWhileHeld = 0;
-        if (RelayEventRows.Count != rows.Count) _eventProjectionMismatchCount++;
-        if (EventsQuickCountText is not null)
-            EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
-        RefreshEventHistoryFooter();
-    }
+    private void ApplyRelayEventFilter() => RequestEventHistoryQuery();
 
     private void SetEventFilters(IEnumerable<string> included, IEnumerable<string> excluded)
     {
@@ -852,8 +824,7 @@ public partial class MainWindow
     {
         // Count actual new facts, not dispatcher flush batches, while the
         // operator holds an immutable Events viewport snapshot.
-        if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
-            _eventNewWhileHeld++;
+        // Event History is always indexed; UI paging never gates SOE ingress.
         _dpiCount++;
         PulseLed(EventLed);
         _liveCountersDirty = true;
@@ -1175,8 +1146,6 @@ public partial class MainWindow
         _eventProjectionMismatchCount = 0;
         _eventProjectionSourceCount = 0;
         _eventProjectionFilteredCount = 0;
-        _eventNewWhileHeld = 0;
-        _eventRowsDeferredWhileManualScroll = false;
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
         _evidenceSummarySignatureByKey.Clear();
