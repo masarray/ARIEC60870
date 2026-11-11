@@ -56,37 +56,57 @@ public sealed class EventHistoryJournal : IDisposable
     }
 
     public long Count { get { lock (_gate) return _count; } }
+    public long BytesWritten { get { lock (_gate) return _bytes; } }
 
     /// <summary>
     /// Called once for each accepted UI event, before its 420-row preview
     /// rollover. Explicit IOException on capacity/disk failure; no silent loss.
     /// </summary>
-    public void Append(RelayEventRow row)
+    public void Append(RelayEventRow row) => AppendBatch(new[] { row });
+
+    /// <summary>
+    /// Serialize and hash outside the journal lock (background writer only).
+    /// Commit a contiguous batch under one lock. If an I/O operation fails,
+    /// Count remains the last fully indexed prefix; no next write is attempted.
+    /// Readers validate every committed record before exposing a page.
+    /// </summary>
+    public void AppendBatch(IReadOnlyList<RelayEventRow> rows)
     {
-        ArgumentNullException.ThrowIfNull(row);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new Entry(
-            row.EventNumber, row.SourceEntry,
-            EventHistoryOriginalSnapshot.Capture(row.OriginalFrameEvidence)));
-        if (payload.Length is < 1 or > 1024 * 1024)
-            throw new IOException("Event history record outside bounded size.");
+        ArgumentNullException.ThrowIfNull(rows);
+        if (rows.Count == 0) return;
+        if (rows.Count > 256) throw new ArgumentOutOfRangeException(nameof(rows));
+        var payloads = new byte[rows.Count][];
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i] ?? throw new ArgumentException("Null event row.", nameof(rows));
+            payloads[i] = JsonSerializer.SerializeToUtf8Bytes(new Entry(
+                row.EventNumber, row.SourceEntry,
+                EventHistoryOriginalSnapshot.Capture(row.OriginalFrameEvidence, row.SourceEntry.RawHex)));
+            if (payloads[i].Length is < 1 or > 1024 * 1024)
+                throw new IOException("Event history record outside bounded size.");
+        }
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (row.EventNumber != _count + 1)
-                throw new InvalidDataException("Event number is not contiguous.");
-            if (_bytes + HeaderSize + payload.Length + sizeof(long) > _maxBytes)
-                throw new IOException("Temporary Event History reached its storage limit.");
-            var pos = _data.Position;
-            Span<byte> header = stackalloc byte[HeaderSize];
-            BinaryPrimitives.WriteInt32LittleEndian(header[..4], payload.Length);
-            SHA256.HashData(payload).AsSpan().CopyTo(header[4..]);
-            _data.Write(header);
-            _data.Write(payload);
-            Span<byte> offset = stackalloc byte[sizeof(long)];
-            BinaryPrimitives.WriteInt64LittleEndian(offset, pos);
-            _index.Write(offset);
-            _bytes += HeaderSize + payload.Length + sizeof(long);
-            _count++;
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var payload = payloads[i];
+                if (rows[i].EventNumber != _count + 1)
+                    throw new InvalidDataException("Event number is not contiguous.");
+                if (_bytes + HeaderSize + payload.Length + sizeof(long) > _maxBytes)
+                    throw new IOException("Temporary Event History reached its storage limit.");
+                var pos = _data.Position;
+                Span<byte> header = stackalloc byte[HeaderSize];
+                BinaryPrimitives.WriteInt32LittleEndian(header[..4], payload.Length);
+                SHA256.HashData(payload).AsSpan().CopyTo(header[4..]);
+                _data.Write(header);
+                _data.Write(payload);
+                Span<byte> offset = stackalloc byte[sizeof(long)];
+                BinaryPrimitives.WriteInt64LittleEndian(offset, pos);
+                _index.Write(offset);
+                _bytes += HeaderSize + payload.Length + sizeof(long);
+                _count++;
+            }
         }
     }
 
@@ -139,10 +159,7 @@ public sealed class EventHistoryJournal : IDisposable
     public sealed record Entry(long EventNumber, Iec103RelayEventLogEntry Source,
         EventHistoryOriginalSnapshot? Original)
     {
-        public RelayEventRow ToRow() => new(Source, Original?.Restore())
-        {
-            EventNumber = EventNumber
-        };
+        public RelayEventRow ToRow() => new(Source, Original?.Restore(Source.RawHex), EventNumber);
     }
 
     public void Dispose()
@@ -171,29 +188,39 @@ public sealed record EventHistoryOriginalSnapshot(
     int? Stream, long? Offset, long? FrameSequence, int? LinkAddress,
     int LinkAddressWidth, int? TypeId, string TypeName,
     int? Cot, string CauseName, int? Ca, int? Ioa,
-    string SignalName, string SignalValue, string RelayTime)
+    string SignalName, string SignalValue, string RelayTime,
+    bool RawHexSharedWithSource)
 {
-    public static EventHistoryOriginalSnapshot? Capture(Iec103MasterEvidenceEvent? source)
+    public static EventHistoryOriginalSnapshot? Capture(
+        Iec103MasterEvidenceEvent? source, string? eventRawHex = null)
         => source is null ? null : new(
             source.SequenceNumber, source.TimestampUtc, source.Direction,
-            source.ProtocolMode, source.RawHex, source.PhysicalSource,
+            source.ProtocolMode,
+            !string.IsNullOrEmpty(source.RawHex) &&
+            string.Equals(source.RawHex, eventRawHex, StringComparison.Ordinal)
+                ? string.Empty : source.RawHex, source.PhysicalSource,
             source.PhysicalStreamId, source.RawStreamOffset,
             source.PhysicalFrameSequenceNumber, source.LinkAddress,
             source.Frame?.LinkAddressSize ?? 1,
             source.TypeId, source.TypeName, source.CauseOfTransmission,
             source.CauseName, source.CommonAddressNumber,
             source.InformationObjectAddress, source.SignalName,
-            source.SignalDisplayValue, source.RelayTimestampText);
+            source.SignalDisplayValue, source.RelayTimestampText,
+            !string.IsNullOrEmpty(source.RawHex) &&
+            string.Equals(source.RawHex, eventRawHex, StringComparison.Ordinal));
 
-    public Iec103MasterEvidenceEvent Restore()
+    public Iec103MasterEvidenceEvent Restore(string? eventRawHex = null)
     {
+        // A single on-disk raw HEX copy is sufficient when the event and
+        // original physical frame share identical bytes; never infer equality.
+        var rawHex = RawHexSharedWithSource ? eventRawHex ?? string.Empty : RawHex;
         Ft12FrameDecode? frame = null;
         if (Protocol is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec103 &&
-            LinkAddressWidth is >= 0 and <= 2 && !string.IsNullOrWhiteSpace(RawHex))
+            LinkAddressWidth is >= 0 and <= 2 && !string.IsNullOrWhiteSpace(rawHex))
         {
             try
             {
-                var raw = Convert.FromHexString(RawHex.Replace(" ", "", StringComparison.Ordinal));
+                var raw = Convert.FromHexString(rawHex.Replace(" ", "", StringComparison.Ordinal));
                 frame = Protocol == Iec60870ProtocolMode.Iec101
                     ? Ft12Parser.ForIec101(LinkAddressWidth).Decode(raw)
                     : Ft12Parser.ForIec103(LinkAddressWidth).Decode(raw);
@@ -206,7 +233,7 @@ public sealed record EventHistoryOriginalSnapshot(
             TimestampUtc = TimestampUtc,
             Direction = Direction,
             ProtocolMode = Protocol,
-            RawHex = RawHex,
+            RawHex = rawHex,
             PhysicalSource = PhysicalSource,
             PhysicalStreamId = Stream,
             RawStreamOffset = Offset,

@@ -224,13 +224,17 @@ public partial class MainWindow : Window
         BackupLinkAddressBox.TextChanged += LinkBAddress_TextChanged;
         DataContext = this;
         ResetEventHistory();
-        Closed += (_, _) => _eventHistoryJournal?.Dispose();
+        Closed += (_, _) => _eventHistoryWriter?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         _uiFlushTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(75)
         };
-        _uiFlushTimer.Tick += (_, _) => FlushUiQueues();
+        _uiFlushTimer.Tick += (_, _) =>
+        {
+            FlushUiQueues();
+            RefreshEventHistoryFooterWhenDue();
+        };
         _uiFlushTimer.Start();
         _ledDecayTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
