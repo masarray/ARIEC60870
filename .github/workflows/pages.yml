@@ -6,8 +6,9 @@ on:
   push:
     branches: [ main, master ]
     paths:
+      # Actions Pages deploys site/, NOT docs/. Documentation-only changes
+      # must not rebuild or redeploy an unchanged public website.
       - 'site/**'
-      - 'docs/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 

@@ -1,38 +1,46 @@
-# Smart CI / selective evidence workflow (ArSee / ARIEC60870)
+# Smart CI — ArSee / ARIEC60870
 
-This separates iterative correctness from costly field-ready artifacts. It does **not** change IEC-101 behavior, physical RTU testing, or release authorization.
+Goal: fast iteration without hiding real regressions, duplicating Windows ZIPs or describing CI as physical FAT. This is the operational contract for `.github/workflows/ci.yml`, `ci-comment.yml`, `codeql.yml` and `pages.yml`.
 
-## Automatic policy
+## Automatic triggers
 
-| Trigger | Execution |
-| --- | --- |
-| Markdown-only PR or master push | Lightweight classification and a successful historical `build-test` check using Ubuntu; no Windows runner |
-| Source, XAML, tests, project, scripts, YAML or other PR changes | Windows Release build with warning gate, protocol smoke, all six xUnit regression suites and TRX; existing nonblocking formatter diagnostics only when C#/formatter configuration changed |
-| Non-documentation master push | Windows test gate, coverage, self-contained GUI + monitor-cli ZIPs, real-WPF acceptance/screenshots and SHA-256 artifacts |
-| Security checks | Existing CodeQL, dependency-review and repository-hygiene workflows remain independent; superseded CodeQL PR analysis is cancelled |
-| Release | Existing `release-package.yml` is not changed; publishing still has its own dedicated release gate |
+| Change | Windows build/tests | Windows ZIP + WPF acceptance on master | CodeQL | Pages deployment |
+| --- | --- | --- | --- | --- |
+| Markdown-only or `docs/**` | No; lightweight `build-test` context succeeds on Ubuntu | No | No | No |
+| `site/**` only | No | No | No | Yes |
+| `.github/workflows/ci.yml` only | Yes, including protocol smoke + six xUnit suites | No | No | No |
+| Tests-only `.cs` | Yes | No | Yes | No |
+| C# production, XAML, build inputs | Yes | Yes | Yes | No |
+| Installer or runtime scripts | Yes | Yes | No (unless code also changes) | No |
+| `.github/workflows/codeql.yml` | Yes | No | Yes | No |
+| `.github/workflows/pages.yml` | Yes | No | No | Yes |
+| Unknown files / oversized diff / compare API error | Windows tests, fail-safe | Package on master if classification unavailable | Glob-filtered, weekly scan remains | Only site or Pages workflow |
 
-Any non-Markdown file, unclassified change, or failed push comparison defaults to running Windows. The existing `build-test` check name is retained. Standard feature PRs avoid the repeated Windows single-file publishing, WPF acceptance, coverage collection and installer acceptance costs. The pre-existing formatter is nonblocking and reports legacy whitespace debt; it is not a clean-format gate and is not run for unrelated YAML/documentation changes.
+`build-test` remains the historical status context, even when no Windows runner is needed. Pull requests with source/test/workflow changes run Release build with warnings-as-errors, protocol smoke, six xUnit regression suites, and TRX logs. A pre-existing non-blocking `dotnet format` runs for C#/formatter configuration changes; legacy whitespace diagnostics are NOT proof of a clean-format gate.
 
-NuGet package caching is keyed to project/restore configuration. Superseded pull-request CI is cancelled; default-branch evidence is not cancelled by the concurrency policy.
+Master pushes affecting `src/**`, `installer/**`, `scripts/**`, resources, or build inputs additionally collect coverage, publish the portable GUI/monitor CLI ZIPs with checksums and run real-WPF acceptance/screenshots. Master pushes changing only test code or CI YAML skip these expensive packages. For documentation-only or site-only changes, Windows compilation is unrelated and skipped. All unknown/large changes fall back to the safe full Windows route.
 
-## PR comment commands (maintainer only)
+CodeQL automatic triggers cover C#/C# projects, XAML, resource/build configuration and its own workflow. Weekly scheduled and manual CodeQL runs remain unfiltered. NuGet package cache is shared by matching Windows restore inputs. The Pages workflow deploys canonical `site/`, so changes to engineering `docs/**` alone do not redeploy an identical website.
 
-Add a **new top-level PR Conversation comment** with exactly one of the following:
+OpenSSF Scorecard is also scheduled weekly and can be manually dispatched; it runs immediately on security configuration changes (`.github/**`, `SECURITY.md`, `.gitattributes`), not on every ordinary IEC-101 source commit. Hygiene and dependency-review checks cancel their own superseded PR revisions while retaining default-branch validation.
 
-- `/ci full`: Run build + full protocol/xUnit suites + coverage, publish Windows GUI and monitor-cli artifacts, smoke and real-WPF acceptance with screenshots.
-- `/ci installer`: All of the above plus previous-release upgrade, restart-manager and running-Master shutdown acceptance.
+## Maintainer PR comment commands
 
-The dispatcher executes trusted control-plane code from the default branch, does not check out PR code with write permissions, checks the comment author's current repository `write`/`maintain`/`admin` permission, requires an open same-repo PR targeting the default branch and captures the exact PR head SHA. **The build itself uses the CI workflow from `master`, then checks out and verifies the exact requested PR SHA**; this also supports old PR branches that do not yet contain the new workflow. A changed PR head rejects the dispatched run. The visible workflow run name includes PR number, profile and tested SHA, and an active identical run is not dispatched twice.
+Post a new top-level PR comment with exactly:
 
-The comment commands become available **after** `.github/workflows/ci-comment.yml` is merged into the default branch. The GitHub Actions workflow-dispatch endpoint requires the target workflow to be registered on the default branch.
+- `/ci full` — full Windows build, protocol/xUnit tests, coverage, portable GUI and monitor-CLI ZIP, WPF acceptance screenshots.
+- `/ci installer` — everything in `/ci full` plus isolated previous-release upgrade, installer registration and live-Master shutdown acceptance.
 
-## Milestone workflow
+The dispatcher only accepts authenticated maintainers with repository write access, same-repository open PRs targeting the default branch, and uses the trusted default-branch CI workflow. That workflow checks out and verifies the **exact PR head SHA** rather than interpreting the workflow run's master SHA as tested source. No comment triggers public release or physical hardware.
 
-1. Make a coherent code change and review the automatic Windows regression status.
-2. Fix real failures instead of rerunning the entire costly suite. Re-run only a failed job when its failure was demonstrably transient/infrastructure-related.
-3. After code stabilizes, request one `/ci full` at the exact integration SHA if a GUI artifact or WPF evidence is needed.
-4. Request `/ci installer` only when installer/upgrade behavior or release readiness must be verified. Avoid requesting it on every source commit.
-5. For public release, inspect WPF screenshots, artifacts, checksums and exact SHA, then perform the physical IEC-101/RTU FAT independently. Automated CI must never be described as successful physical interoperability.
+Comment admission is serialized per PR. An active or successful run with matching PR number, profile, tested SHA AND default-branch CI revision will not be started again. If a previous run failed, investigate before requesting a repeat; use GitHub's Re-run failed jobs for verified infrastructure/transient problems.
 
-**Safety:** Comment commands do not merge branches, publish public releases, alter RTU configuration, connect physical serial devices, or grant third-party pull requests write-token execution.
+## Milestone operation and safety
+
+1. Make coherent changes, use automatic Windows correctness checks, and fix true failures.
+2. When an integration SHA is stable, invoke `/ci full` only if GUI/WPF artifact evidence is required. An identical successful request is reused.
+3. Invoke `/ci installer` only for installer or release-upgrade readiness.
+4. Inspect exact-head screenshots, checksums, release artifacts and tests. Physical IEC-101/RTU FAT and multi-vendor interoperability are separate evidence.
+5. Public packages/releases stay in `release-package.yml`; these comment commands cannot publish a release.
+
+Release checks, real serial connectivity and safety requirements are not relaxed by smarter CI scheduling.
