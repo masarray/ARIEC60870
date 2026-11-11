@@ -179,6 +179,7 @@ public partial class MainWindow
         _eventHistoryQueryCancel?.Cancel();
         _eventHistoryQueryCancel?.Dispose();
         var cts = new CancellationTokenSource();
+        var token = cts.Token; // capture before another rapid query can dispose the source
         _eventHistoryQueryCancel = cts;
         var generation = ++_eventHistoryQueryGeneration;
         _eventHistoryQueryBusy = true;
@@ -190,7 +191,7 @@ public partial class MainWindow
         {
             var result = await Task.Run(() => EventHistoryQueryEngine.Build(
                 journal, ceiling, scopeQuery, included, excluded,
-                ClassifyEventCategory, cts.Token), cts.Token);
+                ClassifyEventCategory, token), token);
             if (generation != _eventHistoryQueryGeneration ||
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
             _eventHistoryQuery = result;
