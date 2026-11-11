@@ -346,8 +346,11 @@ public partial class MainWindow
             AppendSessionLog("Event CSV export cancelled. Partial file discarded.");
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
-                                   UnauthorizedAccessException or JsonException)
+                                   UnauthorizedAccessException or JsonException or
+                                   ObjectDisposedException)
         {
+            // A session reset may close its temporary journal during export.
+            // Never let an async-void WPF handler crash on this race.
             AppendSessionLog("Event CSV export failed: " + ex.Message);
             MessageBox.Show(this, ex.Message, "Event CSV export failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
