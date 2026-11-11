@@ -1,6 +1,8 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
 name: CI
+# Manual jobs name the tested PR SHA; GitHub's workflow run head stays on master.
+run-name: "${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('CI PR #{0} {1} {2}', inputs.requested_pr, inputs.profile, inputs.expected_sha) || format('CI {0}', github.ref_name) }}"
 
 on:
   push:
@@ -8,46 +10,174 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Full evidence or installer-upgrade FAT'
+        type: choice
+        options: [full, installer]
+        required: true
+        default: full
+      expected_sha:
+        description: 'Optional exact PR head; reject stale branch'
+        type: string
+        required: false
+        default: ''
+      requested_pr:
+        description: 'Optional PR number for head verification'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  pull-requests: read
 
 # Cancel superseded PR commits, never cancel master validation/release evidence.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('pr-{0}', inputs.requested_pr) || github.ref_name) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-test:
-    # Preserve the historic required check context `build-test` for branch rules.
-    runs-on: windows-latest
-    timeout-minutes: 25
+  classify:
+    name: Select required CI work
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      run_windows: ${{ steps.scope.outputs.run_windows }}
+      run_format: ${{ steps.scope.outputs.run_format }}
     steps:
+      - name: Classify changes and verify requested SHA
+        id: scope
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            let runWindows = true;
+            let runFormat = true;
+            const formattingRelevant = files => files.some(f =>
+              /\.(cs|vb|fs)$/i.test(f.filename) ||
+              /\.(cs|vb|fs)$/i.test(f.previous_filename || '') ||
+              /(^|\/)\.editorconfig$/i.test(f.filename));
+            const onlyMarkdown = files => files.length > 0 && files.length < 300 &&
+              files.every(f => /\.(md|mdx)$/i.test(f.filename) &&
+                (!f.previous_filename || /\.(md|mdx)$/i.test(f.previous_filename)));
+            if (context.eventName === 'pull_request') {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
+              });
+              runWindows = !onlyMarkdown(files);
+              runFormat = formattingRelevant(files);
+            } else if (context.eventName === 'push') {
+              const before = context.payload.before || '';
+              if (/^[0-9a-f]{40}$/i.test(before) && !/^0+$/.test(before)) {
+                try {
+                  const { data } = await github.rest.repos.compareCommits({
+                    owner, repo, base: before, head: context.sha
+                  });
+                  runWindows = !onlyMarkdown(data.files || []);
+                  runFormat = formattingRelevant(data.files || []);
+                } catch (error) {
+                  core.warning('Push comparison unavailable; using full test: ' + error.message);
+                }
+              }
+            }
+            if (context.eventName === 'workflow_dispatch') {
+              const expected = (context.payload.inputs?.expected_sha || '').trim();
+              const prText = (context.payload.inputs?.requested_pr || '').trim();
+              if (expected && !/^[0-9a-f]{40}$/i.test(expected)) {
+                core.setFailed('Expected PR head must be a 40-character commit SHA');
+                return;
+              }
+              if (expected && !prText) {
+                core.setFailed('An explicit SHA is only allowed with an originating PR');
+                return;
+              }
+              if (prText) {
+                const number = Number(prText);
+                if (!expected || !Number.isSafeInteger(number) || number < 1) {
+                  core.setFailed('PR-bound dispatch requires valid PR number and exact SHA');
+                  return;
+                }
+                const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+                const { data: repository } = await github.rest.repos.get({ owner, repo });
+                if (pr.state !== 'open' || pr.base.ref !== repository.default_branch ||
+                    pr.head.sha.toLowerCase() !== expected.toLowerCase() ||
+                    pr.head.repo?.full_name.toLowerCase() !== (owner + '/' + repo).toLowerCase()) {
+                  core.setFailed('The requested PR head changed or is no longer open/same-repo');
+                  return;
+                }
+              }
+            }
+            core.setOutput('run_windows', String(runWindows));
+            core.setOutput('run_format', String(runFormat));
+            core.notice(runWindows ? 'Windows tests required' : 'Markdown-only; no Windows runner');
+
+  build-test:
+    needs: classify
+    # Preserve the historic required check context `build-test` for branch rules.
+    runs-on: ${{ needs.classify.outputs.run_windows == 'true' && 'windows-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 25
+    env:
+      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'ci/')) }}
+      RUN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' }}
+      COLLECT_COVERAGE: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - name: Markdown-only change
+        if: needs.classify.outputs.run_windows == 'false'
+        run: echo "Markdown-only; build-test check preserved without launching Windows."
       - name: Checkout
+        if: needs.classify.outputs.run_windows == 'true'
         uses: actions/checkout@v4
+        with:
+          # PR comment dispatch uses this stable default-branch workflow but builds PR bytes.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+      - name: Verify exact PR source checkout
+        if: github.event_name == 'workflow_dispatch' && inputs.requested_pr != ''
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) {
+            throw "Checkout $actual did not match requested PR head $env:EXPECTED_SHA"
+          }
 
       - name: Setup .NET
+        if: needs.classify.outputs.run_windows == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Prepare pinned Inter font
+        if: needs.classify.outputs.run_windows == 'true'
         shell: pwsh
         run: ./scripts/prepare-inter-font.ps1
 
+      - name: Cache NuGet packages
+        if: needs.classify.outputs.run_windows == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', '**/packages.lock.json', 'global.json', 'NuGet.Config') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
       - name: Restore
+        if: needs.classify.outputs.run_windows == 'true'
         run: dotnet restore ARIEC60870.sln
 
       - name: Build with release warning gate
+        if: needs.classify.outputs.run_windows == 'true'
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Check code formatting
+      - name: Check code formatting (only C# or formatter config changes)
+        if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
         continue-on-error: true
         run: |
           dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal
 
       - name: Run dependency-free protocol smoke tests
+        if: needs.classify.outputs.run_windows == 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
@@ -55,6 +185,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Protocol smoke tests failed with exit code $LASTEXITCODE." }
 
       - name: Run xUnit regression suites with TRX and coverage
+        if: needs.classify.outputs.run_windows == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -68,6 +199,10 @@ jobs:
             'tests/ARIEC60870.Repository.Tests/ARIEC60870.Repository.Tests.csproj'
           )
 
+          $coverage = @()
+          if ($env:COLLECT_COVERAGE -eq 'true') {
+            $coverage = @('--collect', 'XPlat Code Coverage')
+          }
           foreach ($project in $projects) {
             $name = Split-Path (Split-Path $project -Parent) -Leaf
             dotnet test $project `
@@ -75,12 +210,12 @@ jobs:
               --no-build `
               --logger "trx;LogFileName=$name.trx" `
               --results-directory artifacts/test-results `
-              --collect "XPlat Code Coverage"
+              @coverage
             if ($LASTEXITCODE -ne 0) { throw "Regression suite $project failed with exit code $LASTEXITCODE." }
           }
 
       - name: Upload test and coverage artifacts
-        if: always()
+        if: always() && needs.classify.outputs.run_windows == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-test-results
@@ -88,6 +223,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Package ARIEC60870 GUI with integrated Passive Monitor
+        if: env.RUN_PACKAGES == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -109,6 +245,7 @@ jobs:
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
       - name: Package independent IEC-101 2/4-RX field test tools
+        if: env.RUN_PACKAGES == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -136,6 +273,7 @@ jobs:
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-IEC101-RX-Field-Tools-win-x64.zip" -Encoding ascii
 
       - name: Upload independent field test toolkit
+        if: env.RUN_PACKAGES == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-IEC101-RX-Field-Tools-win-x64
@@ -144,6 +282,7 @@ jobs:
           retention-days: 14
 
       - name: OBS-C real-WPF viewport and 1400-frame acceptance
+        if: env.RUN_PACKAGES == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -159,7 +298,7 @@ jobs:
           if ((Get-ChildItem $output -Filter *.png).Count -lt 7) { throw 'Missing real-WPF viewport screenshots.' }
 
       - name: Upload OBS-C Windows WPF screenshots and metrics
-        if: always()
+        if: always() && env.RUN_PACKAGES == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-OBS-C-ui-evidence
@@ -168,6 +307,7 @@ jobs:
           retention-days: 14
 
       - name: Upload integrated P0 Windows GUI test package
+        if: env.RUN_PACKAGES == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-Passive-Monitor-P0-GUI-win-x64
@@ -175,10 +315,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Portable GUI already built and smoke-tested above. Only master and
-      # explicit ci/* PRs pay the installer-upgrade acceptance cost.
+      # Exact GUI binary is staged only for the explicitly requested installer gate.
       - name: Stage tested GUI binary for isolated installer validation
-        if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/')
+        if: env.RUN_INSTALLER == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-installer-input
@@ -188,16 +327,18 @@ jobs:
 
   # Installer upgrade/restart-manager acceptance is deliberately NOT in the
   # first job: an external installer hang must never delay tests/screenshots.
-  # Normal feature PRs skip it; master and ci/* PRs verify the full upgrade.
+  # Only /ci installer or explicit installer dispatch runs this expensive gate.
   installer-upgrade:
     name: Bounded previous-release upgrade and running-Master shutdown
     needs: build-test
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/')
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
       - name: Checkout installer scripts
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
 
       - name: Download exact tested GUI publish from current run
         uses: actions/download-artifact@v4

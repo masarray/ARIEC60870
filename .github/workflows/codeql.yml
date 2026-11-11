@@ -11,6 +11,11 @@ on:
     - cron: '23 2 * * 1'
   workflow_dispatch:
 
+# A new PR head supersedes old CodeQL work; do not cancel master/scheduled evidence.
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   security-events: write
   packages: read

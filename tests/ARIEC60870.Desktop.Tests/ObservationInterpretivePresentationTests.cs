@@ -103,10 +103,12 @@ public sealed class ObservationInterpretivePresentationTests
         // One real signal per display line (not 2 objects joined by |).
         var signals = row.TimelineSignalDigest.Split(Environment.NewLine);
         Assert.Equal(6, signals.Length);
-        Assert.StartsWith("IOA 9 [ IOA3:0 · IOA2:0 · IOA1:9 ] · TI-3 · Value: ON", signals[0]);
-        Assert.Contains("TI-3 Double Point Signal · Quality: Not provided · No Timestamp", signals[1]);
-        Assert.StartsWith("IOA 10 [ IOA3:0 · IOA2:0 · IOA1:10 ] · TI-3 · Value: OFF", signals[2]);
-        Assert.StartsWith("IOA 11 [ IOA3:0 · IOA2:0 · IOA1:11 ] · TI-3 · Value: INDETERMINATE", signals[4]);
+        Assert.StartsWith("IOA 9 [ IOA3: 0 · IOA2: 0 · IOA1: 9 ] · TI-3 · Value: ON", signals[0]);
+        Assert.StartsWith("  ↳ TI-3 Double Point Signal · Quality: Not provided · No Timestamp", signals[1]);
+        Assert.StartsWith("  ↳ TI-3 Double Point Signal", signals[3]);
+        Assert.StartsWith("  ↳ TI-3 Double Point Signal", signals[5]);
+        Assert.StartsWith("IOA 10 [ IOA3: 0 · IOA2: 0 · IOA1: 10 ] · TI-3 · Value: OFF", signals[2]);
+        Assert.StartsWith("IOA 11 [ IOA3: 0 · IOA2: 0 · IOA1: 11 ] · TI-3 · Value: INDETERMINATE", signals[4]);
         Assert.DoesNotContain(" | ", row.TimelineSignalDigest);
         Assert.False(row.HasTimelineSignalOverflow);
         Assert.True(row.HasTimelineSignalDigest);
@@ -210,9 +212,9 @@ public sealed class ObservationInterpretivePresentationTests
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = asdu,
             SignalName = "Unverified label", IsMappedSignal = false
         });
-        Assert.Contains("Breaker 110 kV position · IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", mapped.TimelineSignalDigest);
+        Assert.Contains("Breaker 110 kV position · IOA 342 [ IOA3: 0 · IOA2: 1 · IOA1: 86 ] · TI-1 · Value: ON", mapped.TimelineSignalDigest);
         Assert.DoesNotContain("Unverified label", unmapped.TimelineSignalDigest);
-        Assert.Contains("IOA 342 [ IOA3:0 · IOA2:1 · IOA1:86 ] · TI-1 · Value: ON", unmapped.TimelineSignalDigest);
+        Assert.Contains("IOA 342 [ IOA3: 0 · IOA2: 1 · IOA1: 86 ] · TI-1 · Value: ON", unmapped.TimelineSignalDigest);
         Assert.Equal("CA 2 · TI 1 · COT 3", mapped.TimelineCompactContext);
     }
 

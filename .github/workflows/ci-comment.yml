@@ -1,0 +1,68 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: CI comment dispatcher
+
+# Trusted default-branch control-plane only: never check out PR code with write token.
+# The resulting CI run uses the default-branch YAML but checks out the captured PR SHA.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: github.event.issue.pull_request && (github.event.comment.body == '/ci full' || github.event.comment.body == '/ci installer')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Verify author, PR head and selected evidence gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const profile = context.payload.comment.body === '/ci installer' ? 'installer' : 'full';
+            const username = context.payload.comment.user.login;
+            const { data: access } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner, repo, username
+            });
+            if (!['admin', 'maintain', 'write'].includes(access.permission)) {
+              core.setFailed('Only collaborators with write access may request expensive CI');
+              return;
+            }
+            const number = context.payload.issue.number;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const { data: repository } = await github.rest.repos.get({ owner, repo });
+            if (pr.state !== 'open' || pr.base.ref !== repository.default_branch ||
+                pr.head.repo?.full_name.toLowerCase() !== (owner + '/' + repo).toLowerCase()) {
+              core.setFailed('Request requires an open same-repo PR targeting default branch');
+              return;
+            }
+            // Active exact-head dispatches already cover the same requested revision.
+            const title = 'CI PR #' + number + ' ' + profile + ' ' + pr.head.sha;
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'ci.yml', branch: repository.default_branch, per_page: 50
+            });
+            if (runs.workflow_runs.some(run =>
+              run.event === 'workflow_dispatch' && run.display_title === title &&
+              ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(run.status))) {
+              core.notice('An exact-head manually dispatched CI is already running for ' + pr.head.sha);
+              return;
+            }
+            await github.rest.actions.createWorkflowDispatch({
+              owner, repo, workflow_id: 'ci.yml', ref: repository.default_branch,
+              inputs: {
+                profile, expected_sha: pr.head.sha, requested_pr: String(number)
+              }
+            });
+            core.notice('Requested ' + profile + ' for PR #' + number + ' at ' + pr.head.sha);
+            await core.summary
+              .addHeading('Maintainer-controlled CI', 3)
+              .addRaw('PR #' + number + ' | ' + profile + ' | SHA ' + pr.head.sha + '\n')
+              .addLink('CI runs', 'https://github.com/' + owner + '/' + repo + '/actions/workflows/ci.yml')
+              .write();
