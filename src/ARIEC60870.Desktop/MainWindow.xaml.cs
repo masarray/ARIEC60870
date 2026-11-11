@@ -133,7 +133,6 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, ValueRow> _valueRowsByKey = new(StringComparer.OrdinalIgnoreCase);
     private bool _valueRowsDirty;
     private bool _relayEventRowsDirty;
-    private bool _eventRowsDeferredWhileManualScroll;
     private long _backpressureDroppedEvents;
     private long _backpressureDroppedAckNoData;
     private long _backpressureDroppedBackgroundPoll;
