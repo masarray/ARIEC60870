@@ -127,12 +127,11 @@ public sealed class Iec101StartupRemoteLinkResetDefaultsTests
         public ValueTask<int> ReadAsync(Memory<byte> data, CancellationToken token)
             => inner.ReadAsync(data, token);
 
-        public async ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken token)
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken token)
         {
-            var frame = data.Span;
-            if (frame.Length > 1 && frame[0] is 0x10 or 0x68)
-                Functions.Add(frame[1] & 0x0f);
-            await inner.WriteAsync(data, token);
+            if (data.Length > 1 && data.Span[0] is 0x10 or 0x68)
+                Functions.Add(data.Span[1] & 0x0f);
+            return inner.WriteAsync(data, token);
         }
 
         public void Dispose() => inner.Dispose();
