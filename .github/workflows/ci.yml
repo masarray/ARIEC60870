@@ -71,6 +71,28 @@ jobs:
             const formattingRelevant = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
+            // Cheap deterministic matrix: detect accidental gate bypass before
+            // looking at live GitHub changes. No runner/checkout or external deps.
+            const fixtures = [
+              ['docs', [{filename:'docs/PLAN.md'}], false, false, false],
+              ['website', [{filename:'site/app.js'}], false, false, false],
+              ['workflow', [{filename:'.github/workflows/ci.yml'}], true, false, false],
+              ['test', [{filename:'tests/Master.Tests/LinkTests.cs'}], true, false, true],
+              ['runtime', [{filename:'src/Master/Link.cs'}], true, true, true],
+              ['installer', [{filename:'installer/ARIEC60870.iss'}], true, true, false],
+              ['xaml', [{filename:'src/Desktop/MainWindow.xaml'}], true, true, false],
+              ['rename', [{filename:'docs/Link.md',previous_filename:'src/Master/Link.cs'}], true, true, true],
+              ['unknown', [{filename:'mystery.data'}], true, false, false],
+              ['missing', [], true, true, true],
+              ['large', Array.from({length:300}, (_,i)=>({filename:'docs/page'+i+'.md'})), true, true, true]
+            ];
+            for (const [label, files, windows, packages, format] of fixtures) {
+              if (!staticOnly(files) !== windows || runtimeChanged(files) !== packages ||
+                  formattingRelevant(files) !== format) {
+                core.setFailed('CI scope classifier regression in fixture ' + label);
+                return;
+              }
+            }
             if (context.eventName === 'pull_request') {
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
