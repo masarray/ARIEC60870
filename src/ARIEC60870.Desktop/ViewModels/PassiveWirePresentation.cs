@@ -19,6 +19,7 @@ public static class PassiveWirePresentation
         Decoded,
         LinkOnly,
         UnknownAsdu,
+        VendorSpecific,
         InvalidFrame,
         Partial,
         Noise,
@@ -28,7 +29,7 @@ public static class PassiveWirePresentation
     public sealed record Verdict(Kind Status, string Message, bool TrustedWire,
         bool TrustedProcess)
     {
-        public bool NeedsAttention => Status is not (Kind.Decoded or Kind.LinkOnly);
+        public bool NeedsAttention => Status is not (Kind.Decoded or Kind.LinkOnly or Kind.VendorSpecific);
     }
 
     public static Verdict Classify(PassiveObservedFrame frame,
@@ -80,6 +81,12 @@ public static class PassiveWirePresentation
         if (asdu is null)
             return new(Kind.UnknownAsdu,
                 "Unknown IEC-101 ASDU · verified link frame, application payload not decoded; HEX retained",
+                true, false);
+
+        if (asdu.IsOpaqueVendorSpecific)
+            return new(Kind.VendorSpecific,
+                $"Vendor-specific IEC-101 TI {asdu.TypeId} · raw ASDU CA 0x{asdu.CommonAddress:X4}; " +
+                "payload opaque, no standard process IOA decoded; original HEX retained",
                 true, false);
 
         if (asdu.Issues.Count != 0 || asdu.ObjectCount == 0 ||

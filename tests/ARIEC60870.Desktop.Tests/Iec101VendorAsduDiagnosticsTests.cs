@@ -88,6 +88,7 @@ public sealed class Iec101VendorAsduDiagnosticsTests
             x.Hex == ((byte)ca).ToString("X2") + " " + ((byte)(ca >> 8)).ToString("X2") &&
             x.Meaning.Contains("Raw ASDU CA"));
         Assert.Contains(fields, x => x.Key == "vendor-payload" && x.Hex.StartsWith("0D 94"));
+        Assert.DoesNotContain(fields, x => x.Key == "issue");
     }
 
     [Fact]

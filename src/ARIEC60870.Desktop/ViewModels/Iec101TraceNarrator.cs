@@ -157,7 +157,10 @@ public static class Iec101TraceNarrator
             return;
         }
         builder.Append('\n').Append("ASDU: Type ID ").Append(asdu.TypeId)
-            .Append(" <").Append(HumanTypeName(asdu)).Append("> Count ").Append(asdu.ObjectCount)
+            .Append(" <").Append(HumanTypeName(asdu)).Append("> ")
+            .Append(asdu.IsOpaqueVendorSpecific
+                ? $"Raw VSQ 0x{asdu.VariableStructureQualifier:X2} · opaque"
+                : $"Count {asdu.ObjectCount}")
             .Append(" · TI").Append(asdu.TypeId);
         builder.Append('\n').Append("Cause of transmission: ").Append(asdu.CauseOfTransmission)
             .Append(" (").Append(asdu.CauseName).Append(") | Origin: ")
