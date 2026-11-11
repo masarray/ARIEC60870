@@ -32,7 +32,7 @@ public static class FrameInspectorTreePresentation
     public static string QualityDetailsKey(int index) => $"property/{index}/quality-details";
 
     public static IReadOnlyList<FrameInspectorVisibleRow> Build(
-        IReadOnlyList<FrameInspectorProperty> properties, ISet<string> expanded)
+        IReadOnlyList<FrameInspectorProperty> properties, IReadOnlySet<string> expanded)
     {
         ArgumentNullException.ThrowIfNull(properties);
         ArgumentNullException.ThrowIfNull(expanded);
