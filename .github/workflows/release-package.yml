@@ -101,6 +101,7 @@ jobs:
             version="${GITHUB_REF_NAME#v}"
             publish_release="true"
             prerelease="false"
+            if [[ "$version" == *-rc.* ]]; then prerelease="true"; fi
             draft="false"
             notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
           fi
@@ -182,9 +183,46 @@ jobs:
             echo "| Release notes | $notes_file |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Exact tag ownership is checked BEFORE spending a Windows runner.
+      # Never replace public bytes when an RC branch advances without a new tag.
+      - name: Verify immutable release tag and reuse published evidence
+        id: tag_check
+        if: steps.release.outputs.publish_release == 'true'
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        with:
+          script: |
+            const {owner,repo}=context.repo;
+            const tag=process.env.RELEASE_TAG;
+            let ref;
+            try {
+              ref=(await github.rest.git.getRef({owner,repo,ref:'tags/'+tag})).data;
+            } catch(error) {
+              if(error.status===404) {core.notice('New tag: '+tag); return;}
+              throw error;
+            }
+            let object=ref.object;
+            for(let i=0;i<5 && object.type==='tag';i++) {
+              object=(await github.rest.git.getTag({owner,repo,tag_sha:object.sha})).data.object;
+            }
+            if(object.type!=='commit' || object.sha.toLowerCase()!==context.sha.toLowerCase()) {
+              core.setFailed('Refuse tag '+tag+' pointing to '+object.sha+'; this run checks out '+context.sha+'. Bump RC instead of overwriting published evidence.');
+              return;
+            }
+            try {
+              const {data:release}=await github.rest.repos.getReleaseByTag({owner,repo,tag});
+              if(!release.draft) {
+                core.setOutput('already_published','true');
+                core.notice('Published '+tag+' already proves this source SHA; no duplicate Windows build or public asset overwrite.');
+              }
+            } catch(error) {
+              if(error.status!==404) throw error;
+            }
   package:
     name: Build, verify, SBOM, and attest package
     needs: resolve
+    if: needs.resolve.outputs.already_published != 'true'
     runs-on: windows-latest
     permissions:
       contents: read
