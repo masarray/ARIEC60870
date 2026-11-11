@@ -1231,6 +1231,16 @@ public partial class MainWindow
             DecodedPointGrid.IsVisible)
             throw new InvalidOperationException(
                 "Right dock must display only Full Properties, with all decoded source IOAs.");
+        var qualityDisplayIndex = VisibleFrameProperties.ToList()
+            .FindIndex(x => x.Field == "Quality" && x.Depth == 0);
+        if (qualityDisplayIndex < 0 ||
+            !VisibleFrameProperties.Skip(qualityDisplayIndex + 1).Any(
+                x => x.Depth == 1 && x.Field == "Quality details") ||
+            !VisibleFrameProperties.Skip(qualityDisplayIndex + 1).Any(
+                x => x.Depth == 2 && x.Field == "Invalid (IV)") ||
+            FramePropertiesGrid.RowDetailsVisibilityMode != DataGridRowDetailsVisibilityMode.Collapsed)
+            throw new InvalidOperationException(
+                "Full Properties must show a compact, aligned quality hierarchy without multiline DataGrid row details.");
         if (!FramePropertiesGrid.FontFamily.Source.Contains("Cascadia Mono", StringComparison.Ordinal) ||
             !TraceInspectorRawText.FontFamily.Source.Contains("Cascadia Mono", StringComparison.Ordinal))
             throw new InvalidOperationException("Frame Details decoded properties and original HEX must use monospace.");

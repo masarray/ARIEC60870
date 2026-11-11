@@ -75,6 +75,8 @@ public partial class MainWindow
             // not on each Frame Trace selection. Original evidence and the
             // selected frame stay in their authoritative source stores.
             SelectedFrameProperties.Clear();
+            VisibleFrameProperties.Clear();
+            _expandedFramePropertyKeys.Clear();
             SelectedDecodedPoints.Clear();
             SelectedProtocolMapLines.Clear();
             SelectedHexSegments.Clear();

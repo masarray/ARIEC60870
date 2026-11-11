@@ -31,17 +31,11 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    public sealed record FrameInspectorProperty(
-        string Field, string Value, string Detail,
-        IReadOnlyList<FrameInspectorFieldPresentation.DetailRow>? Children = null)
-    {
-        public bool HasChildren => Children is { Count: > 0 };
-        public string ExpansionMark => HasChildren ? "▸" : "";
-    }
-
     private void PopulateFrameProperties(EvidenceRow row)
     {
         SelectedFrameProperties.Clear();
+        VisibleFrameProperties.Clear();
+        _expandedFramePropertyKeys.Clear();
         SelectedDecodedPoints.Clear();
         var asdu = row.Source.AsduDetails;
         var frame = row.Source.Frame;
@@ -210,8 +204,43 @@ public partial class MainWindow
             Add("ASDU decode warnings", string.Join("; ", asdu.Issues),
                 "A valid link checksum does not guarantee a valid application payload.");
 
-        // Every decoded point stays in the virtualized table; no hidden 16-item
-        // limit or repeated giant per-frame object tree is introduced.
+        // Build only a selected-frame visual tree. Decode and source properties
+        // remain unchanged; the Name / Value grid never places prose into cells.
+        foreach (var key in FrameInspectorTreePresentation.InitiallyExpanded(
+            SelectedFrameProperties.ToArray()))
+            _expandedFramePropertyKeys.Add(key);
+        RefreshFramePropertyRows();
+    }
+
+    private void RefreshFramePropertyRows()
+    {
+        var rows = FrameInspectorTreePresentation.Build(
+            SelectedFrameProperties.ToArray(), _expandedFramePropertyKeys);
+        // Preserve the scroll position as far as possible on disclosure toggles:
+        // update only the changed span rather than clearing the whole DataGrid.
+        var prefix = 0;
+        while (prefix < VisibleFrameProperties.Count && prefix < rows.Count &&
+               Equals(VisibleFrameProperties[prefix], rows[prefix]))
+            prefix++;
+        var suffix = 0;
+        while (suffix < VisibleFrameProperties.Count - prefix &&
+               suffix < rows.Count - prefix &&
+               Equals(VisibleFrameProperties[VisibleFrameProperties.Count - suffix - 1],
+                   rows[rows.Count - suffix - 1]))
+            suffix++;
+        while (VisibleFrameProperties.Count > prefix + suffix)
+            VisibleFrameProperties.RemoveAt(prefix);
+        for (var i = prefix; i < rows.Count - suffix; i++)
+            VisibleFrameProperties.Insert(i, rows[i]);
+    }
+
+    private void FramePropertyDisclosure_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string key }) return;
+        if (!_expandedFramePropertyKeys.Add(key))
+            _expandedFramePropertyKeys.Remove(key);
+        RefreshFramePropertyRows();
+        e.Handled = true;
     }
 
     private void EvidenceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -1169,72 +1169,127 @@
                                                FontFamily="Cascadia Mono, Consolas"
                                                FontSize="11.3" Foreground="#344C65"
                                                VerticalAlignment="Stretch">
-<DataGrid x:Name="FramePropertiesGrid" FontFamily="Cascadia Mono, Consolas" ItemsSource="{Binding SelectedFrameProperties}" MinHeight="0"
-                                              ToolTipService.IsEnabled="False" RowDetailsVisibilityMode="VisibleWhenSelected"
-                                              IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="False"
+<DataGrid x:Name="FramePropertiesGrid"
+                                              ItemsSource="{Binding VisibleFrameProperties}"
+                                              FontFamily="Cascadia Mono, Consolas" FontSize="11.4"
+                                              MinHeight="0" IsReadOnly="True" AutoGenerateColumns="False"
+                                              CanUserSortColumns="False" CanUserReorderColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
+                                              CanUserResizeColumns="True"
                                               EnableRowVirtualization="True" EnableColumnVirtualization="True"
-                                              MinRowHeight="25" FontSize="11.9"
-                                              HeadersVisibility="Column" ColumnHeaderHeight="28"
-                                              RowBackground="#F8FAFC" AlternatingRowBackground="#EAF1F6" AlternationCount="2"
-                                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EAF0F6"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              HeadersVisibility="Column" ColumnHeaderHeight="27" MinRowHeight="25"
+                                              RowDetailsVisibilityMode="Collapsed"
+                                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E5EBF0"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                              BorderThickness="1" BorderBrush="#D7E2EA" Background="#F8FAFC">
-                                        <DataGrid.RowDetailsTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Margin="14,0,8,6">
-                                                    <TextBlock Text="{Binding Detail}" FontSize="10.9" Foreground="#526478" TextWrapping="Wrap"
-                                                               Margin="0,0,0,5"/>
-                                                    <ItemsControl ItemsSource="{Binding Children}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Grid Margin="3,3,3,3">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="1.05*"/>
-                                                                    <ColumnDefinition Width="0.85*"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <TextBlock Text="{Binding Field}" FontSize="11.5"
-                                                                           Foreground="{StaticResource Ink700Brush}"
-                                                                           TextWrapping="Wrap"/>
-                                                                <StackPanel Grid.Column="1">
-                                                                    <TextBlock Text="{Binding Value}" FontSize="11.5"
-                                                                               Foreground="{StaticResource Ink900Brush}"
-                                                                               TextWrapping="Wrap" TextTrimming="None"/>
-                                                                    <TextBlock Text="{Binding Explanation}" FontSize="10.7"
-                                                                               Foreground="{StaticResource Ink600Brush}" TextWrapping="Wrap"/>
-                                                                </StackPanel>
-                                                            </Grid>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </DataGrid.RowDetailsTemplate>
+                                              SelectionMode="Single" SelectionUnit="FullRow"
+                                              BorderThickness="1" BorderBrush="#CCD9E3" Background="White"
+                                              ToolTipService.IsEnabled="True">
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow">
+                                                <Setter Property="Background" Value="#FFFFFF"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="MinHeight" Value="25"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Depth}" Value="1">
+                                                        <Setter Property="Background" Value="#F3F7FB"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Depth}" Value="2">
+                                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="#DDEBFA"/>
+                                                        <Setter Property="Foreground" Value="#173B60"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.CellStyle>
+                                            <Style TargetType="DataGridCell">
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                            </Style>
+                                        </DataGrid.CellStyle>
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="PROPERTY" Width="1.15*" MinWidth="106" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="NAME" Width="1.20*" MinWidth="125" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <Grid VerticalAlignment="Center" Margin="8,5,4,5">
+                                                        <Grid Height="25" ToolTipService.IsEnabled="True" ToolTip="{Binding Detail}">
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="13"/>
+                                                                <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding ExpansionMark}" FontSize="11.5"
-                                                                       Foreground="{StaticResource Ink600Brush}"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding Field}" FontSize="12"
-                                                                       FontWeight="Medium" Foreground="{StaticResource Ink800Brush}"
-                                                                       TextWrapping="Wrap"/>
+                                                            <Button x:Name="PropertyDisclosure" Grid.Column="0"
+                                                                    Width="19" Height="23" Margin="1,0,1,0"
+                                                                    Padding="0" BorderThickness="0" Background="Transparent"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    Focusable="False" Cursor="Hand"
+                                                                    Tag="{Binding Key}" Click="FramePropertyDisclosure_Click"
+                                                                    Content="{Binding ExpansionMark}" FontSize="12"
+                                                                    Foreground="#456684" ToolTip="Expand or collapse decoded fields"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Field}"
+                                                                       VerticalAlignment="Center"
+                                                                       FontSize="11.4" FontWeight="Normal"
+                                                                       Foreground="#2D4053"
+                                                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Margin" Value="2,0,3,0"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Depth}" Value="1">
+                                                                                <Setter Property="Margin" Value="12,0,3,0"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Depth}" Value="2">
+                                                                                <Setter Property="Margin" Value="24,0,3,0"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Tone}" Value="Group">
+                                                                                <Setter Property="FontWeight" Value="Medium"/>
+                                                                                <Setter Property="Foreground" Value="#315779"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
                                                         </Grid>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding HasChildren}" Value="False">
+                                                                <Setter TargetName="PropertyDisclosure" Property="Visibility" Value="Hidden"/>
+                                                                <Setter TargetName="PropertyDisclosure" Property="IsHitTestVisible" Value="False"/>
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="VALUE" Width="1.35*" MinWidth="104">
+                                            <DataGridTemplateColumn Header="VALUE" Width="1.05*" MinWidth="104" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Value}" FontSize="11.7"
-                                                                   Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap"
-                                                                   TextTrimming="None"
-                                                                   VerticalAlignment="Center" Margin="9,5,8,5"/>
+                                                        <TextBlock Text="{Binding Value}" ToolTip="{Binding Value}"
+                                                                   ToolTipService.IsEnabled="True"
+                                                                   FontSize="11.3" Margin="7,0,5,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#253B52"
+                                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="#253B52"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Tone}" Value="Good">
+                                                                            <Setter Property="Foreground" Value="#16785D"/>
+                                                                            <Setter Property="FontWeight" Value="Medium"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Tone}" Value="Warning">
+                                                                            <Setter Property="Foreground" Value="#B46A14"/>
+                                                                            <Setter Property="FontWeight" Value="Medium"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Tone}" Value="Critical">
+                                                                            <Setter Property="Foreground" Value="#C23B43"/>
+                                                                            <Setter Property="FontWeight" Value="Medium"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
