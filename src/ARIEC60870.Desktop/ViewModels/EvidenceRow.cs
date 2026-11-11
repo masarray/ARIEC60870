@@ -56,7 +56,10 @@ public sealed partial class EvidenceRow
         Cot = decodedAsduHeader ? item.Cot ?? "-" : "Not decoded";
         CotDisplay = CotCode == "-" ? Cot : $"{CotCode} · {Cot}";
         LinkAddress = item.LinkAddress.HasValue ? item.LinkAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
-        CommonAddress = !decodedAsduHeader ? "-" : item.CommonAddressNumber.HasValue ? item.CommonAddressNumber.Value.ToString(CultureInfo.InvariantCulture) : (item.Frame?.Asdu?.CommonAddress.ToString(CultureInfo.InvariantCulture) ?? "-");
+        CommonAddress = !decodedAsduHeader ? "-" : item.AsduDetails is { IsOpaqueVendorSpecific: true } privateAsdu
+            ? Iec10xVendorAsduPresentation.Address(privateAsdu)
+            : item.CommonAddressNumber.HasValue ? item.CommonAddressNumber.Value.ToString(CultureInfo.InvariantCulture)
+            : (item.Frame?.Asdu?.CommonAddress.ToString(CultureInfo.InvariantCulture) ?? "-");
         IoAddress = decodedAsduHeader && item.InformationObjectAddress.HasValue ? item.InformationObjectAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
         ApciFormat = string.IsNullOrWhiteSpace(item.ApciFormat) ? "-" : item.ApciFormat;
         SendSequence = item.SendSequence.HasValue ? item.SendSequence.Value.ToString(CultureInfo.InvariantCulture) : "-";
@@ -207,7 +210,9 @@ public sealed partial class EvidenceRow
         if (asdu is null) return ProtocolTraceCompactMeaning;
         var status = (asdu.IsNegativeConfirm ? "NEG · " : "") +
             (asdu.IsTest ? "TEST · " : "");
-        var label = $"TI {asdu.TypeId} · {status}COT {asdu.CauseOfTransmission} ({asdu.CauseName}) · CA {asdu.CommonAddress}";
+        var label = $"TI {asdu.TypeId} · {status}COT {asdu.CauseOfTransmission} ({asdu.CauseName}) · " +
+            Iec10xVendorAsduPresentation.Address(asdu);
+        if (asdu.IsOpaqueVendorSpecific) return label + " · vendor payload opaque (not process points)";
         if (asdu.Objects.Count == 0) return label + " · no decoded points";
         var examples = string.Join(", ", asdu.Objects.Take(2).Select(o =>
             $"IOA {o.InformationObjectAddress} {o.ShortValue}" +
@@ -246,7 +251,7 @@ public sealed partial class EvidenceRow
     // Missing/unverified ASDU headers must never fabricate a CA.
     public bool HasInlineHeadlineIdentity =>
         ProtocolMode == "101" &&
-        Source.AsduDetails is { IsHeaderValid: true, Issues.Count: 0 };
+        Source.AsduDetails is { IsHeaderValid: true, Issues.Count: 0, IsOpaqueVendorSpecific: false };
     public string TimelineContext => _timelineContext ??= BuildTimelineContext();
     // Lazy, strictly typed protocol flags for visible Frame Trace rows.
     // Inapplicable, undecoded or absent bits never become false/Good by default.
@@ -294,7 +299,9 @@ public sealed partial class EvidenceRow
     private string BuildTimelineSignalDigest()
     {
         if (Source.AsduDetails is not { } asdu) return string.Empty;
-        if (asdu.Issues.Count > 0) return "ASDU decode warning · inspect selected frame";
+        if (asdu.Issues.Count > 0) return "ASDU decode: " + asdu.Issues[0];
+        if (asdu.IsOpaqueVendorSpecific)
+            return "Vendor-specific payload · no standard process IOA decoded";
 
         if (asdu.Objects.Count == 0)
         {
@@ -349,7 +356,7 @@ public sealed partial class EvidenceRow
                 station + " · FC " + function.FunctionCode.ToString(CultureInfo.InvariantCulture) +
                 " (" + function.FunctionName + ")";
         }
-        var context = station + " · CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture);
+        var context = station + " · " + Iec10xVendorAsduPresentation.Address(asdu);
         // TI already appears next to each typed signal; don't print it again below.
         return asdu.Issues.Count == 0 && asdu.Objects.Count > 0 ? context :
             context + " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
@@ -395,7 +402,7 @@ public sealed partial class EvidenceRow
         if (asdu is null)
             return LinkAddress == "-" ? string.Empty : "Station " + LinkAddress;
         if (!asdu.IsHeaderValid) return "ASDU header not decoded";
-        return "CA " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture) +
+        return Iec10xVendorAsduPresentation.Address(asdu) +
             " · TI " + asdu.TypeId.ToString(CultureInfo.InvariantCulture) +
             " · COT " + asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture);
     }
@@ -469,7 +476,7 @@ public sealed partial class EvidenceRow
             fields.Add("ASDU header not decoded");
         else if (Source.AsduDetails is { } asdu)
         {
-            fields.Add("Common address " + asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
+            fields.Add(Iec10xVendorAsduPresentation.Address(asdu));
             fields.Add("Type " + asdu.TypeId.ToString(CultureInfo.InvariantCulture));
             fields.Add(asdu.CauseName + " (cause " +
                 asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) + ")");

@@ -130,14 +130,22 @@ public static class ForensicTraceLayout
             Child(header, "TEST", asdu.IsTest ? "1 · Test data" : "0 · Normal");
             Child(header, "Origin", asdu.CotWidth == 2
                 ? asdu.OriginatorAddress.ToString(CultureInfo.InvariantCulture) : "N/A", last: true);
-            Add(header, "CA", asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
+            Add(header, asdu.IsOpaqueVendorSpecific ? "Raw ASDU CA (vendor)" : "CA",
+                asdu.IsOpaqueVendorSpecific
+                    ? Iec10xVendorAsduPresentation.RawAddress(asdu)
+                    : asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
             if (asdu.IsNegativeConfirm) flags.Add("NEG=1");
             if (asdu.IsTest) flags.Add("TEST=1");
             if (asdu.CauseOfTransmission is >= 44 and <= 47)
                 flags.Add($"COT={asdu.CauseOfTransmission} · protocol error");
-            if (asdu.Objects.Count != asdu.ObjectCount)
-                Add(check, "Objects", $"{asdu.Objects.Count}/{asdu.ObjectCount} decoded");
-            if (asdu.Objects.Count == 0) Add(objects, "Objects", "None decoded");
+            if (asdu.IsOpaqueVendorSpecific)
+                Add(objects, "Vendor payload", "Opaque · not decoded as process IOA");
+            else
+            {
+                if (asdu.Objects.Count != asdu.ObjectCount)
+                    Add(check, "Objects", $"{asdu.Objects.Count}/{asdu.ObjectCount} decoded");
+                if (asdu.Objects.Count == 0) Add(objects, "Objects", "None decoded");
+            }
             foreach (var obj in asdu.Objects)
                 AppendObject(objects, flags, obj, asdu);
         }

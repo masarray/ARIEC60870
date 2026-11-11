@@ -181,8 +181,14 @@ public static class IecForensicByteInspector
             $"COT {asdu.CauseOfTransmission} ({asdu.CauseName})" +
             (asdu.IsNegativeConfirm ? " · NEG" : "") + (asdu.IsTest ? " · TEST" : "") +
             (asdu.CotWidth == 2 ? $" · OA {asdu.OriginatorAddress}" : ""));
-        Add("ca", "Common address", 8 + asdu.CotWidth, asdu.CommonAddressWidth,
-            $"CA {asdu.CommonAddress}");
+        Add("ca", asdu.IsOpaqueVendorSpecific ? "Raw ASDU CA (vendor)" : "Common address",
+            8 + asdu.CotWidth, asdu.CommonAddressWidth,
+            Iec10xVendorAsduPresentation.Address(asdu));
+        if (asdu.IsOpaqueVendorSpecific)
+            Add("vendor-payload", "Vendor payload",
+                8 + asdu.CotWidth + asdu.CommonAddressWidth,
+                asdu.RawBytes.Count - 2 - asdu.CotWidth - asdu.CommonAddressWidth,
+                Iec10xVendorAsduPresentation.Explanation(asdu));
 
         foreach (var obj in asdu.Objects)
         {
@@ -201,7 +207,7 @@ public static class IecForensicByteInspector
                 (string.IsNullOrWhiteSpace(obj.TimestampText) ? "" : $" · {obj.TimestampText}"));
         }
 
-        if (asdu.Objects.Count != asdu.ObjectCount)
+        if (!asdu.IsOpaqueVendorSpecific && asdu.Objects.Count != asdu.ObjectCount)
             fields.Add(new Field("issue", "Object count mismatch", "-",
                 $"Decoded {asdu.Objects.Count} / declared {asdu.ObjectCount}; do not infer absent elements", -1, 0));
         return fields;

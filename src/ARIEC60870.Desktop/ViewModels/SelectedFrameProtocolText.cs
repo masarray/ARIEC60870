@@ -51,14 +51,22 @@ public static class SelectedFrameProtocolText
                 " (" + Iec101TraceNarrator.HumanTypeName(asdu) + ")" +
                 "  VSQ=" + asdu.VariableStructureQualifier.ToString("X2", CultureInfo.InvariantCulture) +
                 "  SQ=" + Bit(asdu.IsSequence) +
-                "  Objects=" + asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) +
-                "/" + asdu.ObjectCount.ToString(CultureInfo.InvariantCulture));
+                "  Objects=" + (asdu.IsOpaqueVendorSpecific
+                    ? "opaque; VSQ count=" + asdu.ObjectCount.ToString(CultureInfo.InvariantCulture)
+                    : asdu.Objects.Count.ToString(CultureInfo.InvariantCulture) +
+                      "/" + asdu.ObjectCount.ToString(CultureInfo.InvariantCulture)));
             Line(b, "COT", asdu.CauseOfTransmission.ToString(CultureInfo.InvariantCulture) +
                 (string.IsNullOrWhiteSpace(asdu.CauseName) ? "" : " (" + asdu.CauseName + ")") +
                 "  NEG=" + Bit(asdu.IsNegativeConfirm) +
                 "  TEST=" + Bit(asdu.IsTest) +
                 (asdu.CotWidth == 2 ? "  OA=" + asdu.OriginatorAddress.ToString(CultureInfo.InvariantCulture) : ""));
-            Line(b, "CA", asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
+            if (asdu.IsOpaqueVendorSpecific)
+            {
+                Line(b, "Raw CA", Iec10xVendorAsduPresentation.Address(asdu));
+                Line(b, "Payload", Iec10xVendorAsduPresentation.Explanation(asdu));
+            }
+            else
+                Line(b, "CA", asdu.CommonAddress.ToString(CultureInfo.InvariantCulture));
             foreach (var obj in asdu.Objects)
             {
                 var q = obj.QualityDetails;

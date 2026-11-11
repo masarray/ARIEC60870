@@ -124,12 +124,17 @@ public partial class MainWindow
             Iec10xTypeIdPresentation.Tooltip(
                 int.TryParse(row.TypeId, out var typeId) ? typeId : null, row.ProtocolMode),
             "Application data type and its full standard description.");
-        Add("Value structure (VSQ)", asdu is null ? row.Vsq :
-            $"{asdu.ObjectCount} object{(asdu.ObjectCount == 1 ? "" : "s")}",
-            asdu is null ? row.Vsq :
-            $"SQ={(asdu.IsSequence ? 1 : 0)}; {asdu.Objects.Count} objects decoded. A sequential address may be implied, not encoded for each object.",
-            asdu is null ? null : FrameInspectorFieldPresentation.Vsq(
-                asdu.VariableStructureQualifier, asdu.IsSequence, asdu.ObjectCount));
+        Add("Value structure (VSQ)", asdu is { IsOpaqueVendorSpecific: true }
+                ? $"Raw 0x{asdu.VariableStructureQualifier:X2} · vendor-defined"
+                : asdu is null ? row.Vsq :
+                    $"{asdu.ObjectCount} object{(asdu.ObjectCount == 1 ? "" : "s")}",
+            asdu is { IsOpaqueVendorSpecific: true }
+                ? "VSQ bytes retained; the vendor object layout and process IOA count cannot be inferred."
+                : asdu is null ? row.Vsq :
+                    $"SQ={(asdu.IsSequence ? 1 : 0)}; {asdu.Objects.Count} objects decoded. A sequential address may be implied, not encoded for each object.",
+            asdu is null || asdu.IsOpaqueVendorSpecific ? null :
+                FrameInspectorFieldPresentation.Vsq(
+                    asdu.VariableStructureQualifier, asdu.IsSequence, asdu.ObjectCount));
         Add("COT", row.CotDisplay, FrameInspectorFieldPresentation.CauseExplanation(asdu));
         if (asdu is not null)
         {
@@ -141,8 +146,16 @@ public partial class MainWindow
                 Add("Originator address", asdu.OriginatorAddress.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     "Application originator identifier from the second cause-of-transmission byte.");
         }
-        Add("Common address", row.CommonAddress,
-            "ASDU common address, not the data-link address.");
+        if (asdu is { IsOpaqueVendorSpecific: true })
+        {
+            Add("Raw ASDU CA (vendor)", Iec10xVendorAsduPresentation.RawAddress(asdu),
+                "Encoded ASDU header bytes; not proof of the configured process-station CA.");
+            Add("Vendor payload", "Opaque · not decoded as process signals",
+                Iec10xVendorAsduPresentation.Explanation(asdu));
+        }
+        else
+            Add("Common address", row.CommonAddress,
+                "ASDU common address, not the data-link address.");
         Add("IOA", row.IoAddress, "Information object address of the selected source object.",
             int.TryParse(row.IoAddress, out var decodedIoa)
                 ? FrameInspectorFieldPresentation.Ioa(decodedIoa)

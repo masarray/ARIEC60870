@@ -222,8 +222,10 @@ public partial class MainWindow
         _passiveRawRows.Clear();
         TracePassiveEmptyState.Visibility = Visibility.Collapsed;
 
-        // An unknown Type with a sound FT1.2 checksum must appear in the SAME
-        // Trace as valid frames, but must never create false Values/SOE.
+        // A private IEC-101 Type with a valid FT1.2 checksum must appear as
+        // vendor-specific raw evidence in the SAME Trace as valid frames.
+        // It must NEVER create fabricated process Values/SOE, and must not
+        // be collapsed into an invalid/unknown frame after decoder hardening.
         var unknownAsdu = new byte[]
             { 0xFA, 0x01, 0x03, 0x00, 0x69, 0x00, 0x01, 0x00, 0x00, 0x42 };
         var unknownBody = new byte[] { 0x08, 0x69 }.Concat(unknownAsdu).ToArray();
@@ -241,19 +243,21 @@ public partial class MainWindow
         FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, 411,
             DateTime.UtcNow, "Partial", false, [0x68, 0x0C]));
         FlushUiQueues();
-        var unknownVisible = FrameTraceRows.Any(x =>
+        var vendorOpaqueVisible = FrameTraceRows.Any(x =>
             x.RawHex == Convert.ToHexString(unknownWire) &&
-            x.Source.OperatorMessage.Contains("Unknown/invalid IEC-101 ASDU", StringComparison.Ordinal));
+            x.Source.AsduDetails is { IsOpaqueVendorSpecific: true, TypeId: 250 } &&
+            x.Source.OperatorMessage.Contains("Vendor-specific IEC-101 TI 250", StringComparison.Ordinal) &&
+            x.Source.OperatorMessage.Contains("payload opaque", StringComparison.Ordinal));
         var noiseVisible = FrameTraceRows.Any(x =>
             x.RawHex == "515253" &&
             x.Source.OperatorMessage.Contains("Unrecognized serial bytes", StringComparison.Ordinal));
         var partialVisible = FrameTraceRows.Any(x =>
             x.RawHex == "680C" &&
             x.Source.OperatorMessage.Contains("Partial FT1.2", StringComparison.Ordinal));
-        if (!unknownVisible || !noiseVisible || !partialVisible ||
+        if (!vendorOpaqueVisible || !noiseVisible || !partialVisible ||
             ValueRows.Count != 0 || RelayEventRows.Count != 0)
             throw new InvalidOperationException(
-                $"Wire-first Trace mismatch: unknown={unknownVisible}, noise={noiseVisible}, " +
+                $"Wire-first Trace mismatch: vendorOpaque={vendorOpaqueVisible}, noise={noiseVisible}, " +
                 $"partial={partialVisible}, values={ValueRows.Count}, events={RelayEventRows.Count}, " +
                 $"trace={FrameTraceRows.Count}, raw=" +
                 string.Join("|", FrameTraceRows.Select(x => x.RawHex).Take(10)));
