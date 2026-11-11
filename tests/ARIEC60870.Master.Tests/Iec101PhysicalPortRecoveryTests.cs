@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.IO;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Transport;
@@ -105,6 +106,26 @@ public sealed class Iec101PhysicalPortRecoveryTests
         Assert.DoesNotContain(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
     }
 
+    [Fact]
+    public async Task StartupGiAlreadyTransmittedIsNeverReplayedAfterPhysicalComRecovery()
+    {
+        var settings = Settings();
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class1DrainDelayMs = 0;
+        settings.MaxClass1DrainFrames = 10;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        await using var port = new GiThenUnplugPort(settings, () => stop.Cancel());
+
+        var result = await new Iec101MasterSession(settings, port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.Equal(1, port.GiWrites);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+        Assert.True(port.RecoveredClass2Writes > 0);
+        Assert.True(result.Counters.GiCommands <= 1, "A GI attempted before COM loss must not replay on another physical epoch.");
+    }
+
     private sealed class RecoverablePort : IByteTransport
     {
         private readonly Queue<byte> _rx = new();
@@ -201,5 +222,64 @@ public sealed class Iec101PhysicalPortRecoveryTests
 
         public void Dispose() => IsOpen = false;
         public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+    }
+
+    // Independent IEC-101 simulation with a physical disconnect after the
+    // first startup GI and before the following Class2 confirmation.
+    private sealed class GiThenUnplugPort : IByteTransport
+    {
+        private readonly SimulatedIec101Transport _peer;
+        private readonly Ft12Parser _parser;
+        private readonly Action _onRecoveredClass2;
+        private bool _unplugged;
+
+        public GiThenUnplugPort(Iec103MasterSettings settings, Action onRecoveredClass2)
+        {
+            _peer = new SimulatedIec101Transport(settings);
+            _parser = Ft12Parser.ForIec101(settings.LinkAddressSize);
+            _onRecoveredClass2 = onRecoveredClass2;
+        }
+
+        public bool IsOpen => _peer.IsOpen;
+        public int OpenCount { get; private set; }
+        public int GiWrites { get; private set; }
+        public int RecoveredClass2Writes { get; private set; }
+
+        public ValueTask OpenAsync(CancellationToken token)
+        {
+            OpenCount++;
+            return _peer.OpenAsync(token);
+        }
+
+        public ValueTask CloseAsync(CancellationToken token) => _peer.CloseAsync(token);
+
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken token)
+        {
+            var decoded = _parser.Decode(bytes.ToArray());
+            if (decoded.AsduBytes.Count > 0 && decoded.AsduBytes[0] == 100)
+                GiWrites++;
+            var function = decoded.LinkControl?.FunctionCode;
+            if (decoded.Format == Ft12FrameFormat.FixedLength && function == 11)
+            {
+                if (OpenCount == 1 && GiWrites > 0 && !_unplugged)
+                {
+                    _unplugged = true;
+                    await _peer.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    throw new IOException("Synthetic physical unplug after startup GI.");
+                }
+                if (OpenCount >= 2)
+                {
+                    RecoveredClass2Writes++;
+                    _onRecoveredClass2();
+                }
+            }
+            await _peer.WriteAsync(bytes, token).ConfigureAwait(false);
+        }
+
+        public ValueTask<int> ReadAsync(Memory<byte> bytes, CancellationToken token)
+            => _peer.ReadAsync(bytes, token);
+
+        public void Dispose() => _peer.Dispose();
+        public ValueTask DisposeAsync() => _peer.DisposeAsync();
     }
 }
