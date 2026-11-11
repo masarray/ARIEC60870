@@ -20,6 +20,8 @@ Goal: fast iteration without hiding real regressions, duplicating Windows ZIPs o
 
 Master pushes affecting `src/**`, `installer/**`, `scripts/**`, resources, or build inputs additionally collect coverage, publish the portable GUI/monitor CLI ZIPs with checksums and run real-WPF acceptance/screenshots. Master pushes changing only test code or CI YAML skip these expensive packages. For documentation-only or site-only changes, Windows compilation is unrelated and skipped. All unknown/large changes fall back to the safe full Windows route.
 
+Actions workflow edits run a lightweight Ubuntu `actionlint` gate with a pinned, checksum-verified binary, in addition to the normal Windows correctness tests. Linting is deliberately scoped to workflow YAML changes and does not run on ordinary source/documentation commits.
+
 CodeQL automatic triggers cover C#/C# projects, XAML, resource/build configuration and its own workflow. Weekly scheduled and manual CodeQL runs remain unfiltered. NuGet package cache is shared by matching Windows restore inputs. The Pages workflow deploys canonical `site/`, so changes to engineering `docs/**` alone do not redeploy an identical website.
 
 OpenSSF Scorecard is also scheduled weekly and can be manually dispatched; it runs immediately on security configuration changes (`.github/**`, `SECURITY.md`, `.gitattributes`), not on every ordinary IEC-101 source commit. Hygiene and dependency-review checks cancel their own superseded PR revisions while retaining default-branch validation.
@@ -44,3 +46,15 @@ Comment admission is serialized per PR. An active or successful run with matchin
 5. Public packages/releases stay in `release-package.yml`; these comment commands cannot publish a release.
 
 Release checks, real serial connectivity and safety requirements are not relaxed by smarter CI scheduling.
+
+## Release/RC source and publication safety
+
+The `Package` workflow retains its full Windows tests, WPF evidence, SBOM, SHA256 and provenance checks. The early Ubuntu `resolve` gate additionally rejects invalid SemVer, inconsistent RC/stable flags, unsafe release-notes paths, and public publication from an unrelated branch. A default-branch stable release must equal `Directory.Build.props`; RC branches/tags must match their exact version and the base version in source.
+
+Before scheduling Windows packaging, the trusted GitHub API checks an existing release tag (including annotated tags) against the **actual workflow source SHA**. A tag pointing elsewhere is an error: bump the RC number rather than republishing changed code under the same tag. A successfully published release at the same tag/SHA short-circuits redundant Windows packaging. The release job rechecks tag ownership just before publication and refuses to clobber assets of an existing public release; drafts can be updated deliberately.
+
+Do not equate a green reusable release run with field-tested physical interoperability. RC download links point to immutable release-source evidence, but real Siemens/other-vendor IEC101 FAT remains separate.
+
+## Remaining GitHub repository policy (requires repository Settings access)
+
+At the 2026-11-11 audit, `master` was **not protected** and GitHub returned no rulesets. The GitHub connector used here exposes repository ruleset/branch reads but no rule mutation capability. Workflow YAML cannot impose required checks or disallow direct pushes. The repository administrator should configure **Settings → Rules → Rulesets → New branch ruleset**, targeting `master`, to require pull requests and required checks (`build-test` and the always-run repository hygiene job), disallow force pushes/deletions and decide deliberate maintainer bypasses. Keep the path-filtered CodeQL check optional unless all PRs are guaranteed to create its status, or use an always-present wrapper. The dependency-review job currently has an opt-in switch: a green status **does not prove actual dependency review** unless repository variable `ENABLE_DEPENDENCY_REVIEW=true` and the dependency graph/action are available. Do not claim that check is enforced before verifying its logs.
