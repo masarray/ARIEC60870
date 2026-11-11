@@ -11,7 +11,16 @@ function Get-GitBlobSha([string] $path) {
     $buffer = [byte[]]::new($prefix.Length + $bytes.Length)
     [System.Buffer]::BlockCopy($prefix, 0, $buffer, 0, $prefix.Length)
     [System.Buffer]::BlockCopy($bytes, 0, $buffer, $prefix.Length, $bytes.Length)
-    return [Convert]::ToHexString([System.Security.Cryptography.SHA1]::HashData($buffer)).ToLowerInvariant()
+    # Windows PowerShell 5.1 uses .NET Framework, which has neither SHA1.HashData
+    # nor Convert.ToHexString. Keep the identical pinned Git-blob SHA-1 check
+    # on both Windows PowerShell 5.1 and PowerShell 7 / .NET 8.
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try {
+        $digest = $sha1.ComputeHash($buffer)
+        return [System.BitConverter]::ToString($digest).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha1.Dispose()
+    }
 }
 if (Test-Path $target) {
     if ((Get-GitBlobSha $target) -eq $expectedBlob) { return }
