@@ -68,9 +68,23 @@ public sealed class PassiveMonitorP0Tests
         opts.Validate();
         var tapA = new ReplayTap("COM7", tx, tx.Length);
         var tapB = new ReplayTap("COM8", rx, rx.Length);
-        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(180));
+        // Never stop on a fixed 180 ms wall-clock timer: Windows CI may be
+        // scheduling the dedicated readers or initializing the temporary index.
+        // End the test when BOTH input streams have actually been committed and
+        // decoded, with a bounded timeout for genuine missing-evidence failures.
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var session = new PassiveMonitorSession(opts, tapA, tapB);
-        var result = await session.RunAsync(stop.Token);
+        var running = session.RunAsync(stop.Token);
+        while (!running.IsCompleted && !stop.IsCancellationRequested)
+        {
+            var progress = session.GetProgress();
+            if (progress.ScadaBytes == tx.Length && progress.RtuBytes == rx.Length &&
+                progress.ValidFt12Frames >= 2)
+                break;
+            await Task.Delay(10);
+        }
+        stop.Cancel();
+        var result = await running;
 
         Assert.False(Directory.Exists(root));
         Assert.Equal(string.Empty, result.Directory);
