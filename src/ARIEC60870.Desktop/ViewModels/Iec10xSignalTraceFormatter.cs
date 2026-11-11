@@ -99,7 +99,7 @@ public static class Iec10xSignalTraceFormatter
             : string.IsNullOrWhiteSpace(obj.TimestampText)
                 ? "No Timestamp" : "Timestamp Partial (CP56 validity / GEN / DST unknown)";
         return f.Identity + " · " + ti + " · Value: " + f.Value + stamp + f.Suffix +
-            Environment.NewLine + "  " + ti + " " + f.Kind + " Signal · Quality: " +
+            Environment.NewLine + "  ↳ " + ti + " " + f.Kind + " Signal · Quality: " +
             quality + " · " + timeStatus;
     }
 
@@ -226,10 +226,10 @@ public static class Iec10xSignalTraceFormatter
     /// </summary>
     private static string StructuredIoa(int address, int width) => width switch
     {
-        1 => "IOA1:" + Octet(address, 0),
-        2 => "IOA2:" + Octet(address, 1) + " - IOA1:" + Octet(address, 0),
-        3 => "IOA3:" + Octet(address, 2) + " - IOA2:" + Octet(address, 1) +
-             " - IOA1:" + Octet(address, 0),
+        1 => "IOA1: " + Octet(address, 0),
+        2 => "IOA2: " + Octet(address, 1) + " - IOA1: " + Octet(address, 0),
+        3 => "IOA3: " + Octet(address, 2) + " - IOA2: " + Octet(address, 1) +
+             " - IOA1: " + Octet(address, 0),
         _ => "IOA width unknown"
     };
 

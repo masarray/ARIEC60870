@@ -21,7 +21,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             InformationObjectAddress = 0xFF0400, ValueText = "DP=ON"
         };
         var line = Iec10xSignalTraceFormatter.ScanValue(asdu, obj);
-        Assert.Contains("IOA 16712704 (IOA3:255 - IOA2:4 - IOA1:0)", line);
+        Assert.Contains("IOA 16712704 (IOA3: 255 - IOA2: 4 - IOA1: 0)", line);
         Assert.Contains("Value: ON (Double Point)", line);
     }
 
@@ -34,7 +34,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             InformationObjectAddress = 0x1234, ValueText = "SP=ON"
         };
         var line = Iec10xSignalTraceFormatter.ScanValue(asdu, obj);
-        Assert.Contains("IOA 4660 (IOA2:18 - IOA1:52)", line);
+        Assert.Contains("IOA 4660 (IOA2: 18 - IOA1: 52)", line);
         Assert.DoesNotContain("IOA3", line);
     }
 
@@ -51,7 +51,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             InformationObjectOffset = -1, ValueText = "DP=OFF"
         };
         var line = Iec10xSignalTraceFormatter.ScanValue(asdu, obj);
-        Assert.Contains("IOA 257 (IOA3:0 - IOA2:1 - IOA1:1)", line);
+        Assert.Contains("IOA 257 (IOA3: 0 - IOA2: 1 - IOA1: 1)", line);
         Assert.Contains("SQ=1 implied IOA", line);
         Assert.DoesNotContain("bytes mismatch", line);
     }
@@ -72,7 +72,7 @@ public sealed class Iec10xSignalTraceFormatterTests
         var line = Iec10xSignalTraceFormatter.ScanValue(asdu, obj);
         Assert.Contains("IOA bytes mismatch", line);
         Assert.Contains("Decode warning", line);
-        Assert.DoesNotContain("IOA3:255", line);
+        Assert.DoesNotContain("IOA3: 255", line);
         Assert.DoesNotContain("Value: ON", line);
     }
 
@@ -85,7 +85,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             InformationObjectAddress = 0x80006A, ValueText = "SP=ON"
         };
         var text = Iec10xSignalTraceFormatter.Format(asdu, obj, "52-BKR");
-        Assert.Contains("52-BKR · IOA 8388714 (IOA3:128 - IOA2:0 - IOA1:106)", text);
+        Assert.Contains("52-BKR · IOA 8388714 (IOA3: 128 - IOA2: 0 - IOA1: 106)", text);
         Assert.Contains("Value: ON (Single Point)", text);
         Assert.DoesNotContain("OV=1", text);
     }
@@ -115,7 +115,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             QualityDetails = new Iec10xQualityDetails(Iec10xQualityKind.Qds, 0x81)
         };
         var text = Iec10xSignalTraceFormatter.Format(asdu, obj);
-        Assert.Contains("IOA 342 (IOA3:0 - IOA2:1 - IOA1:86)", text);
+        Assert.Contains("IOA 342 (IOA3: 0 - IOA2: 1 - IOA1: 86)", text);
         Assert.Contains("Value: 12.7 (Float)", text);
         Assert.Contains("OV=1 Overflow", text);
         Assert.Contains("IV=1 Invalid", text);
@@ -135,7 +135,7 @@ public sealed class Iec10xSignalTraceFormatterTests
             InformationObjectOffset = -1
         };
         var text = Iec10xSignalTraceFormatter.Format(asdu, obj);
-        Assert.Contains("IOA 257 (IOA3:0 - IOA2:1 - IOA1:1)", text);
+        Assert.Contains("IOA 257 (IOA3: 0 - IOA2: 1 - IOA1: 1)", text);
         Assert.Contains("SQ=1 implied (no IOA octets repeated)", text);
     }
 
@@ -144,7 +144,7 @@ public sealed class Iec10xSignalTraceFormatterTests
     {
         var shortAsdu = new Iec10xAsduDecode { TypeId = 1, InformationObjectAddressWidth = 1 };
         var obj = new Iec10xInformationObject { InformationObjectAddress = 12, ValueText = "SP=OFF" };
-        Assert.Contains("IOA1:12",
+        Assert.Contains("IOA1: 12",
             Iec10xSignalTraceFormatter.Format(shortAsdu, obj));
         var unknown = new Iec10xAsduDecode { TypeId = 1, InformationObjectAddressWidth = 0 };
         Assert.Contains("width unknown", Iec10xSignalTraceFormatter.Format(unknown, obj));
@@ -165,6 +165,6 @@ public sealed class Iec10xSignalTraceFormatterTests
         };
         var text = Iec10xSignalTraceFormatter.Format(asdu, obj);
         Assert.Contains("IOA byte mismatch · inspect original HEX", text);
-        Assert.DoesNotContain("IOA1:9", text);
+        Assert.DoesNotContain("IOA1: 9", text);
     }
 }

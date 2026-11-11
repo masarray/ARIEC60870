@@ -989,6 +989,7 @@
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding TimelineTitle}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
                                                                    FontWeight="SemiBold" Foreground="#253B51"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="90"/>
@@ -998,7 +999,8 @@
                                                              previewed to keep live rows bounded. -->
                                                         <TextBlock Text="{Binding TimelineSignalDigest}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                                   Foreground="#174B73" Margin="0,3,0,0"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
+                                                                   Foreground="#174B73" Margin="0,4,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="420">
                                                             <TextBlock.Style>
@@ -1013,7 +1015,8 @@
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineSignalOverflow}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                                   Foreground="#59728A" Margin="0,2,0,0"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
+                                                                   Foreground="#59728A" Margin="0,4,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
@@ -1027,7 +1030,8 @@
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringIdentity}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                                   Foreground="#3C5670" Margin="0,3,0,0"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
+                                                                   Foreground="#3C5670" Margin="0,4,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="88">
                                                             <TextBlock.Style>
@@ -1042,13 +1046,15 @@
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding TimelineEngineeringCause}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                                   Foreground="#405973" Margin="0,2,0,0"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
+                                                                   Foreground="#405973" Margin="0,4,0,0"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="110"/>
                                                         <!-- ACD is a normal Class 1 request flag, not an error. -->
                                                         <TextBlock Text="{Binding TimelineAcdPending}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
-                                                                   FontWeight="Medium" Foreground="#995010"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
+                                                                   FontWeight="Medium" Foreground="#A65B00"
                                                                    TextWrapping="Wrap" Margin="0,4,0,0">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
@@ -1063,6 +1069,7 @@
                                                         <!-- Protocol, decoding, time and quality problems only: -->
                                                         <TextBlock Text="{Binding TimelineDiagnosticAlerts}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
+                                                                   LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
                                                                    FontWeight="Medium" Foreground="#9B3F24"
                                                                    TextWrapping="Wrap" TextTrimming="None"
                                                                    MaxHeight="190" Margin="0,4,0,0">
