@@ -233,7 +233,7 @@ public sealed class ObservationInterpretivePresentationTests
         {
             ProtocolMode = Iec60870ProtocolMode.Iec101, AsduDetails = badAsdu
         });
-        Assert.Equal("ASDU decode warning · inspect selected frame", frame.TimelineSignalDigest);
+        Assert.Equal("ASDU decode: Incomplete ASDU", frame.TimelineSignalDigest);
         Assert.DoesNotContain("= ON", frame.TimelineSignalDigest);
     }
 

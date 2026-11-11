@@ -79,7 +79,9 @@ public static class Iec101FrameByteInspector
         {
             Add("asdu-type", "Type ID", asduStart, 1, $"{asdu.TypeId} · {asdu.TypeName}");
             Add("vsq", "VSQ", asduStart + 1, 1,
-                $"Count {asdu.ObjectCount} · SQ={(asdu.IsSequence ? 1 : 0)}");
+                asdu.IsOpaqueVendorSpecific
+                    ? $"Raw 0x{asdu.VariableStructureQualifier:X2} · vendor-defined layout"
+                    : $"Count {asdu.ObjectCount} · SQ={(asdu.IsSequence ? 1 : 0)}");
             // Source-configured profile, not an inferred first-object offset.
             // An SQ=1 second object deliberately carries no physical IOA.
             var cotSize = asdu.CotWidth;
@@ -91,7 +93,14 @@ public static class Iec101FrameByteInspector
                 (cotSize == 2 ? $" · Origin {asdu.OriginatorAddress}" : ""));
             if (caSize > 0)
                 Add("ca", "Common address", asduStart + 2 + cotSize, caSize,
-                    $"CA {asdu.CommonAddress}");
+                    Iec10xVendorAsduPresentation.Address(asdu));
+            if (asdu.IsOpaqueVendorSpecific)
+            {
+                var payloadOffset = asduStart + 2 + cotSize + caSize;
+                Add("vendor-payload", "Vendor payload", payloadOffset,
+                    asdu.RawBytes.Count - (2 + cotSize + caSize),
+                    Iec10xVendorAsduPresentation.Explanation(asdu));
+            }
 
             foreach (var obj in asdu.Objects)
             {
@@ -115,8 +124,9 @@ public static class Iec101FrameByteInspector
                     asduStart + obj.InformationElementOffset, obj.RawBytes.Count, meaning);
             }
 
-            if (asdu.Objects.Count != asdu.ObjectCount || asdu.Issues.Count > 0)
-                fields.Add(new Field("issue", "Decode warning", "-", string.Join("; ", asdu.Issues), -1, 0));
+            if (!asdu.IsOpaqueVendorSpecific && asdu.Objects.Count != asdu.ObjectCount)
+                fields.Add(new Field("issue", "Decode warning", "-",
+                    $"Decoded {asdu.Objects.Count}/{asdu.ObjectCount} standard objects; inspect ASDU payload", -1, 0));
         }
         else if (raw.Count > asduStart + 2)
         {

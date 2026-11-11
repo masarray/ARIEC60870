@@ -36,6 +36,7 @@ public static class Iec10xTypeIdPresentation
         100 => "General interrogation",
         101 => "Counter interrogation",
         106 => "Delay acquisition",
+        >= 128 and <= 255 => "Unknown vendor-specific ASDU (opaque)",
         _ => CanonicalName(typeId)
     };
 

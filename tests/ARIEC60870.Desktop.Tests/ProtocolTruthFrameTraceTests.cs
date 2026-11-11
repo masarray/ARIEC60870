@@ -29,7 +29,7 @@ public sealed class ProtocolTruthFrameTraceTests
         Assert.Equal("ASDU header not decoded", row.TimelineCompactContext);
         Assert.DoesNotContain("TI 0", row.TimelineEngineeringIdentity);
         Assert.DoesNotContain("CA 0", row.TimelineEngineeringIdentity);
-        Assert.Contains("ASDU decode warning", row.TimelineSignalDigest);
+        Assert.Contains("ASDU decode: ASDU too short", row.TimelineSignalDigest);
         Assert.Contains("Malformed ASDU header", row.TimelineTitle);
         Assert.Contains("ASDU header not decoded", row.TimelineContext);
         Assert.Equal("-", row.TypeId);
