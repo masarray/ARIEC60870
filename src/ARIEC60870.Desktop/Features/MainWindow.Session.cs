@@ -806,6 +806,16 @@ public partial class MainWindow
         var isDual101 = is101 && IsIec101DualLinkModeSelected();
         var isPassive101 = is101 && IsIec101PassiveMonitorSelected();
         var is104 = mode == Iec60870ProtocolMode.Iec104;
+        // Fresh profile defaults only: IEC-101 active starts with FC0 on.
+        // Existing JSON preferences (including explicit OFF) and the user's
+        // current-session switch choice always win. Passive RX never sends TX.
+        if (!_savedSetupPreferencesLoaded && !_resetRemoteLinkUserCustomized &&
+            ResetRemoteLinkCheckBox is not null)
+        {
+            var defaults = Iec103MasterSettings.CreateDefault();
+            defaults.ProtocolMode = mode;
+            ResetRemoteLinkCheckBox.IsChecked = !isPassive101 && defaults.ResetRemoteLinkOnConnect;
+        }
         var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var funInfVisibility = is103 ? Visibility.Visible : Visibility.Collapsed;
