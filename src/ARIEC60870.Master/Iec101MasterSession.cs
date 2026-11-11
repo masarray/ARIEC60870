@@ -26,7 +26,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private bool _linkVerified;
     private readonly Iec101UnbalancedBusyGate _busyGate;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
-    private readonly Iec101TransmitHistory _transmitHistory = new();
+    private Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
@@ -91,6 +91,118 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
+            var reconnect = false;
+            var recoveryFailures = 0;
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await RunTransportEpochAsync(reconnect, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+                catch (Exception fault) when (Iec101PhysicalPortRecovery.IsRecoverable(fault, _transport, cancellationToken))
+                {
+                    reconnect = true;
+                    recoveryFailures++;
+                    // A physical COM failure makes outstanding byte delivery unknown.
+                    // Invalidate epoch/FCB and pending controls BEFORE closing or reopening.
+                    _transactions.EndConnectionEpoch();
+                    _linkVerified = false;
+                    _controlLinkReady = false;
+                    _acd = false;
+                    _busyGate.Reset();
+                    _observedCommonAddressHits.Clear();
+                    _dominantObservedCommonAddress = null;
+                    _retriedGiWithObservedCommonAddress = false;
+                    Interlocked.Increment(ref _linkGeneration);
+                    var rejectedControls = _controlCommands.Clear();
+                    var report = Iec101PhysicalPortRecovery.ShouldReport(recoveryFailures);
+                    if (report || rejectedControls > 0)
+                    {
+                        SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 COM disconnected — automatic reopen",
+                            $"COM={_settings.PortName}; error={fault.GetType().Name}; attempts={recoveryFailures}; " +
+                            $"discarded unsent operator requests={rejectedControls}; previous TX delivery is unverified.",
+                            category: "Warning");
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-COM-PHYSICAL-RECOVERY",
+                            "IEC-101 physical serial transport failed — reopening same configured port",
+                            $"COM={_settings.PortName}; failure={fault.Message}; attempt={recoveryFailures}; " +
+                            $"discarded queued requests={rejectedControls}; retry after bounded backoff.",
+                            "The previous link epoch and any pending command outcome are UNKNOWN. " +
+                            "This is NOT DFC busy or a normal no-data/response timeout.",
+                            "Check adapter and COM driver if it remains unavailable. " +
+                            "No remote reset, changed serial control lines or command replay is authorized.");
+                    }
+                    try
+                    {
+                        await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception closeFault)
+                    {
+                        if (report)
+                            RaiseFinding(FindingSeverity.Warning, "IEC101-COM-RECOVERY-CLOSE",
+                                "IEC-101 COM close during recovery reported an exception",
+                                closeFault.Message,
+                                "Old COM ownership may still be held by the OS driver.",
+                                "Check converter/driver health; automatic reopen remains bounded and cancellable.");
+                    }
+                    DrainTransportDiagnostics("Physical COM recovery");
+                    await Task.Delay(Iec101PhysicalPortRecovery.BackoffMs(
+                        _settings.TimeoutRecoveryBackoffMs, recoveryFailures), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            completion = "Stopped by cancellation or requested duration.";
+        }
+        catch (Exception ex)
+        {
+            completion = "Fault: " + ex.Message;
+            SetState(Iec103MasterState.Faulted, "IEC-101 session faulted", ex.Message, category: "Error");
+            RaiseFinding(FindingSeverity.Error, "IEC101-SESSION-FAULT", "IEC-101 session faulted", ex.Message, "The IEC-101 test session could not continue.", "Check serial mode, link address, common address, and balanced/unbalanced settings of the RTU/IED.");
+        }
+        finally
+        {
+            SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
+            _transactions.EndConnectionEpoch();
+            _controlLinkReady = false;
+            _linkVerified = false;
+            Interlocked.Increment(ref _linkGeneration);
+            var discardedCommands = _controlCommands.Clear();
+            if (discardedCommands > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-DISCARDED-ON-STOP",
+                    "IEC-101 queued commands discarded when session stopped",
+                    "Not transmitted: " + discardedCommands + " queued operator request(s).",
+                    "Stale operator controls must not survive COM reconnect or a new session.",
+                    "Reissue intentional commands after new addressed link proof.");
+            try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
+            DrainTransportDiagnostics("Close transport");
+            SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);
+        }
+
+        BuildPostRunFindings();
+        return new Iec103MasterRunResult
+        {
+            ProductMode = "IEC 60870-5-101 Serial Master Tester",
+            Settings = _settings.CreateReportSnapshot(),
+            Counters = _counters,
+            Events = _events.ToArray(),
+            Findings = _findings.ToArray(),
+            StartedUtc = started,
+            FinishedUtc = DateTime.UtcNow,
+            CompletedNormally = !completion.StartsWith("Fault:", StringComparison.OrdinalIgnoreCase),
+            CompletionReason = completion
+        };
+    }
+
+
+
+    // Each physical open is a distinct trust/FCB epoch. A serial transport
+    // exception escapes to RunAsync, which closes the old epoch and retries.
+    // Startup mutating requests are one-shot for the *whole operator session*.
+    private async Task RunTransportEpochAsync(bool reconnect, CancellationToken cancellationToken)
+    {
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             _transactions.StartConnectionEpoch();
@@ -99,6 +211,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _controlLinkReady = false;
             Interlocked.Increment(ref _linkGeneration);
             _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
+            _acd = false;
+            _lastClass2PollUtc = DateTime.MinValue;
+            _transmitHistory = new Iec101TransmitHistory();
+            _lastTxFrame = Array.Empty<byte>();
+            if (reconnect)
+                SetState(Iec103MasterState.OpeningTransport, "IEC-101 COM reopened — verifying secondary",
+                    "Previous link epoch invalidated. FC9 addressed status verification precedes all data/GI/controls; no implicit remote reset, FCB reset or uncertain command replay.");
             DrainTransportDiagnostics("Open transport");
             if (_settings.StartupDelayMs > 0)
             {
@@ -111,11 +230,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "IEC-101 COM open — secondary link NOT verified",
                 $"COM opened: {_settings.SerialSummary}. Awaiting a valid IEC-101 secondary reply (PRM=0).");
 
-            if (_settings.ResetRemoteLinkOnConnect)
+            if (!reconnect && _settings.ResetRemoteLinkOnConnect)
                 await SendFixedAndReceiveAsync("Reset remote link", "Link", 0, false,
                     "Startup link reset", cancellationToken).ConfigureAwait(false);
 
-            if (_settings.ResetFcbOnConnect)
+            if (!reconnect && _settings.ResetFcbOnConnect)
             {
                 var resetReply = await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
                     "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
@@ -129,7 +248,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
                     "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
 
-            var pendingStartup = _settings.SendClockSyncOnConnect || _settings.SendGeneralInterrogationOnConnect;
+            var pendingStartup = (_settings.SendClockSyncOnConnect && !_startupClockSyncAttempted) ||
+                                 (_settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted);
             if (_linkVerified && pendingStartup)
             {
                 pendingStartup = !await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
@@ -219,52 +339,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
                 await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            completion = "Stopped by cancellation or requested duration.";
-        }
-        catch (Exception ex)
-        {
-            completion = "Fault: " + ex.Message;
-            SetState(Iec103MasterState.Faulted, "IEC-101 session faulted", ex.Message, category: "Error");
-            RaiseFinding(FindingSeverity.Error, "IEC101-SESSION-FAULT", "IEC-101 session faulted", ex.Message, "The IEC-101 test session could not continue.", "Check serial mode, link address, common address, and balanced/unbalanced settings of the RTU/IED.");
-        }
-        finally
-        {
-            SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
-            _transactions.EndConnectionEpoch();
-            _controlLinkReady = false;
-            _linkVerified = false;
-            Interlocked.Increment(ref _linkGeneration);
-            var discardedCommands = _controlCommands.Clear();
-            if (discardedCommands > 0)
-                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-DISCARDED-ON-STOP",
-                    "IEC-101 queued commands discarded when session stopped",
-                    "Not transmitted: " + discardedCommands + " queued operator request(s).",
-                    "Stale operator controls must not survive COM reconnect or a new session.",
-                    "Reissue intentional commands after new addressed link proof.");
-            try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
-            DrainTransportDiagnostics("Close transport");
-            SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);
-        }
-
-        BuildPostRunFindings();
-        return new Iec103MasterRunResult
-        {
-            ProductMode = "IEC 60870-5-101 Serial Master Tester",
-            Settings = _settings.CreateReportSnapshot(),
-            Counters = _counters,
-            Events = _events.ToArray(),
-            Findings = _findings.ToArray(),
-            StartedUtc = started,
-            FinishedUtc = DateTime.UtcNow,
-            CompletedNormally = !completion.StartsWith("Fault:", StringComparison.OrdinalIgnoreCase),
-            CompletionReason = completion
-        };
     }
-
-
 
     // Only UNSENT startup work can be deferred through DFC=1.
     // A transmitted clock adjustment is never retried after uncertain acknowledgment.

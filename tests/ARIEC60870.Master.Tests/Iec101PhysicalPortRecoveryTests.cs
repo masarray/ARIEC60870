@@ -1,0 +1,160 @@
+// Copyright 2026 Ari Sulistiono
+// SPDX-License-Identifier: Apache-2.0
+
+using System.IO;
+using ARIEC60870.Master;
+using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Transport;
+using Xunit;
+
+namespace ARIEC60870.Master.Tests;
+
+/// <summary>L14/P05 source-to-session fault fixtures; physical adapter FAT remains separate.</summary>
+public sealed class Iec101PhysicalPortRecoveryTests
+{
+    private static Iec103MasterSettings Settings() => new()
+    {
+        ProtocolMode = Iec60870ProtocolMode.Iec101,
+        PortName = "TEST-RECOVER-COM",
+        LinkAddress = 105,
+        LinkAddressSize = 2,
+        CommonAddress = 105,
+        BaudRate = 1200,
+        StartupDelayMs = 0,
+        ResponseTimeoutMs = 60,
+        TimeoutRecoveryBackoffMs = 10,
+        Class2PollIntervalMs = 10,
+        ResetRemoteLinkOnConnect = false,
+        ResetFcbOnConnect = false,
+        SendClockSyncOnConnect = false,
+        SendGeneralInterrogationOnConnect = false
+    };
+
+    [Fact]
+    public async Task UnplugDuringClassPollAutomaticallyReopensAndVerifiesFc9BeforeData()
+    {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var port = new RecoverablePort(onRecoveredClass2: () => stop.Cancel());
+        var session = new Iec101MasterSession(Settings(), port);
+
+        var result = await session.RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.True(port.CloseCount >= 2);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+        var epoch2 = port.Requests.Where(x => x.Epoch == 2).ToArray();
+        Assert.True(epoch2.Length >= 2, "Recovered COM should verify FC9 before a Class 2 poll.");
+        Assert.Equal(9, epoch2[0].Function);
+        Assert.Contains(epoch2, x => x.Function == 11);
+        Assert.DoesNotContain(epoch2, x => x.Function is 0 or 3 or 7);
+    }
+
+    [Fact]
+    public async Task InitialPortUnavailableAutomaticallyRetriesWithoutManualSecondStart()
+    {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var port = new RecoverablePort(onRecoveredClass2: () => stop.Cancel(), failFirstOpen: true);
+        var result = await new Iec101MasterSession(Settings(), port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+        Assert.Equal(9, port.Requests.First().Function);
+        Assert.DoesNotContain(port.Requests, x => x.Function is 0 or 3 or 7);
+    }
+
+    [Fact]
+    public async Task CancelDuringRepeatedPortOpenFailuresIsBoundedAndReleasesSession()
+    {
+        var settings = Settings();
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(320));
+        await using var port = new RecoverablePort(alwaysFailOpen: true);
+        var result = await new Iec101MasterSession(settings, port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.InRange(port.OpenCount, 1, 5);
+        Assert.Equal(0, result.Counters.TxFrames);
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+    }
+
+    private sealed class RecoverablePort : IByteTransport
+    {
+        private readonly Queue<byte> _rx = new();
+        private readonly Action? _onRecoveredClass2;
+        private readonly bool _failFirstOpen;
+        private readonly bool _alwaysFailOpen;
+        private bool _unplugged;
+
+        public RecoverablePort(Action? onRecoveredClass2 = null,
+            bool failFirstOpen = false, bool alwaysFailOpen = false)
+        {
+            _onRecoveredClass2 = onRecoveredClass2;
+            _failFirstOpen = failFirstOpen;
+            _alwaysFailOpen = alwaysFailOpen;
+        }
+
+        public int OpenCount { get; private set; }
+        public int CloseCount { get; private set; }
+        public bool IsOpen { get; private set; }
+        public List<(int Epoch, int Function)> Requests { get; } = new();
+
+        public ValueTask OpenAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            OpenCount++;
+            if (_alwaysFailOpen || (_failFirstOpen && OpenCount == 1))
+                throw new IOException("Synthetic USB adapter is disconnected.");
+            _rx.Clear();
+            IsOpen = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask CloseAsync(CancellationToken cancellationToken)
+        {
+            CloseCount++;
+            _rx.Clear();
+            IsOpen = false;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsOpen) throw new IOException("Synthetic COM disconnected.");
+            var frame = buffer.Span;
+            if (frame.Length < 2 || frame[0] != 0x10)
+                throw new InvalidOperationException("Fixture expects fixed FT1.2 polling.");
+            var fc = frame[1] & 0x0F;
+            Requests.Add((OpenCount, fc));
+            if (fc == 9)
+            {
+                foreach (var b in Convert.FromHexString("100B69007416")) _rx.Enqueue(b);
+            }
+            else if (fc == 11 && OpenCount == 1 && !_unplugged)
+            {
+                _unplugged = true;
+                IsOpen = false;
+                throw new IOException("Synthetic USB unplug during Class 2 transmission.");
+            }
+            else if (fc == 11)
+            {
+                _rx.Enqueue(0xE5);
+                _onRecoveredClass2?.Invoke();
+            }
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsOpen) throw new IOException("COM unavailable during RX.");
+            if (_rx.Count == 0) return ValueTask.FromResult(0);
+            buffer.Span[0] = _rx.Dequeue();
+            return ValueTask.FromResult(1);
+        }
+
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+    }
+}
