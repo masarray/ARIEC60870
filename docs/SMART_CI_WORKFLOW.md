@@ -23,7 +23,7 @@ Add a **new top-level PR Conversation comment** with exactly one of the followin
 - `/ci full`: Run build + full protocol/xUnit suites + coverage, publish Windows GUI and monitor-cli artifacts, smoke and real-WPF acceptance with screenshots.
 - `/ci installer`: All of the above plus previous-release upgrade, restart-manager and running-Master shutdown acceptance.
 
-The dispatcher executes trusted control-plane code from the default branch, does not check out PR code with write permissions, checks the comment author's current repository `write`/`maintain`/`admin` permission, requires an open same-repo PR targeting the default branch and captures the exact PR head SHA. A branch move or changed PR head rejects the dispatched run. An already-active manual run for that exact commit avoids duplicate dispatch.
+The dispatcher executes trusted control-plane code from the default branch, does not check out PR code with write permissions, checks the comment author's current repository `write`/`maintain`/`admin` permission, requires an open same-repo PR targeting the default branch and captures the exact PR head SHA. **The build itself uses the CI workflow from `master`, then checks out and verifies the exact requested PR SHA**; this also supports old PR branches that do not yet contain the new workflow. A changed PR head rejects the dispatched run. The visible workflow run name includes PR number, profile and tested SHA, and an active identical run is not dispatched twice.
 
 The comment commands become available **after** `.github/workflows/ci-comment.yml` is merged into the default branch. The GitHub Actions workflow-dispatch endpoint requires the target workflow to be registered on the default branch.
 
