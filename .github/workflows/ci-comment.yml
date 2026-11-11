@@ -3,6 +3,7 @@
 name: CI comment dispatcher
 
 # Trusted default-branch control-plane only: never check out PR code with write token.
+# The resulting CI run uses the default-branch YAML but checks out the captured PR SHA.
 on:
   issue_comment:
     types: [created]
@@ -43,17 +44,18 @@ jobs:
               return;
             }
             // Active exact-head dispatches already cover the same requested revision.
+            const title = 'CI PR #' + number + ' ' + profile + ' ' + pr.head.sha;
             const { data: runs } = await github.rest.actions.listWorkflowRuns({
-              owner, repo, workflow_id: 'ci.yml', branch: pr.head.ref, per_page: 50
+              owner, repo, workflow_id: 'ci.yml', branch: repository.default_branch, per_page: 50
             });
             if (runs.workflow_runs.some(run =>
-              run.event === 'workflow_dispatch' && run.head_sha === pr.head.sha &&
+              run.event === 'workflow_dispatch' && run.display_title === title &&
               ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(run.status))) {
               core.notice('An exact-head manually dispatched CI is already running for ' + pr.head.sha);
               return;
             }
             await github.rest.actions.createWorkflowDispatch({
-              owner, repo, workflow_id: 'ci.yml', ref: pr.head.ref,
+              owner, repo, workflow_id: 'ci.yml', ref: repository.default_branch,
               inputs: {
                 profile, expected_sha: pr.head.sha, requested_pr: String(number)
               }
