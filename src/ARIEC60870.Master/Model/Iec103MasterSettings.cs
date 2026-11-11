@@ -61,7 +61,18 @@ public sealed class Iec103MasterSettings
     public int MaxConsecutiveTimeoutsBeforeResetFcb { get; set; } = 3;
     public int TimeoutRecoveryBackoffMs { get; set; } = 250;
 
-    public bool ResetRemoteLinkOnConnect { get; set; } = false;
+    // IEC-101 unbalanced Master normally establishes a fresh secondary link
+    // with FC0 link-layer reset at operator Connect. On a SICAM A8000 field
+    // setup this was required before GI/Class polling would communicate.
+    // The nullable override preserves an engineer's explicit OFF setting and
+    // leaves existing IEC-103 and IEC-104 defaults unchanged.
+    // FC0 is NOT an application/user-process reset (FC1/C_RP_NA_1).
+    private bool? _resetRemoteLinkOnConnect;
+    public bool ResetRemoteLinkOnConnect
+    {
+        get => _resetRemoteLinkOnConnect ?? ProtocolMode == Iec60870ProtocolMode.Iec101;
+        set => _resetRemoteLinkOnConnect = value;
+    }
     public bool ResetFcbOnConnect { get; set; } = false;
     public bool SendGeneralInterrogationOnConnect { get; set; } = true;
     public bool SendClockSyncOnConnect { get; set; } = false;
