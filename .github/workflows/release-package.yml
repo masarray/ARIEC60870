@@ -453,7 +453,6 @@ jobs:
         run: |
           set -euo pipefail
           tag='${{ needs.resolve.outputs.tag }}'
-          version='${{ needs.resolve.outputs.version }}'
           notes='${{ needs.resolve.outputs.notes_file }}'
           title="ARIEC60870 $tag"
 
