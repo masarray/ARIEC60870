@@ -404,13 +404,41 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [ resolve, package ]
-    if: needs.resolve.outputs.publish_release == 'true'
+    if: needs.resolve.outputs.publish_release == 'true' && needs.resolve.outputs.already_published != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Recheck tag ownership immediately before public publication
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        with:
+          script: |
+            const {owner,repo}=context.repo;
+            const tag=process.env.RELEASE_TAG;
+            let ref;
+            try {
+              ref=(await github.rest.git.getRef({owner,repo,ref:'tags/'+tag})).data;
+            } catch(error) {
+              if(error.status===404) {core.notice('Tag will be created at the verified workflow SHA');return;}
+              throw error;
+            }
+            let object=ref.object;
+            for(let i=0;i<5 && object.type==='tag';i++) {
+              object=(await github.rest.git.getTag({owner,repo,tag_sha:object.sha})).data.object;
+            }
+            if(object.type!=='commit' || object.sha.toLowerCase()!==context.sha.toLowerCase()) {
+              core.setFailed('Release tag '+tag+' moved to '+object.sha+' while this build tested '+context.sha);
+              return;
+            }
+            try {
+              const {data:release}=await github.rest.repos.getReleaseByTag({owner,repo,tag});
+              if(!release.draft) core.setFailed('Public release '+tag+' already exists; never clobber public bytes. Bump version.');
+            } catch(error) {if(error.status!==404) throw error;}
 
       - name: Download release artifacts
         uses: actions/download-artifact@v4
@@ -442,6 +470,10 @@ jobs:
           fi
 
           if gh release view "$tag" >/dev/null 2>&1; then
+            if [[ "$(gh release view "$tag" --json isDraft --jq .isDraft)" != "true" ]]; then
+              echo "Refuse to overwrite already-public release $tag; bump the version." >&2
+              exit 1
+            fi
             gh release edit "$tag" --title "$title" --notes-file "$notes"
             gh release upload "$tag" "${assets[@]}" --clobber
           else
