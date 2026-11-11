@@ -44,8 +44,7 @@ public sealed class EventHistoryJournalTests
             InformationObjectAddress = original.InformationObjectAddress,
             CauseOfTransmission = "Spontaneous",
             ArrivalTimeUtc = DateTime.UtcNow
-        }, original)
-        { EventNumber = number };
+        }, original, number);
     }
 
     [Theory]
