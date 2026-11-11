@@ -311,50 +311,8 @@ jobs:
           if (!$oldProcess.WaitForExit(20000)) { throw 'Inno did not close the running previous application.' }
           if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Upgrade lost installed executable or user data.' }
           if ((Get-Item $exe).VersionInfo.FileVersion -notlike "$version*") { throw 'In-place upgrade retained old executable version.' }
-          # The product was renamed from ARIEC60870 Evidence Analyzer to ArSee.
-          # Read the display name from the exact installer source under test so the
-          # upgrade check cannot silently lag a future branding change.
-          $displayNameLine = Select-String -Path installer/ARIEC60870.iss -Pattern '^UninstallDisplayName=(.+)
-          if ($registry.Count -ne 1) { throw "Expected one uninstall registration, found $($registry.Count)." }
-          $installedVersion = (Get-ItemProperty $registry[0].PsPath).DisplayVersion
-          if ($installedVersion -ne $version) { throw "Registry kept stale version $installedVersion." }
-          $smoke = Invoke-BoundedProcess -Path $exe -Arguments @('--passive-gui-smoke') -Seconds 90
-          if ($smoke.ExitCode -ne 0) { throw "Installed WPF smoke failed: $($smoke.ExitCode)" }
-          # New version: verified active Master *simulation* must finalize before
-          # Restart Manager can close the app; no field COM/TCP touched.
-          $readyFile = Join-Path $env:RUNNER_TEMP 'active-master-ready.txt'
-          Remove-Item $readyFile -ErrorAction SilentlyContinue
-          $live = Start-Process -FilePath $exe -ArgumentList @('--installer-master-close-smoke','--ready-file',"$readyFile") -PassThru
-          for ($i=0; $i -lt 100 -and !(Test-Path $readyFile) -and !$live.HasExited; $i++) {
-            Start-Sleep -Milliseconds 200
-          }
-          if (!(Test-Path $readyFile) -or $live.HasExited) {
-            throw 'Installed active-Master simulated session did not start.'
-          }
-          $reinstall = Invoke-BoundedProcess -Path $setup -Arguments $args -Seconds 180
-          if ($reinstall.ExitCode -ne 0) { throw "Live-Master reinstall failed: $($reinstall.ExitCode)" }
-          if (!$live.WaitForExit(20000)) { throw 'Installer failed to close active Master gracefully.' }
-          if ($live.ExitCode -ne 0) { throw "Active Master close exited abnormally: $($live.ExitCode)" }
-          if (!(Test-Path $sentinel)) { throw 'Active-Master reinstall deleted user data.' }
-          $uninstall = Join-Path $installDir 'unins000.exe'
-          if (!(Test-Path $uninstall)) { throw 'Missing registered uninstaller.' }
-          $removed = Invoke-BoundedProcess -Path $uninstall -Arguments @('/VERYSILENT','/NORESTART') -Seconds 180
-          if ($removed.ExitCode -ne 0) { throw "Uninstall failed: $($removed.ExitCode)" }
-          if (Test-Path $exe) { throw 'Uninstall left application executable behind.' }
-          if (!(Test-Path $sentinel)) { throw 'Uninstall deleted user data.' }
-          Remove-Item $oldSetup -Force
-          "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
-            Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
-
-      - name: Upload successful installer upgrade acceptance evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ARIEC60870-installer-upgrade-acceptance
-          path: artifacts/installer/UPGRADE-ACCEPTANCE.txt
-          if-no-files-found: ignore
-          retention-days: 14
- | Select-Object -First 1
+          # Product display name is sourced from the installer under test, not copied here.
+          $displayNameLine = Select-String -Path installer/ARIEC60870.iss -Pattern '^UninstallDisplayName=(.+)$' | Select-Object -First 1
           if ($null -eq $displayNameLine) { throw 'Installer has no UninstallDisplayName for upgrade verification.' }
           $expectedDisplayName = $displayNameLine.Matches[0].Groups[1].Value.Trim()
           if ([string]::IsNullOrWhiteSpace($expectedDisplayName)) { throw 'Installer uninstall display name is empty.' }
