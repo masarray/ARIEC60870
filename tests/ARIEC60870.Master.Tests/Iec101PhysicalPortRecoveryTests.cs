@@ -78,20 +78,53 @@ public sealed class Iec101PhysicalPortRecoveryTests
         Assert.Contains(result.Findings, x => x.Id == "IEC101-COM-PHYSICAL-RECOVERY");
     }
 
+    [Fact]
+    public async Task ReadIoFailureRecoversEvenIfAdapterStillReportsIsOpen()
+    {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var port = new RecoverablePort(
+            onRecoveredClass2: () => stop.Cancel(), readFaultWhileOpen: true);
+        var result = await new Iec101MasterSession(Settings(), port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+        Assert.Equal(9, port.Requests.First(x => x.Epoch == 2).Function);
+    }
+
+    [Fact]
+    public async Task ProgrammingInvariantExceptionIsNotMisclassifiedAsPhysicalComUnplug()
+    {
+        await using var port = new RecoverablePort(failWithProtocolBug: true);
+        var result = await new Iec101MasterSession(Settings(), port)
+            .RunForAsync(TimeSpan.FromMilliseconds(500), CancellationToken.None);
+
+        Assert.False(result.CompletedNormally);
+        Assert.Equal(1, port.OpenCount);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-SESSION-FAULT");
+        Assert.DoesNotContain(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+    }
+
     private sealed class RecoverablePort : IByteTransport
     {
         private readonly Queue<byte> _rx = new();
         private readonly Action? _onRecoveredClass2;
         private readonly bool _failFirstOpen;
         private readonly bool _alwaysFailOpen;
+        private readonly bool _readFaultWhileOpen;
+        private readonly bool _failWithProtocolBug;
+        private bool _pendingRxIoFault;
         private bool _unplugged;
 
         public RecoverablePort(Action? onRecoveredClass2 = null,
-            bool failFirstOpen = false, bool alwaysFailOpen = false)
+            bool failFirstOpen = false, bool alwaysFailOpen = false,
+            bool readFaultWhileOpen = false, bool failWithProtocolBug = false)
         {
             _onRecoveredClass2 = onRecoveredClass2;
             _failFirstOpen = failFirstOpen;
             _alwaysFailOpen = alwaysFailOpen;
+            _readFaultWhileOpen = readFaultWhileOpen;
+            _failWithProtocolBug = failWithProtocolBug;
         }
 
         public int OpenCount { get; private set; }
@@ -133,7 +166,14 @@ public sealed class Iec101PhysicalPortRecoveryTests
             }
             else if (fc == 11 && OpenCount == 1 && !_unplugged)
             {
+                if (_failWithProtocolBug)
+                    throw new InvalidOperationException("Synthetic scheduler invariant failure while COM remains open.");
                 _unplugged = true;
+                if (_readFaultWhileOpen)
+                {
+                    _pendingRxIoFault = true;
+                    return ValueTask.CompletedTask;
+                }
                 IsOpen = false;
                 throw new IOException("Synthetic USB unplug during Class 2 transmission.");
             }
@@ -148,6 +188,11 @@ public sealed class Iec101PhysicalPortRecoveryTests
         public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (_pendingRxIoFault)
+            {
+                _pendingRxIoFault = false;
+                throw new IOException("Synthetic USB driver I/O loss while SerialPort.IsOpen is still true.");
+            }
             if (!IsOpen) throw new IOException("COM unavailable during RX.");
             if (_rx.Count == 0) return ValueTask.FromResult(0);
             buffer.Span[0] = _rx.Dequeue();
