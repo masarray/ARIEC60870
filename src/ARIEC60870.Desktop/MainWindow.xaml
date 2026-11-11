@@ -5,7 +5,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:input="clr-namespace:System.Windows.Input;assembly=PresentationCore"
         xmlns:vm="clr-namespace:ARIEC60870.Desktop.ViewModels"
-        Title="ArSee · Open Source IEC 60870-104/103/101 Protocol Tester"
+        Title="ArSee • Open Source IEC 60870-101/104/103 Protocol Tester & Analyzer"
         Width="1540" Height="960" MinWidth="810" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"

@@ -7,7 +7,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>ARIEC60870.Desktop</AssemblyName>
     <RootNamespace>ARIEC60870.Desktop</RootNamespace>
-    <Title>ArSee · Open Source IEC 60870-104/103/101 Protocol Tester</Title>
+    <Title>ArSee • Open Source IEC 60870-101/104/103 Protocol Tester & Analyzer • version $(Version)</Title>
     <Product>ArSee</Product>
     <Description>Open-source IEC 60870-5-104/103/101 protocol tester and evidence analyzer for commissioning and FAT/SAT.</Description>
     <ApplicationIcon>Assets\Icons\ariec60870-app.ico</ApplicationIcon>

@@ -21,6 +21,7 @@ using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Desktop.ViewModels;
+using ARIEC60870.Desktop.Services;
 using ARIEC60870.Master;
 using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
@@ -210,6 +211,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = ArSeeWindowTitle.ForAssembly(typeof(MainWindow).Assembly);
         // Fresh standby defaults follow Link A until the engineer explicitly edits B.
         // Hook only after InitializeComponent so XAML initialization is not mistaken
         // for a deliberate address edit.
