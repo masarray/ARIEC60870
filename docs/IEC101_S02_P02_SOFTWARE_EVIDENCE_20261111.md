@@ -28,3 +28,11 @@ The real 1200-bps 8E1 wire rate is around 109 octets/s (11 bits per character). 
 Need a lab setup on the **same exact physical interface/cable/adapter and serial settings** as the comparator tool, with original TX/RX byte evidence, reference RTU event-generation count, overflow indication mapping, host receive/archive counters, and independently reviewed timestamps. Do not automatically reset the outstation, toggle RTS/DTR, retransmit controls, or apply NUC101 to non-NUC projects.
 
 Primary public references: [IEC 60870-5-101 publication](https://webstore.iec.ch/en/publication/23822), [.NET SerialPort documentation](https://learn.microsoft.com/en-us/dotnet/api/system.io.ports.serialport?view=dotnet-plat-ext-8.0), and the repository's [NUC research/limitations](IEC10X_NUC_RESEARCH_20261029.md).
+
+## Bounded in-memory evidence authority
+
+A source audit found an unrelated but material long-session risk: single-link `Iec101MasterSession` used an unbounded `List` for all evidence events; dual-link repeatedly called `List.RemoveAt(0)` after the configured retention threshold, causing O(n) shifting per evicted event.
+
+Both now keep an O(1) sliding `Queue` of at least 100 records, governed by `MaxRetainedEvidenceEvents` (default 10,000). Each memory eviction increments `EvidenceEventsDroppedFromMemory`. The existing real-time `EvidenceReceived` callback still publishes **every** event independently, so memory retention must not be confused with COM RX truncation, RTU FIFO overflow, or confirmation of archival storage. The 60-event small-window fixture verifies 60 live spontaneous callbacks, 100 retained tail records, and the exact evicted count from the sequence ledger. A complete original forensic archive remains a separate opt-in verified recording requirement; this change does not create one.
+
+Do not set the window size below 100 or claim that the in-memory run result includes full history after eviction. Reports should expose the existing eviction counter if the retained window is incomplete.

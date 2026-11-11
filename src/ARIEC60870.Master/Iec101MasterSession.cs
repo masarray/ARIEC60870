@@ -18,7 +18,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly IByteTransport _transport;
     private readonly Ft12Parser _ft12;
     private readonly Iec10xAsduDecoder _asduDecoder;
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Queue<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
@@ -1321,7 +1321,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        // One bounded live-memory window; the callback still publishes every
+        // original received event. Eviction is explicit and is NOT RTU FIFO
+        // overflow, UART loss, or a complete on-disk capture guarantee.
+        _events.Enqueue(enriched);
+        var retainedLimit = Math.Max(100, _settings.MaxRetainedEvidenceEvents);
+        if (_events.Count > retainedLimit)
+        {
+            _events.Dequeue();
+            _counters.EvidenceEventsDroppedFromMemory++;
+        }
         EvidenceReceived?.Invoke(this, enriched);
     }
 

@@ -28,7 +28,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
     private readonly Iec101BoundedFifo<string> _manualFailoverRequests = new(8);
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Queue<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly List<Iec101FailoverJournalEntry> _failoverJournal = new();
     private readonly Iec103MasterCounters _counters = new();
@@ -1521,11 +1521,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        // Constant-time sliding memory window. Never shift 10k records for
+        // every busy SOE frame. EventReceived stays the independent live sink.
+        _events.Enqueue(enriched);
         var retainedLimit = Math.Max(100, _options.BaseSettings.MaxRetainedEvidenceEvents);
         if (_events.Count > retainedLimit)
         {
-            _events.RemoveAt(0);
+            _events.Dequeue();
             _counters.EvidenceEventsDroppedFromMemory++;
         }
         EvidenceReceived?.Invoke(this, enriched);

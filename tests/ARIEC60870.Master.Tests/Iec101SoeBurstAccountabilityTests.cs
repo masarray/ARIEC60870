@@ -19,13 +19,9 @@ namespace ARIEC60870.Master.Tests;
 /// </summary>
 public sealed class Iec101SoeBurstAccountabilityTests
 {
-    [Theory]
-    [InlineData(60)]
-    [InlineData(500)]
-    [InlineData(2000)]
-    public async Task EveryReceivedSpontaneousAsduIsRetainedWithNoHiddenDrop(int burstSize)
+    private static Iec103MasterSettings Settings()
     {
-        var settings = new Iec103MasterSettings
+        return new Iec103MasterSettings
         {
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             PortName = "SYNTHETIC-IEC101",
@@ -51,6 +47,14 @@ public sealed class Iec101SoeBurstAccountabilityTests
             MaxRetainedEvidenceEvents = 10000,
             MaxRetainedRelayEvents = 5000
         };
+    }
+    [Theory]
+    [InlineData(60)]
+    [InlineData(500)]
+    [InlineData(2000)]
+    public async Task EveryReceivedSpontaneousAsduIsRetainedWithNoHiddenDrop(int burstSize)
+    {
+        var settings = Settings();
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         await using var peer = new ScriptedSoePeer(settings, burstSize, stop);
         var result = await new Iec101MasterSession(settings, peer).RunAsync(stop.Token);
@@ -69,6 +73,34 @@ public sealed class Iec101SoeBurstAccountabilityTests
             item.Direction == FrameDirection.SlaveToMaster &&
             item.TypeId == 1 && item.CauseOfTransmission == 3 &&
             item.IsRelayEdgeEvent));
+    }
+
+
+    [Fact]
+    public async Task SmallMemoryWindowEvictsInConstantTimeWithExplicitCountButKeepsLiveCallbacks()
+    {
+        var settings = Settings();
+        settings.MaxRetainedEvidenceEvents = 100;
+        var observedLiveSpontaneous = 0;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await using var peer = new ScriptedSoePeer(settings, 60, stop);
+        var session = new Iec101MasterSession(settings, peer);
+        session.EvidenceReceived += (_, evt) =>
+        {
+            if (evt.IsRelayEdgeEvent && evt.CauseOfTransmission == 3 && evt.TypeId == 1)
+                observedLiveSpontaneous++;
+        };
+
+        var result = await session.RunAsync(stop.Token);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(peer.FinalClass2Observed);
+        Assert.Equal(60, observedLiveSpontaneous);
+        Assert.Equal(60, result.Counters.UserDataResponses);
+        Assert.Equal(100, result.Events.Count);
+        Assert.True(result.Counters.EvidenceEventsDroppedFromMemory > 0);
+        Assert.Equal(result.Events[^1].SequenceNumber - result.Events.Count,
+            result.Counters.EvidenceEventsDroppedFromMemory);
+        Assert.True(result.Events[0].SequenceNumber > 1);
     }
 
     private sealed class ScriptedSoePeer : IByteTransport
