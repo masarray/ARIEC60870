@@ -947,6 +947,7 @@ public partial class MainWindow
                 if (EventsQuickCountText is not null)
                     EventsQuickCountText.Text =
                         $"{RelayEventRows.Count} visible · +{_eventNewWhileHeld:N0} new";
+                RefreshEventHistoryFooter();
                 _relayEventRowsDirty = false;
             }
             else

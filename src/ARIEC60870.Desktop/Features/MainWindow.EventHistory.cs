@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.IO;
+using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Model;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -193,6 +196,72 @@ public partial class MainWindow
         LeaveEventHistory();
         EventsAutoScrollButton.IsChecked = true;
         ScrollLatestEventIfAutoScroll();
+    }
+
+    /// <summary>
+    /// Real WPF Event Log paging acceptance with >420 synthetic typed events.
+    /// Tests the actual bound DataGrid, source identity, live rollover and
+    /// historical navigation. No physical COM or serial polling is opened.
+    /// </summary>
+    public async Task RunEventHistoryGuiSmokeProbeAsync()
+    {
+        ClearSessionView(clearLog: false);
+        MainTabControl.SelectedIndex = 3;
+        var bytes = new byte[] { 0x10, 0x08, 0x69, 0x71, 0x16 };
+        var frame = Ft12Parser.ForIec101(1).Decode(bytes);
+        if (!frame.IsChecksumValid) throw new InvalidOperationException("Invalid fixture FT1.2");
+        for (var i = 1; i <= 620; i++)
+        {
+            var original = new Iec103MasterEvidenceEvent
+            {
+                SequenceNumber = i,
+                TimestampUtc = new DateTime(2026, 11, 11, 10, 0, 0, DateTimeKind.Utc),
+                Direction = FrameDirection.SlaveToMaster,
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                PhysicalSource = "SINGLE",
+                Frame = frame,
+                LinkAddress = 105,
+                RawHex = frame.Hex,
+                TypeId = 30,
+                CommonAddressNumber = 105,
+                InformationObjectAddress = i
+            };
+            AppendProtocolEvent(new Iec103RelayEventLogEntry
+            {
+                EvidenceSequenceNumber = original.SequenceNumber,
+                ProtocolMode = original.ProtocolMode,
+                PhysicalSource = original.PhysicalSource,
+                EvidenceReference = original.EvidenceReference,
+                RawHex = original.RawHex,
+                CommonAddress = 105,
+                InformationObjectAddress = i,
+                TypeId = 30,
+                SignalName = "IOA " + i,
+                NewValue = (i & 1) == 0 ? "ON" : "OFF",
+                CauseOfTransmission = "3"
+            }, original);
+        }
+        ApplyRelayEventFilter();
+        if (_eventHistoryJournal?.Count != 620 || _relayEventStore.Snapshot().Count != 420)
+            throw new InvalidOperationException("Live Event Log rollover lost indexed source events.");
+        _eventHistoryCeiling = 620;
+        _eventHistoryMode = true;
+        RelayEventGrid.ItemsSource = _historicalEventRows;
+        await ShowEventHistoryPageAsync(0);
+        if (_historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 1)
+            throw new InvalidOperationException("First historical Event page is not source-backed.");
+        await ShowEventHistoryPageAsync(200);
+        if (_historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 201)
+            throw new InvalidOperationException("Middle historical Event page is incorrect.");
+        await ShowEventHistoryPageAsync(600);
+        if (_historicalEventRows.Count != 20 || _historicalEventRows[^1].EventNumber != 620 ||
+            _historicalEventRows[^1].OriginalFrameEvidence?.RawHex != frame.Hex ||
+            _historicalEventRows[^1].OriginalFrameEvidence?.SequenceNumber != 620)
+            throw new InvalidOperationException("Last Event page lost original frame provenance.");
+        LeaveEventHistory();
+        if (!ReferenceEquals(RelayEventGrid.ItemsSource, RelayEventRows) ||
+            RelayEventRows.Count != 420)
+            throw new InvalidOperationException("Latest failed to restore the bounded live Event Log.");
     }
 
     private void LeaveEventHistory()

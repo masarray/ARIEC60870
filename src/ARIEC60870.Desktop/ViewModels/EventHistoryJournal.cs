@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Buffers.Binary;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ARIEC60870.Core.Model;
