@@ -1685,8 +1685,8 @@ public partial class MainWindow
         ];
         foreach (var button in eventButtons)
         {
-            if (!button.ApplyTemplate() ||
-                Math.Abs(button.ActualHeight - EventsSearchShell.ActualHeight) > 0.75 ||
+            button.ApplyTemplate();
+            if (Math.Abs(button.ActualHeight - EventsSearchShell.ActualHeight) > 0.75 ||
                 button.Template.FindName("Chrome", button) is not Border chrome ||
                 Math.Abs(chrome.CornerRadius.TopLeft - 8) > 0.1 ||
                 Math.Abs(chrome.CornerRadius.TopRight - 8) > 0.1)
