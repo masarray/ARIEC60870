@@ -1030,7 +1030,9 @@ public partial class MainWindow
                 if (!EventsAutoScrollButton.IsVisible ||
                     !EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
-                    RelayEventGrid.Columns[2] is not DataGridTemplateColumn eventStateColumn ||
+                    RelayEventGrid.Columns.FirstOrDefault(col =>
+                        string.Equals(col.Header?.ToString(), "State / value", StringComparison.Ordinal))
+                        is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
                         { Path.Path: "OperatorValue" })
                     throw new InvalidOperationException("Event Log compact toolbar/status/clipboard contract missing.");
