@@ -348,29 +348,6 @@ public partial class MainWindow
             _eventHistoryFollowingLatest = false;
     }
 
-    private void EventsAutoScroll_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!IsLoaded || EventsAutoScrollButton?.IsChecked != true) return;
-        if (_eventHistoryMode) LeaveEventHistory();
-
-        // The bounded SOE ring continues collecting while the view is held.
-        // Reconcile it once when the user explicitly resumes auto-scroll.
-        if (_eventRowsDeferredWhileManualScroll || _relayEventRowsDirty)
-        {
-            ApplyRelayEventFilter();
-            _relayEventRowsDirty = false;
-            _eventRowsDeferredWhileManualScroll = false;
-        }
-        ScrollLatestEventIfAutoScroll();
-    }
-
-    private void ScrollLatestEventIfAutoScroll()
-    {
-        if (_eventHistoryMode || !IsEventsTabActive() || EventsAutoScrollButton?.IsChecked != true || RelayEventRows.Count == 0)
-            return;
-        RelayEventGrid?.ScrollIntoView(RelayEventRows[RelayEventRows.Count - 1]);
-    }
-
     private bool IsFollowLiveEnabled()
         => AutoScrollLatestToggleButton is null || AutoScrollLatestToggleButton.IsChecked == true;
 
@@ -932,32 +909,13 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            if (_eventHistoryMode)
-            {
-                // Historical navigation is fixed to a source snapshot; a
-                // moving live ring must never replace the selected page.
-                _relayEventRowsDirty = false;
-                RefreshEventHistoryFooter();
-            }
-            else if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
-            {
-                // A frozen WPF viewport cannot tolerate head removals from the
-                // rolling ring. Hold only the bounded projection, never ingestion.
-                _eventRowsDeferredWhileManualScroll = true;
-                if (EventsQuickCountText is not null)
-                    EventsQuickCountText.Text =
-                        $"{RelayEventRows.Count} visible · +{_eventNewWhileHeld:N0} new";
-                RefreshEventHistoryFooter();
-                _relayEventRowsDirty = false;
-            }
-            else
-            {
-                ApplyRelayEventFilter();
-                batchRows += RelayEventRows.Count;
-                _relayEventRowsDirty = false;
-                _eventRowsDeferredWhileManualScroll = false;
-                ScrollLatestEventIfAutoScroll();
-            }
+            // Keep the bounded internal projection needed by reporting,
+            // passive GUI tests, and capture diagnostics. The Event grid is
+            // bound ONLY to indexed History pages, never this live cache.
+            RelayEventRows.ReconcileTail(_relayEventStore.Snapshot(),
+                allowResetForUnrelated: false);
+            _relayEventRowsDirty = false;
+            RefreshEventHistoryFooter();
         }
 
         if (_pendingFindingUiRows.Count > 0)

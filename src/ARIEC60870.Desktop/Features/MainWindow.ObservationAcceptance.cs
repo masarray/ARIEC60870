@@ -1027,8 +1027,7 @@ public partial class MainWindow
                 AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
                     null, RelayEventGrid, "Events", 9);
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
-                if (EventsAutoScrollButton.IsVisible ||
-                    !EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
+                if (!EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     !EventHistoryPreviousButton.IsVisible ||
                     !EventHistoryNextButton.IsVisible ||
                     !EventHistoryLatestButton.IsVisible ||

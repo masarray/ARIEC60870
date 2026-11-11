@@ -757,39 +757,7 @@ public partial class MainWindow
         "/" + string.Join(",", EventCategories.Where(_eventExcludeCategories.Contains)) +
         "\u001F" + _eventsQuickQuery;
 
-    private void ApplyRelayEventFilter()
-    {
-        if (RelayEventRows is null) return;
-        if (_eventHistoryMode)
-        {
-            RequestEventHistoryQuery();
-            return;
-        }
-        var recent = _relayEventStore.Snapshot();
-        // The common All/empty-query view needs no category classification,
-        // text matcher or second array on every rolling event batch.
-        IReadOnlyList<RelayEventRow> rows = _eventExcludeCategories.Count == 0 &&
-            _eventIncludeCategories.SetEquals(EventCategories) &&
-            string.IsNullOrEmpty(_eventsQuickQuery)
-                ? recent
-                : recent.Where(row =>
-                    EventCategoryFilter.Allows(ClassifyEventCategory(row),
-                        _eventIncludeCategories, _eventExcludeCategories) &&
-                    QuickFindMatcher.MatchesEvent(row, _eventsQuickQuery))
-                    .ToArray();
-        var scopeKey = CurrentEventScopeKey();
-        var changedScope = !string.Equals(scopeKey, _eventCommittedScope, StringComparison.Ordinal);
-        RelayEventRows.ReconcileTail(rows, allowResetForUnrelated: changedScope);
-        _eventCommittedScope = scopeKey;
-        _eventProjectionVersion++;
-        _eventProjectionSourceCount = recent.Count;
-        _eventProjectionFilteredCount = rows.Count;
-        _eventNewWhileHeld = 0;
-        if (RelayEventRows.Count != rows.Count) _eventProjectionMismatchCount++;
-        if (EventsQuickCountText is not null)
-            EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
-        RefreshEventHistoryFooter();
-    }
+    private void ApplyRelayEventFilter() => RequestEventHistoryQuery();
 
     private void SetEventFilters(IEnumerable<string> included, IEnumerable<string> excluded)
     {

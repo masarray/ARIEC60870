@@ -63,21 +63,9 @@ public partial class MainWindow
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!IsEventsTabActive()) return;
-                if (_eventHistoryMode)
-                {
-                    if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling &&
-                        !_eventHistoryQueryBusy && _eventHistoryFollowingLatest)
-                        RequestEventHistoryQuery();
-                }
-                else
-                {
-                    if (_relayEventRowsDirty)
-                    {
-                        ApplyRelayEventFilter();
-                        _relayEventRowsDirty = false;
-                    }
-                    ScrollLatestEventIfAutoScroll();
-                }
+                if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling &&
+                    !_eventHistoryQueryBusy && _eventHistoryFollowingLatest)
+                    RequestEventHistoryQuery();
             }), DispatcherPriority.Loaded);
         }
         UpdateQuickFindCounts();

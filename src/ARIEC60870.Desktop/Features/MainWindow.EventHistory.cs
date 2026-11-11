@@ -20,7 +20,6 @@ public partial class MainWindow
 
     // Legacy ring still feeds other evidence counters, but the operator's
     // Event grid has exactly ONE source: numbered, indexed history pages.
-    private readonly bool _eventHistoryMode = true;
     private readonly ObservableRangeCollection<RelayEventRow> _historicalEventRows = new();
     private EventHistoryQuerySnapshot _eventHistoryQuery = new(0, null);
     private long _eventHistoryObserved;
@@ -55,9 +54,6 @@ public partial class MainWindow
         if (RelayEventGrid is not null)
         {
             RelayEventGrid.ItemsSource = _historicalEventRows;
-            // Hidden compatibility input does not control acquisition or view.
-            if (EventsAutoScrollButton is not null)
-                EventsAutoScrollButton.IsChecked = false;
         }
         _eventHistoryWriter?.Dispose();
         _eventHistoryWriter = null;
@@ -354,10 +350,6 @@ public partial class MainWindow
             RefreshEventHistoryFooter();
         }
     }
-
-    // A prior internal control used Live/History dual modes. Remaining callers
-    // are kept as no-ops for compatibility; operators only ever see History.
-    private void LeaveEventHistory() { }
 
     /// <summary>
     /// Real WPF smoke: one Event grid, 620 indexed SOEs, page 1/middle/last,

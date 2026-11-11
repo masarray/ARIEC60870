@@ -1637,12 +1637,6 @@
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
-                                <!-- Noninteractive compatibility input for the former AUTO toggle;
-                                     its state can never change the History grid. -->
-                                <ToggleButton x:Name="EventsAutoScrollButton" Visibility="Collapsed"
-                                              IsChecked="False" IsHitTestVisible="False"
-                                              Checked="EventsAutoScroll_Changed"
-                                              Unchecked="EventsAutoScroll_Changed"/>
                             </WrapPanel>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>

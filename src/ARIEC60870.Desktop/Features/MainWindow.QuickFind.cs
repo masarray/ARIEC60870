@@ -176,7 +176,6 @@ public partial class MainWindow
         {
             _eventsQuickQuery = events;
             ApplyRelayEventFilter();
-            ScrollLatestEventIfAutoScroll();
         }
         if (_valuesQuickQuery != values) { _valuesQuickQuery = values; RefreshQuickFindView(ValueRows); }
         if (_controlsQuickQuery != controls) { _controlsQuickQuery = controls; RefreshQuickFindView(ControlCaseRows); }
