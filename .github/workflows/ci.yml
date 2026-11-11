@@ -42,6 +42,7 @@ jobs:
     timeout-minutes: 3
     outputs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
+      run_format: ${{ steps.scope.outputs.run_format }}
     steps:
       - name: Classify changes and verify requested SHA
         id: scope
@@ -50,6 +51,11 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             let runWindows = true;
+            let runFormat = true;
+            const formattingRelevant = files => files.some(f =>
+              /\.(cs|vb|fs)$/i.test(f.filename) ||
+              /\.(cs|vb|fs)$/i.test(f.previous_filename || '') ||
+              /(^|\/)\.editorconfig$/i.test(f.filename));
             const onlyMarkdown = files => files.length > 0 && files.length < 300 &&
               files.every(f => /\.(md|mdx)$/i.test(f.filename) &&
                 (!f.previous_filename || /\.(md|mdx)$/i.test(f.previous_filename)));
@@ -58,6 +64,7 @@ jobs:
                 owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
               });
               runWindows = !onlyMarkdown(files);
+              runFormat = formattingRelevant(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
               if (/^[0-9a-f]{40}$/i.test(before) && !/^0+$/.test(before)) {
@@ -66,6 +73,7 @@ jobs:
                     owner, repo, base: before, head: context.sha
                   });
                   runWindows = !onlyMarkdown(data.files || []);
+                  runFormat = formattingRelevant(data.files || []);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
                 }
@@ -94,6 +102,7 @@ jobs:
               }
             }
             core.setOutput('run_windows', String(runWindows));
+            core.setOutput('run_format', String(runFormat));
             core.notice(runWindows ? 'Windows tests required' : 'Markdown-only; no Windows runner');
 
   build-test:
@@ -140,8 +149,8 @@ jobs:
         if: needs.classify.outputs.run_windows == 'true'
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Check code formatting
-        if: needs.classify.outputs.run_windows == 'true'
+      - name: Check code formatting (only C# or formatter config changes)
+        if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
         continue-on-error: true
         run: |
