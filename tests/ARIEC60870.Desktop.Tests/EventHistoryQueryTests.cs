@@ -102,6 +102,34 @@ public sealed class EventHistoryQueryTests
     }
 
     [Fact]
+    public async Task CancelledCsvDoesNotOverwriteExistingFileOrLeavePartialOutput()
+    {
+        using var journal = new EventHistoryJournal();
+        journal.Append(Make(1));
+        var snapshot = EventHistoryQueryEngine.Build(
+            journal, 1, "", All, [], Category);
+        var dir = Path.Combine(Path.GetTempPath(),
+            "ArSee-csv-cancel-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var output = Path.Combine(dir, "events.csv");
+        try
+        {
+            File.WriteAllText(output, "existing report");
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                EventHistoryCsvExporter.ExportAsync(
+                    journal, snapshot, output, cancellation.Token));
+            Assert.Equal("existing report", File.ReadAllText(output));
+            Assert.Empty(Directory.GetFiles(dir, "*.partial"));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void IncrementalFilteredQueryDoesNotReindexAllOlderRows()
     {
         using var journal = new EventHistoryJournal();
