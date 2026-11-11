@@ -39,6 +39,11 @@ on:
 permissions:
   contents: read
 
+# A second push to an RC branch cannot cancel release evidence mid-publication.
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   resolve:
     name: Resolve release configuration
@@ -50,6 +55,7 @@ jobs:
       prerelease: ${{ steps.release.outputs.prerelease }}
       draft: ${{ steps.release.outputs.draft }}
       notes_file: ${{ steps.release.outputs.notes_file }}
+      already_published: ${{ steps.tag_check.outputs.already_published }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,18 +63,30 @@ jobs:
       - name: Resolve release inputs
         id: release
         shell: bash
+        # Never interpolate dispatch inputs directly into executable shell text.
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_PUBLISH: ${{ inputs.publish_release }}
+          REQUESTED_PRERELEASE: ${{ inputs.prerelease }}
+          REQUESTED_DRAFT: ${{ inputs.draft }}
+          REQUESTED_NOTES: ${{ inputs.release_notes_file }}
         run: |
           set -euo pipefail
           repo_version=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('Directory.Build.props').findtext('.//Version') or '')")
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            version="${{ inputs.version }}"
-            version="${version#v}"
-            if [[ -z "$version" ]]; then version="$repo_version"; fi
-            publish_release="${{ inputs.publish_release }}"
-            prerelease="${{ inputs.prerelease }}"
-            draft="${{ inputs.draft }}"
-            notes_file="${{ inputs.release_notes_file }}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="${REQUESTED_VERSION#v}"
+            if [[ -z "$version" ]]; then
+              if [[ "$GITHUB_REF" == refs/heads/release/rc-* ]]; then
+                version="${GITHUB_REF_NAME#release/rc-}"
+              else
+                version="$repo_version"
+              fi
+            fi
+            publish_release="$REQUESTED_PUBLISH"
+            prerelease="$REQUESTED_PRERELEASE"
+            draft="$REQUESTED_DRAFT"
+            notes_file="$REQUESTED_NOTES"
           elif [[ "${GITHUB_REF}" == refs/heads/release/rc-* ]]; then
             version="${GITHUB_REF_NAME#release/rc-}"
             if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
@@ -87,9 +105,47 @@ jobs:
             notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
           fi
 
-          if [[ -z "$version" ]]; then
-            echo "Release version cannot be empty." >&2
+          # Exact source/version identity is a public-release invariant.
+          # The source tree may have 3.6.8 while an RC branch publishes 3.6.8-rc.N.
+          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]; then
+            echo "Refuse invalid or unsupported SemVer: $version" >&2
             exit 1
+          fi
+          for flag in "$publish_release" "$prerelease" "$draft"; do
+            if [[ "$flag" != "true" && "$flag" != "false" ]]; then
+              echo "Release flag must be true or false" >&2
+              exit 1
+            fi
+          done
+          if [[ "$publish_release" == "true" ]]; then
+            case "$GITHUB_REF" in
+              refs/heads/release/rc-*)
+                if [[ "$version" != "${GITHUB_REF_NAME#release/rc-}" || "${version%%-rc.*}" != "$repo_version" ]]; then
+                  echo "RC publication must match RC branch and source base version" >&2
+                  exit 1
+                fi
+                ;;
+              refs/tags/v*)
+                if [[ "$version" != "${GITHUB_REF_NAME#v}" || "${version%%-rc.*}" != "$repo_version" ]]; then
+                  echo "Tag publication must match the source tag and source base version" >&2
+                  exit 1
+                fi
+                ;;
+              refs/heads/master|refs/heads/main)
+                if [[ "$version" != "$repo_version" ]]; then
+                  echo "Default-branch publication must match Directory.Build.props exactly" >&2
+                  exit 1
+                fi
+                ;;
+              *)
+                echo "Public release is allowed only from default, matching RC branch, or matching tag" >&2
+                exit 1
+                ;;
+            esac
+            if [[ "$version" == *-rc.* && "$prerelease" != "true" ]]; then
+              echo "An RC release must be marked prerelease" >&2
+              exit 1
+            fi
           fi
 
           if [[ -z "$notes_file" ]]; then
@@ -97,6 +153,11 @@ jobs:
             if [[ -f "$archive_notes" ]]; then notes_file="$archive_notes"; else notes_file="CHANGELOG.md"; fi
           fi
 
+          # Guard GITHUB_OUTPUT and gh --notes-file paths against traversal/newlines.
+          if [[ "$notes_file" == /* || "$notes_file" == *..* || ! "$notes_file" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
+            echo "Release notes must be a safe repository-relative path" >&2
+            exit 1
+          fi
           tag="v${version}"
           {
             echo "version=$version"
