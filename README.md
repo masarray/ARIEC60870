@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.4)
 
 **ArSee is the product identity of this existing ARIEC60870 repository, preserving old GitHub URLs, releases and file compatibility.**
 
@@ -17,12 +17,12 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public prerelease** | **v3.6.8-rc.3** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-win-x64.zip) | Evaluate the latest compact Setup UI and Frame Trace workflow on authorized test equipment |
+| **Latest public prerelease** | **v3.6.8-rc.4** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-win-x64.zip) | Engineering RC: updated Frame Interpreter and IEC-101 unbalanced A/B link/transaction improvements |
 | **Latest stable-tagged release** | **v3.6.7** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7) | Last non-prerelease package, without the current RC interface updates |
 
-**Published v3.6.8-rc.3 downloads retain their original ARIEC60870 filenames and old application branding; ArSee appears in a newly built version, not retroactively in prior installers.**
+**RC .4 uses ArSee display branding in its application/installer; compatibility filenames still retain ARIEC60870. Earlier binaries remain unchanged.**
 
-**v3.6.8-rc.3 is a public test candidate, not a stable production release.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/SHA256SUMS.txt) before running unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) also provides SPDX SBOM and the [exact Windows release workflow](https://github.com/masarray/ARIEC60870/actions/runs/42791041890) provides build attestations, xUnit and real-WPF screenshots.
+**v3.6.8-rc.4 is a public test candidate, not a stable production release.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/SHA256SUMS.txt) before running unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.4) also provides SPDX SBOM and the [exact Windows release workflow](https://github.com/masarray/ARIEC60870/actions/runs/42955419036) provides build attestations, xUnit and real-WPF screenshots.
 
 > GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) shortcut points to the last **non-prerelease** release (v3.6.7), not necessarily the newest public RC. Use the version-specific links above.
 
@@ -32,7 +32,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.8-rc.3 release workflow](https://github.com/masarray/ARIEC60870/actions/runs/42791041890) includes actual Windows WPF captures of the current executable, including Setup switch alignment.*
+*Illustrative product media. The [v3.6.8-rc.4 release workflow](https://github.com/masarray/ARIEC60870/actions/runs/42791041890) documents real Windows WPF captures of the combined engine/UI source; the tagged RC is separately package-tested.*
 
 ## Supported engineering workflows
 
@@ -46,13 +46,13 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-**New in v3.6.8-rc.3:** the nine Setup controls use small 28 × 16 DIP toggles, 10 × 10 DIP thumbs and vertically aligned text. The actual Windows WPF geometry is covered by the release acceptance tests. The previously released Frame Trace HOLD/AUTO fix is retained.
+**New in v3.6.8-rc.4:** readable IEC101 Frame Interpreter with amber ACD, spaced IOA labels and ↳ signal details, retained compact Setup/Frame Trace HOLD/AUTO, and IEC101 unbalanced single/A-B transaction/FCB/ACD reliability work. Physical RTU FAT is still required.
 
 An acknowledged frame or GI termination is **not** proof that every configured point was received or that a physical control operated.
 
 ## Five-minute first run
 
-1. [Download the v3.6.8-rc.3 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/ARIEC60870-v3.6.8-rc.3-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.3/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.8-rc.4 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
@@ -62,7 +62,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 ## Scope and safety boundaries
 
-- **IEC-101 SICAM A8000 physical interoperability remains unproven.** The serial transport/FC9/DFC recovery work in **[Draft PR #136](https://github.com/masarray/ARIEC60870/pull/136) is not included in v3.6.8-rc.3**. Simulator and CI success do not substitute for wired FAT.
+- **IEC-101 SICAM A8000 physical interoperability remains unproven.** This RC includes software fixes from [draft PR #145](https://github.com/masarray/ARIEC60870/pull/145); real COM recovery, GI/SBO evidence and SOE FIFO at 1200 bps still require field FAT. Simulated CI is not a wired RTU pass.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
 - ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
