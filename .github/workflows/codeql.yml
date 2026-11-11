@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
     # CodeQL scans C#; run it when managed code, generated WPF code,
     # build/dependency inputs or CodeQL configuration change.
-    paths: &codeql_paths
+    paths:
       - '**/*.cs'
       - '**/*.csproj'
       - '**/*.xaml'
@@ -21,7 +21,18 @@ on:
       - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ main, master ]
-    paths: *codeql_paths
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.xaml'
+      - '**/*.resx'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'ARIEC60870.sln'
+      - '.editorconfig'
+      - 'global.json'
+      - 'NuGet.Config'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '23 2 * * 1'
   workflow_dispatch:
