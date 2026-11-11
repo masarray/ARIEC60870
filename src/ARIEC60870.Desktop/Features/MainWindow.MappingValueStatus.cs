@@ -733,7 +733,6 @@ public partial class MainWindow
     private long _eventProjectionMismatchCount;
     private int _eventProjectionSourceCount;
     private int _eventProjectionFilteredCount;
-    private long _eventNewWhileHeld; // viewport only; source events still ingested
 
     private static readonly string[] EventCategories =
         ["Digital", "Measurement", "Commands", "GI", "Other"];
@@ -1147,8 +1146,6 @@ public partial class MainWindow
         _eventProjectionMismatchCount = 0;
         _eventProjectionSourceCount = 0;
         _eventProjectionFilteredCount = 0;
-        _eventNewWhileHeld = 0;
-        _eventRowsDeferredWhileManualScroll = false;
         _lastDisplayedValueByKey.Clear();
         _valueHighlightExpiryByKey.Clear();
         _evidenceSummarySignatureByKey.Clear();
