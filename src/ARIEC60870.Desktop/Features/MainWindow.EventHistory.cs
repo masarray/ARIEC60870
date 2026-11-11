@@ -16,10 +16,12 @@ namespace ARIEC60870.Desktop;
 public partial class MainWindow
 {
     private EventHistoryJournal? _eventHistoryJournal;
+    private EventHistoryAsyncWriter? _eventHistoryWriter;
+    private long _nextEventHistoryFooterRefreshTick;
+    private bool _eventHistoryFailureNoticeLogged;
     private readonly ObservableRangeCollection<RelayEventRow> _historicalEventRows = new();
     private long _eventHistoryObserved;
-    private long _eventHistoryUnindexed;
-    private bool _eventHistoryWriteFailed;
+    // UI-observed, accepted-to-queue, indexed and unindexed are distinct.
     private bool _eventHistoryMode;
     private long _eventHistoryCeiling;
     private long _eventHistoryPageStart;
@@ -32,8 +34,7 @@ public partial class MainWindow
         _eventHistoryCeiling = 0;
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
-        _eventHistoryUnindexed = 0;
-        _eventHistoryWriteFailed = false;
+        _eventHistoryFailureNoticeLogged = false;
         _historicalEventRows.Clear();
         if (RelayEventGrid is not null)
         {
@@ -43,12 +44,20 @@ public partial class MainWindow
             EventIncludeToggle.IsEnabled = true;
             EventExcludeToggle.IsEnabled = true;
         }
-        _eventHistoryJournal?.Dispose();
+        // Cancellation and deletion of the old temporary session journal run
+        // on its worker, never in a WPF command or serial RX callback.
+        _eventHistoryWriter?.Dispose();
+        _eventHistoryWriter = null;
         _eventHistoryJournal = null;
-        try { _eventHistoryJournal = new EventHistoryJournal(); }
+        try
+        {
+            _eventHistoryJournal = new EventHistoryJournal();
+            _eventHistoryWriter = new EventHistoryAsyncWriter(_eventHistoryJournal);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _eventHistoryWriteFailed = true;
+            _eventHistoryJournal?.Dispose();
+            _eventHistoryJournal = null;
             AppendSessionLog("Temporary Event History unavailable: " + ex.Message);
         }
         RefreshEventHistoryFooter();
@@ -62,32 +71,33 @@ public partial class MainWindow
     private void RecordEventHistory(RelayEventRow row)
     {
         row.EventNumber = ++_eventHistoryObserved;
-        if (_eventHistoryJournal is null || _eventHistoryWriteFailed)
-        {
-            _eventHistoryUnindexed++;
-            return;
-        }
-        try { _eventHistoryJournal.Append(row); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
-                                   InvalidDataException or JsonException or NotSupportedException)
-        {
-            _eventHistoryWriteFailed = true;
-            _eventHistoryUnindexed++;
-            AppendSessionLog("Event History storage failed; existing indexed rows remain available. " +
-                             "Subsequent Event Log observations are unindexed: " + ex.Message);
-        }
+        // No serialization, hashing, disk writes, waiting or Task.Run per
+        // event on WPF. A bounded queue reject becomes a visible unindexed
+        // count; numbering continues but no invalid/holey index is written.
+        _eventHistoryWriter?.TryEnqueue(row);
     }
 
     private void RefreshEventHistoryFooter()
     {
         if (EventHistoryStatusText is null) return;
         var indexed = _eventHistoryJournal?.Count ?? 0;
+        var pending = _eventHistoryWriter?.PendingCount ?? 0;
+        var unindexed = Math.Max(0, _eventHistoryObserved - indexed - pending);
+        var failure = _eventHistoryWriter?.FailureReason;
         var newer = _eventHistoryMode ? Math.Max(0, indexed - _eventHistoryCeiling) : 0;
         EventHistoryStatusText.Text =
-            $"{indexed:N0} UI events indexed" +
-            (_eventHistoryUnindexed > 0 ? $" · {_eventHistoryUnindexed:N0} unindexed (INCOMPLETE)" : "") +
+            $"{indexed:N0} indexed" +
+            (pending > 0 ? $" · {pending:N0} pending" : "") +
+            (unindexed > 0 ? $" · {unindexed:N0} unindexed (INCOMPLETE)" : "") +
+            (failure is not null ? " · WRITER STOPPED" : "") +
             (newer > 0 ? $" · +{newer:N0} newer" : "") +
-            " · temporary until next session";
+            " · temporary session history";
+        if (failure is not null && !_eventHistoryFailureNoticeLogged)
+        {
+            _eventHistoryFailureNoticeLogged = true;
+            AppendSessionLog(failure + " Indexed rows remain accessible; " +
+                             "unindexed count must not be interpreted as RTU FIFO loss.");
+        }
         if (_eventHistoryMode)
         {
             var pages = EventHistoryPagination.PageCount(_eventHistoryCeiling);
@@ -106,6 +116,14 @@ public partial class MainWindow
         EventHistoryJumpBox.IsEnabled = _eventHistoryMode;
         EventHistoryJumpButton.IsEnabled = _eventHistoryMode;
         EventHistoryLatestButton.IsEnabled = _eventHistoryMode;
+    }
+
+    private void RefreshEventHistoryFooterWhenDue()
+    {
+        var now = Environment.TickCount64;
+        if (now < _nextEventHistoryFooterRefreshTick) return;
+        _nextEventHistoryFooterRefreshTick = now + 350;
+        RefreshEventHistoryFooter();
     }
 
     private async void EventHistoryBrowse_Click(object sender, RoutedEventArgs e)
@@ -242,6 +260,7 @@ public partial class MainWindow
             }, original);
         }
         ApplyRelayEventFilter();
+        await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
         if (_eventHistoryJournal?.Count != 620 || _relayEventStore.Snapshot().Count != 420)
             throw new InvalidOperationException("Live Event Log rollover lost indexed source events.");
         _eventHistoryCeiling = 620;
