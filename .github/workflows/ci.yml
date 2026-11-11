@@ -51,7 +51,8 @@ jobs:
             const { owner, repo } = context.repo;
             let runWindows = true;
             const onlyMarkdown = files => files.length > 0 && files.length < 300 &&
-              files.every(f => /\.(md|mdx)$/i.test(f.filename));
+              files.every(f => /\.(md|mdx)$/i.test(f.filename) &&
+                (!f.previous_filename || /\.(md|mdx)$/i.test(f.previous_filename)));
             if (context.eventName === 'pull_request') {
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
@@ -101,7 +102,7 @@ jobs:
     runs-on: ${{ needs.classify.outputs.run_windows == 'true' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 25
     env:
-      RUN_PACKAGES: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'ci/') }}
+      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'ci/')) }}
       RUN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' }}
       COLLECT_COVERAGE: ${{ github.event_name != 'pull_request' }}
     steps:
