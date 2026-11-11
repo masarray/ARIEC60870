@@ -245,6 +245,15 @@ public partial class MainWindow
             if (page.Count != Math.Min(EventHistoryPagination.PageSize, snapshot.Count - start))
                 throw new InvalidDataException("Event History page is incomplete.");
             _historicalEventRows.ReplaceRange(page.Select(x => x.ToRow()));
+            // Explicit page navigation begins at its first row; Latest follows
+            // the last original Event # rather than resetting to the page top.
+            if (_historicalEventRows.Count > 0 && IsEventsTabActive())
+            {
+                var target = _eventHistoryFollowingLatest &&
+                    start == LastHistoryPageStart()
+                    ? _historicalEventRows[^1] : _historicalEventRows[0];
+                RelayEventGrid.ScrollIntoView(target);
+            }
             RefreshEventHistoryFooter();
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
