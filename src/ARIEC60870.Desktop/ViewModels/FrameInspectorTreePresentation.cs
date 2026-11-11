@@ -24,6 +24,10 @@ public sealed record FrameInspectorVisibleRow(
     bool HasChildren, bool IsExpanded, string Tone)
 {
     public string ExpansionMark => HasChildren ? IsExpanded ? "▾" : "▸" : "";
+    // A narrow dock may ellipsize the visible Name cell; always expose the
+    // complete canonical label and any decoded engineering explanation.
+    public string NameTooltip => string.IsNullOrWhiteSpace(Detail)
+        ? Field : Field + "\n" + Detail;
 }
 
 public static class FrameInspectorTreePresentation

@@ -1296,6 +1296,23 @@ public partial class MainWindow
         UpdateLayout();
         SaveRealWpfBitmap(outputDirectory, "engineer-right-full-properties-only.png");
 
+        // Visual proof for the quality-child complaint: the screenshot must
+        // show the actual decoded IV/NT/BL/SB/raw rows, not just the open arrow
+        // with those rows scrolled out of sight.
+        var lastQualityChild = VisibleFrameProperties.LastOrDefault(
+            x => x.Depth == 2 && x.Field == "Raw quality");
+        if (lastQualityChild is null)
+            throw new InvalidOperationException(
+                "Selected WPF frame lost the complete source quality child tree.");
+        FramePropertiesGrid.ScrollIntoView(lastQualityChild);
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+        if (FramePropertiesGrid.ItemContainerGenerator.ContainerFromItem(lastQualityChild)
+                is not DataGridRow rawQualityVisual || !rawQualityVisual.IsVisible)
+            throw new InvalidOperationException(
+                "Decoded quality flags are present but not visible in the WPF property viewport.");
+        SaveRealWpfBitmap(outputDirectory, "engineer-right-quality-details-expanded.png");
+
         // Real responsive WPF acceptance with the dock OPEN: a narrower frame
         // viewport must stack the actual HEX above the decoded interpretation.
         // Test actual sizes, not requested top-level dimensions (runner may clamp).

@@ -1215,7 +1215,7 @@
                                             <DataGridTemplateColumn Header="NAME" Width="1.40*" MinWidth="155" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <Grid Height="25" ToolTipService.IsEnabled="True" ToolTip="{Binding Detail}">
+                                                        <Grid Height="25" ToolTipService.IsEnabled="True" ToolTip="{Binding NameTooltip}">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>

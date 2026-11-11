@@ -60,6 +60,12 @@ public sealed class FrameInspectorTreePresentationTests
         Assert.DoesNotContain(collapsedQuality, x => x.Field == "Invalid (IV)");
         Assert.Contains(collapsedQuality, x => x.Field == "Quality" && !x.IsExpanded);
         Assert.Equal(original, source[1].Children!.Select(x => x.Value));
+        var child = open.Single(x => x.Field == "IOA1 (low)");
+        Assert.Equal("IOA1 (low)", child.NameTooltip);
+        var qualityBit = FrameInspectorTreePresentation.Build(source,
+            FrameInspectorTreePresentation.InitiallyExpanded(source))
+            .Single(x => x.Field == "Invalid (IV)");
+        Assert.Contains("The source marks the value invalid", qualityBit.NameTooltip);
     }
 
     [Fact]

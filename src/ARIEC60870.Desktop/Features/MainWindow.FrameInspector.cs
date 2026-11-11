@@ -237,9 +237,29 @@ public partial class MainWindow
     private void FramePropertyDisclosure_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string key }) return;
-        if (!_expandedFramePropertyKeys.Add(key))
-            _expandedFramePropertyKeys.Remove(key);
+        var opened = _expandedFramePropertyKeys.Add(key);
+        if (!opened) _expandedFramePropertyKeys.Remove(key);
         RefreshFramePropertyRows();
+        // A click at the bottom of the dock should reveal the expanded child,
+        // rather than adding invisible rows beyond the viewport. Scroll once
+        // on operator disclosure, never on arriving RX frames.
+        if (opened)
+        {
+            var index = -1;
+            for (var i = 0; i < VisibleFrameProperties.Count; i++)
+            {
+                if (VisibleFrameProperties[i].Key != key) continue;
+                index = i;
+                break;
+            }
+            if (index >= 0 && index + 1 < VisibleFrameProperties.Count &&
+                VisibleFrameProperties[index + 1].Depth > VisibleFrameProperties[index].Depth)
+            {
+                var firstChild = VisibleFrameProperties[index + 1];
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+                    new Action(() => FramePropertiesGrid.ScrollIntoView(firstChild)));
+            }
+        }
         e.Handled = true;
     }
 
