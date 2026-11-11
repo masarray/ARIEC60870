@@ -90,6 +90,38 @@ public sealed class Iec101Class2FairnessTests
         Assert.Equal(0, active.GiOrControlRequests + standby.GiOrControlRequests);
     }
 
+
+    [Fact]
+    public async Task PermanentAcdAlsoPreservesPeriodicStandbyFc9Supervision()
+    {
+        var settings = Settings();
+        settings.Class1DrainDelayMs = 110; // Three Class 1 replies cross the 250-ms standby deadline.
+        settings.ResponseTimeoutMs = 250;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await using var active = new PermanentAcdResponder(settings, stopOnClass2: stop);
+        await using var standby = new PermanentAcdResponder(settings, standbyOnly: true);
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint
+                { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
+            LinkB = new Iec101DualLinkEndpoint
+                { Name = "B", PortName = "FAKE-B", LinkAddress = 105 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(250),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        var result = await new Iec101DualLinkRedundancySession(options, active, standby)
+            .RunAsync(stop.Token);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(3, active.Class1RequestsBeforeFirstClass2);
+        Assert.Equal(1, active.Class2Requests);
+        Assert.True(standby.LinkStatusRequests >= 2,
+            "Standby FC9 must be refreshed even with a permanently asserted active ACD.");
+        Assert.Equal(0, standby.Class1Requests);
+        Assert.Equal(0, standby.Class2Requests);
+        Assert.Equal(0, standby.GiOrControlRequests);
+    }
+
     private sealed class PermanentAcdResponder : IByteTransport
     {
         private readonly Iec103MasterSettings _settings;

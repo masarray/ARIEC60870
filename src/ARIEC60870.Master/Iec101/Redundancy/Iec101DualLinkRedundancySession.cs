@@ -337,6 +337,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             await DrainClass1OnActiveAsync("ACD=1 event data pending on active link",
                 stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
             await EvaluateActiveHealthAsync("Class 1 drain", cancellationToken).ConfigureAwait(false);
+            // Keep the A/B backup proof fresh during a sustained event queue.
+            // Earlier this standby status check lived only below the ACD branch
+            // and was therefore unreachable while ACD stayed asserted.
+            if (ReferenceEquals(_active, ownerAtDrain) && _standby is not null &&
+                DateTime.UtcNow - _lastStandbySupervisionUtc >= _options.StandbySupervisionInterval)
+            {
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            }
             // An always-set ACD must not starve Class 2 indefinitely.
             // Health evaluation can switch physical owners; never submit
             // this fairness poll to a newly promoted link by accident.
