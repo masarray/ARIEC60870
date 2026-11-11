@@ -293,6 +293,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.Contains(session.FailoverJournal, entry =>
             entry.Completed && entry.FromLink == "Link A" && entry.ToLink == "Link B");
         Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.DoesNotContain(result.Events, e => e.Category == "TX" &&
+            string.IsNullOrWhiteSpace(e.PhysicalSource));
         Assert.Contains(result.Events, e => e.PhysicalSource == "Link A" &&
             e.Direction == FrameDirection.MasterToSlave &&
             e.TypeId == 100 && e.CommonAddressNumber == 1);

@@ -382,6 +382,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             ProtocolMeaning = asdu?.ShortMeaning ?? decoded.ShortMeaning,
             OperatorAction = reason,
             RawHex = ToHex(frame),
+            PhysicalSource = Name,
             Frame = decoded,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             LinkAddress = _settings.LinkAddress,
