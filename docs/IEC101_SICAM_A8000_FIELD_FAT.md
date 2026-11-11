@@ -2,6 +2,38 @@
 
 > **P0 completion and evidence gate:** See [IEC-101 Reliability Implementation Plan](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) and [Verification Matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) (particularly P01–P08) for the strict distinctions between driver RX bytes, complete frames, correlated services, genuine GI and physical FAT. Track work in [issue #143](https://github.com/masarray/ARIEC60870/issues/143); PR #136 is **not included** in public rc.3. A physical comparison must use the **same physical adapter/wiring/port**, not merely an identical COM number.
 
+## 2026-11-11 field finding — IEC-101 link-reset handshake resolves startup failure
+
+**Operator-reported physical test:** On a SICAM A8000 IEC-101 connection,
+enabling **Reset remote link on connect** resolved the previously observed
+connection/GI-startup problem. This is a genuine **user field observation**,
+not a captured/signed full FAT: hardware firmware, raw frame export and
+independent 1200-bps SOE batch evidence were not provided in this update.
+
+**Startup recommendation (active unbalanced IEC-101 only):**
+- In new ArSee IEC-101 single-link and A/B setups, the FC0 **link-layer**
+  reset option is enabled by default. This synchronizes the secondary link
+  state; it is **not** IEC-101 FC1 *reset user process* and not the
+  application C_RP_NA_1 command.
+- Keep the checkbox editable. A saved explicit OFF remains OFF across
+  upgrades; do not silently override an operator's existing setup.
+- IEC-103/104 defaults remain unchanged. IEC-101 Passive Monitor remains
+  receive-only (0 TX); never send FC0 on passive capture.
+- FC0 must be issued only by the authorized active Master on an isolated
+  or approved IEC-101 link, not by a second master on a live production
+  SCADA channel. Resetting the link can discard a pending link-layer
+  message; it does not preserve the previous confirmed FCB epoch.
+- **Do not infer** complete GI ACTCON/ACTTERM, deterministic FCB recovery
+  after a driver unplug, 500/2000 SOE/FIFO integrity or multi-vendor
+  interoperability solely from this successful connection.
+
+For reproducible evidence record startup TX FC0 and subsequent RTU link
+ACK/status, then actual GI/process Class 1/2 RX, port/adapter, baud and
+link/CA widths. See the separate [umbrella IEC-101 reliability issue #143](https://github.com/masarray/ARIEC60870/issues/143)
+for unfinished M1–M5 milestones.
+
+---
+
 Read-only engineering checklist for a reproducible diagnosis. Do not disturb a
 live SCADA link or issue control/clock synchronization during initial tests.
 
