@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Preserve master evidence; cancel redundant checks of superseded PR heads.
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   pull-requests: read
