@@ -131,7 +131,7 @@ public static class EventHistoryQueryEngine
             foreach (var entry in batch)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var row = entry.ToRow();
+                var row = entry.ToQueryRow();
                 var category = classify(row);
                 if (!allowed.Contains(category) || blocked.Contains(category)) continue;
                 if (search.Length > 0 &&

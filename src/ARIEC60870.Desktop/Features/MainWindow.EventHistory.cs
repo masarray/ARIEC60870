@@ -39,6 +39,7 @@ public partial class MainWindow
     private void ResetEventHistory()
     {
         _eventHistoryQueryCancel?.Cancel();
+        _eventHistoryCsvCancel?.Cancel();
         _eventHistoryQueryGeneration++;
         _eventHistoryPageGeneration++;
         _eventHistoryQuery = new EventHistoryQuerySnapshot(0, null);

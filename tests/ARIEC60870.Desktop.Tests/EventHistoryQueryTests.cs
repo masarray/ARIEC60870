@@ -90,7 +90,9 @@ public sealed class EventHistoryQueryTests
             var lines = File.ReadAllLines(destination);
             Assert.Equal(2, lines.Length);
             Assert.Contains("\"'=1+1\"", lines[1]);
-            Assert.Contains("\"SINGLE/1\"", lines[1]);
+            var originalReference = one.ReadPage(journal, 0)[0]
+                .ToRow().OriginalFrameEvidence!.EvidenceReference;
+            Assert.Contains("\"" + originalReference + "\"", lines[1]);
             Assert.Contains("\"10 08 69 71 16\"", lines[1]);
         }
         finally

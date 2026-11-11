@@ -180,6 +180,18 @@ public sealed class EventHistoryJournal : IDisposable
         EventHistoryOriginalSnapshot? Original)
     {
         public RelayEventRow ToRow() => new(Source, Original?.Restore(Source.RawHex), EventNumber);
+
+        // Querying 50k+ events must not re-parse FT1.2 bytes simply to match
+        // a signal name, value or category. Only preserve the typed edge flag
+        // needed for IEC-103 digital category matching.
+        public RelayEventRow ToQueryRow() => new(Source, Original is null ? null :
+            new Iec103MasterEvidenceEvent
+            {
+                ProtocolMode = Original.Protocol,
+                IsRelayEdgeEvent = Original.IsRelayEdgeEvent,
+                IsRelayValue = Original.IsRelayValue,
+                IsMappedSignal = Original.IsMappedSignal
+            }, EventNumber);
     }
 
     public void Dispose()
@@ -209,6 +221,7 @@ public sealed record EventHistoryOriginalSnapshot(
     int LinkAddressWidth, int? TypeId, string TypeName,
     int? Cot, string CauseName, int? Ca, int? Ioa,
     string SignalName, string SignalValue, string RelayTime,
+    bool IsRelayEdgeEvent, bool IsRelayValue, bool IsMappedSignal,
     bool RawHexSharedWithSource)
 {
     public static EventHistoryOriginalSnapshot? Capture(
@@ -226,6 +239,7 @@ public sealed record EventHistoryOriginalSnapshot(
             source.CauseName, source.CommonAddressNumber,
             source.InformationObjectAddress, source.SignalName,
             source.SignalDisplayValue, source.RelayTimestampText,
+            source.IsRelayEdgeEvent, source.IsRelayValue, source.IsMappedSignal,
             !string.IsNullOrEmpty(source.RawHex) &&
             string.Equals(source.RawHex, eventRawHex, StringComparison.Ordinal));
 
@@ -269,7 +283,9 @@ public sealed record EventHistoryOriginalSnapshot(
             SignalName = SignalName,
             SignalDisplayValue = SignalValue,
             RelayTimestampText = RelayTime,
-            IsRelayValue = true
+            IsRelayEdgeEvent = IsRelayEdgeEvent,
+            IsRelayValue = IsRelayValue,
+            IsMappedSignal = IsMappedSignal
         };
     }
 }
