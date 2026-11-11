@@ -61,6 +61,7 @@ public partial class MainWindow : Window
     private bool _statusHistoryExpanded;
     private bool _isApplyingSavedSetup;
     private bool _savedSetupPreferencesLoaded;
+    private bool _resetRemoteLinkUserCustomized;
     private bool _defaultIoaSeedSettingsApplied;
     private bool _isProtocolTraceDragSelecting;
     private int _protocolTraceSelectionAnchorIndex = -1;
@@ -212,6 +213,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Title = ArSeeWindowTitle.ForAssembly(typeof(MainWindow).Assembly);
+        // Programmatic defaults and loaded preferences do not raise Click.
+        // A manual choice must remain authoritative across protocol switching.
+        ResetRemoteLinkCheckBox.Click += (_, _) => _resetRemoteLinkUserCustomized = true;
         // Fresh standby defaults follow Link A until the engineer explicitly edits B.
         // Hook only after InitializeComponent so XAML initialization is not mistaken
         // for a deliberate address edit.
