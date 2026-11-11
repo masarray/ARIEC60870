@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 name: CI
 # Manual jobs name the tested PR SHA; GitHub's workflow run head stays on master.
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('CI PR #{0} {1} {2}', inputs.requested_pr, inputs.profile, inputs.expected_sha) || format('CI {0}', github.ref_name) }}
+run-name: "${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('CI PR #{0} {1} {2}', inputs.requested_pr, inputs.profile, inputs.expected_sha) || format('CI {0}', github.ref_name) }}"
 
 on:
   push:
