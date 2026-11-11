@@ -49,12 +49,16 @@ public sealed class Iec10xAsduDecoder
         var ca = header.CommonAddress;
         var objectCount = header.ObjectCount;
         var sq = header.IsSequence;
-        if (objectCount == 0)
+        if (objectCount == 0 && type < 128)
         {
             issues.Add("VSQ object count is zero; ASDU contains no information object.");
         }
 
-        var objects = DecodeObjects(type, raw, offset, objectCount, sq, issues);
+        // TI 128..255 is private: preserve raw header and payload but do not
+        // fabricate standard IOA/quality/value or a false corruption warning.
+        IReadOnlyList<Iec10xInformationObject> objects = type >= 128
+            ? Array.Empty<Iec10xInformationObject>()
+            : DecodeObjects(type, raw, offset, objectCount, sq, issues);
         var first = objects.FirstOrDefault();
         var causeDetails = new Iec10xCauseDetails(cotRaw, cot, negative, test, _cotSize == 2 ? oa : null);
         var commandDetails = Iec10xCommandDetails.Decode(type, first, causeDetails);
@@ -80,7 +84,9 @@ public sealed class Iec10xAsduDecoder
             IsNegativeConfirm = negative,
             CommonAddress = ca,
             InformationObjectAddress = first?.InformationObjectAddress,
-            ObjectSummary = objects.Count == 0 ? "No information objects decoded" : string.Join(" | ", objects.Select(x => x.ReadableSummary)),
+            ObjectSummary = type >= 128
+                ? $"Vendor-specific payload ({raw.Length - offset} bytes); standard information objects not decoded"
+                : objects.Count == 0 ? "No information objects decoded" : string.Join(" | ", objects.Select(x => x.ReadableSummary)),
             ValueText = first?.ShortValue ?? string.Empty,
             QualityText = first?.QualityText ?? string.Empty,
             TimestampText = first?.TimestampText ?? string.Empty,
@@ -435,7 +441,7 @@ public sealed class Iec10xAsduDecoder
         105 => "C_RP_NA_1 reset process command",
         106 => "C_CD_NA_1 delay acquisition",
         107 => "C_TS_TA_1 test command with CP56Time2a",
-        _ => $"Type {type}"
+        _ => type >= 128 ? "Vendor-specific ASDU (opaque payload)" : $"Type {type}"
     };
 
     public static string CauseName(int cot) => cot switch

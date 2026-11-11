@@ -91,7 +91,14 @@ public static class Iec101FrameByteInspector
                 (cotSize == 2 ? $" · Origin {asdu.OriginatorAddress}" : ""));
             if (caSize > 0)
                 Add("ca", "Common address", asduStart + 2 + cotSize, caSize,
-                    $"CA {asdu.CommonAddress}");
+                    Iec10xVendorAsduPresentation.Address(asdu));
+            if (asdu.IsOpaqueVendorSpecific)
+            {
+                var payloadOffset = asduStart + 2 + cotSize + caSize;
+                Add("vendor-payload", "Vendor payload", payloadOffset,
+                    asdu.RawBytes.Count - (2 + cotSize + caSize),
+                    Iec10xVendorAsduPresentation.Explanation(asdu));
+            }
 
             foreach (var obj in asdu.Objects)
             {

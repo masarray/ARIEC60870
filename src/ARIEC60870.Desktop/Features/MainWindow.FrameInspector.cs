@@ -141,8 +141,16 @@ public partial class MainWindow
                 Add("Originator address", asdu.OriginatorAddress.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     "Application originator identifier from the second cause-of-transmission byte.");
         }
-        Add("Common address", row.CommonAddress,
-            "ASDU common address, not the data-link address.");
+        if (asdu is { IsOpaqueVendorSpecific: true })
+        {
+            Add("Raw ASDU CA (vendor)", Iec10xVendorAsduPresentation.RawAddress(asdu),
+                "Encoded ASDU header bytes; not proof of the configured process-station CA.");
+            Add("Vendor payload", "Opaque · not decoded as process signals",
+                Iec10xVendorAsduPresentation.Explanation(asdu));
+        }
+        else
+            Add("Common address", row.CommonAddress,
+                "ASDU common address, not the data-link address.");
         Add("IOA", row.IoAddress, "Information object address of the selected source object.",
             int.TryParse(row.IoAddress, out var decodedIoa)
                 ? FrameInspectorFieldPresentation.Ioa(decodedIoa)

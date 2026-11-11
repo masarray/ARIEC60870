@@ -89,7 +89,7 @@ public static class Iec101TraceNarrator
                 builder.Append('\n').Append("ASDU: Not decoded; check COT, CA, IOA and link-width settings.");
             if (!string.IsNullOrWhiteSpace(item.ControlObservation))
                 builder.Append('\n').Append("Control sequence: ").Append(item.ControlObservation);
-            return (prefix + title + (asdu is { IsHeaderValid: true } ? $" · TI{asdu.TypeId}" : ""), builder.ToString());
+            return (prefix + title + (asdu is { IsHeaderValid: true, IsOpaqueVendorSpecific: false } ? $" · TI{asdu.TypeId}" : ""), builder.ToString());
         }
 
         string meaning;
@@ -165,6 +165,12 @@ public static class Iec101TraceNarrator
                 : asdu.CauseDetails is null ? asdu.OriginatorAddress.ToString(CultureInfo.InvariantCulture) : "N/A");
         if (asdu.IsNegativeConfirm) builder.Append(" | P/N:1 (Negative)");
         if (asdu.IsTest) builder.Append(" | TEST:1");
+        if (asdu.IsOpaqueVendorSpecific)
+        {
+            builder.Append('\n').Append(Iec10xVendorAsduPresentation.Address(asdu));
+            builder.Append('\n').Append(Iec10xVendorAsduPresentation.Explanation(asdu));
+            return;
+        }
         builder.Append('\n').Append("Comm Addr ").Append(asdu.CommonAddress);
         foreach (var obj in asdu.Objects)
             AppendObject(builder, asdu.TypeId, obj);
@@ -246,6 +252,7 @@ public static class Iec101TraceNarrator
     {
         ArgumentNullException.ThrowIfNull(asdu);
         if (!asdu.IsHeaderValid) return "Malformed ASDU header · raw only";
+        if (asdu.IsOpaqueVendorSpecific) return $"Vendor-specific ASDU · TI {asdu.TypeId}";
         var cause = asdu.CauseOfTransmission;
         var negative = asdu.IsNegativeConfirm || asdu.CauseDetails?.Negative == true;
         var fromMaster = direction == FrameDirection.MasterToSlave;

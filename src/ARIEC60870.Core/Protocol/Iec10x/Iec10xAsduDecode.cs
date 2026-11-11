@@ -13,6 +13,8 @@ public sealed class Iec10xAsduDecode
     // False means header fields are unavailable; default numeric zeros are not wire data.
     public bool IsHeaderValid { get; init; } = true;
     public byte TypeId { get; init; }
+    // Private IEC-10x extensions do not have a trustworthy standard IOA layout.
+    public bool IsOpaqueVendorSpecific => IsHeaderValid && TypeId >= 128;
     public string TypeName { get; init; } = string.Empty;
     public byte VariableStructureQualifier { get; init; }
     public bool IsSequence { get; init; }
@@ -55,6 +57,8 @@ public sealed class Iec10xAsduDecode
         get
         {
             if (!IsHeaderValid) return "Malformed ASDU · header not decoded · original bytes retained";
+            if (IsOpaqueVendorSpecific)
+                return $"{TypeName}, COT={CotDisplay}, Raw ASDU CA={CommonAddress} (0x{CommonAddress:X4}; vendor-defined)";
             var address = InformationObjectAddress.HasValue ? $", IOA={InformationObjectAddress.Value}" : string.Empty;
             var value = string.IsNullOrWhiteSpace(ValueText) ? string.Empty : $", {ValueText}";
             var quality = string.IsNullOrWhiteSpace(QualityText) || QualityText == "Good" ? string.Empty : $", Quality={QualityText}";

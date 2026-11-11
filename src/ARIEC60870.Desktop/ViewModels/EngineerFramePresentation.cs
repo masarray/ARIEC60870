@@ -35,7 +35,9 @@ public static class EngineerFramePresentation
             result.Add("TEST=1");
         if (asdu?.CauseOfTransmission is >= 44 and <= 47)
             result.Add("Application protocol error");
-        if (asdu?.Issues.Count > 0) result.Add("ASDU decode warning");
+        if (asdu?.Issues.Count > 0)
+            result.Add("ASDU decode: " + asdu.Issues[0] +
+                (asdu.Issues.Count > 1 ? $" (+{asdu.Issues.Count - 1} issues)" : string.Empty));
 
         if (asdu is not null)
         {
@@ -80,7 +82,9 @@ public static class EngineerFramePresentation
             result.Add("Test indication: TRUE");
         if (asdu?.CauseOfTransmission is >= 44 and <= 47)
             result.Add("COT protocol error: TRUE");
-        if (asdu?.Issues.Count > 0) result.Add("ASDU decode: WARNING");
+        if (asdu?.Issues.Count > 0)
+            result.Add("ASDU decode: " + asdu.Issues[0] +
+                (asdu.Issues.Count > 1 ? $" (+{asdu.Issues.Count - 1} issues; see Frame Details)" : string.Empty));
 
         if (asdu is not null)
         {
