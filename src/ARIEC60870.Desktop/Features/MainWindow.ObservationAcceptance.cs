@@ -1674,6 +1674,37 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
+        // The real rendered Event Journal controls share the 32-DIP search
+        // height and 8-DIP rounded design token, not the old square system
+        // Button/ToggleButton templates. Check every active filter/action.
+        Control[] eventButtons =
+        [
+            EventIncludeToggle, EventExcludeToggle,
+            EventHistoryPreviousButton, EventHistoryNextButton,
+            EventHistoryLatestButton, EventHistoryExportButton
+        ];
+        foreach (var button in eventButtons)
+        {
+            if (!button.ApplyTemplate() ||
+                Math.Abs(button.ActualHeight - EventsSearchShell.ActualHeight) > 0.75 ||
+                button.Template.FindName("Chrome", button) is not Border chrome ||
+                Math.Abs(chrome.CornerRadius.TopLeft - 8) > 0.1 ||
+                Math.Abs(chrome.CornerRadius.TopRight - 8) > 0.1)
+                throw new InvalidOperationException(
+                    "Event Journal button does not use the 32-DIP rounded search-bar chrome: " +
+                    button.Name);
+        }
+        // Preserve the exact supplied two SVG chevron geometries rather
+        // than falling back to font glyphs, OS-dependent symbols or emoji.
+        if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path back ||
+            EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
+            back.Data?.ToString() != Geometry.Parse(
+                "M10,22L0,12L10,2l1.78,1.77L3.55,12l8.23,8.23L10,22Z").ToString() ||
+            next.Data?.ToString() != Geometry.Parse(
+                "M8.03,22L6.25,20.23L14.48,12L6.25,3.77L8.03,2l10,10l-10,10Z").ToString())
+            throw new InvalidOperationException(
+                "Event Journal Previous/Next no longer use approved SVG chevrons.");
+
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;
