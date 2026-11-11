@@ -759,7 +759,12 @@ public partial class MainWindow
 
     private void ApplyRelayEventFilter()
     {
-        if (RelayEventRows is null || _eventHistoryMode) return;
+        if (RelayEventRows is null) return;
+        if (_eventHistoryMode)
+        {
+            RequestEventHistoryQuery();
+            return;
+        }
         var recent = _relayEventStore.Snapshot();
         // The common All/empty-query view needs no category classification,
         // text matcher or second array on every rolling event batch.
@@ -852,8 +857,7 @@ public partial class MainWindow
     {
         // Count actual new facts, not dispatcher flush batches, while the
         // operator holds an immutable Events viewport snapshot.
-        if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
-            _eventNewWhileHeld++;
+        // Event History is always indexed; UI paging never gates SOE ingress.
         _dpiCount++;
         PulseLed(EventLed);
         _liveCountersDirty = true;

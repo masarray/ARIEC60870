@@ -116,25 +116,44 @@ public sealed class EventHistoryJournal : IDisposable
     {
         if (alreadyRead < 0 || limit is < 1 or > 200)
             throw new ArgumentOutOfRangeException(nameof(alreadyRead));
-        long until;
+        var until = Math.Min(Count, alreadyRead + limit);
+        if (alreadyRead >= until) return Array.Empty<Entry>();
+        var ordinals = new long[(int)(until - alreadyRead)];
+        for (var i = 0; i < ordinals.Length; i++)
+            ordinals[i] = alreadyRead + i + 1;
+        return ReadSelected(ordinals);
+    }
+
+    /// <summary>
+    /// Read 1-based, immutable source event numbers in the requested order.
+    /// A single pair of handles serves the entire sparse/filtered page; do not
+    /// open two files for every matching event.
+    /// </summary>
+    public IReadOnlyList<Entry> ReadSelected(IReadOnlyList<long> eventNumbers)
+    {
+        ArgumentNullException.ThrowIfNull(eventNumbers);
+        if (eventNumbers.Count > 200) throw new ArgumentOutOfRangeException(nameof(eventNumbers));
+        if (eventNumbers.Count == 0) return Array.Empty<Entry>();
+        long indexed;
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             _data.Flush();
             _index.Flush();
-            until = Math.Min(_count, alreadyRead + limit);
+            indexed = _count;
         }
-        if (alreadyRead >= until) return Array.Empty<Entry>();
         using var offsets = new FileStream(_indexPath, FileMode.Open, FileAccess.Read,
             FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.RandomAccess);
         using var data = new FileStream(_dataPath, FileMode.Open, FileAccess.Read,
             FileShare.ReadWrite | FileShare.Delete, 65536, FileOptions.RandomAccess);
-        var result = new List<Entry>((int)(until - alreadyRead));
-        Span<byte> idx = stackalloc byte[8];
+        var result = new List<Entry>(eventNumbers.Count);
+        Span<byte> idx = stackalloc byte[sizeof(long)];
         Span<byte> header = stackalloc byte[HeaderSize];
-        for (var ordinal = alreadyRead; ordinal < until; ordinal++)
+        foreach (var number in eventNumbers)
         {
-            offsets.Position = ordinal * 8;
+            if (number < 1 || number > indexed)
+                throw new ArgumentOutOfRangeException(nameof(eventNumbers));
+            offsets.Position = (number - 1) * sizeof(long);
             offsets.ReadExactly(idx);
             var position = BinaryPrimitives.ReadInt64LittleEndian(idx);
             if (position < 0 || position > data.Length - HeaderSize)
@@ -150,7 +169,7 @@ public sealed class EventHistoryJournal : IDisposable
                 throw new InvalidDataException("Event History record hash mismatch.");
             var entry = JsonSerializer.Deserialize<Entry>(payload)
                 ?? throw new InvalidDataException("Event History record is missing.");
-            if (entry.EventNumber != ordinal + 1 || entry.Source is null)
+            if (entry.EventNumber != number || entry.Source is null)
                 throw new InvalidDataException("Event History ordinal/source mismatch.");
             result.Add(entry);
         }

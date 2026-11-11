@@ -1504,24 +1504,14 @@
                     <TabItem Header="Events">
                         <Grid Margin="14">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" /><RowDefinition Height="6" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="6"/>
+                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <!-- One quiet toolbar: search + count + follow. Actions and filters live on row context menu. -->
-                            <!-- Same 32px baseline as Values and Trace: Search | Count | AUTO -->
-                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" MinWidth="140"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="142"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                                                    <Grid Grid.Column="0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" MaxWidth="242"/>
-                                        </Grid.ColumnDefinitions>
-<Border x:Name="EventsSearchShell" Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
+                            <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
+                                 Historical data is always the grid source. No live/history toggle. -->
+                            <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border x:Name="EventsSearchShell" Width="218" Height="32" CornerRadius="8"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
@@ -1545,8 +1535,7 @@
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
-                                    </Grid>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0"
+                                <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
                                             VerticalAlignment="Center">
                                     <ToggleButton x:Name="EventIncludeToggle" Width="113" Height="29" FocusVisualStyle="{x:Null}"
                                                   Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
@@ -1605,26 +1594,56 @@
                                         </Border>
                                     </Popup>
                                 </StackPanel>
-                                <TextBlock x:Name="EventsQuickCountText" Grid.Column="2" Text="Recent events"
-                                           Width="142" TextAlignment="Right" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                           Margin="8,0,10,0" VerticalAlignment="Center"
-                                           Foreground="#64748B" FontSize="11.1"/>
-                                <StackPanel Grid.Column="3" Orientation="Horizontal"
-                                            HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <TextBlock Text="AUTO" FontSize="10.9" FontWeight="Medium"
-                                               Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ToggleButton x:Name="EventsAutoScrollButton"
-                                                  Style="{StaticResource EvidenceFollowToggle}"
-                                                  VerticalAlignment="Center" IsChecked="True"
-                                                  Checked="EventsAutoScroll_Changed"
-                                                  Unchecked="EventsAutoScroll_Changed"
-                                                  ToolTip="Follow newest Events. Scroll to pause follow.">
-                                        <Path Data="M240-160 80-320l56-56 64 62v-446h80v446l64-62 56 56-160 160Zm240-40v-80h400v80H480Zm0-240v-80h400v80h400v80H480Zm0-240v-80h400v80H480Z"
-                                              Width="15" Height="15" Fill="#2563EB" Stretch="Uniform"
-                                              IsHitTestVisible="False"/>
-                                    </ToggleButton>
-                                </StackPanel>
-                            </Grid>
+                                
+                                <TextBlock x:Name="EventsQuickCountText" Text="0 events"
+                                           Foreground="{StaticResource Ink500Brush}" FontSize="11.1"
+                                           Width="122" Margin="8,0,6,0" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" TextAlignment="Right"
+                                           ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
+                                <Button x:Name="EventHistoryPreviousButton" Content="‹"
+                                        Click="EventHistoryPrevious_Click" Width="30" Height="29"
+                                        FontSize="16" FontWeight="Normal" Background="White"
+                                        Foreground="{StaticResource Ink700Brush}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        ToolTip="Previous 100 matching events"/>
+                                <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
+                                           Foreground="{StaticResource Ink600Brush}"
+                                           Width="104" TextAlignment="Center" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <Button x:Name="EventHistoryNextButton" Content="›"
+                                        Click="EventHistoryNext_Click" Width="30" Height="29"
+                                        FontSize="16" FontWeight="Normal" Background="White"
+                                        Foreground="{StaticResource Ink700Brush}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        ToolTip="Next 100 matching events"/>
+                                <Button x:Name="EventHistoryLatestButton" Content="Latest"
+                                        Click="EventHistoryLatest_Click" Height="29" Padding="9,3"
+                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
+                                        Foreground="{StaticResource Ink700Brush}" Background="White"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        ToolTip="Jump to the most recent matching events"/>
+                                <Button x:Name="EventHistoryExportButton" Content="Export CSV"
+                                        Click="EventHistoryExport_Click" Height="29" Padding="10,3"
+                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
+                                        Foreground="{StaticResource Ink700Brush}" Background="White"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        ToolTip="Export filtered events or all indexed events">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Current filters" Tag="Filtered"
+                                                      Click="EventHistoryExportScope_Click"/>
+                                            <MenuItem Header="All indexed events" Tag="All"
+                                                      Click="EventHistoryExportScope_Click"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                                <!-- Noninteractive compatibility input for the former AUTO toggle;
+                                     its state can never change the History grid. -->
+                                <ToggleButton x:Name="EventsAutoScrollButton" Visibility="Collapsed"
+                                              IsChecked="False" IsHitTestVisible="False"
+                                              Checked="EventsAutoScroll_Changed"
+                                              Unchecked="EventsAutoScroll_Changed"/>
+                            </WrapPanel>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
@@ -1678,33 +1697,6 @@
                                     <DataGridTextColumn Header="Mapped" Binding="{Binding Mapped}" Width="74" Visibility="Collapsed" />
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <Border Grid.Row="3" Margin="0,6,0,0" BorderBrush="#D9E3EA" BorderThickness="0,1,0,0"
-                                    Background="Transparent" Padding="0,7,0,0" MinHeight="32">
-                                <DockPanel LastChildFill="True">
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button x:Name="EventHistoryBrowseButton" Content="History" Click="EventHistoryBrowse_Click"
-                                                Padding="9,4" MinWidth="60" Height="27" FontSize="11" FontWeight="Normal"
-                                                ToolTip="Inspect the complete indexed Event Log, beyond the recent 420-row preview."/>
-                                        <Button x:Name="EventHistoryPreviousButton" Content="◀" Click="EventHistoryPrevious_Click"
-                                                Width="31" Height="27" Margin="6,0,0,0" FontSize="11" ToolTip="Previous 100 events"/>
-                                        <TextBlock x:Name="EventHistoryPageText" Text="Live" FontSize="11" Foreground="#64748B"
-                                                   Width="122" TextAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <Button x:Name="EventHistoryNextButton" Content="▶" Click="EventHistoryNext_Click"
-                                                Width="31" Height="27" FontSize="11" ToolTip="Next 100 events"/>
-                                        <TextBox x:Name="EventHistoryJumpBox" Width="66" Height="27" Margin="7,0,0,0"
-                                                 FontSize="11" VerticalContentAlignment="Center" ToolTip="Enter immutable Event #"/>
-                                        <Button x:Name="EventHistoryJumpButton" Content="Go #" Click="EventHistoryJump_Click"
-                                                Height="27" Padding="7,3" FontSize="11" Margin="3,0,0,0"/>
-                                        <Button x:Name="EventHistoryLatestButton" Content="Latest" Click="EventHistoryLatest_Click"
-                                                Height="27" Padding="8,3" FontSize="11" Margin="7,0,0,0"
-                                                ToolTip="Resume newest Event Log rows and live follow"/>
-                                    </StackPanel>
-                                    <TextBlock x:Name="EventHistoryStatusText" Text="Temporary session history · starting"
-                                               Foreground="#64748B" FontSize="11" TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" Margin="0,0,8,0"
-                                               ToolTip="Indexed Event Log rows are distinct from received UART/RTU SOE counts. For permanent wire evidence enable full raw capture."/>
-                                </DockPanel>
-                            </Border>
                         </Grid>
                     </TabItem>
                     <TabItem Header="Findings">

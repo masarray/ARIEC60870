@@ -344,8 +344,8 @@ public partial class MainWindow
 
     private void EventsScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
-        if (e.Delta != 0 && IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == true)
-            EventsAutoScrollButton.IsChecked = false;
+        if (e.Delta != 0 && IsEventsTabActive())
+            _eventHistoryFollowingLatest = false;
     }
 
     private void EventsAutoScroll_Changed(object sender, RoutedEventArgs e)
