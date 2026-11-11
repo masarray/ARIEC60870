@@ -1024,8 +1024,7 @@ public partial class MainWindow
             }
             if (view.Index == 3)
             {
-                AssertOneLineToolbar(EventsQuickFindBox, EventsQuickCountText,
-                    null, RelayEventGrid, "Events", 9);
+                AssertResponsiveEventJournalToolbar();
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
                 if (!EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     !EventHistoryPreviousButton.IsVisible ||
@@ -1635,6 +1634,48 @@ public partial class MainWindow
     /// the data viewport must start immediately below a 32px toolbar.
     /// This prevents a future two-row regression hiding in a valid build.
     /// </summary>
+    /// <summary>
+    /// All Event Journal actions must remain above the grid. On constrained
+    /// CI desktops the responsive WrapPanel is allowed exactly two compact
+    /// rows; checking the first search row alone falsely reports a 30px gap.
+    /// Unlike Trace/Values, Event Journal intentionally has more actions.
+    /// </summary>
+    private void AssertResponsiveEventJournalToolbar()
+    {
+        if (EventsSearchShell.Parent is not WrapPanel toolbar ||
+            !toolbar.IsVisible || toolbar.ActualHeight < 26 ||
+            toolbar.ActualHeight > 72)
+            throw new InvalidOperationException(
+                "Event Journal toolbar missing or occupying more than two compact rows.");
+        FrameworkElement[] controls =
+        [
+            EventsSearchShell, EventIncludeToggle, EventExcludeToggle,
+            EventsQuickCountText, EventHistoryPreviousButton,
+            EventHistoryPageText, EventHistoryNextButton,
+            EventHistoryLatestButton, EventHistoryExportButton
+        ];
+        foreach (var control in controls)
+        {
+            if (!control.IsVisible || control.ActualWidth < 20 ||
+                control.ActualHeight < 12)
+                throw new InvalidOperationException(
+                    "Event Journal toolbar has a hidden or collapsed control.");
+            var topLeft = control.TranslatePoint(new Point(), toolbar);
+            if (topLeft.X < -2 || topLeft.Y < -2 ||
+                topLeft.X + control.ActualWidth > toolbar.ActualWidth + 2 ||
+                topLeft.Y + control.ActualHeight > toolbar.ActualHeight + 2)
+                throw new InvalidOperationException(
+                    "Event Journal control is clipped outside the responsive toolbar.");
+        }
+        var bottom = toolbar.TranslatePoint(
+            new Point(0, toolbar.ActualHeight), this).Y;
+        var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;
+        if (gridTop < bottom || gridTop - bottom > 9)
+            throw new InvalidOperationException(
+                $"Event Journal grid is not immediately below the toolbar: " +
+                $"toolbar-bottom={bottom:0.0}, grid-top={gridTop:0.0}.");
+    }
+
     private void AssertOneLineToolbar(FrameworkElement search, FrameworkElement count,
         FrameworkElement? follow, FrameworkElement dataGrid, string workspace, double maxGap)
     {
