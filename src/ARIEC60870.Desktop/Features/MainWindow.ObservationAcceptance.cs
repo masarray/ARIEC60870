@@ -1082,6 +1082,10 @@ public partial class MainWindow
 
                 SetEventFilters(["Measurement"], Array.Empty<string>());
                 await RefreshEventHistoryQueryAsync();
+                if (_historicalEventRows.Where((row, index) =>
+                        row.DisplayNumber != _eventHistoryPageStart + index + 1).Any())
+                    throw new InvalidOperationException(
+                        "Filtered Event Journal displays skipped or duplicated visible row numbers.");
                 if (_eventHistoryQuery.Count == 0 ||
                     _historicalEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
                     EventIncludeToggle.Content?.ToString() != "Include: 1")

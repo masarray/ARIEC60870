@@ -1706,7 +1706,18 @@
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="#" Binding="{Binding EventNumber}" Width="67" MinWidth="57" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <!-- No. is the sequential position in the active query (e.g. 1–100);
+                                         original Event # stays immutable and is revealed on hover, in
+                                         source search (#123), original frame navigation and CSV export. -->
+                                    <DataGridTextColumn Header="No." Binding="{Binding DisplayNumber}" Width="67" MinWidth="57">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
+                                                <Setter Property="ToolTip" Value="{Binding DisplayNumberTooltip}"/>
+                                                <Setter Property="ToolTipService.IsEnabled" Value="True"/>
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="205" MinWidth="195" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
