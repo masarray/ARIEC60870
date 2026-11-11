@@ -1223,7 +1223,7 @@ public partial class MainWindow
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
         if (FrameInterpreterPanel.Visibility != Visibility.Visible ||
-            TraceInspectorColumn.ActualWidth < 200 ||
+            TraceInspectorColumn.ActualWidth < 320 ||
             !FramePropertiesExpander.IsExpanded ||
             SelectedDecodedPoints.Count != 2 ||
             SelectedFrameProperties.Count(x => x.Field.StartsWith("Object #", StringComparison.Ordinal)) != 2 ||

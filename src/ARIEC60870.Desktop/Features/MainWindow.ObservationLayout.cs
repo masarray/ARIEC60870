@@ -56,9 +56,13 @@ public partial class MainWindow
         if (TraceInspectorColumn is null) return;
         if (visible && FrameInterpreterPanel.Visibility != Visibility.Visible)
         {
-            TraceInspectorColumn.MinWidth = 250;
-            // Interpreter has priority; Frame Details stays resizable by splitter.
-            TraceInspectorColumn.Width = new GridLength(1.1, GridUnitType.Star);
+            // Reserve enough width for the two aligned property columns.
+            // With the old 250px floor, even 1024px WPF viewports clipped
+            // "Number of objects" and quality flags despite correct data.
+            TraceInspectorColumn.MinWidth = 325;
+            // One engineer mode: the raw/decoded trace still owns the majority
+            // of horizontal space, and the operator may drag the splitter.
+            TraceInspectorColumn.Width = new GridLength(1.55, GridUnitType.Star);
             TraceInspectorGutterColumn.Width = new GridLength(6);
             FrameInterpreterPanel.Visibility = Visibility.Visible;
             TraceInspectorSplitter.Visibility = Visibility.Visible;

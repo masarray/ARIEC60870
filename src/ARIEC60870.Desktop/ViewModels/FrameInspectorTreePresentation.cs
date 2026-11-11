@@ -56,7 +56,7 @@ public static class FrameInspectorTreePresentation
             {
                 var groupKey = QualityDetailsKey(i);
                 var groupOpen = expanded.Contains(groupKey);
-                result.Add(new(groupKey, "Quality details", "Decoded bit fields",
+                result.Add(new(groupKey, "Quality details", "",
                     "Flags are shown only when present in the original quality descriptor. Hover a field for the standard interpretation.",
                     depth, true, groupOpen, "Group"));
                 if (!groupOpen) continue;

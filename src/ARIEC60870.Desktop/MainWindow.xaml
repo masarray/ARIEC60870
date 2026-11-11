@@ -1212,7 +1212,7 @@
                                             </Style>
                                         </DataGrid.CellStyle>
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="NAME" Width="1.20*" MinWidth="125" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="NAME" Width="1.40*" MinWidth="155" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Grid Height="25" ToolTipService.IsEnabled="True" ToolTip="{Binding Detail}">
@@ -1261,7 +1261,7 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="VALUE" Width="1.05*" MinWidth="104" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="VALUE" Width="1.00*" MinWidth="110" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}" ToolTip="{Binding Value}"
