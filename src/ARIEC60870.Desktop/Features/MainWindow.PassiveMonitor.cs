@@ -829,10 +829,17 @@ public partial class MainWindow
             // Never overlap two GUI consumers of the single-reader preview feed.
             while (_passiveUiRefreshInFlight)
                 await Task.Delay(10);
-            // Reconcile the latest 420 facts after source completion, even if
-            // the preview ring had already overwritten earlier frames.
-            for (var pass = 0; pass < 5; pass++)
+            // After source completion, reconcile ALL indexed process facts,
+            // not just the latest 420. This is cooperative and bounded per
+            // refresh, without blocking the serial receive worker or creating
+            // false event loss from a WPF preview rollover.
+            while (!_passiveLedgerReadFailed &&
+                   _passiveLedgerCursor < session.GetProcessEventProgress().IndexedObjects)
+            {
+                var prior = _passiveLedgerCursor;
                 await RefreshPassiveUiAsync();
+                if (_passiveLedgerCursor == prior) break;
+            }
             FlushUiQueues();
             _passiveLedgerOwnsProcessEvents = false;
             UpdatePassiveTraceEmptyState(session.GetProgress(), options.ScadaTx.PortName,
@@ -1130,12 +1137,10 @@ public partial class MainWindow
             try
             {
                 var latest = session.GetProcessEventProgress().IndexedObjects;
-                if (latest - _passiveLedgerCursor > 420)
-                {
-                    var skipped = latest - _passiveLedgerCursor - 420;
-                    _passiveLedgerCursor += skipped;
-                    _passiveLedgerPresentationSkipped += skipped;
-                }
+                // Do not skip source-owned process facts simply because the
+                // visible WPF preview is limited to 420 rows. All accepted
+                // indexed observations are drained in 120-row batches into
+                // the independent Event History journal.
                 var cursor = _passiveLedgerCursor;
                 var link = _passiveLinkAddressWidth;
                 var cot = _passiveCotWidth;

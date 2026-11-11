@@ -223,6 +223,8 @@ public partial class MainWindow : Window
         LinkAddressBox.TextChanged += LinkAAddress_TextChanged;
         BackupLinkAddressBox.TextChanged += LinkBAddress_TextChanged;
         DataContext = this;
+        ResetEventHistory();
+        Closed += (_, _) => _eventHistoryJournal?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
         _uiFlushTimer = new DispatcherTimer(DispatcherPriority.Background)
         {

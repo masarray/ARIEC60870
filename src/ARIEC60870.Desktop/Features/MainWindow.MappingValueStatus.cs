@@ -532,6 +532,7 @@ public partial class MainWindow
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
             }, item);
 
+            RecordEventHistory(relayEventRow);
             _relayEventStore.Add(relayEventRow);
             _relayEventRowsDirty = true;
             RegisterActualEventFact();
@@ -758,7 +759,7 @@ public partial class MainWindow
 
     private void ApplyRelayEventFilter()
     {
-        if (RelayEventRows is null) return;
+        if (RelayEventRows is null || _eventHistoryMode) return;
         var recent = _relayEventStore.Snapshot();
         // The common All/empty-query view needs no category classification,
         // text matcher or second array on every rolling event batch.
@@ -782,6 +783,7 @@ public partial class MainWindow
         if (RelayEventRows.Count != rows.Count) _eventProjectionMismatchCount++;
         if (EventsQuickCountText is not null)
             EventsQuickCountText.Text = $"{RelayEventRows.Count} / {recent.Count} recent";
+        RefreshEventHistoryFooter();
     }
 
     private void SetEventFilters(IEnumerable<string> included, IEnumerable<string> excluded)
@@ -839,7 +841,9 @@ public partial class MainWindow
     private void AppendProtocolEvent(Iec103RelayEventLogEntry entry,
         Iec103MasterEvidenceEvent? originalFrameEvidence = null)
     {
-        _relayEventStore.Add(new RelayEventRow(entry, originalFrameEvidence));
+        var row = new RelayEventRow(entry, originalFrameEvidence);
+        RecordEventHistory(row);
+        _relayEventStore.Add(row);
         _relayEventRowsDirty = true;
         RegisterActualEventFact();
     }
@@ -1122,6 +1126,7 @@ public partial class MainWindow
         _findingStore.Clear();
         _diagnosticStore.Clear();
         _relayEventStore.Clear();
+        ResetEventHistory();
         _valueRowsByKey.Clear();
         _valueRowsDirty = false;
         _relayEventRowsDirty = false;
