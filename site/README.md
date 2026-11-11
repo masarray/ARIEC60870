@@ -2,7 +2,7 @@
 
 Canonical English/Indonesian site: https://masarray.github.io/ARIEC60870/
 
-**Current public preview:** [v3.6.8-rc.3](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) · **last stable:** [v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7). The preview is not physical SICAM FAT certified; draft PR #136 is not released.
+**Current public preview:** [v3.6.8-rc.3](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.3) · **last stable:** [v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7). The preview is not physical SICAM FAT certified; draft PR #145 is not released.
 
 - `index.html`, `id/index.html`: bilingual product landing.
 - `download.html`, `quick-start.html`: Windows installer/portable paths and integrity.
