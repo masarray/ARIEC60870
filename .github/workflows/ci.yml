@@ -45,6 +45,8 @@ jobs:
     outputs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
       run_format: ${{ steps.scope.outputs.run_format }}
+      run_packages: ${{ steps.scope.outputs.run_packages }}
+      run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
         id: scope
@@ -54,19 +56,56 @@ jobs:
             const { owner, repo } = context.repo;
             let runWindows = true;
             let runFormat = true;
-            const formattingRelevant = files => files.some(f =>
-              /\.(cs|vb|fs)$/i.test(f.filename) ||
-              /\.(cs|vb|fs)$/i.test(f.previous_filename || '') ||
-              /(^|\/)\.editorconfig$/i.test(f.filename));
-            const onlyMarkdown = files => files.length > 0 && files.length < 300 &&
-              files.every(f => /\.(md|mdx)$/i.test(f.filename) &&
-                (!f.previous_filename || /\.(md|mdx)$/i.test(f.previous_filename)));
+            let runPackages = true;
+            let runWorkflowLint = context.eventName !== 'workflow_dispatch';
+            // Fail safe: large or unclassified diffs always run Windows and package gates.
+            const fullyListed = files => files.length > 0 && files.length < 300;
+            const paths = file => [file.filename, file.previous_filename].filter(Boolean);
+            const isStatic = name => /\.(md|mdx)$/i.test(name) || /^(docs|site)\//i.test(name);
+            const isRuntime = name =>
+              /^(src|installer|scripts|assets|resources)\//i.test(name) ||
+              /^(ARIEC60870\.sln|Directory\.Build\.(props|targets)|global\.json|NuGet\.Config)$/i.test(name) ||
+              /\.(csproj|fsproj|vbproj)$/i.test(name);
+            const staticOnly = files => fullyListed(files) &&
+              files.every(file => paths(file).every(isStatic));
+            const runtimeChanged = files => !fullyListed(files) ||
+              files.some(file => paths(file).some(isRuntime));
+            const workflowChanged = files => !fullyListed(files) ||
+              files.some(file => paths(file).some(name =>
+                /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
+            const formattingRelevant = files => !fullyListed(files) ||
+              files.some(file => paths(file).some(name =>
+                /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
+            // Cheap deterministic matrix: detect accidental gate bypass before
+            // looking at live GitHub changes. No runner/checkout or external deps.
+            const fixtures = [
+              ['docs', [{filename:'docs/PLAN.md'}], false, false, false],
+              ['website', [{filename:'site/app.js'}], false, false, false],
+              ['workflow', [{filename:'.github/workflows/ci.yml'}], true, false, false],
+              ['test', [{filename:'tests/Master.Tests/LinkTests.cs'}], true, false, true],
+              ['runtime', [{filename:'src/Master/Link.cs'}], true, true, true],
+              ['installer', [{filename:'installer/ARIEC60870.iss'}], true, true, false],
+              ['xaml', [{filename:'src/Desktop/MainWindow.xaml'}], true, true, false],
+              ['rename', [{filename:'docs/Link.md',previous_filename:'src/Master/Link.cs'}], true, true, true],
+              ['unknown', [{filename:'mystery.data'}], true, false, false],
+              ['missing', [], true, true, true],
+              ['large', Array.from({length:300}, (_,i)=>({filename:'docs/page'+i+'.md'})), true, true, true]
+            ];
+            for (const [label, files, windows, packages, format] of fixtures) {
+              if (!staticOnly(files) !== windows || runtimeChanged(files) !== packages ||
+                  formattingRelevant(files) !== format) {
+                core.setFailed('CI scope classifier regression in fixture ' + label);
+                return;
+              }
+            }
             if (context.eventName === 'pull_request') {
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
               });
-              runWindows = !onlyMarkdown(files);
+              runWindows = !staticOnly(files);
               runFormat = formattingRelevant(files);
+              runPackages = runtimeChanged(files);
+              runWorkflowLint = workflowChanged(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
               if (/^[0-9a-f]{40}$/i.test(before) && !/^0+$/.test(before)) {
@@ -74,8 +113,11 @@ jobs:
                   const { data } = await github.rest.repos.compareCommits({
                     owner, repo, base: before, head: context.sha
                   });
-                  runWindows = !onlyMarkdown(data.files || []);
-                  runFormat = formattingRelevant(data.files || []);
+                  const files = data.files || [];
+                  runWindows = !staticOnly(files);
+                  runFormat = formattingRelevant(files);
+                  runPackages = runtimeChanged(files);
+                  runWorkflowLint = workflowChanged(files);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
                 }
@@ -106,25 +148,61 @@ jobs:
                   core.setFailed('The requested PR head changed or is no longer open/same-repo');
                   return;
                 }
+                // Full gates remain full, but formatting need not scan legacy whitespace
+                // when an exact-head PR changes no C# or formatter configuration.
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner, repo, pull_number: number, per_page: 100
+                });
+                runFormat = formattingRelevant(files);
               }
             }
             core.setOutput('run_windows', String(runWindows));
             core.setOutput('run_format', String(runFormat));
-            core.notice(runWindows ? 'Windows tests required' : 'Markdown-only; no Windows runner');
+            core.setOutput('run_packages', String(runPackages));
+            core.setOutput('run_workflow_lint', String(runWorkflowLint));
+            core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
+            core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
 
+  workflow-lint:
+    name: Validate GitHub Actions YAML with actionlint
+    needs: classify
+    if: needs.classify.outputs.run_workflow_lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install checksum-verified pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          workdir=$(mktemp -d)
+          archive=actionlint_${version}_linux_amd64.tar.gz
+          curl -fsSL --retry 2 --max-time 45 -o "$workdir/$archive" "https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+          curl -fsSL --retry 2 --max-time 45 -o "$workdir/checksums.txt" "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_checksums.txt"
+          (cd "$workdir" && grep "  $archive$" checksums.txt | sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          tar -xzf "$workdir/$archive" -C "$RUNNER_TEMP/actionlint" actionlint
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+      - name: Lint all Actions workflow definitions
+        shell: bash
+        run: actionlint -color .github/workflows/*.yml
   build-test:
     needs: classify
     # Preserve the historic required check context `build-test` for branch rules.
     runs-on: ${{ needs.classify.outputs.run_windows == 'true' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 25
     env:
-      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'ci/')) }}
+      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
       RUN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' }}
-      COLLECT_COVERAGE: ${{ github.event_name != 'pull_request' }}
+      COLLECT_COVERAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true') }}
     steps:
       - name: Markdown-only change
         if: needs.classify.outputs.run_windows == 'false'
-        run: echo "Markdown-only; build-test check preserved without launching Windows."
+        run: echo "Docs/site/static-only; build-test context preserved without launching Windows."
       - name: Checkout
         if: needs.classify.outputs.run_windows == 'true'
         uses: actions/checkout@v4
@@ -184,7 +262,7 @@ jobs:
           dotnet run --project tests/ARIEC60870.Protocol.Tests/ARIEC60870.Protocol.Tests.csproj --configuration Release --no-build 2>&1 | Tee-Object -FilePath artifacts/test-results/protocol-smoke-tests.log
           if ($LASTEXITCODE -ne 0) { throw "Protocol smoke tests failed with exit code $LASTEXITCODE." }
 
-      - name: Run xUnit regression suites with TRX and coverage
+      - name: Run xUnit regression suites (optional coverage)
         if: needs.classify.outputs.run_windows == 'true'
         shell: pwsh
         run: |

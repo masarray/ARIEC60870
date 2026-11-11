@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Serialize comment admission per PR, avoiding two simultaneous dispatches.
+concurrency:
+  group: ci-comment-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   dispatch:
     if: github.event.issue.pull_request && (github.event.comment.body == '/ci full' || github.event.comment.body == '/ci installer')
@@ -46,12 +51,19 @@ jobs:
             // Active exact-head dispatches already cover the same requested revision.
             const title = 'CI PR #' + number + ' ' + profile + ' ' + pr.head.sha;
             const { data: runs } = await github.rest.actions.listWorkflowRuns({
-              owner, repo, workflow_id: 'ci.yml', branch: repository.default_branch, per_page: 50
+              owner, repo, workflow_id: 'ci.yml', branch: repository.default_branch, per_page: 100
             });
-            if (runs.workflow_runs.some(run =>
+            // A successful run remains reusable only for the same PR SHA and
+            // default-branch workflow revision; workflow improvements permit a new proof.
+            const existing = runs.workflow_runs.find(run =>
               run.event === 'workflow_dispatch' && run.display_title === title &&
-              ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(run.status))) {
-              core.notice('An exact-head manually dispatched CI is already running for ' + pr.head.sha);
+              run.head_sha === context.sha &&
+              (run.conclusion === 'success' ||
+                ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(run.status))
+            );
+            if (existing) {
+              core.notice('Exact-head ' + profile + ' evidence already exists: ' +
+                existing.html_url + ' (' + (existing.conclusion || existing.status) + ')');
               return;
             }
             await github.rest.actions.createWorkflowDispatch({
