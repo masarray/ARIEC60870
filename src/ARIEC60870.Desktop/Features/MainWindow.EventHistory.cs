@@ -39,6 +39,8 @@ public partial class MainWindow
     private void ResetEventHistory()
     {
         _eventHistoryQueryCancel?.Cancel();
+        _eventHistoryQueryCancel?.Dispose();
+        _eventHistoryQueryCancel = null;
         _eventHistoryCsvCancel?.Cancel();
         _eventHistoryQueryGeneration++;
         _eventHistoryPageGeneration++;
@@ -175,6 +177,7 @@ public partial class MainWindow
         var journal = _eventHistoryJournal;
         if (journal is null) return;
         _eventHistoryQueryCancel?.Cancel();
+        _eventHistoryQueryCancel?.Dispose();
         var cts = new CancellationTokenSource();
         _eventHistoryQueryCancel = cts;
         var generation = ++_eventHistoryQueryGeneration;
@@ -209,7 +212,8 @@ public partial class MainWindow
                 _eventHistoryQueryBusy = false;
                 RefreshEventHistoryFooter();
             }
-            cts.Dispose();
+            // Keep the active CTS valid until the next query or session reset.
+            // Cancel() on an already-disposed CTS would break rapid filtering.
         }
     }
 
