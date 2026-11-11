@@ -333,8 +333,27 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (_active.LinkState.Acd)
         {
-            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+            var ownerAtDrain = _active;
+            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link",
+                stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
             await EvaluateActiveHealthAsync("Class 1 drain", cancellationToken).ConfigureAwait(false);
+            // An always-set ACD must not starve Class 2 indefinitely.
+            // Health evaluation can switch physical owners; never submit
+            // this fairness poll to a newly promoted link by accident.
+            if (ReferenceEquals(_active, ownerAtDrain) && _active.IsHealthy &&
+                !_active.IsRemoteBusy && _active.LinkState.Acd &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+            {
+                _counters.Class2Requests++;
+                await _active.RequestClass2Async(
+                    "ACD Class 1 fairness yield to Class 2 on active A/B link", cancellationToken)
+                    .ConfigureAwait(false);
+                _lastClass2PollUtc = DateTime.UtcNow;
+                await EvaluateActiveHealthAsync("Class 2 fairness", cancellationToken)
+                    .ConfigureAwait(false);
+            }
             return;
         }
 
@@ -532,6 +551,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         while (!cancellationToken.IsCancellationRequested && drained < _options.BaseSettings.MaxClass1DrainFrames)
         {
             if (_active.IsRemoteBusy) break;
+            // The normal (non-GI) drain is bounded by configured Class 2
+            // fairness even while the RTU advertises ACD on every reply.
+            // GI drains retain their separate staged completion contract.
+            if (!stopWhenGiEnds && drained > 0 &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                drained % _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 == 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+                break;
             var beforeGood = _active.LinkState.LastGoodResponseUtc;
             _counters.Class1Requests++;
             var response = await _active.RequestClass1Async(reason, cancellationToken).ConfigureAwait(false);

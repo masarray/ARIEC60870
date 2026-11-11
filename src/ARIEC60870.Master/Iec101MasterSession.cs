@@ -191,7 +191,21 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
                 if (_acd)
                 {
-                    await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                    var yieldedToClass2 = await DrainClass1Async(
+                        "ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken)
+                        .ConfigureAwait(false);
+                    // ACD may remain set throughout a long RTU SOE burst.
+                    // A yield alone does not give Class 2 a turn: the outer
+                    // loop would re-enter Class 1 immediately. Poll it here,
+                    // but never while DFC busy or after loss of link proof.
+                    if (yieldedToClass2 && _linkVerified && !_busyGate.IsBusy)
+                    {
+                        _counters.Class2Requests++;
+                        await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true,
+                            "ACD Class 1 fairness yield to Class 2", cancellationToken)
+                            .ConfigureAwait(false);
+                        _lastClass2PollUtc = DateTime.UtcNow;
+                    }
                     continue;
                 }
 
@@ -619,7 +633,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
     }
 
-    private async Task DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         _counters.Class1DrainBursts++;
         SetState(
@@ -730,6 +744,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Frames drained={drained}; stop={stopReason}; returning to Class 2 background scan.",
                 dataClass: "Class 1");
         }
+        return stoppedByClass2Fairness;
     }
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
