@@ -490,7 +490,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return true;
         }
 
-        request = ApplyLearnedCommonAddress(request);
+        // Preserve the command's configured CA (or the explicit CA in the
+        // request). A process ASDU observed on another CA may inform GI
+        // diagnostics but must not silently readdress physical controls.
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
@@ -523,27 +525,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             await DrainClass1OnActiveAsync("Command feedback drain on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
         return true;
-    }
-
-    private Iec60870ControlCommandRequest ApplyLearnedCommonAddress(Iec60870ControlCommandRequest request)
-    {
-        if (request.CommonAddress.HasValue || !_learnedCommonAddress.HasValue)
-        {
-            return request;
-        }
-
-        return new Iec60870ControlCommandRequest
-        {
-            Kind = request.Kind,
-            CommonAddress = _learnedCommonAddress.Value,
-            InformationObjectAddress = request.InformationObjectAddress,
-            Value = request.Value,
-            NumericValue = request.NumericValue,
-            SelectBeforeOperate = request.SelectBeforeOperate,
-            Qualifier = request.Qualifier,
-            RequestedUtc = request.RequestedUtc,
-            OperatorNote = request.OperatorNote
-        };
     }
 
     private async Task<bool> DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
@@ -1205,7 +1186,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private static bool IsCommonAddressLearningCandidate(Iec10xAsduDecode asdu)
     {
-        if (asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0)
+        if (!asdu.IsHeaderValid || asdu.Issues.Count != 0 ||
+            asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0)
         {
             return false;
         }
@@ -1215,7 +1197,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_active is null || _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        // Full workflow stays available: startup/manual/post-switch GI
+        // authorizes one evidence-based CA retry. Merely seeing process
+        // traffic NEVER authorizes a new GI or changes command targets.
+        if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy ||
+            _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue ||
+            _counters.GiCommands == 0)
         {
             return false;
         }
@@ -1228,8 +1215,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         _retriedGiWithObservedCommonAddress = true;
+        // Keep the actual configured CA stable for commands, report
+        // snapshots and subsequent sessions. Only the GI recovery path
+        // is allowed to use this observed CA within the current session.
         _learnedCommonAddress = observedCa;
-        _options.BaseSettings.CommonAddress = observedCa;
 
         SetControllerState(
             Iec101RedundancyControllerState.BootstrappingApplicationImage,
@@ -1239,10 +1228,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         RaiseFinding(
             FindingSeverity.Warning,
             "IEC101-DUAL-CA-AUTO-LEARNED",
-            "IEC-101 dual-link common address auto-corrected",
-            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={_active.Name}.",
-            "Station GI/commands sent to the wrong CA can be negatively confirmed while Class 2 process data still proves the link is alive.",
-            "Keep the observed CA in setup for this outstation. The session has switched runtime GI/command CA to the observed value.");
+            "IEC-101 dual-link GI recovery used observed Common Address",
+            $"Configured CA={configuredCa} (unchanged); observed process ASDU CA={observedCa}; active={_active.Name}.",
+            "Process data suggests that the configured GI Common Address may differ from this outstation's value; control targets are not changed.",
+            "Inspect the configured CA in Setup; GI recovery used the observed CA, while commands continue to use the configured or explicitly requested CA.");
 
         await RunGeneralInterrogationLifecycleOnActiveAsync(
             $"Dual-link GI retry using observed CA {observedCa}",

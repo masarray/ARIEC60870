@@ -155,12 +155,106 @@ public sealed class Iec101DualLinkRedundancySessionTests
             .Where(x => x.Direction == FrameDirection.SlaveToMaster && x.TypeId == 1)
             .ToArray();
 
-        Assert.Equal(1, result.Settings.CommonAddress);
+        Assert.Equal(105, result.Settings.CommonAddress);
         Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-CA-AUTO-LEARNED");
         Assert.Contains(result.Events, x => x.Direction == FrameDirection.MasterToSlave && x.TypeId == 100 && x.CommonAddressNumber == 1 && x.PollingReason == "Dual-link GI retry using observed CA 1");
         Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 140 && x.SignalDisplayValue.Contains("ON", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 141 && x.SignalDisplayValue.Contains("OFF", StringComparison.OrdinalIgnoreCase));
         Assert.True(session.CreateSnapshot().ApplicationImageObjectCount >= 2);
+    }
+
+
+    [Fact]
+    public async Task SingleLinkGiDisabledKeepsPollingObservedCaWithoutUnrequestedGi()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = false;
+        settings.Class2PollIntervalMs = 40;
+        await using var outstation = new WrongConfiguredCaIec101Transport(
+            settings, configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var result = await new Iec101MasterSession(settings, outstation)
+            .RunForAsync(TimeSpan.FromMilliseconds(650), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, outstation.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(outstation.Class2Polls > 1, "Normal IEC101 background polling must remain active.");
+    }
+
+    [Fact]
+    public async Task DualGiDisabledStillPollsButDoesNotRetargetGiOrCommands()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.Class2PollIntervalMs = 40;
+        settings.SendGeneralInterrogationOnConnect = false;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(500),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        await using var active = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var session = new Iec101DualLinkRedundancySession(options, active,
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, active.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(active.Class2Polls > 1, "Dual active Class2 must continue with GI disabled.");
+    }
+
+    [Fact]
+    public async Task LearnedGiCaNeverSilentlyChangesPhysicalControlTarget()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class2PollIntervalMs = 40;
+        settings.MaxClass1DrainFrames = 8;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(500),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        await using var active = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140);
+        var session = new Iec101DualLinkRedundancySession(options, active,
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var queued = false;
+        session.FindingRaised += (_, finding) =>
+        {
+            if (finding.Id != "IEC101-DUAL-CA-AUTO-LEARNED" || queued) return;
+            queued = true;
+            session.QueueControlCommand(new Iec60870ControlCommandRequest
+            {
+                Kind = Iec60870ControlCommandKind.SingleCommand,
+                InformationObjectAddress = 201,
+                Value = 1
+            });
+        };
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1800), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(queued, "The CA-learning GI recovery path must execute normally.");
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.MasterToSlave &&
+            e.TypeId == 100 && e.CommonAddressNumber == 1);
+        Assert.Equal(105, active.LastControlCommonAddress);
     }
 
     [Fact]
@@ -651,6 +745,9 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private bool _sentLearnedSequence;
         private bool _sentLearnedGiEnd;
         private int _class2ValueResponses;
+        public int GiRequests { get; private set; }
+        public int Class2Polls { get; private set; }
+        public int? LastControlCommonAddress { get; private set; }
 
         public WrongConfiguredCaIec101Transport(Iec103MasterSettings settings, int configuredCa, int observedCa, int baseIoa)
         {
@@ -692,8 +789,16 @@ public sealed class Iec101DualLinkRedundancySessionTests
             if (decoded.AsduBytes.Count > 0)
             {
                 var asdu = _asduDecoder.Decode(decoded.AsduBytes);
+                if (asdu.TypeId == 45)
+                {
+                    LastControlCommonAddress = asdu.CommonAddress;
+                    await EnqueueAsync(FixedSecondary(functionCode: 0, acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
                 if (asdu.TypeId == 100)
                 {
+                    GiRequests++;
                     var qoi = decoded.AsduBytes[^1];
                     if (asdu.CommonAddress == _observedCa && qoi == 20)
                     {
@@ -732,6 +837,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
+            if (decoded.LinkControl?.FunctionCode == 11)
+            {
+                Class2Polls++;
+            }
             if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 2)
             {
                 var ioa = _baseIoa + 20 + _class2ValueResponses;

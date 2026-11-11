@@ -310,7 +310,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
     {
-        if (asdu is null)
+        // Learn only from successfully decoded process objects, never from
+        // an application ACK, a malformed ASDU, or a control response.
+        // Observation informs diagnostics/GI recovery; it is not permission
+        // to change the operator's configured Common Address.
+        if (asdu is null || !asdu.IsHeaderValid || asdu.Issues.Count != 0 ||
+            asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0 ||
+            asdu.TypeId is not (1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36))
         {
             return;
         }
@@ -337,7 +343,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        // An observed CA is a diagnostic hint, not a new GI operator
+        // intent. The configured startup/manual GI remains fully enabled:
+        // only after one GI was actually requested can this bounded,
+        // evidence-driven retry run. No new mode or UI confirmation.
+        if (_retriedGiWithObservedCommonAddress ||
+            !_dominantObservedCommonAddress.HasValue ||
+            _counters.GiCommands == 0 || !_linkVerified || _busyGate.IsBusy)
         {
             return false;
         }
