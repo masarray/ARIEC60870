@@ -257,6 +257,50 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.Equal(105, active.LastControlCommonAddress);
     }
 
+
+    [Fact]
+    public async Task FailoverDoesNotBorrowPreviousOwnerLearnedGiCa()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class2PollIntervalMs = 40;
+        settings.MaxClass1DrainFrames = 8;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(250),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Required
+        };
+        await using var linkA = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140);
+        var session = new Iec101DualLinkRedundancySession(options, linkA,
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var failoverQueued = false;
+        session.FindingRaised += (_, finding) =>
+        {
+            if (finding.Id != "IEC101-DUAL-CA-AUTO-LEARNED" || failoverQueued) return;
+            failoverQueued = true;
+            session.QueueManualFailover("verify independent CA identity after A/B promotion");
+        };
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(2600), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(failoverQueued, "Active A must observe CA=1 and attempt its GI recovery.");
+        Assert.Contains(session.FailoverJournal, entry =>
+            entry.Completed && entry.FromLink == "Link A" && entry.ToLink == "Link B");
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Contains(result.Events, e => e.PhysicalSource == "Link A" &&
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.TypeId == 100 && e.CommonAddressNumber == 1);
+        Assert.Contains(result.Events, e => e.PhysicalSource == "Link B" &&
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.TypeId == 100 && e.CommonAddressNumber == 105);
+    }
+
     [Fact]
     public async Task ManualFailoverBypassesStabilizationGuardButStillRequiresPromotableStandby()
     {

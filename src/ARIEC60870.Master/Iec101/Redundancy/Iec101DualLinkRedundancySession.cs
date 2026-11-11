@@ -856,6 +856,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _active = to;
             _standby = from;
             Interlocked.Increment(ref _activeGeneration);
+            // Observations belong to the original physical owner, not
+            // the newly promoted standby. A/B must discover process CA
+            // independently; never borrow A's GI recovery decision for B.
+            _observedCommonAddressHits.Clear();
+            _dominantObservedCommonAddress = null;
+            _learnedCommonAddress = null;
+            _retriedGiWithObservedCommonAddress = false;
             _lastClass2PollUtc = DateTime.MinValue;
             _lastStandbySupervisionUtc = DateTime.MinValue;
 
