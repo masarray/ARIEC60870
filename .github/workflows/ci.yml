@@ -46,6 +46,7 @@ jobs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
       run_format: ${{ steps.scope.outputs.run_format }}
       run_packages: ${{ steps.scope.outputs.run_packages }}
+      run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
         id: scope
@@ -56,6 +57,7 @@ jobs:
             let runWindows = true;
             let runFormat = true;
             let runPackages = true;
+            let runWorkflowLint = context.eventName !== 'workflow_dispatch';
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
             const paths = file => [file.filename, file.previous_filename].filter(Boolean);
@@ -68,6 +70,9 @@ jobs:
               files.every(file => paths(file).every(isStatic));
             const runtimeChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(isRuntime));
+            const workflowChanged = files => !fullyListed(files) ||
+              files.some(file => paths(file).some(name =>
+                /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
             const formattingRelevant = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
@@ -100,6 +105,7 @@ jobs:
               runWindows = !staticOnly(files);
               runFormat = formattingRelevant(files);
               runPackages = runtimeChanged(files);
+              runWorkflowLint = workflowChanged(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
               if (/^[0-9a-f]{40}$/i.test(before) && !/^0+$/.test(before)) {
@@ -111,6 +117,7 @@ jobs:
                   runWindows = !staticOnly(files);
                   runFormat = formattingRelevant(files);
                   runPackages = runtimeChanged(files);
+                  runWorkflowLint = workflowChanged(files);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
                 }
@@ -152,9 +159,37 @@ jobs:
             core.setOutput('run_windows', String(runWindows));
             core.setOutput('run_format', String(runFormat));
             core.setOutput('run_packages', String(runPackages));
+            core.setOutput('run_workflow_lint', String(runWorkflowLint));
             core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
             core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
 
+  workflow-lint:
+    name: Validate GitHub Actions YAML with actionlint
+    needs: classify
+    if: needs.classify.outputs.run_workflow_lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install checksum-verified pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          workdir=$(mktemp -d)
+          archive=actionlint_${version}_linux_amd64.tar.gz
+          curl -fsSL --retry 2 --max-time 45 -o "$workdir/$archive" "https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+          curl -fsSL --retry 2 --max-time 45 -o "$workdir/checksums.txt" "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_checksums.txt"
+          (cd "$workdir" && grep "  $archive$" checksums.txt | sha256sum -c -)
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          tar -xzf "$workdir/$archive" -C "$RUNNER_TEMP/actionlint" actionlint
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+      - name: Lint all Actions workflow definitions
+        shell: bash
+        run: actionlint -color .github/workflows/*.yml
   build-test:
     needs: classify
     # Preserve the historic required check context `build-test` for branch rules.

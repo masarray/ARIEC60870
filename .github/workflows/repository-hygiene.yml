@@ -86,7 +86,10 @@ jobs:
             echo "Raw screenshot folders should not be committed to public site folders."
             exit 1
           fi
-          find site/assets -type f -size +750k -print -quit | grep -q . && { echo "Large site asset found; compress before commit."; exit 1; } || true
+          if find site/assets -type f -size +750k -print -quit | grep -q .; then
+            echo "Large site asset found; compress before commit."
+            exit 1
+          fi
 
       - name: Check canonical site ownership and /docs compatibility mirror
         shell: bash
