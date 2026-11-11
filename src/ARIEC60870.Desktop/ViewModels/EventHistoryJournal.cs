@@ -88,6 +88,9 @@ public sealed class EventHistoryJournal : IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            // Reuse tiny stack buffers across the whole bounded batch.
+            Span<byte> header = stackalloc byte[HeaderSize];
+            Span<byte> offset = stackalloc byte[sizeof(long)];
             for (var i = 0; i < rows.Count; i++)
             {
                 var payload = payloads[i];
@@ -96,12 +99,10 @@ public sealed class EventHistoryJournal : IDisposable
                 if (_bytes + HeaderSize + payload.Length + sizeof(long) > _maxBytes)
                     throw new IOException("Temporary Event History reached its storage limit.");
                 var pos = _data.Position;
-                Span<byte> header = stackalloc byte[HeaderSize];
                 BinaryPrimitives.WriteInt32LittleEndian(header[..4], payload.Length);
                 SHA256.HashData(payload).AsSpan().CopyTo(header[4..]);
                 _data.Write(header);
                 _data.Write(payload);
-                Span<byte> offset = stackalloc byte[sizeof(long)];
                 BinaryPrimitives.WriteInt64LittleEndian(offset, pos);
                 _index.Write(offset);
                 _bytes += HeaderSize + payload.Length + sizeof(long);
