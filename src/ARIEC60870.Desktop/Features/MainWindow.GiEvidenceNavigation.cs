@@ -184,16 +184,23 @@ public partial class MainWindow
         }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
-    private void EventOpenFrame_Click(object sender, RoutedEventArgs e)
+    private async void EventOpenFrame_Click(object sender, RoutedEventArgs e) =>
+        await OpenSelectedEventOriginalFrameAsync();
+
+    // UI handler and WPF acceptance use the same awaitable path. Original
+    // evidence is qualified by physical source and sequence, never by IOA.
+    private Task OpenSelectedEventOriginalFrameAsync()
     {
-        if (RelayEventGrid?.SelectedItem is not RelayEventRow row) return;
+        if (RelayEventGrid?.SelectedItem is not RelayEventRow row)
+            return Task.CompletedTask;
         var protocol = row.Protocol switch
         {
             "101" => Iec60870ProtocolMode.Iec101,
             "104" => Iec60870ProtocolMode.Iec104,
             _ => Iec60870ProtocolMode.Iec103
         };
-        NavigateToOriginalFrame(row.EvidenceReference, row.Sequence, row.PhysicalSource, protocol, row.OriginalFrameEvidence);
+        return NavigateToOriginalFrameCoreAsync(row.EvidenceReference, row.Sequence,
+            row.PhysicalSource, protocol, row.OriginalFrameEvidence);
     }
 
     private void EventOpenCase_Click(object sender, RoutedEventArgs e)
@@ -240,6 +247,14 @@ public partial class MainWindow
 
     private async void NavigateToOriginalFrame(string evidenceRef, long sequence, string physicalSource,
         Iec60870ProtocolMode protocol, Iec103MasterEvidenceEvent? retainedOriginal = null, int? selectedIoa = null)
+    {
+        await NavigateToOriginalFrameCoreAsync(evidenceRef, sequence, physicalSource,
+            protocol, retainedOriginal, selectedIoa);
+    }
+
+    private async Task NavigateToOriginalFrameCoreAsync(string evidenceRef, long sequence,
+        string physicalSource, Iec60870ProtocolMode protocol,
+        Iec103MasterEvidenceEvent? retainedOriginal = null, int? selectedIoa = null)
     {
         // Direct navigation must reveal the original despite a previous quick filter.
         ClearTraceQuickFindForNavigation();

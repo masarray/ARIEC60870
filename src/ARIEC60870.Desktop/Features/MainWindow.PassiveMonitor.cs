@@ -124,7 +124,7 @@ public partial class MainWindow
     public ObservableCollection<PassiveRxRow> PassiveRawRows => _passiveRawRows;
 
     /// <summary>Windows CI verifies the actual integrated Setup-to-Trace workflow without any COM calls.</summary>
-    public void RunPassiveGuiSmokeProbe()
+    public async Task RunPassiveGuiSmokeProbeAsync()
     {
         // Real WPF regression: even a second Close request while shutdown is
         // pending must not destroy the window before writer/transport cleanup.
@@ -396,14 +396,30 @@ public partial class MainWindow
         // Regression for real field screenshots: a selected Event must still
         // open its exact original frame even AFTER the bounded Trace rolls over.
         // The Event retains the typed evidence, and the Trace pin is read-only.
-        var sourceEvent = RelayEventRows.FirstOrDefault(row => row.OriginalFrameEvidence is not null);
-        if (sourceEvent is null)
+        // The unified Event Journal displays indexed history rows, not the
+        // legacy preview ring. Verify real DataGrid selection and exact-frame
+        // navigation from the historical source after Trace eviction.
+        var retained = _relayEventStore.Snapshot()
+            .FirstOrDefault(row => row.OriginalFrameEvidence is not null);
+        if (retained is null)
             throw new InvalidOperationException("Event has no original frame evidence.");
+        await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
+        await RefreshEventHistoryQueryAsync();
+        await ShowEventHistoryPageAsync(
+            EventHistoryPagination.StartForEvent(retained.EventNumber));
+        var sourceEvent = _historicalEventRows.FirstOrDefault(
+            row => row.EventNumber == retained.EventNumber);
+        if (sourceEvent?.OriginalFrameEvidence is null)
+            throw new InvalidOperationException(
+                "Indexed Event Journal did not retain original frame evidence.");
         var originalReference = sourceEvent.EvidenceReference;
         _protocolTraceStore.Clear(); // simulate old frame evicted by routine polling
         MainTabControl.SelectedIndex = 3;
         RelayEventGrid.SelectedItem = sourceEvent;
-        EventOpenFrame_Click(this, new RoutedEventArgs());
+        if (!ReferenceEquals(RelayEventGrid.SelectedItem, sourceEvent))
+            throw new InvalidOperationException(
+                "Event grid did not select the indexed history row.");
+        await OpenSelectedEventOriginalFrameAsync();
         if (MainTabControl.SelectedIndex != PassiveTraceTabIndex ||
             FrameTraceGrid.SelectedItem is not EvidenceRow pinned ||
             !Iec10xObservationIdentity.SamePhysicalFrame(pinned.Source,

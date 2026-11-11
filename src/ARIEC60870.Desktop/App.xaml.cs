@@ -21,7 +21,7 @@ public partial class App : Application
                     ? e.Args[outputOption + 1] : Path.Join(Path.GetTempPath(), "ARIEC60870-OBS-C");
                 var window = new MainWindow();
                 window.Show();
-                window.RunPassiveGuiSmokeProbe();
+                await window.RunPassiveGuiSmokeProbeAsync();
                 await window.RunPassiveHistoryGuiSmokeProbeAsync();
                 await window.RunObservationUiAcceptanceProbeAsync(output);
                 window.Close();
@@ -74,7 +74,7 @@ public partial class App : Application
                 // Real main application window, existing Setup dropdown and Trace workspace.
                 var window = new MainWindow();
                 window.Show();
-                window.RunPassiveGuiSmokeProbe();
+                await window.RunPassiveGuiSmokeProbeAsync();
                 await window.RunPassiveHistoryGuiSmokeProbeAsync();
                 await window.RunEventHistoryGuiSmokeProbeAsync();
                 window.Close();
