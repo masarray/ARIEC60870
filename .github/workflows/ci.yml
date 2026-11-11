@@ -530,8 +530,13 @@ jobs:
           if (!$oldProcess.WaitForExit(20000)) { throw 'Inno did not close the running previous application.' }
           if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Upgrade lost installed executable or user data.' }
           if ((Get-Item $exe).VersionInfo.FileVersion -notlike "$version*") { throw 'In-place upgrade retained old executable version.' }
+          # Read the identity from the same installer definition compiled by this job.
+          $displayLine = Select-String -Path installer/ARIEC60870.iss -Pattern '^UninstallDisplayName=(.+)$' | Select-Object -First 1
+          if ($null -eq $displayLine) { throw 'Installer must define UninstallDisplayName.' }
+          $expectedDisplayName = $displayLine.Matches[0].Groups[1].Value.Trim()
+          if ([string]::IsNullOrWhiteSpace($expectedDisplayName)) { throw 'Installer uninstall display name is empty.' }
           $registry = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
-            Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq 'ARIEC60870 Evidence Analyzer' })
+            Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq $expectedDisplayName })
           if ($registry.Count -ne 1) { throw "Expected one uninstall registration, found $($registry.Count)." }
           $installedVersion = (Get-ItemProperty $registry[0].PsPath).DisplayVersion
           if ($installedVersion -ne $version) { throw "Registry kept stale version $installedVersion." }
