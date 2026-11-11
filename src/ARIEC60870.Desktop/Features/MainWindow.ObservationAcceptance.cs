@@ -1470,6 +1470,10 @@ public partial class MainWindow
         FlushUiQueues();
         var retainedAtFinish = _relayEventStore.Snapshot().ToArray();
         var projectedAtFinish = RelayEventRows.ToArray();
+        // The Event Journal grid is now sourced from indexed history, not
+        // the 420-row live preview. Terminal completion must preserve the
+        // currently displayed history page independently of that preview.
+        var historyPageAtFinish = _historicalEventRows.ToArray();
         var valuesAtFinish = ValueRows.ToArray();
         if (retainedAtFinish.Length < 2 || projectedAtFinish.Length < 2 ||
             valuesAtFinish.Length < 2)
@@ -1528,14 +1532,17 @@ public partial class MainWindow
         if (!_pendingEvidence.IsEmpty || !_pendingFindings.IsEmpty ||
             !retainedAtFinish.SequenceEqual(_relayEventStore.Snapshot()) ||
             !projectedAtFinish.SequenceEqual(RelayEventRows) ||
+            !historyPageAtFinish.SequenceEqual(_historicalEventRows) ||
+            !ReferenceEquals(RelayEventGrid.ItemsSource, _historicalEventRows) ||
             !valuesAtFinish.SequenceEqual(ValueRows) ||
-            RelayEventGrid.Items.Count != projectedAtFinish.Length ||
+            RelayEventGrid.Items.Count != historyPageAtFinish.Length ||
             terminalEventResets != 0 || terminalValueResets != 0 ||
             DpiText.Text != _dpiCount.ToString(System.Globalization.CultureInfo.InvariantCulture))
             throw new InvalidOperationException(
                 $"Terminal completion lost live observations or reset WPF: " +
                 $"retained={_relayEventStore.Snapshot().Count}/{retainedAtFinish.Length}, " +
-                $"event UI={RelayEventRows.Count}/{projectedAtFinish.Length}, " +
+                $"preview={RelayEventRows.Count}/{projectedAtFinish.Length}, " +
+                $"journal UI={RelayEventGrid.Items.Count}/{historyPageAtFinish.Length}, " +
                 $"values={ValueRows.Count}/{valuesAtFinish.Length}, " +
                 $"pending={_pendingEvidence.Count}, resets={terminalEventResets}/{terminalValueResets}.");
         // A new Start changes the epoch. Late active Master callbacks, including
