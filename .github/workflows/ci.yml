@@ -1,6 +1,8 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
 name: CI
+# Manual jobs name the tested PR SHA; GitHub's workflow run head stays on master.
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('CI PR #{0} {1} {2}', inputs.requested_pr, inputs.profile, inputs.expected_sha) || format('CI {0}', github.ref_name) }}
 
 on:
   push:
@@ -32,7 +34,7 @@ permissions:
 
 # Cancel superseded PR commits, never cancel master validation/release evidence.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && format('pr-{0}', inputs.requested_pr) || github.ref_name) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -82,9 +84,12 @@ jobs:
             if (context.eventName === 'workflow_dispatch') {
               const expected = (context.payload.inputs?.expected_sha || '').trim();
               const prText = (context.payload.inputs?.requested_pr || '').trim();
-              if (expected && (!/^[0-9a-f]{40}$/i.test(expected) ||
-                  context.sha.toLowerCase() !== expected.toLowerCase())) {
-                core.setFailed('Stale dispatch: expected ' + expected + ' but got ' + context.sha);
+              if (expected && !/^[0-9a-f]{40}$/i.test(expected)) {
+                core.setFailed('Expected PR head must be a 40-character commit SHA');
+                return;
+              }
+              if (expected && !prText) {
+                core.setFailed('An explicit SHA is only allowed with an originating PR');
                 return;
               }
               if (prText) {
@@ -94,7 +99,9 @@ jobs:
                   return;
                 }
                 const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
-                if (pr.state !== 'open' || pr.head.sha.toLowerCase() !== expected.toLowerCase() ||
+                const { data: repository } = await github.rest.repos.get({ owner, repo });
+                if (pr.state !== 'open' || pr.base.ref !== repository.default_branch ||
+                    pr.head.sha.toLowerCase() !== expected.toLowerCase() ||
                     pr.head.repo?.full_name.toLowerCase() !== (owner + '/' + repo).toLowerCase()) {
                   core.setFailed('The requested PR head changed or is no longer open/same-repo');
                   return;
@@ -121,6 +128,19 @@ jobs:
       - name: Checkout
         if: needs.classify.outputs.run_windows == 'true'
         uses: actions/checkout@v4
+        with:
+          # PR comment dispatch uses this stable default-branch workflow but builds PR bytes.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+      - name: Verify exact PR source checkout
+        if: github.event_name == 'workflow_dispatch' && inputs.requested_pr != ''
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) {
+            throw "Checkout $actual did not match requested PR head $env:EXPECTED_SHA"
+          }
 
       - name: Setup .NET
         if: needs.classify.outputs.run_windows == 'true'
@@ -317,6 +337,8 @@ jobs:
     steps:
       - name: Checkout installer scripts
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
 
       - name: Download exact tested GUI publish from current run
         uses: actions/download-artifact@v4
