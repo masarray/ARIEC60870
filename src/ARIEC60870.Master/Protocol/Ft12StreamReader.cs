@@ -31,6 +31,10 @@ public sealed class Ft12StreamReader
     /// to prohibit retransmission when even partial serial response bytes arrived.
     /// </summary>
     public long ReceivedByteCount => _receivedBytes;
+    /// <summary>Physical fragments abandoned at a response deadline or cancellation.
+    /// Counts are per reader/connection, never inferred as a valid RTU response.</summary>
+    public long ExpiredPartialFrames { get; private set; }
+    public long ExpiredPartialBytes { get; private set; }
 
     public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1, int baudRate = 0)
     {
@@ -119,19 +123,32 @@ public sealed class Ft12StreamReader
                 }
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // An incomplete frame cannot silently become a response during
-            // the next independent Master request on a persistent reader.
-            _framer.ExpireIncomplete();
-            _frame = null;
+            // Both response timeout and operator Stop invalidate a partial
+            // FT1.2 prefix. A later E5 has no address and cannot clear this
+            // ambiguity; only a verified addressed frame can re-establish it.
+            ExpirePartialFrame();
+            if (cancellationToken.IsCancellationRequested)
+                throw;
             return null;
         }
         catch (TimeoutException)
         {
-            _framer.ExpireIncomplete();
-            _frame = null;
+            ExpirePartialFrame();
             return null;
         }
+    }
+
+    private void ExpirePartialFrame()
+    {
+        var partial = _framer.ExpireIncomplete();
+        if (partial is not null)
+        {
+            ExpiredPartialFrames++;
+            ExpiredPartialBytes += partial.RawBytes.Length;
+            _uncertainFrameBoundary = true;
+        }
+        _frame = null;
     }
 }

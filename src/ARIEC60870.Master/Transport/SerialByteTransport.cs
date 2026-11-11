@@ -82,8 +82,8 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
 
     public ValueTask CloseAsync(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
+        // Close/dispose is unconditional cleanup. A cancelled caller must not
+        // leave the COM handle owned by the previous link epoch.
         var serialPort = Interlocked.Exchange(ref _serialPort, null);
         if (serialPort is null)
         {

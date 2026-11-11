@@ -463,4 +463,81 @@ public sealed class Iec101SerialStartupAndTimingTests
         public void Dispose() { }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
+    [Fact]
+    public async Task ExpiredVariableFragmentSuppressesLateE5UntilAddressedProof()
+    {
+        await using var port = new ScriptedReceiveTransport();
+        var reader = new Ft12StreamReader(port, linkAddressSize: 1);
+        port.Push([0x68, 0x0D]);
+        Assert.Null(await reader.ReadFrameAsync(35, CancellationToken.None));
+        Assert.Equal(1L, reader.ExpiredPartialFrames);
+        Assert.Equal(2L, reader.ExpiredPartialBytes);
+        Assert.Equal(2L, reader.ReceivedByteCount);
+
+        // This E5 might be the tail of a damaged old frame. Do not
+        // reinterpret it as a new class-poll ACK (or advance FCB).
+        port.Push([0xE5]);
+        Assert.Null(await reader.ReadFrameAsync(35, CancellationToken.None));
+        Assert.Equal(1L, reader.AmbiguousShortResponsesSuppressed);
+
+        // Verified addressed status provides an independent frame boundary.
+        var addressed = Ft12FrameBuilder.Fixed(0x0B, 105, 1);
+        port.Push(addressed);
+        Assert.Equal(addressed, await reader.ReadFrameAsync(60, CancellationToken.None));
+        port.Push([0xE5]);
+        Assert.Equal(new byte[] { 0xE5 }, await reader.ReadFrameAsync(60, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CancelledReadExpiresFragmentBeforeReaderCanBeReused()
+    {
+        await using var port = new ScriptedReceiveTransport();
+        var reader = new Ft12StreamReader(port, linkAddressSize: 1);
+        port.Push([0x10, 0x0B]);
+        using var cancel = new CancellationTokenSource();
+        cancel.CancelAfter(TimeSpan.FromMilliseconds(45));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await reader.ReadFrameAsync(1000, cancel.Token));
+
+        Assert.Equal(1L, reader.ExpiredPartialFrames);
+        Assert.Equal(2L, reader.ExpiredPartialBytes);
+        port.Push([0xE5]);
+        Assert.Null(await reader.ReadFrameAsync(35, CancellationToken.None));
+        Assert.Equal(1L, reader.AmbiguousShortResponsesSuppressed);
+        var addressed = Ft12FrameBuilder.Fixed(0x0B, 105, 1);
+        port.Push(addressed);
+        Assert.Equal(addressed, await reader.ReadFrameAsync(60, CancellationToken.None));
+    }
+
+    private sealed class ScriptedReceiveTransport : IByteTransport
+    {
+        private readonly Queue<byte> _incoming = new();
+        public bool IsOpen { get; private set; } = true;
+        public void Push(ReadOnlySpan<byte> bytes)
+        {
+            foreach (var value in bytes) _incoming.Enqueue(value);
+        }
+        public ValueTask OpenAsync(CancellationToken token) => ValueTask.CompletedTask;
+        public ValueTask CloseAsync(CancellationToken token)
+        {
+            IsOpen = false;
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken token)
+            => throw new InvalidOperationException("RX-only scripted fixture cannot send.");
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (_incoming.Count == 0) return ValueTask.FromResult(0);
+            buffer.Span[0] = _incoming.Dequeue();
+            return ValueTask.FromResult(1);
+        }
+        public void Dispose() => IsOpen = false;
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return ValueTask.CompletedTask;
+        }
+    }
+
 }
