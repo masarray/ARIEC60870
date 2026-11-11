@@ -3,12 +3,12 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Public prerelease v3.6.8-rc.4: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.4
-- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.4/ARIEC60870-v3.6.8-rc.4-win-x64.zip
+- Public prerelease v3.6.8-rc.5: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.5
+- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-win-x64.zip
 - Last non-prerelease v3.6.7: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7
-- Integrated engine/UI Windows WPF/CI evidence: https://github.com/masarray/ARIEC60870/actions/runs/42955419036
-- Unmerged SICAM IEC-101 serial changes in PR #136 are excluded and remain subject to physical FAT.
+- Integrated engine/UI Windows WPF/CI evidence: https://github.com/masarray/ARIEC60870/actions/runs/43092861451
+- Unmerged SICAM IEC-101 serial changes in PR #145 are excluded and remain subject to physical FAT.
 
 ## Pages
 - EN: https://masarray.github.io/ARIEC60870/
