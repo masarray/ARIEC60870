@@ -111,6 +111,22 @@ public partial class MainWindow
                 return;
             }
 
+            // Pre-policy JSON contained one unscoped bool. Retain its value
+            // ONLY for the original saved protocol: an old IEC-103 OFF must
+            // not accidentally disable fresh IEC-101 FC0 on protocol switch.
+            // Legacy IEC-101 OFF is conservatively treated as intentional.
+            if (prefs.ResetRemoteLinkPreferenceSchema >= 1)
+            {
+                _iec101ResetRemoteLinkOperatorOverride = prefs.Iec101ResetRemoteLinkOperatorOverride;
+                _iec103ResetRemoteLinkOperatorOverride = prefs.Iec103ResetRemoteLinkOperatorOverride;
+            }
+            else
+            {
+                var restored = ResetRemoteLinkPreferencePolicy.MigrateLegacy(
+                    prefs.ProtocolMode, prefs.ResetRemoteLinkOnConnect);
+                _iec101ResetRemoteLinkOperatorOverride = restored.Iec101;
+                _iec103ResetRemoteLinkOperatorOverride = restored.Iec103;
+            }
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
             SelectProtocolMode(prefs.ProtocolMode);
@@ -211,7 +227,8 @@ public partial class MainWindow
             Iec104WBox.Text = prefs.Iec104WReceiveWindow > 0 ? prefs.Iec104WReceiveWindow.ToString() : "8";
             TimeoutBox.Text = prefs.ResponseTimeoutMs > 0 ? prefs.ResponseTimeoutMs.ToString() : "1500";
             DurationBox.Text = prefs.DurationSeconds >= 0 ? prefs.DurationSeconds.ToString() : "0";
-            ResetRemoteLinkCheckBox.IsChecked = prefs.ResetRemoteLinkOnConnect;
+            // SelectProtocolMode applied the protocol-scoped reset policy.
+            // Do not overwrite it with the old unscoped saved checkbox bool.
             ResetFcbCheckBox.IsChecked = prefs.ResetFcbOnConnect;
             Class2StartupCheckBox.IsChecked = prefs.RequestClass2ImmediatelyAfterStartup;
             ClockSyncCheckBox.IsChecked = prefs.SendClockSyncOnConnect;
@@ -318,6 +335,9 @@ public partial class MainWindow
                 Class2PollIntervalMs = settings.Class2PollIntervalMs,
                 MaxClass1DrainFrames = settings.MaxClass1DrainFrames,
                 ResetRemoteLinkOnConnect = settings.ResetRemoteLinkOnConnect,
+                ResetRemoteLinkPreferenceSchema = 1,
+                Iec101ResetRemoteLinkOperatorOverride = _iec101ResetRemoteLinkOperatorOverride,
+                Iec103ResetRemoteLinkOperatorOverride = _iec103ResetRemoteLinkOperatorOverride,
                 ResetFcbOnConnect = settings.ResetFcbOnConnect,
                 RequestClass2ImmediatelyAfterStartup = settings.RequestClass2ImmediatelyAfterStartup,
                 SendClockSyncOnConnect = settings.SendClockSyncOnConnect,
@@ -482,7 +502,12 @@ public partial class MainWindow
         public int ResponseTimeoutMs { get; set; } = 1500;
         public int Class2PollIntervalMs { get; set; } = 500;
         public int MaxClass1DrainFrames { get; set; } = 64;
+        // Keep the legacy property for backward-compatible import, but new
+        // preferences carry nullable, protocol-scoped explicit operator intent.
         public bool ResetRemoteLinkOnConnect { get; set; }
+        public int ResetRemoteLinkPreferenceSchema { get; set; }
+        public bool? Iec101ResetRemoteLinkOperatorOverride { get; set; }
+        public bool? Iec103ResetRemoteLinkOperatorOverride { get; set; }
         public bool ResetFcbOnConnect { get; set; } = false;
         public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
         public bool SendClockSyncOnConnect { get; set; }

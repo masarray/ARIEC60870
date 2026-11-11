@@ -114,6 +114,12 @@ public partial class MainWindow
                 ResetRemoteLinkCheckBox, ResetFcbCheckBox,
                 Class2StartupCheckBox, ClockSyncCheckBox, GiCheckBox
             ]);
+            // Clean IEC-101 profiles must show Reset Remote Link ON before Connect.
+            // A previously saved operator OFF is intentionally authoritative.
+            if (_iec101ResetRemoteLinkOperatorOverride is null &&
+                ResetRemoteLinkCheckBox.IsChecked != true)
+                throw new InvalidOperationException(
+                    "Fresh IEC-101 startup must show Reset Remote Link ON.");
             SaveRealWpfBitmap(outputDirectory, "setup-iec101-compact-switches.png");
 
             // Passive mode keeps the identical style and Checked/Unchecked
@@ -1674,6 +1680,31 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
+
+        // Inspect actual WPF templates, not screenshots or XAML text alone.
+        // All Event Journal actions must share Search's 32-DIP optical height.
+        System.Windows.Controls.Primitives.ButtonBase[] actions =
+        [
+            EventIncludeToggle, EventExcludeToggle, EventHistoryPreviousButton,
+            EventHistoryNextButton, EventHistoryLatestButton, EventHistoryExportButton
+        ];
+        foreach (var action in actions)
+        {
+            action.ApplyTemplate();
+            if (action.Template.FindName("EventJournalButtonSurface", action) is not Border surface ||
+                Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
+                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                Math.Abs(surface.CornerRadius.TopLeft - 8) > 0.6 ||
+                surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight)
+                throw new InvalidOperationException(
+                    $"Event Journal action {action.Name} lost the shared rounded 32-DIP design token.");
+        }
+        // Exact operator-supplied Material SVG geometry; not font glyph arrows.
+        if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
+            EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
+            previous.Data.ToString() != Geometry.Parse("M10,22L0,12L10,2l1.78,1.77L3.55,12l8.23,8.23L10,22Z").ToString() ||
+            next.Data.ToString() != Geometry.Parse("M8.03,22L6.25,20.23L14.48,12L6.25,3.77L8.03,2l10,10l-10,10Z").ToString())
+            throw new InvalidOperationException("Event Journal Previous/Next icons differ from approved SVG paths.");
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;
