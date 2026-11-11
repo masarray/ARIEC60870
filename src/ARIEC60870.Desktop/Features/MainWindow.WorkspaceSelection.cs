@@ -63,7 +63,7 @@ public partial class MainWindow
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!IsEventsTabActive()) return;
-                if (_relayEventRowsDirty)
+                if (_relayEventRowsDirty && !_eventHistoryMode)
                 {
                     ApplyRelayEventFilter();
                     _relayEventRowsDirty = false;

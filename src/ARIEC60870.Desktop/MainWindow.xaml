@@ -1506,6 +1506,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" /><RowDefinition Height="6" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <!-- One quiet toolbar: search + count + follow. Actions and filters live on row context menu. -->
                             <!-- Same 32px baseline as Values and Trace: Search | Count | AUTO -->
@@ -1624,7 +1625,7 @@
                                     </ToggleButton>
                                 </StackPanel>
                             </Grid>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Open original frame" Click="EventOpenFrame_Click"/>
@@ -1641,6 +1642,7 @@
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding EventNumber}" Width="67" MinWidth="57" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="205" MinWidth="195" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
@@ -1667,8 +1669,7 @@
                                     </DataGridTextColumn>
                                     <DataGridTemplateColumn Header="Quality" CellTemplate="{StaticResource ForensicQualityCellTemplate}" Width="1.0*" MinWidth="92" />
                                     
-                                    <DataGridTextColumn Header="#" Binding="{Binding Sequence}" Width="52" Visibility="Collapsed" />
-                                    <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
+                                                                        <DataGridTextColumn x:Name="EventCaColumn" Header="CA" Binding="{Binding CommonAddress}" Width="54" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventIoaColumn" Header="IOA" Binding="{Binding IoAddress}" Width="76" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventFunInfColumn" Header="FUN/INF" Binding="{Binding FunInf}" Width="78" Visibility="Collapsed" />
                                     <DataGridTextColumn x:Name="EventTypeIdColumn" Header="Type ID" Binding="{Binding TypeId}" Width="66" Visibility="Collapsed" />
@@ -1677,6 +1678,33 @@
                                     <DataGridTextColumn Header="Mapped" Binding="{Binding Mapped}" Width="74" Visibility="Collapsed" />
                                 </DataGrid.Columns>
                             </DataGrid>
+                            <Border Grid.Row="3" Margin="0,6,0,0" BorderBrush="#D9E3EA" BorderThickness="0,1,0,0"
+                                    Background="Transparent" Padding="0,7,0,0" MinHeight="32">
+                                <DockPanel LastChildFill="True">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="EventHistoryBrowseButton" Content="History" Click="EventHistoryBrowse_Click"
+                                                Padding="9,4" MinWidth="60" Height="27" FontSize="11" FontWeight="Normal"
+                                                ToolTip="Inspect the complete indexed Event Log, beyond the recent 420-row preview."/>
+                                        <Button x:Name="EventHistoryPreviousButton" Content="◀" Click="EventHistoryPrevious_Click"
+                                                Width="31" Height="27" Margin="6,0,0,0" FontSize="11" ToolTip="Previous 100 events"/>
+                                        <TextBlock x:Name="EventHistoryPageText" Text="Live" FontSize="11" Foreground="#64748B"
+                                                   Width="122" TextAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button x:Name="EventHistoryNextButton" Content="▶" Click="EventHistoryNext_Click"
+                                                Width="31" Height="27" FontSize="11" ToolTip="Next 100 events"/>
+                                        <TextBox x:Name="EventHistoryJumpBox" Width="66" Height="27" Margin="7,0,0,0"
+                                                 FontSize="11" VerticalContentAlignment="Center" ToolTip="Enter immutable Event #"/>
+                                        <Button x:Name="EventHistoryJumpButton" Content="Go #" Click="EventHistoryJump_Click"
+                                                Height="27" Padding="7,3" FontSize="11" Margin="3,0,0,0"/>
+                                        <Button x:Name="EventHistoryLatestButton" Content="Latest" Click="EventHistoryLatest_Click"
+                                                Height="27" Padding="8,3" FontSize="11" Margin="7,0,0,0"
+                                                ToolTip="Resume newest Event Log rows and live follow"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="EventHistoryStatusText" Text="Temporary session history · starting"
+                                               Foreground="#64748B" FontSize="11" TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" Margin="0,0,8,0"
+                                               ToolTip="Indexed Event Log rows are distinct from received UART/RTU SOE counts. For permanent wire evidence enable full raw capture."/>
+                                </DockPanel>
+                            </Border>
                         </Grid>
                     </TabItem>
                     <TabItem Header="Findings">

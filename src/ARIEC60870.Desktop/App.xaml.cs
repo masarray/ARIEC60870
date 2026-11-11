@@ -76,6 +76,7 @@ public partial class App : Application
                 window.Show();
                 window.RunPassiveGuiSmokeProbe();
                 await window.RunPassiveHistoryGuiSmokeProbeAsync();
+                await window.RunEventHistoryGuiSmokeProbeAsync();
                 window.Close();
                 Shutdown(0);
             }

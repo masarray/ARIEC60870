@@ -351,6 +351,7 @@ public partial class MainWindow
     private void EventsAutoScroll_Changed(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded || EventsAutoScrollButton?.IsChecked != true) return;
+        if (_eventHistoryMode) LeaveEventHistory();
 
         // The bounded SOE ring continues collecting while the view is held.
         // Reconcile it once when the user explicitly resumes auto-scroll.
@@ -365,7 +366,7 @@ public partial class MainWindow
 
     private void ScrollLatestEventIfAutoScroll()
     {
-        if (!IsEventsTabActive() || EventsAutoScrollButton?.IsChecked != true || RelayEventRows.Count == 0)
+        if (_eventHistoryMode || !IsEventsTabActive() || EventsAutoScrollButton?.IsChecked != true || RelayEventRows.Count == 0)
             return;
         RelayEventGrid?.ScrollIntoView(RelayEventRows[RelayEventRows.Count - 1]);
     }
@@ -931,7 +932,14 @@ public partial class MainWindow
 
         if (_relayEventRowsDirty)
         {
-            if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
+            if (_eventHistoryMode)
+            {
+                // Historical navigation is fixed to a source snapshot; a
+                // moving live ring must never replace the selected page.
+                _relayEventRowsDirty = false;
+                RefreshEventHistoryFooter();
+            }
+            else if (IsEventsTabActive() && EventsAutoScrollButton?.IsChecked == false)
             {
                 // A frozen WPF viewport cannot tolerate head removals from the
                 // rolling ring. Hold only the bounded projection, never ingestion.
@@ -939,6 +947,7 @@ public partial class MainWindow
                 if (EventsQuickCountText is not null)
                     EventsQuickCountText.Text =
                         $"{RelayEventRows.Count} visible · +{_eventNewWhileHeld:N0} new";
+                RefreshEventHistoryFooter();
                 _relayEventRowsDirty = false;
             }
             else

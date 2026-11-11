@@ -14,9 +14,11 @@ public sealed class RelayEventRow
     public Iec103MasterEvidenceEvent? OriginalFrameEvidence { get; }
 
     public RelayEventRow(Iec103RelayEventLogEntry item,
-        Iec103MasterEvidenceEvent? originalFrameEvidence = null)
+        Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0)
     {
         OriginalFrameEvidence = originalFrameEvidence;
+        SourceEntry = item;
+        EventNumber = eventNumber;
         Sequence = item.EvidenceSequenceNumber;
         PhysicalSource = item.PhysicalSource;
         EvidenceReference = item.EvidenceReference;
@@ -70,6 +72,9 @@ public sealed class RelayEventRow
         RawHex = item.RawHex;
     }
 
+    // Monotonic Event Log ordinal; distinct from the original wire frame number.
+    public long EventNumber { get; internal set; }
+    public Iec103RelayEventLogEntry SourceEntry { get; }
     public long Sequence { get; }
     public string PhysicalSource { get; }
     public string EvidenceReference { get; }
