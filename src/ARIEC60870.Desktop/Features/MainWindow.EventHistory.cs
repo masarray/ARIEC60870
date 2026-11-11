@@ -31,6 +31,7 @@ public partial class MainWindow
     private CancellationTokenSource? _eventHistoryCsvCancel;
     private bool _eventHistoryQueryBusy;
     private bool _eventHistoryRefreshBusy;
+    private bool _eventHistoryPageBusy;
     private bool _eventHistoryFollowingLatest = true;
     private bool _eventHistoryFailureNoticeLogged;
     private bool _eventHistoryCsvRunning;
@@ -49,6 +50,7 @@ public partial class MainWindow
         _eventHistoryFollowingLatest = true;
         _eventHistoryQueryBusy = false;
         _eventHistoryRefreshBusy = false;
+        _eventHistoryPageBusy = false;
         _eventHistoryFailureNoticeLogged = false;
         _historicalEventRows.Clear();
         if (RelayEventGrid is not null)
@@ -124,13 +126,13 @@ public partial class MainWindow
         _nextEventHistoryFooterRefreshTick = now + 350;
         RefreshEventHistoryFooter();
 
-        // A selected row or an older page stays pinned while acquisition and
-        // indexing continue. Latest explicitly resumes newest-page following.
+        // Update the *count and filter index* even when an older page is
+        // pinned. Only the latest-page follower may replace visible rows.
         var journal = _eventHistoryJournal;
-        if (journal is null || !IsEventsTabActive() || !_eventHistoryFollowingLatest ||
-            RelayEventGrid?.SelectedItem is not null ||
+        if (journal is null || !IsEventsTabActive() ||
             _eventHistoryQueryBusy || _eventHistoryRefreshBusy ||
-            _eventHistoryCsvRunning || journal.Count <= _eventHistoryQuery.Ceiling)
+            _eventHistoryPageBusy || _eventHistoryCsvRunning ||
+            journal.Count <= _eventHistoryQuery.Ceiling)
             return;
 
         _eventHistoryRefreshBusy = true;
@@ -148,7 +150,10 @@ public partial class MainWindow
                 !ReferenceEquals(journal, _eventHistoryJournal) ||
                 !ReferenceEquals(previous, _eventHistoryQuery)) return;
             _eventHistoryQuery = next;
-            await ShowEventHistoryPageAsync(LastHistoryPageStart());
+            if (_eventHistoryFollowingLatest && RelayEventGrid?.SelectedItem is null)
+                await ShowEventHistoryPageAsync(LastHistoryPageStart());
+            // Else: leave original row objects and scrollbar exactly where
+            // the engineer was inspecting; only toolbar counts advance.
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or
                                    ObjectDisposedException or JsonException)
@@ -229,6 +234,7 @@ public partial class MainWindow
         }
         start = Math.Clamp(start, 0, LastHistoryPageStart());
         _eventHistoryPageStart = start;
+        _eventHistoryPageBusy = true;
         RefreshEventHistoryFooter();
         try
         {
@@ -247,6 +253,11 @@ public partial class MainWindow
             if (generation != _eventHistoryPageGeneration) return;
             _historicalEventRows.Clear();
             AppendSessionLog("Event History page integrity failure: " + ex.Message);
+        }
+        finally
+        {
+            if (generation == _eventHistoryPageGeneration)
+                _eventHistoryPageBusy = false;
         }
     }
 
