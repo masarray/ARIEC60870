@@ -34,6 +34,7 @@ public sealed class Iec101DualLinkRedundancyOptions
     public void ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        Validate(); // Check both physical link endpoints before applying a runtime policy.
         profile.ValidateActive(BaseSettings);
         // Historical NUC101 rev2.0 does not mandate a post-switch GI.
         // "ProjectRequired" and "OnFailover" both express an explicit operator
@@ -68,6 +69,16 @@ public sealed class Iec101DualLinkRedundancyOptions
         if (BaseSettings.LinkAddressSize is < 1 or > 2)
         {
             throw new InvalidOperationException("IEC-101 dual-link master requires 1 or 2 octet link addresses.");
+        }
+        // An out-of-range 2-byte link address must never be silently truncated
+        // into an unrelated station address when a profile or A/B link is selected.
+        var maximumLinkAddress = BaseSettings.LinkAddressSize == 1 ? byte.MaxValue : ushort.MaxValue;
+        if (LinkA.LinkAddress < 0 || LinkA.LinkAddress > maximumLinkAddress ||
+            LinkB.LinkAddress < 0 || LinkB.LinkAddress > maximumLinkAddress)
+        {
+            throw new InvalidOperationException(
+                $"IEC-101 A/B link address exceeds the configured {BaseSettings.LinkAddressSize}-octet field. " +
+                $"Link A={LinkA.LinkAddress}; Link B={LinkB.LinkAddress}; valid range=0..{maximumLinkAddress}.");
         }
         ActiveFailureThreshold = Math.Max(1, ActiveFailureThreshold);
         StandbyFailureThreshold = Math.Max(1, StandbyFailureThreshold);

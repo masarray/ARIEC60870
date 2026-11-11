@@ -139,5 +139,33 @@ public sealed class Iec101DualLinkRedundancyOptionsTests
             options.ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile.HistoricalNuc104()));
         Assert.Equal(unchanged, options.PostSwitchGiPolicy);
     }
+
+    [Theory]
+    [InlineData(1, 256)]
+    [InlineData(1, -1)]
+    [InlineData(2, 65536)]
+    public void DualLinkAddressWidthRejectsUnrepresentableStandbyStationBeforeTx(int width, int badAddress)
+    {
+        var options = ProfileOptions();
+        options.BaseSettings.LinkAddressSize = width;
+        options.LinkB.LinkAddress = badAddress;
+        var error = Assert.Throws<InvalidOperationException>(() => options.Validate());
+        Assert.Contains("link address exceeds", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<InvalidOperationException>(() => options.ApplyInteroperabilityProfile(
+            Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkWidth = width }));
+    }
+
+    [Fact]
+    public void DualLinkTwoOctetAddressesRemainIndependentAndAreNotTruncated()
+    {
+        var options = ProfileOptions();
+        options.BaseSettings.LinkAddressSize = 2;
+        options.LinkA.LinkAddress = 105;
+        options.LinkB.LinkAddress = 300;
+        options.ApplyInteroperabilityProfile(
+            Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkWidth = 2 });
+        Assert.Equal(300, options.LinkB.ApplyTo(options.BaseSettings).LinkAddress);
+        Assert.Equal(Iec101PostSwitchGiPolicy.Disabled, options.PostSwitchGiPolicy);
+    }
 }
 

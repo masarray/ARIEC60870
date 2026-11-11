@@ -32,3 +32,7 @@ Unknown policy, mismatched protocol, unsupported active balanced IEC101 or misma
 ## Deterministic acceptance
 
 Master xUnit tests cover generic retained default, historical NUC101 no-GI, every allowed imported project GI policy, wrong link width, wrong IEC protocol and unsupported balanced mode. Existing dual-link runtime tests separately cover `PostSwitchGiPolicy.Required` and `Disabled`. For release, repeat shared single/A-B invariants, matched physical COM FAT and profile-tied post-switch wire captures, including zero *unsolicited* GI in Disabled/Manual modes.
+
+### Dual physical link-address safety
+
+For any active A/B profile, both endpoint link addresses must be representable in the configured 1- or 2-octet FT1.2 link field **before** starting serial communication. One-octet out-of-range values are rejected, not truncated to another station address; 2-octet valid distinct addresses remain supported for explicitly configured links. This is a generic safety check, **not** a claim that a particular NUC deployment supports disparate station addresses.
