@@ -1511,6 +1511,63 @@
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
                             <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <WrapPanel.Resources>
+                                    <!-- A single token-aligned 32-DIP rounded chrome for
+                                         Event Journal filter and action buttons. -->
+                                    <ControlTemplate x:Key="EventJournalRoundedChrome" TargetType="{x:Type ButtonBase}">
+                                        <Border x:Name="Chrome" CornerRadius="8" SnapsToDevicePixels="True"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              RecognizesAccessKey="True" Margin="{TemplateBinding Padding}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Chrome" Property="Background" Value="#F1F7FF"/>
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9CB9E5"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="Chrome" Property="Background" Value="#E5EEFD"/>
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#81A8E4"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="Chrome" Property="Background" Value="#F7F9FC"/>
+                                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#DDE5EF"/>
+                                                <Setter TargetName="Chrome" Property="Opacity" Value="0.55"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                    <Style x:Key="EventJournalToolbarBase" TargetType="{x:Type Control}">
+                                        <Setter Property="Height" Value="32"/>
+                                        <Setter Property="MinWidth" Value="32"/>
+                                        <Setter Property="Padding" Value="9,0"/>
+                                        <Setter Property="Background" Value="White"/>
+                                        <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+                                        <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="FontWeight" Value="Normal"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                        <Setter Property="Template" Value="{StaticResource EventJournalRoundedChrome}"/>
+                                    </Style>
+                                    <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}"
+                                           BasedOn="{StaticResource EventJournalToolbarBase}"/>
+                                    <Style x:Key="EventJournalFilterToggleStyle" TargetType="{x:Type ToggleButton}"
+                                           BasedOn="{StaticResource EventJournalToolbarBase}">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Background" Value="#EAF2FF"/>
+                                                <Setter Property="BorderBrush" Value="#8CAEE7"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </WrapPanel.Resources>
                                 <Border x:Name="EventsSearchShell" Width="218" Height="32" CornerRadius="8"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
@@ -1537,13 +1594,11 @@
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
                                             VerticalAlignment="Center">
-                                    <ToggleButton x:Name="EventIncludeToggle" Width="113" Height="29" FocusVisualStyle="{x:Null}"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
+                                    <ToggleButton x:Name="EventIncludeToggle" Width="113"
+                                                  Style="{StaticResource EventJournalFilterToggleStyle}"
                                                   Content="Include: All" ToolTip="Include categories; all selected by default"/>
-                                    <ToggleButton x:Name="EventExcludeToggle" Width="114" Height="29" FocusVisualStyle="{x:Null}" Margin="5,0,0,0"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
+                                    <ToggleButton x:Name="EventExcludeToggle" Width="114" Margin="5,0,0,0"
+                                                  Style="{StaticResource EventJournalFilterToggleStyle}"
                                                   Content="Exclude: None" ToolTip="Exclude categories; none selected by default"/>
                                     <Popup x:Name="EventIncludePopup" PlacementTarget="{Binding ElementName=EventIncludeToggle}"
                                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
@@ -1600,33 +1655,31 @@
                                            Width="122" Margin="8,0,6,0" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis" TextAlignment="Right"
                                            ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
-                                <Button x:Name="EventHistoryPreviousButton" Content="‹"
-                                        Click="EventHistoryPrevious_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Previous 100 matching events"/>
+                                <Button x:Name="EventHistoryPreviousButton"
+                                        Click="EventHistoryPrevious_Click" Width="32" Padding="0"
+                                        Style="{StaticResource EventJournalActionButtonStyle}"
+                                        ToolTip="Previous 100 matching events">
+                                    <Path Data="M10,22L0,12L10,2l1.78,1.77L3.55,12l8.23,8.23L10,22Z"
+                                          Width="12" Height="16" Stretch="Uniform" Fill="#1F1F1F"/>
+                                </Button>
                                 <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
                                            Foreground="{StaticResource Ink600Brush}"
                                            Width="104" TextAlignment="Center" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Button x:Name="EventHistoryNextButton" Content="›"
-                                        Click="EventHistoryNext_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Next 100 matching events"/>
+                                <Button x:Name="EventHistoryNextButton"
+                                        Click="EventHistoryNext_Click" Width="32" Padding="0"
+                                        Style="{StaticResource EventJournalActionButtonStyle}"
+                                        ToolTip="Next 100 matching events">
+                                    <Path Data="M8.03,22L6.25,20.23L14.48,12L6.25,3.77L8.03,2l10,10l-10,10Z"
+                                          Width="12" Height="16" Stretch="Uniform" Fill="#1F1F1F"/>
+                                </Button>
                                 <Button x:Name="EventHistoryLatestButton" Content="Latest"
-                                        Click="EventHistoryLatest_Click" Height="29" Padding="9,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        Click="EventHistoryLatest_Click" Padding="9,0"
+                                        Margin="7,0,0,0" Style="{StaticResource EventJournalActionButtonStyle}"
                                         ToolTip="Jump to the most recent matching events"/>
                                 <Button x:Name="EventHistoryExportButton" Content="Export CSV"
-                                        Click="EventHistoryExport_Click" Height="29" Padding="10,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        Click="EventHistoryExport_Click" Padding="10,0"
+                                        Margin="7,0,0,0" Style="{StaticResource EventJournalActionButtonStyle}"
                                         ToolTip="Export filtered events or all indexed events">
                                     <Button.ContextMenu>
                                         <ContextMenu>
