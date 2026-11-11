@@ -21,10 +21,12 @@ public sealed class PassiveFramePreparationTests
             "Variable", true, wire);
         var result = Assert.Single(PassiveFramePreparation.PrepareBatch(
             [item], 1, 2, 2, 3));
-        Assert.Equal(PassiveWirePresentation.Kind.UnknownAsdu, result.Wire.Status);
+        Assert.Equal(PassiveWirePresentation.Kind.VendorSpecific, result.Wire.Status);
         Assert.True(result.Wire.TrustedWire);
         Assert.False(result.Wire.TrustedProcess);
-        Assert.Contains("Unknown/invalid IEC-101 ASDU", result.Wire.Message);
+        Assert.False(result.Wire.NeedsAttention);
+        Assert.Contains("Vendor-specific IEC-101 TI 250", result.Wire.Message);
+        Assert.Contains("raw ASDU CA 0x0069", result.Wire.Message);
         Assert.Equal(Convert.ToHexString(wire), result.RawHex);
         Assert.NotNull(result.Decode);
     }
