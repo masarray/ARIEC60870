@@ -56,7 +56,7 @@ public sealed class ProtocolTruthFrameTraceTests
         var label = Iec10xSignalTraceFormatter.Format(asdu, objectWithInvalidAddress);
         Assert.Contains("out of configured range", label);
         Assert.Contains("Decode warning", label);
-        Assert.DoesNotContain("IOA1:0 - IOA2:0 - IOA3:0", label);
+        Assert.DoesNotContain("IOA1: 0 - IOA2: 0 - IOA3: 0", label);
     }
 
     [Fact]

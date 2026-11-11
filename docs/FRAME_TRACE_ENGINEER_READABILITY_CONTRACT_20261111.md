@@ -37,3 +37,11 @@ Scope: WPF Raw Frames presentation only. The original Core decoder and physical-
 - IEC-101 decoded valid GI frame top heading: `GI Data · Single-Point · Link 105 · CA 1`, with original source Link/CA displayed before per-IOA value/quality/COT. A valid ASDU CA is required; absent physical link is never fabricated. Bad/undecoded ASDU cannot present a default CA 0.
 - Identity is no longer printed as a redundant lower WPF paragraph when the heading already includes it. Plain-text row clipboard mirrors exactly that layout; separate typed identity still available to selected inspector and tests.
 - Missing CP56/object time: `No Timestamp`. Typed CP56 valid: `Timestamp Valid`; typed invalid: `Timestamp Invalid`; CP24/other partial source text: `Timestamp Partial` with limitations. Never treat host arrival time as device timestamp.
+
+## 2026-11-11 field correction — text hierarchy, spacing and severity
+
+- Raw Frames object first line uses `IOA 8388715 [ IOA3: 128 · IOA2: 0 · IOA1: 107 ]`. Exactly one space follows each structured label; underlying raw hexadecimal and high-to-low logical address decomposition are unchanged.
+- Every typed object detail begins on the next line with `  ↳ TI-30 Single Point Signal · Quality: ...` to visually distinguish child detail from parent address. The plain-text row clipboard uses the identical formatter.
+- All seven right-lane interpreter blocks (title, objects, overflow, identity, cause, ACD, diagnostics) use fixed **17.5 DIP LineHeight** with `LineStackingStrategy=BlockLineHeight`. Subordinate paragraphs use a uniform **4 DIP** top gap. Dynamic row heights reflect the real count of previewed objects; no extra panels, modes, or decoder work.
+- ACD=1 is **pending Class1 data** and uses dark amber `#A65B00`, never the error-red diagnostic. The latter still signals negative COT, invalid data/quality and genuine fault.
+- The field screenshot has configured Link 105/CA105, positive TI100 COT7/10 at CA105, GI-related process ASDUs at CA1, and negative TI100 COT7 at CA1. Never mark GI105 coverage complete based on CA1 objects or silently retarget commands; investigate the CA mismatch separately using physical evidence.

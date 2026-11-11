@@ -41,9 +41,11 @@ public sealed class FrameTraceEngineerReadabilityTests
         });
         var parts = row.TimelineSignalDigest.Split(Environment.NewLine);
         Assert.Equal(4, parts.Length);
-        Assert.Contains("IOA 100 [ IOA3:0 · IOA2:0 · IOA1:100 ] · TI-30 · Value: ON · 10-11-2026 20:34:42.365", parts[0]);
-        Assert.Contains("TI-30 Single Point Signal · Quality: Good · Timestamp Valid · Genuine (GEN=0) · DST OFF", parts[1]);
-        Assert.Contains("IOA 101 [ IOA3:0 · IOA2:0 · IOA1:101 ] · TI-30 · Value: OFF · 10-11-2026 20:34:43.987", parts[2]);
+        Assert.Contains("IOA 100 [ IOA3: 0 · IOA2: 0 · IOA1: 100 ] · TI-30 · Value: ON · 10-11-2026 20:34:42.365", parts[0]);
+        Assert.StartsWith("  ↳ TI-30 Single Point Signal · Quality: Good · Timestamp Valid · Genuine (GEN=0) · DST OFF", parts[1]);
+        Assert.StartsWith("  ↳ TI-30", parts[3]);
+        Assert.DoesNotContain(Environment.NewLine + "  TI-30", row.TimelineSignalDigest);
+        Assert.Contains("IOA 101 [ IOA3: 0 · IOA2: 0 · IOA1: 101 ] · TI-30 · Value: OFF · 10-11-2026 20:34:43.987", parts[2]);
         Assert.Contains("Quality: Invalid", parts[3]);
         Assert.Contains("Timestamp Invalid · Substituted (GEN=1) · DST ON", parts[3]);
         Assert.DoesNotContain("42.365", parts[2]);
@@ -132,6 +134,34 @@ public sealed class FrameTraceEngineerReadabilityTests
         Assert.Equal("Data Class 1 Pending (ACD): TRUE", row.TimelineAcdPending);
         Assert.DoesNotContain("Class 1 pending (ACD)", row.TimelineDiagnosticAlerts);
         Assert.Contains("Class 1 pending (ACD)", row.TimelineReadableAlerts);
+    }
+
+
+    [Fact]
+    public void TraceDetailHierarchyAndStructuredAddressRemainStableForMultipleObjects()
+    {
+        var asdu = new Iec10xAsduDecode
+        {
+            TypeId = 30, InformationObjectAddressWidth = 3, ObjectCount = 2,
+            Objects =
+            [
+                new Iec10xInformationObject { Index = 1, InformationObjectAddress = 8388715, ValueText = "SP=ON" },
+                new Iec10xInformationObject { Index = 2, InformationObjectAddress = 8388716, ValueText = "SP=OFF" }
+            ]
+        };
+        var row = new EvidenceRow(new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            AsduDetails = asdu, Direction = FrameDirection.SlaveToMaster
+        });
+        var lines = row.TimelineSignalDigest.Split(Environment.NewLine);
+        Assert.Equal(4, lines.Length);
+        Assert.Contains("IOA3: 128 · IOA2: 0 · IOA1: 107", lines[0]);
+        Assert.Contains("IOA3: 128 · IOA2: 0 · IOA1: 108", lines[2]);
+        Assert.StartsWith("  ↳ TI-30 Single Point Signal", lines[1]);
+        Assert.StartsWith("  ↳ TI-30 Single Point Signal", lines[3]);
+        Assert.DoesNotContain("IOA3:128", row.TimelineSignalDigest);
+        Assert.DoesNotContain(Environment.NewLine + "  TI-30", row.TimelineSignalDigest);
     }
 
     [Fact]
