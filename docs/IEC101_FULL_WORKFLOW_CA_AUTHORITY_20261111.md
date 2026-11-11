@@ -24,3 +24,7 @@
 Exact-head CI validates deterministic simulated protocol behavior, not the physical driver, actual SICAM A8000 1200-bps SOE throughput or certified third-party interoperability. The application has full normal active features available without a special lab mode. Physical electrical isolation is the responsibility of the environment/operator, separate from correct link transaction ownership and diagnostic evidence.
 
 No public RC is modified by this draft. The separate unresolved tasks remain Windows serial Stop/COM recovery, same-service intrinsically ambiguous delayed replies, richer source-qualified GI/SBO outcome evidence and real hardware FIFO endurance.
+
+## Owner-scoped GI authorization and post-switch opt-out
+
+The global `GiCommands` counter is evidence, **not** a transferable authorization. A startup/manual GI on active A must not let process traffic on promoted B bypass `PostSwitchGiPolicy.Disabled` or `ManualOnly`. The runtime now resets the GI-intent flag alongside owner-specific CA learning on each promotion. A configured or deliberate GI on B independently establishes permission for one evidence-backed GI recovery; Class1/2 and normal commands remain available without extra UI steps. An explicit A→B fixture exercises disabled post-switch GI while B still returns Class2 process data.

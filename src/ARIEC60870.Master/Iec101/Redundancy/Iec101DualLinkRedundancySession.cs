@@ -46,6 +46,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private bool _switchInProgress;
     private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
+    // GI intent is per active physical owner, not a whole-session counter.
+    // A startup GI on Link A cannot authorize observed-CA GI on Link B
+    // when the selected post-switch policy is Disabled or ManualOnly.
+    private bool _giRequestedOnActiveOwner;
 
     public Iec101DualLinkRedundancySession(
         Iec101DualLinkRedundancyOptions options,
@@ -863,6 +867,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _dominantObservedCommonAddress = null;
             _learnedCommonAddress = null;
             _retriedGiWithObservedCommonAddress = false;
+            _giRequestedOnActiveOwner = false;
             _lastClass2PollUtc = DateTime.MinValue;
             _lastStandbySupervisionUtc = DateTime.MinValue;
 
@@ -974,6 +979,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         var effectiveCommonAddress = ResolveRuntimeCommonAddress(commonAddress);
         _imageTracker.MarkGiStarted(DateTime.UtcNow);
+        // This method is entered only for configured startup GI, an actual
+        // manual GI request, or the selected post-switch GI policy.
+        _giRequestedOnActiveOwner = true;
         _counters.GiCommands++;
         var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
         if (response.TimedOut || response.Frame is null || _active.IsRemoteBusy ||
@@ -1209,7 +1217,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         // traffic NEVER authorizes a new GI or changes command targets.
         if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy ||
             _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue ||
-            _counters.GiCommands == 0)
+            !_giRequestedOnActiveOwner)
         {
             return false;
         }

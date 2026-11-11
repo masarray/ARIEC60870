@@ -303,6 +303,49 @@ public sealed class Iec101DualLinkRedundancySessionTests
             e.TypeId == 100 && e.CommonAddressNumber == 105);
     }
 
+
+    [Fact]
+    public async Task GiDisabledAfterFailoverNeverInheritsOldOwnerGiIntent()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class2PollIntervalMs = 40;
+        settings.MaxClass1DrainFrames = 8;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(250),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        await using var linkA = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140);
+        await using var linkB = new WrongConfiguredCaIec101Transport(
+            options.LinkB.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var session = new Iec101DualLinkRedundancySession(options, linkA, linkB);
+        var failoverQueued = false;
+        session.FindingRaised += (_, finding) =>
+        {
+            if (finding.Id != "IEC101-DUAL-CA-AUTO-LEARNED" || failoverQueued) return;
+            failoverQueued = true;
+            session.QueueManualFailover("post-switch GI explicitly disabled by project profile");
+        };
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(3000), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(failoverQueued);
+        Assert.Contains(session.FailoverJournal, entry =>
+            entry.Completed && entry.ToLink == "Link B");
+        Assert.True(linkA.GiRequests > 0, "A startup/observed-CA GI should still work.");
+        Assert.Equal(0, linkB.GiRequests);
+        Assert.True(linkB.Class2Polls >= 2,
+            "Post-switch GI disabled must not stop normal Class2 process reception.");
+        Assert.Equal(105, result.Settings.CommonAddress);
+    }
+
     [Fact]
     public async Task ManualFailoverBypassesStabilizationGuardButStillRequiresPromotableStandby()
     {
