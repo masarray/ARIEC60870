@@ -118,6 +118,7 @@ public sealed class Iec101VendorAsduDiagnosticsTests
             AsduDetails = asdu
         });
         Assert.Contains("Information element too short", alerts);
+        Assert.DoesNotContain("Trailing ASDU bytes", alerts);
         Assert.DoesNotContain("ASDU decode: WARNING", alerts);
     }
 

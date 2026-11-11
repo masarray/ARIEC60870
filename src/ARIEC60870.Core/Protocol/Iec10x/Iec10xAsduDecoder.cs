@@ -151,6 +151,9 @@ public sealed class Iec10xAsduDecoder
                 {
                     var objectIssues = new[] { $"Information element too short. Expected={dataLength}, actual={remaining}." };
                     objects.Add(BuildObject(type, i + 1, ioa, elementRaw, objectOffset, elementOffset, objectIssues));
+                    // The available bytes belong to this truncated element;
+                    // do not misreport them as unrelated trailing ASDU bytes.
+                    offset += Math.Max(0, remaining);
                     break;
                 }
 
