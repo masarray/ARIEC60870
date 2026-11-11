@@ -7,12 +7,12 @@ This separates iterative correctness from costly field-ready artifacts. It does 
 | Trigger | Execution |
 | --- | --- |
 | Markdown-only PR or master push | Lightweight classification and a successful historical `build-test` check using Ubuntu; no Windows runner |
-| Source, XAML, tests, project, scripts, YAML or other PR changes | Windows Release build with warning gate, protocol smoke, all six xUnit regression suites, TRX, and formatting observation |
+| Source, XAML, tests, project, scripts, YAML or other PR changes | Windows Release build with warning gate, protocol smoke, all six xUnit regression suites and TRX; existing nonblocking formatter diagnostics only when C#/formatter configuration changed |
 | Non-documentation master push | Windows test gate, coverage, self-contained GUI + monitor-cli ZIPs, real-WPF acceptance/screenshots and SHA-256 artifacts |
 | Security checks | Existing CodeQL, dependency-review and repository-hygiene workflows remain independent; superseded CodeQL PR analysis is cancelled |
 | Release | Existing `release-package.yml` is not changed; publishing still has its own dedicated release gate |
 
-Any non-Markdown file, unclassified change, or failed push comparison defaults to running Windows. The existing `build-test` check name is retained. Standard feature PRs avoid the repeated Windows single-file publishing, WPF acceptance, coverage collection and installer acceptance costs.
+Any non-Markdown file, unclassified change, or failed push comparison defaults to running Windows. The existing `build-test` check name is retained. Standard feature PRs avoid the repeated Windows single-file publishing, WPF acceptance, coverage collection and installer acceptance costs. The pre-existing formatter is nonblocking and reports legacy whitespace debt; it is not a clean-format gate and is not run for unrelated YAML/documentation changes.
 
 NuGet package caching is keyed to project/restore configuration. Superseded pull-request CI is cancelled; default-branch evidence is not cancelled by the concurrency policy.
 
