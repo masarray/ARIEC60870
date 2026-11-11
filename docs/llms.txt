@@ -1,4 +1,4 @@
-# ArSee · Open Source IEC 60870-104/103/101 Protocol Tester
+# ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer
 
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
