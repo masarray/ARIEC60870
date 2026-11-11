@@ -247,6 +247,20 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                     throw new OperationCanceledException(
                         "Serial transport read was cancelled or closed.", ex, cancellationToken);
                 }
+                catch (InvalidOperationException ex)
+                {
+                    RecordDiagnostic("IEC60870-TRANSPORT-READ-CLOSED",
+                        "Serial COM driver became invalid while reading BytesToRead", ex,
+                        "USB/serial port may have disappeared. Automatic Master recovery must first close the old epoch and reopen the same configured COM.");
+                    throw new IOException($"Serial port {SafePortName(serialPort)} lost its RX driver state.", ex);
+                }
+                catch (IOException ex)
+                {
+                    RecordDiagnostic("IEC60870-TRANSPORT-READ-IO",
+                        "Serial COM driver I/O failed while reading BytesToRead", ex,
+                        "Check USB/serial disconnect and driver errors. No protocol command may be blindly replayed.");
+                    throw;
+                }
 
                 if (available > 0)
                 {
@@ -270,6 +284,20 @@ public sealed class SerialByteTransport : IByteTransport, ITransportDiagnosticSo
                     {
                         throw new OperationCanceledException(
                             "Serial transport read was cancelled or closed.", ex, cancellationToken);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        RecordDiagnostic("IEC60870-TRANSPORT-READ-CLOSED",
+                            "Serial COM driver became invalid during RX", ex,
+                            "Close the previous port epoch and reopen the configured COM before any IEC-101 link verification.");
+                        throw new IOException($"Serial port {SafePortName(serialPort)} closed during RX.", ex);
+                    }
+                    catch (IOException ex)
+                    {
+                        RecordDiagnostic("IEC60870-TRANSPORT-READ-IO",
+                            "Serial COM driver reported RX I/O failure", ex,
+                            "The adapter may be unplugged or its driver unhealthy; do not count this as a protocol response timeout.");
+                        throw;
                     }
                 }
 
