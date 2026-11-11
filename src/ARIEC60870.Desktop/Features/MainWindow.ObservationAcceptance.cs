@@ -1698,17 +1698,24 @@ public partial class MainWindow
             if (action.Template.FindName("EventJournalButtonSurface", action) is not Border surface ||
                 Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
                 Math.Abs(action.ActualHeight - 32) > 0.6 ||
-                Math.Abs(surface.CornerRadius.TopLeft - 8) > 0.6 ||
+                Math.Abs(surface.CornerRadius.TopLeft - 16) > 0.6 ||
                 surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight)
                 throw new InvalidOperationException(
-                    $"Event Journal action {action.Name} lost the shared rounded 32-DIP design token.");
+                    $"Event Journal action {action.Name} lost the shared pill 32-DIP design token.");
         }
-        // Exact operator-supplied Material SVG geometry; not font glyph arrows.
+        // Exact operator-approved Lucide chevrons: slender stroke, round caps.
+        // 32x32 controls with radius 16 must be circular, not tiny square buttons.
         if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
             EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
-            previous.Data.ToString() != Geometry.Parse("M10,22L0,12L10,2l1.78,1.77L3.55,12l8.23,8.23L10,22Z").ToString() ||
-            next.Data.ToString() != Geometry.Parse("M8.03,22L6.25,20.23L14.48,12L6.25,3.77L8.03,2l10,10l-10,10Z").ToString())
-            throw new InvalidOperationException("Event Journal Previous/Next icons differ from approved SVG paths.");
+            Math.Abs(EventHistoryPreviousButton.ActualWidth - 32) > 0.6 ||
+            Math.Abs(EventHistoryNextButton.ActualWidth - 32) > 0.6 ||
+            previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
+            next.Data.ToString() != Geometry.Parse("M9,18 L15,12 L9,6").ToString() ||
+            Math.Abs(previous.StrokeThickness - 2) > 0.1 ||
+            Math.Abs(next.StrokeThickness - 2) > 0.1 ||
+            previous.Fill is not null || next.Fill is not null)
+            throw new InvalidOperationException(
+                "Event Journal navigation must show 32-DIP circles with Lucide 2-DIP stroke chevrons.");
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;

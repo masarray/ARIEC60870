@@ -14,28 +14,32 @@
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
 
-        <!-- Event Journal design tokens: 32-DIP unified height matches Search;
-             shared rounded ButtonBase surface preserves WPF focus, keyboard,
-             automation names, command handlers and enabled semantics. -->
+        <!-- Event Journal shared tokens: pill action buttons, 32-DIP circular
+             navigation controls, all 32 DIP tall to align with Search.
+             Template preserves WPF commands, toggle state, focus and accessibility. -->
+        <SolidColorBrush x:Key="EventJournalActionHoverBrush" Color="#F2F7FD"/>
+        <SolidColorBrush x:Key="EventJournalActionPressedBrush" Color="#E5F0FC"/>
+        <SolidColorBrush x:Key="EventJournalActionHoverStrokeBrush" Color="#B6CEE9"/>
+        <SolidColorBrush x:Key="EventJournalActionPressedStrokeBrush" Color="#84B0DF"/>
         <ControlTemplate x:Key="EventJournalRoundedActionTemplate" TargetType="{x:Type ButtonBase}">
             <Border x:Name="EventJournalButtonSurface" Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8" SnapsToDevicePixels="True">
+                    CornerRadius="16" SnapsToDevicePixels="True">
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
             </Border>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="#F0F6FF"/>
-                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="#9ABBE9"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="{StaticResource EventJournalActionHoverBrush}"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource EventJournalActionHoverStrokeBrush}"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="#DFEBFC"/>
-                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="#6F9BD7"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="{StaticResource EventJournalActionPressedBrush}"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource EventJournalActionPressedStrokeBrush}"/>
                 </Trigger>
                 <Trigger Property="IsKeyboardFocusWithin" Value="True">
                     <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
-                    <Setter TargetName="EventJournalButtonSurface" Property="BorderThickness" Value="2"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderThickness" Value="1.5"/>
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Opacity" Value="0.48"/>
@@ -52,7 +56,13 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template" Value="{StaticResource EventJournalRoundedActionTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource EventJournalActionButtonStyle}">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
         <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Height" Value="32"/>
@@ -64,6 +74,7 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template" Value="{StaticResource EventJournalRoundedActionTemplate}"/>
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
@@ -1657,21 +1668,25 @@
                                            Width="122" Margin="8,0,6,0" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis" TextAlignment="Right"
                                            ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
-                                <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalActionButtonStyle}"
-                                        Click="EventHistoryPrevious_Click" Width="38"
+                                <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryPrevious_Click"
                                         ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events">
-                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource Ink700Brush}"
-                                          Data="M10,22L0,12L10,2l1.78,1.77L3.55,12l8.23,8.23L10,22Z"/>
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="{StaticResource Ink700Brush}" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="M15,18 L9,12 L15,6"/>
                                 </Button>
                                 <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
                                            Foreground="{StaticResource Ink600Brush}"
                                            Width="84" TextAlignment="Center" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalActionButtonStyle}"
-                                        Click="EventHistoryNext_Click" Width="38"
+                                <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryNext_Click"
                                         ToolTip="Next 100 matching events" AutomationProperties.Name="Next events">
-                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{StaticResource Ink700Brush}"
-                                          Data="M8.03,22L6.25,20.23L14.48,12L6.25,3.77L8.03,2l10,10l-10,10Z"/>
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="{StaticResource Ink700Brush}" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="M9,18 L15,12 L9,6"/>
                                 </Button>
                                 <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
                                         Content="Latest" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
