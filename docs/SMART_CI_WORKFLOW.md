@@ -22,6 +22,8 @@ Master pushes affecting `src/**`, `installer/**`, `scripts/**`, resources, or bu
 
 CodeQL automatic triggers cover C#/C# projects, XAML, resource/build configuration and its own workflow. Weekly scheduled and manual CodeQL runs remain unfiltered. NuGet package cache is shared by matching Windows restore inputs. The Pages workflow deploys canonical `site/`, so changes to engineering `docs/**` alone do not redeploy an identical website.
 
+OpenSSF Scorecard is also scheduled weekly and can be manually dispatched; it runs immediately on security configuration changes (`.github/**`, `SECURITY.md`, `.gitattributes`), not on every ordinary IEC-101 source commit. Hygiene and dependency-review checks cancel their own superseded PR revisions while retaining default-branch validation.
+
 ## Maintainer PR comment commands
 
 Post a new top-level PR comment with exactly:
