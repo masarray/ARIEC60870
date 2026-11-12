@@ -45,8 +45,44 @@ public sealed class ApplicationIconAlphaTests
         Assert.True(decoder.Frames.Count >= 3, "ICO should include taskbar-friendly 16/32/48 px frames.");
         foreach (var frame in decoder.Frames)
         {
-            Assert.Equal(0, PixelAlpha(frame, 0, 0));
-            Assert.Equal(0, PixelAlpha(frame, frame.PixelWidth - 1, frame.PixelHeight - 1));
+            AssertTransparentPerimeter(frame, $"ICO {frame.PixelWidth}x{frame.PixelHeight}");
+            Assert.Equal(255, PixelAlpha(frame, frame.PixelWidth / 2, frame.PixelHeight / 2));
+        }
+    }
+
+    [Theory]
+    [InlineData("iec101-icon.png")]
+    [InlineData("iec103-icon.png")]
+    [InlineData("iec104-icon.png")]
+    public void ProtocolBadgesHaveFullyTransparentCanvasPerimeters(string fileName)
+    {
+        var bitmap = new BitmapImage();
+        bitmap.BeginInit();
+        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.UriSource = new Uri(LocateAsset(fileName), UriKind.Absolute);
+        bitmap.EndInit();
+        AssertTransparentPerimeter(bitmap, fileName);
+    }
+
+    private static void AssertTransparentPerimeter(BitmapSource source, string label)
+    {
+        var image = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        var width = image.PixelWidth;
+        var height = image.PixelHeight;
+        var stride = width * 4;
+        var pixels = new byte[stride * height];
+        image.CopyPixels(pixels, stride, 0);
+        for (var x = 0; x < width; x++)
+        {
+            Assert.True(pixels[4 * x + 3] == 0, $"{label}: top border x={x} has alpha.");
+            Assert.True(pixels[(height - 1) * stride + 4 * x + 3] == 0,
+                $"{label}: bottom border x={x} has alpha.");
+        }
+        for (var y = 0; y < height; y++)
+        {
+            Assert.True(pixels[y * stride + 3] == 0, $"{label}: left border y={y} has alpha.");
+            Assert.True(pixels[y * stride + (width - 1) * 4 + 3] == 0,
+                $"{label}: right border y={y} has alpha.");
         }
     }
 

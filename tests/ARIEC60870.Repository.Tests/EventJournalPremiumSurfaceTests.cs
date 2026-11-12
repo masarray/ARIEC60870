@@ -31,6 +31,8 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Contains("EventJournalCircleShadow", (string?)circleSurface.Attribute("Effect"));
         Assert.Contains("TemplateBinding Background", (string?)circleSurface.Attribute("Fill"));
         Assert.Equal("1", (string?)circleSurface.Attribute("StrokeThickness"));
+        Assert.Equal("1", (string?)circleSurface.Attribute("Margin"),
+            "30-DIP visible circle fits within the preserved 32-DIP button.");
 
         foreach (var brush in new[] {
                      "EventJournalPillIdleBrush", "EventJournalPillHoverBrush",
@@ -82,9 +84,9 @@ public sealed class EventJournalPremiumSurfaceTests
     }
 
     [Theory]
-    [InlineData("EventHistoryPreviousButton", "M15,18 L9,12 L15,6")]
-    [InlineData("EventHistoryNextButton", "M9,18 L15,12 L9,6")]
-    public void NavigationUsesSmallRoundedLucideChevronInSeparateCircle(string name, string expected)
+    [InlineData("EventHistoryPreviousButton", "LucideChevronLeft", "M15,18 L9,12 L15,6")]
+    [InlineData("EventHistoryNextButton", "LucideChevronRight", "M9,18 L15,12 L9,6")]
+    public void NavigationUsesSmallRoundedLucideChevronInSeparateCircle(string name, string resource, string expected)
     {
         var document = XDocument.Load(FindMainWindowXaml());
         var button = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == name);
@@ -92,13 +94,20 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Contains("EventJournalCircleNavigationStyle",
             (string?)button.Attribute("Style"));
         var path = button.Elements().Single(e => e.Name.LocalName == "Path");
-        Assert.Equal("12", (string?)path.Attribute("Width"));
-        Assert.Equal("12", (string?)path.Attribute("Height"));
+        Assert.Equal("10", (string?)path.Attribute("Width"));
+        Assert.Equal("10", (string?)path.Attribute("Height"));
         Assert.Equal("2", (string?)path.Attribute("StrokeThickness"));
         Assert.Equal("Round", (string?)path.Attribute("StrokeStartLineCap"));
         Assert.Equal("Round", (string?)path.Attribute("StrokeEndLineCap"));
-        Assert.Equal(expected, (string?)path.Attribute("Data"));
+        Assert.Equal("{StaticResource " + resource + "}", (string?)path.Attribute("Data"));
+        var lucide = XDocument.Load(FindIconResourcesXaml());
+        var geometry = lucide.Descendants().Single(e => e.Name.LocalName == "Geometry" &&
+            (string?)e.Attribute(Xaml + "Key") == resource);
+        Assert.Equal(expected, geometry.Value);
     }
+
+    private static string FindIconResourcesXaml()
+        => Path.Combine(Path.GetDirectoryName(FindMainWindowXaml())!, "Resources", "LucideIcons.xaml");
 
     private static XElement Resource(XDocument document, string tag, string key)
         => document.Descendants().Single(e => e.Name.LocalName == tag &&

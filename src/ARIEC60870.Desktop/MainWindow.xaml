@@ -20,7 +20,7 @@
         <LinearGradientBrush x:Key="EventJournalPillIdleBrush" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#FFFFFF" Offset="0"/>
             <GradientStop Color="#F8FBFE" Offset="0.47"/>
-            <GradientStop Color="#E9F1FA" Offset="1"/>
+            <GradientStop Color="#EDF3FA" Offset="1"/>
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="EventJournalPillHoverBrush" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#FFFFFF" Offset="0"/>
@@ -36,7 +36,7 @@
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="EventJournalCircleIdleBrush" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#FFFFFF" Offset="0"/>
-            <GradientStop Color="#E1EEFC" Offset="1"/>
+            <GradientStop Color="#E7F1FC" Offset="1"/>
         </LinearGradientBrush>
         <LinearGradientBrush x:Key="EventJournalCircleHoverBrush" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#F8FCFF" Offset="0"/>
@@ -50,7 +50,7 @@
                           BlurRadius="5" ShadowDepth="1" Opacity="0.18"
                           RenderingBias="Performance"/>
         <DropShadowEffect x:Key="EventJournalCircleShadow" Color="#4076AB"
-                          BlurRadius="6" ShadowDepth="1" Opacity="0.24"
+                          BlurRadius="5" ShadowDepth="1" Opacity="0.20"
                           RenderingBias="Performance"/>
 
         <!-- Sculpted pill: a very fine white highlight, soft vertical
@@ -97,17 +97,17 @@
              never just a narrowed pill. Native click/keyboard/disabled intact. -->
         <ControlTemplate x:Key="EventJournalPremiumCircleTemplate" TargetType="{x:Type Button}">
             <Grid SnapsToDevicePixels="True">
-                <Ellipse x:Name="EventJournalCircleSurface"
+                <Ellipse x:Name="EventJournalCircleSurface" Margin="1"
                          Fill="{TemplateBinding Background}"
                          Stroke="{TemplateBinding BorderBrush}"
                          StrokeThickness="1"
                          Effect="{StaticResource EventJournalCircleShadow}"/>
-                <Ellipse IsHitTestVisible="False" Margin="2"
-                         Stroke="#AAFFFFFF" StrokeThickness="0.8"/>
+                <Ellipse IsHitTestVisible="False" Margin="3"
+                         Stroke="#86FFFFFF" StrokeThickness="0.8"/>
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Margin="{TemplateBinding Padding}"/>
                 <Ellipse x:Name="EventJournalCircleFocusRing"
-                         IsHitTestVisible="False" Visibility="Collapsed" Margin="3"
+                         IsHitTestVisible="False" Visibility="Collapsed" Margin="4"
                          Stroke="#588BD0" StrokeThickness="1"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -138,7 +138,7 @@
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
             <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#B8CADE"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -150,7 +150,7 @@
             <Setter Property="Height" Value="32"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="{StaticResource EventJournalCircleIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#9DBEE0"/>
+            <Setter Property="BorderBrush" Value="#95B4D5"/>
             <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
         </Style>
         <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
@@ -160,7 +160,7 @@
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
             <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#B8CADE"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -1755,10 +1755,10 @@
                                 <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
                                         Click="EventHistoryPrevious_Click"
                                         ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events">
-                                    <Path Width="12" Height="12" Stretch="Uniform" Fill="{x:Null}"
-                                          Stroke="#376A9F" StrokeThickness="2"
+                                    <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="#365777" StrokeThickness="2"
                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                          Data="M15,18 L9,12 L15,6"/>
+                                          Data="{StaticResource LucideChevronLeft}"/>
                                 </Button>
                                 <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
                                            Foreground="{StaticResource Ink600Brush}"
@@ -1767,10 +1767,10 @@
                                 <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
                                         Click="EventHistoryNext_Click"
                                         ToolTip="Next 100 matching events" AutomationProperties.Name="Next events">
-                                    <Path Width="12" Height="12" Stretch="Uniform" Fill="{x:Null}"
-                                          Stroke="#376A9F" StrokeThickness="2"
+                                    <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="#365777" StrokeThickness="2"
                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                          Data="M9,18 L15,12 L9,6"/>
+                                          Data="{StaticResource LucideChevronRight}"/>
                                 </Button>
                                 <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
                                         Content="Latest" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
