@@ -2682,7 +2682,7 @@
                             <Button Content="Clear" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,0" Click="Clear_Click" />
                         </UniformGrid>
 
-                        <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
+                        <Border x:Name="CommandTargetCard" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
                             <StackPanel>
                                 <TextBlock Text="Target" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
                                 <ComboBox x:Name="CommandSignalComboBox"
@@ -2753,7 +2753,9 @@
                 </ScrollViewer>
                 <!-- Target fields scroll, but physical Open/Close command actions
                      remain visible in the fixed panel footer on shorter screens. -->
-                <UniformGrid x:Name="CommandActionGrid" Grid.Row="4" Columns="2" Margin="0,0,0,4">
+                <UniformGrid x:Name="CommandActionGrid" Grid.Row="4" Columns="2"
+                             Width="{Binding ActualWidth, ElementName=CommandTargetCard}"
+                             HorizontalAlignment="Left" Margin="0,0,0,4">
                             <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="0,0,5,7" Tag="select-left" Click="CommandDock_Action_Click" />
                             <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="5,0,0,7" Tag="operate-left" Click="CommandDock_Action_Click" />
                             <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="0,0,5,0" Tag="select-right" Click="CommandDock_Action_Click" />
