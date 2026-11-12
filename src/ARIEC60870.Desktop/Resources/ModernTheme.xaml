@@ -338,7 +338,11 @@
                         Value="{StaticResource SetupConnectPressedBrush}"/>
                 <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#067347"/>
                 <Setter TargetName="SetupConnectHighlight" Property="Opacity" Value="0.35"/>
-                <Setter TargetName="SetupConnectRoot" Property="RenderTransform" Value="0,1"/>
+                <Setter TargetName="SetupConnectRoot" Property="RenderTransform">
+                    <Setter.Value>
+                        <TranslateTransform Y="1"/>
+                    </Setter.Value>
+                </Setter>
             </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter TargetName="SetupConnectFocusRing" Property="Visibility" Value="Visible"/>
