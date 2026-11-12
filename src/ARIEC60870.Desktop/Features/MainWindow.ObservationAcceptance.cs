@@ -886,6 +886,7 @@ public partial class MainWindow
             AssertOneLineToolbar(TraceWindowSearchBar, TraceQuickCountText,
                 TraceAutoScrollButton, FrameTraceGrid, "Trace", 9);
             AssertSearchFlushLeft(TraceWindowSearchBar, FrameTraceGrid, "Trace");
+                AssertSharedToolbarSearch(TraceWindowSearchBar, TraceQuickFindBox, TraceSearchClearButton, "Trace");
 
             // GitHub-hosted runners may clamp top-level WPF windows to the
             // actual desktop work area. Recording a 1540x960 *request* is not
@@ -939,9 +940,10 @@ public partial class MainWindow
             UpdateLayout();
             if (view.Index == 2)
             {
-                AssertOneLineToolbar(ValuesQuickFindBox, ValuesQuickCountText,
+                AssertOneLineToolbar(ValuesSearchShell, ValuesQuickCountText,
                     null, ValueGrid, "Values", 11);
                 AssertSearchFlushLeft(ValuesSearchShell, ValueGrid, "Values");
+                AssertSharedToolbarSearch(ValuesSearchShell, ValuesQuickFindBox, ValuesSearchClearButton, "Values");
                 if (ValueOpenFrameButton.Visibility != Visibility.Collapsed ||
                     ValueQuickScopeCombo.Visibility != Visibility.Collapsed ||
                     SelectedValueContextText.IsVisible ||
@@ -1011,6 +1013,7 @@ public partial class MainWindow
                 AssertOneLineToolbar(ControlsSearchShell, ControlsQuickCountText,
                     null, ControlCasesGrid, "Control cases", 9);
                 AssertSearchFlushLeft(ControlsSearchShell, ControlCasesGrid, "Control cases");
+                AssertSharedToolbarSearch(ControlsSearchShell, ControlsQuickFindBox, ControlsSearchClearButton, "Controls");
                 if (ControlCasesGrid.ContextMenu?.Items.Count < 2 ||
                     ControlCaseStagesGrid.ContextMenu?.Items.Count < 2)
                     throw new InvalidOperationException("Controls context actions missing.");
@@ -1022,6 +1025,7 @@ public partial class MainWindow
                 AssertOneLineToolbar(GISearchShell, GiQuickCountText,
                     null, GiCasesGrid, "GI cases", 9);
                 AssertSearchFlushLeft(GISearchShell, GiCasesGrid, "GI cases");
+                AssertSharedToolbarSearch(GISearchShell, GiQuickFindBox, GISearchClearButton, "GI");
                 if (GiCasesGrid.ContextMenu?.Items.Count < 2 ||
                     GiStagesGrid.ContextMenu?.Items.Count < 2)
                     throw new InvalidOperationException("GI context actions missing.");
@@ -1032,6 +1036,7 @@ public partial class MainWindow
             {
                 AssertResponsiveEventJournalToolbar();
                 AssertSearchFlushLeft(EventsSearchShell, RelayEventGrid, "Events");
+                AssertSharedToolbarSearch(EventsSearchShell, EventsQuickFindBox, EventsSearchClearButton, "Events");
                 if (!EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     !EventHistoryPreviousButton.IsVisible ||
                     !EventHistoryNextButton.IsVisible ||
@@ -1798,13 +1803,32 @@ public partial class MainWindow
     // A MaxWidth Border aligned Stretch inside a wide Grid column is
     // centered by WPF. This real-render assertion prevents Search drifting
     // to the middle of the header while the data grid remains flush left.
+    // Called only by explicit viewport qualification, never by hot IEC RX/TX frame handling.
+    // All five primary workspaces must show the same compact Events search component.
+    private void AssertSharedToolbarSearch(Border shell, TextBox input, Button clear, string workspace)
+    {
+        var pillHeight = (double)FindResource("ArSeeToolbarPillHeight");
+        var pillRadius = (CornerRadius)FindResource("ArSeeToolbarPillCornerRadius");
+        var maxWidth = (double)FindResource("ArSeeToolbarSearchWidth");
+        if (Math.Abs(shell.ActualHeight - pillHeight) > 0.65 ||
+            Math.Abs(shell.CornerRadius.TopLeft - pillRadius.TopLeft) > 0.1 ||
+            shell.ActualWidth > maxWidth + 1 ||
+            input.TranslatePoint(new Point(), shell).X > 42 ||
+            input.Padding.Left > 0.1 ||
+            clear.Width < 24 ||
+            clear.Background is not SolidColorBrush { Color: { A: 0 } } ||
+            clear.Content is not System.Windows.Shapes.Path)
+            throw new InvalidOperationException(
+                $"{workspace}: search chrome differs from approved Events compact pill.");
+    }
+
     private void AssertSearchFlushLeft(FrameworkElement searchShell, FrameworkElement grid,
         string workspace)
     {
         var searchLeft = searchShell.TranslatePoint(new Point(0, 0), this).X;
         var gridLeft = grid.TranslatePoint(new Point(0, 0), this).X;
         if (!searchShell.IsVisible || Math.Abs(searchLeft - gridLeft) > 3 ||
-            searchShell.ActualWidth > 244)
+            searchShell.ActualWidth > (double)FindResource("ArSeeToolbarSearchWidth") + 1)
             throw new InvalidOperationException(
                 $"{workspace} Search not flush left with data grid: search={searchLeft:0.0}, grid={gridLeft:0.0}, width={searchShell.ActualWidth:0.0}.");
     }

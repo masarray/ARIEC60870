@@ -14,203 +14,8 @@
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
 
-        <!-- Event Journal toolbar uses the compact pill design-token variant,
-             while primary navbar pills remain 42 DIP. Keep native ButtonBase semantics. -->
-        <LinearGradientBrush x:Key="EventJournalPillIdleBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#FFFFFF" Offset="0"/>
-            <GradientStop Color="#F8FBFE" Offset="0.47"/>
-            <GradientStop Color="#EDF3FA" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalPillHoverBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#FFFFFF" Offset="0"/>
-            <GradientStop Color="#E2EFFD" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalPillPressedBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#DAE9FA" Offset="0"/>
-            <GradientStop Color="#F4F9FF" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalPillSelectedBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#F5F9FF" Offset="0"/>
-            <GradientStop Color="#DCEBFF" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalCircleIdleBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#FFFFFF" Offset="0"/>
-            <GradientStop Color="#E7F1FC" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalCircleHoverBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#F8FCFF" Offset="0"/>
-            <GradientStop Color="#C7E0FB" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EventJournalCirclePressedBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#BCD7F5" Offset="0"/>
-            <GradientStop Color="#E8F3FF" Offset="1"/>
-        </LinearGradientBrush>
-        <DropShadowEffect x:Key="EventJournalPillShadow" Color="#617B9B"
-                          BlurRadius="5" ShadowDepth="1" Opacity="0.18"
-                          RenderingBias="Performance"/>
-        <DropShadowEffect x:Key="EventJournalCircleShadow" Color="#4076AB"
-                          BlurRadius="5" ShadowDepth="1" Opacity="0.20"
-                          RenderingBias="Performance"/>
-
-        <!-- Sculpted pill: a very fine white highlight, soft vertical
-             ceramic-like gradient and restrained 1-DIP edge/elevation. -->
-        <ControlTemplate x:Key="EventJournalPremiumPillTemplate" TargetType="{x:Type ButtonBase}">
-            <Grid SnapsToDevicePixels="True">
-                <Border x:Name="EventJournalPillSurface"
-                        CornerRadius="{StaticResource ArSeeToolbarPillCornerRadius}"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        Effect="{StaticResource EventJournalPillShadow}"/>
-                <Border IsHitTestVisible="False" Margin="2,1,2,17" CornerRadius="{StaticResource ArSeeToolbarPillInsetCornerRadius}"
-                        BorderThickness="0,1,0,0" BorderBrush="#ABFFFFFF"/>
-                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
-                <Border x:Name="EventJournalPillFocusRing"
-                        IsHitTestVisible="False" Visibility="Collapsed" Margin="2"
-                        CornerRadius="{StaticResource ArSeeToolbarPillInsetCornerRadius}" BorderBrush="#5C94D8" BorderThickness="1"/>
-            </Grid>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="EventJournalPillSurface" Property="Background"
-                            Value="{StaticResource EventJournalPillHoverBrush}"/>
-                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#88AFDA"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter TargetName="EventJournalPillSurface" Property="Background"
-                            Value="{StaticResource EventJournalPillPressedBrush}"/>
-                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#6F9CCF"/>
-                </Trigger>
-                <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                    <Setter TargetName="EventJournalPillFocusRing" Property="Visibility" Value="Visible"/>
-                </Trigger>
-                <!-- Disabled remains visibly pill-shaped: dim the control
-                     while retaining its restrained material and elevation. -->
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.62"/>
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
-
-        <!-- Separate genuine circular hardware-inspired navigation surface,
-             never just a narrowed pill. Native click/keyboard/disabled intact. -->
-        <ControlTemplate x:Key="EventJournalPremiumCircleTemplate" TargetType="{x:Type Button}">
-            <Grid SnapsToDevicePixels="True">
-                <Ellipse x:Name="EventJournalCircleSurface" Margin="1"
-                         Fill="{TemplateBinding Background}"
-                         Stroke="{TemplateBinding BorderBrush}"
-                         StrokeThickness="1"
-                         Effect="{StaticResource EventJournalCircleShadow}"/>
-                <Ellipse IsHitTestVisible="False" Margin="3"
-                         Stroke="#86FFFFFF" StrokeThickness="0.8"/>
-                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Margin="{TemplateBinding Padding}"/>
-                <Ellipse x:Name="EventJournalCircleFocusRing"
-                         IsHitTestVisible="False" Visibility="Collapsed" Margin="4"
-                         Stroke="#588BD0" StrokeThickness="1"/>
-            </Grid>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
-                            Value="{StaticResource EventJournalCircleHoverBrush}"/>
-                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#6C9ED7"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
-                            Value="{StaticResource EventJournalCirclePressedBrush}"/>
-                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#477FBE"/>
-                </Trigger>
-                <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                    <Setter TargetName="EventJournalCircleFocusRing" Property="Visibility" Value="Visible"/>
-                </Trigger>
-                <!-- A disabled navigation button must still LOOK circular,
-                     not dissolve into the toolbar background. -->
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.64"/>
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
-        <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
-            <Setter Property="Padding" Value="{StaticResource ArSeeToolbarPillPadding}"/>
-            <Setter Property="FontSize" Value="11.25"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
-            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#AFC6DD"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
-        </Style>
-        <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}"
-               BasedOn="{StaticResource EventJournalActionButtonStyle}">
-            <Setter Property="Width" Value="{StaticResource ArSeeToolbarCircleDiameter}"/>
-            <Setter Property="Height" Value="{StaticResource ArSeeToolbarCircleDiameter}"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Background" Value="{StaticResource EventJournalCircleIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#95B4D5"/>
-            <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
-        </Style>
-        <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
-            <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
-            <Setter Property="Padding" Value="{StaticResource ArSeeToolbarPillPadding}"/>
-            <Setter Property="FontSize" Value="11.25"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
-            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
-            <Setter Property="BorderBrush" Value="#AFC6DD"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="{StaticResource EventJournalPillSelectedBrush}"/>
-                    <Setter Property="BorderBrush" Value="#76A3D4"/>
-                    <Setter Property="Foreground" Value="#274F80"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <!-- Icon-only clear action: transparent at rest, muted red hover, vivid red press. -->
-        <Style x:Key="EventJournalSearchClearStyle" TargetType="{x:Type Button}">
-            <Setter Property="Width" Value="26"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="#52647B"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type Button}">
-                        <Grid Background="Transparent" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Border x:Name="ClearKeyboardFocus" IsHitTestVisible="False"
-                                    Visibility="Collapsed" Margin="3" CornerRadius="10"
-                                    BorderBrush="#BB52647B" BorderThickness="1"/>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ClearKeyboardFocus" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Foreground" Value="#B55B66"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Foreground" Value="#E11D48"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.5"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+        <!-- All approved text-action/search pill styles are centralized in
+             ModernTheme.xaml, not cloned for individual workspaces. -->
         <!-- Setup only: compact track optically centered with the caption; preserve
              real WPF CheckBox semantics, accessible name, IsChecked bindings,
              Checked/Unchecked handlers and keyboard Space support unchanged. -->
@@ -321,20 +126,6 @@
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
-        <Style x:Key="QuickFindClearButton" TargetType="Button">
-            <Setter Property="Width" Value="26"/><Setter Property="Height" Value="26"/>
-            <Setter Property="Cursor" Value="Hand"/><Setter Property="ToolTip" Value="Clear search"/>
-            <Setter Property="Template"><Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="Surface" Background="Transparent" CornerRadius="5">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Surface" Property="Background" Value="#E9F2FF"/>
-                    </Trigger></ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value></Setter>
-        </Style>
         <!-- Small semantic chips: decoded flags remain authoritative; no separate flag columns. -->
         <DataTemplate x:Key="ForensicFlagChipTemplate">
             <Border x:Name="Chip" CornerRadius="5" Padding="5,1" Margin="0,0,3,0"
@@ -925,13 +716,13 @@
                                  appear only in explicitly selected archive-search mode. -->
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="32" />
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="6" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="0" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                                <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" MinWidth="92" />
                                         <ColumnDefinition Width="Auto" />
@@ -939,28 +730,25 @@
                                     </Grid.ColumnDefinitions>
                                                                         <Grid Grid.Column="0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" MaxWidth="242"/>
+                                            <ColumnDefinition Width="*" MaxWidth="{StaticResource ArSeeToolbarSearchWidth}"/>
                                         </Grid.ColumnDefinitions>
-<Border x:Name="TraceWindowSearchBar" Grid.Column="0"
-                                            MaxWidth="242" Height="32"
+<Border x:Name="TraceWindowSearchBar" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Grid.Column="0"
                                             HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                            CornerRadius="8" Background="White"
-                                            BorderBrush="#CBD5E1" BorderThickness="1"
                                            >
-                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                            <Button x:Name="TraceSearchClearButton" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Trace" Style="{StaticResource QuickFindClearButton}"
+                                        <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                            <Button x:Name="TraceSearchClearButton" AutomationProperties.Name="Clear trace search" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Trace" Style="{StaticResource ArSeeToolbarSearchClearStyle}"
                                                     Click="QuickFindClear_Click">
-                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="14" Height="14"
-                                                      Stroke="#52647B" StrokeThickness="2" StrokeStartLineCap="Round"
+                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="2" StrokeStartLineCap="Round"
                                                       StrokeEndLineCap="Round" Stretch="Uniform"/>
                                             </Button>
                                             <Path DockPanel.Dock="Left"
                                                   Data="{StaticResource ArIconSearchOutline}"
                                                   Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
-                                                  StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
-                                                  Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TraceQuickFindBox" BorderThickness="0" Background="Transparent"
-                                                     FontFamily="Cascadia Mono, Consolas" FontSize="12.5"
+                                                  StrokeEndLineCap="Round" Width="15" Height="15" Stretch="Uniform"
+                                                  Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TraceQuickFindBox" Padding="0" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12"
                                                      Foreground="#334155" VerticalContentAlignment="Center"
                                                      TextChanged="QuickFindTextChanged"
                                                     />
@@ -1047,25 +835,51 @@
                                 </Grid>
                                 <StackPanel x:Name="TraceArchiveSearchBar" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,2">
                                     <DockPanel LastChildFill="True">
-                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
-                                            <Button Content="Current" Click="TraceCurrentMode_Click" Style="{StaticResource SecondaryButton}"
-                                                    Padding="7,3" Margin="0,0,5,0"/>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0"
+                                                    VerticalAlignment="Center">
+                                            <Button Content="Current" Click="TraceCurrentMode_Click"
+                                                    Style="{StaticResource ArSeeToolbarActionButtonStyle}" Margin="0,0,5,0"/>
                                             <Button x:Name="TraceRecordedFindButton" Content="Find" Click="TraceRecordedFind_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="7,3" FontSize="11" Margin="0,0,4,0"
-                                                   />
-                                            <Button x:Name="TraceRecordedPrevButton" Content="‹" Width="27" Click="TraceRecordedPrev_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="0,0,3,0"
-                                                   />
-                                            <Button x:Name="TraceRecordedNextButton" Content="›" Width="27" Click="TraceRecordedNext_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2"
-                                                   />
-                                            <Button x:Name="TraceRecordedCancelButton" Content="×" Width="27" Click="TraceRecordedCancel_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="4,0,0,0"
-                                                   />
+                                                    Style="{StaticResource ArSeeToolbarActionButtonStyle}" Margin="0,0,5,0"/>
+                                            <Button x:Name="TraceRecordedPrevButton" Click="TraceRecordedPrev_Click"
+                                                    Style="{StaticResource EventJournalCircleNavigationStyle}" IsEnabled="False"
+                                                    ToolTip="Previous archive match" AutomationProperties.Name="Previous archive match"
+                                                    Margin="0,0,3,0">
+                                                <Path Data="{StaticResource LucideChevronLeft}" Width="10" Height="10"
+                                                      Fill="{x:Null}" Stroke="#365777" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                            </Button>
+                                            <Button x:Name="TraceRecordedNextButton" Click="TraceRecordedNext_Click"
+                                                    Style="{StaticResource EventJournalCircleNavigationStyle}" IsEnabled="False"
+                                                    ToolTip="Next archive match" AutomationProperties.Name="Next archive match">
+                                                <Path Data="{StaticResource LucideChevronRight}" Width="10" Height="10"
+                                                      Fill="{x:Null}" Stroke="#365777" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                            </Button>
+                                            <Button x:Name="TraceRecordedCancelButton" Click="TraceRecordedCancel_Click"
+                                                    Style="{StaticResource ArSeeToolbarSearchClearStyle}" IsEnabled="False"
+                                                    ToolTip="Cancel archive search" AutomationProperties.Name="Cancel archive search"
+                                                    Margin="4,0,0,0">
+                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Fill="{x:Null}"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                            </Button>
                                         </StackPanel>
-                                        <TextBox x:Name="TraceRecordedQueryBox" MinWidth="70" Height="28"
-                                                 VerticalContentAlignment="Center" FontSize="11.5"
-                                                />
+                                        <Border x:Name="TraceArchiveQueryShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}"
+                                                Width="{StaticResource ArSeeToolbarSearchWidth}">
+                                            <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource ArIconSearchOutline}"
+                                                      Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" Width="15" Height="15" Stretch="Uniform"
+                                                      Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TraceRecordedQueryBox" MinWidth="70"
+                                                         BorderThickness="0" Background="Transparent"
+                                                         Padding="0" VerticalContentAlignment="Center"
+                                                         FontFamily="{StaticResource AppFont}" FontSize="12"
+                                                         Foreground="#334155"/>
+                                            </DockPanel>
+                                        </Border>
                                     </DockPanel>
                                     <TextBlock x:Name="TraceRecordedStatusText"
                                                Text="Archive · select a portable .ariec capture"
@@ -1526,36 +1340,34 @@
                                 <RowDefinition Height="*"/><RowDefinition Height="0"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <!-- Values uses the same 32px single-line search/counter geometry.
+                            <!-- Values uses the shared 36-DIP single-line search/counter geometry.
                                  No autoscroll is shown for the point snapshot (not a time-series). -->
-                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                            <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="140"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                                                     <Grid Grid.Column="0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" MaxWidth="242"/>
+                                            <ColumnDefinition Width="*" MaxWidth="{StaticResource ArSeeToolbarSearchWidth}"/>
                                         </Grid.ColumnDefinitions>
-<Border x:Name="ValuesSearchShell" Grid.Column="0" MaxWidth="242" Height="32" CornerRadius="8"
-                                        BorderBrush="#CBD5E1" BorderThickness="1"
-                                        Background="White" HorizontalAlignment="Stretch"
+<Border x:Name="ValuesSearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Grid.Column="0" HorizontalAlignment="Stretch"
                                         ToolTip="Search signal, value, CA, IOA, FUN/INF or source">
-                                    <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                        <Button x:Name="ValuesSearchClearButton" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Values"
-                                                Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                            <Path Data="{StaticResource ArIconSearchClearX}" Width="14" Height="14"
-                                                      Stroke="#52647B" StrokeThickness="2" StrokeStartLineCap="Round"
+                                    <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                        <Button x:Name="ValuesSearchClearButton" AutomationProperties.Name="Clear values search" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Values"
+                                                Style="{StaticResource ArSeeToolbarSearchClearStyle}" Click="QuickFindClear_Click">
+                                            <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="2" StrokeStartLineCap="Round"
                                                       StrokeEndLineCap="Round" Stretch="Uniform"/>
                                         </Button>
                                         <Path DockPanel.Dock="Left"
                                               Data="{StaticResource ArIconSearchOutline}"
                                               Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
-                                              StrokeEndLineCap="Round" Width="16" Height="16" Stretch="Uniform"
-                                              Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="ValuesQuickFindBox" BorderThickness="0"
+                                              StrokeEndLineCap="Round" Width="15" Height="15" Stretch="Uniform"
+                                              Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="ValuesQuickFindBox" Padding="0" BorderThickness="0"
                                                  Background="Transparent" FontFamily="{StaticResource AppFont}"
-                                                 FontSize="12.5" Foreground="#334155"
+                                                 FontSize="12" Foreground="#334155"
                                                  VerticalContentAlignment="Center"
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
@@ -1703,14 +1515,12 @@
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
                             <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border x:Name="EventsSearchShell" Width="{StaticResource ArSeeToolbarSearchWidth}" Height="{StaticResource ArSeeToolbarPillHeight}" CornerRadius="{StaticResource ArSeeToolbarPillCornerRadius}"
-                                        BorderBrush="#CBD5E1" BorderThickness="1"
-                                        Background="White" HorizontalAlignment="Stretch"
+                                <Border x:Name="EventsSearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Width="{StaticResource ArSeeToolbarSearchWidth}" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
                                         ToolTip="Search signal, status, COT, source or IOA">
                                     <DockPanel LastChildFill="True" Margin="7,0,10,0">
                                         <Button x:Name="EventsSearchClearButton" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Events"
-                                                Style="{StaticResource EventJournalSearchClearStyle}" Click="QuickFindClear_Click"
+                                                Style="{StaticResource ArSeeToolbarSearchClearStyle}" Click="QuickFindClear_Click"
                                                 AutomationProperties.Name="Clear event search">
                                             <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
                                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="2" StrokeStartLineCap="Round"
@@ -2585,28 +2395,26 @@
                             </Grid.RowDefinitions>
                             <!-- Compact single-line case toolbar: Search flush left | actual count right.
                                  Copy/open original frame live on both case and stage context menus. -->
-                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                            <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="140"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid Grid.Column="0">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="242"/></Grid.ColumnDefinitions>
-                                    <Border x:Name="ControlsSearchShell" Grid.Column="0"
-                                            Height="32" BorderBrush="#CBD5E1"
-                                            BorderThickness="1" CornerRadius="8" Background="White"
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource ArSeeToolbarSearchWidth}"/></Grid.ColumnDefinitions>
+                                    <Border x:Name="ControlsSearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Grid.Column="0"
                                             ToolTip="Search control IOA, target, case, status and source">
-                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                            <Button x:Name="ControlsSearchClearButton" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Controls" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="14" Height="14"
-                                                      Stroke="#52647B" StrokeThickness="2" StrokeStartLineCap="Round"
+                                        <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                            <Button x:Name="ControlsSearchClearButton" AutomationProperties.Name="Clear controls search" Visibility="Collapsed" DockPanel.Dock="Right" Tag="Controls" Style="{StaticResource ArSeeToolbarSearchClearStyle}" Click="QuickFindClear_Click">
+                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="2" StrokeStartLineCap="Round"
                                                       StrokeEndLineCap="Round" Stretch="Uniform"/>
                                             </Button>
                                             <Path DockPanel.Dock="Left" Data="{StaticResource ArIconSearchOutline}"
                                                   Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                                  Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="ControlsQuickFindBox" BorderThickness="0" Background="Transparent"
-                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5" Foreground="#334155"
+                                                  Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="ControlsQuickFindBox" Padding="0" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12" Foreground="#334155"
                                                      VerticalContentAlignment="Center" TextChanged="QuickFindTextChanged"/>
                                         </DockPanel>
                                     </Border>
@@ -2702,28 +2510,26 @@
                             </Grid.RowDefinitions>
                             <!-- Compact single-line case toolbar: Search flush left | actual count right.
                                  Copy/open original frame live on both case and stage context menus. -->
-                            <Grid Grid.Row="0" Height="32" VerticalAlignment="Center">
+                            <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}" VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" MinWidth="140"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid Grid.Column="0">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="242"/></Grid.ColumnDefinitions>
-                                    <Border x:Name="GISearchShell" Grid.Column="0"
-                                            Height="32" BorderBrush="#CBD5E1"
-                                            BorderThickness="1" CornerRadius="8" Background="White"
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource ArSeeToolbarSearchWidth}"/></Grid.ColumnDefinitions>
+                                    <Border x:Name="GISearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Grid.Column="0"
                                             ToolTip="Search GI station, group, source, status and evidence">
-                                        <DockPanel LastChildFill="True" Margin="6,0,2,0">
-                                            <Button x:Name="GISearchClearButton" Visibility="Collapsed" DockPanel.Dock="Right" Tag="GI" Style="{StaticResource QuickFindClearButton}" Click="QuickFindClear_Click">
-                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="14" Height="14"
-                                                      Stroke="#52647B" StrokeThickness="2" StrokeStartLineCap="Round"
+                                        <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                            <Button x:Name="GISearchClearButton" AutomationProperties.Name="Clear gi search" Visibility="Collapsed" DockPanel.Dock="Right" Tag="GI" Style="{StaticResource ArSeeToolbarSearchClearStyle}" Click="QuickFindClear_Click">
+                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}" StrokeThickness="2" StrokeStartLineCap="Round"
                                                       StrokeEndLineCap="Round" Stretch="Uniform"/>
                                             </Button>
                                             <Path DockPanel.Dock="Left" Data="{StaticResource ArIconSearchOutline}"
                                                   Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                                  Width="16" Height="16" Stretch="Uniform" Margin="5,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="GiQuickFindBox" BorderThickness="0" Background="Transparent"
-                                                     FontFamily="{StaticResource AppFont}" FontSize="12.5" Foreground="#334155"
+                                                  Width="15" Height="15" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="GiQuickFindBox" Padding="0" BorderThickness="0" Background="Transparent"
+                                                     FontFamily="{StaticResource AppFont}" FontSize="12" Foreground="#334155"
                                                      VerticalContentAlignment="Center" TextChanged="QuickFindTextChanged"/>
                                         </DockPanel>
                                     </Border>
@@ -2769,9 +2575,9 @@
                                 <TextBlock x:Name="GiStageSummaryText" Text="Select a GI case to inspect its milestones"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Foreground="#64748B" FontSize="11.3" VerticalAlignment="Center"/>
-                                <Button x:Name="GiStagesToggleButton" Grid.Column="1" Content="Show all stages"
-                                        FontSize="11" FontWeight="Normal" Padding="9,2"
-                                        BorderBrush="#CBD5E1" Background="#F8FAFC" Foreground="#334155"
+                                <Button x:Name="GiStagesToggleButton" Style="{StaticResource ArSeeToolbarActionButtonStyle}" Grid.Column="1" Content="Show all stages"
+                                          
+                                          
                                         Click="GiStagesToggle_Click"/>
                             </Grid>
                             <DataGrid x:Name="GiStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"

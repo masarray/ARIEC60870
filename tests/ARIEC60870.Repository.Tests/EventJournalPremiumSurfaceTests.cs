@@ -18,7 +18,7 @@ public sealed class EventJournalPremiumSurfaceTests
     [Fact]
     public void JournalToolbarHasTwoDistinctPremiumMaterials()
     {
-        var document = XDocument.Load(FindMainWindowXaml());
+        var document = XDocument.Load(FindThemeXaml());
         var pill = Resource(document, "ControlTemplate", "EventJournalPremiumPillTemplate");
         var circle = Resource(document, "ControlTemplate", "EventJournalPremiumCircleTemplate");
 
@@ -87,13 +87,19 @@ public sealed class EventJournalPremiumSurfaceTests
         }
         var search = main.Descendants().Single(e =>
             (string?)e.Attribute(Xaml + "Name") == "EventsSearchShell");
-        Assert.Equal("{StaticResource ArSeeToolbarPillHeight}", (string?)search.Attribute("Height"));
-        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}", (string?)search.Attribute("CornerRadius"));
-        var pill = Resource(main, "ControlTemplate", "EventJournalPremiumPillTemplate");
+        Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}", (string?)search.Attribute("Style"));
+        var searchStyle = Resource(theme, "Style", "ArSeeToolbarSearchShellStyle");
+        Assert.Contains(searchStyle.Elements(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "Height" &&
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarPillHeight}");
+        Assert.Contains(searchStyle.Elements(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "CornerRadius" &&
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarPillCornerRadius}");
+        var pill = Resource(theme, "ControlTemplate", "EventJournalPremiumPillTemplate");
         Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}",
             (string?)Named(pill, "Border", "EventJournalPillSurface").Attribute("CornerRadius"));
         // Compact circular chevrons now live inside a shared, full-height pager capsule.
-        var circle = Resource(main, "Style", "EventJournalCircleNavigationStyle");
+        var circle = Resource(theme, "Style", "EventJournalCircleNavigationStyle");
         Assert.Contains(circle.Elements(), e => e.Name.LocalName == "Setter" &&
             (string?)e.Attribute("Property") == "Width" &&
             (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarCircleDiameter}");
@@ -111,9 +117,7 @@ public sealed class EventJournalPremiumSurfaceTests
         var doc = XDocument.Load(FindMainWindowXaml());
         var shell = Named(doc.Root!, "Border", "EventsSearchShell");
         Assert.Equal("{StaticResource ArSeeToolbarSearchWidth}", (string?)shell.Attribute("Width"));
-        Assert.Equal("{StaticResource ArSeeToolbarPillHeight}", (string?)shell.Attribute("Height"));
-        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}",
-            (string?)shell.Attribute("CornerRadius"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}", (string?)shell.Attribute("Style"));
 
         var searchLayout = shell.Descendants().Single(e => e.Name.LocalName == "DockPanel");
         Assert.Equal("7,0,10,0", (string?)searchLayout.Attribute("Margin"));
@@ -123,12 +127,12 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal("0,0,5,0", (string?)icon.Attribute("Margin"));
 
         var clear = Named(shell, "Button", "EventsSearchClearButton");
-        Assert.Equal("{StaticResource EventJournalSearchClearStyle}", (string?)clear.Attribute("Style"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchClearStyle}", (string?)clear.Attribute("Style"));
         Assert.Equal("Clear event search", (string?)clear.Attribute("AutomationProperties.Name"));
         var clearIcon = clear.Elements().Single(e => e.Name.LocalName == "Path");
         Assert.Contains("AncestorType", (string?)clearIcon.Attribute("Stroke"));
 
-        var clearStyle = Resource(doc, "Style", "EventJournalSearchClearStyle");
+        var clearStyle = Resource(XDocument.Load(FindThemeXaml()), "Style", "EventJournalSearchClearStyle");
         Assert.Contains(clearStyle.Descendants(), e => e.Name.LocalName == "Grid" &&
             (string?)e.Attribute("Background") == "Transparent");
         Assert.Contains(clearStyle.Descendants(), e => e.Name.LocalName == "Trigger" &&
@@ -155,9 +159,69 @@ public sealed class EventJournalPremiumSurfaceTests
     }
 
     [Fact]
+    public void EveryObservationWorkspaceUsesTheSameCompactSearchComponent()
+    {
+        var main = XDocument.Load(FindMainWindowXaml());
+        var theme = XDocument.Load(FindThemeXaml());
+        var shellStyle = Resource(theme, "Style", "ArSeeToolbarSearchShellStyle");
+        var clearStyle = Resource(theme, "Style", "ArSeeToolbarSearchClearStyle");
+        var actionStyle = Resource(theme, "Style", "ArSeeToolbarActionButtonStyle");
+        Assert.Equal("{StaticResource EventJournalSearchClearStyle}",
+            (string?)clearStyle.Attribute("BasedOn"));
+        Assert.Equal("{StaticResource EventJournalActionButtonStyle}",
+            (string?)actionStyle.Attribute("BasedOn"));
+        Assert.Contains(shellStyle.Elements(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "Height" &&
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarPillHeight}");
+
+        foreach (var (shellName, clearName, inputName) in new[] {
+                     ("TraceWindowSearchBar", "TraceSearchClearButton", "TraceQuickFindBox"),
+                     ("ValuesSearchShell", "ValuesSearchClearButton", "ValuesQuickFindBox"),
+                     ("EventsSearchShell", "EventsSearchClearButton", "EventsQuickFindBox"),
+                     ("ControlsSearchShell", "ControlsSearchClearButton", "ControlsQuickFindBox"),
+                     ("GISearchShell", "GISearchClearButton", "GiQuickFindBox") })
+        {
+            var shell = Named(main.Root!, "Border", shellName);
+            Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}",
+                (string?)shell.Attribute("Style"));
+            var dock = shell.Descendants().Single(e => e.Name.LocalName == "DockPanel");
+            Assert.Equal("7,0,10,0", (string?)dock.Attribute("Margin"));
+            var input = Named(shell, "TextBox", inputName);
+            Assert.Equal("0", (string?)input.Attribute("Padding"));
+            Assert.Equal("12", (string?)input.Attribute("FontSize"));
+            Assert.Equal("QuickFindTextChanged", (string?)input.Attribute("TextChanged"));
+            var clear = Named(shell, "Button", clearName);
+            Assert.Equal("{StaticResource ArSeeToolbarSearchClearStyle}",
+                (string?)clear.Attribute("Style"));
+            Assert.Equal("QuickFindClear_Click", (string?)clear.Attribute("Click"));
+            Assert.Equal("Collapsed", (string?)clear.Attribute("Visibility"));
+            var glyph = clear.Elements().Single(e => e.Name.LocalName == "Path");
+            Assert.Contains("AncestorType", (string?)glyph.Attribute("Stroke"));
+            var searchIcon = dock.Elements().Single(e => e.Name.LocalName == "Path");
+            Assert.Equal("0,0,5,0", (string?)searchIcon.Attribute("Margin"));
+        }
+        Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
+            (string?)Named(main.Root!, "Button", "GiStagesToggleButton").Attribute("Style"));
+        var archive = Named(main.Root!, "Border", "TraceArchiveQueryShell");
+        Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}",
+            (string?)archive.Attribute("Style"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchWidth}",
+            (string?)archive.Attribute("Width"));
+        Assert.Equal("0", (string?)Named(archive, "TextBox", "TraceRecordedQueryBox").Attribute("Padding"));
+        foreach (var name in new[] { "TraceRecordedFindButton" })
+            Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
+                (string?)Named(main.Root!, "Button", name).Attribute("Style"));
+        foreach (var name in new[] { "TraceRecordedPrevButton", "TraceRecordedNextButton" })
+            Assert.Equal("{StaticResource EventJournalCircleNavigationStyle}",
+                (string?)Named(main.Root!, "Button", name).Attribute("Style"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchClearStyle}",
+            (string?)Named(main.Root!, "Button", "TraceRecordedCancelButton").Attribute("Style"));
+    }
+
+    [Fact]
     public void DisabledControlsRetainTheirCircleOrPillElevation()
     {
-        var doc = XDocument.Load(FindMainWindowXaml());
+        var doc = XDocument.Load(FindThemeXaml());
         foreach (var template in new[] {
                      "EventJournalPremiumPillTemplate",
                      "EventJournalPremiumCircleTemplate" })
