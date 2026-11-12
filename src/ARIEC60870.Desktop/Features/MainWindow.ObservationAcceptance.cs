@@ -1685,37 +1685,57 @@ public partial class MainWindow
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
 
-        // Inspect actual WPF templates, not screenshots or XAML text alone.
-        // All Event Journal actions must share Search's 32-DIP optical height.
-        System.Windows.Controls.Primitives.ButtonBase[] actions =
+        // Inspect the *realized WPF templates*: independent pill and circular
+        // materials. A plain radius-only white button must fail qualification.
+        System.Windows.Controls.Primitives.ButtonBase[] pillActions =
         [
-            EventIncludeToggle, EventExcludeToggle, EventHistoryPreviousButton,
-            EventHistoryNextButton, EventHistoryLatestButton, EventHistoryExportButton
+            EventIncludeToggle, EventExcludeToggle,
+            EventHistoryLatestButton, EventHistoryExportButton
         ];
-        foreach (var action in actions)
+        foreach (var action in pillActions)
         {
             action.ApplyTemplate();
-            if (action.Template.FindName("EventJournalButtonSurface", action) is not Border surface ||
+            if (action.Template.FindName("EventJournalPillSurface", action) is not Border surface ||
+                action.Template.FindName("EventJournalPillFocusRing", action) is not Border ||
                 Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
                 Math.Abs(action.ActualHeight - 32) > 0.6 ||
-                Math.Abs(surface.CornerRadius.TopLeft - 16) > 0.6 ||
-                surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight)
+                action.ActualWidth < action.ActualHeight + 12 ||
+                Math.Abs(surface.CornerRadius.TopLeft - 16) > 0.1 ||
+                surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight ||
+                surface.Background is not LinearGradientBrush ||
+                surface.Effect is not System.Windows.Media.Effects.DropShadowEffect)
                 throw new InvalidOperationException(
-                    $"Event Journal action {action.Name} lost the shared pill 32-DIP design token.");
+                    $"Event Journal action {action.Name} lost its premium 32-DIP pill material.");
         }
-        // Exact operator-approved Lucide chevrons: slender stroke, round caps.
-        // 32x32 controls with radius 16 must be circular, not tiny square buttons.
+        Button[] circleActions = [EventHistoryPreviousButton, EventHistoryNextButton];
+        foreach (var action in circleActions)
+        {
+            action.ApplyTemplate();
+            if (action.Template.FindName("EventJournalCircleSurface", action)
+                    is not System.Windows.Shapes.Ellipse surface ||
+                action.Template.FindName("EventJournalCircleFocusRing", action)
+                    is not System.Windows.Shapes.Ellipse ||
+                Math.Abs(action.ActualWidth - 32) > 0.6 ||
+                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                surface.Fill is not LinearGradientBrush ||
+                surface.Effect is not System.Windows.Media.Effects.DropShadowEffect ||
+                Math.Abs(surface.StrokeThickness - 1) > 0.1)
+                throw new InvalidOperationException(
+                    $"Event Journal {action.Name} must use a real round, softly elevated surface.");
+        }
+        // Exact approved Lucide chevron geometry, visually 12 DIP (not oversize).
         if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
             EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
-            Math.Abs(EventHistoryPreviousButton.ActualWidth - 32) > 0.6 ||
-            Math.Abs(EventHistoryNextButton.ActualWidth - 32) > 0.6 ||
             previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
             next.Data.ToString() != Geometry.Parse("M9,18 L15,12 L9,6").ToString() ||
+            Math.Abs(previous.Width - 12) > 0.1 || Math.Abs(next.Width - 12) > 0.1 ||
             Math.Abs(previous.StrokeThickness - 2) > 0.1 ||
             Math.Abs(next.StrokeThickness - 2) > 0.1 ||
+            previous.StrokeStartLineCap != PenLineCap.Round ||
+            next.StrokeEndLineCap != PenLineCap.Round ||
             previous.Fill is not null || next.Fill is not null)
             throw new InvalidOperationException(
-                "Event Journal navigation must show 32-DIP circles with Lucide 2-DIP stroke chevrons.");
+                "Event Journal circle navigation lost the approved compact Lucide chevrons.");
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;
