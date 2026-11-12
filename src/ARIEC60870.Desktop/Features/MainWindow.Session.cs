@@ -803,16 +803,14 @@ public partial class MainWindow
         var isDual101 = is101 && IsIec101DualLinkModeSelected();
         var isPassive101 = is101 && IsIec101PassiveMonitorSelected();
         var is104 = mode == Iec60870ProtocolMode.Iec104;
-        // Fresh profile defaults only: IEC-101 active starts with FC0 on.
-        // Existing JSON preferences (including explicit OFF) and the user's
-        // current-session switch choice always win. Passive RX never sends TX.
-        if (!_savedSetupPreferencesLoaded && !_resetRemoteLinkUserCustomized &&
-            ResetRemoteLinkCheckBox is not null)
-        {
-            var defaults = Iec103MasterSettings.CreateDefault();
-            defaults.ProtocolMode = mode;
-            ResetRemoteLinkCheckBox.IsChecked = !isPassive101 && defaults.ResetRemoteLinkOnConnect;
-        }
+        // Resolve the selected protocol independently of preferences saved in
+        // a different mode. Explicit IEC-101 OFF is preserved; passive RX
+        // never schedules a reset. This checkbox supplies BuildSettingsFromUi.
+        if (ResetRemoteLinkCheckBox is not null)
+            ResetRemoteLinkCheckBox.IsChecked = ResetRemoteLinkPreferencePolicy.OnConnect(
+                mode, isPassive101,
+                _iec101ResetRemoteLinkOperatorOverride,
+                _iec103ResetRemoteLinkOperatorOverride);
         var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var funInfVisibility = is103 ? Visibility.Visible : Visibility.Collapsed;
@@ -820,7 +818,7 @@ public partial class MainWindow
         var apciVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var classVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
 
-        ProductTitleText.Text = "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester";
+        ProductTitleText.Text = ARIEC60870.Desktop.Services.ArSeeWindowTitle.ProductHeader;
         ApplyProtocolLogo(mode);
         ClassPollLabelText.Text = is104 ? "GI/I/S " : "GI/C1/C2 ";
         EventChipLabelText.Text = is104 ? "ASDU " : "EVENT ";

@@ -10,8 +10,6 @@ namespace ARIEC60870.Repository.Tests;
 
 public sealed class RepositoryHygieneTests
 {
-    private const string PublicBrandTitle = "ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
-
     [Fact]
     public void RequiredPublicRepositoryFilesExist()
     {
@@ -246,8 +244,8 @@ public sealed class RepositoryHygieneTests
 
         var siteIndex = File.ReadAllText(root.File("site/index.html"));
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
-        Assert.Contains(PublicBrandTitle, siteIndex);
-        Assert.Contains(PublicBrandTitle, docsIndex);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", siteIndex);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsIndex);
         Assert.Contains("https://masarray.github.io/ARIEC60870/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
     }
@@ -357,6 +355,65 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void DesktopNavigationUsesQuietPillsAndAnEdgeAnchoredStatusDock()
+    {
+        var root = FindRepositoryRoot();
+        XNamespace xn = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = XDocument.Load(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        var theme = XDocument.Load(root.File("src/ARIEC60870.Desktop/Resources/ModernTheme.xaml"));
+        var layout = window.Root!.Elements().Single(e => e.Name.LocalName == "Grid");
+        Assert.Equal("12,12,12,0", (string?)layout.Attribute("Margin"));
+
+        var dock = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "StatusHistoryPanel");
+        Assert.Equal("1,1,1,0", (string?)dock.Attribute("BorderThickness"));
+        Assert.Equal("16,16,0,0", (string?)dock.Attribute("CornerRadius"));
+        Assert.Null(dock.Attribute("Effect"));
+        var nav = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "SegmentedNavRoot");
+        Assert.Equal("1", (string?)nav.Attribute("BorderThickness"));
+        foreach (var name in new[] { "NavFrameButton", "NavValueButton", "NavEventButton",
+                                      "NavControlCasesButton", "NavGiCasesButton", "NavReportButton" })
+            Assert.Null(window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == name).Attribute("ToolTip"));
+
+        var pill = theme.Descendants().Single(e => (string?)e.Attribute(xn + "Key") == "SegmentedNavButton");
+        Assert.Contains(pill.Descendants(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "ToolTipService.IsEnabled" &&
+            (string?)e.Attribute("Value") == "False");
+        Assert.Contains(pill.Descendants(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "FocusVisualStyle" &&
+            (string?)e.Attribute("Value") == "{x:Null}");
+        var chrome = pill.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "Chrome");
+        Assert.Equal("{TemplateBinding BorderBrush}", (string?)chrome.Attribute("BorderBrush"));
+        Assert.Equal("{TemplateBinding Background}", (string?)chrome.Attribute("Background"));
+        var summary = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "StatusHistorySummaryText");
+        Assert.Equal("CharacterEllipsis", (string?)summary.Attribute("TextTrimming"));
+        Assert.Equal("1", (string?)summary.Attribute("Grid.Column"));
+    }
+
+    [Fact]
+    public void DesktopProtocolStandardNumbersStayAccurateInWindowAndExeIdentity()
+    {
+        var root = FindRepositoryRoot();
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = XDocument.Load(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        var project = XDocument.Load(root.File("src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj"));
+        var runtime = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Services/ArSeeWindowTitle.cs"));
+        var session = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Features/MainWindow.Session.cs"));
+
+        const string caption = "ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
+        const string heading = "ArSee · Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
+        Assert.Equal(caption, (string?)window.Root!.Attribute("Title"));
+        Assert.Equal(heading, (string?)window.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "ProductTitleText").Attribute("Text"));
+        Assert.Equal(caption + " • version $(Version)", project.Descendants()
+            .Single(e => e.Name.LocalName == "Title").Value);
+        Assert.Contains(caption, runtime);
+        Assert.Contains(heading, runtime);
+        Assert.Contains("ArSeeWindowTitle.ProductHeader", session);
+        Assert.DoesNotContain("IEC 60870-101/104/103", runtime);
+        Assert.DoesNotContain("IEC 60870-104/103/101", session);
+    }
+
+    [Fact]
     public void DesktopArchitectureAndNativePdfGuardsRemainInPlace()
     {
         var root = FindRepositoryRoot();
@@ -396,7 +453,7 @@ public sealed class RepositoryHygieneTests
                 || path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.Contains(PublicBrandTitle, readme);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", readme);
         Assert.Contains("Native PDF evidence report | Implemented baseline", roadmap);
         Assert.DoesNotContain("PDF evidence report | Low", roadmap, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("planned next", roadmap, StringComparison.OrdinalIgnoreCase);
@@ -405,7 +462,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("\"@type\": \"FAQPage\"", site);
         Assert.Contains("\"@type\": \"BreadcrumbList\"", site);
         Assert.Contains("Native PDF evidence report", site);
-        Assert.Contains(PublicBrandTitle, docsMirror);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsMirror);
         Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", site, StringComparison.OrdinalIgnoreCase);

@@ -5,7 +5,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:input="clr-namespace:System.Windows.Input;assembly=PresentationCore"
         xmlns:vm="clr-namespace:ARIEC60870.Desktop.ViewModels"
-        Title="ArSee • Open Source IEC 60870-101/104/103 Protocol Tester &amp; Analyzer"
+        Title="ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester &amp; Analyzer"
         Width="1540" Height="960" MinWidth="810" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"
@@ -13,6 +13,166 @@
         FontFamily="{StaticResource AppFont}" Loaded="QuickFindWindow_Loaded">
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
+
+        <!-- Event Journal premium-calm toolbar: compact 32-DIP controls.
+             Pill and circular navigation have separate geometry, materials and
+             optical treatments. Keep native WPF ButtonBase keyboard semantics. -->
+        <LinearGradientBrush x:Key="EventJournalPillIdleBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#F8FBFE" Offset="0.47"/>
+            <GradientStop Color="#EDF3FA" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillHoverBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#E2EFFD" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillPressedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#DAE9FA" Offset="0"/>
+            <GradientStop Color="#F4F9FF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillSelectedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#F5F9FF" Offset="0"/>
+            <GradientStop Color="#DCEBFF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCircleIdleBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#E7F1FC" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCircleHoverBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#F8FCFF" Offset="0"/>
+            <GradientStop Color="#C7E0FB" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCirclePressedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#BCD7F5" Offset="0"/>
+            <GradientStop Color="#E8F3FF" Offset="1"/>
+        </LinearGradientBrush>
+        <DropShadowEffect x:Key="EventJournalPillShadow" Color="#617B9B"
+                          BlurRadius="5" ShadowDepth="1" Opacity="0.18"
+                          RenderingBias="Performance"/>
+        <DropShadowEffect x:Key="EventJournalCircleShadow" Color="#4076AB"
+                          BlurRadius="5" ShadowDepth="1" Opacity="0.20"
+                          RenderingBias="Performance"/>
+
+        <!-- Sculpted pill: a very fine white highlight, soft vertical
+             ceramic-like gradient and restrained 1-DIP edge/elevation. -->
+        <ControlTemplate x:Key="EventJournalPremiumPillTemplate" TargetType="{x:Type ButtonBase}">
+            <Grid SnapsToDevicePixels="True">
+                <Border x:Name="EventJournalPillSurface"
+                        CornerRadius="{StaticResource ArSeePillCornerRadius}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        Effect="{StaticResource EventJournalPillShadow}"/>
+                <Border IsHitTestVisible="False" Margin="2,1,2,20" CornerRadius="{StaticResource ArSeePillInsetCornerRadius}"
+                        BorderThickness="0,1,0,0" BorderBrush="#ABFFFFFF"/>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
+                <Border x:Name="EventJournalPillFocusRing"
+                        IsHitTestVisible="False" Visibility="Collapsed" Margin="2"
+                        CornerRadius="{StaticResource ArSeePillInsetCornerRadius}" BorderBrush="#5C94D8" BorderThickness="1"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="EventJournalPillSurface" Property="Background"
+                            Value="{StaticResource EventJournalPillHoverBrush}"/>
+                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#88AFDA"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="EventJournalPillSurface" Property="Background"
+                            Value="{StaticResource EventJournalPillPressedBrush}"/>
+                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#6F9CCF"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="EventJournalPillFocusRing" Property="Visibility" Value="Visible"/>
+                </Trigger>
+                <!-- Disabled remains visibly pill-shaped: dim the control
+                     while retaining its restrained material and elevation. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.62"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Separate genuine circular hardware-inspired navigation surface,
+             never just a narrowed pill. Native click/keyboard/disabled intact. -->
+        <ControlTemplate x:Key="EventJournalPremiumCircleTemplate" TargetType="{x:Type Button}">
+            <Grid SnapsToDevicePixels="True">
+                <Ellipse x:Name="EventJournalCircleSurface" Margin="1"
+                         Fill="{TemplateBinding Background}"
+                         Stroke="{TemplateBinding BorderBrush}"
+                         StrokeThickness="1"
+                         Effect="{StaticResource EventJournalCircleShadow}"/>
+                <Ellipse IsHitTestVisible="False" Margin="3"
+                         Stroke="#86FFFFFF" StrokeThickness="0.8"/>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="{TemplateBinding Padding}"/>
+                <Ellipse x:Name="EventJournalCircleFocusRing"
+                         IsHitTestVisible="False" Visibility="Collapsed" Margin="4"
+                         Stroke="#588BD0" StrokeThickness="1"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
+                            Value="{StaticResource EventJournalCircleHoverBrush}"/>
+                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#6C9ED7"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
+                            Value="{StaticResource EventJournalCirclePressedBrush}"/>
+                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#477FBE"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="EventJournalCircleFocusRing" Property="Visibility" Value="Visible"/>
+                </Trigger>
+                <!-- A disabled navigation button must still LOOK circular,
+                     not dissolve into the toolbar background. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.64"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="{StaticResource ArSeePillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeePillPadding}"/>
+            <Setter Property="FontSize" Value="11.25"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource EventJournalActionButtonStyle}">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalCircleIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#95B4D5"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Height" Value="{StaticResource ArSeePillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeePillPadding}"/>
+            <Setter Property="FontSize" Value="11.25"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource EventJournalPillSelectedBrush}"/>
+                    <Setter Property="BorderBrush" Value="#76A3D4"/>
+                    <Setter Property="Foreground" Value="#274F80"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <!-- Setup only: compact track optically centered with the caption; preserve
              real WPF CheckBox semantics, accessible name, IsChecked bindings,
              Checked/Unchecked handlers and keyboard Space support unchanged. -->
@@ -245,7 +405,7 @@
             </StackPanel>
         </DataTemplate>
     </Window.Resources>
-    <Grid Margin="12">
+    <Grid Margin="12,12,12,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -413,7 +573,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock x:Name="ProductTitleText" Text="ArSee · Open Source IEC 60870-104/103/101 Protocol Tester" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
+                            <TextBlock x:Name="ProductTitleText" Text="ArSee · Open Source IEC 60870-5-101/103/104 Protocol Tester &amp; Analyzer" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
                             <TextBlock x:Name="SessionSubtitleText" Text="Ready. Setup and connect." Style="{StaticResource SubtleText}" FontSize="10.8" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                             <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>
@@ -499,23 +659,17 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTip="Workspace navigation">
-                            <Border x:Name="SegmentedNavRoot" BorderBrush="Transparent" BorderThickness="0" CornerRadius="20" Padding="4" HorizontalAlignment="Left" Background="#F1F4F7">
+                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTipService.IsEnabled="False">
+                            <Border x:Name="SegmentedNavRoot" BorderBrush="#D2DEE9" BorderThickness="1" CornerRadius="24" Padding="4" HorizontalAlignment="Left" Background="#EDF2F7">
                                 <Grid>
-                                    <Border x:Name="SegmentSlider" Height="40" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
-                                        <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
-                                        <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
-                                    </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <Button x:Name="NavFrameButton" Content="Raw Frames" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click"
-                                                ToolTip="Source-qualified Master command, RTU confirmation and process feedback casebook" />
-                                        <Button x:Name="NavGiCasesButton" Content="GI" Style="{StaticResource SegmentedNavButton}" Tag="12" Click="SegmentedNav_Click"
-                                                ToolTip="Observed General Interrogation conversations, data counts and source evidence" />
+                                        <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavGiCasesButton" Content="GI" Style="{StaticResource SegmentedNavButton}" Tag="12" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavDiagnosticsButton" Content="System Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
@@ -525,7 +679,7 @@
                                 </Grid>
                             </Border>
                         </ScrollViewer>
-                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center" ToolTip="Show/hide active-master test actions (passive mode remains receive-only)"/>
+                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid Grid.Row="1" ClipToBounds="True">
@@ -1511,7 +1665,7 @@
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
                             <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border x:Name="EventsSearchShell" Width="218" Height="32" CornerRadius="8"
+                                <Border x:Name="EventsSearchShell" Width="218" Height="{StaticResource ArSeePillHeight}" CornerRadius="{StaticResource ArSeePillCornerRadius}"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
@@ -1537,14 +1691,12 @@
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
                                             VerticalAlignment="Center">
-                                    <ToggleButton x:Name="EventIncludeToggle" Width="113" Height="29" FocusVisualStyle="{x:Null}"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
-                                                  Content="Include: All" ToolTip="Include categories; all selected by default"/>
-                                    <ToggleButton x:Name="EventExcludeToggle" Width="114" Height="29" FocusVisualStyle="{x:Null}" Margin="5,0,0,0"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
-                                                  Content="Exclude: None" ToolTip="Exclude categories; none selected by default"/>
+                                    <ToggleButton x:Name="EventIncludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
+                                                  Width="113" Content="Include: All"
+                                                  ToolTip="Include categories; all selected by default"/>
+                                    <ToggleButton x:Name="EventExcludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
+                                                  Width="114" Margin="5,0,0,0" Content="Exclude: None"
+                                                  ToolTip="Exclude categories; none selected by default"/>
                                     <Popup x:Name="EventIncludePopup" PlacementTarget="{Binding ElementName=EventIncludeToggle}"
                                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                                            IsOpen="{Binding IsChecked, ElementName=EventIncludeToggle, Mode=TwoWay}">
@@ -1563,8 +1715,8 @@
                                                 <CheckBox Content="Other / IEC-103" Tag="Other" IsChecked="True" Margin="2,3"
                                                           Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <Button Content="All" Padding="9,3" Click="EventIncludeAll_Click"/>
-                                                    <Button Content="None" Padding="9,3" Margin="6,0,0,0" Click="EventIncludeNone_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="All" Padding="9,0" Click="EventIncludeAll_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="None" Padding="9,0" Margin="6,0,0,0" Click="EventIncludeNone_Click"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
@@ -1587,8 +1739,8 @@
                                                 <CheckBox Content="Other / IEC-103" Tag="Other" Margin="2,3"
                                                           Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <Button Content="None" Padding="9,3" Click="EventExcludeNone_Click"/>
-                                                    <Button Content="All" Padding="9,3" Margin="6,0,0,0" Click="EventExcludeAll_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="None" Padding="9,0" Click="EventExcludeNone_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="All" Padding="9,0" Margin="6,0,0,0" Click="EventExcludeAll_Click"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
@@ -1600,33 +1752,31 @@
                                            Width="122" Margin="8,0,6,0" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis" TextAlignment="Right"
                                            ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
-                                <Button x:Name="EventHistoryPreviousButton" Content="‹"
-                                        Click="EventHistoryPrevious_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Previous 100 matching events"/>
+                                <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryPrevious_Click"
+                                        ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events" VerticalAlignment="Center">
+                                    <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="#365777" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="{StaticResource LucideChevronLeft}"/>
+                                </Button>
                                 <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
                                            Foreground="{StaticResource Ink600Brush}"
-                                           Width="104" TextAlignment="Center" VerticalAlignment="Center"
+                                           Width="84" TextAlignment="Center" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Button x:Name="EventHistoryNextButton" Content="›"
-                                        Click="EventHistoryNext_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Next 100 matching events"/>
-                                <Button x:Name="EventHistoryLatestButton" Content="Latest"
-                                        Click="EventHistoryLatest_Click" Height="29" Padding="9,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryNext_Click"
+                                        ToolTip="Next 100 matching events" AutomationProperties.Name="Next events" VerticalAlignment="Center">
+                                    <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="#365777" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="{StaticResource LucideChevronRight}"/>
+                                </Button>
+                                <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="Latest" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
                                         ToolTip="Jump to the most recent matching events"/>
-                                <Button x:Name="EventHistoryExportButton" Content="Export CSV"
-                                        Click="EventHistoryExport_Click" Height="29" Padding="10,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                <Button x:Name="EventHistoryExportButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="Export CSV" Click="EventHistoryExport_Click" Margin="7,0,0,0"
                                         ToolTip="Export filtered events or all indexed events">
                                     <Button.ContextMenu>
                                         <ContextMenu>
@@ -1655,7 +1805,18 @@
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="#" Binding="{Binding EventNumber}" Width="67" MinWidth="57" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <!-- No. is the sequential position in the active query (e.g. 1–100);
+                                         original Event # stays immutable and is revealed on hover, in
+                                         source search (#123), original frame navigation and CSV export. -->
+                                    <DataGridTextColumn Header="No." Binding="{Binding DisplayNumber}" Width="67" MinWidth="57">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
+                                                <Setter Property="ToolTip" Value="{Binding DisplayNumberTooltip}"/>
+                                                <Setter Property="ToolTipService.IsEnabled" Value="True"/>
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="205" MinWidth="195" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
@@ -2766,7 +2927,10 @@
 
         </Grid>
 
-        <Border x:Name="StatusHistoryPanel" Grid.Row="1" Grid.Column="2" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="10,8" Margin="0,10,0,0" Effect="{StaticResource SoftShadow}">
+        <!-- Edge-anchored Status History dock: no lower border, corners or floating shadow. -->
+        <Border x:Name="StatusHistoryPanel" Grid.Row="1" Grid.Column="2"
+                BorderBrush="#CEDAE7" BorderThickness="1,1,1,0" CornerRadius="16,16,0,0"
+                Padding="10,8" Margin="0,10,0,0">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
@@ -2786,8 +2950,7 @@
                         CornerRadius="13"
                         BorderThickness="1"
                         Cursor="Hand"
-                        ToolTip="Click panel header to expand or collapse status history"
-                        MouseLeftButtonUp="StatusHistoryHeader_MouseLeftButtonUp"
+                         MouseLeftButtonUp="StatusHistoryHeader_MouseLeftButtonUp"
                         MouseEnter="PanelHeader_MouseEnter"
                         MouseLeave="PanelHeader_MouseLeave">
                     <Border.Style>
@@ -2796,8 +2959,8 @@
                             <Setter Property="BorderBrush" Value="Transparent" />
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                    <Setter Property="Background" Value="#EFF5FC" />
+                                    <Setter Property="BorderBrush" Value="Transparent" />
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -2810,10 +2973,19 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Border Width="9" Height="9" CornerRadius="5" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium" ToolTip="Session history and diagnostics" Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
-                            <TextBlock x:Name="StatusHistorySummaryText" Text="No active session" Style="{StaticResource SubtleText}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
+                        <!-- A bounded summary cell keeps long status descriptions inside the dock. -->
+                         <Grid Grid.Column="2" VerticalAlignment="Center">
+                             <Grid.ColumnDefinitions>
+                                 <ColumnDefinition Width="Auto" />
+                                 <ColumnDefinition Width="*" />
+                             </Grid.ColumnDefinitions>
+                             <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium"
+                                        Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
+                             <TextBlock x:Name="StatusHistorySummaryText" Grid.Column="1"
+                                        Text="No active session" Style="{StaticResource SubtleText}"
+                                        FontSize="12" VerticalAlignment="Center"
+                                        TextTrimming="CharacterEllipsis" />
+                         </Grid>
                         <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronUp}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
                     </Grid>
                 </Border>

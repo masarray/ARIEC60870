@@ -114,6 +114,12 @@ public partial class MainWindow
                 ResetRemoteLinkCheckBox, ResetFcbCheckBox,
                 Class2StartupCheckBox, ClockSyncCheckBox, GiCheckBox
             ]);
+            // Clean IEC-101 profiles must show Reset Remote Link ON before Connect.
+            // A previously saved operator OFF is intentionally authoritative.
+            if (_iec101ResetRemoteLinkOperatorOverride is null &&
+                ResetRemoteLinkCheckBox.IsChecked != true)
+                throw new InvalidOperationException(
+                    "Fresh IEC-101 startup must show Reset Remote Link ON.");
             SaveRealWpfBitmap(outputDirectory, "setup-iec101-compact-switches.png");
 
             // Passive mode keeps the identical style and Checked/Unchecked
@@ -1076,6 +1082,10 @@ public partial class MainWindow
 
                 SetEventFilters(["Measurement"], Array.Empty<string>());
                 await RefreshEventHistoryQueryAsync();
+                if (_historicalEventRows.Where((row, index) =>
+                        row.DisplayNumber != _eventHistoryPageStart + index + 1).Any())
+                    throw new InvalidOperationException(
+                        "Filtered Event Journal displays skipped or duplicated visible row numbers.");
                 if (_eventHistoryQuery.Count == 0 ||
                     _historicalEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
                     EventIncludeToggle.Content?.ToString() != "Include: 1")
@@ -1649,9 +1659,11 @@ public partial class MainWindow
     /// </summary>
     private void AssertResponsiveEventJournalToolbar()
     {
+        var pillHeight = (double)FindResource("ArSeePillHeight");
+        var pillRadius = (CornerRadius)FindResource("ArSeePillCornerRadius");
         if (EventsSearchShell.Parent is not WrapPanel toolbar ||
-            !toolbar.IsVisible || toolbar.ActualHeight < 26 ||
-            toolbar.ActualHeight > 72)
+            !toolbar.IsVisible || toolbar.ActualHeight < pillHeight - 2 ||
+            toolbar.ActualHeight > pillHeight * 2 + 10)
             throw new InvalidOperationException(
                 "Event Journal toolbar missing or occupying more than two compact rows.");
         FrameworkElement[] controls =
@@ -1674,6 +1686,58 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
+
+        // Inspect the *realized WPF templates*: independent pill and circular
+        // materials. A plain radius-only white button must fail qualification.
+        System.Windows.Controls.Primitives.ButtonBase[] pillActions =
+        [
+            EventIncludeToggle, EventExcludeToggle,
+            EventHistoryLatestButton, EventHistoryExportButton
+        ];
+        foreach (var action in pillActions)
+        {
+            action.ApplyTemplate();
+            if (action.Template.FindName("EventJournalPillSurface", action) is not Border surface ||
+                action.Template.FindName("EventJournalPillFocusRing", action) is not Border ||
+                Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
+                Math.Abs(action.ActualHeight - pillHeight) > 0.6 ||
+                action.ActualWidth < action.ActualHeight + 12 ||
+                Math.Abs(surface.CornerRadius.TopLeft - pillRadius.TopLeft) > 0.1 ||
+                surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight ||
+                surface.Background is not LinearGradientBrush ||
+                surface.Effect is not System.Windows.Media.Effects.DropShadowEffect)
+                throw new InvalidOperationException(
+                    $"Event Journal action {action.Name} lost its global navigation pill shape.");
+        }
+        Button[] circleActions = [EventHistoryPreviousButton, EventHistoryNextButton];
+        foreach (var action in circleActions)
+        {
+            action.ApplyTemplate();
+            if (action.Template.FindName("EventJournalCircleSurface", action)
+                    is not System.Windows.Shapes.Ellipse surface ||
+                action.Template.FindName("EventJournalCircleFocusRing", action)
+                    is not System.Windows.Shapes.Ellipse ||
+                Math.Abs(action.ActualWidth - 32) > 0.6 ||
+                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                surface.Fill is not LinearGradientBrush ||
+                surface.Effect is not System.Windows.Media.Effects.DropShadowEffect ||
+                Math.Abs(surface.StrokeThickness - 1) > 0.1)
+                throw new InvalidOperationException(
+                    $"Event Journal {action.Name} must use a real round, softly elevated surface.");
+        }
+        // Exact approved Lucide geometry, visually 10 DIP; round hit targets remain 32 DIP.
+        if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
+            EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
+            previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
+            next.Data.ToString() != Geometry.Parse("M9,18 L15,12 L9,6").ToString() ||
+            Math.Abs(previous.Width - 10) > 0.1 || Math.Abs(next.Width - 10) > 0.1 ||
+            Math.Abs(previous.StrokeThickness - 2) > 0.1 ||
+            Math.Abs(next.StrokeThickness - 2) > 0.1 ||
+            previous.StrokeStartLineCap != PenLineCap.Round ||
+            next.StrokeEndLineCap != PenLineCap.Round ||
+            previous.Fill is not null || next.Fill is not null)
+            throw new InvalidOperationException(
+                "Event Journal circle navigation lost the approved compact Lucide chevrons.");
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;
