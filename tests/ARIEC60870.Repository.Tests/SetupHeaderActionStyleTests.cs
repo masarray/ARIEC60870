@@ -80,6 +80,66 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("#FFFFFF", TriggerSetterValue(closePressed, null, "Foreground"));
     }
 
+    [Fact]
+    public void ConfigCloseHasVisibleRoundedBorderWithoutChangingRedInteractionStates()
+    {
+        var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
+        var close = Resource(theme, "Style", "SetupCloseIconButtonStyle");
+        var template = Resource(theme, "ControlTemplate", "SetupCloseIconButtonTemplate");
+        Assert.Equal("#F8FAFC", SetterValue(close, "Background"));
+        Assert.Equal("#BCCCDD", SetterValue(close, "BorderBrush"));
+        var surface = template.Descendants().Single(x => x.Name.LocalName == "Border" &&
+            (string?)x.Attribute(Xaml + "Name") == "SetupCloseSurface");
+        Assert.Equal("12", (string?)surface.Attribute("CornerRadius"));
+        Assert.Equal("1", (string?)surface.Attribute("BorderThickness"));
+        Assert.Equal("#FFF0EF", TriggerSetterValue(Trigger(template, "IsMouseOver"),
+            "SetupCloseSurface", "Background"));
+        Assert.Equal("#EF3346", TriggerSetterValue(Trigger(template, "IsPressed"),
+            "SetupCloseSurface", "Background"));
+    }
+
+    [Fact]
+    public void CommandPanelLabelsUseRealIECTypeIdsAndNeverExposeGlobalClear()
+    {
+        var window = XDocument.Load(Source("MainWindow.xaml"));
+        var panel = window.Descendants().Single(x => (string?)x.Attribute(Xaml + "Name") == "CommandDockPanel");
+        var buttons = panel.Descendants().Where(x => x.Name.LocalName == "Button").ToArray();
+        Assert.Equal("GI • TI-100", Button("CommandDockGiButton").Attribute("Content")?.Value);
+        Assert.Equal("Timesync • TI-103", Button("CommandDockClockSyncButton").Attribute("Content")?.Value);
+        Assert.Equal("Read IOA • TI-102", Button("CommandDockReadButton").Attribute("Content")?.Value);
+        Assert.Equal("CommandDock_Gi_Click", Button("CommandDockGiButton").Attribute("Click")?.Value);
+        Assert.Equal("CommandDock_ClockSync_Click", Button("CommandDockClockSyncButton").Attribute("Click")?.Value);
+        Assert.Equal("CommandDock_Read_Click", Button("CommandDockReadButton").Attribute("Click")?.Value);
+        Assert.DoesNotContain(buttons, b => (string?)b.Attribute("Click") == "Clear_Click");
+
+        XElement Button(string name) => buttons.Single(b => (string?)b.Attribute(Xaml + "Name") == name);
+    }
+
+    [Fact]
+    public void QocAndQosHaveSeparateDropDownsWithExplicitVendorExtension()
+    {
+        var window = XDocument.Load(Source("MainWindow.xaml"));
+        var qoc = window.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "CommandQualifierComboBox");
+        var qos = window.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "CommandSetpointQualifierComboBox");
+        var custom = window.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "CommandQualifierCustomBox");
+        Assert.Equal("ComboBox", qoc.Name.LocalName);
+        Assert.Equal("ComboBox", qos.Name.LocalName);
+        Assert.Equal("0", (string?)qoc.Attribute("SelectedIndex"));
+        Assert.Equal("0", (string?)qos.Attribute("SelectedIndex"));
+        Assert.Equal("Collapsed", (string?)qos.Attribute("Visibility"));
+        Assert.Equal("Collapsed", (string?)custom.Attribute("Visibility"));
+        Assert.Equal(new[] { "0", "1", "2", "3", "custom" },
+            qoc.Elements().Select(x => (string?)x.Attribute("Tag")).ToArray());
+        Assert.Equal(new[] { "0", "custom" },
+            qos.Elements().Select(x => (string?)x.Attribute("Tag")).ToArray());
+        Assert.All(new[] { qoc, qos }, c =>
+            Assert.Equal("CommandQualifierComboBox_SelectionChanged",
+                (string?)c.Attribute("SelectionChanged")));
+    }
+
     private static XElement Resource(XDocument doc, string element, string key)
         => doc.Descendants().Single(x => x.Name.LocalName == element &&
                                           (string?)x.Attribute(Xaml + "Key") == key);

@@ -402,8 +402,10 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Foreground" Value="#1F1F1F"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <!-- A visible quiet rounded-square surface, not a floating unframed X.
+             Keep the approved muted-red hover and vivid-red pressed state. -->
+        <Setter Property="Background" Value="#F8FAFC"/>
+        <Setter Property="BorderBrush" Value="#BCCCDD"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template" Value="{StaticResource SetupCloseIconButtonTemplate}"/>
