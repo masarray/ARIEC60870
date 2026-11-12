@@ -2634,6 +2634,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="10" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Border x:Name="CommandDockHeader"
                         Grid.Row="0"
@@ -2746,14 +2748,17 @@
                             <TextBlock x:Name="CommandPreviewSafetyText" Text="" />
                         </StackPanel>
 
-                        <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
-                        </UniformGrid>
+                        
                     </StackPanel>
                 </ScrollViewer>
+                <!-- Target fields scroll, but physical Open/Close command actions
+                     remain visible in the fixed panel footer on shorter screens. -->
+                <UniformGrid x:Name="CommandActionGrid" Grid.Row="4" Columns="2" Margin="0,0,0,4">
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="0,0,5,7" Tag="select-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="5,0,0,7" Tag="operate-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="0,0,5,0" Tag="select-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="5,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
+                        </UniformGrid>
             </Grid>
         </Border>
 
