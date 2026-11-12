@@ -315,7 +315,7 @@
             </StackPanel>
         </DataTemplate>
     </Window.Resources>
-    <Grid Margin="12">
+    <Grid Margin="12,12,12,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -569,23 +569,17 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTip="Workspace navigation">
-                            <Border x:Name="SegmentedNavRoot" BorderBrush="Transparent" BorderThickness="0" CornerRadius="20" Padding="4" HorizontalAlignment="Left" Background="#F1F4F7">
+                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTipService.IsEnabled="False">
+                            <Border x:Name="SegmentedNavRoot" BorderBrush="#D2DEE9" BorderThickness="1" CornerRadius="24" Padding="4" HorizontalAlignment="Left" Background="#EDF2F7">
                                 <Grid>
-                                    <Border x:Name="SegmentSlider" Height="40" Width="126" CornerRadius="18" HorizontalAlignment="Left" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" Visibility="Collapsed" Background="{StaticResource AccentBrush}">
-                                        <Border.Effect><DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.18" Color="#2563EB" /></Border.Effect>
-                                        <Border.RenderTransform><TranslateTransform x:Name="SegmentSliderTranslate" X="0" /></Border.RenderTransform>
-                                    </Border>
                                     <StackPanel Orientation="Horizontal">
                                         <Button x:Name="NavFrameButton" Content="Raw Frames" Style="{StaticResource SegmentedNavButton}" Tag="1" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavDualLinkButton" Content="Redundancy" Style="{StaticResource SegmentedNavButton}" Tag="9" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavValueButton" Content="Values" Style="{StaticResource SegmentedNavButton}" Tag="2" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavEventButton" Content="Events" Style="{StaticResource SegmentedNavButton}" Tag="3" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavFindingsButton" Content="Smart Findings" Style="{StaticResource SegmentedNavButton}" Tag="4" Click="SegmentedNav_Click" Visibility="Collapsed" />
-                                        <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click"
-                                                ToolTip="Source-qualified Master command, RTU confirmation and process feedback casebook" />
-                                        <Button x:Name="NavGiCasesButton" Content="GI" Style="{StaticResource SegmentedNavButton}" Tag="12" Click="SegmentedNav_Click"
-                                                ToolTip="Observed General Interrogation conversations, data counts and source evidence" />
+                                        <Button x:Name="NavControlCasesButton" Content="Controls" Style="{StaticResource SegmentedNavButton}" Tag="11" Click="SegmentedNav_Click" />
+                                        <Button x:Name="NavGiCasesButton" Content="GI" Style="{StaticResource SegmentedNavButton}" Tag="12" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavReportButton" Content="Report" Style="{StaticResource SegmentedNavButton}" Tag="6" Click="SegmentedNav_Click" />
                                         <Button x:Name="NavOperatorButton" Content="Evidence Ledger" Style="{StaticResource SegmentedNavButton}" Tag="0" Click="SegmentedNav_Click" Visibility="Collapsed" />
                                         <Button x:Name="NavDiagnosticsButton" Content="System Diagnostics" Style="{StaticResource SegmentedNavButton}" Tag="5" Click="SegmentedNav_Click" Visibility="Collapsed" />
@@ -595,7 +589,7 @@
                                 </Grid>
                             </Border>
                         </ScrollViewer>
-                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center" ToolTip="Show/hide active-master test actions (passive mode remains receive-only)"/>
+                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid Grid.Row="1" ClipToBounds="True">
@@ -2843,7 +2837,10 @@
 
         </Grid>
 
-        <Border x:Name="StatusHistoryPanel" Grid.Row="1" Grid.Column="2" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="10,8" Margin="0,10,0,0" Effect="{StaticResource SoftShadow}">
+        <!-- Edge-anchored Status History dock: no lower border, corners or floating shadow. -->
+        <Border x:Name="StatusHistoryPanel" Grid.Row="1" Grid.Column="2"
+                BorderBrush="#CEDAE7" BorderThickness="1,1,1,0" CornerRadius="16,16,0,0"
+                Padding="10,8" Margin="0,10,0,0">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
@@ -2863,8 +2860,7 @@
                         CornerRadius="13"
                         BorderThickness="1"
                         Cursor="Hand"
-                        ToolTip="Click panel header to expand or collapse status history"
-                        MouseLeftButtonUp="StatusHistoryHeader_MouseLeftButtonUp"
+                         MouseLeftButtonUp="StatusHistoryHeader_MouseLeftButtonUp"
                         MouseEnter="PanelHeader_MouseEnter"
                         MouseLeave="PanelHeader_MouseLeave">
                     <Border.Style>
@@ -2873,8 +2869,8 @@
                             <Setter Property="BorderBrush" Value="Transparent" />
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                    <Setter Property="Background" Value="#EFF5FC" />
+                                    <Setter Property="BorderBrush" Value="Transparent" />
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -2887,10 +2883,19 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Border Width="9" Height="9" CornerRadius="5" Background="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium" ToolTip="Session history and diagnostics" Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
-                            <TextBlock x:Name="StatusHistorySummaryText" Text="No active session" Style="{StaticResource SubtleText}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
+                        <!-- A bounded summary cell keeps long status descriptions inside the dock. -->
+                         <Grid Grid.Column="2" VerticalAlignment="Center">
+                             <Grid.ColumnDefinitions>
+                                 <ColumnDefinition Width="Auto" />
+                                 <ColumnDefinition Width="*" />
+                             </Grid.ColumnDefinitions>
+                             <TextBlock Text="Status" FontSize="12.6" FontWeight="Medium"
+                                        Foreground="{StaticResource Ink900Brush}" Margin="0,0,10,0" />
+                             <TextBlock x:Name="StatusHistorySummaryText" Grid.Column="1"
+                                        Text="No active session" Style="{StaticResource SubtleText}"
+                                        FontSize="12" VerticalAlignment="Center"
+                                        TextTrimming="CharacterEllipsis" />
+                         </Grid>
                         <Path x:Name="StatusHistoryToggleIcon" Grid.Column="3" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronUp}" Stroke="#94A3B8" Width="22" Height="22" VerticalAlignment="Center" />
                     </Grid>
                 </Border>

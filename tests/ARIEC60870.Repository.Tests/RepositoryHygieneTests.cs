@@ -355,6 +355,41 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void DesktopNavigationUsesQuietPillsAndAnEdgeAnchoredStatusDock()
+    {
+        var root = FindRepositoryRoot();
+        XNamespace xn = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = XDocument.Load(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        var theme = XDocument.Load(root.File("src/ARIEC60870.Desktop/Resources/ModernTheme.xaml"));
+        var layout = window.Root!.Elements().Single(e => e.Name.LocalName == "Grid");
+        Assert.Equal("12,12,12,0", (string?)layout.Attribute("Margin"));
+
+        var dock = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "StatusHistoryPanel");
+        Assert.Equal("1,1,1,0", (string?)dock.Attribute("BorderThickness"));
+        Assert.Equal("16,16,0,0", (string?)dock.Attribute("CornerRadius"));
+        Assert.Null(dock.Attribute("Effect"));
+        var nav = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "SegmentedNavRoot");
+        Assert.Equal("1", (string?)nav.Attribute("BorderThickness"));
+        foreach (var name in new[] { "NavFrameButton", "NavValueButton", "NavEventButton",
+                                      "NavControlCasesButton", "NavGiCasesButton", "NavReportButton" })
+            Assert.Null(window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == name).Attribute("ToolTip"));
+
+        var pill = theme.Descendants().Single(e => (string?)e.Attribute(xn + "Key") == "SegmentedNavButton");
+        Assert.Contains(pill.Descendants(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "ToolTipService.IsEnabled" &&
+            (string?)e.Attribute("Value") == "False");
+        Assert.Contains(pill.Descendants(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "FocusVisualStyle" &&
+            (string?)e.Attribute("Value") == "{x:Null}");
+        var chrome = pill.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "Chrome");
+        Assert.Equal("{TemplateBinding BorderBrush}", (string?)chrome.Attribute("BorderBrush"));
+        Assert.Equal("{TemplateBinding Background}", (string?)chrome.Attribute("Background"));
+        var summary = window.Descendants().Single(e => (string?)e.Attribute(xn + "Name") == "StatusHistorySummaryText");
+        Assert.Equal("CharacterEllipsis", (string?)summary.Attribute("TextTrimming"));
+        Assert.Equal("1", (string?)summary.Attribute("Grid.Column"));
+    }
+
+    [Fact]
     public void DesktopArchitectureAndNativePdfGuardsRemainInPlace()
     {
         var root = FindRepositoryRoot();
