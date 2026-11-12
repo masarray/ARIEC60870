@@ -225,12 +225,17 @@ public partial class MainWindow
                     new Point(action.ActualWidth, 0), CommandDockPanel).X;
                 var bottom = action.TranslatePoint(
                     new Point(0, action.ActualHeight), CommandDockPanel).Y;
+                var targetRight = CommandTargetCard.TranslatePoint(
+                    new Point(CommandTargetCard.ActualWidth, 0), CommandDockPanel).X;
                 if (Grid.GetRow(CommandActionGrid) != 4 ||
                     action.Template.FindName("EventJournalPillSurface", action) is not Border ||
-                    action.ActualHeight < 35 || right > CommandDockPanel.ActualWidth + 1 ||
+                    action.ActualHeight < 35 ||
+                    CommandActionGrid.ActualWidth > CommandTargetCard.ActualWidth + 1 ||
+                    right > targetRight + 1 ||
+                    right > CommandDockPanel.ActualWidth + 1 ||
                     bottom > CommandDockPanel.ActualHeight + 0.6)
                     throw new InvalidOperationException(
-                        "Command Panel action row must remain fully visible in its sticky footer.");
+                        "Command Panel actions must fit inside the measured target-card width and remain visible in the sticky footer.");
             }
             foreach (var tab in new[] { (Index: 3, File: "events"), (Index: 12, File: "gi") })
             {
