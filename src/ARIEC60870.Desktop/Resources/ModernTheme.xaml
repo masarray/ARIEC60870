@@ -63,6 +63,222 @@
     <DropShadowEffect x:Key="SoftShadow" BlurRadius="20" ShadowDepth="5" Opacity="0.055" Color="#172033" />
     <DropShadowEffect x:Key="ButtonShadow" BlurRadius="18" ShadowDepth="5" Opacity="0.16" Color="#2563EB" />
 
+        <!-- Event Journal toolbar uses the compact pill design-token variant,
+             while primary navbar pills remain 42 DIP. Keep native ButtonBase semantics. -->
+        <LinearGradientBrush x:Key="EventJournalPillIdleBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#F8FBFE" Offset="0.47"/>
+            <GradientStop Color="#EDF3FA" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillHoverBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#E2EFFD" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillPressedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#DAE9FA" Offset="0"/>
+            <GradientStop Color="#F4F9FF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalPillSelectedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#F5F9FF" Offset="0"/>
+            <GradientStop Color="#DCEBFF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCircleIdleBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFFFFF" Offset="0"/>
+            <GradientStop Color="#E7F1FC" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCircleHoverBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#F8FCFF" Offset="0"/>
+            <GradientStop Color="#C7E0FB" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="EventJournalCirclePressedBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#BCD7F5" Offset="0"/>
+            <GradientStop Color="#E8F3FF" Offset="1"/>
+        </LinearGradientBrush>
+        <DropShadowEffect x:Key="EventJournalPillShadow" Color="#617B9B"
+                          BlurRadius="5" ShadowDepth="1" Opacity="0.18"
+                          RenderingBias="Performance"/>
+        <DropShadowEffect x:Key="EventJournalCircleShadow" Color="#4076AB"
+                          BlurRadius="5" ShadowDepth="1" Opacity="0.20"
+                          RenderingBias="Performance"/>
+
+        <!-- Sculpted pill: a very fine white highlight, soft vertical
+             ceramic-like gradient and restrained 1-DIP edge/elevation. -->
+        <ControlTemplate x:Key="EventJournalPremiumPillTemplate" TargetType="{x:Type ButtonBase}">
+            <Grid SnapsToDevicePixels="True">
+                <Border x:Name="EventJournalPillSurface"
+                        CornerRadius="{StaticResource ArSeeToolbarPillCornerRadius}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        Effect="{StaticResource EventJournalPillShadow}"/>
+                <Border IsHitTestVisible="False" Margin="2,1,2,17" CornerRadius="{StaticResource ArSeeToolbarPillInsetCornerRadius}"
+                        BorderThickness="0,1,0,0" BorderBrush="#ABFFFFFF"/>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
+                <Border x:Name="EventJournalPillFocusRing"
+                        IsHitTestVisible="False" Visibility="Collapsed" Margin="2"
+                        CornerRadius="{StaticResource ArSeeToolbarPillInsetCornerRadius}" BorderBrush="#5C94D8" BorderThickness="1"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="EventJournalPillSurface" Property="Background"
+                            Value="{StaticResource EventJournalPillHoverBrush}"/>
+                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#88AFDA"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="EventJournalPillSurface" Property="Background"
+                            Value="{StaticResource EventJournalPillPressedBrush}"/>
+                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#6F9CCF"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="EventJournalPillFocusRing" Property="Visibility" Value="Visible"/>
+                </Trigger>
+                <!-- Disabled remains visibly pill-shaped: dim the control
+                     while retaining its restrained material and elevation. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.62"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Separate genuine circular hardware-inspired navigation surface,
+             never just a narrowed pill. Native click/keyboard/disabled intact. -->
+        <ControlTemplate x:Key="EventJournalPremiumCircleTemplate" TargetType="{x:Type Button}">
+            <Grid SnapsToDevicePixels="True">
+                <Ellipse x:Name="EventJournalCircleSurface" Margin="1"
+                         Fill="{TemplateBinding Background}"
+                         Stroke="{TemplateBinding BorderBrush}"
+                         StrokeThickness="1"
+                         Effect="{StaticResource EventJournalCircleShadow}"/>
+                <Ellipse IsHitTestVisible="False" Margin="3"
+                         Stroke="#86FFFFFF" StrokeThickness="0.8"/>
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="{TemplateBinding Padding}"/>
+                <Ellipse x:Name="EventJournalCircleFocusRing"
+                         IsHitTestVisible="False" Visibility="Collapsed" Margin="4"
+                         Stroke="#588BD0" StrokeThickness="1"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
+                            Value="{StaticResource EventJournalCircleHoverBrush}"/>
+                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#6C9ED7"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="EventJournalCircleSurface" Property="Fill"
+                            Value="{StaticResource EventJournalCirclePressedBrush}"/>
+                    <Setter TargetName="EventJournalCircleSurface" Property="Stroke" Value="#477FBE"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="EventJournalCircleFocusRing" Property="Visibility" Value="Visible"/>
+                </Trigger>
+                <!-- A disabled navigation button must still LOOK circular,
+                     not dissolve into the toolbar background. -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.64"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeeToolbarPillPadding}"/>
+            <Setter Property="FontSize" Value="11.25"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource EventJournalActionButtonStyle}">
+            <Setter Property="Width" Value="{StaticResource ArSeeToolbarCircleDiameter}"/>
+            <Setter Property="Height" Value="{StaticResource ArSeeToolbarCircleDiameter}"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalCircleIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#95B4D5"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeeToolbarPillPadding}"/>
+            <Setter Property="FontSize" Value="11.25"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="{StaticResource EventJournalPillIdleBrush}"/>
+            <Setter Property="BorderBrush" Value="#AFC6DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource EventJournalPillSelectedBrush}"/>
+                    <Setter Property="BorderBrush" Value="#76A3D4"/>
+                    <Setter Property="Foreground" Value="#274F80"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Icon-only clear action: transparent at rest, muted red hover, vivid red press. -->
+        <Style x:Key="EventJournalSearchClearStyle" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#52647B"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid Background="Transparent" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border x:Name="ClearKeyboardFocus" IsHitTestVisible="False"
+                                    Visibility="Collapsed" Margin="3" CornerRadius="10"
+                                    BorderBrush="#BB52647B" BorderThickness="1"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ClearKeyboardFocus" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#B55B66"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Foreground" Value="#E11D48"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+    <!-- Approved Events toolbar appearance is the global reusable WPF surface.
+         Raw Frames, Values, Events, Controls and GI consume the same resources. -->
+    <Style x:Key="ArSeeToolbarSearchShellStyle" TargetType="Border">
+        <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+        <Setter Property="MaxWidth" Value="{StaticResource ArSeeToolbarSearchWidth}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource ArSeeToolbarPillCornerRadius}"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+    <Style x:Key="ArSeeToolbarSearchClearStyle" TargetType="Button"
+           BasedOn="{StaticResource EventJournalSearchClearStyle}"/>
+    <Style x:Key="ArSeeToolbarActionButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource EventJournalActionButtonStyle}"/>
+
     <Style TargetType="Window">
         <Setter Property="FontFamily" Value="{StaticResource AppFont}" />
         <Setter Property="Background">
