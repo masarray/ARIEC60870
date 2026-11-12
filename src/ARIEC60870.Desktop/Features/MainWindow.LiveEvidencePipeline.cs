@@ -945,14 +945,26 @@ public partial class MainWindow
     {
         // Changing tabs is not a capture reset; preserve inactive rows and
         // the selected historical/archive window until explicit Resume/Clear.
-        if (IsEvidenceSummaryTabActive() && !IsEvidenceSummaryViewFrozen())
+        // Do not copy and diff the bounded 1,200-frame source every time
+        // the operator returns to a tab that already displays the same tail.
+        // Ring tail identity is O(1), while genuine new/cleared frames still
+        // use the exact source snapshot, preserving pinned history semantics.
+        if (IsEvidenceSummaryTabActive() && !IsEvidenceSummaryViewFrozen() &&
+            (EvidenceRows.Count != _evidenceSummaryStore.Count ||
+             EvidenceRows.Count > 0 &&
+             (!_evidenceSummaryStore.TryPeekLatest(out var latestSummary) ||
+              !ReferenceEquals(EvidenceRows[^1], latestSummary))))
         {
             EvidenceRows.ReconcileTail(_evidenceSummaryStore.Snapshot());
             _pendingEvidenceSummaryUiRows.Clear();
         }
 
         if (IsProtocolTraceTabActive() && !_historicalTraceViewActive &&
-            !_recordedArchiveViewActive && !IsProtocolTraceViewFrozen())
+            !_recordedArchiveViewActive && !IsProtocolTraceViewFrozen() &&
+            (FrameTraceRows.Count != _protocolTraceStore.Count ||
+             FrameTraceRows.Count > 0 &&
+             (!_protocolTraceStore.TryPeekLatest(out var latestFrame) ||
+              !ReferenceEquals(FrameTraceRows[^1], latestFrame))))
         {
             FrameTraceRows.ReconcileTail(_protocolTraceStore.Snapshot(), allowResetForUnrelated: false);
             _pendingProtocolTraceUiRows.Clear();
