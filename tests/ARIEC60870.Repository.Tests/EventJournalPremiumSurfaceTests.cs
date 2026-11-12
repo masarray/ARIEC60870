@@ -31,8 +31,8 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Contains("EventJournalCircleShadow", (string?)circleSurface.Attribute("Effect"));
         Assert.Contains("TemplateBinding Background", (string?)circleSurface.Attribute("Fill"));
         Assert.Equal("1", (string?)circleSurface.Attribute("StrokeThickness"));
-        Assert.Equal("1", (string?)circleSurface.Attribute("Margin"),
-            "30-DIP visible circle fits within the preserved 32-DIP button.");
+        Assert.True((string?)circleSurface.Attribute("Margin") == "1",
+            "30-DIP visible circle must fit inside the preserved 32-DIP button.");
 
         foreach (var brush in new[] {
                      "EventJournalPillIdleBrush", "EventJournalPillHoverBrush",
