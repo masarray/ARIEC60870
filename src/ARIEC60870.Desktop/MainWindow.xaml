@@ -1663,6 +1663,9 @@
                                 </ScrollViewer>
                             </Grid>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel"
+                                      PreviewMouseLeftButtonDown="EventHistoryGrid_PreviewMouseLeftButtonDown"
+                                      PreviewMouseLeftButtonUp="EventHistoryGrid_PreviewMouseLeftButtonUp"
+                                      PreviewKeyDown="EventHistoryGrid_PreviewKeyDown"
                                       ScrollViewer.ScrollChanged="EventHistoryGrid_ScrollChanged"
                                       FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
