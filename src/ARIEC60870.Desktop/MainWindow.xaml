@@ -453,7 +453,7 @@
                             </Border>
                             <Button x:Name="UpdateAvailableButton"
                                     Content="Update available"
-                                    Style="{StaticResource SecondaryButton}"
+                                    Style="{StaticResource ArSeeWorkspacePrimaryActionButtonStyle}"
                                     MinWidth="132"
                                     Height="36"
                                     Margin="10,0,0,0"
@@ -675,7 +675,7 @@
                     </TabItem>
 
                     <TabItem Header="Raw Frames" ToolTipService.IsEnabled="False">
-                        <Grid Margin="10" TextElement.FontFamily="{StaticResource AppFont}">
+                        <Grid Margin="12" TextElement.FontFamily="{StaticResource AppFont}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="3*" MinWidth="260" />
                                 <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="0" />
@@ -769,6 +769,7 @@
                                     </ComboBox>
                                     <Button x:Name="TraceArchiveModeButton" Grid.Column="0"
                                             Content="Archive…" Visibility="Collapsed"
+                                            Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                             Click="TraceArchiveMode_Click"/>
                                     <TextBlock x:Name="FrameTimelineCaption" Grid.Column="0"
                                                Text="Frame Trace" Visibility="Collapsed"
@@ -795,10 +796,10 @@
                                              the frame context menu, never a width-consuming toolbar. -->
                                         <StackPanel Orientation="Horizontal" Visibility="Collapsed">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
-                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Visibility="Collapsed"
                                                 Margin="0,0,5,0" Padding="7,3"/>
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
-                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Visibility="Collapsed"
                                                 Margin="0,0,7,0" Padding="7,3"/>
                                         </StackPanel>
                                         <Button x:Name="TraceInspectorToggle" Content="‹"
@@ -1333,7 +1334,7 @@
 
                     
                     <TabItem Header="Values">
-                        <Grid Margin="14">
+                        <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/><RowDefinition Height="0"/>
@@ -1378,7 +1379,7 @@
                                            Margin="8,0,0,0" VerticalAlignment="Center"
                                            Foreground="#64748B" FontSize="11.1"/>
                                 <Button x:Name="ValueOpenFrameButton" Grid.Column="0" Content="Open Frame"
-                                        Style="{StaticResource SecondaryButton}" IsEnabled="False"
+                                        Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" IsEnabled="False"
                                         Visibility="Collapsed" Click="ValueOpenFrame_Click"/>
                                 <ComboBox x:Name="ValueQuickScopeCombo" Grid.Column="0"
                                           SelectedIndex="0" Visibility="Collapsed"
@@ -1505,7 +1506,7 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Events">
-                        <Grid Margin="14">
+                        <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
@@ -1513,8 +1514,12 @@
                             </Grid.RowDefinitions>
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
-                            <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border x:Name="EventsSearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Width="{StaticResource ArSeeToolbarSearchWidth}" HorizontalAlignment="Stretch"
+                            <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*" MinWidth="0"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="EventsSearchShell" Grid.Column="0" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Width="{StaticResource ArSeeToolbarSearchWidth}" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
                                         ToolTip="Search signal, status, COT, source or IOA">
                                     <DockPanel LastChildFill="True" Margin="7,0,10,0">
@@ -1537,8 +1542,13 @@
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
-                                <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
-                                            VerticalAlignment="Center">
+                                <ScrollViewer x:Name="EventActionsScroller" Grid.Column="1" Margin="6,0,0,0"
+                                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                              PanningMode="HorizontalOnly" Focusable="False"
+                                              PreviewMouseWheel="EventActionsScroller_PreviewMouseWheel"
+                                              AutomationProperties.Name="Event actions, scroll horizontally for more options">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <ToggleButton x:Name="EventIncludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
                                                   Width="104" Content="Include: All"
                                                   ToolTip="Include categories; all selected by default"/>
@@ -1631,6 +1641,9 @@
                                         </Button>
                                     </StackPanel>
                                 </Border>
+                                <Button x:Name="EventHistoryFirstButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="First Event" Click="EventHistoryFirst_Click" Margin="7,0,0,0"
+                                        AutomationProperties.Name="First matching event"/>
                                 <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
                                         Content="Latest Event" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
                                         ToolTip="Jump to the most recent matching events"/>
@@ -1646,7 +1659,9 @@
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
-                            </WrapPanel>
+                            </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
@@ -1728,7 +1743,7 @@
                                 <TextBlock Text="Smart findings and solution" Style="{StaticResource SubtleText}" FontSize="11.8" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Auto fix config"
-                                            Style="{StaticResource SecondaryButton}"
+                                            Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                             MinWidth="126"
                                             Margin="0,0,8,0"
                                             Click="AutoFixConfigFromFindings_Click"
@@ -1864,8 +1879,8 @@
                             <DockPanel>
                                 <TextBlock Text="Runtime diagnostics" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Captures transport exceptions, timeouts, mapping/load issues, warnings, and findings without crashing the operator workflow." />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="12,0,0,0">
-                                    <Button Content="Copy Row" Style="{StaticResource SecondaryButton}" Width="92" Click="CopySelectedDiagnostic_Click" />
-                                    <Button Content="Copy Detail" Style="{StaticResource SecondaryButton}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
+                                    <Button Content="Copy Row" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="92" Click="CopySelectedDiagnostic_Click" />
+                                    <Button Content="Copy Detail" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
                                 </StackPanel>
                             </DockPanel>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="DiagnosticsGrid" Grid.Row="2" ItemsSource="{Binding DiagnosticRows}" SelectionChanged="DiagnosticsGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
@@ -2048,13 +2063,13 @@
                                         <TextBlock Text="Capture is OFF until the engineer enables a rule. Rules record pre/post .ariec evidence only when the configured IEC condition matches." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource SecondaryButton}" Width="128" Height="34" Padding="10,6" Click="CopySelectedTriggerCapturePath_Click" ToolTip="Copy selected capture file path">
+                                        <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="128" Height="34" Padding="10,6" Click="CopySelectedTriggerCapturePath_Click" ToolTip="Copy selected capture file path">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCopy}" />
                                                 <TextBlock Text="Copy Path" Margin="7,0,0,0" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Style="{StaticResource SecondaryButton}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="OpenTriggerCaptureFolder_Click" ToolTip="Open capture folder">
+                                        <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="OpenTriggerCaptureFolder_Click" ToolTip="Open capture folder">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" />
                                                 <TextBlock Text="Open Folder" Margin="7,0,0,0" VerticalAlignment="Center" />
@@ -2136,10 +2151,10 @@
                                             </UniformGrid>
 
                                             <StackPanel Orientation="Horizontal">
-                                                <Button Style="{StaticResource PrimaryButton}" Width="86" Height="32" Padding="10,6" Click="ApplySmartCaptureRule_Click">
+                                                <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="86" Height="32" Padding="10,6" Click="ApplySmartCaptureRule_Click">
                                                     <TextBlock Text="Apply" />
                                                 </Button>
-                                                <Button Style="{StaticResource SecondaryButton}" Width="86" Height="32" Padding="10,6" Margin="8,0,0,0" Click="DisableSmartCaptureRule_Click">
+                                                <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="86" Height="32" Padding="10,6" Margin="8,0,0,0" Click="DisableSmartCaptureRule_Click">
                                                     <TextBlock Text="Disable" />
                                                 </Button>
                                             </StackPanel>
@@ -2209,16 +2224,12 @@
                                                VerticalAlignment="Center" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
                                         <Button Content="Manual Switch"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Height="30"
-                                                Padding="10,4"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="0,0,6,0"
                                                 Click="DualLinkManualFailover_Click"
                                                 ToolTip="Request a controlled active/standby switchover. The controller still verifies standby health before promotion." />
                                         <Button Content="Open Report"
-                                                Style="{StaticResource SecondaryButton}"
-                                                Height="30"
-                                                Padding="10,4"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Click="RefreshReportPreview_Click"
                                                 ToolTip="Open the Report workspace and refresh the proof preview." />
                                     </StackPanel>
@@ -2302,7 +2313,7 @@
                             </Grid.RowDefinitions>
                             <Border Grid.Row="0" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="13,10">
                                 <DockPanel>
-                                    <Button DockPanel.Dock="Right" Content="Open Folder" Style="{StaticResource SecondaryButton}" Click="PassiveOpenFolder_Click" Margin="8,0,0,0"/>
+                                    <Button DockPanel.Dock="Right" Content="Open Folder" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="PassiveOpenFolder_Click" Margin="8,0,0,0"/>
                                     <StackPanel>
                                         <TextBlock Text="IEC-101 · PASSIVE MONITOR" Style="{StaticResource EyebrowText}"/>
                                         <TextBlock Text="Live traffic from both COM ports." Style="{StaticResource SubtleText}" Margin="0,4,0,0"/>
@@ -2339,15 +2350,15 @@
                                 <DockPanel Margin="3,0,3,7">
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Only pauses this table; raw bytes continue recording to disk." />
-                                        <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="PassiveVerify_Click"/>
-                                        <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource SecondaryButton}"
+                                        <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" IsEnabled="False" Click="PassiveVerify_Click"/>
+                                        <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" Click="PassiveFindAnomalies_Click"
                                                 ToolTip="Browse verified capture anomalies in indexed pages; no extra monitoring COM or TX."/>
                                         <ComboBox x:Name="PassiveAnomalyPicker" Width="355" Margin="6,0,0,0"
                                                   DisplayMemberPath="Label" VerticalContentAlignment="Center"
                                                   SelectionChanged="PassiveAnomalyPicker_SelectionChanged"
                                                   ToolTip="Choose a five-second anomaly to inspect exact verified raw source bytes."/>
-                                        <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource SecondaryButton}"
+                                        <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" IsEnabled="False" Click="PassiveOlderAnomalies_Click"
                                                 ToolTip="Load the previous page without keeping all timeline rows in the GUI."/>
                                     </StackPanel>
@@ -2385,7 +2396,7 @@
                     <TabItem Header="Control Cases">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
                                 <RowDefinition Height="2*"/>
                                 <RowDefinition Height="6"/>
@@ -2500,10 +2511,10 @@
                     <TabItem Header="GI Conversations">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="44"/>
                                 <RowDefinition Height="2.25*"/>
                                 <RowDefinition Height="54"/>
                             </Grid.RowDefinitions>
@@ -2566,7 +2577,7 @@
                                     <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <Grid Grid.Row="3" Margin="3,3,1,2">
+                            <Grid Grid.Row="3" Margin="3,2,1,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -2574,9 +2585,9 @@
                                 <TextBlock x:Name="GiStageSummaryText" Text="Select a GI case to inspect its milestones"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Foreground="#64748B" FontSize="11.3" VerticalAlignment="Center"/>
-                                <Button x:Name="GiStagesToggleButton" Style="{StaticResource ArSeeToolbarActionButtonStyle}" Grid.Column="1" Content="Show all stages"
-                                          
-                                          
+                                <Button x:Name="GiStagesToggleButton" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
+                                        Grid.Column="1" Content="Show all stages" MinWidth="119"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0"
                                         Click="GiStagesToggle_Click"/>
                             </Grid>
                             <DataGrid x:Name="GiStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
@@ -2623,6 +2634,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="10" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Border x:Name="CommandDockHeader"
                         Grid.Row="0"
@@ -2663,13 +2676,13 @@
                         <TextBlock x:Name="CommandDockStatusText" Text="" Visibility="Collapsed" />
 
                         <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
-                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
-                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
-                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" />
+                            <Button Content="GI" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
+                            <Button Content="Clock Sync" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
+                            <Button Content="Read IOA" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
+                            <Button Content="Clear" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,0" Click="Clear_Click" />
                         </UniformGrid>
 
-                        <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
+                        <Border x:Name="CommandTargetCard" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
                             <StackPanel>
                                 <TextBlock Text="Target" Style="{StaticResource EyebrowText}" Margin="0,0,0,8" />
                                 <ComboBox x:Name="CommandSignalComboBox"
@@ -2735,14 +2748,19 @@
                             <TextBlock x:Name="CommandPreviewSafetyText" Text="" />
                         </StackPanel>
 
-                        <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
-                        </UniformGrid>
+                        
                     </StackPanel>
                 </ScrollViewer>
+                <!-- Target fields scroll, but physical Open/Close command actions
+                     remain visible in the fixed panel footer on shorter screens. -->
+                <UniformGrid x:Name="CommandActionGrid" Grid.Row="4" Columns="2"
+                             Width="{Binding ActualWidth, ElementName=CommandTargetCard}"
+                             HorizontalAlignment="Left" Margin="0,0,0,4">
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="0,0,5,7" Tag="select-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="5,0,0,7" Tag="operate-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="0,0,5,0" Tag="select-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="5,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
+                        </UniformGrid>
             </Grid>
         </Border>
 
@@ -2880,8 +2898,8 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource PrimaryButton}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
-                            <Button Content="Close" Style="{StaticResource SecondaryButton}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
+                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource ArSeeWorkspacePrimaryActionButtonStyle}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
+                            <Button Content="Close" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
                         </StackPanel>
                     </Grid>
 
@@ -2912,8 +2930,8 @@
                                 <ComboBoxItem Content="Project custom · imported JSON" />
                             </ComboBox>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <Button Content="Import profile" Style="{StaticResource SecondaryButton}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
-                                <Button Content="Export profile" Style="{StaticResource SecondaryButton}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
+                                <Button Content="Import profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
+                                <Button Content="Export profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
                             </StackPanel>
                             <TextBlock x:Name="InteroperabilityProfilePreviewText" Style="{StaticResource SubtleText}"
                                        TextWrapping="Wrap" Margin="0,0,0,12"
@@ -2949,7 +2967,7 @@
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
                                     <ComboBox x:Name="PortComboBox" Grid.Column="0" SelectionChanged="PassiveRelayPort_SelectionChanged" />
-                                    <Button Grid.Column="2" Content="Refresh" Style="{StaticResource SecondaryButton}" Click="RefreshPorts_Click" />
+                                    <Button Grid.Column="2" Content="Refresh" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
                                     <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
@@ -3036,7 +3054,7 @@
                                             <TextBlock Text="Link B addr" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                             <TextBox x:Name="BackupLinkAddressBox" Text="1" ToolTip="Defaults to Link A unless explicitly configured differently." />
                                             <Button x:Name="BackupLinkAddressHint" Content="ⓘ"
-                                                    Visibility="Collapsed" Style="{StaticResource SecondaryButton}"
+                                                    Visibility="Collapsed" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                     HorizontalAlignment="Left" Padding="4,2" Margin="0,4,0,0"
                                                     FontSize="10" Foreground="#4B647C"
                                                     Click="BackupAddressInfo_Click"
@@ -3058,9 +3076,9 @@
                                                    Text="In most redundant IEC-101 configurations, both links use the same Link Address. Please verify that these addresses match your RTU configuration. Different addresses are supported when intentionally configured."/>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <Button Content="Review Settings" Click="BackupAddressReview_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="9,4" FontSize="10.5"/>
+                                                    Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4" FontSize="10.5"/>
                                             <Button Content="Continue Anyway" Click="BackupAddressContinue_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="9,4"
+                                                    Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4"
                                                     FontSize="10.5" Margin="6,0,0,0"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -3095,7 +3113,7 @@
                                     <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11"
                                              IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"
                                              ToolTip="Used only when optional full-session recording is enabled before connecting."/>
-                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"
+                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="PassiveBrowseCaptureFolder_Click"
                                             IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"/>
                                 </Grid>
                                 <TextBlock Text="Live monitoring creates no files. Save selected frames from Trace; full journaling is optional." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,8,0,0"/>
@@ -3302,8 +3320,8 @@
                                 <TextBlock x:Name="MappingProfileStatusText" Text="No mapping profile loaded. Raw FUN/INF will be shown." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,6" />
                                 <TextBox x:Name="MappingProfilePathBox" IsReadOnly="True" />
                             </StackPanel>
-                            <Button x:Name="BrowseMappingButton" Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="BrowseMapping_Click" VerticalAlignment="Bottom" />
-                            <Button x:Name="ClearMappingButton" Grid.Column="4" Content="Clear Mapping" Style="{StaticResource SecondaryButton}" Click="ClearMapping_Click" VerticalAlignment="Bottom" />
+                            <Button x:Name="BrowseMappingButton" Grid.Column="2" Content="Browse" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="BrowseMapping_Click" VerticalAlignment="Bottom" />
+                            <Button x:Name="ClearMappingButton" Grid.Column="4" Content="Clear Mapping" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ClearMapping_Click" VerticalAlignment="Bottom" />
                         </Grid>
                     </Border>
                 </Grid>

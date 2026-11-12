@@ -278,6 +278,23 @@
            BasedOn="{StaticResource EventJournalSearchClearStyle}"/>
     <Style x:Key="ArSeeToolbarActionButtonStyle" TargetType="Button"
            BasedOn="{StaticResource EventJournalActionButtonStyle}"/>
+    <!-- One shared premium action material for all workspace/Command Panel text
+         buttons. Nav pills, left action rail and round icon controls have their
+         own independent styles. Command colors indicate direction, not geometry. -->
+    <Style x:Key="ArSeeWorkspaceActionButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource ArSeeToolbarActionButtonStyle}"/>
+    <Style x:Key="ArSeeWorkspacePrimaryActionButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
+        <Setter Property="Foreground" Value="#245DB2"/>
+    </Style>
+    <Style x:Key="ArSeeCommandOpenActionButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
+        <Setter Property="Foreground" Value="#166534"/>
+    </Style>
+    <Style x:Key="ArSeeCommandCloseActionButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
+        <Setter Property="Foreground" Value="#B91C1C"/>
+    </Style>
 
     <Style TargetType="Window">
         <Setter Property="FontFamily" Value="{StaticResource AppFont}" />

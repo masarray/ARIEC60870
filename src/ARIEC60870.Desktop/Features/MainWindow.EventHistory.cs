@@ -5,6 +5,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
@@ -112,6 +113,7 @@ public partial class MainWindow
             var to = Math.Min(matches, from + EventHistoryPagination.PageSize);
             EventHistoryPageText.Text = $"{from + 1:N0}–{to:N0}";
         }
+        EventHistoryFirstButton.IsEnabled = matches > 0 && _eventHistoryPageStart > 0;
         EventHistoryPreviousButton.IsEnabled = matches > 0 && _eventHistoryPageStart > 0;
         EventHistoryNextButton.IsEnabled =
             _eventHistoryPageStart + EventHistoryPagination.PageSize < matches;
@@ -288,6 +290,29 @@ public partial class MainWindow
         await ShowEventHistoryPageAsync(_eventHistoryPageStart + EventHistoryPagination.PageSize);
     }
 
+    private async void EventHistoryFirst_Click(object sender, RoutedEventArgs e)
+        => await JumpEventHistoryToFirstAsync();
+
+    private async Task JumpEventHistoryToFirstAsync()
+    {
+        // First is the oldest match in the current indexed query, never a
+        // re-sort of the live UI ring or an implicit change of Include/Exclude.
+        _eventHistoryFollowingLatest = false;
+        RelayEventGrid.SelectedItem = null;
+        await ShowEventHistoryPageAsync(0);
+    }
+
+    private void EventActionsScroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // On a narrow desktop the one-line toolbar may overflow horizontally.
+        // Scroll only its action strip, never the evidence grid or search bar.
+        if (EventActionsScroller.ScrollableWidth <= 0) return;
+        EventActionsScroller.ScrollToHorizontalOffset(
+            Math.Clamp(EventActionsScroller.HorizontalOffset - e.Delta, 0,
+                EventActionsScroller.ScrollableWidth));
+        e.Handled = true;
+    }
+
     private async void EventHistoryLatest_Click(object sender, RoutedEventArgs e)
         => await JumpEventHistoryToLatestAsync();
 
@@ -433,6 +458,10 @@ public partial class MainWindow
             _historicalEventRows[^1].EventNumber != 620 ||
             _historicalEventRows[^1].OriginalFrameEvidence?.RawHex != frame.Hex)
             throw new InvalidOperationException("Last Event History page lost original frame.");
+        await JumpEventHistoryToFirstAsync();
+        if (_eventHistoryPageStart != 0 || _eventHistoryFollowingLatest ||
+            _historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 1)
+            throw new InvalidOperationException("First Event did not return to the oldest matching indexed page.");
         EventsQuickFindBox.Text = "#1";
         _eventsQuickQuery = "#1";
         await RefreshEventHistoryQueryAsync();
