@@ -214,6 +214,27 @@ public partial class MainWindow
                 throw new InvalidOperationException("Actual Active Master expanded TI46/SBO command panel is missing.");
             SaveRealWpfBitmap(outputDirectory, "active-master-command-panel-expanded.png");
             SaveRealWpfElementBitmap(outputDirectory, "active-master-command-panel-detail.png", CommandDockPanel);
+            foreach (var action in new[]
+            {
+                CommandSelectOpenButton, CommandOperateOpenButton,
+                CommandSelectCloseButton, CommandOperateCloseButton
+            })
+            {
+                action.ApplyTemplate();
+                var right = action.TranslatePoint(
+                    new Point(action.ActualWidth, 0), CommandDockPanel).X;
+                if (action.Template.FindName("EventJournalPillSurface", action) is not Border ||
+                    action.ActualHeight < 35 || right > CommandDockPanel.ActualWidth + 1)
+                    throw new InvalidOperationException(
+                        "Command Panel action pill is clipped or bypasses the shared style.");
+            }
+            foreach (var tab in new[] { (Index: 3, File: "events"), (Index: 12, File: "gi") })
+            {
+                MainTabControl.SelectedIndex = tab.Index;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                SaveRealWpfBitmap(outputDirectory, "active-master-command-panel-" + tab.File + ".png");
+            }
         }
         finally
         {
@@ -1081,6 +1102,15 @@ public partial class MainWindow
             {
                 AssertOneLineToolbar(GISearchShell, GiQuickCountText,
                     null, GiCasesGrid, "GI cases", 9);
+                GiStagesToggleButton.ApplyTemplate();
+                if (GiStagesToggleButton.Template.FindName("EventJournalPillSurface",
+                        GiStagesToggleButton) is not Border ||
+                    GiStagesToggleButton.ActualHeight < 35 ||
+                    GiStagesToggleButton.ActualWidth < 115 ||
+                    GiStagesToggleButton.TranslatePoint(
+                        new Point(0, GiStagesToggleButton.ActualHeight), GiStagesGrid).Y > 2)
+                    throw new InvalidOperationException(
+                        "GI Show all stages button is clipped or not using the shared pill material.");
                 AssertSearchFlushLeft(GISearchShell, GiCasesGrid, "GI cases");
                 AssertSharedToolbarSearch(GISearchShell, GiQuickFindBox, GISearchClearButton, "GI");
                 if (GiCasesGrid.ContextMenu?.Items.Count < 2 ||
@@ -1097,6 +1127,7 @@ public partial class MainWindow
                 if (!EventIncludeToggle.IsVisible || !EventExcludeToggle.IsVisible ||
                     !EventHistoryPreviousButton.IsVisible ||
                     !EventHistoryNextButton.IsVisible ||
+                    !EventHistoryFirstButton.IsVisible ||
                     !EventHistoryLatestButton.IsVisible ||
                     !EventHistoryExportButton.IsVisible ||
                     Grid.GetRow(RelayEventGrid) != 2 ||
@@ -1714,27 +1745,30 @@ public partial class MainWindow
     /// This prevents a future two-row regression hiding in a valid build.
     /// </summary>
     /// <summary>
-    /// All Event Journal actions must remain above the grid. On constrained
-    /// CI desktops the responsive WrapPanel is allowed exactly two compact
-    /// rows; checking the first search row alone falsely reports a 30px gap.
-    /// Unlike Trace/Values, Event Journal intentionally has more actions.
+    /// Event toolbar must stay exactly one compact row, matching Raw Frames
+    /// and the other workspaces. Overflow scrolls inside the action strip;
+    /// the search and data viewport must never move or wrap.
     /// </summary>
     private void AssertResponsiveEventJournalToolbar()
     {
         var pillHeight = (double)FindResource("ArSeeToolbarPillHeight");
         var circleDiameter = (double)FindResource("ArSeeToolbarCircleDiameter");
         var pillRadius = (CornerRadius)FindResource("ArSeeToolbarPillCornerRadius");
-        if (EventsSearchShell.Parent is not WrapPanel toolbar ||
-            !toolbar.IsVisible || toolbar.ActualHeight < pillHeight - 2 ||
-            toolbar.ActualHeight > pillHeight * 2 + 10)
+        if (EventsSearchShell.Parent is not Grid toolbar ||
+            !toolbar.IsVisible ||
+            Math.Abs(toolbar.ActualHeight - pillHeight) > 0.6 ||
+            Grid.GetColumn(EventsSearchShell) != 0 ||
+            Grid.GetColumn(EventActionsScroller) != 1 ||
+            EventActionsScroller.Content is not StackPanel actionStrip ||
+            actionStrip.ActualWidth < EventActionsScroller.ViewportWidth - 1)
             throw new InvalidOperationException(
-                "Event Journal toolbar missing or occupying more than two compact rows.");
+                "Event toolbar must keep the search pinned and all actions in one scrollable row.");
         FrameworkElement[] controls =
         [
             EventsSearchShell, EventIncludeToggle, EventExcludeToggle,
             EventsQuickCountText, EventHistoryPagerShell, EventHistoryPreviousButton,
             EventHistoryPageText, EventHistoryNextButton,
-            EventHistoryLatestButton, EventHistoryExportButton
+            EventHistoryFirstButton, EventHistoryLatestButton, EventHistoryExportButton
         ];
         foreach (var control in controls)
         {
@@ -1743,11 +1777,11 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal toolbar has a hidden or collapsed control.");
             var topLeft = control.TranslatePoint(new Point(), toolbar);
-            if (topLeft.X < -2 || topLeft.Y < -2 ||
-                topLeft.X + control.ActualWidth > toolbar.ActualWidth + 2 ||
-                topLeft.Y + control.ActualHeight > toolbar.ActualHeight + 2)
+            // Horizontal overflow is intentional and reachable by scrolling,
+            // but no action may clip vertically or spill into the evidence grid.
+            if (topLeft.Y < -2 || topLeft.Y + control.ActualHeight > toolbar.ActualHeight + 2)
                 throw new InvalidOperationException(
-                    "Event Journal control is clipped outside the responsive toolbar.");
+                    "Event Journal action is clipped vertically outside the toolbar.");
         }
 
         // Validate the optical placement of the search input and unpainted X.
@@ -1779,7 +1813,7 @@ public partial class MainWindow
         System.Windows.Controls.Primitives.ButtonBase[] pillActions =
         [
             EventIncludeToggle, EventExcludeToggle,
-            EventHistoryLatestButton, EventHistoryExportButton
+            EventHistoryFirstButton, EventHistoryLatestButton, EventHistoryExportButton
         ];
         foreach (var action in pillActions)
         {
