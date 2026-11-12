@@ -343,10 +343,7 @@ public partial class MainWindow
     }
 
     private void EventsScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
-    {
-        if (e.Delta != 0 && IsEventsTabActive())
-            _eventHistoryFollowingLatest = false;
-    }
+        => ObserveEventHistoryWheelInput(e.Delta);
 
     private bool IsFollowLiveEnabled()
         => AutoScrollLatestToggleButton is null || AutoScrollLatestToggleButton.IsChecked == true;
