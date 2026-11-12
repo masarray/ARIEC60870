@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -194,12 +195,13 @@ public static class ReleaseUpdateService
     {
         var exe = Path.Combine(plan.StageDirectory, "ArSee.UpdateWorker.exe");
         var manifest = Path.Combine(plan.StageDirectory, "install-plan.json");
-        Process.Start(new ProcessStartInfo(exe)
+        if (Process.Start(new ProcessStartInfo(exe)
         {
             UseShellExecute = false,
             WorkingDirectory = plan.StageDirectory,
             ArgumentList = { "--apply-release-update", manifest }
-        }) ?? throw new InvalidOperationException("Update worker failed to launch.");
+        }) is null)
+            throw new InvalidOperationException("Update worker failed to launch.");
     }
 
     public static async Task<bool> VerifyFileAsync(string path, string digest, long length, CancellationToken token)
