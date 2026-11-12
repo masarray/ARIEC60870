@@ -38,19 +38,17 @@ public partial class MainWindow
             return;
         }
 
+        // The dock belongs only to the central work surface; the product header
+        // and independent Status History row are outside this column grid.
         var canIssueCommands = !IsIec101PassiveMonitorSelected();
-        if (WorkspaceCommandButton is not null)
-        {
-            WorkspaceCommandButton.Visibility = canIssueCommands ? Visibility.Visible : Visibility.Collapsed;
-            WorkspaceCommandButton.Content = _commandDockExpanded ? "Close commands" : "Commands";
-        }
-        // The old 42px mini rail is redundant: the navigation toolbar owns the
-        // accessible command action. Zero width gives every observation table
-        // all available pixels, even at 1366x768.
         var show = canIssueCommands && _commandDockExpanded;
-        CommandDockColumn.Width = show ? new GridLength(310) : new GridLength(0);
+        CommandDockColumn.Width = !canIssueCommands
+            ? new GridLength(0)
+            : new GridLength(show ? 310 : 52);
         CommandDockPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        CommandDockMiniButton.Visibility = Visibility.Collapsed;
+        CommandDockMiniButton.Visibility = canIssueCommands && !show
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         UpdateObservationViewportLayout();
 
         if (CommandDockToggleIcon is not null)
@@ -64,9 +62,6 @@ public partial class MainWindow
             CommandDockMiniIcon.Stroke = (Brush)FindResource("Ink500Brush");
         }
     }
-
-    private void ToggleCommandDock_Click(object sender, RoutedEventArgs e)
-        => ToggleCommandDockPanel();
 
     private void CommandDockHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
@@ -112,6 +107,9 @@ public partial class MainWindow
         UpdateCommandPreview(CommandSignalComboBox?.SelectedItem as CommandSignalOption);
     }
 
+    private void CommandOperationModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        => UpdateCommandDockActionButtons();
+
     private void UpdateCommandDockActionButtons()
     {
         if (CommandSelectOpenButton is null || CommandOperateOpenButton is null)
@@ -133,29 +131,33 @@ public partial class MainWindow
         {
             CommandQualifierHelpText.Text = string.Empty;
         }
-        CommandSelectCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
+        // SBO and DO are modes (the command SELECT bit), not QOC QU values.
+        // QU is kept as an independent 0..31 IEC field in CommandQualifierBox.
+        var direct = CommandOperationModeComboBox?.SelectedIndex == 1;
+        CommandSelectOpenButton.Visibility = direct ? Visibility.Collapsed : Visibility.Visible;
+        CommandSelectCloseButton.Visibility = direct || isSetpoint ? Visibility.Collapsed : Visibility.Visible;
         CommandOperateCloseButton.Visibility = isSetpoint ? Visibility.Collapsed : Visibility.Visible;
 
         if (kind == Iec60870ControlCommandKind.RegulatingStepCommand)
         {
             CommandSelectOpenButton.Content = "Select Lower";
-            CommandOperateOpenButton.Content = "Operate Lower";
+            CommandOperateOpenButton.Content = direct ? "Lower" : "Execute Lower";
             CommandSelectCloseButton.Content = "Select Raise";
-            CommandOperateCloseButton.Content = "Operate Raise";
+            CommandOperateCloseButton.Content = direct ? "Raise" : "Execute Raise";
             return;
         }
 
         if (isSetpoint)
         {
             CommandSelectOpenButton.Content = "Select Setpoint";
-            CommandOperateOpenButton.Content = "Operate Setpoint";
+            CommandOperateOpenButton.Content = direct ? "Send Setpoint" : "Execute Setpoint";
             return;
         }
 
         CommandSelectOpenButton.Content = "Select Open";
-        CommandOperateOpenButton.Content = "Operate Open";
+        CommandOperateOpenButton.Content = direct ? "Open" : "Execute Open";
         CommandSelectCloseButton.Content = "Select Close";
-        CommandOperateCloseButton.Content = "Operate Close";
+        CommandOperateCloseButton.Content = direct ? "Close" : "Execute Close";
     }
 
 
@@ -450,6 +452,11 @@ public partial class MainWindow
 
         var tag = button.Tag?.ToString() ?? string.Empty;
         var select = tag.StartsWith("select", StringComparison.OrdinalIgnoreCase);
+        // Reject a stale/hidden SELECT click if the user switched to Direct Operate.
+        if (select && CommandOperationModeComboBox?.SelectedIndex == 1)
+        {
+            return;
+        }
         var leftAction = tag.EndsWith("left", StringComparison.OrdinalIgnoreCase);
         var kind = ResolveCommandKindFromCombo();
         var value = BuildCommandValue(kind, leftAction);
