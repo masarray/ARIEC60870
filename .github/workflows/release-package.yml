@@ -139,7 +139,7 @@ jobs:
                 fi
                 ;;
               refs/heads/release/stable-*)
-                if [[ "$version" != "${GITHUB_REF_NAME#release/stable-}" || "$version" != "$repo_version" || "$prerelease" != "false" ]]; then
+                if [[ "$version" != "$repo_version" || "$prerelease" != "false" ]]; then
                   echo "Stable branch publication must match the source version and not be a prerelease" >&2
                   exit 1
                 fi
