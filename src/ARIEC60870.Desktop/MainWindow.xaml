@@ -58,18 +58,18 @@
         <ControlTemplate x:Key="EventJournalPremiumPillTemplate" TargetType="{x:Type ButtonBase}">
             <Grid SnapsToDevicePixels="True">
                 <Border x:Name="EventJournalPillSurface"
-                        CornerRadius="16"
+                        CornerRadius="{StaticResource ArSeePillCornerRadius}"
                         Background="{TemplateBinding Background}"
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         Effect="{StaticResource EventJournalPillShadow}"/>
-                <Border IsHitTestVisible="False" Margin="2,1,2,14" CornerRadius="14"
+                <Border IsHitTestVisible="False" Margin="2,1,2,20" CornerRadius="{StaticResource ArSeePillInsetCornerRadius}"
                         BorderThickness="0,1,0,0" BorderBrush="#ABFFFFFF"/>
                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
                 <Border x:Name="EventJournalPillFocusRing"
                         IsHitTestVisible="False" Visibility="Collapsed" Margin="2"
-                        CornerRadius="14" BorderBrush="#5C94D8" BorderThickness="1"/>
+                        CornerRadius="{StaticResource ArSeePillInsetCornerRadius}" BorderBrush="#5C94D8" BorderThickness="1"/>
             </Grid>
             <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -132,8 +132,8 @@
             </ControlTemplate.Triggers>
         </ControlTemplate>
         <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Height" Value="{StaticResource ArSeePillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeePillPadding}"/>
             <Setter Property="FontSize" Value="11.25"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
@@ -154,8 +154,8 @@
             <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
         </Style>
         <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Height" Value="{StaticResource ArSeePillHeight}"/>
+            <Setter Property="Padding" Value="{StaticResource ArSeePillPadding}"/>
             <Setter Property="FontSize" Value="11.25"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
@@ -1665,7 +1665,7 @@
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
                             <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border x:Name="EventsSearchShell" Width="218" Height="32" CornerRadius="8"
+                                <Border x:Name="EventsSearchShell" Width="218" Height="{StaticResource ArSeePillHeight}" CornerRadius="{StaticResource ArSeePillCornerRadius}"
                                         BorderBrush="#CBD5E1" BorderThickness="1"
                                         Background="White" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
@@ -1754,7 +1754,7 @@
                                            ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
                                 <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
                                         Click="EventHistoryPrevious_Click"
-                                        ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events">
+                                        ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events" VerticalAlignment="Center">
                                     <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
                                           Stroke="#365777" StrokeThickness="2"
                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
@@ -1766,7 +1766,7 @@
                                            TextTrimming="CharacterEllipsis"/>
                                 <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
                                         Click="EventHistoryNext_Click"
-                                        ToolTip="Next 100 matching events" AutomationProperties.Name="Next events">
+                                        ToolTip="Next 100 matching events" AutomationProperties.Name="Next events" VerticalAlignment="Center">
                                     <Path Width="10" Height="10" Stretch="Uniform" Fill="{x:Null}"
                                           Stroke="#365777" StrokeThickness="2"
                                           StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
