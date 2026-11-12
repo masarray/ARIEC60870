@@ -172,10 +172,67 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// Capture actual Active Master WPF Command Panel, not a designer mockup.
+    /// The normal observation probe runs in Passive RX-only (where this panel is
+    /// correctly hidden), so make the two command-dock states explicit here.
+    /// This visual fixture neither connects to nor commands a physical RTU.
+    /// </summary>
+    private async Task CaptureActiveCommandPonyScreenshotsAsync(string outputDirectory)
+    {
+        var previousMode = ProtocolModeComboBox.SelectedIndex;
+        var previousTab = MainTabControl.SelectedIndex;
+        var previousExpanded = _commandDockExpanded;
+        var previousOverlay = SetupOverlay.Visibility;
+        var previousWidth = Width;
+        var previousHeight = Height;
+        try
+        {
+            SetupOverlay.Visibility = Visibility.Collapsed;
+            ProtocolModeComboBox.SelectedIndex = 1; // Active IEC-101 Master
+            MainTabControl.SelectedIndex = 1; // Raw Frames; no fake evidence
+            Width = 1366;
+            Height = 768;
+            _commandDockExpanded = false;
+            ApplyCommandDockLayout();
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            if (CommandDockMiniButton.Visibility != Visibility.Visible ||
+                CommandDockPanel.Visibility != Visibility.Collapsed ||
+                CommandDockColumn.ActualWidth < 50)
+                throw new InvalidOperationException("Actual Active Master collapsed command pony is missing.");
+            SaveRealWpfBitmap(outputDirectory, "active-master-command-pony-collapsed.png");
+
+            _commandDockExpanded = true;
+            ApplyCommandDockLayout();
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            UpdateLayout();
+            if (CommandDockPanel.Visibility != Visibility.Visible ||
+                CommandDockMiniButton.Visibility != Visibility.Collapsed ||
+                CommandDockColumn.ActualWidth < 300 ||
+                CommandOperationModeComboBox.SelectedIndex != 0)
+                throw new InvalidOperationException("Actual Active Master expanded TI46/SBO command panel is missing.");
+            SaveRealWpfBitmap(outputDirectory, "active-master-command-panel-expanded.png");
+            SaveRealWpfElementBitmap(outputDirectory, "active-master-command-panel-detail.png", CommandDockPanel);
+        }
+        finally
+        {
+            ProtocolModeComboBox.SelectedIndex = previousMode;
+            MainTabControl.SelectedIndex = previousTab;
+            _commandDockExpanded = previousExpanded;
+            SetupOverlay.Visibility = previousOverlay;
+            Width = previousWidth;
+            Height = previousHeight;
+            ApplyCommandDockLayout();
+            UpdateLayout();
+        }
+    }
+
     public async Task RunObservationUiAcceptanceProbeAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
         await VerifySetupSwitchGeometryAsync(outputDirectory);
+        await CaptureActiveCommandPonyScreenshotsAsync(outputDirectory);
         var metrics = new List<object>();
         var constrainedViewportNames = new List<string>();
         var eventGridRealizedRows = 0;
