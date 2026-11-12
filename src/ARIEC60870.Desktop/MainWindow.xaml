@@ -2684,12 +2684,27 @@
                         <!-- Internal diagnostics remain in Status History, not the command form. -->
                         <TextBlock x:Name="CommandDockStatusText" Text="" Visibility="Collapsed" />
 
-                        <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <Button Content="GI" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
-                            <Button Content="Clock Sync" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
-                            <Button Content="Read IOA" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
-                            <Button Content="Clear" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,0" Click="Clear_Click" />
-                        </UniformGrid>
+                        <!-- System commands and one-point read are distinct protocol actions.
+                             Do not expose the global session Clear action inside this dock. -->
+                        <Grid Margin="0,0,0,12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="7"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <UniformGrid Grid.Row="0" Columns="2">
+                                <Button x:Name="CommandDockGiButton" Content="GI • TI-100"
+                                        Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
+                                        Margin="0,0,5,0" Click="CommandDock_Gi_Click"/>
+                                <Button x:Name="CommandDockClockSyncButton" Content="Timesync • TI-103"
+                                        Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
+                                        Margin="5,0,0,0" Click="CommandDock_ClockSync_Click"/>
+                            </UniformGrid>
+                            <Button x:Name="CommandDockReadButton" Grid.Row="2"
+                                    Content="Read IOA • TI-102"
+                                    Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
+                                    Click="CommandDock_Read_Click"/>
+                        </Grid>
 
                         <Border x:Name="CommandTargetCard" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
                             <StackPanel>
@@ -2738,8 +2753,31 @@
                                         <ComboBoxItem Content="Select Before Operate (SBO)" />
                                         <ComboBoxItem Content="Direct Operate (DO)" />
                                     </ComboBox>
-                                    <TextBlock Text="QOC · QU (0–31)" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                    <TextBox x:Name="CommandQualifierBox" Text="0" Width="75" HorizontalAlignment="Left" />
+                                    <TextBlock x:Name="CommandQualifierLabel" Text="QOC · QU (command pulse)"
+                                               Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
+                                    <!-- QOC/QU for TI45/46/47: SBO/DO is the separate SELECT bit. -->
+                                    <ComboBox x:Name="CommandQualifierComboBox" SelectedIndex="0"
+                                              SelectionChanged="CommandQualifierComboBox_SelectionChanged"
+                                              MaxDropDownHeight="240">
+                                        <ComboBoxItem Tag="0" Content="0 · Default / no specification"/>
+                                        <ComboBoxItem Tag="1" Content="1 · Short pulse"/>
+                                        <ComboBoxItem Tag="2" Content="2 · Long pulse"/>
+                                        <ComboBoxItem Tag="3" Content="3 · Persistent output"/>
+                                        <ComboBoxItem Tag="custom" Content="Custom · QU 4–31 (device-specific)"/>
+                                    </ComboBox>
+                                    <!-- TI48 has QOS/QL, NOT QOC/QU; do not call setpoint QL pulse duration. -->
+                                    <ComboBox x:Name="CommandSetpointQualifierComboBox" SelectedIndex="0"
+                                              Visibility="Collapsed"
+                                              SelectionChanged="CommandQualifierComboBox_SelectionChanged"
+                                              MaxDropDownHeight="180">
+                                        <ComboBoxItem Tag="0" Content="0 · Default QL"/>
+                                        <ComboBoxItem Tag="custom" Content="Custom · QL 1–127 (device-specific)"/>
+                                    </ComboBox>
+                                    <TextBox x:Name="CommandQualifierCustomBox" Text="4"
+                                             Margin="0,7,0,0" Width="90"
+                                             HorizontalAlignment="Left"
+                                             Visibility="Collapsed"
+                                             AutomationProperties.Name="Custom command qualifier"/>
                                     <TextBlock x:Name="CommandQualifierHelpText" Text="" Visibility="Collapsed" />
                                 </StackPanel>
                                 <StackPanel x:Name="CommandSetpointPanel" Margin="0,0,0,10" Visibility="Collapsed">
