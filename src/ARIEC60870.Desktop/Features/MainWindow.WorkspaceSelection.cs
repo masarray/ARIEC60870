@@ -80,7 +80,7 @@ public partial class MainWindow
                 }
             }
             UpdateQuickFindCounts();
-        }), DispatcherPriority.Background);
+        }), DispatcherPriority.Loaded); // after Render, before subsequent operator Input
     }
 
     private void SegmentedNav_Click(object sender, RoutedEventArgs e)
