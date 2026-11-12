@@ -1,6 +1,6 @@
 # This file documents the recommended public GitHub repository metadata.
 # GitHub topics/description are configured in the repository settings, not by this file.
-description: "Free Apache-2.0 Windows IEC 60870-5-101 / 103 / 104 protocol evidence analyzer for FAT/SAT, commissioning, SCADA, RTU, and protection relay testing."
+description: "ArSee — free, open-source Windows IEC 60870-5-101/103/104 tester & analyzer with raw frames, events, and PDF evidence for FAT/SAT."
 homepage: "https://masarray.github.io/ARIEC60870/"
 topics:
   - iec60870

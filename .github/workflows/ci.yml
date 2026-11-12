@@ -61,7 +61,11 @@ jobs:
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
             const paths = file => [file.filename, file.previous_filename].filter(Boolean);
-            const isStatic = name => /\.(md|mdx)$/i.test(name) || /^(docs|site)\//i.test(name);
+            // Explicit static-publication allowlist: root redirects and GitHub About
+            // metadata are content, not WPF or protocol engine sources.
+            // Unknown paths, workflow edits and code changes remain fail-closed.
+            const isStatic = name => /\.(md|mdx)$/i.test(name) || /^(docs|site)\//i.test(name) ||
+              /^(index\.html|404\.html|\.nojekyll|\.github\/repository-metadata\.yml)$/i.test(name);
             const isRuntime = name =>
               /^(src|installer|scripts|assets|resources)\//i.test(name) ||
               /^(ARIEC60870\.sln|Directory\.Build\.(props|targets)|global\.json|NuGet\.Config)$/i.test(name) ||
@@ -81,6 +85,16 @@ jobs:
             const fixtures = [
               ['docs', [{filename:'docs/PLAN.md'}], false, false, false],
               ['website', [{filename:'site/app.js'}], false, false, false],
+              ['root-page', [{filename:'index.html'}], false, false, false],
+              ['github-about-metadata', [{filename:'.github/repository-metadata.yml'}], false, false, false],
+              ['branding-mixed', [
+                {filename:'README.md'}, {filename:'site/index.html'},
+                {filename:'docs/index.html'}, {filename:'index.html'},
+                {filename:'.github/repository-metadata.yml'}
+              ], false, false, false],
+              ['source-renamed-to-root-redirect', [
+                {filename:'index.html',previous_filename:'src/Master/Link.cs'}
+              ], true, true, true],
               ['workflow', [{filename:'.github/workflows/ci.yml'}], true, false, false],
               ['test', [{filename:'tests/Master.Tests/LinkTests.cs'}], true, false, true],
               ['runtime', [{filename:'src/Master/Link.cs'}], true, true, true],

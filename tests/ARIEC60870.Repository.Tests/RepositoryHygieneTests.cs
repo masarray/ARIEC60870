@@ -244,8 +244,8 @@ public sealed class RepositoryHygieneTests
 
         var siteIndex = File.ReadAllText(root.File("site/index.html"));
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
-        Assert.Contains("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester", siteIndex);
-        Assert.Contains("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester", docsIndex);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", siteIndex);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsIndex);
         Assert.Contains("https://masarray.github.io/ARIEC60870/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
     }
@@ -453,7 +453,7 @@ public sealed class RepositoryHygieneTests
                 || path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.Contains("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester", readme);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", readme);
         Assert.Contains("Native PDF evidence report | Implemented baseline", roadmap);
         Assert.DoesNotContain("PDF evidence report | Low", roadmap, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("planned next", roadmap, StringComparison.OrdinalIgnoreCase);
@@ -462,7 +462,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("\"@type\": \"FAQPage\"", site);
         Assert.Contains("\"@type\": \"BreadcrumbList\"", site);
         Assert.Contains("Native PDF evidence report", site);
-        Assert.Contains("ArSee · Open Source IEC 60870-104/103/101 Protocol Tester", docsMirror);
+        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsMirror);
         Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", site, StringComparison.OrdinalIgnoreCase);

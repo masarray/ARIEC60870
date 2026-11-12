@@ -1,7 +1,7 @@
 {
-  "name": "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester",
+  "name": "ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer",
   "short_name": "ArSee",
-  "description": "ArSee is a free open-source IEC 60870-5-104/103/101 Windows protocol tester, frame interpreter and evidence analyzer for FAT/SAT and commissioning.",
+  "description": "ArSee is a free open-source IEC 60870-5-101/103/104 Windows protocol tester and analyzer, frame interpreter and evidence analyzer for FAT/SAT and commissioning.",
   "start_url": "https://masarray.github.io/ARIEC60870/",
   "scope": "https://masarray.github.io/ARIEC60870/",
   "display": "standalone",

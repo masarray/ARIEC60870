@@ -1,11 +1,11 @@
-# ArSee · Open Source IEC 60870-104/103/101 Protocol Tester
+# ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer
 
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.5)
 
-**ArSee is the product identity of this existing ARIEC60870 repository, preserving old GitHub URLs, releases and file compatibility.**
+**ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
 
 **From raw IEC 60870 traffic to inspectable engineering evidence.**
 
@@ -17,7 +17,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public prerelease** | **v3.6.8-rc.5** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-win-x64.zip) | Engineering RC: updated Frame Interpreter and IEC-101 unbalanced A/B link/transaction improvements |
+| **Latest public prerelease** | **v3.6.8-rc.5** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8-rc.5/ARIEC60870-v3.6.8-rc.5-win-x64.zip) | Engineering RC: unified indexed Event Journal, history search/paging and CSV export |
 | **Latest stable-tagged release** | **v3.6.7** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7) | Last non-prerelease package, without the current RC interface updates |
 
 **RC .5 uses ArSee display branding in its application/installer; compatibility filenames still retain ARIEC60870. Earlier binaries remain unchanged.**
@@ -28,7 +28,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
-    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="Illustrative ARIEC60870 protocol evidence workspace" width="90%" />
+    <img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" alt="Illustrative ArSee protocol evidence workspace" width="90%" />
   </a>
 </p>
 
@@ -46,7 +46,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-**New in v3.6.8-rc.5:** readable IEC101 Frame Interpreter with amber ACD, spaced IOA labels and ↳ signal details, retained compact Setup/Frame Trace HOLD/AUTO, and IEC101 unbalanced single/A-B transaction/FCB/ACD reliability work. Physical RTU FAT is still required.
+**New in v3.6.8-rc.5:** one indexed Event Journal, 100-row pages, Previous/Next/Latest navigation, full-history search, Include/Exclude filters, and CSV export with original-frame references. Earlier Frame Interpreter, HOLD/AUTO, and IEC-101 Reset Remote Link improvements remain. Draft transaction/FCB work is excluded; physical RTU FAT remains required.
 
 An acknowledged frame or GI termination is **not** proof that every configured point was received or that a physical control operated.
 
@@ -62,7 +62,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 ## Scope and safety boundaries
 
-- **IEC-101 SICAM A8000 physical interoperability remains unproven.** This RC includes software fixes from [draft PR #145](https://github.com/masarray/ARIEC60870/pull/145); real COM recovery, GI/SBO evidence and SOE FIFO at 1200 bps still require field FAT. Simulated CI is not a wired RTU pass.
+- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** [Draft PR #145](https://github.com/masarray/ARIEC60870/pull/145) shared transaction/FCB and dual-link hardening is **excluded** from v3.6.8-rc.5; COM recovery, GI/SBO evidence and 1,200-bps SOE FIFO still need physical FAT. Simulated CI is not a wired RTU pass.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
 - ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.

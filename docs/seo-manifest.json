@@ -8,7 +8,7 @@
     "en",
     "id"
   ],
-  "description": "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester. Raw frame interpreter, diagnostics, findings and engineering evidence.",
+  "description": "ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer. Raw frame interpreter, diagnostics, findings and engineering evidence.",
   "pages": [
     {
       "path": "index.html",
