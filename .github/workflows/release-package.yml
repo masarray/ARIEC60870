@@ -257,7 +257,7 @@ jobs:
 
       - name: Stamp package version metadata
         shell: pwsh
-        run: ./scripts/stamp-release-version.ps1 -Version '${{ needs.resolve.outputs.version }}'
+        run: ./scripts/stamp-release-version.ps1 -Version '${{ needs.resolve.outputs.version }}' -SkipPublicSite
 
       - name: Run full xUnit regression gate
         shell: pwsh

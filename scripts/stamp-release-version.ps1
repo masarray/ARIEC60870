@@ -3,7 +3,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')]
-    [string]$Version
+    [string]$Version,
+    [switch]$SkipPublicSite
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,6 +39,13 @@ Update-TextFile -Path 'Directory.Build.props' -Updater {
     $text = [regex]::Replace($text, '<AssemblyVersion>[^<]+</AssemblyVersion>', "<AssemblyVersion>$assemblyVersion</AssemblyVersion>")
     $text = [regex]::Replace($text, '<FileVersion>[^<]+</FileVersion>', "<FileVersion>$assemblyVersion</FileVersion>")
     [regex]::Replace($text, '<InformationalVersion>[^<]+</InformationalVersion>', "<InformationalVersion>$Version+release</InformationalVersion>")
+}
+
+# Packaging must not advertise an unreleased version on the public website.
+# Promote public-site metadata and download links together after verified publication.
+if ($SkipPublicSite) {
+    Write-Host 'Public website metadata left at the currently published version.'
+    return
 }
 
 foreach ($html in @('site/index.html', 'docs/index.html')) {

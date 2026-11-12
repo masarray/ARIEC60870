@@ -192,6 +192,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("LogFileName=release-gate-$name.trx", release);
         Assert.Contains("if ($LASTEXITCODE -ne 0) { throw \"Release regression suite $name failed", release);
         Assert.DoesNotContain("LogFileName=release-gate.trx", release);
+        Assert.Contains("-SkipPublicSite", release);
         Assert.Contains("Attest public Windows installer", release);
         Assert.Contains("Compile matching Windows Setup EXE for public releases", release);
         Assert.Contains("- 'release/stable-*'", release);
