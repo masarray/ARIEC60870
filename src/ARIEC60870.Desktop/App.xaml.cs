@@ -3,6 +3,7 @@
 
 using System.IO;
 using System.Windows;
+using ARIEC60870.Desktop.Services;
 
 namespace ARIEC60870.Desktop;
 
@@ -10,6 +11,16 @@ public partial class App : Application
 {
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // An independent copy of the self-contained app performs installation
+        // only after the original WPF process has shut down normally.
+        if (e.Args.Length == 2 &&
+            string.Equals(e.Args[0], "--apply-release-update", StringComparison.OrdinalIgnoreCase))
+        {
+            base.OnStartup(e);
+            var code = await ReleaseInstallWorker.RunAsync(e.Args[1]);
+            Shutdown(code);
+            return;
+        }
         if (e.Args.Contains("--observation-ui-acceptance", StringComparer.OrdinalIgnoreCase))
         {
             base.OnStartup(e);

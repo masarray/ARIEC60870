@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
@@ -18,37 +17,26 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
-    private const string LatestReleaseApiUrl = "https://api.github.com/repos/masarray/ARIEC60870/releases/latest";
     private const string LatestReleaseBrowserUrl = "https://github.com/masarray/ARIEC60870/releases/latest";
     private static readonly TimeSpan ReleaseUpdateInitialDelay = TimeSpan.FromSeconds(25);
-    private static readonly TimeSpan ReleaseUpdateNetworkTimeout = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan ReleaseUpdateMinimumCheckInterval = TimeSpan.FromHours(20);
 
     private CancellationTokenSource? _releaseUpdateCheckCancellation;
-    private Uri? _releaseUpdateUri;
+    private ReleaseUpdateCandidate? _releaseUpdateCandidate;
+    private UpdateInstallPlan? _pendingUpdatePlan;
+    private bool _releaseUpdateIsDownloading;
 
     private void StartLazyReleaseUpdateCheck()
     {
-        if (_releaseUpdateCheckCancellation is not null)
-        {
-            return;
-        }
-
+        if (_releaseUpdateCheckCancellation is not null) return;
         _releaseUpdateCheckCancellation = new CancellationTokenSource();
-        var token = _releaseUpdateCheckCancellation.Token;
-        _ = Task.Run(() => RunLazyReleaseUpdateCheckAsync(token), token);
+        _ = Task.Run(() => RunLazyReleaseUpdateCheckAsync(_releaseUpdateCheckCancellation.Token));
     }
 
     private void CancelReleaseUpdateCheck()
     {
-        try
-        {
-            _releaseUpdateCheckCancellation?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // App shutdown path: no user-visible action required.
-        }
+        try { _releaseUpdateCheckCancellation?.Cancel(); }
+        catch (ObjectDisposedException) { }
     }
 
     private async Task RunLazyReleaseUpdateCheckAsync(CancellationToken cancellationToken)
@@ -56,271 +44,192 @@ public partial class MainWindow
         try
         {
             await Task.Delay(ReleaseUpdateInitialDelay, cancellationToken).ConfigureAwait(false);
-            if (!ShouldCheckReleaseUpdate())
-            {
-                return;
-            }
-
-            var latest = await FetchLatestReleaseAsync(cancellationToken).ConfigureAwait(false);
-            SaveReleaseUpdateCheckState(latest?.TagName);
-
-            if (latest is null || latest.IsDraft || latest.IsPrerelease)
-            {
-                return;
-            }
-
-            var currentVersion = GetCurrentProductVersion();
-            var latestVersion = TryParseVersion(latest.TagName ?? latest.Name);
-            if (currentVersion is null || latestVersion is null || latestVersion <= currentVersion)
-            {
-                return;
-            }
-
+            ReleaseInstallWorker.CleanupCompletedUpdates();
+            if (!ShouldCheckReleaseUpdate()) return;
+            using var networkTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            networkTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var latest = await ReleaseUpdateService.FindLatestAsync(
+                GetCurrentProductVersion(), networkTimeout.Token).ConfigureAwait(false);
+            SaveReleaseUpdateCheckState(latest?.Tag);
+            if (latest is null) return;
             await Dispatcher.InvokeAsync(
-                () => ShowReleaseUpdateNotification(latest, latestVersion),
-                DispatcherPriority.ApplicationIdle,
-                cancellationToken);
+                () => ShowReleaseUpdateNotification(latest),
+                DispatcherPriority.ApplicationIdle, cancellationToken);
         }
-        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            // Network timeout is treated as offline/noisy network. Stay silent.
-        }
-        catch (OperationCanceledException)
-        {
-            // Shutdown or app closing. Silent by design.
-        }
-        catch (HttpRequestException)
-        {
-            // Offline, DNS, proxy, firewall, or GitHub unreachable: stay silent.
-        }
-        catch (IOException)
-        {
-            // State-file write/read issue must never disturb protocol testing.
-        }
-        catch (JsonException)
-        {
-            // Bad/changed response format: stay silent and let future builds improve it.
-        }
+        catch (OperationCanceledException) { }
+        catch (HttpRequestException) { }
+        catch (IOException) { }
+        catch (JsonException) { }
         catch (Exception)
         {
-            // Update check is deliberately best-effort and non-critical.
+            // Release discovery must never interrupt IEC communication or WPF.
+            // An explicit retry remains available through the public releases page.
         }
     }
 
-    private static async Task<ReleaseUpdateInfo?> FetchLatestReleaseAsync(CancellationToken cancellationToken)
+    private void ShowReleaseUpdateNotification(ReleaseUpdateCandidate latest)
     {
-        using var client = new HttpClient
-        {
-            Timeout = ReleaseUpdateNetworkTimeout
-        };
+        if (UpdateAvailableButton is null) return;
+        _releaseUpdateCandidate = latest;
+        UpdateAvailableButton.Content = $"Update available · {latest.Tag}";
+        UpdateAvailableButton.Visibility = Visibility.Visible;
+        UpdateAvailableButton.ToolTip =
+            $"ArSee {latest.Tag} is available. Installed: {GetCurrentProductVersionText()}. Click to update.";
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseApiUrl);
-        request.Headers.UserAgent.ParseAdd("ArSee-ProtocolTester/1.0");
-        request.Headers.Accept.ParseAdd("application/vnd.github+json");
-        request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
+        AppendSessionLog($"Update available: {latest.Tag}; current version {GetCurrentProductVersionText()}.");
 
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-        {
-            return null;
-        }
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-        var root = document.RootElement;
-
-        var tagName = ReadString(root, "tag_name");
-        var name = ReadString(root, "name");
-        var htmlUrl = ReadString(root, "html_url");
-        var draft = ReadBoolean(root, "draft");
-        var prerelease = ReadBoolean(root, "prerelease");
-        var publishedAt = ReadString(root, "published_at");
-
-        if (string.IsNullOrWhiteSpace(tagName) || string.IsNullOrWhiteSpace(htmlUrl))
-        {
-            return null;
-        }
-
-        return new ReleaseUpdateInfo(tagName, name, htmlUrl, draft, prerelease, publishedAt);
+        // One non-repeating popup per version, only on an idle station.
+        // An active Master / passive monitor must not be obscured by a modal
+        // update prompt during an operator's capture or command operation.
+        var state = ReadReleaseUpdateState();
+        if (state?.LastPromptedTag == latest.Tag ||
+            !ReleaseUpdateService.HasManagedInstallation(Environment.ProcessPath ?? string.Empty) ||
+            _sessionCancellation is not null || _passiveMonitorSession is not null ||
+            _passiveReplayCancellation is not null)
+            return;
+        SaveReleaseUpdateCheckState(latest.Tag, promptedTag: latest.Tag);
+        if (ModernMessageBox.Show(this,
+            $"ArSee {latest.Tag} is available.\n\nDownload and install the update now? ArSee will safely close, install, and reopen automatically.\n\nYour settings, signal lists and saved captures are preserved. The published Windows package may be unsigned.",
+            "Update available", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            _ = BeginUpdateAsync();
     }
 
-    private void ShowReleaseUpdateNotification(ReleaseUpdateInfo latest, Version latestVersion)
+    private async void UpdateAvailable_Click(object sender, RoutedEventArgs e)
+        => await BeginUpdateAsync();
+
+    private async Task BeginUpdateAsync()
     {
-        if (UpdateAvailableButton is null)
+        if (_releaseUpdateIsDownloading || _releaseUpdateCandidate is null) return;
+        var currentExe = Environment.ProcessPath ?? string.Empty;
+        if (!ReleaseUpdateService.HasManagedInstallation(currentExe))
         {
+            ModernMessageBox.Show(this,
+                "This copy of ArSee is running as a portable application. Automatic replacement is supported for the installed version. Download the official installer from GitHub Releases to switch to managed updates.",
+                "Portable installation", MessageBoxButton.OK, MessageBoxImage.Information);
+            OpenOfficialReleasePage();
             return;
         }
 
-        _releaseUpdateUri = Uri.TryCreate(latest.HtmlUrl, UriKind.Absolute, out var uri)
-            ? uri
-            : new Uri(LatestReleaseBrowserUrl);
-
-        UpdateAvailableButton.Content = $"Update {latest.TagName}";
-        UpdateAvailableButton.Visibility = Visibility.Visible;
-        UpdateAvailableButton.ToolTip = $"New ArSee release {latest.TagName} is available. Current version: {GetCurrentProductVersionText()}. Click to open the release page.";
-
-        // Low-noise trace only when there is a real update. No modal dialog, no issue, no diagnostic.
-        AppendSessionLog($"Update available: ArSee {latest.TagName} is newer than installed version {GetCurrentProductVersionText()}.");
-    }
-
-    private void UpdateAvailable_Click(object sender, RoutedEventArgs e)
-    {
+        var candidate = _releaseUpdateCandidate;
+        if (candidate.Version <= GetCurrentProductVersion()) return;
+        _releaseUpdateIsDownloading = true;
+        UpdateAvailableButton.IsEnabled = false;
         try
         {
-            var target = _releaseUpdateUri?.ToString() ?? LatestReleaseBrowserUrl;
-            Process.Start(new ProcessStartInfo(target)
+            UpdateAvailableButton.Content = "Downloading 0%";
+            var progress = new Progress<int>(percent =>
             {
-                UseShellExecute = true
+                if (UpdateAvailableButton.IsLoaded)
+                    UpdateAvailableButton.Content = $"Downloading {percent}%";
             });
+            // No application shutdown before the package is fully downloaded,
+            // exact-size verified and SHA-256 matched.
+            var plan = await ReleaseUpdateService.DownloadAndStageAsync(
+                candidate, currentExe, progress, CancellationToken.None);
+            _pendingUpdatePlan = plan;
+            UpdateAvailableButton.Content = "Installing after safe close…";
+            Closed += LaunchVerifiedUpdateWorkerOnClosed;
+            Close(); // Existing active/passive shutdown gate owns safe final close.
         }
         catch (Exception ex)
         {
-            ModernMessageBox.Show(
-                this,
-                "Could not open the release page automatically. Please open the ArSee GitHub releases page manually.",
-                "Open release page",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            AppendSessionLog("Release page could not be opened: " + ex.Message);
+            AppendSessionLog("Update download/staging failed: " + ex.Message);
+            ModernMessageBox.Show(this,
+                "The update could not be prepared. ArSee remains installed and usable.\n\n" +
+                ex.Message + "\n\nCheck your internet connection and free disk space, then retry.",
+                "Update not started", MessageBoxButton.OK, MessageBoxImage.Warning);
+            UpdateAvailableButton.Content = $"Update available · {candidate.Tag}";
         }
+        finally
+        {
+            _releaseUpdateIsDownloading = false;
+            UpdateAvailableButton.IsEnabled = true;
+        }
+    }
+
+    private void LaunchVerifiedUpdateWorkerOnClosed(object? sender, EventArgs e)
+    {
+        Closed -= LaunchVerifiedUpdateWorkerOnClosed;
+        if (_pendingUpdatePlan is null) return;
+        try
+        {
+            ReleaseUpdateService.LaunchWorker(_pendingUpdatePlan);
+        }
+        catch (Exception ex)
+        {
+            // A failed process launch must be visible rather than silently
+            // stranding the operator with a closed application.
+            MessageBox.Show("ArSee update worker did not start. Open ArSee again normally.\n\n" +
+                ex.Message, "Update could not start", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private static void OpenOfficialReleasePage()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(LatestReleaseBrowserUrl)
+            { UseShellExecute = true });
+        }
+        catch (Exception) { }
     }
 
     private static bool ShouldCheckReleaseUpdate()
     {
+        var state = ReadReleaseUpdateState();
+        // If the engineer clicked Later and reopened ArSee, rediscover the
+        // pending version instead of hiding the update button for 20 hours.
+        if (ReleaseUpdateService.TryParseStableTag(state?.LastSeenTag, out var seen) &&
+            seen > GetCurrentProductVersion()) return true;
+        return state is null || state.LastCheckedUtc == default ||
+            DateTime.UtcNow - state.LastCheckedUtc >= ReleaseUpdateMinimumCheckInterval;
+    }
+
+    private static ReleaseUpdateState? ReadReleaseUpdateState()
+    {
         try
         {
             var path = LocalWorkspacePaths.ReleaseUpdateStateFile;
-            if (!File.Exists(path))
-            {
-                return true;
-            }
-
-            var state = JsonSerializer.Deserialize<ReleaseUpdateState>(File.ReadAllText(path));
-            if (state is null || state.LastCheckedUtc == default)
-            {
-                return true;
-            }
-
-            return DateTime.UtcNow - state.LastCheckedUtc >= ReleaseUpdateMinimumCheckInterval;
+            return File.Exists(path)
+                ? JsonSerializer.Deserialize<ReleaseUpdateState>(File.ReadAllText(path))
+                : null;
         }
-        catch
-        {
-            return true;
-        }
+        catch (Exception) { return null; }
     }
 
-    private static void SaveReleaseUpdateCheckState(string? latestTag)
+    private static void SaveReleaseUpdateCheckState(string? latestTag, string? promptedTag = null)
     {
         try
         {
             var path = LocalWorkspacePaths.ReleaseUpdateStateFile;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var state = new ReleaseUpdateState
-            {
-                LastCheckedUtc = DateTime.UtcNow,
-                LastSeenTag = latestTag ?? string.Empty
-            };
-            File.WriteAllText(path, JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true }));
+            var state = ReadReleaseUpdateState() ?? new ReleaseUpdateState();
+            state.LastCheckedUtc = DateTime.UtcNow;
+            if (latestTag is not null) state.LastSeenTag = latestTag;
+            if (promptedTag is not null) state.LastPromptedTag = promptedTag;
+            File.WriteAllText(path, JsonSerializer.Serialize(state));
         }
-        catch
-        {
-            // Local state is optional. Never let it affect the analyzer.
-        }
+        catch (Exception) { }
     }
 
-    private static Version? GetCurrentProductVersion()
-        => TryParseVersion(GetCurrentProductVersionText()) ?? Assembly.GetExecutingAssembly().GetName().Version;
+    private static Version GetCurrentProductVersion()
+    {
+        var version = GetCurrentProductVersionText().Split('+', '-')[0].TrimStart('v', 'V');
+        return Version.TryParse(version, out var parsed) ? parsed
+            : Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+    }
 
     private static string GetCurrentProductVersionText()
-    {
-        var info = Assembly.GetExecutingAssembly()
+        => Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion;
-        if (!string.IsNullOrWhiteSpace(info))
-        {
-            return info;
-        }
-
-        return Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
-    }
-
-    private static Version? TryParseVersion(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var clean = value.Trim();
-        if (clean.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-        {
-            clean = clean[1..];
-        }
-
-        var firstDigitIndex = clean.IndexOfAny(new[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' });
-        if (firstDigitIndex > 0)
-        {
-            clean = clean[firstDigitIndex..];
-        }
-
-        var suffixIndex = clean.IndexOfAny(new[] { '-', '+', ' ' });
-        if (suffixIndex >= 0)
-        {
-            clean = clean[..suffixIndex];
-        }
-
-        var parts = clean.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0)
-        {
-            return null;
-        }
-
-        var normalized = parts.Take(4).ToList();
-        while (normalized.Count < 3)
-        {
-            normalized.Add("0");
-        }
-
-        var versionText = string.Join(".", normalized.Select(part => new string(part.TakeWhile(char.IsDigit).ToArray())));
-        if (versionText.Split('.').Any(string.IsNullOrWhiteSpace))
-        {
-            return null;
-        }
-
-        return Version.TryParse(versionText, out var parsed) ? parsed : null;
-    }
-
-    private static string? ReadString(JsonElement element, string propertyName)
-        => element.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
-
-    private static bool ReadBoolean(JsonElement element, string propertyName)
-        => element.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.True;
-
-    private sealed class ReleaseUpdateInfo
-    {
-        public ReleaseUpdateInfo(string tagName, string? name, string htmlUrl, bool isDraft, bool isPrerelease, string? publishedAt)
-        {
-            TagName = tagName;
-            Name = name ?? tagName;
-            HtmlUrl = htmlUrl;
-            IsDraft = isDraft;
-            IsPrerelease = isPrerelease;
-            PublishedAt = publishedAt ?? string.Empty;
-        }
-
-        public string TagName { get; }
-        public string Name { get; }
-        public string HtmlUrl { get; }
-        public bool IsDraft { get; }
-        public bool IsPrerelease { get; }
-        public string PublishedAt { get; }
-    }
+            ?.InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+            ?? "0.0.0";
 
     private sealed class ReleaseUpdateState
     {
         public DateTime LastCheckedUtc { get; set; }
-        public string LastSeenTag { get; set; } = string.Empty;
+        public string LastSeenTag { get; set; } = "";
+        public string LastPromptedTag { get; set; } = "";
     }
 }
