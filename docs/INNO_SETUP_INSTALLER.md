@@ -23,13 +23,14 @@ waiting for journal finalization. A held COM port or rejected closure may
 require operator interaction; automatic zero-downtime upgrade is **not**
 proven. Never use unattended deployment against active plant-side operations.
 
-Portable ZIP releases remain available. The **existing** update checker
-only notifies about newer GitHub releases and opens the release page. It
-does **not** silently download or execute an unsigned installer. Full
-production auto-update requires trusted Windows Authenticode signing,
-pinned publisher identity, an independent staged helper, negative tests
-for interruption and rollback, and a verified real-Windows upgrade matrix.
-Unsigned CI artifacts are **test-only**, not autonomous-update payloads.
+Portable ZIP releases remain available. The update implementation on the updater PR now performs an **operator-approved**
+GitHub stable release download, digest verification, normal capture-safe close,
+independent staged worker/Inno installation and restart for **managed** installs;
+portable folders are never silently modified. Published unsigned installers
+are accepted only with deliberate operator consent, not silently. Full
+production-hardening still requires Windows Authenticode publisher pinning,
+interruption and rollback FAT and a verified real two-version update matrix.
+See [self-update architecture](AUTO_UPDATE_ARCHITECTURE_20261113.md).
 
 Windows CI now builds a temporary v3.6.7 installer from the **actual published
 v3.6.7 Windows ZIP**, verifying the published SHA256SUMS first. The same
