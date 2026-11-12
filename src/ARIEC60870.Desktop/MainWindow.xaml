@@ -675,7 +675,7 @@
                     </TabItem>
 
                     <TabItem Header="Raw Frames" ToolTipService.IsEnabled="False">
-                        <Grid Margin="10" TextElement.FontFamily="{StaticResource AppFont}">
+                        <Grid Margin="12" TextElement.FontFamily="{StaticResource AppFont}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="3*" MinWidth="260" />
                                 <ColumnDefinition x:Name="TraceInspectorGutterColumn" Width="0" />
@@ -1333,7 +1333,7 @@
 
                     
                     <TabItem Header="Values">
-                        <Grid Margin="14">
+                        <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/><RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/><RowDefinition Height="0"/>
@@ -1505,7 +1505,7 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Events">
-                        <Grid Margin="14">
+                        <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
@@ -1513,8 +1513,12 @@
                             </Grid.RowDefinitions>
                             <!-- Shared ArSee tokens: one quiet, wrap-safe Event Journal toolbar.
                                  Historical data is always the grid source. No live/history toggle. -->
-                            <WrapPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border x:Name="EventsSearchShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Width="{StaticResource ArSeeToolbarSearchWidth}" HorizontalAlignment="Stretch"
+                            <Grid Grid.Row="0" Height="{StaticResource ArSeeToolbarPillHeight}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*" MinWidth="0"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="EventsSearchShell" Grid.Column="0" Style="{StaticResource ArSeeToolbarSearchShellStyle}" Width="{StaticResource ArSeeToolbarSearchWidth}" HorizontalAlignment="Stretch"
                                         VerticalAlignment="Center"
                                         ToolTip="Search signal, status, COT, source or IOA">
                                     <DockPanel LastChildFill="True" Margin="7,0,10,0">
@@ -1537,8 +1541,13 @@
                                                  TextChanged="QuickFindTextChanged"/>
                                     </DockPanel>
                                 </Border>
-                                <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
-                                            VerticalAlignment="Center">
+                                <ScrollViewer x:Name="EventActionsScroller" Grid.Column="1" Margin="6,0,0,0"
+                                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                              PanningMode="HorizontalOnly" Focusable="False"
+                                              PreviewMouseWheel="EventActionsScroller_PreviewMouseWheel"
+                                              AutomationProperties.Name="Event actions, scroll horizontally for more options">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <ToggleButton x:Name="EventIncludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
                                                   Width="104" Content="Include: All"
                                                   ToolTip="Include categories; all selected by default"/>
@@ -1631,6 +1640,9 @@
                                         </Button>
                                     </StackPanel>
                                 </Border>
+                                <Button x:Name="EventHistoryFirstButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="First Event" Click="EventHistoryFirst_Click" Margin="7,0,0,0"
+                                        AutomationProperties.Name="First matching event"/>
                                 <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
                                         Content="Latest Event" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
                                         ToolTip="Jump to the most recent matching events"/>
@@ -1646,7 +1658,9 @@
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
-                            </WrapPanel>
+                            </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel" FontSize="12" ItemsSource="{Binding RelayEventRows}" IsReadOnly="True" AutoGenerateColumns="False" FrozenColumnCount="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
@@ -2385,7 +2399,7 @@
                     <TabItem Header="Control Cases">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
                                 <RowDefinition Height="2*"/>
                                 <RowDefinition Height="6"/>
@@ -2500,10 +2514,10 @@
                     <TabItem Header="GI Conversations">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="6"/>
                                 <RowDefinition Height="*"/>
-                                <RowDefinition Height="30"/>
+                                <RowDefinition Height="44"/>
                                 <RowDefinition Height="2.25*"/>
                                 <RowDefinition Height="54"/>
                             </Grid.RowDefinitions>
@@ -2566,7 +2580,7 @@
                                     <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="*" Visibility="Collapsed"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <Grid Grid.Row="3" Margin="3,3,1,2">
+                            <Grid Grid.Row="3" Margin="3,2,1,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -2574,9 +2588,9 @@
                                 <TextBlock x:Name="GiStageSummaryText" Text="Select a GI case to inspect its milestones"
                                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                            Foreground="#64748B" FontSize="11.3" VerticalAlignment="Center"/>
-                                <Button x:Name="GiStagesToggleButton" Style="{StaticResource ArSeeToolbarActionButtonStyle}" Grid.Column="1" Content="Show all stages"
-                                          
-                                          
+                                <Button x:Name="GiStagesToggleButton" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
+                                        Grid.Column="1" Content="Show all stages" MinWidth="119"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0,0,0"
                                         Click="GiStagesToggle_Click"/>
                             </Grid>
                             <DataGrid x:Name="GiStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="GiCaseJump_Click" Grid.Row="4" ItemsSource="{Binding GiCaseStages}"
