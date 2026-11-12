@@ -795,10 +795,10 @@
                                              the frame context menu, never a width-consuming toolbar. -->
                                         <StackPanel Orientation="Horizontal" Visibility="Collapsed">
                                         <Button x:Name="TraceOlderButton" Content="‹ Older" Click="TraceOlder_Click"
-                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Visibility="Collapsed"
                                                 Margin="0,0,5,0" Padding="7,3"/>
                                         <Button x:Name="TraceNewerButton" Content="Newer ›" Click="TraceNewer_Click"
-                                                Style="{StaticResource SecondaryButton}" Visibility="Collapsed"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Visibility="Collapsed"
                                                 Margin="0,0,7,0" Padding="7,3"/>
                                         </StackPanel>
                                         <Button x:Name="TraceInspectorToggle" Content="‹"
@@ -1378,7 +1378,7 @@
                                            Margin="8,0,0,0" VerticalAlignment="Center"
                                            Foreground="#64748B" FontSize="11.1"/>
                                 <Button x:Name="ValueOpenFrameButton" Grid.Column="0" Content="Open Frame"
-                                        Style="{StaticResource SecondaryButton}" IsEnabled="False"
+                                        Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" IsEnabled="False"
                                         Visibility="Collapsed" Click="ValueOpenFrame_Click"/>
                                 <ComboBox x:Name="ValueQuickScopeCombo" Grid.Column="0"
                                           SelectedIndex="0" Visibility="Collapsed"
@@ -1742,7 +1742,7 @@
                                 <TextBlock Text="Smart findings and solution" Style="{StaticResource SubtleText}" FontSize="11.8" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Auto fix config"
-                                            Style="{StaticResource SecondaryButton}"
+                                            Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                             MinWidth="126"
                                             Margin="0,0,8,0"
                                             Click="AutoFixConfigFromFindings_Click"
@@ -1878,8 +1878,8 @@
                             <DockPanel>
                                 <TextBlock Text="Runtime diagnostics" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Captures transport exceptions, timeouts, mapping/load issues, warnings, and findings without crashing the operator workflow." />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="12,0,0,0">
-                                    <Button Content="Copy Row" Style="{StaticResource SecondaryButton}" Width="92" Click="CopySelectedDiagnostic_Click" />
-                                    <Button Content="Copy Detail" Style="{StaticResource SecondaryButton}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
+                                    <Button Content="Copy Row" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="92" Click="CopySelectedDiagnostic_Click" />
+                                    <Button Content="Copy Detail" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
                                 </StackPanel>
                             </DockPanel>
                             <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="DiagnosticsGrid" Grid.Row="2" ItemsSource="{Binding DiagnosticRows}" SelectionChanged="DiagnosticsGrid_SelectionChanged" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
@@ -2062,13 +2062,13 @@
                                         <TextBlock Text="Capture is OFF until the engineer enables a rule. Rules record pre/post .ariec evidence only when the configured IEC condition matches." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource SecondaryButton}" Width="128" Height="34" Padding="10,6" Click="CopySelectedTriggerCapturePath_Click" ToolTip="Copy selected capture file path">
+                                        <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="128" Height="34" Padding="10,6" Click="CopySelectedTriggerCapturePath_Click" ToolTip="Copy selected capture file path">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCopy}" />
                                                 <TextBlock Text="Copy Path" Margin="7,0,0,0" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Style="{StaticResource SecondaryButton}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="OpenTriggerCaptureFolder_Click" ToolTip="Open capture folder">
+                                        <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="132" Height="34" Padding="10,6" Margin="8,0,0,0" Click="OpenTriggerCaptureFolder_Click" ToolTip="Open capture folder">
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Path Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideFileText}" />
                                                 <TextBlock Text="Open Folder" Margin="7,0,0,0" VerticalAlignment="Center" />
@@ -2150,10 +2150,10 @@
                                             </UniformGrid>
 
                                             <StackPanel Orientation="Horizontal">
-                                                <Button Style="{StaticResource PrimaryButton}" Width="86" Height="32" Padding="10,6" Click="ApplySmartCaptureRule_Click">
+                                                <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="86" Height="32" Padding="10,6" Click="ApplySmartCaptureRule_Click">
                                                     <TextBlock Text="Apply" />
                                                 </Button>
-                                                <Button Style="{StaticResource SecondaryButton}" Width="86" Height="32" Padding="10,6" Margin="8,0,0,0" Click="DisableSmartCaptureRule_Click">
+                                                <Button Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="86" Height="32" Padding="10,6" Margin="8,0,0,0" Click="DisableSmartCaptureRule_Click">
                                                     <TextBlock Text="Disable" />
                                                 </Button>
                                             </StackPanel>
@@ -2223,14 +2223,14 @@
                                                VerticalAlignment="Center" />
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
                                         <Button Content="Manual Switch"
-                                                Style="{StaticResource SecondaryButton}"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Height="30"
                                                 Padding="10,4"
                                                 Margin="0,0,6,0"
                                                 Click="DualLinkManualFailover_Click"
                                                 ToolTip="Request a controlled active/standby switchover. The controller still verifies standby health before promotion." />
                                         <Button Content="Open Report"
-                                                Style="{StaticResource SecondaryButton}"
+                                                Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Height="30"
                                                 Padding="10,4"
                                                 Click="RefreshReportPreview_Click"
@@ -2316,7 +2316,7 @@
                             </Grid.RowDefinitions>
                             <Border Grid.Row="0" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="13,10">
                                 <DockPanel>
-                                    <Button DockPanel.Dock="Right" Content="Open Folder" Style="{StaticResource SecondaryButton}" Click="PassiveOpenFolder_Click" Margin="8,0,0,0"/>
+                                    <Button DockPanel.Dock="Right" Content="Open Folder" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="PassiveOpenFolder_Click" Margin="8,0,0,0"/>
                                     <StackPanel>
                                         <TextBlock Text="IEC-101 · PASSIVE MONITOR" Style="{StaticResource EyebrowText}"/>
                                         <TextBlock Text="Live traffic from both COM ports." Style="{StaticResource SubtleText}" Margin="0,4,0,0"/>
@@ -2353,15 +2353,15 @@
                                 <DockPanel Margin="3,0,3,7">
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Only pauses this table; raw bytes continue recording to disk." />
-                                        <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="PassiveVerify_Click"/>
-                                        <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource SecondaryButton}"
+                                        <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" IsEnabled="False" Click="PassiveVerify_Click"/>
+                                        <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" Click="PassiveFindAnomalies_Click"
                                                 ToolTip="Browse verified capture anomalies in indexed pages; no extra monitoring COM or TX."/>
                                         <ComboBox x:Name="PassiveAnomalyPicker" Width="355" Margin="6,0,0,0"
                                                   DisplayMemberPath="Label" VerticalContentAlignment="Center"
                                                   SelectionChanged="PassiveAnomalyPicker_SelectionChanged"
                                                   ToolTip="Choose a five-second anomaly to inspect exact verified raw source bytes."/>
-                                        <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource SecondaryButton}"
+                                        <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" IsEnabled="False" Click="PassiveOlderAnomalies_Click"
                                                 ToolTip="Load the previous page without keeping all timeline rows in the GUI."/>
                                     </StackPanel>
@@ -2677,10 +2677,10 @@
                         <TextBlock x:Name="CommandDockStatusText" Text="" Visibility="Collapsed" />
 
                         <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
-                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
-                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
-                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" />
+                            <Button Content="GI" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
+                            <Button Content="Clock Sync" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
+                            <Button Content="Read IOA" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
+                            <Button Content="Clear" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Margin="6,0,0,0" Click="Clear_Click" />
                         </UniformGrid>
 
                         <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
@@ -2750,10 +2750,10 @@
                         </StackPanel>
 
                         <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource ArSeeCommandOpenActionButtonStyle}" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource ArSeeCommandCloseActionButtonStyle}" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
                         </UniformGrid>
                     </StackPanel>
                 </ScrollViewer>
