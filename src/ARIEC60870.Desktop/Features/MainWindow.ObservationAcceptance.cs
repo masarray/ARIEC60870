@@ -154,7 +154,9 @@ public partial class MainWindow
         if (SetupConnectButton.Template.FindName("SetupConnectSurface", SetupConnectButton)
                 is not Border { Background: LinearGradientBrush connectFill } ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
-                is not Border ||
+                is not Border { Background: SolidColorBrush closeFill, BorderBrush: SolidColorBrush closeLine } ||
+            closeFill.Color != (Color)ColorConverter.ConvertFromString("#F8FAFC") ||
+            closeLine.Color != (Color)ColorConverter.ConvertFromString("#BCCCDD") ||
             SetupConnectButton.ActualHeight < 35 ||
             SetupCloseButton.ActualWidth < 35 ||
             SetupCloseButton.ActualHeight < 35 ||
@@ -257,6 +259,66 @@ public partial class MainWindow
                 CommandDockColumn.ActualWidth < 300 ||
                 CommandOperationModeComboBox.SelectedIndex != 0)
                 throw new InvalidOperationException("Actual Active Master expanded TI46/SBO command panel is missing.");
+            // These controls must show the *actual* IEC ASDU TI IDs, not
+            // ambiguous generic verbs. Global Clear is a session operation,
+            // not a Command Panel operation.
+            if (CommandDockGiButton.Content?.ToString() != "GI • TI-100" ||
+                CommandDockClockSyncButton.Content?.ToString() != "Timesync • TI-103" ||
+                CommandDockReadButton.Content?.ToString() != "Read IOA • TI-102")
+                throw new InvalidOperationException(
+                    "GI, Time Sync or single-IOA Read has the wrong IEC Type ID.");
+
+            // Live WPF controls -> parsed request qualifier. Verify the
+            // user-facing meanings, QOC 5-bit boundary and QOS 7-bit boundary
+            // without sending traffic to an RTU.
+            if (ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand) != 0 ||
+                CommandQualifierComboBox.SelectedIndex != 0)
+                throw new InvalidOperationException("TI46 default QU must be 0.");
+            CommandQualifierComboBox.SelectedIndex = 1;
+            if (ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand) != 1)
+                throw new InvalidOperationException("Short pulse QU=1 was lost.");
+            CommandQualifierComboBox.SelectedIndex = 2;
+            if (ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand) != 2)
+                throw new InvalidOperationException("Long pulse QU=2 was lost.");
+            CommandQualifierComboBox.SelectedIndex = 3;
+            if (ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand) != 3)
+                throw new InvalidOperationException("Persistent output QU=3 was lost.");
+            CommandQualifierComboBox.SelectedIndex = 4;
+            CommandQualifierCustomBox.Text = "31";
+            if (CommandQualifierCustomBox.Visibility != Visibility.Visible ||
+                ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand) != 31)
+                throw new InvalidOperationException("Advanced QU 4..31 was not exposed.");
+            CommandQualifierCustomBox.Text = "32";
+            try
+            {
+                _ = ReadCommandQualifier(Iec60870ControlCommandKind.DoubleCommand);
+                throw new InvalidOperationException("Out-of-range QU 32 was incorrectly accepted.");
+            }
+            catch (InvalidOperationException exception)
+                when (exception.Message.Contains("must be between", StringComparison.Ordinal))
+            {
+                // Correctly refused 32: QU must remain a five-bit value.
+            }
+            CommandQualifierComboBox.SelectedIndex = 0;
+            CommandTypeComboBox.SelectedIndex = 3; // TI48 is QOS/QL, not QOC/QU.
+            UpdateCommandDockActionButtons();
+            if (CommandSetpointQualifierComboBox.Visibility != Visibility.Visible ||
+                CommandQualifierComboBox.Visibility != Visibility.Collapsed ||
+                !CommandQualifierLabel.Text.StartsWith("QOS", StringComparison.Ordinal) ||
+                ReadCommandQualifier(Iec60870ControlCommandKind.SetpointNormalizedCommand) != 0)
+                throw new InvalidOperationException("TI48 QOS/QL qualifier UX is incorrect.");
+            CommandSetpointQualifierComboBox.SelectedIndex = 1;
+            CommandQualifierCustomBox.Text = "127";
+            if (ReadCommandQualifier(Iec60870ControlCommandKind.SetpointNormalizedCommand) != 127)
+                throw new InvalidOperationException("Advanced QOS QL=127 was lost.");
+            CommandSetpointQualifierComboBox.SelectedIndex = 0;
+            CommandQualifierCustomBox.Text = "4";
+            CommandTypeComboBox.SelectedIndex = 1;
+            UpdateCommandDockActionButtons();
+            if (CommandQualifierComboBox.Visibility != Visibility.Visible ||
+                CommandSetpointQualifierComboBox.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException("TI46 QOC UI was not restored.");
+
             SaveRealWpfBitmap(outputDirectory, "active-master-command-panel-expanded.png");
             SaveRealWpfElementBitmap(outputDirectory, "active-master-command-panel-detail.png", CommandDockPanel);
             foreach (var action in new[]
