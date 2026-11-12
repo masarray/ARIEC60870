@@ -30,7 +30,6 @@ public partial class MainWindow
     {
         if (_releaseUpdateCheckCancellation is not null) return;
         _releaseUpdateCheckCancellation = new CancellationTokenSource();
-        ReleaseInstallWorker.CleanupCompletedUpdates();
         _ = Task.Run(() => RunLazyReleaseUpdateCheckAsync(_releaseUpdateCheckCancellation.Token));
     }
 
@@ -45,6 +44,7 @@ public partial class MainWindow
         try
         {
             await Task.Delay(ReleaseUpdateInitialDelay, cancellationToken).ConfigureAwait(false);
+            ReleaseInstallWorker.CleanupCompletedUpdates();
             if (!ShouldCheckReleaseUpdate()) return;
             using var networkTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             networkTimeout.CancelAfter(TimeSpan.FromSeconds(10));
@@ -83,6 +83,7 @@ public partial class MainWindow
         // update prompt during an operator's capture or command operation.
         var state = ReadReleaseUpdateState();
         if (state?.LastPromptedTag == latest.Tag ||
+            !ReleaseUpdateService.HasManagedInstallation(Environment.ProcessPath ?? string.Empty) ||
             _sessionCancellation is not null || _passiveMonitorSession is not null ||
             _passiveReplayCancellation is not null)
             return;
