@@ -1279,6 +1279,8 @@ public partial class MainWindow
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
             EventHistoryScrollViewer()?.ScrollToBottom();
+            UpdateLayout(); // realize the WPF ScrollViewer offset before operator input
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
             ObserveEventHistoryWheelInput(-120);
             await (_eventHistoryTailResumeTask ?? Task.CompletedTask);
             if (!_eventHistoryFollowingLatest ||
