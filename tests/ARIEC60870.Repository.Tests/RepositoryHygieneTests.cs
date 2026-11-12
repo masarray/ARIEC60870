@@ -192,7 +192,10 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("LogFileName=release-gate-$name.trx", release);
         Assert.Contains("if ($LASTEXITCODE -ne 0) { throw \"Release regression suite $name failed", release);
         Assert.DoesNotContain("LogFileName=release-gate.trx", release);
-        Assert.Contains("Attest RC Windows installer", release);
+        Assert.Contains("Attest public Windows installer", release);
+        Assert.Contains("Compile matching Windows Setup EXE for public releases", release);
+        Assert.Contains("- 'release/stable-*'", release);
+        Assert.Contains("if: needs.resolve.outputs.publish_release == 'true'", release);
         Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe", release);
         Assert.Contains("Generate SPDX dependency SBOM", release);
         Assert.Contains("attestations: write", release);
