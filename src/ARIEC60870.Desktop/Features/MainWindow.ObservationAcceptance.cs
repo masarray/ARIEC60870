@@ -1692,7 +1692,8 @@ public partial class MainWindow
         EventsSearchClearButton.ApplyTemplate();
         if (EventsQuickFindBox.TranslatePoint(new Point(), EventsSearchShell).X > 42 ||
             EventsQuickFindBox.Padding.Left > 0.1 ||
-            EventsSearchClearButton.ActualWidth < 24 ||
+            // Clear is normally Collapsed with an empty search; Width remains tokenized.
+            EventsSearchClearButton.Width < 24 ||
             EventsSearchClearButton.Background is not SolidColorBrush
                 { Color: { A: 0 } })
             throw new InvalidOperationException(
