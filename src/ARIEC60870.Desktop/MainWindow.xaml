@@ -2907,8 +2907,25 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource ArSeeWorkspacePrimaryActionButtonStyle}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
-                            <Button Content="Close" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
+                            <Button x:Name="SetupConnectButton"
+                                    Content="Connect"
+                                    Style="{StaticResource SetupConnectButtonStyle}"
+                                    Width="116"
+                                    Click="CloseSetupAndConnect_Click"
+                                    ToolTip="Save settings and connect to the selected device." />
+                            <Button x:Name="SetupCloseButton"
+                                    Style="{StaticResource SetupCloseIconButtonStyle}"
+                                    Margin="8,0,0,0"
+                                    Click="CloseSetup_Click"
+                                    ToolTip="Save settings and close configuration."
+                                    AutomationProperties.Name="Close configuration">
+                                <!-- Original supplied 24x24 SVG path, scaled as an 18-DIP glyph.
+                                     Keep native Button click, keyboard and accessibility semantics. -->
+                                <Path x:Name="SetupCloseIcon"
+                                      Data="M6.4,19L5,17.6L10.6,12L5,6.4L6.4,5L12,10.6L17.6,5L19,6.4L13.4,12L19,17.6L17.6,19L12,13.4L6.4,19Z"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            </Button>
                         </StackPanel>
                     </Grid>
 
