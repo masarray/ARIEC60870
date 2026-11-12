@@ -530,20 +530,49 @@ public partial class MainWindow
         ClearSessionView(clearLog: true);
 
         ProtocolModeComboBox.SelectedIndex = 1; // existing active IEC-101 profile
-        // OBS Stage B intentionally starts with the command dock closed.
-        // Active mode must expose the deliberate Commands affordance and be
-        // able to open its dock, not force a permanent 310px obstruction.
+        // In active Master the collapse handle remains as a full-height pony,
+        // while the top header and bottom Status History never participate in
+        // the changing center-row columns.
         if (IsIec101PassiveMonitorSelected() ||
             ActiveSetupRightPanel.Visibility != Visibility.Visible ||
-            WorkspaceCommandButton.Visibility != Visibility.Visible ||
             NavFrameButton.Tag?.ToString() != "1")
-            throw new InvalidOperationException("Active Master layout lost its explicit Commands affordance.");
+            throw new InvalidOperationException("Active Master lost its command workspace.");
         var dockPreference = _commandDockExpanded;
+        _commandDockExpanded = false;
+        ApplyCommandDockLayout();
+        UpdateLayout();
+        if (CommandDockPanel.Visibility != Visibility.Collapsed ||
+            CommandDockMiniButton.Visibility != Visibility.Visible ||
+            Math.Abs(CommandDockColumn.Width.Value - 52) > 0.1 ||
+            (CommandDockMiniIcon.Data as Geometry) is null)
+            throw new InvalidOperationException("Active Master must retain the 52-DIP vertical command pony when collapsed.");
+        var topBefore = MainWorkspaceHeader.ActualWidth;
+        var bottomBefore = StatusHistoryPanel.ActualWidth;
+        var centerBefore = MainTabControl.ActualWidth;
         _commandDockExpanded = true;
         ApplyCommandDockLayout();
+        UpdateLayout();
         if (CommandDockPanel.Visibility != Visibility.Visible ||
+            CommandDockMiniButton.Visibility != Visibility.Collapsed ||
             CommandDockColumn.Width.Value < 280)
-            throw new InvalidOperationException("Active Master command dock could not be explicitly opened.");
+            throw new InvalidOperationException("Active Master command pony did not expand.");
+        if (topBefore > 100 && bottomBefore > 100 && centerBefore > 200 &&
+            (Math.Abs(MainWorkspaceHeader.ActualWidth - topBefore) > 1.5 ||
+             Math.Abs(StatusHistoryPanel.ActualWidth - bottomBefore) > 1.5 ||
+             MainTabControl.ActualWidth >= centerBefore - 100))
+            throw new InvalidOperationException("Command pony must resize only center work area, not top/bottom.");
+        if (CommandTypeComboBox.SelectedIndex != 1 ||
+            CommandOperationModeComboBox.SelectedIndex != 0)
+            throw new InvalidOperationException("Default command must be TI-46 Double Command with SBO mode.");
+        CommandOperationModeComboBox.SelectedIndex = 1;
+        if (CommandSelectOpenButton.Visibility != Visibility.Collapsed ||
+            CommandSelectCloseButton.Visibility != Visibility.Collapsed ||
+            CommandOperateOpenButton.Visibility != Visibility.Visible)
+            throw new InvalidOperationException("Direct Operate must not expose SELECT actions.");
+        CommandOperationModeComboBox.SelectedIndex = 0;
+        if (CommandSelectOpenButton.Visibility != Visibility.Visible ||
+            CommandSelectCloseButton.Visibility != Visibility.Visible)
+            throw new InvalidOperationException("SBO must expose both SELECT and EXECUTE.");
         _commandDockExpanded = dockPreference;
         ApplyCommandDockLayout();
         ProtocolModeComboBox.SelectedIndex = index;
