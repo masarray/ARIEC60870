@@ -108,6 +108,7 @@ public partial class MainWindow
             ProtocolModeComboBox.SelectedIndex = 1;
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             UpdateLayout();
+            VerifySetupHeaderActions();
             VerifyVisibleSetupSwitches(
             [
                 SerialRtsCheckBox, SerialDtrCheckBox,
@@ -139,6 +140,42 @@ public partial class MainWindow
             SetupOverlay.Visibility = previousVisibility;
             UpdateLayout();
         }
+    }
+
+    /// <summary>
+    /// Acceptance of rendered Config header controls, not a stylesheet-only
+    /// assertion: native WPF buttons, supplied SVG X path, shared 36-DIP rhythm
+    /// and readable positive Connect material without altering click handlers.
+    /// </summary>
+    private void VerifySetupHeaderActions()
+    {
+        SetupConnectButton.ApplyTemplate();
+        SetupCloseButton.ApplyTemplate();
+        if (SetupConnectButton.Template.FindName("SetupConnectSurface", SetupConnectButton)
+                is not Border { Background: LinearGradientBrush connectFill } ||
+            SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
+                is not Border ||
+            SetupConnectButton.ActualHeight < 35 ||
+            SetupCloseButton.ActualWidth < 35 ||
+            SetupCloseButton.ActualHeight < 35 ||
+            connectFill.GradientStops.Count != 3)
+            throw new InvalidOperationException(
+                "Config Connect gradient or icon-only Close button template was not rendered.");
+        var closeCenter = SetupCloseIcon.TranslatePoint(
+            new Point(SetupCloseIcon.ActualWidth / 2, SetupCloseIcon.ActualHeight / 2),
+            SetupCloseButton);
+        var connectCenter = SetupConnectButton.TranslatePoint(
+            new Point(SetupConnectButton.ActualWidth / 2,
+                      SetupConnectButton.ActualHeight / 2), SetupOverlay);
+        var closeHeaderCenter = SetupCloseButton.TranslatePoint(
+            new Point(SetupCloseButton.ActualWidth / 2,
+                      SetupCloseButton.ActualHeight / 2), SetupOverlay);
+        if (SetupCloseIcon.ActualWidth < 17 || SetupCloseIcon.ActualHeight < 17 ||
+            Math.Abs(closeCenter.X - SetupCloseButton.ActualWidth / 2) > 1.5 ||
+            Math.Abs(closeCenter.Y - SetupCloseButton.ActualHeight / 2) > 1.5 ||
+            Math.Abs(connectCenter.Y - closeHeaderCenter.Y) > 1.5)
+            throw new InvalidOperationException(
+                "Config header SVG close glyph or Connect/Close vertical alignment is incorrect.");
     }
 
     private static void VerifyVisibleSetupSwitches(CheckBox[] switches)

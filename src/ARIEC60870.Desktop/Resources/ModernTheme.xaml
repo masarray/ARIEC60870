@@ -287,6 +287,128 @@
            BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
         <Setter Property="Foreground" Value="#245DB2"/>
     </Style>
+    <!-- Configuration header actions: keep the 36-DIP toolbar proportions,
+         but give Connect its own affirmative green surface and Close a true
+         icon-only hit target. No global button or nav styles are modified. -->
+    <LinearGradientBrush x:Key="SetupConnectIdleBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#39D78B" Offset="0"/>
+        <GradientStop Color="#16BD70" Offset="0.46"/>
+        <GradientStop Color="#059957" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SetupConnectHoverBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#60EBA4" Offset="0"/>
+        <GradientStop Color="#27CE80" Offset="0.50"/>
+        <GradientStop Color="#09AA61" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SetupConnectPressedBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#07834F" Offset="0"/>
+        <GradientStop Color="#11A767" Offset="0.55"/>
+        <GradientStop Color="#1ABA74" Offset="1"/>
+    </LinearGradientBrush>
+    <DropShadowEffect x:Key="SetupConnectShadow" Color="#08663E"
+                      BlurRadius="8" ShadowDepth="2" Opacity="0.21"
+                      RenderingBias="Performance"/>
+    <ControlTemplate x:Key="SetupConnectButtonTemplate" TargetType="{x:Type Button}">
+        <Grid x:Name="SetupConnectRoot" SnapsToDevicePixels="True">
+            <Border x:Name="SetupConnectSurface"
+                    CornerRadius="{StaticResource ArSeeToolbarPillCornerRadius}"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="1"
+                    Effect="{StaticResource SetupConnectShadow}"/>
+            <Border x:Name="SetupConnectHighlight" IsHitTestVisible="False"
+                    Margin="3,1,3,19" CornerRadius="16"
+                    BorderBrush="#83FFFFFF" BorderThickness="0,1,0,0"/>
+            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"
+                              RecognizesAccessKey="True"
+                              Margin="{TemplateBinding Padding}"/>
+            <Border x:Name="SetupConnectFocusRing"
+                    IsHitTestVisible="False" Visibility="Collapsed"
+                    CornerRadius="16" BorderBrush="#E7FFFFFF"
+                    BorderThickness="1" Margin="3"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="SetupConnectSurface" Property="Background"
+                        Value="{StaticResource SetupConnectHoverBrush}"/>
+                <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#0A9358"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="SetupConnectSurface" Property="Background"
+                        Value="{StaticResource SetupConnectPressedBrush}"/>
+                <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#067347"/>
+                <Setter TargetName="SetupConnectHighlight" Property="Opacity" Value="0.35"/>
+                <Setter TargetName="SetupConnectRoot" Property="RenderTransform">
+                    <Setter.Value>
+                        <TranslateTransform Y="1"/>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="SetupConnectFocusRing" Property="Visibility" Value="Visible"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    <Style x:Key="SetupConnectButtonStyle" TargetType="{x:Type Button}"
+           BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
+        <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+        <Setter Property="Padding" Value="15,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="Background" Value="{StaticResource SetupConnectIdleBrush}"/>
+        <Setter Property="BorderBrush" Value="#118D55"/>
+        <Setter Property="Template" Value="{StaticResource SetupConnectButtonTemplate}"/>
+    </Style>
+
+    <ControlTemplate x:Key="SetupCloseIconButtonTemplate" TargetType="{x:Type Button}">
+        <Grid Background="Transparent" SnapsToDevicePixels="True">
+            <Border x:Name="SetupCloseSurface"
+                    CornerRadius="12"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="1"/>
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border x:Name="SetupCloseFocusRing"
+                    IsHitTestVisible="False" Visibility="Collapsed"
+                    CornerRadius="10" Margin="3"
+                    BorderBrush="#D67A85" BorderThickness="1"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="SetupCloseSurface" Property="Background" Value="#FFF0EF"/>
+                <Setter TargetName="SetupCloseSurface" Property="BorderBrush" Value="#F1B4B8"/>
+                <Setter Property="Foreground" Value="#B34D56"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="SetupCloseSurface" Property="Background" Value="#EF3346"/>
+                <Setter TargetName="SetupCloseSurface" Property="BorderBrush" Value="#C91C31"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="SetupCloseFocusRing" Property="Visibility" Value="Visible"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    <Style x:Key="SetupCloseIconButtonStyle" TargetType="{x:Type Button}">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="#1F1F1F"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template" Value="{StaticResource SetupCloseIconButtonTemplate}"/>
+    </Style>
+
     <Style x:Key="ArSeeCommandOpenActionButtonStyle" TargetType="Button"
            BasedOn="{StaticResource ArSeeWorkspaceActionButtonStyle}">
         <Setter Property="Foreground" Value="#166534"/>
