@@ -5,6 +5,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
