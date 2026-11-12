@@ -26,6 +26,18 @@ public sealed class BoundedRingBuffer<T>
     public int Capacity => _items.Length;
     public int Count => _count;
 
+    /// <summary>O(1) latest-row identity check without allocating a snapshot.</summary>
+    public bool TryPeekLatest(out T latest)
+    {
+        if (_count == 0)
+        {
+            latest = default!;
+            return false;
+        }
+        latest = _items[(_start + _count - 1) % _items.Length];
+        return true;
+    }
+
     public void Add(T item)
     {
         var index = (_start + _count) % _items.Length;

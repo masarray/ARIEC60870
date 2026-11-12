@@ -33,44 +33,54 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private int _tabSwitchRefreshGeneration;
+
     private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!ReferenceEquals(e.OriginalSource, MainTabControl))
-        {
             return;
-        }
 
-        // Invalidate an in-flight disk read when the operator navigates away,
-        // but retain an already selected held/history/archive window and anchor.
+        // Immediate lightweight navigation feedback; defer source snapshots
+        // and grid reconciliation until after the tab switch has rendered.
+        // Repeated quick clicks coalesce into one refresh for the final tab.
         if (!IsProtocolTraceTabActive()) _historyNavigationGeneration++;
-        RefreshActiveTraceSnapshot();
-        if (IsReportPreviewTabActive())
-        {
-            PrepareReportPreviewForDeferredReveal();
-            Dispatcher.BeginInvoke(new Action(EnsureReportPreviewVisible), DispatcherPriority.Background);
-        }
-        if (IsFindingsWorkspaceTabActive())
-        {
-            RefreshFindingsWorkspace(force: true);
-        }
-        RefreshControlCasesIfVisible(force: true);
-        RefreshGiCasesIfVisible(force: true);
-        // Returning to a populated Events tab must realize the newest SOE row.
-        // A previous scroll attempt while the tab was hidden cannot be relied on.
-        // Preserve the operator's manual viewport when Events follow is OFF.
-        if (IsEventsTabActive())
-        {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (!IsEventsTabActive()) return;
-                if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling &&
-                    !_eventHistoryQueryBusy && _eventHistoryFollowingLatest)
-                    RequestEventHistoryQuery();
-            }), DispatcherPriority.Loaded);
-        }
-        UpdateQuickFindCounts();
         UpdateAutoScrollLatestRailVisual();
         UpdateSegmentedNav(false);
+        var generation = ++_tabSwitchRefreshGeneration;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!IsLoaded || generation != _tabSwitchRefreshGeneration) return;
+            RefreshActiveTraceSnapshot();
+            if (IsReportPreviewTabActive())
+            {
+                PrepareReportPreviewForDeferredReveal();
+                Dispatcher.BeginInvoke(new Action(EnsureReportPreviewVisible),
+                    DispatcherPriority.Background);
+            }
+            if (IsFindingsWorkspaceTabActive())
+                RefreshFindingsWorkspace(); // signature skips unchanged findings
+            RefreshControlCasesIfVisible(); // dirty flags avoid repeat casebook rebuild
+            RefreshGiCasesIfVisible();
+            if (IsEventsTabActive() && _eventHistoryFollowingLatest)
+            {
+                if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling &&
+                    !_eventHistoryQueryBusy)
+                {
+                    // The existing writer index supports incremental Extend.
+                    // Re-entering Events should not rebuild the entire history.
+                    _nextEventHistoryFooterRefreshTick = 0;
+                    RefreshEventHistoryFooterWhenDue();
+                }
+                else if (_historicalEventRows.Count > 0)
+                {
+                    // Realize the latest row after returning to a hidden tab,
+                    // without treating ScrollIntoView as manual scrolling.
+                    GuardEventHistoryProgrammaticScroll();
+                    RelayEventGrid.ScrollIntoView(_historicalEventRows[^1]);
+                }
+            }
+            UpdateQuickFindCounts();
+        }), DispatcherPriority.Loaded); // after Render, before subsequent operator Input
     }
 
     private void SegmentedNav_Click(object sender, RoutedEventArgs e)
