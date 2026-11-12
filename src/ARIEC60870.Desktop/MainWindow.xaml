@@ -384,17 +384,13 @@
         </Border>
 
         <Grid Grid.Row="0" Grid.Column="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition x:Name="CommandDockColumn" Width="0" />
-            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="12" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" Grid.Column="0">
+            <Grid x:Name="MainWorkspaceHeader" Grid.Row="0">
                 <Border Style="{StaticResource HeaderShell}" MinHeight="58">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -475,7 +471,12 @@
                 </Border>
             </Grid>
 
-            <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource Card}" Padding="0">
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="CommandDockColumn" Width="0" />
+                </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Style="{StaticResource Card}" Padding="0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -485,7 +486,6 @@
                     <Grid Grid.Row="0" Margin="12,12,18,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,0,8,0" ToolTipService.IsEnabled="False">
@@ -508,7 +508,6 @@
                                 </Grid>
                             </Border>
                         </ScrollViewer>
-                        <Button x:Name="WorkspaceCommandButton" Grid.Column="1" Content="Commands" Click="ToggleCommandDock_Click" Style="{StaticResource SecondaryButton}" Padding="11,6" Margin="7,0,0,0" VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid Grid.Row="1" ClipToBounds="True">
@@ -2612,7 +2611,7 @@
                     </Grid>
                 </Grid>
             </Border>
-        <Border x:Name="CommandDockPanel" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="18" Padding="12" Margin="12,0,0,0" Effect="{StaticResource SoftShadow}">
+        <Border x:Name="CommandDockPanel" Grid.Column="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="1,1,0,1" CornerRadius="14,0,0,14" Padding="10" Margin="10,0,0,0" ToolTipService.IsEnabled="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
@@ -2631,7 +2630,7 @@
                         CornerRadius="14"
                         BorderThickness="1"
                         Cursor="Hand"
-                        ToolTip="Click panel header to expand or collapse command panel"
+                       
                         MouseLeftButtonUp="CommandDockHeader_MouseLeftButtonUp"
                         MouseEnter="PanelHeader_MouseEnter"
                         MouseLeave="PanelHeader_MouseLeave">
@@ -2653,25 +2652,21 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Command" Style="{StaticResource EyebrowText}" />
+                            <TextBlock Text="COMMAND PANEL" Style="{StaticResource EyebrowText}" />
                         </StackPanel>
                         <Path x:Name="CommandDockToggleIcon" Grid.Column="1" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronRight}" Stroke="#94A3B8" Width="24" Height="24" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <Border Background="#F8FBFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10,9" Margin="0,0,0,10">
-                            <StackPanel>
-                                <TextBlock Text="Runtime command" Style="{StaticResource EyebrowText}" />
-                                <TextBlock x:Name="CommandDockStatusText" Text="Ready. Connect first." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                            </StackPanel>
-                        </Border>
+                        <!-- Internal diagnostics remain in Status History, not the command form. -->
+                        <TextBlock x:Name="CommandDockStatusText" Text="" Visibility="Collapsed" />
 
                         <UniformGrid Columns="2" Margin="0,0,0,12">
-                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" ToolTip="Issue C_IC_NA_1 General Interrogation." />
-                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" ToolTip="Issue C_CS_NA_1 clock synchronization." />
-                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" ToolTip="Issue C_RD_NA_1 read command." />
-                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" ToolTip="Clear visible session rows." />
+                            <Button Content="GI" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,8" Click="CommandDock_Gi_Click" />
+                            <Button Content="Clock Sync" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,8" Click="CommandDock_ClockSync_Click" />
+                            <Button Content="Read IOA" Style="{StaticResource SecondaryButton}" Height="32" Margin="0,0,6,0" Click="CommandDock_Read_Click" />
+                            <Button Content="Clear" Style="{StaticResource SecondaryButton}" Height="32" Margin="6,0,0,0" Click="Clear_Click" />
                         </UniformGrid>
 
                         <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,0,0,10">
@@ -2685,7 +2680,7 @@
                                           TextSearch.TextPath="SearchText"
                                           MaxDropDownHeight="320"
                                           Margin="0,0,0,10"
-                                          ToolTip="Pick a command signal from the loaded Signal List. Selecting it fills command type, CA, IOA and setpoint hint. Manual CA/IOA entry remains available.">
+                                         >
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="2,4">
@@ -2699,33 +2694,35 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="CA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <TextBox x:Name="CommandCaBox" Text="1" ToolTip="IEC common address. Filled automatically when a command signal is selected; edit only for manual target testing." />
+                                        <TextBox x:Name="CommandCaBox" Text="1" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="IOA" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <TextBox x:Name="CommandIoaBox" Text="101" ToolTip="Information object address for the command target. Filled automatically from the Signal List when available." />
+                                        <TextBox x:Name="CommandIoaBox" Text="101" />
                                     </StackPanel>
                                 </Grid>
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Command type" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged" ToolTip="Choose the IEC-101/104 command ASDU type. Signal selection usually fills this automatically.">
-                                            <ComboBoxItem Content="Single C_SC_NA_1" />
-                                            <ComboBoxItem Content="Double C_DC_NA_1" />
-                                            <ComboBoxItem Content="Regulating C_RC_NA_1" />
-                                            <ComboBoxItem Content="Setpoint Normalized C_SE_NA_1" />
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Qualifier (QOC)" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <TextBox x:Name="CommandQualifierBox" Text="0" ToolTip="Command qualifier. 0 = default. Use project-specific values only when required by the remote device." />
-                                        <TextBlock x:Name="CommandQualifierHelpText" Text="" Visibility="Collapsed" />
-                                    </StackPanel>
-                                </Grid>
+                                <StackPanel Margin="0,0,0,10">
+                                    <TextBlock Text="Command type" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="CommandTypeComboBox" SelectedIndex="1" SelectionChanged="CommandTypeComboBox_SelectionChanged" Margin="0,0,0,10">
+                                        <ComboBoxItem Content="TI 45 · Single Command (C_SC_NA_1)" />
+                                        <ComboBoxItem Content="TI 46 · Double Command (C_DC_NA_1)" />
+                                        <ComboBoxItem Content="TI 47 · Regulating Command (C_RC_NA_1)" />
+                                        <ComboBoxItem Content="TI 48 · Setpoint Normalized (C_SE_NA_1)" />
+                                    </ComboBox>
+                                    <TextBlock Text="Qualifier / operation" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="CommandOperationModeComboBox" SelectedIndex="0"
+                                              SelectionChanged="CommandOperationModeComboBox_SelectionChanged"
+                                              Margin="0,0,0,10">
+                                        <ComboBoxItem Content="Select Before Operate (SBO)" />
+                                        <ComboBoxItem Content="Direct Operate (DO)" />
+                                    </ComboBox>
+                                    <TextBlock Text="QOC · QU (0–31)" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
+                                    <TextBox x:Name="CommandQualifierBox" Text="0" Width="75" HorizontalAlignment="Left" />
+                                    <TextBlock x:Name="CommandQualifierHelpText" Text="" Visibility="Collapsed" />
+                                </StackPanel>
                                 <StackPanel x:Name="CommandSetpointPanel" Margin="0,0,0,10" Visibility="Collapsed">
                                     <TextBlock x:Name="CommandSetpointLabel" Text="Setpoint value" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                    <TextBox x:Name="CommandSetpointBox" Text="0.5" ToolTip="Normalized setpoint for C_SE_NA_1. Valid range is -1.0..1.0. Use the utility profile range to interpret engineering value." />
+                                    <TextBox x:Name="CommandSetpointBox" Text="0.5" />
                                     
                                 </StackPanel>
                             </StackPanel>
@@ -2739,10 +2736,10 @@
                         </StackPanel>
 
                         <UniformGrid x:Name="CommandActionGrid" Columns="2" Margin="0,0,0,8">
-                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" ToolTip="Send SELECT for open/off/lower direction to the active command route." />
-                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" ToolTip="Send OPERATE for open/off/lower direction to the active command route." />
-                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" ToolTip="Send SELECT for close/on/raise direction to the active command route." />
-                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" ToolTip="Send OPERATE for close/on/raise direction to the active command route." />
+                            <Button x:Name="CommandSelectOpenButton" Content="Select Open" Style="{StaticResource SoftSuccessButton}" Height="34" MinWidth="120" Margin="0,0,6,8" Tag="select-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateOpenButton" Content="Operate Open" Style="{StaticResource SuccessButton}" Height="34" MinWidth="120" Margin="6,0,0,8" Tag="operate-left" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandSelectCloseButton" Content="Select Close" Style="{StaticResource SoftDangerButton}" Height="34" MinWidth="120" Margin="0,0,6,0" Tag="select-right" Click="CommandDock_Action_Click" />
+                            <Button x:Name="CommandOperateCloseButton" Content="Operate Close" Style="{StaticResource DangerButton}" Height="34" MinWidth="120" Margin="6,0,0,0" Tag="operate-right" Click="CommandDock_Action_Click" />
                         </UniformGrid>
                     </StackPanel>
                 </ScrollViewer>
@@ -2750,25 +2747,19 @@
         </Border>
 
         <Border x:Name="CommandDockMiniButton"
-                Grid.Row="0"
-                Grid.RowSpan="3"
                 Grid.Column="1"
-                Width="42"
-                Height="42"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="0,8,0,0"
+                Margin="10,0,0,0"
                 Visibility="Collapsed"
-                CornerRadius="14"
-                BorderThickness="1"
+                CornerRadius="14,0,0,14"
+                BorderThickness="1,1,0,1"
                 Cursor="Hand"
-                ToolTip="Click panel handle to show command dock"
+                ToolTipService.IsEnabled="False"
                 MouseLeftButtonUp="CommandDockHeader_MouseLeftButtonUp"
                 MouseEnter="PanelHeader_MouseEnter"
                 MouseLeave="PanelHeader_MouseLeave">
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
-                    <Setter Property="Background" Value="#FFFFFF" />
+                    <Setter Property="Background" Value="#F7FAFE" />
                     <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
                     <Style.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -2778,8 +2769,21 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <Path x:Name="CommandDockMiniIcon" Style="{StaticResource CircleIconPath}" Data="{StaticResource LucideCircleChevronLeft}" Stroke="#94A3B8" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Grid>
+                <Path x:Name="CommandDockMiniIcon" Style="{StaticResource CircleIconPath}"
+                      Data="{StaticResource LucideCircleChevronLeft}" Stroke="#64748B"
+                      Width="23" Height="23" HorizontalAlignment="Center"
+                      VerticalAlignment="Top" Margin="0,12,0,0" />
+                <TextBlock Text="COMMAND PANEL" FontSize="10.8" FontWeight="Medium"
+                           Foreground="{StaticResource Ink700Brush}" VerticalAlignment="Center"
+                           HorizontalAlignment="Center" TextAlignment="Center">
+                    <TextBlock.LayoutTransform>
+                        <RotateTransform Angle="-90" />
+                    </TextBlock.LayoutTransform>
+                </TextBlock>
+            </Grid>
         </Border>
+            </Grid>
 
         </Grid>
 
