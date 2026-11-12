@@ -1659,9 +1659,11 @@ public partial class MainWindow
     /// </summary>
     private void AssertResponsiveEventJournalToolbar()
     {
+        var pillHeight = (double)FindResource("ArSeePillHeight");
+        var pillRadius = (CornerRadius)FindResource("ArSeePillCornerRadius");
         if (EventsSearchShell.Parent is not WrapPanel toolbar ||
-            !toolbar.IsVisible || toolbar.ActualHeight < 26 ||
-            toolbar.ActualHeight > 72)
+            !toolbar.IsVisible || toolbar.ActualHeight < pillHeight - 2 ||
+            toolbar.ActualHeight > pillHeight * 2 + 10)
             throw new InvalidOperationException(
                 "Event Journal toolbar missing or occupying more than two compact rows.");
         FrameworkElement[] controls =
@@ -1698,14 +1700,14 @@ public partial class MainWindow
             if (action.Template.FindName("EventJournalPillSurface", action) is not Border surface ||
                 action.Template.FindName("EventJournalPillFocusRing", action) is not Border ||
                 Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
-                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                Math.Abs(action.ActualHeight - pillHeight) > 0.6 ||
                 action.ActualWidth < action.ActualHeight + 12 ||
-                Math.Abs(surface.CornerRadius.TopLeft - 16) > 0.1 ||
+                Math.Abs(surface.CornerRadius.TopLeft - pillRadius.TopLeft) > 0.1 ||
                 surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight ||
                 surface.Background is not LinearGradientBrush ||
                 surface.Effect is not System.Windows.Media.Effects.DropShadowEffect)
                 throw new InvalidOperationException(
-                    $"Event Journal action {action.Name} lost its premium 32-DIP pill material.");
+                    $"Event Journal action {action.Name} lost its global navigation pill shape.");
         }
         Button[] circleActions = [EventHistoryPreviousButton, EventHistoryNextButton];
         foreach (var action in circleActions)
@@ -1723,12 +1725,12 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     $"Event Journal {action.Name} must use a real round, softly elevated surface.");
         }
-        // Exact approved Lucide chevron geometry, visually 12 DIP (not oversize).
+        // Exact approved Lucide geometry, visually 10 DIP; round hit targets remain 32 DIP.
         if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
             EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
             previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
             next.Data.ToString() != Geometry.Parse("M9,18 L15,12 L9,6").ToString() ||
-            Math.Abs(previous.Width - 12) > 0.1 || Math.Abs(next.Width - 12) > 0.1 ||
+            Math.Abs(previous.Width - 10) > 0.1 || Math.Abs(next.Width - 10) > 0.1 ||
             Math.Abs(previous.StrokeThickness - 2) > 0.1 ||
             Math.Abs(next.StrokeThickness - 2) > 0.1 ||
             previous.StrokeStartLineCap != PenLineCap.Round ||

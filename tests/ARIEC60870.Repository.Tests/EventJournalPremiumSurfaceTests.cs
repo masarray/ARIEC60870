@@ -23,7 +23,7 @@ public sealed class EventJournalPremiumSurfaceTests
         var circle = Resource(document, "ControlTemplate", "EventJournalPremiumCircleTemplate");
 
         var pillSurface = Named(pill, "Border", "EventJournalPillSurface");
-        Assert.Equal("16", (string?)pillSurface.Attribute("CornerRadius"));
+        Assert.Equal("{StaticResource ArSeePillCornerRadius}", (string?)pillSurface.Attribute("CornerRadius"));
         Assert.Contains("EventJournalPillShadow", (string?)pillSurface.Attribute("Effect"));
         Assert.Contains("TemplateBinding Background", (string?)pillSurface.Attribute("Background"));
 
@@ -48,7 +48,7 @@ public sealed class EventJournalPremiumSurfaceTests
             var element = Resource(document, "Style", style);
             Assert.Contains(element.Elements(), e => e.Name.LocalName == "Setter" &&
                 (string?)e.Attribute("Property") == "Height" &&
-                (string?)e.Attribute("Value") == "32");
+                (string?)e.Attribute("Value") == "{StaticResource ArSeePillHeight}");
             Assert.Contains(element.Elements(), e => e.Name.LocalName == "Setter" &&
                 (string?)e.Attribute("Property") == "Template" &&
                 ((string?)e.Attribute("Value"))?.Contains("EventJournalPremiumPillTemplate") == true);
@@ -62,6 +62,41 @@ public sealed class EventJournalPremiumSurfaceTests
             (string?)e.Attribute("Property") == "Width" &&
             (string?)e.Attribute("Value") == "32");
     }
+
+    [Fact]
+    public void NavbarPillGeometryIsTheGlobalTextButtonShape()
+    {
+        var main = XDocument.Load(FindMainWindowXaml());
+        var theme = XDocument.Load(FindThemeXaml());
+        Assert.Equal("42", Resource(theme, "Double", "ArSeePillHeight").Value);
+        Assert.Equal("19", Resource(theme, "CornerRadius", "ArSeePillCornerRadius").Value);
+        Assert.Equal("17", Resource(theme, "CornerRadius", "ArSeePillInsetCornerRadius").Value);
+        foreach (var key in new[] { "SegmentedNavButton", "PrimaryButton" })
+        {
+            var style = Resource(theme, "Style", key);
+            Assert.Equal("{StaticResource ArSeePillCornerRadius}",
+                (string?)Named(style, "Border", "Chrome").Attribute("CornerRadius"));
+            Assert.Contains(style.Elements(), e => e.Name.LocalName == "Setter" &&
+                (string?)e.Attribute("Property") == (key == "PrimaryButton" ? "MinHeight" : "Height") &&
+                (string?)e.Attribute("Value") == "{StaticResource ArSeePillHeight}");
+        }
+        var search = main.Descendants().Single(e =>
+            (string?)e.Attribute(Xaml + "Name") == "EventsSearchShell");
+        Assert.Equal("{StaticResource ArSeePillHeight}", (string?)search.Attribute("Height"));
+        Assert.Equal("{StaticResource ArSeePillCornerRadius}", (string?)search.Attribute("CornerRadius"));
+        var pill = Resource(main, "ControlTemplate", "EventJournalPremiumPillTemplate");
+        Assert.Equal("{StaticResource ArSeePillCornerRadius}",
+            (string?)Named(pill, "Border", "EventJournalPillSurface").Attribute("CornerRadius"));
+        // The 32-DIP chevron target remains circular and does not inherit pill dimensions.
+        var circle = Resource(main, "Style", "EventJournalCircleNavigationStyle");
+        Assert.Contains(circle.Elements(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "Width" && (string?)e.Attribute("Value") == "32");
+        Assert.Contains(circle.Elements(), e => e.Name.LocalName == "Setter" &&
+            (string?)e.Attribute("Property") == "Height" && (string?)e.Attribute("Value") == "32");
+    }
+
+    private static string FindThemeXaml()
+        => Path.Combine(Path.GetDirectoryName(FindMainWindowXaml())!, "Resources", "ModernTheme.xaml");
 
     [Fact]
     public void DisabledControlsRetainTheirCircleOrPillElevation()
