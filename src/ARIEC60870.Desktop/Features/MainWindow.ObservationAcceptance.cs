@@ -223,10 +223,14 @@ public partial class MainWindow
                 action.ApplyTemplate();
                 var right = action.TranslatePoint(
                     new Point(action.ActualWidth, 0), CommandDockPanel).X;
-                if (action.Template.FindName("EventJournalPillSurface", action) is not Border ||
-                    action.ActualHeight < 35 || right > CommandDockPanel.ActualWidth + 1)
+                var bottom = action.TranslatePoint(
+                    new Point(0, action.ActualHeight), CommandDockPanel).Y;
+                if (Grid.GetRow(CommandActionGrid) != 4 ||
+                    action.Template.FindName("EventJournalPillSurface", action) is not Border ||
+                    action.ActualHeight < 35 || right > CommandDockPanel.ActualWidth + 1 ||
+                    bottom > CommandDockPanel.ActualHeight + 0.6)
                     throw new InvalidOperationException(
-                        "Command Panel action pill is clipped or bypasses the shared style.");
+                        "Command Panel action row must remain fully visible in its sticky footer.");
             }
             foreach (var tab in new[] { (Index: 3, File: "events"), (Index: 12, File: "gi") })
             {
