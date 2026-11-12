@@ -186,17 +186,12 @@ public partial class MainWindow
             return;
         }
 
-        if (SegmentSlider is not null)
-        {
-            SegmentSlider.BeginAnimation(WidthProperty, null);
-            SegmentSlider.Visibility = Visibility.Collapsed;
-        }
-
         var inactiveBrush = (Brush)FindResource("Ink600Brush");
         var activeForegroundBrush = (Brush)FindResource("Ink900Brush");
-        // Selected segment is a soft neutral fill; no blue outline or
-        // per-tab border stroke competing with the high-density evidence.
-        var activeBackgroundBrush = new SolidColorBrush(Color.FromRgb(232, 238, 244));
+        // A light active pill and quiet border identify the current workspace
+        // without hiding any evidence under a tab hover tooltip.
+        var activeBackgroundBrush = (Brush)FindResource("NavActiveFillBrush");
+        var activeBorderBrush = (Brush)FindResource("NavActiveStrokeBrush");
         var transparentBrush = Brushes.Transparent;
         var selectedIndex = MainTabControl.SelectedIndex;
 
@@ -207,7 +202,7 @@ public partial class MainWindow
                            && tagIndex == selectedIndex;
 
             button.Background = isActive ? activeBackgroundBrush : transparentBrush;
-            button.BorderBrush = transparentBrush;
+            button.BorderBrush = isActive ? activeBorderBrush : transparentBrush;
             button.Foreground = isActive ? activeForegroundBrush : inactiveBrush;
             button.FontWeight = isActive ? FontWeights.Medium : FontWeights.Normal;
         }
