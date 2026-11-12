@@ -390,6 +390,30 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void DesktopProtocolStandardNumbersStayAccurateInWindowAndExeIdentity()
+    {
+        var root = FindRepositoryRoot();
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var window = XDocument.Load(root.File("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        var project = XDocument.Load(root.File("src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj"));
+        var runtime = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Services/ArSeeWindowTitle.cs"));
+        var session = File.ReadAllText(root.File("src/ARIEC60870.Desktop/Features/MainWindow.Session.cs"));
+
+        const string caption = "ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
+        const string heading = "ArSee · Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
+        Assert.Equal(caption, (string?)window.Root!.Attribute("Title"));
+        Assert.Equal(heading, (string?)window.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "ProductTitleText").Attribute("Text"));
+        Assert.Equal(caption + " • version $(Version)", project.Descendants()
+            .Single(e => e.Name.LocalName == "Title").Value);
+        Assert.Contains(caption, runtime);
+        Assert.Contains(heading, runtime);
+        Assert.Contains("ArSeeWindowTitle.ProductHeader", session);
+        Assert.DoesNotContain("IEC 60870-101/104/103", runtime);
+        Assert.DoesNotContain("IEC 60870-104/103/101", session);
+    }
+
+    [Fact]
     public void DesktopArchitectureAndNativePdfGuardsRemainInPlace()
     {
         var root = FindRepositoryRoot();

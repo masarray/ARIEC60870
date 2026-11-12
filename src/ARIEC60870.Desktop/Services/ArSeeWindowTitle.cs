@@ -8,7 +8,8 @@ namespace ARIEC60870.Desktop.Services;
 /// <summary>Formats the main window caption from the exact executable's version metadata.</summary>
 public static class ArSeeWindowTitle
 {
-    public const string ProductName = "ArSee • Open Source IEC 60870-101/104/103 Protocol Tester & Analyzer";
+    public const string ProductName = "ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
+    public const string ProductHeader = "ArSee · Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
 
     public static string ForAssembly(Assembly assembly)
     {
