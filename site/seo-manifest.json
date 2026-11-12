@@ -1,6 +1,6 @@
 {
   "site": "ArSee",
-  "version": "3.6.8-rc.5",
+  "version": "3.6.8",
   "sourceOfTruth": "site/",
   "canonicalBaseUrl": "https://masarray.github.io/ARIEC60870/",
   "canonical": "https://masarray.github.io/ARIEC60870/",

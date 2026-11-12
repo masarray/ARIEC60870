@@ -4,9 +4,8 @@
 (() => {
   "use strict";
   const repo = "https://github.com/masarray/ARIEC60870";
-  const oldRC = "v3.6.8-rc.5";
-  const oldStable = "v3.6.7";
-  const api = "https://api.github.com/repos/masarray/ARIEC60870/releases?per_page=30";
+  const fallbackTag = "v3.6.8";
+    const api = "https://api.github.com/repos/masarray/ARIEC60870/releases?per_page=30";
   const validTag = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 
   function asset(release, name) {
@@ -36,11 +35,10 @@
     });
   }
 
-  function update(current, stable) {
+  function update(current) {
     const isId = document.documentElement.lang === "id";
-    const oldAssets = repo + "/releases/download/" + oldRC + "/";
-    const oldNotes = repo + "/releases/tag/" + oldRC;
-    const oldStableNotes = repo + "/releases/tag/" + oldStable;
+    const oldAssets = repo + "/releases/download/" + fallbackTag + "/";
+    const oldNotes = repo + "/releases/tag/" + fallbackTag;
 
     document.querySelectorAll("a[href]").forEach((link) => {
       const href = link.href;
@@ -52,10 +50,7 @@
         if (matching) link.href = matching.browser_download_url;
       } else if (href === oldNotes) {
         link.href = current.release.html_url;
-        replaceText(link, oldRC, current.tag);
-      } else if (href === oldStableNotes && stable) {
-        link.href = stable.release.html_url;
-        replaceText(link, oldStable, stable.tag);
+        replaceText(link, fallbackTag, current.tag);
       }
     });
 
@@ -99,10 +94,9 @@
       // One release must contain matching installer, ZIP, checksum and SBOM.
       // A half-uploaded stable tag must not replace an already working public RC.
       const current = packages.find((p) => p.installer);
-      const stable = packages.find((p) => !p.release.prerelease);
-      if (current) update(current, stable);
+      if (current) update(current);
     } catch (_) {
-      // Offline/API rate-limited visitors retain known-live pinned RC.5 links.
+      // Offline/API rate-limited visitors retain verified, pre-published stable links.
     }
   }
   refresh();
