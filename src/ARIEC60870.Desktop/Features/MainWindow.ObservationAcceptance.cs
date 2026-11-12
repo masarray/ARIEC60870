@@ -1005,9 +1005,15 @@ public partial class MainWindow
             TraceInspectorToggle.Visibility != Visibility.Visible)
             throw new InvalidOperationException("Trace wastes toolbar space on secondary actions/filters.");
 
-        // One frame ledger; verify each view displays its own bound data.
+        // One frame ledger; assert search, count and data-table origin are
+        // pixel-coherent across tab switches. No layout jump in X or Y.
         Width = 1366;
         Height = 768;
+        MainTabControl.SelectedIndex = 1;
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        UpdateLayout();
+        var traceSearchOrigin = TraceWindowSearchBar.TranslatePoint(new Point(), MainTabControl);
+        var traceDataOrigin = FrameTraceGrid.TranslatePoint(new Point(), MainTabControl);
         foreach (var view in new (int Index, string Name)[]
         {
             (2, "values"), (3, "events"), (11, "controls"), (12, "gi")
@@ -1016,6 +1022,34 @@ public partial class MainWindow
             MainTabControl.SelectedIndex = view.Index;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
+            FrameworkElement comparisonSearch = view.Index switch
+            {
+                2 => ValuesSearchShell,
+                3 => EventsSearchShell,
+                11 => ControlsSearchShell,
+                12 => GISearchShell,
+                _ => throw new InvalidOperationException("Unexpected tab in geometry audit.")
+            };
+            FrameworkElement comparisonGrid = view.Index switch
+            {
+                2 => ValueGrid,
+                3 => RelayEventGrid,
+                11 => ControlCasesGrid,
+                12 => GiCasesGrid,
+                _ => throw new InvalidOperationException("Unexpected grid in geometry audit.")
+            };
+            var searchOrigin = comparisonSearch.TranslatePoint(new Point(), MainTabControl);
+            var dataOrigin = comparisonGrid.TranslatePoint(new Point(), MainTabControl);
+            if (Math.Abs(searchOrigin.X - traceSearchOrigin.X) > 2.5 ||
+                Math.Abs(searchOrigin.Y - traceSearchOrigin.Y) > 2.5 ||
+                Math.Abs(dataOrigin.X - traceDataOrigin.X) > 2.5 ||
+                Math.Abs(dataOrigin.Y - traceDataOrigin.Y) > 2.5)
+                throw new InvalidOperationException(
+                    $"{view.Name} changed shared search/data geometry versus Trace: " +
+                    $"search ({searchOrigin.X:0.0},{searchOrigin.Y:0.0}) vs " +
+                    $"({traceSearchOrigin.X:0.0},{traceSearchOrigin.Y:0.0}); " +
+                    $"data ({dataOrigin.X:0.0},{dataOrigin.Y:0.0}) vs " +
+                    $"({traceDataOrigin.X:0.0},{traceDataOrigin.Y:0.0}).");
             if (view.Index == 2)
             {
                 AssertOneLineToolbar(ValuesSearchShell, ValuesQuickCountText,
