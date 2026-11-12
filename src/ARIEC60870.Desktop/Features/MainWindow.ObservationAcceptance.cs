@@ -207,6 +207,14 @@ public partial class MainWindow
             ApplyCommandDockLayout();
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             UpdateLayout();
+            var commandTitleY = CommandDockTitleText.TranslatePoint(
+                new Point(0, CommandDockTitleText.ActualHeight / 2), CommandDockHeader).Y;
+            var commandChevronY = CommandDockToggleIcon.TranslatePoint(
+                new Point(0, CommandDockToggleIcon.ActualHeight / 2), CommandDockHeader).Y;
+            if (Math.Abs(commandTitleY - commandChevronY) > 1.5 ||
+                CommandDockHeader.ActualHeight > 42)
+                throw new InvalidOperationException(
+                    "Compact Command Panel title and chevron are not vertically centered.");
             if (CommandDockPanel.Visibility != Visibility.Visible ||
                 CommandDockMiniButton.Visibility != Visibility.Collapsed ||
                 CommandDockColumn.ActualWidth < 300 ||
@@ -1262,6 +1270,28 @@ public partial class MainWindow
         await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
         await RefreshEventHistoryQueryAsync();
         await ShowEventHistoryPageAsync(0);
+        if (_eventHistoryQuery.Count > EventHistoryPagination.PageSize)
+        {
+            // Operator wheel-down at the bottom of a historical page must
+            // reach the real indexed tail automatically, without clicking
+            // the Latest Event shortcut. A wheel-up must hold that viewport.
+            RelayEventGrid.ScrollIntoView(_historicalEventRows[^1]);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            UpdateLayout();
+            EventHistoryScrollViewer()?.ScrollToBottom();
+            ObserveEventHistoryWheelInput(-120);
+            await (_eventHistoryTailResumeTask ?? Task.CompletedTask);
+            if (!_eventHistoryFollowingLatest ||
+                _eventHistoryPageStart != LastHistoryPageStart() ||
+                _historicalEventRows[^1].EventNumber != _eventHistoryJournal?.Count)
+                throw new InvalidOperationException(
+                    "Scrolling to history bottom failed to resume real indexed latest events.");
+            ObserveEventHistoryWheelInput(120);
+            if (_eventHistoryFollowingLatest)
+                throw new InvalidOperationException(
+                    "Scrolling away from latest did not pin the selected Event viewport.");
+            await ShowEventHistoryPageAsync(0);
+        }
         if (_historicalEventRows.Count == 0)
             throw new InvalidOperationException("No indexed Event History for pinned-page regression.");
         _eventHistoryFollowingLatest = false;
