@@ -13,7 +13,7 @@
     return (release.assets || []).find((a) =>
       a.name === name &&
       a.browser_download_url === repo + "/releases/download/" + release.tag_name + "/" + name &&
-      a.size > (name === "SHA256SUMS.txt" ? 1 : 1000000));
+      a.size > (name === "SHA256SUMS.txt" ? 1 : name.endsWith("-sbom.spdx.json") ? 100 : 1000000));
   }
 
   function inspect(release) {
