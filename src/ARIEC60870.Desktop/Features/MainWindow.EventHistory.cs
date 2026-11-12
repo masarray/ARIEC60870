@@ -53,6 +53,7 @@ public partial class MainWindow
         _eventHistoryRefreshBusy = false;
         _eventHistoryPageBusy = false;
         _eventHistoryFailureNoticeLogged = false;
+        ResetEventHistoryViewportTracking();
         _historicalEventRows.Clear();
         if (RelayEventGrid is not null)
         {
@@ -118,6 +119,15 @@ public partial class MainWindow
         EventHistoryNextButton.IsEnabled =
             _eventHistoryPageStart + EventHistoryPagination.PageSize < matches;
         EventHistoryLatestButton.IsEnabled = indexed > 0;
+        var latestBrush = (System.Windows.Media.Brush)FindResource(
+            _eventHistoryFollowingLatest ? "EventJournalPillSelectedBrush" : "EventJournalPillIdleBrush");
+        if (!ReferenceEquals(EventHistoryLatestButton.Background, latestBrush))
+            EventHistoryLatestButton.Background = latestBrush;
+        var latestHint = _eventHistoryFollowingLatest
+            ? "Following newest indexed events. Scroll upward to inspect history."
+            : "Jump to the newest matching events and resume following.";
+        if (!Equals(EventHistoryLatestButton.ToolTip, latestHint))
+            EventHistoryLatestButton.ToolTip = latestHint;
         EventHistoryExportButton.IsEnabled = indexed > 0 || _eventHistoryCsvRunning;
     }
 
@@ -166,6 +176,7 @@ public partial class MainWindow
         {
             _eventHistoryRefreshBusy = false;
             RefreshEventHistoryFooter();
+            FinishDeferredEventHistoryTailResume();
         }
     }
 
@@ -215,6 +226,7 @@ public partial class MainWindow
             {
                 _eventHistoryQueryBusy = false;
                 RefreshEventHistoryFooter();
+                FinishDeferredEventHistoryTailResume();
             }
             // Keep the active CTS valid until the next query or session reset.
             // Cancel() on an already-disposed CTS would break rapid filtering.
@@ -246,7 +258,22 @@ public partial class MainWindow
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
             if (page.Count != Math.Min(EventHistoryPagination.PageSize, snapshot.Count - start))
                 throw new InvalidDataException("Event History page is incomplete.");
-            _historicalEventRows.ReplaceRange(page);
+            // Immutable Event # + display index identify the exact source-backed
+            // page. Re-reading the same page must not Reset 100 WPF row containers.
+            var samePage = _historicalEventRows.Count == page.Count;
+            if (samePage)
+            {
+                for (var i = 0; i < page.Count; i++)
+                {
+                    if (_historicalEventRows[i].EventNumber == page[i].EventNumber &&
+                        _historicalEventRows[i].DisplayNumber == page[i].DisplayNumber)
+                        continue;
+                    samePage = false;
+                    break;
+                }
+            }
+            GuardEventHistoryProgrammaticScroll();
+            if (!samePage) _historicalEventRows.ReplaceRange(page);
             // Explicit page navigation begins at its first row; Latest follows
             // the last original Event # rather than resetting to the page top.
             if (_historicalEventRows.Count > 0 && IsEventsTabActive())
@@ -268,7 +295,10 @@ public partial class MainWindow
         finally
         {
             if (generation == _eventHistoryPageGeneration)
+            {
                 _eventHistoryPageBusy = false;
+                FinishDeferredEventHistoryTailResume();
+            }
         }
     }
 
