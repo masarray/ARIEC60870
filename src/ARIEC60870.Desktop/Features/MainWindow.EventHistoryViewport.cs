@@ -13,6 +13,7 @@ public partial class MainWindow
     private bool _eventHistoryProgrammaticScroll;
     private bool _eventHistoryPointerScrolling;
     private bool _eventHistoryTailResumeRunning;
+    private Task? _eventHistoryTailResumeTask;
     private bool _eventHistoryTailResumeDeferred;
     private int _eventHistoryProgrammaticScrollGeneration;
     private long _eventHistoryRecentScrollInputTick = long.MinValue;
@@ -50,6 +51,7 @@ public partial class MainWindow
     {
         _eventHistoryPointerScrolling = false;
         _eventHistoryTailResumeDeferred = false;
+        _eventHistoryTailResumeTask = null;
         _eventHistoryRecentScrollInputTick = long.MinValue;
         _eventHistoryProgrammaticScroll = false;
         _eventHistoryProgrammaticScrollGeneration++;
@@ -120,7 +122,7 @@ public partial class MainWindow
             return;
 
         _eventHistoryTailResumeRunning = true;
-        _ = ResumeEventHistoryTailFromViewportAsync();
+        _eventHistoryTailResumeTask = ResumeEventHistoryTailFromViewportAsync();
     }
 
     private async Task ResumeEventHistoryTailFromViewportAsync()
