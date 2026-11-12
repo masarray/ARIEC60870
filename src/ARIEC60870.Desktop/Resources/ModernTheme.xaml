@@ -10,6 +10,15 @@
     <CornerRadius x:Key="ArSeePillCornerRadius">19</CornerRadius>
     <CornerRadius x:Key="ArSeePillInsetCornerRadius">17</CornerRadius>
     <Thickness x:Key="ArSeePillPadding">16,0</Thickness>
+    <!-- Compact engineer-toolbar variant of the approved navbar pill design:
+         same shape vocabulary at 36 DIP, without copying navbar's 42-DIP scale. -->
+    <sys:Double x:Key="ArSeeToolbarPillHeight">36</sys:Double>
+    <CornerRadius x:Key="ArSeeToolbarPillCornerRadius">18</CornerRadius>
+    <CornerRadius x:Key="ArSeeToolbarPillInsetCornerRadius">16</CornerRadius>
+    <Thickness x:Key="ArSeeToolbarPillPadding">12,0</Thickness>
+    <sys:Double x:Key="ArSeeToolbarCircleDiameter">28</sys:Double>
+    <sys:Double x:Key="ArSeeToolbarSearchWidth">206</sys:Double>
+
 
     <FontFamily x:Key="TraceMonoFont">Sometype Mono, Cascadia Mono, Consolas</FontFamily>
     <!-- mature engineering software identity: calm engineering surface, blue accent, soft cards, crisp data grids. -->

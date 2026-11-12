@@ -23,7 +23,7 @@ public sealed class EventJournalPremiumSurfaceTests
         var circle = Resource(document, "ControlTemplate", "EventJournalPremiumCircleTemplate");
 
         var pillSurface = Named(pill, "Border", "EventJournalPillSurface");
-        Assert.Equal("{StaticResource ArSeePillCornerRadius}", (string?)pillSurface.Attribute("CornerRadius"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}", (string?)pillSurface.Attribute("CornerRadius"));
         Assert.Contains("EventJournalPillShadow", (string?)pillSurface.Attribute("Effect"));
         Assert.Contains("TemplateBinding Background", (string?)pillSurface.Attribute("Background"));
 
@@ -48,7 +48,7 @@ public sealed class EventJournalPremiumSurfaceTests
             var element = Resource(document, "Style", style);
             Assert.Contains(element.Elements(), e => e.Name.LocalName == "Setter" &&
                 (string?)e.Attribute("Property") == "Height" &&
-                (string?)e.Attribute("Value") == "{StaticResource ArSeePillHeight}");
+                (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarPillHeight}");
             Assert.Contains(element.Elements(), e => e.Name.LocalName == "Setter" &&
                 (string?)e.Attribute("Property") == "Template" &&
                 ((string?)e.Attribute("Value"))?.Contains("EventJournalPremiumPillTemplate") == true);
@@ -60,7 +60,7 @@ public sealed class EventJournalPremiumSurfaceTests
             ((string?)e.Attribute("Value"))?.Contains("EventJournalPremiumCircleTemplate") == true);
         Assert.Contains(navigation.Elements(), e => e.Name.LocalName == "Setter" &&
             (string?)e.Attribute("Property") == "Width" &&
-            (string?)e.Attribute("Value") == "32");
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarCircleDiameter}");
     }
 
     [Fact]
@@ -71,6 +71,11 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal("42", Resource(theme, "Double", "ArSeePillHeight").Value);
         Assert.Equal("19", Resource(theme, "CornerRadius", "ArSeePillCornerRadius").Value);
         Assert.Equal("17", Resource(theme, "CornerRadius", "ArSeePillInsetCornerRadius").Value);
+        Assert.Equal("36", Resource(theme, "Double", "ArSeeToolbarPillHeight").Value);
+        Assert.Equal("18", Resource(theme, "CornerRadius", "ArSeeToolbarPillCornerRadius").Value);
+        Assert.Equal("16", Resource(theme, "CornerRadius", "ArSeeToolbarPillInsetCornerRadius").Value);
+        Assert.Equal("28", Resource(theme, "Double", "ArSeeToolbarCircleDiameter").Value);
+        Assert.Equal("206", Resource(theme, "Double", "ArSeeToolbarSearchWidth").Value);
         foreach (var key in new[] { "SegmentedNavButton", "PrimaryButton" })
         {
             var style = Resource(theme, "Style", key);
@@ -82,21 +87,72 @@ public sealed class EventJournalPremiumSurfaceTests
         }
         var search = main.Descendants().Single(e =>
             (string?)e.Attribute(Xaml + "Name") == "EventsSearchShell");
-        Assert.Equal("{StaticResource ArSeePillHeight}", (string?)search.Attribute("Height"));
-        Assert.Equal("{StaticResource ArSeePillCornerRadius}", (string?)search.Attribute("CornerRadius"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillHeight}", (string?)search.Attribute("Height"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}", (string?)search.Attribute("CornerRadius"));
         var pill = Resource(main, "ControlTemplate", "EventJournalPremiumPillTemplate");
-        Assert.Equal("{StaticResource ArSeePillCornerRadius}",
+        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}",
             (string?)Named(pill, "Border", "EventJournalPillSurface").Attribute("CornerRadius"));
-        // The 32-DIP chevron target remains circular and does not inherit pill dimensions.
+        // Compact circular chevrons now live inside a shared, full-height pager capsule.
         var circle = Resource(main, "Style", "EventJournalCircleNavigationStyle");
         Assert.Contains(circle.Elements(), e => e.Name.LocalName == "Setter" &&
-            (string?)e.Attribute("Property") == "Width" && (string?)e.Attribute("Value") == "32");
+            (string?)e.Attribute("Property") == "Width" &&
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarCircleDiameter}");
         Assert.Contains(circle.Elements(), e => e.Name.LocalName == "Setter" &&
-            (string?)e.Attribute("Property") == "Height" && (string?)e.Attribute("Value") == "32");
+            (string?)e.Attribute("Property") == "Height" &&
+            (string?)e.Attribute("Value") == "{StaticResource ArSeeToolbarCircleDiameter}");
     }
 
     private static string FindThemeXaml()
         => Path.Combine(Path.GetDirectoryName(FindMainWindowXaml())!, "Resources", "ModernTheme.xaml");
+
+    [Fact]
+    public void EventsToolbarSearchAndPagerShareTheCompactPillDesignTokens()
+    {
+        var doc = XDocument.Load(FindMainWindowXaml());
+        var shell = Named(doc.Root!, "Border", "EventsSearchShell");
+        Assert.Equal("{StaticResource ArSeeToolbarSearchWidth}", (string?)shell.Attribute("Width"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillHeight}", (string?)shell.Attribute("Height"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}",
+            (string?)shell.Attribute("CornerRadius"));
+
+        var searchLayout = shell.Descendants().Single(e => e.Name.LocalName == "DockPanel");
+        Assert.Equal("7,0,10,0", (string?)searchLayout.Attribute("Margin"));
+        var searchText = Named(shell, "TextBox", "EventsQuickFindBox");
+        Assert.Equal("0", (string?)searchText.Attribute("Padding"));
+        var icon = searchLayout.Elements().Single(e => e.Name.LocalName == "Path");
+        Assert.Equal("0,0,5,0", (string?)icon.Attribute("Margin"));
+
+        var clear = Named(shell, "Button", "EventsSearchClearButton");
+        Assert.Equal("{StaticResource EventJournalSearchClearStyle}", (string?)clear.Attribute("Style"));
+        Assert.Equal("Clear event search", (string?)clear.Attribute("AutomationProperties.Name"));
+        var clearIcon = clear.Elements().Single(e => e.Name.LocalName == "Path");
+        Assert.Contains("AncestorType", (string?)clearIcon.Attribute("Stroke"));
+
+        var clearStyle = Resource(doc, "Style", "EventJournalSearchClearStyle");
+        Assert.Contains(clearStyle.Descendants(), e => e.Name.LocalName == "Grid" &&
+            (string?)e.Attribute("Background") == "Transparent");
+        Assert.Contains(clearStyle.Descendants(), e => e.Name.LocalName == "Trigger" &&
+            (string?)e.Attribute("Property") == "IsMouseOver" &&
+            e.Descendants().Any(setter => (string?)setter.Attribute("Value") == "#B55B66"));
+        Assert.Contains(clearStyle.Descendants(), e => e.Name.LocalName == "Trigger" &&
+            (string?)e.Attribute("Property") == "IsPressed" &&
+            e.Descendants().Any(setter => (string?)setter.Attribute("Value") == "#E11D48"));
+
+        var pager = Named(doc.Root!, "Border", "EventHistoryPagerShell");
+        Assert.Equal("{StaticResource ArSeeToolbarPillHeight}", (string?)pager.Attribute("Height"));
+        Assert.Equal("{StaticResource ArSeeToolbarPillCornerRadius}",
+            (string?)pager.Attribute("CornerRadius"));
+        Assert.Equal("1", (string?)pager.Attribute("BorderThickness"));
+        var children = pager.Elements().Single(e => e.Name.LocalName == "StackPanel").Elements().ToArray();
+        Assert.Equal(3, children.Length);
+        Assert.Equal("EventHistoryPreviousButton", (string?)children[0].Attribute(Xaml + "Name"));
+        Assert.Equal("EventHistoryPageText", (string?)children[1].Attribute(Xaml + "Name"));
+        Assert.Equal("EventHistoryNextButton", (string?)children[2].Attribute(Xaml + "Name"));
+
+        var latest = Named(doc.Root!, "Button", "EventHistoryLatestButton");
+        Assert.Equal("Latest Event", (string?)latest.Attribute("Content"));
+        Assert.Equal("{StaticResource EventJournalActionButtonStyle}", (string?)latest.Attribute("Style"));
+    }
 
     [Fact]
     public void DisabledControlsRetainTheirCircleOrPillElevation()
