@@ -65,7 +65,12 @@ public partial class MainWindow
             {
                 if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling &&
                     !_eventHistoryQueryBusy)
-                    RequestEventHistoryQuery();
+                {
+                    // The existing writer index supports incremental Extend.
+                    // Re-entering Events should not rebuild the entire history.
+                    _nextEventHistoryFooterRefreshTick = 0;
+                    RefreshEventHistoryFooterWhenDue();
+                }
                 else if (_historicalEventRows.Count > 0)
                 {
                     // Realize the latest row after returning to a hidden tab,
