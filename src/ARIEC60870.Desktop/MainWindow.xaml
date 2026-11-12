@@ -835,25 +835,51 @@
                                 </Grid>
                                 <StackPanel x:Name="TraceArchiveSearchBar" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,2">
                                     <DockPanel LastChildFill="True">
-                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0">
-                                            <Button Content="Current" Click="TraceCurrentMode_Click" Style="{StaticResource SecondaryButton}"
-                                                    Padding="7,3" Margin="0,0,5,0"/>
-                                            <Button x:Name="TraceRecordedFindButton" Style="{StaticResource ArSeeToolbarActionButtonStyle}" Content="Find" Click="TraceRecordedFind_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="7,3" FontSize="11" Margin="0,0,4,0"
-                                                   />
-                                            <Button x:Name="TraceRecordedPrevButton" Content="‹" Width="27" Click="TraceRecordedPrev_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="0,0,3,0"
-                                                   />
-                                            <Button x:Name="TraceRecordedNextButton" Content="›" Width="27" Click="TraceRecordedNext_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2"
-                                                   />
-                                            <Button x:Name="TraceRecordedCancelButton" Content="×" Width="27" Click="TraceRecordedCancel_Click"
-                                                    Style="{StaticResource SecondaryButton}" IsEnabled="False" Padding="2,2" Margin="4,0,0,0"
-                                                   />
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="7,0,0,0"
+                                                    VerticalAlignment="Center">
+                                            <Button Content="Current" Click="TraceCurrentMode_Click"
+                                                    Style="{StaticResource ArSeeToolbarActionButtonStyle}" Margin="0,0,5,0"/>
+                                            <Button x:Name="TraceRecordedFindButton" Content="Find" Click="TraceRecordedFind_Click"
+                                                    Style="{StaticResource ArSeeToolbarActionButtonStyle}" Margin="0,0,5,0"/>
+                                            <Button x:Name="TraceRecordedPrevButton" Click="TraceRecordedPrev_Click"
+                                                    Style="{StaticResource EventJournalCircleNavigationStyle}" IsEnabled="False"
+                                                    ToolTip="Previous archive match" AutomationProperties.Name="Previous archive match"
+                                                    Margin="0,0,3,0">
+                                                <Path Data="{StaticResource LucideChevronLeft}" Width="10" Height="10"
+                                                      Fill="{x:Null}" Stroke="#365777" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                            </Button>
+                                            <Button x:Name="TraceRecordedNextButton" Click="TraceRecordedNext_Click"
+                                                    Style="{StaticResource EventJournalCircleNavigationStyle}" IsEnabled="False"
+                                                    ToolTip="Next archive match" AutomationProperties.Name="Next archive match">
+                                                <Path Data="{StaticResource LucideChevronRight}" Width="10" Height="10"
+                                                      Fill="{x:Null}" Stroke="#365777" StrokeThickness="2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                            </Button>
+                                            <Button x:Name="TraceRecordedCancelButton" Click="TraceRecordedCancel_Click"
+                                                    Style="{StaticResource ArSeeToolbarSearchClearStyle}" IsEnabled="False"
+                                                    ToolTip="Cancel archive search" AutomationProperties.Name="Cancel archive search"
+                                                    Margin="4,0,0,0">
+                                                <Path Data="{StaticResource ArIconSearchClearX}" Width="13" Height="13"
+                                                      Fill="{x:Null}"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                            </Button>
                                         </StackPanel>
-                                        <TextBox x:Name="TraceRecordedQueryBox" MinWidth="70" Height="28"
-                                                 VerticalContentAlignment="Center" FontSize="11.5"
-                                                />
+                                        <Border x:Name="TraceArchiveQueryShell" Style="{StaticResource ArSeeToolbarSearchShellStyle}"
+                                                Width="{StaticResource ArSeeToolbarSearchWidth}">
+                                            <DockPanel LastChildFill="True" Margin="7,0,10,0">
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource ArIconSearchOutline}"
+                                                      Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" Width="15" Height="15" Stretch="Uniform"
+                                                      Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TraceRecordedQueryBox" MinWidth="70"
+                                                         BorderThickness="0" Background="Transparent"
+                                                         Padding="0" VerticalContentAlignment="Center"
+                                                         FontFamily="{StaticResource AppFont}" FontSize="12"
+                                                         Foreground="#334155"/>
+                                            </DockPanel>
+                                        </Border>
                                     </DockPanel>
                                     <TextBlock x:Name="TraceRecordedStatusText"
                                                Text="Archive · select a portable .ariec capture"
