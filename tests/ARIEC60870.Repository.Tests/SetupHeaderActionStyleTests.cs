@@ -25,9 +25,8 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("CloseSetup_Click", (string?)close.Attribute("Click"));
         Assert.Equal("{StaticResource SetupConnectButtonStyle}", (string?)connect.Attribute("Style"));
         Assert.Equal("{StaticResource SetupCloseIconButtonStyle}", (string?)close.Attribute("Style"));
-        Assert.Equal("Close configuration", (string?)close.Attribute(
-            XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml/presentation") +
-            "AutomationProperties.Name"));
+        Assert.Equal("Close configuration",
+            (string?)close.Attribute("AutomationProperties.Name"));
         Assert.Null(close.Attribute("Content"));
 
         var glyph = close.Elements().Single(x => x.Name.LocalName == "Path");
