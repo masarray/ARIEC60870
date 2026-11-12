@@ -35,6 +35,8 @@ on:
     # name, and the normal stable release workflow remains unchanged.
     branches:
       - 'release/rc-*'
+      # Connector-driven stable publication, guarded by exact base version.
+      - 'release/stable-*'
 
 permissions:
   contents: read
@@ -97,6 +99,16 @@ jobs:
             prerelease="true"
             draft="false"
             notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
+          elif [[ "${GITHUB_REF}" == refs/heads/release/stable-* ]]; then
+            version="${GITHUB_REF_NAME#release/stable-}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Refuse invalid stable release branch version: $version" >&2
+              exit 1
+            fi
+            publish_release="true"
+            prerelease="false"
+            draft="false"
+            notes_file="docs/archive/release-notes/RELEASE_NOTES_v${version}.md"
           else
             version="${GITHUB_REF_NAME#v}"
             publish_release="true"
@@ -123,6 +135,12 @@ jobs:
               refs/heads/release/rc-*)
                 if [[ "$version" != "${GITHUB_REF_NAME#release/rc-}" || "${version%%-rc.*}" != "$repo_version" ]]; then
                   echo "RC publication must match RC branch and source base version" >&2
+                  exit 1
+                fi
+                ;;
+              refs/heads/release/stable-*)
+                if [[ "$version" != "$repo_version" || "$prerelease" != "false" ]]; then
+                  echo "Stable branch publication must match the source version and not be a prerelease" >&2
                   exit 1
                 fi
                 ;;
@@ -320,8 +338,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Compile matching Windows Setup EXE for public RC testers
-        if: needs.resolve.outputs.prerelease == 'true'
+      - name: Compile matching Windows Setup EXE for public releases
+        if: needs.resolve.outputs.publish_release == 'true'
         shell: pwsh
         timeout-minutes: 6
         run: |
@@ -338,7 +356,7 @@ jobs:
           & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
           $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
-          if (!(Test-Path $setup)) { throw 'Expected matching RC setup executable missing.' }
+          if (!(Test-Path $setup)) { throw 'Expected matching release setup executable missing.' }
 
       - name: Generate SPDX dependency SBOM
         shell: pwsh
@@ -378,10 +396,10 @@ jobs:
             artifacts/release/SHA256SUMS.txt
 
       # The original multi-subject attestation intentionally covers portable
-      # ZIP, SBOM and checksums. The RC setup EXE must also have provenance.
-      # Keep it conditional so stable builds without an installer stay valid.
-      - name: Attest RC Windows installer
-        if: needs.resolve.outputs.prerelease == 'true'
+      # ZIP, SBOM and checksums. Every public setup EXE also needs provenance.
+      # Nonpublishing package qualifications may omit the installer.
+      - name: Attest public Windows installer
+        if: needs.resolve.outputs.publish_release == 'true'
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe
