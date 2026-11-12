@@ -300,6 +300,13 @@ public partial class MainWindow
                 // Correctly refused 32: QU must remain a five-bit value.
             }
             CommandQualifierComboBox.SelectedIndex = 0;
+            // Release mapped target while checking manual TI48. A selected
+            // mapped double-point intentionally pins its command type to TI46.
+            var selectedTargetBefore = CommandSignalComboBox.SelectedItem;
+            var ioaTextBefore = CommandIoaBox.Text;
+            var commandTypeBefore = CommandTypeComboBox.SelectedIndex;
+            CommandSignalComboBox.SelectedItem = null;
+            CommandIoaBox.Text = "90001";
             CommandTypeComboBox.SelectedIndex = 3; // TI48 is QOS/QL, not QOC/QU.
             UpdateCommandDockActionButtons();
             if (CommandSetpointQualifierComboBox.Visibility != Visibility.Visible ||
@@ -311,9 +318,22 @@ public partial class MainWindow
             CommandQualifierCustomBox.Text = "127";
             if (ReadCommandQualifier(Iec60870ControlCommandKind.SetpointNormalizedCommand) != 127)
                 throw new InvalidOperationException("Advanced QOS QL=127 was lost.");
+            CommandQualifierCustomBox.Text = "128";
+            try
+            {
+                _ = ReadCommandQualifier(Iec60870ControlCommandKind.SetpointNormalizedCommand);
+                throw new InvalidOperationException("Out-of-range QL 128 was incorrectly accepted.");
+            }
+            catch (InvalidOperationException exception)
+                when (exception.Message.Contains("must be between", StringComparison.Ordinal))
+            {
+                // Correctly refused 128: QOS qualifier is seven bits.
+            }
             CommandSetpointQualifierComboBox.SelectedIndex = 0;
             CommandQualifierCustomBox.Text = "4";
-            CommandTypeComboBox.SelectedIndex = 1;
+            CommandTypeComboBox.SelectedIndex = commandTypeBefore;
+            CommandIoaBox.Text = ioaTextBefore;
+            CommandSignalComboBox.SelectedItem = selectedTargetBefore;
             UpdateCommandDockActionButtons();
             if (CommandQualifierComboBox.Visibility != Visibility.Visible ||
                 CommandSetpointQualifierComboBox.Visibility != Visibility.Collapsed)
