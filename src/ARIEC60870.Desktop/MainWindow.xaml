@@ -5,7 +5,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:input="clr-namespace:System.Windows.Input;assembly=PresentationCore"
         xmlns:vm="clr-namespace:ARIEC60870.Desktop.ViewModels"
-        Title="ArSee • Open Source IEC 60870-101/104/103 Protocol Tester &amp; Analyzer"
+        Title="ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester &amp; Analyzer"
         Width="1540" Height="960" MinWidth="810" MinHeight="480"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/Icons/ariec60870-icon.png"
@@ -571,7 +571,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock x:Name="ProductTitleText" Text="ArSee · Open Source IEC 60870-104/103/101 Protocol Tester" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
+                            <TextBlock x:Name="ProductTitleText" Text="ArSee · Open Source IEC 60870-5-101/103/104 Protocol Tester &amp; Analyzer" Style="{StaticResource HeadingText}" FontSize="15.5" FontWeight="Normal" />
                             <TextBlock x:Name="SessionSubtitleText" Text="Ready. Setup and connect." Style="{StaticResource SubtleText}" FontSize="10.8" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                             <TextBlock x:Name="BufferStatusText" Text="" Visibility="Collapsed" />
                         </StackPanel>

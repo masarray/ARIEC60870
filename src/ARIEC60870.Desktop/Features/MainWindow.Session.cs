@@ -818,7 +818,7 @@ public partial class MainWindow
         var apciVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var classVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
 
-        ProductTitleText.Text = "ArSee · Open Source IEC 60870-104/103/101 Protocol Tester";
+        ProductTitleText.Text = ARIEC60870.Desktop.Services.ArSeeWindowTitle.ProductHeader;
         ApplyProtocolLogo(mode);
         ClassPollLabelText.Text = is104 ? "GI/I/S " : "GI/C1/C2 ";
         EventChipLabelText.Text = is104 ? "ASDU " : "EVENT ";

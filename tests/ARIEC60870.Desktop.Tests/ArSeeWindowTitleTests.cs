@@ -8,7 +8,7 @@ namespace ARIEC60870.Desktop.Tests;
 
 public sealed class ArSeeWindowTitleTests
 {
-    private const string ExpectedCaption = "ArSee • Open Source IEC 60870-101/104/103 Protocol Tester & Analyzer";
+    private const string ExpectedCaption = "ArSee • Open Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer";
 
     [Theory]
     [InlineData("3.6.8-rc.4+release", "3.6.8-rc.4")]
