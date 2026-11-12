@@ -202,6 +202,20 @@ public sealed class EventJournalPremiumSurfaceTests
         }
         Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
             (string?)Named(main.Root!, "Button", "GiStagesToggleButton").Attribute("Style"));
+        var archive = Named(main.Root!, "Border", "TraceArchiveQueryShell");
+        Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}",
+            (string?)archive.Attribute("Style"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchWidth}",
+            (string?)archive.Attribute("Width"));
+        Assert.Equal("0", (string?)Named(archive, "TextBox", "TraceRecordedQueryBox").Attribute("Padding"));
+        foreach (var name in new[] { "TraceRecordedFindButton" })
+            Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
+                (string?)Named(main.Root!, "Button", name).Attribute("Style"));
+        foreach (var name in new[] { "TraceRecordedPrevButton", "TraceRecordedNextButton" })
+            Assert.Equal("{StaticResource EventJournalCircleNavigationStyle}",
+                (string?)Named(main.Root!, "Button", name).Attribute("Style"));
+        Assert.Equal("{StaticResource ArSeeToolbarSearchClearStyle}",
+            (string?)Named(main.Root!, "Button", "TraceRecordedCancelButton").Attribute("Style"));
     }
 
     [Fact]
