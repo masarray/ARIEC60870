@@ -177,6 +177,10 @@ public partial class MainWindow
     private static bool ShouldCheckReleaseUpdate()
     {
         var state = ReadReleaseUpdateState();
+        // If the engineer clicked Later and reopened ArSee, rediscover the
+        // pending version instead of hiding the update button for 20 hours.
+        if (ReleaseUpdateService.TryParseStableTag(state?.LastSeenTag, out var seen) &&
+            seen > GetCurrentProductVersion()) return true;
         return state is null || state.LastCheckedUtc == default ||
             DateTime.UtcNow - state.LastCheckedUtc >= ReleaseUpdateMinimumCheckInterval;
     }
