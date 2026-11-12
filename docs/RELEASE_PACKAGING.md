@@ -118,6 +118,8 @@ The installable EXE is generated separately by Windows CI using
 binary. It supports per-user in-place upgrades, a Start Menu shortcut and
 preserves `%LOCALAPPDATA%\\ARIEC60870`. CI verifies a genuine published
 v3.6.7 binary upgrade, a running simulated Master close, one uninstall
-registration and user-data preservation. Until a trusted publisher signing
-pipeline exists, this installer is a **CI test artifact**, not an auto-update
-payload; the stable public Releases workflow continues to publish ZIPs.
+registration and user-data preservation. The public release workflow publishes the installer alongside the portable
+ZIP and SHA256SUMS.txt. The updater PR provides explicit, operator-approved
+staged installation only for managed Inno installs. Its HTTPS/GitHub checksum
+validation is not a replacement for a future pinned publisher signature;
+see [self-update architecture](AUTO_UPDATE_ARCHITECTURE_20261113.md).
