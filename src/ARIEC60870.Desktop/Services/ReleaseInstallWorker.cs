@@ -18,11 +18,15 @@ public static class ReleaseInstallWorker
     {
         UpdateInstallPlan? plan = null;
         string? backupDir = null;
+        var parentExited = false;
+        var backupComplete = false;
+        var installerStillRunning = false;
         try
         {
             plan = await ReadValidatedPlanAsync(planPath).ConfigureAwait(false);
             if (!await WaitForParentExitAsync(plan.ParentPid).ConfigureAwait(false))
                 throw new InvalidOperationException("ArSee did not close safely. Update was cancelled; no files were modified.");
+            parentExited = true;
             if (!await ReleaseUpdateService.VerifyFileAsync(plan.InstallerPath,
                 plan.InstallerSha256, plan.InstallerBytes, CancellationToken.None).ConfigureAwait(false))
                 throw new InvalidDataException("Staged installer changed or failed SHA-256 verification.");
@@ -32,6 +36,7 @@ public static class ReleaseInstallWorker
             var installFolder = Path.GetDirectoryName(plan.InstalledExecutable)!;
             backupDir = Path.Combine(plan.StageDirectory, "previous-install");
             BackupInstallation(installFolder, backupDir);
+            backupComplete = true;
             WriteStatus(plan, "Installing " + plan.Tag);
 
             using var setup = Process.Start(new ProcessStartInfo(plan.InstallerPath)
@@ -41,10 +46,12 @@ public static class ReleaseInstallWorker
                 ArgumentList =
                 {
                     "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-                    "/NORESTARTAPPLICATIONS", "/CLOSEAPPLICATIONS", "/SP-"
+                    "/NORESTARTAPPLICATIONS", "/CLOSEAPPLICATIONS", "/SP-",
+                    "/RESTARTEXITCODE=3010"
                 }
             }) ?? throw new InvalidOperationException("Windows could not launch the installer.");
 
+            installerStillRunning = true;
             using (var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(12)))
             {
                 try
@@ -58,6 +65,7 @@ public static class ReleaseInstallWorker
                 }
             }
 
+            installerStillRunning = false;
             if (setup.ExitCode != 0 || !File.Exists(plan.InstalledExecutable))
                 throw new InvalidOperationException("Installer did not finish successfully (exit " + setup.ExitCode + ").");
 
@@ -88,7 +96,7 @@ public static class ReleaseInstallWorker
             if (plan is not null)
             {
                 WriteStatus(plan, "Update failed: " + exception.Message);
-                if (backupDir is not null && Directory.Exists(backupDir))
+                if (backupComplete && !installerStillRunning && backupDir is not null && Directory.Exists(backupDir))
                 {
                     try
                     {
@@ -105,7 +113,7 @@ public static class ReleaseInstallWorker
                 // return them to the prior version without opening GitHub.
                 try
                 {
-                    if (File.Exists(plan.InstalledExecutable))
+                    if (parentExited && !installerStillRunning && File.Exists(plan.InstalledExecutable))
                         StartInstalledApp(plan.InstalledExecutable);
                 }
                 catch (Exception recovery)
@@ -130,7 +138,7 @@ public static class ReleaseInstallWorker
             {
                 var marker = Path.Combine(path, "completed.marker");
                 if (File.Exists(marker) &&
-                    DateTime.UtcNow - File.GetLastWriteTimeUtc(marker) > TimeSpan.FromMinutes(1))
+                    DateTime.UtcNow - File.GetLastWriteTimeUtc(marker) > TimeSpan.FromSeconds(15))
                     TryDeleteDirectory(path);
             }
         }
