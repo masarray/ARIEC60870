@@ -110,6 +110,61 @@ public partial class MainWindow
     private void CommandOperationModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => UpdateCommandDockActionButtons();
 
+    private void CommandQualifierComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        => UpdateCommandQualifierControls();
+
+    private void UpdateCommandQualifierControls()
+    {
+        if (CommandQualifierComboBox is null ||
+            CommandSetpointQualifierComboBox is null ||
+            CommandQualifierCustomBox is null ||
+            CommandQualifierLabel is null)
+        {
+            // XAML ComboBox SelectionChanged can fire before InitializeComponent ends.
+            return;
+        }
+
+        var setpoint = ResolveCommandKindFromCombo() ==
+            Iec60870ControlCommandKind.SetpointNormalizedCommand;
+        CommandQualifierLabel.Text = setpoint
+            ? "QOS · QL (setpoint qualifier)"
+            : "QOC · QU (command pulse)";
+        CommandQualifierComboBox.Visibility =
+            setpoint ? Visibility.Collapsed : Visibility.Visible;
+        CommandSetpointQualifierComboBox.Visibility =
+            setpoint ? Visibility.Visible : Visibility.Collapsed;
+
+        var selected = setpoint
+            ? CommandSetpointQualifierComboBox.SelectedItem as ComboBoxItem
+            : CommandQualifierComboBox.SelectedItem as ComboBoxItem;
+        CommandQualifierCustomBox.Visibility =
+            selected?.Tag?.ToString() == "custom"
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+    }
+
+    private int ReadCommandQualifier(Iec60870ControlCommandKind kind)
+    {
+        var setpoint = kind == Iec60870ControlCommandKind.SetpointNormalizedCommand;
+        var item = (setpoint ? CommandSetpointQualifierComboBox.SelectedItem
+                            : CommandQualifierComboBox.SelectedItem) as ComboBoxItem;
+        var tag = item?.Tag?.ToString();
+        if (tag == "custom")
+        {
+            // QOC QU is five bits, QoS QL is seven bits. Keep device/vendor
+            // extensions explicit rather than silently treating QL as a pulse.
+            return setpoint
+                ? ReadInt(CommandQualifierCustomBox, "Setpoint QL", 1, 127)
+                : ReadInt(CommandQualifierCustomBox, "Command QU", 4, 31);
+        }
+        if (int.TryParse(tag, out var qualifier) &&
+            qualifier >= 0 && qualifier <= (setpoint ? 127 : 31))
+        {
+            return qualifier;
+        }
+        throw new InvalidOperationException("Select a valid command qualifier.");
+    }
+
     private void UpdateCommandDockActionButtons()
     {
         if (CommandSelectOpenButton is null || CommandOperateOpenButton is null)
@@ -119,6 +174,7 @@ public partial class MainWindow
 
         var kind = ResolveCommandKindFromCombo();
         var isSetpoint = kind == Iec60870ControlCommandKind.SetpointNormalizedCommand;
+        UpdateCommandQualifierControls();
         if (CommandSetpointPanel is not null)
         {
             CommandSetpointPanel.Visibility = isSetpoint ? Visibility.Visible : Visibility.Collapsed;
@@ -131,8 +187,8 @@ public partial class MainWindow
         {
             CommandQualifierHelpText.Text = string.Empty;
         }
-        // SBO and DO are modes (the command SELECT bit), not QOC QU values.
-        // QU is kept as an independent 0..31 IEC field in CommandQualifierBox.
+        // SBO and DO are modes (the command SELECT bit). QOC/QU and QOS/QL
+        // are independent qualifier fields selected by ReadCommandQualifier().
         var direct = CommandOperationModeComboBox?.SelectedIndex == 1;
         CommandSelectOpenButton.Visibility = direct ? Visibility.Collapsed : Visibility.Visible;
         CommandSelectCloseButton.Visibility = direct || isSetpoint ? Visibility.Collapsed : Visibility.Visible;
@@ -468,7 +524,7 @@ public partial class MainWindow
             InformationObjectAddress = ReadInt(CommandIoaBox, "Command IOA", 0, 0xFFFFFF),
             Value = value,
             NumericValue = ParseLeadingDouble(CommandSetpointBox.Text, 0),
-            Qualifier = ReadInt(CommandQualifierBox, "Command qualifier", 0, 31),
+            Qualifier = ReadCommandQualifier(kind),
             SelectBeforeOperate = select,
             OperatorNote = select ? "Command dock SELECT" : "Command dock OPERATE"
         };
