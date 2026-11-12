@@ -453,7 +453,7 @@
                             </Border>
                             <Button x:Name="UpdateAvailableButton"
                                     Content="Update available"
-                                    Style="{StaticResource SecondaryButton}"
+                                    Style="{StaticResource ArSeeWorkspacePrimaryActionButtonStyle}"
                                     MinWidth="132"
                                     Height="36"
                                     Margin="10,0,0,0"
@@ -769,6 +769,7 @@
                                     </ComboBox>
                                     <Button x:Name="TraceArchiveModeButton" Grid.Column="0"
                                             Content="Archive…" Visibility="Collapsed"
+                                            Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                             Click="TraceArchiveMode_Click"/>
                                     <TextBlock x:Name="FrameTimelineCaption" Grid.Column="0"
                                                Text="Frame Trace" Visibility="Collapsed"
@@ -2224,15 +2225,11 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
                                         <Button Content="Manual Switch"
                                                 Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
-                                                Height="30"
-                                                Padding="10,4"
                                                 Margin="0,0,6,0"
                                                 Click="DualLinkManualFailover_Click"
                                                 ToolTip="Request a controlled active/standby switchover. The controller still verifies standby health before promotion." />
                                         <Button Content="Open Report"
                                                 Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
-                                                Height="30"
-                                                Padding="10,4"
                                                 Click="RefreshReportPreview_Click"
                                                 ToolTip="Open the Report workspace and refresh the proof preview." />
                                     </StackPanel>
@@ -2894,8 +2891,8 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource PrimaryButton}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
-                            <Button Content="Close" Style="{StaticResource SecondaryButton}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
+                            <Button x:Name="SetupConnectButton" Content="Connect" Style="{StaticResource ArSeeWorkspacePrimaryActionButtonStyle}" Width="104" Click="CloseSetupAndConnect_Click" ToolTip="Save this setup, close the setup window, and start the session immediately." />
+                            <Button Content="Close" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="88" Margin="8,0,0,0" Click="CloseSetup_Click" ToolTip="Save setup and close this window." />
                         </StackPanel>
                     </Grid>
 
@@ -2926,8 +2923,8 @@
                                 <ComboBoxItem Content="Project custom · imported JSON" />
                             </ComboBox>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <Button Content="Import profile" Style="{StaticResource SecondaryButton}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
-                                <Button Content="Export profile" Style="{StaticResource SecondaryButton}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
+                                <Button Content="Import profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
+                                <Button Content="Export profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
                             </StackPanel>
                             <TextBlock x:Name="InteroperabilityProfilePreviewText" Style="{StaticResource SubtleText}"
                                        TextWrapping="Wrap" Margin="0,0,0,12"
@@ -2963,7 +2960,7 @@
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
                                     <ComboBox x:Name="PortComboBox" Grid.Column="0" SelectionChanged="PassiveRelayPort_SelectionChanged" />
-                                    <Button Grid.Column="2" Content="Refresh" Style="{StaticResource SecondaryButton}" Click="RefreshPorts_Click" />
+                                    <Button Grid.Column="2" Content="Refresh" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
                                     <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
@@ -3050,7 +3047,7 @@
                                             <TextBlock Text="Link B addr" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                             <TextBox x:Name="BackupLinkAddressBox" Text="1" ToolTip="Defaults to Link A unless explicitly configured differently." />
                                             <Button x:Name="BackupLinkAddressHint" Content="ⓘ"
-                                                    Visibility="Collapsed" Style="{StaticResource SecondaryButton}"
+                                                    Visibility="Collapsed" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                     HorizontalAlignment="Left" Padding="4,2" Margin="0,4,0,0"
                                                     FontSize="10" Foreground="#4B647C"
                                                     Click="BackupAddressInfo_Click"
@@ -3072,9 +3069,9 @@
                                                    Text="In most redundant IEC-101 configurations, both links use the same Link Address. Please verify that these addresses match your RTU configuration. Different addresses are supported when intentionally configured."/>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <Button Content="Review Settings" Click="BackupAddressReview_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="9,4" FontSize="10.5"/>
+                                                    Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4" FontSize="10.5"/>
                                             <Button Content="Continue Anyway" Click="BackupAddressContinue_Click"
-                                                    Style="{StaticResource SecondaryButton}" Padding="9,4"
+                                                    Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4"
                                                     FontSize="10.5" Margin="6,0,0,0"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -3109,7 +3106,7 @@
                                     <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11"
                                              IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"
                                              ToolTip="Used only when optional full-session recording is enabled before connecting."/>
-                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="PassiveBrowseCaptureFolder_Click"
+                                    <Button Grid.Column="2" Content="Browse" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="PassiveBrowseCaptureFolder_Click"
                                             IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"/>
                                 </Grid>
                                 <TextBlock Text="Live monitoring creates no files. Save selected frames from Trace; full journaling is optional." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,8,0,0"/>
@@ -3316,8 +3313,8 @@
                                 <TextBlock x:Name="MappingProfileStatusText" Text="No mapping profile loaded. Raw FUN/INF will be shown." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,3,0,6" />
                                 <TextBox x:Name="MappingProfilePathBox" IsReadOnly="True" />
                             </StackPanel>
-                            <Button x:Name="BrowseMappingButton" Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButton}" Click="BrowseMapping_Click" VerticalAlignment="Bottom" />
-                            <Button x:Name="ClearMappingButton" Grid.Column="4" Content="Clear Mapping" Style="{StaticResource SecondaryButton}" Click="ClearMapping_Click" VerticalAlignment="Bottom" />
+                            <Button x:Name="BrowseMappingButton" Grid.Column="2" Content="Browse" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="BrowseMapping_Click" VerticalAlignment="Bottom" />
+                            <Button x:Name="ClearMappingButton" Grid.Column="4" Content="Clear Mapping" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ClearMapping_Click" VerticalAlignment="Bottom" />
                         </Grid>
                     </Border>
                 </Grid>
