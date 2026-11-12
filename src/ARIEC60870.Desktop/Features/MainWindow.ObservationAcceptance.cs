@@ -1659,8 +1659,9 @@ public partial class MainWindow
     /// </summary>
     private void AssertResponsiveEventJournalToolbar()
     {
-        var pillHeight = (double)FindResource("ArSeePillHeight");
-        var pillRadius = (CornerRadius)FindResource("ArSeePillCornerRadius");
+        var pillHeight = (double)FindResource("ArSeeToolbarPillHeight");
+        var circleDiameter = (double)FindResource("ArSeeToolbarCircleDiameter");
+        var pillRadius = (CornerRadius)FindResource("ArSeeToolbarPillCornerRadius");
         if (EventsSearchShell.Parent is not WrapPanel toolbar ||
             !toolbar.IsVisible || toolbar.ActualHeight < pillHeight - 2 ||
             toolbar.ActualHeight > pillHeight * 2 + 10)
@@ -1669,7 +1670,7 @@ public partial class MainWindow
         FrameworkElement[] controls =
         [
             EventsSearchShell, EventIncludeToggle, EventExcludeToggle,
-            EventsQuickCountText, EventHistoryPreviousButton,
+            EventsQuickCountText, EventHistoryPagerShell, EventHistoryPreviousButton,
             EventHistoryPageText, EventHistoryNextButton,
             EventHistoryLatestButton, EventHistoryExportButton
         ];
@@ -1686,6 +1687,29 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
+
+        // Validate the optical placement of the search input and unpainted X.
+        EventsSearchClearButton.ApplyTemplate();
+        if (EventsQuickFindBox.TranslatePoint(new Point(), EventsSearchShell).X > 42 ||
+            EventsQuickFindBox.Padding.Left > 0.1 ||
+            EventsSearchClearButton.ActualWidth < 24 ||
+            EventsSearchClearButton.Background is not SolidColorBrush
+                { Color: { A: 0 } })
+            throw new InvalidOperationException(
+                "Event Journal search field or transparent clear icon lost its alignment.");
+
+        // Pagination is one full-height pill, not three disconnected elements.
+        if (EventHistoryPagerShell.Child is not StackPanel pager ||
+            pager.Children.Count != 3 ||
+            !ReferenceEquals(pager.Children[0], EventHistoryPreviousButton) ||
+            !ReferenceEquals(pager.Children[1], EventHistoryPageText) ||
+            !ReferenceEquals(pager.Children[2], EventHistoryNextButton) ||
+            Math.Abs(EventHistoryPagerShell.ActualHeight - pillHeight) > 0.6 ||
+            Math.Abs(EventHistoryPagerShell.CornerRadius.TopLeft - pillRadius.TopLeft) > 0.1 ||
+            EventHistoryPagerShell.BorderThickness.Left < 0.9 ||
+            EventHistoryPagerShell.ActualWidth <= EventHistoryPageText.ActualWidth + 2 * circleDiameter)
+            throw new InvalidOperationException(
+                "Event Journal pagination lost its unified full-height pill shell.");
 
         // Inspect the *realized WPF templates*: independent pill and circular
         // materials. A plain radius-only white button must fail qualification.
@@ -1717,15 +1741,15 @@ public partial class MainWindow
                     is not System.Windows.Shapes.Ellipse surface ||
                 action.Template.FindName("EventJournalCircleFocusRing", action)
                     is not System.Windows.Shapes.Ellipse ||
-                Math.Abs(action.ActualWidth - 32) > 0.6 ||
-                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                Math.Abs(action.ActualWidth - circleDiameter) > 0.6 ||
+                Math.Abs(action.ActualHeight - circleDiameter) > 0.6 ||
                 surface.Fill is not LinearGradientBrush ||
                 surface.Effect is not System.Windows.Media.Effects.DropShadowEffect ||
                 Math.Abs(surface.StrokeThickness - 1) > 0.1)
                 throw new InvalidOperationException(
                     $"Event Journal {action.Name} must use a real round, softly elevated surface.");
         }
-        // Exact approved Lucide geometry, visually 10 DIP; round hit targets remain 32 DIP.
+        // Exact approved Lucide geometry, visually 10 DIP; round targets are tokenized inside the pager shell.
         if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
             EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
             previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
