@@ -860,7 +860,7 @@ public partial class MainWindow
 
             if (CommandDockColumn.ActualWidth > 1 ||
                 CommandDockPanel.Visibility != Visibility.Collapsed ||
-                WorkspaceCommandButton.Visibility != Visibility.Collapsed)
+                CommandDockMiniButton.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Passive RX-only layout exposes active command controls.");
             if (FrameTraceGrid.ActualWidth < 300 || FrameTraceGrid.ActualHeight < 95)
                 throw new InvalidOperationException($"Trace viewport too small at {viewport.Name}: {FrameTraceGrid.ActualWidth:0}x{FrameTraceGrid.ActualHeight:0}.");
