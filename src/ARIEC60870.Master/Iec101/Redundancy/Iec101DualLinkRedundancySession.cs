@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol;
 using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Master.Transport;
 
@@ -16,10 +17,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101DualLinkChannel _linkA;
     private readonly Iec101DualLinkChannel _linkB;
     private readonly Iec101ApplicationImageTracker _imageTracker = new();
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
-    private readonly ConcurrentQueue<string> _manualFailoverRequests = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
+    // An operator control belongs to the exact verified active owner present
+    // when queued. Never silently replay it after a link switch/recovery.
+    private readonly record struct QueuedControl(
+        Iec60870ControlCommandRequest Request, Iec101OwnerStamp OwnerAtQueue,
+        bool VerifiedOnQueue, DateTime QueuedUtc);
+    private static readonly TimeSpan MaxQueuedMutatingCommandAge = TimeSpan.FromSeconds(30);
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
+    private readonly Iec101BoundedFifo<string> _manualFailoverRequests = new(8);
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Queue<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly List<Iec101FailoverJournalEntry> _failoverJournal = new();
     private readonly Iec103MasterCounters _counters = new();
@@ -33,9 +42,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private DateTime _lastFailoverUtc = DateTime.MinValue;
     private int _lastFailoverLatencyMs;
     private long _sequence;
+    private int _activeGeneration;
     private bool _switchInProgress;
     private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
+    // GI intent is per active physical owner, not a whole-session counter.
+    // A startup GI on Link A cannot authorize observed-CA GI on Link B
+    // when the selected post-switch policy is Disabled or ManualOnly.
+    private bool _giRequestedOnActiveOwner;
+    private readonly Dictionary<Iec101DualLinkChannel, int> _physicalPortFailureCount = new();
+    private readonly Dictionary<Iec101DualLinkChannel, DateTime> _physicalPortNextAttemptUtc = new();
 
     public Iec101DualLinkRedundancySession(
         Iec101DualLinkRedundancyOptions options,
@@ -60,7 +76,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         if (request is not null)
         {
-            _controlCommands.Enqueue(request);
+            var active = _active;
+            var ownerStamp = active is null ? default :
+                new Iec101OwnerStamp(active.Name, active.ConnectionEpoch, Volatile.Read(ref _activeGeneration));
+            if (!_controlCommands.TryEnqueue(new QueuedControl(request, ownerStamp,
+                    active?.IsHealthy == true, DateTime.UtcNow)))
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
+                    "IEC-101 dual-link command rejected: bounded queue full",
+                    "Capacity=64; new command was NOT admitted: " + request.Summary,
+                    "Older controls are retained in order; no control is silently dropped or rerouted.",
+                    "Reissue the intended command after the active-link queue drains.");
+            }
         }
     }
 
@@ -70,9 +97,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     /// </summary>
     public void QueueManualFailover(string reason)
     {
-        _manualFailoverRequests.Enqueue(string.IsNullOrWhiteSpace(reason)
-            ? "Operator requested manual dual-link switchover"
-            : reason.Trim());
+        if (!_manualFailoverRequests.TryEnqueue(string.IsNullOrWhiteSpace(reason)
+                ? "Operator requested manual dual-link switchover"
+                : reason.Trim()))
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-FAILOVER-QUEUE-FULL",
+                "IEC-101 manual failover request rejected: bounded queue full",
+                "Capacity=8; no further switchover request was admitted.",
+                "Queued operator intents must be bounded; no implicit repeated switchover.",
+                "Wait for the current failover decision to finish before reissuing.");
     }
 
     public async Task<Iec103MasterRunResult> RunForAsync(TimeSpan duration, CancellationToken cancellationToken)
@@ -88,12 +120,27 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
+            _startupGiPending = _options.BaseSettings.SendGeneralInterrogationOnConnect;
             await OpenBothLinksAsync(cancellationToken).ConfigureAwait(false);
-            await BootstrapActiveLinkAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await BootstrapActiveLinkAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Iec101PhysicalLinkFault fault) when (!cancellationToken.IsCancellationRequested)
+            {
+                await HandlePhysicalPortFaultAsync(fault).ConfigureAwait(false);
+            }
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                await RunOneSchedulerCycleAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await RunOneSchedulerCycleAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (Iec101PhysicalLinkFault fault) when (!cancellationToken.IsCancellationRequested)
+                {
+                    await HandlePhysicalPortFaultAsync(fault).ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -110,6 +157,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         {
             SetControllerState(Iec101RedundancyControllerState.Stopping, "Stopping IEC-101 dual-link redundancy", "Closing both link transports.");
             await CloseBothLinksAsync().ConfigureAwait(false);
+            var discardedCommands = _controlCommands.Clear();
+            var discardedSwitches = _manualFailoverRequests.Clear();
+            if (discardedCommands > 0 || discardedSwitches > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-INTENTS-DISCARDED-ON-STOP",
+                    "IEC-101 dual-link queued intents discarded on Stop",
+                    "Unsent commands=" + discardedCommands + "; pending manual switches=" + discardedSwitches + ".",
+                    "Old controls and failover requests must not execute on a new link epoch.",
+                    "Issue fresh operator requests against the verified active link.");
             SetControllerState(Iec101RedundancyControllerState.Stopped, "IEC-101 dual-link redundancy stopped", completion);
         }
 
@@ -162,10 +217,114 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                       || _options.PreferredActiveLink.Equals(_options.LinkB.Name, StringComparison.OrdinalIgnoreCase);
         _active = preferB ? _linkB : _linkA;
         _standby = preferB ? _linkA : _linkB;
+        Interlocked.Increment(ref _activeGeneration);
 
-        await _active.OpenAsync(Iec101RedundancyChannelRole.Active, cancellationToken).ConfigureAwait(false);
-        await _standby.OpenAsync(Iec101RedundancyChannelRole.Standby, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _active.OpenAsync(Iec101RedundancyChannelRole.Active, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Iec101PhysicalLinkFault fault) when (!cancellationToken.IsCancellationRequested)
+        {
+            await HandlePhysicalPortFaultAsync(fault).ConfigureAwait(false);
+        }
+        try
+        {
+            await _standby.OpenAsync(Iec101RedundancyChannelRole.Standby, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Iec101PhysicalLinkFault fault) when (!cancellationToken.IsCancellationRequested)
+        {
+            await HandlePhysicalPortFaultAsync(fault).ConfigureAwait(false);
+        }
+        if (_options.BaseSettings.StartupDelayMs > 0)
+        {
+            SetControllerState(Iec101RedundancyControllerState.OpeningLinks,
+                "IEC-101 dual-link serial startup settling",
+                $"Waiting {_options.BaseSettings.StartupDelayMs} ms after opening both COM ports before the first FT1.2 request.");
+            await Task.Delay(_options.BaseSettings.StartupDelayMs, cancellationToken).ConfigureAwait(false);
+        }
         PublishSnapshot();
+    }
+
+    // A/B recovery is independent: a failing standby must not block its healthy
+    // active peer's Class 1/2 polling, and an old active control cannot move to B.
+    private async Task HandlePhysicalPortFaultAsync(Iec101PhysicalLinkFault fault)
+    {
+        var link = string.Equals(fault.LinkName, _linkA.Name, StringComparison.Ordinal)
+            ? _linkA : _linkB;
+        var wasActive = ReferenceEquals(link, _active);
+        var discardedControls = 0;
+        if (wasActive)
+        {
+            Interlocked.Increment(ref _activeGeneration);
+            discardedControls = _controlCommands.Clear();
+            _observedCommonAddressHits.Clear();
+            _dominantObservedCommonAddress = null;
+            _learnedCommonAddress = null;
+            _retriedGiWithObservedCommonAddress = false;
+            _giRequestedOnActiveOwner = false;
+            _lastClass2PollUtc = DateTime.MinValue;
+        }
+
+        try
+        {
+            await link.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // A failed port Close is not evidence of successful hardware recovery;
+            // OpenAsync will recheck ownership at the next bounded attempt.
+        }
+        link.LatchAsFailed("Physical COM I/O fault. Link epoch invalid; prior TX delivery unknown.");
+        var attempt = _physicalPortFailureCount.TryGetValue(link, out var old) ? old + 1 : 1;
+        _physicalPortFailureCount[link] = attempt;
+        var retryMs = Math.Max(Iec101PhysicalPortRecovery.BackoffMs(
+            _options.BaseSettings.TimeoutRecoveryBackoffMs, attempt),
+            (int)Math.Clamp(_options.RecoveryBackoff.TotalMilliseconds, 100, 5000));
+        _physicalPortNextAttemptUtc[link] = DateTime.UtcNow.AddMilliseconds(retryMs);
+
+        if (Iec101PhysicalPortRecovery.ShouldReport(attempt) || discardedControls > 0)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COM-PHYSICAL-RECOVERY",
+                $"IEC-101 {link.Name} physical serial fault — automatic reopen pending",
+                $"COM={link.Endpoint.PortName}; role={link.Role}; {fault.InnerException?.Message ?? fault.Message}; " +
+                $"attempt={attempt}; reopen backoff={retryMs}ms; discarded old-owner controls={discardedControls}.",
+                "This is a physical port fault, not DFC=1 or normal missing Class data. " +
+                "Neither a previous command's delivery nor a new COM handle proves secondary link health.",
+                "Check the USB/serial driver. No automatic remote reset, RTS/DTR change, " +
+                "GI replay or cross-link command transfer occurs.");
+        }
+        SetControllerState(Iec101RedundancyControllerState.Degraded,
+            $"IEC-101 {link.Name} COM disconnected — other link retained",
+            $"Faulted={link.Name}; active={_active?.Name ?? "-"}; standby={_standby?.Name ?? "-"}; " +
+            $"physical retry in {retryMs} ms. Prior frame/command delivery unverified.", "Warning");
+    }
+
+    private async Task ReopenPhysicalPortsIfDueAsync(CancellationToken cancellationToken)
+    {
+        foreach (var link in new[] { _linkA, _linkB })
+        {
+            if (link.IsOpen) continue;
+            if (_physicalPortNextAttemptUtc.TryGetValue(link, out var next) &&
+                DateTime.UtcNow < next) continue;
+
+            try
+            {
+                await link.OpenAsync(link.Role, cancellationToken).ConfigureAwait(false);
+                _physicalPortFailureCount.Remove(link);
+                _physicalPortNextAttemptUtc.Remove(link);
+                if (_options.BaseSettings.StartupDelayMs > 0)
+                    await Task.Delay(_options.BaseSettings.StartupDelayMs, cancellationToken)
+                        .ConfigureAwait(false);
+                SetControllerState(Iec101RedundancyControllerState.Recovering,
+                    $"IEC-101 {link.Name} COM reopened — secondary unverified",
+                    "Per-link FT1.2 reader/FCB epoch renewed. FC9 addressed status supervision " +
+                    "must establish fresh health before any polling, promotion or operator command.");
+            }
+            catch (Iec101PhysicalLinkFault fault) when (!cancellationToken.IsCancellationRequested)
+            {
+                await HandlePhysicalPortFaultAsync(fault).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task BootstrapActiveLinkAsync(CancellationToken cancellationToken)
@@ -176,6 +335,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         SetControllerState(Iec101RedundancyControllerState.ElectingActive, "IEC-101 active link elected", $"Active={_active.Name}; Standby={_standby.Name}.");
+        if (!_active.IsOpen)
+        {
+            SetControllerState(Iec101RedundancyControllerState.Degraded,
+                "IEC-101 selected active COM unavailable — automatic recovery pending",
+                "Standby supervision and physical reopen remain active. No GI or controls are admitted until a secondary link is verified.",
+                "Warning");
+            return;
+        }
 
         if (_options.BaseSettings.ResetRemoteLinkOnConnect)
         {
@@ -187,7 +354,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             await _active.ResetFcbAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        await _standby.RequestLinkStatusAsync("Initial standby health probe", cancellationToken).ConfigureAwait(false);
+        if (_standby.IsOpen)
+            await _standby.RequestLinkStatusAsync("Initial standby health probe", cancellationToken).ConfigureAwait(false);
         _lastStandbySupervisionUtc = DateTime.UtcNow;
         // COM-open is not a validated RTU link on either channel.
         if (!_active.IsHealthy)
@@ -233,6 +401,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task RunOneSchedulerCycleAsync(CancellationToken cancellationToken)
     {
+        await ReopenPhysicalPortsIfDueAsync(cancellationToken).ConfigureAwait(false);
         if (_active is null || _standby is null)
         {
             SetControllerState(Iec101RedundancyControllerState.NoAvailableLink, "No IEC-101 active link available", "Controller has no elected active link.", "Error");
@@ -242,6 +411,45 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (await ProcessManualFailoverRequestAsync(cancellationToken).ConfigureAwait(false))
         {
+            return;
+        }
+
+        if (_active.IsRemoteBusy)
+        {
+            // A busy active RTU cannot receive more user data. Standby only
+            // receives independent status supervision, never active requests.
+            var nowBusy = DateTime.UtcNow;
+            if (nowBusy - _lastStandbySupervisionUtc >= _options.StandbySupervisionInterval
+                && (!_standby.IsRemoteBusy || _standby.BusyStatusProbeDue(nowBusy)))
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            else if (_active.BusyStatusProbeDue(nowBusy))
+                await _active.RequestLinkStatusAsync("Active DFC=1 status-only recovery", cancellationToken).ConfigureAwait(false);
+            else
+                await Task.Delay(Math.Min(50, _active.BusyStatusDelayMs(nowBusy)), cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!_active.IsHealthy)
+        {
+            // A COM handle or yesterday's good status is not operational link
+            // proof. First rescue to a freshly verified standby, otherwise
+            // request addressed FC9 status only; never send FC3 or class polls.
+            var failingName = _active.Name;
+            if (ActiveNeedsRescue())
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            if (_active is null || _active.Name != failingName)
+                return; // Ownership changed during emergency supervision.
+            if (!_active.IsOpen)
+            {
+                await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            if (!_active.IsHealthy && !_active.IsRemoteBusy)
+                await _active.RequestLinkStatusAsync("Active link unverified — FC9 status only",
+                    cancellationToken).ConfigureAwait(false);
+            if (!_active.IsHealthy)
+                await Task.Delay(Math.Clamp(_options.BaseSettings.ResponseTimeoutMs, 100, 1000),
+                    cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -257,8 +465,35 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (_active.LinkState.Acd)
         {
-            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+            var ownerAtDrain = _active;
+            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link",
+                stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
             await EvaluateActiveHealthAsync("Class 1 drain", cancellationToken).ConfigureAwait(false);
+            // Keep the A/B backup proof fresh during a sustained event queue.
+            // Earlier this standby status check lived only below the ACD branch
+            // and was therefore unreachable while ACD stayed asserted.
+            if (ReferenceEquals(_active, ownerAtDrain) && _standby is not null &&
+                DateTime.UtcNow - _lastStandbySupervisionUtc >= _options.StandbySupervisionInterval)
+            {
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            }
+            // An always-set ACD must not starve Class 2 indefinitely.
+            // Health evaluation can switch physical owners; never submit
+            // this fairness poll to a newly promoted link by accident.
+            if (ReferenceEquals(_active, ownerAtDrain) && _active.IsHealthy &&
+                !_active.IsRemoteBusy && _active.LinkState.Acd &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+            {
+                _counters.Class2Requests++;
+                await _active.RequestClass2Async(
+                    "ACD Class 1 fairness yield to Class 2 on active A/B link", cancellationToken)
+                    .ConfigureAwait(false);
+                _lastClass2PollUtc = DateTime.UtcNow;
+                await EvaluateActiveHealthAsync("Class 2 fairness", cancellationToken)
+                    .ConfigureAwait(false);
+            }
             return;
         }
 
@@ -354,18 +589,42 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> ProcessPendingControlCommandAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
+        if (!_controlCommands.TryDequeue(out var queued))
         {
             return false;
         }
 
-        if (_active is null)
+        var request = queued.Request;
+        if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy)
         {
-            RaiseFinding(FindingSeverity.Error, "IEC101-DUAL-COMMAND-NO-ACTIVE", "IEC-101 command blocked because no active link exists", request.Summary, "Operator command cannot be delivered safely.", "Restore at least one healthy active link before issuing controls.");
+            RaiseFinding(FindingSeverity.Error, "IEC101-DUAL-COMMAND-LINK-UNVERIFIED",
+                "IEC-101 command blocked: no verified ready active link",
+                request.Summary, "Command was not sent over an unverified or busy serial link.",
+                "Restore an addressed secondary status before issuing a new command.");
             return true;
         }
 
-        request = ApplyLearnedCommonAddress(request);
+        if (IsMutatingCommand(request) &&
+            (!queued.VerifiedOnQueue ||
+             !queued.OwnerAtQueue.Matches(_active.Name, _active.ConnectionEpoch,
+                 Volatile.Read(ref _activeGeneration)) ||
+             DateTime.UtcNow - queued.QueuedUtc > MaxQueuedMutatingCommandAge))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-STALE-OWNER",
+                "IEC-101 mutating command rejected: stale or unverified queue ownership",
+                $"{request.Summary}; queued owner={queued.OwnerAtQueue.PhysicalSource ?? "-"}, " +
+                $"epoch={queued.OwnerAtQueue.LinkEpoch}, generation={queued.OwnerAtQueue.ActiveGeneration}; " +
+                $"verified-at-queue={queued.VerifiedOnQueue}; current owner={_active.Name}, " +
+                $"epoch={_active.ConnectionEpoch}, generation={_activeGeneration}; " +
+                $"queue age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "An old control or clock adjustment must never be silently delivered after failover or extended recovery.",
+                "Reissue the command deliberately against the now-verified active link.");
+            return true;
+        }
+
+        // Preserve the command's configured CA (or the explicit CA in the
+        // request). A process ASDU observed on another CA may inform GI
+        // diagnostics but must not silently readdress physical controls.
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
@@ -393,39 +652,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         await _active.SendControlCommandAsync(request, cancellationToken).ConfigureAwait(false);
-        if (_active.LinkState.Acd)
+        if (_active.LinkState.Acd && !_active.IsRemoteBusy)
         {
             await DrainClass1OnActiveAsync("Command feedback drain on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
         return true;
     }
 
-    private Iec60870ControlCommandRequest ApplyLearnedCommonAddress(Iec60870ControlCommandRequest request)
-    {
-        if (request.CommonAddress.HasValue || !_learnedCommonAddress.HasValue)
-        {
-            return request;
-        }
-
-        return new Iec60870ControlCommandRequest
-        {
-            Kind = request.Kind,
-            CommonAddress = _learnedCommonAddress.Value,
-            InformationObjectAddress = request.InformationObjectAddress,
-            Value = request.Value,
-            NumericValue = request.NumericValue,
-            SelectBeforeOperate = request.SelectBeforeOperate,
-            Qualifier = request.Qualifier,
-            RequestedUtc = request.RequestedUtc,
-            OperatorNote = request.OperatorNote
-        };
-    }
-
-    private async Task DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         if (_active is null)
         {
-            return;
+            return false;
         }
 
         _counters.Class1DrainBursts++;
@@ -433,15 +671,34 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var stoppedByGiEnd = false;
         while (!cancellationToken.IsCancellationRequested && drained < _options.BaseSettings.MaxClass1DrainFrames)
         {
+            if (_active.IsRemoteBusy) break;
+            // The normal (non-GI) drain is bounded by configured Class 2
+            // fairness even while the RTU advertises ACD on every reply.
+            // GI drains retain their separate staged completion contract.
+            if (!stopWhenGiEnds && drained > 0 &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                drained % _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 == 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+                break;
             var beforeGood = _active.LinkState.LastGoodResponseUtc;
             _counters.Class1Requests++;
             var response = await _active.RequestClass1Async(reason, cancellationToken).ConfigureAwait(false);
             drained++;
             _counters.Class1DrainFrames++;
+            if (_active.IsRemoteBusy) break;
 
             if (response.TimedOut || beforeGood == _active.LinkState.LastGoodResponseUtc)
             {
                 break;
+            }
+
+            // A genuine negative station-GI COT arrives in polled Class 1
+            // user data, not as an FC3 link confirmation. Pass that evidence
+            // to the lifecycle so group fallback can occur safely.
+            if (response.Asdu is { TypeId: 100, IsNegativeConfirm: true })
+            {
+                return true;
             }
 
             if (Iec10xGiTermination.IsObserved(response.Asdu))
@@ -479,12 +736,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 stopWhenGiEnds ? "The post-switch or startup application image may be incomplete." : "The outstation may have a large event queue or stuck ACD bit.",
                 "Increase the bounded drain limit for this outstation profile and inspect ACD/NO DATA/ACTTERM behavior.");
         }
+        return false;
     }
 
     private async Task SuperviseStandbyAsync(CancellationToken cancellationToken)
     {
-        if (_standby is null)
+        if (_standby is null || !_standby.IsOpen)
         {
+            _lastStandbySupervisionUtc = DateTime.UtcNow;
             return;
         }
 
@@ -498,6 +757,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        if (_standby.IsRemoteBusy && !_standby.BusyStatusProbeDue(DateTime.UtcNow))
+        {
+            _lastStandbySupervisionUtc = DateTime.UtcNow;
+            return;
+        }
         var response = await _standby.SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
         _lastStandbySupervisionUtc = DateTime.UtcNow;
 
@@ -691,8 +955,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         try
         {
             SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", Iec101RedundancyEventKind.FailoverStarted.ToString());
-            _imageTracker.MarkStale();
-
+            if (!to.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()) &&
+                !to.IsRemoteBusy)
+            {
+                // One bounded status probe can refresh an old standby proof.
+                // Do not reset the station or issue class polls while standby.
+                await to.RequestLinkStatusAsync("Pre-promotion fresh standby FC9 proof", cancellationToken)
+                    .ConfigureAwait(false);
+            }
             if (!to.CanRescueFailedActive(_options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
             {
                 _failoverJournal.Add(new Iec101FailoverJournalEntry
@@ -709,6 +979,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 return;
             }
 
+            _imageTracker.MarkStale();
             to.PromoteToActive();
             from.DemoteToStandby();
             if (fromWasFailed)
@@ -717,6 +988,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
             _active = to;
             _standby = from;
+            Interlocked.Increment(ref _activeGeneration);
+            // Observations belong to the original physical owner, not
+            // the newly promoted standby. A/B must discover process CA
+            // independently; never borrow A's GI recovery decision for B.
+            _observedCommonAddressHits.Clear();
+            _dominantObservedCommonAddress = null;
+            _learnedCommonAddress = null;
+            _retriedGiWithObservedCommonAddress = false;
+            _giRequestedOnActiveOwner = false;
             _lastClass2PollUtc = DateTime.MinValue;
             _lastStandbySupervisionUtc = DateTime.MinValue;
 
@@ -828,9 +1108,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         var effectiveCommonAddress = ResolveRuntimeCommonAddress(commonAddress);
         _imageTracker.MarkGiStarted(DateTime.UtcNow);
+        // This method is entered only for configured startup GI, an actual
+        // manual GI request, or the selected post-switch GI policy.
+        _giRequestedOnActiveOwner = true;
         _counters.GiCommands++;
         var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
-        if (response.TimedOut || response.Frame is null ||
+        if (response.TimedOut || response.Frame is null || _active.IsRemoteBusy ||
             (response.Asdu is null && !response.Succeeded))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-GI-UNCONFIRMED",
@@ -843,7 +1126,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
-        if (IsNegativeConfirmation(response, expectedTypeId: 100))
+        // FC3 link confirmation and GI application confirmation are distinct.
+        // A negative TI100 COT is normally retrieved by Class 1 after FC0 ACK.
+        var stationGiNegative = IsNegativeConfirmation(response, expectedTypeId: 100);
+        if (!stationGiNegative)
+            stationGiNegative = await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
+
+        if (stationGiNegative)
         {
             var caText = FormatCommonAddress(effectiveCommonAddress);
             AddApplicationImageEvent(
@@ -857,12 +1146,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 $"{lifecycleLabel}; CA={caText}; active={_active.Name}; COT={response.Asdu?.CotDisplay ?? response.Frame?.ShortMeaning ?? "-"}",
                 "The outstation rejected station interrogation, so waiting for a full QOI=20 image can leave mapped points pending.",
                 "Use group interrogation fallback, verify the interoperability list/QOI support, and continue Class 2/background scan for values.");
-            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain after negative station GI", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
             await RunGroupInterrogationFallbackOnActiveAsync($"{lifecycleLabel} negative station GI", effectiveCommonAddress, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await DrainClass1OnActiveAsync($"{lifecycleLabel} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
         }
 
         if (_options.BaseSettings.RequestClass2ImmediatelyAfterStartup)
@@ -893,6 +1177,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
         {
+            if (_active.IsRemoteBusy) break;
             var beforeRx = _active.LinkState.RxFrames;
             var response = await _active.SendGeneralInterrogationAsync(
                 $"Group interrogation fallback QOI={qoi}",
@@ -900,6 +1185,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 qualifier: (byte)qoi,
                 commonAddress: commonAddress).ConfigureAwait(false);
 
+            if (_active.IsRemoteBusy) break;
             if (response.TimedOut || _active.LinkState.RxFrames == beforeRx)
             {
                 noResponseGroups++;
@@ -965,12 +1251,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var maxSweeps = Math.Clamp(_options.BaseSettings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            if (_active.IsRemoteBusy) break;
             var beforeNoData = _active.LinkState.NoDataResponses;
             var beforeUserData = _active.LinkState.UserDataResponses;
 
             _counters.Class2Requests++;
             var exchange = await _active.RequestClass2Async(reason, cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            if (_active.IsRemoteBusy) break;
             unansweredStreak = exchange.TimedOut ? unansweredStreak + 1 : 0;
             if (unansweredStreak >= 2)
             {
@@ -1042,7 +1330,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private static bool IsCommonAddressLearningCandidate(Iec10xAsduDecode asdu)
     {
-        if (asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0)
+        if (!asdu.IsHeaderValid || asdu.Issues.Count != 0 ||
+            asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0)
         {
             return false;
         }
@@ -1052,7 +1341,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_active is null || _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        // Full workflow stays available: startup/manual/post-switch GI
+        // authorizes one evidence-based CA retry. Merely seeing process
+        // traffic NEVER authorizes a new GI or changes command targets.
+        if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy ||
+            _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue ||
+            !_giRequestedOnActiveOwner)
         {
             return false;
         }
@@ -1065,8 +1359,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         _retriedGiWithObservedCommonAddress = true;
+        // Keep the actual configured CA stable for commands, report
+        // snapshots and subsequent sessions. Only the GI recovery path
+        // is allowed to use this observed CA within the current session.
         _learnedCommonAddress = observedCa;
-        _options.BaseSettings.CommonAddress = observedCa;
 
         SetControllerState(
             Iec101RedundancyControllerState.BootstrappingApplicationImage,
@@ -1076,10 +1372,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         RaiseFinding(
             FindingSeverity.Warning,
             "IEC101-DUAL-CA-AUTO-LEARNED",
-            "IEC-101 dual-link common address auto-corrected",
-            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={_active.Name}.",
-            "Station GI/commands sent to the wrong CA can be negatively confirmed while Class 2 process data still proves the link is alive.",
-            "Keep the observed CA in setup for this outstation. The session has switched runtime GI/command CA to the observed value.");
+            "IEC-101 dual-link GI recovery used observed Common Address",
+            $"Configured CA={configuredCa} (unchanged); observed process ASDU CA={observedCa}; active={_active.Name}.",
+            "Process data suggests that the configured GI Common Address may differ from this outstation's value; control targets are not changed.",
+            "Inspect the configured CA in Setup; GI recovery used the observed CA, while commands continue to use the configured or explicitly requested CA.");
 
         await RunGeneralInterrogationLifecycleOnActiveAsync(
             $"Dual-link GI retry using observed CA {observedCa}",
@@ -1366,11 +1662,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        // Constant-time sliding memory window. Never shift 10k records for
+        // every busy SOE frame. EventReceived stays the independent live sink.
+        _events.Enqueue(enriched);
         var retainedLimit = Math.Max(100, _options.BaseSettings.MaxRetainedEvidenceEvents);
         if (_events.Count > retainedLimit)
         {
-            _events.RemoveAt(0);
+            _events.Dequeue();
             _counters.EvidenceEventsDroppedFromMemory++;
         }
         EvidenceReceived?.Invoke(this, enriched);

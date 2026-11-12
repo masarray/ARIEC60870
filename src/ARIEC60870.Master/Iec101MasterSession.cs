@@ -18,13 +18,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly IByteTransport _transport;
     private readonly Ft12Parser _ft12;
     private readonly Iec10xAsduDecoder _asduDecoder;
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Queue<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
-    private bool _fcb;
+    private readonly Iec101PerLinkTransactionEngine _transactions = new();
+    private Ft12StreamReader _reader;
     private bool _linkVerified;
+    private readonly Iec101UnbalancedBusyGate _busyGate;
     private byte[] _lastTxFrame = Array.Empty<byte>(); 
-    private readonly Iec101TransmitHistory _transmitHistory = new();
+    private Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
@@ -34,13 +36,24 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Dictionary<int, int> _observedCommonAddressHits = new();
     private int? _dominantObservedCommonAddress;
     private bool _retriedGiWithObservedCommonAddress;
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
+    private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
+        bool ReadyWhenQueued, int LinkGeneration, DateTime QueuedUtc);
+    private bool _controlLinkReady;
+    private int _linkGeneration;
+    private bool _startupClockSyncAttempted;
+    private bool _startupGiAttempted;
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
+
 
     public Iec101MasterSession(Iec103MasterSettings settings, IByteTransport transport)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _busyGate = new Iec101UnbalancedBusyGate(settings.BusyBackoffMs);
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
+        _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 
@@ -53,7 +66,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     {
         if (request is not null)
         {
-            _controlCommands.Enqueue(request);
+            if (!_controlCommands.TryEnqueue(new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
+                    Volatile.Read(ref _linkGeneration), DateTime.UtcNow)))
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-QUEUE-FULL",
+                    "IEC-101 operator command rejected: bounded queue full",
+                    "Capacity=64; new command was NOT admitted: " + request.Summary,
+                    "The command was not transmitted, dropped from an older slot, or scheduled for later replay.",
+                    "Wait for confirmed exchanges to drain before deliberately issuing a fresh command.");
+            }
         }
     }
 
@@ -70,94 +91,65 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
-            SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
-            await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
-            DrainTransportDiagnostics("Open transport");
-            // A Windows COM handle does not establish IEC-101 RTU connectivity.
-            SetState(Iec103MasterState.OpeningTransport,
-                "IEC-101 COM open — secondary link NOT verified",
-                $"COM opened: {_settings.SerialSummary}. Awaiting a valid IEC-101 secondary reply (PRM=0).");
-
-            if (_settings.ResetRemoteLinkOnConnect)
-                await SendFixedAndReceiveAsync("Reset remote link", "Link", 0, false,
-                    "Startup link reset", cancellationToken).ConfigureAwait(false);
-
-            if (_settings.ResetFcbOnConnect)
-            {
-                await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
-                    "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
-                _fcb = false;
-            }
-
-            if (!_linkVerified)
-                await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
-                    "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
-
-            var pendingStartup = _settings.SendClockSyncOnConnect || _settings.SendGeneralInterrogationOnConnect;
-            if (_linkVerified && pendingStartup)
-            {
-                pendingStartup = false;
-                await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
-            }
-            else if (!_linkVerified)
-            {
-                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-UNVERIFIED",
-                    "COM port open but IEC-101 link not verified",
-                    $"COM={_settings.PortName}; Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
-                    $"rejected RX={_counters.RejectedFrames}, echo={_counters.TxEchoFrames}, " +
-                    $"foreign primary={_counters.ForeignPrimaryFrames}.",
-                    "No GI or data delivery can be confirmed without a real secondary reply.",
-                    "Inspect IEC101-RX-* Diagnostics and full TX/RX trace; verify physical link, " +
-                    "SICAM unbalanced secondary mode and link address.");
-            }
-
+            var reconnect = false;
+            var recoveryFailures = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (!_linkVerified)
+                try
                 {
-                    // Never flood a silent RTU with GI or Class 1 requests.
-                    await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
-                        "Unverified IEC-101 link recheck", cancellationToken).ConfigureAwait(false);
-                    if (!_linkVerified)
+                    await RunTransportEpochAsync(reconnect, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+                catch (Exception fault) when (Iec101PhysicalPortRecovery.IsRecoverable(fault, _transport, cancellationToken))
+                {
+                    reconnect = true;
+                    recoveryFailures++;
+                    // A physical COM failure makes outstanding byte delivery unknown.
+                    // Invalidate epoch/FCB and pending controls BEFORE closing or reopening.
+                    _transactions.EndConnectionEpoch();
+                    _linkVerified = false;
+                    _controlLinkReady = false;
+                    _acd = false;
+                    _busyGate.Reset();
+                    _observedCommonAddressHits.Clear();
+                    _dominantObservedCommonAddress = null;
+                    _retriedGiWithObservedCommonAddress = false;
+                    Interlocked.Increment(ref _linkGeneration);
+                    var rejectedControls = _controlCommands.Clear();
+                    var report = Iec101PhysicalPortRecovery.ShouldReport(recoveryFailures);
+                    if (report || rejectedControls > 0)
                     {
-                        await Task.Delay(Math.Clamp(_settings.ResponseTimeoutMs, 250, 2000), cancellationToken)
-                            .ConfigureAwait(false);
-                        continue;
+                        SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 COM disconnected — automatic reopen",
+                            $"COM={_settings.PortName}; error={fault.GetType().Name}; attempts={recoveryFailures}; " +
+                            $"discarded unsent operator requests={rejectedControls}; previous TX delivery is unverified.",
+                            category: "Warning");
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-COM-PHYSICAL-RECOVERY",
+                            "IEC-101 physical serial transport failed — reopening same configured port",
+                            $"COM={_settings.PortName}; failure={fault.Message}; attempt={recoveryFailures}; " +
+                            $"discarded queued requests={rejectedControls}; retry after bounded backoff.",
+                            "The previous link epoch and any pending command outcome are UNKNOWN. " +
+                            "This is NOT DFC busy or a normal no-data/response timeout.",
+                            "Check adapter and COM driver if it remains unavailable. " +
+                            "No remote reset, changed serial control lines or command replay is authorized.");
                     }
+                    try
+                    {
+                        await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception closeFault)
+                    {
+                        if (report)
+                            RaiseFinding(FindingSeverity.Warning, "IEC101-COM-RECOVERY-CLOSE",
+                                "IEC-101 COM close during recovery reported an exception",
+                                closeFault.Message,
+                                "Old COM ownership may still be held by the OS driver.",
+                                "Check converter/driver health; automatic reopen remains bounded and cancellable.");
+                    }
+                    DrainTransportDiagnostics("Physical COM recovery");
+                    await Task.Delay(Iec101PhysicalPortRecovery.BackoffMs(
+                        _settings.TimeoutRecoveryBackoffMs, recoveryFailures), cancellationToken)
+                        .ConfigureAwait(false);
                 }
-
-                if (pendingStartup)
-                {
-                    pendingStartup = false;
-                    await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
-                if (await ProcessPendingControlCommandsAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    continue;
-                }
-
-                if (await TryRetryGiUsingObservedCommonAddressAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    continue;
-                }
-
-                if (_acd)
-                {
-                    await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
-                if ((DateTime.UtcNow - _lastClass2PollUtc).TotalMilliseconds >= _settings.Class2PollIntervalMs)
-                {
-                    _counters.Class2Requests++;
-                    await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Normal IEC-101 background scan", cancellationToken).ConfigureAwait(false);
-                    _lastClass2PollUtc = DateTime.UtcNow;
-                    continue;
-                }
-
-                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -173,6 +165,17 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         finally
         {
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
+            _transactions.EndConnectionEpoch();
+            _controlLinkReady = false;
+            _linkVerified = false;
+            Interlocked.Increment(ref _linkGeneration);
+            var discardedCommands = _controlCommands.Clear();
+            if (discardedCommands > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-DISCARDED-ON-STOP",
+                    "IEC-101 queued commands discarded when session stopped",
+                    "Not transmitted: " + discardedCommands + " queued operator request(s).",
+                    "Stale operator controls must not survive COM reconnect or a new session.",
+                    "Reissue intentional commands after new addressed link proof.");
             try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             DrainTransportDiagnostics("Close transport");
             SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);
@@ -195,27 +198,174 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
 
 
-    private async Task RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
+    // Each physical open is a distinct trust/FCB epoch. A serial transport
+    // exception escapes to RunAsync, which closes the old epoch and retries.
+    // Startup mutating requests are one-shot for the *whole operator session*.
+    private async Task RunTransportEpochAsync(bool reconnect, CancellationToken cancellationToken)
     {
-        if (!_linkVerified) return;
-        if (_settings.SendClockSyncOnConnect)
+            SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
+            await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            _transactions.StartConnectionEpoch();
+            _busyGate.Reset();
+            _linkVerified = false;
+            _controlLinkReady = false;
+            Interlocked.Increment(ref _linkGeneration);
+            _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
+            _acd = false;
+            _lastClass2PollUtc = DateTime.MinValue;
+            _transmitHistory = new Iec101TransmitHistory();
+            _lastTxFrame = Array.Empty<byte>();
+            if (reconnect)
+                SetState(Iec103MasterState.OpeningTransport, "IEC-101 COM reopened — verifying secondary",
+                    "Previous link epoch invalidated. FC9 addressed status verification precedes all data/GI/controls; no implicit remote reset, FCB reset or uncertain command replay.");
+            DrainTransportDiagnostics("Open transport");
+            if (_settings.StartupDelayMs > 0)
+            {
+                SetState(Iec103MasterState.StartupDelay, "IEC-101 serial startup settling",
+                    $"Waiting {_settings.StartupDelayMs} ms after opening {_settings.PortName} before the first FT1.2 request.");
+                await Task.Delay(_settings.StartupDelayMs, cancellationToken).ConfigureAwait(false);
+            }
+            // A Windows COM handle does not establish IEC-101 RTU connectivity.
+            SetState(Iec103MasterState.OpeningTransport,
+                "IEC-101 COM open — secondary link NOT verified",
+                $"COM opened: {_settings.SerialSummary}. Awaiting a valid IEC-101 secondary reply (PRM=0).");
+
+            if (!reconnect && _settings.ResetRemoteLinkOnConnect)
+                await SendFixedAndReceiveAsync("Reset remote link", "Link", 0, false,
+                    "Startup link reset", cancellationToken).ConfigureAwait(false);
+
+            if (!reconnect && _settings.ResetFcbOnConnect)
+            {
+                var resetReply = await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
+                    "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
+                if (resetReply is not null &&
+                    Iec101SecondaryResponseValidator.Validate(resetReply, _settings.LinkAddress,
+                        _lastTxFrame, pendingPrimaryFunctionCode: 7).AdvancesFcb)
+                    _transactions.ResetFrameCount();
+            }
+
+            if (!_linkVerified)
+                await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                    "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
+
+            var pendingStartup = (_settings.SendClockSyncOnConnect && !_startupClockSyncAttempted) ||
+                                 (_settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted);
+            if (_linkVerified && pendingStartup)
+            {
+                pendingStartup = !await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else if (!_linkVerified)
+            {
+                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-UNVERIFIED",
+                    "COM port open but IEC-101 link not verified",
+                    $"COM={_settings.PortName}; Link={_settings.LinkAddress} ({_settings.LinkAddressSize} byte); " +
+                    $"rejected RX={_counters.RejectedFrames}, echo={_counters.TxEchoFrames}, " +
+                    $"foreign primary={_counters.ForeignPrimaryFrames}.",
+                    "No GI or data delivery can be confirmed without a real secondary reply.",
+                    "Inspect IEC101-RX-* Diagnostics and full TX/RX trace; verify physical link, " +
+                    "SICAM unbalanced secondary mode and link address.");
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (_busyGate.IsBusy)
+                {
+                    // Remote DFC=1: only FC9 status probes may be sent; pending
+                    // commands and GI remain queued. No implicit RTU reset.
+                    if (_busyGate.ShouldProbe(DateTime.UtcNow))
+                        await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                            "Remote DFC=1 status-only recovery", cancellationToken).ConfigureAwait(false);
+                    else
+                        await Task.Delay(_busyGate.DelayMs(DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (!_linkVerified)
+                {
+                    // Never flood a silent RTU with GI or Class 1 requests.
+                    await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                        "Unverified IEC-101 link recheck", cancellationToken).ConfigureAwait(false);
+                    if (!_linkVerified)
+                    {
+                        await Task.Delay(Math.Clamp(_settings.ResponseTimeoutMs, 250, 2000), cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+                }
+
+                if (pendingStartup)
+                {
+                    pendingStartup = !await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (await ProcessPendingControlCommandsAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    continue;
+                }
+
+                if (await TryRetryGiUsingObservedCommonAddressAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    continue;
+                }
+
+                if (_acd)
+                {
+                    var yieldedToClass2 = await DrainClass1Async(
+                        "ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken)
+                        .ConfigureAwait(false);
+                    // ACD may remain set throughout a long RTU SOE burst.
+                    // A yield alone does not give Class 2 a turn: the outer
+                    // loop would re-enter Class 1 immediately. Poll it here,
+                    // but never while DFC busy or after loss of link proof.
+                    if (yieldedToClass2 && _linkVerified && !_busyGate.IsBusy)
+                    {
+                        _counters.Class2Requests++;
+                        await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true,
+                            "ACD Class 1 fairness yield to Class 2", cancellationToken)
+                            .ConfigureAwait(false);
+                        _lastClass2PollUtc = DateTime.UtcNow;
+                    }
+                    continue;
+                }
+
+                if ((DateTime.UtcNow - _lastClass2PollUtc).TotalMilliseconds >= _settings.Class2PollIntervalMs)
+                {
+                    _counters.Class2Requests++;
+                    await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Normal IEC-101 background scan", cancellationToken).ConfigureAwait(false);
+                    _lastClass2PollUtc = DateTime.UtcNow;
+                    continue;
+                }
+
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            }
+    }
+
+    // Only UNSENT startup work can be deferred through DFC=1.
+    // A transmitted clock adjustment is never retried after uncertain acknowledgment.
+    private async Task<bool> RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
+    {
+        if (!_linkVerified || _busyGate.IsBusy) return false;
+        if (_settings.SendClockSyncOnConnect && !_startupClockSyncAttempted)
         {
+            _startupClockSyncAttempted = true;
             await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
                 Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now),
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
+            if (_busyGate.IsBusy) return false;
         }
-
-        if (!_settings.SendGeneralInterrogationOnConnect) return;
-
+        if (!_settings.SendGeneralInterrogationOnConnect || _startupGiAttempted) return true;
+        _startupGiAttempted = true;
         _counters.GiCommands++;
         var giResponse = await SendVariableAndReceiveAsync(
             "IEC-101 general interrogation", "Class 2",
             Iec10xAsduBuilder.GeneralInterrogation(_settings),
             "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
 
-        if (giResponse is null || IsNegativeConfirmation(giResponse, 100))
+        if (giResponse is null || _busyGate.IsBusy || IsNegativeConfirmation(giResponse, 100))
         {
-            var why = giResponse is null ? "No secondary reply to GI" : "Negative GI response";
+            var why = _busyGate.IsBusy ? "RTU returned DFC=1 (busy) to GI" :
+                giResponse is null ? "No secondary reply to GI" : "Negative GI response";
             SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 GI not confirmed",
                 $"{why}; Link={_settings.LinkAddress}, CA={_settings.CommonAddress}. " +
                 "Not entering blind Class 1 drain.", category: "Warning", dataClass: "Class 2");
@@ -223,18 +373,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "SICAM GI request not confirmed", why,
                 "GI transmitted does not mean GI accepted or data received.",
                 "Inspect response PRM/FC, link address, CA/COT/IOA sizes and SICAM interrogation support.");
-            return;
+            return true; // GI was transmitted; never replay blindly.
         }
 
         await DrainClass1Async("GI follow-up / event queue drain",
             stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
         if (_settings.RequestClass2ImmediatelyAfterStartup)
             await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
     {
-        if (asdu is null)
+        // Learn only from successfully decoded process objects, never from
+        // an application ACK, a malformed ASDU, or a control response.
+        // Observation informs diagnostics/GI recovery; it is not permission
+        // to change the operator's configured Common Address.
+        if (asdu is null || !asdu.IsHeaderValid || asdu.Issues.Count != 0 ||
+            asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0 ||
+            asdu.TypeId is not (1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36))
         {
             return;
         }
@@ -261,7 +418,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        // An observed CA is a diagnostic hint, not a new GI operator
+        // intent. The configured startup/manual GI remains fully enabled:
+        // only after one GI was actually requested can this bounded,
+        // evidence-driven retry run. No new mode or UI confirmation.
+        if (_retriedGiWithObservedCommonAddress ||
+            !_dominantObservedCommonAddress.HasValue ||
+            _counters.GiCommands == 0 || !_linkVerified || _busyGate.IsBusy)
         {
             return false;
         }
@@ -333,11 +496,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> ProcessPendingControlCommandsAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
-        {
+        if (!Volatile.Read(ref _controlLinkReady) || _busyGate.IsBusy)
             return false;
-        }
+        if (!_controlCommands.TryDequeue(out var queued))
+            return false;
 
+        var request = queued.Request;
+        if (IsMutatingCommand(request) &&
+            (!queued.ReadyWhenQueued || queued.LinkGeneration != Volatile.Read(ref _linkGeneration) ||
+             DateTime.UtcNow - queued.QueuedUtc > TimeSpan.FromSeconds(30)))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-STALE-LINK",
+                "IEC-101 mutating command rejected after uncertain or stale serial-link state",
+                $"{request.Summary}; ready-at-queue={queued.ReadyWhenQueued}; " +
+                $"queued-generation={queued.LinkGeneration}, current-generation={_linkGeneration}; " +
+                $"age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "Physical controls and clock synchronization cannot be automatically replayed after recovery.",
+                "Reissue the control deliberately after fresh addressed secondary link proof.");
+            return true;
+        }
         SetState(Iec103MasterState.GeneralInterrogation, "IEC-101 operator command", request.Summary, category: "Command", dataClass: "Class 2");
         var commandSettings = SettingsForCommand(request);
 
@@ -364,23 +541,23 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 break;
             case Iec60870ControlCommandKind.Read:
                 await SendVariableAndReceiveAsync(request.Summary, "Class 2", Iec10xAsduBuilder.ReadCommand(commandSettings, request.InformationObjectAddress), "Manual command dock read C_RD_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Read command follow-up", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Read command follow-up", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.SingleCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SingleCommand(commandSettings, request.InformationObjectAddress, request.Value != 0, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Single command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Single command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.DoubleCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.DoubleCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_DC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Double command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Double command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.RegulatingStepCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.RegulatingStepCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_RC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Regulating step feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Regulating step feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.SetpointNormalizedCommand:
                 await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SetpointNormalizedCommand(commandSettings, request.InformationObjectAddress, request.NumericValue, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SE_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Setpoint feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                if (_acd && !_busyGate.IsBusy) await DrainClass1Async("Setpoint feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
         }
 
@@ -427,6 +604,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
         for (var qoi = firstGroup; qoi <= lastGroup && !cancellationToken.IsCancellationRequested; qoi++)
         {
+            if (_busyGate.IsBusy) break;
             var beforeRx = _counters.RxFrames;
             var beforeNoData = _counters.NoDataResponses;
             var response = await SendVariableAndReceiveAsync(
@@ -436,6 +614,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Group interrogation fallback QOI={qoi}",
                 cancellationToken).ConfigureAwait(false);
 
+            if (_busyGate.IsBusy) break;
             if (response is null || _counters.RxFrames == beforeRx)
             {
                 noResponseGroups++;
@@ -486,6 +665,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var maxSweeps = Math.Clamp(_settings.MaxClass1DrainFrames / 2, 8, 32);
         for (var i = 0; i < maxSweeps && !cancellationToken.IsCancellationRequested; i++)
         {
+            if (_busyGate.IsBusy) break;
             // An ACD=1 response means Class 1 is pending even if Class 2 returned
             // FC9. Never continue a post-GI Class 2 sweep while ignoring that signal.
             if (_acd)
@@ -508,6 +688,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.Class2Requests++;
             await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true, "Post-GI Class 2 verification sweep", cancellationToken).ConfigureAwait(false);
             _lastClass2PollUtc = DateTime.UtcNow;
+            if (_busyGate.IsBusy) break;
             unresponsiveStreak = _counters.TimedResponses == beforeValidResponses ? unresponsiveStreak + 1 : 0;
             if (unresponsiveStreak >= 2)
             {
@@ -539,7 +720,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
     }
 
-    private async Task DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         _counters.Class1DrainBursts++;
         SetState(
@@ -556,9 +737,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var stoppedByAcdClearAfterEvent = false;
         var stoppedByClass2Fairness = false;
         var stoppedByTimeout = false;
+        var stoppedByRemoteBusy = false;
 
         while (!cancellationToken.IsCancellationRequested && drained < _settings.MaxClass1DrainFrames)
         {
+            if (_busyGate.IsBusy) { stoppedByRemoteBusy = true; break; }
             // Normal ACD/event drain must not starve background telemetering. On slow IEC-101
             // serial links, continuous Class 1 requests can prevent Class 2 measurements from
             // being refreshed even when the configured Class 2 interval is already due.
@@ -580,6 +763,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             await SendFixedAndReceiveAsync("Request Class 1", "Class 1", 10, true, reason, cancellationToken).ConfigureAwait(false);
             drained++;
             _counters.Class1DrainFrames++;
+            if (_busyGate.IsBusy) { stoppedByRemoteBusy = true; break; }
             if (_counters.TimedResponses == beforeValidResponses)
             {
                 stoppedByTimeout = true;
@@ -627,7 +811,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         else
         {
-            var stopReason = stoppedByTimeout
+            var stopReason = stoppedByRemoteBusy
+                ? "RTU DFC=1; pause Class 1 until status-only recovery"
+                : stoppedByTimeout
                 ? "RTU did not reply; no blind Class 1 polling"
                 : stoppedByGiEnd
                 ? "ACTTERM observed"
@@ -645,25 +831,58 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Frames drained={drained}; stop={stopReason}; returning to Class 2 background scan.",
                 dataClass: "Class 1");
         }
+        return stoppedByClass2Fairness;
     }
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
-        if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        using var exchange = _transactions.BeginFixed(functionCode, fcv, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        // Do not register a terminal timeout until this one optional,
+        // byte-identical read retransmission has been exhausted. No FC3 replay.
+        var rxBytesBefore = _reader.ReceivedByteCount;
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken,
+            deferTimeoutHandling: true).ConfigureAwait(false);
+        if (response is null && _reader.ReceivedByteCount == rxBytesBefore &&
+            _transactions.TryAuthorizeUnchangedReadRetransmission(exchange))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _transactions.MarkTransmitAttempt(exchange);
+            await SendRawAsync(exchange.OriginalTransmit, summary + " · read retry #1",
+                dataClass, reason + " · bounded unchanged-FCB read retry #1", cancellationToken)
+                .ConfigureAwait(false);
+            _transactions.MarkAwaitingResponse(exchange);
+            response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (response is null)
+        {
+            // The first attempt was deferred while evaluating retry safety;
+            // publish its terminal transport outcome only when retry is forbidden.
+            if (_transport is ITransportExchangeObserver observer)
+            {
+                observer.ObserveExchangeOutcome(exchange.PrimaryFunctionCode, false,
+                    exchange.RejectedCandidates, exchange.RejectedCandidates);
+                DrainTransportDiagnostics("Exchange outcome");
+            }
+            RecordUnconfirmedReadTimeout(dataClass, reason, exchange.RejectedCandidates);
+        }
+        _transactions.Complete(exchange);
         return response;
     }
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, cancellationToken).ConfigureAwait(false);
-        if (Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
         return response;
     }
 
@@ -709,25 +928,51 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         });
     }
 
-    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
+    // Only the final failed read exchange reports one terminal timeout.
+    private void RecordUnconfirmedReadTimeout(string dataClass, string reason, int rejected)
     {
-        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize);
+            // First uncertain exchange invalidates queued mutating controls,
+            // before the separate three-timeout operator-visible link alarm.
+            if (_controlLinkReady)
+            {
+                _controlLinkReady = false;
+                Interlocked.Increment(ref _linkGeneration);
+            }
+            _counters.Timeouts++;
+            _counters.ConsecutiveTimeouts++;
+            _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
+            if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
+            {
+                _linkVerified = false;
+                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
+                    "IEC-101 link no longer responding",
+                    $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
+                    "An open COM port does not prove current RTU connectivity.",
+                    "Inspect serial RX and SICAM link state before retrying GI.");
+            }
+            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
+    }
+
+    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason,
+        Iec101PendingExchange exchange, CancellationToken cancellationToken, bool deferTimeoutHandling = false)
+    {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;
         var rejected = 0;
+        var decodedRxFrames = 0;
         while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
                && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
         {
-            raw = await reader.ReadFrameAsync(
+            raw = await _reader.ReadFrameAsync(
                 Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
                 cancellationToken).ConfigureAwait(false);
             if (raw is null || raw.Length == 0) break;
 
-            _counters.RxFrames++; // Physical RX bytes, not necessarily a valid outstation reply.
+            _counters.RxFrames++; // Completed physical FT1.2 candidates, not necessarily valid secondary replies.
+            decodedRxFrames++;
             var candidate = _ft12.Decode(raw);
-            var validation = Iec101SecondaryResponseValidator.Validate(
-                candidate, _settings.LinkAddress, _lastTxFrame,
+            var validation = _transactions.ValidateCandidate(exchange, candidate,
                 _transmitHistory.MatchesEarlier(candidate.RawBytes));
             if (validation.IsValid)
             {
@@ -746,25 +991,37 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 PublishRejectedIec101Rx(candidate, validation, dataClass, reason, rejected);
         }
         sw.Stop();
+        if ((!deferTimeoutHandling || acceptedFrame is not null) &&
+            _transport is ITransportExchangeObserver exchangeObserver)
+        {
+            exchangeObserver.ObserveExchangeOutcome(exchange.PrimaryFunctionCode,
+                acceptedFrame is not null, decodedRxFrames, rejected);
+            DrainTransportDiagnostics("Exchange outcome");
+        }
         if (acceptedFrame is null)
         {
-            _counters.Timeouts++;
-            _counters.ConsecutiveTimeouts++;
-            _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
-            if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
-            {
-                _linkVerified = false;
-                RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
-                    "IEC-101 link no longer responding",
-                    $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
-                    "An open COM port does not prove current RTU connectivity.",
-                    "Inspect serial RX and SICAM link state before retrying GI.");
-            }
-            SetState(Iec103MasterState.TimeoutRecovery, "IEC-101 response timeout", $"No validated secondary response within {_settings.ResponseTimeoutMs} ms after {reason}; rejected RX frames={rejected}; total rejected={_counters.RejectedFrames}.", category: "Warning", dataClass: dataClass);
+            if (!deferTimeoutHandling)
+                RecordUnconfirmedReadTimeout(dataClass, reason, rejected);
             return null;
         }
 
         var decoded = acceptedFrame;
+        if (_busyGate.Observe(decoded, DateTime.UtcNow))
+            SetState(Iec103MasterState.NormalClass2Polling,
+                _busyGate.IsBusy ? "IEC-101 remote DFC=1 — TX paused" : "IEC-101 remote DFC cleared — TX resumed",
+                _busyGate.IsBusy
+                    ? $"Suspending Class 1/2, GI and commands; FC9 status only every {Math.Clamp(_settings.BusyBackoffMs, 100, 30000)} ms."
+                    : "Validated addressed secondary DFC=0; normal scheduling may resume.",
+                category: _busyGate.IsBusy ? "Warning" : "Info", dataClass: "Link");
+        if (_busyGate.IsBusy && _controlLinkReady)
+        {
+            _controlLinkReady = false;
+            Interlocked.Increment(ref _linkGeneration);
+        }
+        else if (!_busyGate.IsBusy && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
+        {
+            _controlLinkReady = true;
+        }
         if (string.Equals(dataClass, "Class 2", StringComparison.OrdinalIgnoreCase))
         {
             var nowCycle = DateTime.UtcNow;
@@ -776,7 +1033,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
         _counters.ConsecutiveTimeouts = 0;
         _counters.TimedResponses++;
-        if (!_linkVerified && Iec101SecondaryResponseValidator.CanAdvanceFcb(decoded))
+        if (!_linkVerified && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
         {
             _linkVerified = true;
             SetState(Iec103MasterState.Connected, "IEC-101 secondary link verified",
@@ -1012,6 +1269,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void BuildPostRunFindings()
     {
+        if (_counters.TxFrames >= 2 && _counters.RxFrames == 0)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-NO-COMPLETE-RX-FRAMES",
+                "Serial link transmitted requests without any completed FT1.2 RX frame",
+                $"TX frames={_counters.TxFrames}; FT1.2 RX candidates=0; accepted secondary responses={_counters.TimedResponses}; " +
+                $"COM={_settings.PortName}; {_settings.SerialControlLineSummary}.",
+                "An open COM handle and TX/RTU LEDs do not prove that Windows received an RTU secondary reply.",
+                "Inspect IEC60870-SERIAL-NO-FRAME-EVIDENCE for actual driver RX bytes and CTS/DSR/DCD; " +
+                "compare IEC_Test with the same physical wiring. Do not change COT for a pure FC9 timeout.");
+        }
         if (_settings.SendGeneralInterrogationOnConnect && _counters.GiCommands > 0 && _counters.GiEndResponses == 0)
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-GI-NO-ACTTERM", "IEC-101 GI did not reach activation termination", $"GI commands={_counters.GiCommands}, termination={_counters.GiEndResponses}.", "Some RTUs return GI data without a clean activation termination, or the address/profile is mismatched.", "Verify COT/CA/IOA size, common address, link address, and outstation interoperability table.");
@@ -1141,7 +1408,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        // One bounded live-memory window; the callback still publishes every
+        // original received event. Eviction is explicit and is NOT RTU FIFO
+        // overflow, UART loss, or a complete on-disk capture guarantee.
+        _events.Enqueue(enriched);
+        var retainedLimit = Math.Max(100, _settings.MaxRetainedEvidenceEvents);
+        if (_events.Count > retainedLimit)
+        {
+            _events.Dequeue();
+            _counters.EvidenceEventsDroppedFromMemory++;
+        }
         EvidenceReceived?.Invoke(this, enriched);
     }
 

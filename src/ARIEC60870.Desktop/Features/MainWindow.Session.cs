@@ -531,7 +531,7 @@ public partial class MainWindow
                 LinkAddress = backupSettings.LinkAddress
             },
             PreferredActiveLink = "A",
-            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Required,
+            // The selected versioned profile, not a hard-coded GUI policy, owns post-switch GI.
             DrainClass1BeforePostSwitchGi = true,
             // Fast redundancy testing: when the operator intentionally configures a short
             // response timeout, fail over on the first active-link timeout if the standby is
@@ -546,6 +546,9 @@ public partial class MainWindow
             CommandOnActiveOnly = true
         };
         options.Validate();
+        var profile = ResolveInteroperabilityProfile(activeSettings);
+        options.ApplyInteroperabilityProfile(profile);
+        AppendSessionLog($"IEC-101 dual-link policy: {profile.Id}@{profile.Edition}; post-switch GI={options.PostSwitchGiPolicy}.");
         return new Iec101DualLinkRedundancySession(options, linkATransport, linkBTransport);
     }
 

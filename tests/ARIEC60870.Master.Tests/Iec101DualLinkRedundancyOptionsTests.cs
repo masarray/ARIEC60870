@@ -72,5 +72,100 @@ public sealed class Iec101DualLinkRedundancyOptionsTests
         Assert.Equal(7, result.CommonAddress);
         Assert.Equal(2, result.LinkAddressSize);
     }
+
+    private static Iec101DualLinkRedundancyOptions ProfileOptions() => new()
+    {
+        BaseSettings = new Iec103MasterSettings
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            LinkAddressSize = 1,
+            CauseOfTransmissionSize = 2,
+            CommonAddressSize = 2,
+            InformationObjectAddressSize = 3,
+            TransmissionMode = "Unbalanced",
+            LinkAddress = 105,
+            CommonAddress = 1,
+            UseSimulatedSlave = true
+        }
+    };
+
+    [Fact]
+    public void GenericIec101PreservesExistingPostSwitchGiButNucDoesNotMandateIt()
+    {
+        var options = ProfileOptions();
+        var generic = Iec10xInteroperabilityProfile.Generic(Iec60870ProtocolMode.Iec101);
+        Assert.Equal("OnFailover", generic.GiAfterSwitch);
+        options.ApplyInteroperabilityProfile(generic);
+        Assert.Equal(Iec101PostSwitchGiPolicy.Required, options.PostSwitchGiPolicy);
+
+        var historical = Iec10xInteroperabilityProfile.HistoricalNuc101();
+        Assert.Equal("Disabled", historical.GiAfterSwitch);
+        options.ApplyInteroperabilityProfile(historical);
+        Assert.Equal(Iec101PostSwitchGiPolicy.Disabled, options.PostSwitchGiPolicy);
+    }
+
+    [Theory]
+    [InlineData("Disabled", Iec101PostSwitchGiPolicy.Disabled)]
+    [InlineData("Manual", Iec101PostSwitchGiPolicy.ManualOnly)]
+    [InlineData("OnFailover", Iec101PostSwitchGiPolicy.Required)]
+    [InlineData("ProjectRequired", Iec101PostSwitchGiPolicy.Required)]
+    public void ExplicitProjectGiPolicyControlsActualRuntime(string choice, Iec101PostSwitchGiPolicy expected)
+    {
+        var options = ProfileOptions();
+        var profile = Iec10xInteroperabilityProfile.Generic(Iec60870ProtocolMode.Iec101) with
+        {
+            Id = "project-norwegian-substation", Edition = "project-rev1",
+            Convention = "Project-approved IEC101 interoperability", GiAfterSwitch = choice
+        };
+        options.ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile.ImportProject(profile.Export()));
+        Assert.Equal(expected, options.PostSwitchGiPolicy);
+    }
+
+    [Fact]
+    public void UnsupportedOrMismatchedNucProfileFailsClosedBeforeChangingRuntime()
+    {
+        var options = ProfileOptions();
+        options.ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile.HistoricalNuc101());
+        var unchanged = options.PostSwitchGiPolicy;
+        var wrongWidth = Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkWidth = 2 };
+        Assert.Throws<InvalidOperationException>(() => options.ApplyInteroperabilityProfile(wrongWidth));
+        Assert.Equal(unchanged, options.PostSwitchGiPolicy);
+
+        var balanced = Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkMode = "Balanced" };
+        Assert.Throws<InvalidOperationException>(() => options.ApplyInteroperabilityProfile(balanced));
+        Assert.Equal(unchanged, options.PostSwitchGiPolicy);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            options.ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile.HistoricalNuc104()));
+        Assert.Equal(unchanged, options.PostSwitchGiPolicy);
+    }
+
+    [Theory]
+    [InlineData(1, 256)]
+    [InlineData(1, -1)]
+    [InlineData(2, 65536)]
+    public void DualLinkAddressWidthRejectsUnrepresentableStandbyStationBeforeTx(int width, int badAddress)
+    {
+        var options = ProfileOptions();
+        options.BaseSettings.LinkAddressSize = width;
+        options.LinkB.LinkAddress = badAddress;
+        var error = Assert.Throws<InvalidOperationException>(() => options.Validate());
+        Assert.Contains("link address exceeds", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<InvalidOperationException>(() => options.ApplyInteroperabilityProfile(
+            Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkWidth = width }));
+    }
+
+    [Fact]
+    public void DualLinkTwoOctetAddressesRemainIndependentAndAreNotTruncated()
+    {
+        var options = ProfileOptions();
+        options.BaseSettings.LinkAddressSize = 2;
+        options.LinkA.LinkAddress = 105;
+        options.LinkB.LinkAddress = 300;
+        options.ApplyInteroperabilityProfile(
+            Iec10xInteroperabilityProfile.HistoricalNuc101() with { LinkWidth = 2 });
+        Assert.Equal(300, options.LinkB.ApplyTo(options.BaseSettings).LinkAddress);
+        Assert.Equal(Iec101PostSwitchGiPolicy.Disabled, options.PostSwitchGiPolicy);
+    }
 }
 

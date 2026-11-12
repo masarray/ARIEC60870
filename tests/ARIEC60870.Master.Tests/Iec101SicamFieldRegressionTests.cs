@@ -123,6 +123,8 @@ public sealed class Iec101SicamFieldRegressionTests
     private sealed class ScriptedSicamTransport : IByteTransport
     {
         private static readonly byte[] StatusResponse = Convert.FromHexString("100B69007416");
+        private static readonly byte[] NoDataResponse = Convert.FromHexString("100969007216");
+        private static readonly byte[] ConfirmResponse = Convert.FromHexString("100069006916");
         private readonly Queue<byte?> _pending = new();
         private readonly bool _responseOnly;
         private byte[]? _previousRequest;
@@ -153,7 +155,17 @@ public sealed class Iec101SicamFieldRegressionTests
                 EnqueueFragmented(_previousRequest ?? request);
             }
 
-            EnqueueFragmented(StatusResponse);
+            // Match the IEC-101 unbalanced request/response service matrix:
+            // FC9 link-status -> FC11, FC10/11 class poll -> FC9 no-data,
+            // FC0/3 confirmed data -> FC0 ACK. Never use FC11 as a universal reply.
+            var requestFc = request.Length > 1 ? request[1] & 0x0F : -1;
+            var reply = requestFc switch
+            {
+                8 or 9 => StatusResponse,
+                10 or 11 => NoDataResponse,
+                _ => ConfirmResponse
+            };
+            EnqueueFragmented(reply);
             _previousRequest = request;
             return ValueTask.CompletedTask;
         }

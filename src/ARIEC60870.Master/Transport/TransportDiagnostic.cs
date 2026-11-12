@@ -20,3 +20,13 @@ public interface ITransportDiagnosticSource
 {
     IReadOnlyList<TransportDiagnostic> DrainDiagnostics();
 }
+
+/// <summary>
+/// Optional transport-only evidence at the end of a protocol exchange.
+/// Does not advance protocol state or alter physical RTS/CTS/DTR settings.
+/// </summary>
+public interface ITransportExchangeObserver
+{
+    void ObserveExchangeOutcome(int primaryFunctionCode, bool acceptedSecondary,
+        int decodedRxFrames, int rejectedRxFrames);
+}

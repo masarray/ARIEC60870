@@ -26,6 +26,28 @@ public sealed class Iec101DualLinkRedundancyOptions
     public bool AllowStandbyClass2Polling { get; set; } = false;
     public bool CommandOnActiveOnly { get; set; } = true;
 
+    /// <summary>
+    /// Apply the explicitly selected IEC-101 interoperability profile to the actual
+    /// dual-link runtime, not just the report fingerprint. No physical reset, RTS/DTR,
+    /// command replay or NUC convention is inferred from the generic default.
+    /// </summary>
+    public void ApplyInteroperabilityProfile(Iec10xInteroperabilityProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        Validate(); // Check both physical link endpoints before applying a runtime policy.
+        profile.ValidateActive(BaseSettings);
+        // Historical NUC101 rev2.0 does not mandate a post-switch GI.
+        // "ProjectRequired" and "OnFailover" both express an explicit operator
+        // selection to run GI; "Manual" is never an automatic transmission.
+        PostSwitchGiPolicy = profile.GiAfterSwitch switch
+        {
+            "Disabled" => Iec101PostSwitchGiPolicy.Disabled,
+            "Manual" => Iec101PostSwitchGiPolicy.ManualOnly,
+            "OnFailover" or "ProjectRequired" => Iec101PostSwitchGiPolicy.Required,
+            _ => throw new InvalidDataException("Unsupported IEC-101 GI-after-switch policy.")
+        };
+    }
+
     public void Validate()
     {
         if (BaseSettings is null) throw new InvalidOperationException("IEC-101 base settings are required.");
@@ -47,6 +69,16 @@ public sealed class Iec101DualLinkRedundancyOptions
         if (BaseSettings.LinkAddressSize is < 1 or > 2)
         {
             throw new InvalidOperationException("IEC-101 dual-link master requires 1 or 2 octet link addresses.");
+        }
+        // An out-of-range 2-byte link address must never be silently truncated
+        // into an unrelated station address when a profile or A/B link is selected.
+        var maximumLinkAddress = BaseSettings.LinkAddressSize == 1 ? byte.MaxValue : ushort.MaxValue;
+        if (LinkA.LinkAddress < 0 || LinkA.LinkAddress > maximumLinkAddress ||
+            LinkB.LinkAddress < 0 || LinkB.LinkAddress > maximumLinkAddress)
+        {
+            throw new InvalidOperationException(
+                $"IEC-101 A/B link address exceeds the configured {BaseSettings.LinkAddressSize}-octet field. " +
+                $"Link A={LinkA.LinkAddress}; Link B={LinkB.LinkAddress}; valid range=0..{maximumLinkAddress}.");
         }
         ActiveFailureThreshold = Math.Max(1, ActiveFailureThreshold);
         StandbyFailureThreshold = Math.Max(1, StandbyFailureThreshold);

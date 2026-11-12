@@ -125,3 +125,148 @@ When troubleshooting a *real* SICAM:
 
 A simulated positive secondary test is necessary for software regression,
 but cannot certify the actual cable, SICAM module role, or GI configuration.
+
+## IEC-101 serial startup and slow telegrams (2026-11-10)
+
+The configured `StartupDelayMs` now applies after opening the COM port(s)
+for both single and dual unbalanced Master modes, before any FT1.2 TX.
+At 1200 bps the maximum FT1.2 telegram can require several seconds on
+the wire, so the reader allows one bounded baud-derived completion window
+after a real `10`/`68` start byte; fixed and variable telegrams have
+separate wire-time caps so a truncated short reply cannot stall for the
+maximum variable-frame duration. **Silence retains `ResponseTimeoutMs`**;
+invalid checksum, wrong secondary address/PRM, echo and cancellation are
+still rejected or handled as before. This corrects software timing gaps;
+it is not proof that physical SICAM communication has passed FAT.
+
+For a COM-open but unverified-link report, preserve raw TX/RX and the exact
+`IEC101-RX-*` diagnostics. If RX is empty, isolate the cable, RTS/DTR/flow
+control, baud/framing and the converter. If RX repeats TX, inspect loopback
+or other-master/port routing. Do not bypass secondary proof, automatically
+issue station reset or alter production wiring to force a green connection.
+
+## Serial driver write timeouts and status proof (2026-11-10)
+
+`IEC60870-TRANSPORT-WRITE-TIMEOUT` is a local OS/driver write failure, not
+proof that the remote RTU received the frame. The baud-derived driver write
+budget is independent of the protocol response deadline; diagnostics capture
+COM, attempted TX bytes, elapsed time, limit, CTS/DSR/DCD, configured RTS/DTR
+handshake and pending TX bytes. With RTS/CTS flow control, CTS=0 may block TX;
+with Handshake=None CTS=0 alone is not proof. Compare a known-good IEC_Test
+profile on an isolated bench before changing production cabling. A bare E5
+cannot prove FC9 Request Link Status; the Master rejects it with
+`IEC101-RX-UNEXPECTED-E5-STATUS` instead of falsely starting GI. E5 remains
+valid contextually for command ACK and Class 1/2 NO DATA.
+
+## Context-aware unbalanced link response validation (2026-11-10)
+
+Active IEC-101 now validates the pending **primary function code** against each addressed
+secondary reply, following IEC 60870-5-101 Amendment 2, subclause 6.2.1.1 / Table 10:
+
+- FC0/FC1/FC3/FC7 (confirmed services) -> secondary FC0 positive or FC1 NACK;
+  short E5 may confirm success when context permits.
+- FC8/FC9 status request -> secondary FC11 only; DFC=1 is observed busy,
+  **not** verified healthy status. FC0, FC8, FC9, E5 and a link-service error
+  cannot substitute for a positive status confirmation.
+- FC10/FC11 class polling -> secondary FC8 user data, FC9 no data or
+  context-permitted E5 (inferred no-data, without inventing ACD/DFC bits).
+- A2 is preserved raw as an unsupported IEC-101 byte, never promoted to a
+  legitimate IEC-101 NACK/ACK or link health. FC14/FC15 link-service errors
+  remain visible diagnostics, not successful replies.
+
+The same validator serves active single and A/B unbalanced channels. This is
+**not** balanced-mode implementation, NUC certification, serial hardware proof
+or a change to production RTS/CTS, COM-port policy or auto-reset behavior.
+IEC101/103/104 mode-specific interoperability must still be validated against
+real connected equipment and a controlled project-selected profile.
+
+## Remote DFC flow-control recovery (2026-11-10)
+
+An addressed, valid secondary FC11 DFC=1 response to FC9 is genuine remote
+busy evidence, not lost communications or a positive ready-status proof.
+Active IEC-101 unbalanced Master stops Class 1/2 polling, GI and command
+dispatch while busy. It probes FC9 only, after bounded `BusyBackoffMs`
+(minimum 100ms), until addressed, validated DFC=0 clears the state.
+E5 has no DFC bit and cannot clear the busy gate. Class drain and adaptive
+group/GI sweeps stop early upon busy rather than flooding the outstation.
+
+Active/standby each retain independent DFC state. Busy does not cause a
+standby takeover; a DFC=1 standby cannot be promoted based on an old good
+status. Local RTS/CTS is a separate physical flow-control layer.
+A FAT with SICAM and the known-good serial reference remains required.
+
+## Startup short ACK identity safeguard (2026-11-10)
+
+Even when the operator explicitly enables startup FC0 reset, an E5 short ACK
+does not carry Link Address, PRM or DFC. It can acknowledge that exchange
+without establishing verified RTU identity or bypassing FC9 status proof.
+An addressed checksum-valid secondary frame is required for the initial
+link-ready indication, independently for dual-link A/B; tests cover the
+unaddressed-reset case and prevent GI on an unverified active link.
+
+## P0 dual-link freshness and command ownership (2026-11-10)
+
+The dual-link scheduler must verify active link readiness **before** serving
+control-command queues, GI retries or background Class polling. A link with
+COM open but no recent validated secondary reply may send addressed FC9 status
+probes only. Standby promotion requires a fresh, failure-free status as well
+as failure-threshold eligibility; one bounded pre-promotion FC9 probe may
+refresh stale evidence. Historical good status alone cannot authorize an
+automatic or manual switchover.
+
+An IEC-101 physical control, setpoint or clock adjustment is **bound to the
+verified active owner present at queue time**. If it was queued while link
+verification was missing, the active owner changes, or it waits more than
+30 seconds, reject it with `IEC101-DUAL-COMMAND-STALE-OWNER` instead of
+silently sending later to another link. Read and GI are non-mutating and
+remain subject to verified-ready link gating. The operator must explicitly
+reissue a rejected mutating command. This guards against delayed operations
+after failover without changing station reset, RTS/CTS or SCADA controls.
+
+Field FAT: take down the active port while a command is queued, let the
+standby become healthy, and verify there is no unintended control transmission;
+then issue a fresh command intentionally. Reproduce silent standby after one
+old good FC11 and ensure it is not promoted.
+
+## P0 single-link command and DFC startup recovery
+
+A physical control or clock adjustment queued before addressed link proof, after
+an uncertain exchange, or more than 30 seconds before dispatch is not blindly
+replayed. The first unknown response invalidates the pending control generation
+even before the operator-visible three-timeout loss alarm. Reissue such a
+command deliberately after verified recovery.
+
+If an optional startup clock-sync receives DFC=1, only the UNSENT startup GI
+is deferred until FC9/DFC=0. Neither transmitted clock sync nor an ambiguous
+GI is retried automatically. Deterministic fake-serial regressions enforce
+one clock adjustment and one deferred GI; physical SICAM FAT remains required.
+
+## Field triage: TX but no RX versus valid out-of-context FC11 — 2026-11-10
+
+ARIEC may send FC9 `10 49 69 00 B2 16`, receive an addressed FC11
+`10 0B 69 00 74 16`, and later receive **no bytes at all** after the
+same status request. These are different conditions and must not be
+conflated with a COT/CA/IOA configuration problem:
+
+* `IEC60870-SERIAL-NO-FRAME-EVIDENCE` captures driver RX byte count,
+  modem CTS/DSR/DCD, TX bytes queued, request FC and consecutive exchanges
+  with no completed FT1.2 frame. If driver RX bytes are ZERO, the app cannot
+  claim the RTU replied despite LEDs. If RX bytes are nonzero but no complete
+  FT1.2 frame, inspect UART noise/framing/adapter.
+* `IEC101-NO-COMPLETE-RX-FRAMES` is the end-of-session summary when no
+  complete candidate was ever observed; it explicitly does NOT diagnose
+  whether RTU, converter, wiring or the Windows COM driver dropped the reply.
+* `IEC101-RX-OUT-OF-CONTEXT-FC11` means an FC11 link-status frame was
+  received while outstanding primary FC3/FC10/FC11 expects another service.
+  Retain this as real RX evidence; do not count it as GI/Class data or
+  advance FCB. Investigate delayed FC9 and operator-approved FCB startup.
+* Physical handshake is independently configured. `Handshake=None`
+  with RTS ON is **not** hardware RTS/CTS. CTS=0 by itself is not proof
+  of TX gating. Check exact CP8050 X5/CI8551 port and engineering-interface
+  selection plus local DTR/RTS before changing wiring.
+* Never auto-toggle RTS/DTR, change baud/framing, reset remote link,
+  send clock sync or replay physical controls to diagnose RX silence.
+  Do NOT change COT size for a pure FC9 no-response failure.
+
+This evidence instrumentation is safe to leave in the field build, but
+still requires a real SICAM / known-working IEC_Test A/B FAT.
