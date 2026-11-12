@@ -153,6 +153,10 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal("EventHistoryPageText", (string?)children[1].Attribute(Xaml + "Name"));
         Assert.Equal("EventHistoryNextButton", (string?)children[2].Attribute(Xaml + "Name"));
 
+        var first = Named(doc.Root!, "Button", "EventHistoryFirstButton");
+        Assert.Equal("First Event", (string?)first.Attribute("Content"));
+        Assert.Equal("EventHistoryFirst_Click", (string?)first.Attribute("Click"));
+        Assert.Equal("{StaticResource EventJournalActionButtonStyle}", (string?)first.Attribute("Style"));
         var latest = Named(doc.Root!, "Button", "EventHistoryLatestButton");
         Assert.Equal("Latest Event", (string?)latest.Attribute("Content"));
         Assert.Equal("{StaticResource EventJournalActionButtonStyle}", (string?)latest.Attribute("Style"));
@@ -166,6 +170,9 @@ public sealed class EventJournalPremiumSurfaceTests
         var shellStyle = Resource(theme, "Style", "ArSeeToolbarSearchShellStyle");
         var clearStyle = Resource(theme, "Style", "ArSeeToolbarSearchClearStyle");
         var actionStyle = Resource(theme, "Style", "ArSeeToolbarActionButtonStyle");
+        var workspaceStyle = Resource(theme, "Style", "ArSeeWorkspaceActionButtonStyle");
+        Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
+            (string?)workspaceStyle.Attribute("BasedOn"));
         Assert.Equal("{StaticResource EventJournalSearchClearStyle}",
             (string?)clearStyle.Attribute("BasedOn"));
         Assert.Equal("{StaticResource EventJournalActionButtonStyle}",
@@ -200,7 +207,7 @@ public sealed class EventJournalPremiumSurfaceTests
             var searchIcon = dock.Elements().Single(e => e.Name.LocalName == "Path");
             Assert.Equal("0,0,5,0", (string?)searchIcon.Attribute("Margin"));
         }
-        Assert.Equal("{StaticResource ArSeeToolbarActionButtonStyle}",
+        Assert.Equal("{StaticResource ArSeeWorkspaceActionButtonStyle}",
             (string?)Named(main.Root!, "Button", "GiStagesToggleButton").Attribute("Style"));
         var archive = Named(main.Root!, "Border", "TraceArchiveQueryShell");
         Assert.Equal("{StaticResource ArSeeToolbarSearchShellStyle}",
