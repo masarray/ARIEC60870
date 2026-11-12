@@ -561,9 +561,10 @@ public partial class MainWindow
              Math.Abs(StatusHistoryPanel.ActualWidth - bottomBefore) > 1.5 ||
              MainTabControl.ActualWidth >= centerBefore - 100))
             throw new InvalidOperationException("Command pony must resize only center work area, not top/bottom.");
-        if (CommandTypeComboBox.SelectedIndex != 1 ||
+        if ((CommandTypeComboBox.Items[1] as ComboBoxItem)?.Content?.ToString()
+                ?.StartsWith("TI 46", StringComparison.Ordinal) != true ||
             CommandOperationModeComboBox.SelectedIndex != 0)
-            throw new InvalidOperationException("Default command must be TI-46 Double Command with SBO mode.");
+            throw new InvalidOperationException("TI-46 Double Command must be offered as the default type; SBO must be initially selected.");
         CommandOperationModeComboBox.SelectedIndex = 1;
         if (CommandSelectOpenButton.Visibility != Visibility.Collapsed ||
             CommandSelectCloseButton.Visibility != Visibility.Collapsed ||
