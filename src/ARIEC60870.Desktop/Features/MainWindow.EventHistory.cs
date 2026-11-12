@@ -238,13 +238,13 @@ public partial class MainWindow
         RefreshEventHistoryFooter();
         try
         {
-            var page = await Task.Run(() => snapshot.ReadPage(journal, start));
+            var page = await Task.Run(() => snapshot.ReadDisplayPage(journal, start));
             if (generation != _eventHistoryPageGeneration ||
                 !ReferenceEquals(snapshot, _eventHistoryQuery) ||
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
             if (page.Count != Math.Min(EventHistoryPagination.PageSize, snapshot.Count - start))
                 throw new InvalidDataException("Event History page is incomplete.");
-            _historicalEventRows.ReplaceRange(page.Select(x => x.ToRow()));
+            _historicalEventRows.ReplaceRange(page);
             // Explicit page navigation begins at its first row; Latest follows
             // the last original Event # rather than resetting to the page top.
             if (_historicalEventRows.Count > 0 && IsEventsTabActive())
@@ -421,10 +421,12 @@ public partial class MainWindow
             !ReferenceEquals(RelayEventGrid.ItemsSource, _historicalEventRows))
             throw new InvalidOperationException("Unified Event History did not retain all 620 indexed rows.");
         await ShowEventHistoryPageAsync(0);
-        if (_historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 1)
+        if (_historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 1 ||
+            _historicalEventRows[0].DisplayNumber != 1)
             throw new InvalidOperationException("Event History first page unavailable.");
         await ShowEventHistoryPageAsync(200);
-        if (_historicalEventRows[0].EventNumber != 201)
+        if (_historicalEventRows[0].EventNumber != 201 ||
+            _historicalEventRows[0].DisplayNumber != 201)
             throw new InvalidOperationException("Event History middle page unavailable.");
         await ShowEventHistoryPageAsync(600);
         if (_historicalEventRows.Count != 20 ||
@@ -434,7 +436,8 @@ public partial class MainWindow
         EventsQuickFindBox.Text = "#1";
         _eventsQuickQuery = "#1";
         await RefreshEventHistoryQueryAsync();
-        if (_eventHistoryQuery.Count != 1 || _historicalEventRows[0].EventNumber != 1)
+        if (_eventHistoryQuery.Count != 1 || _historicalEventRows[0].EventNumber != 1 ||
+            _historicalEventRows[0].DisplayNumber != 1)
             throw new InvalidOperationException("Search was limited to the previous 420-event ring.");
         var exportFile = Path.Combine(Path.GetTempPath(),
             "ArSee-event-smoke-" + Guid.NewGuid().ToString("N") + ".csv");

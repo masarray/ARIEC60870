@@ -114,6 +114,12 @@ public partial class MainWindow
                 ResetRemoteLinkCheckBox, ResetFcbCheckBox,
                 Class2StartupCheckBox, ClockSyncCheckBox, GiCheckBox
             ]);
+            // Clean IEC-101 profiles must show Reset Remote Link ON before Connect.
+            // A previously saved operator OFF is intentionally authoritative.
+            if (_iec101ResetRemoteLinkOperatorOverride is null &&
+                ResetRemoteLinkCheckBox.IsChecked != true)
+                throw new InvalidOperationException(
+                    "Fresh IEC-101 startup must show Reset Remote Link ON.");
             SaveRealWpfBitmap(outputDirectory, "setup-iec101-compact-switches.png");
 
             // Passive mode keeps the identical style and Checked/Unchecked
@@ -1076,6 +1082,10 @@ public partial class MainWindow
 
                 SetEventFilters(["Measurement"], Array.Empty<string>());
                 await RefreshEventHistoryQueryAsync();
+                if (_historicalEventRows.Where((row, index) =>
+                        row.DisplayNumber != _eventHistoryPageStart + index + 1).Any())
+                    throw new InvalidOperationException(
+                        "Filtered Event Journal displays skipped or duplicated visible row numbers.");
                 if (_eventHistoryQuery.Count == 0 ||
                     _historicalEventRows.Any(row => ClassifyEventCategory(row) != "Measurement") ||
                     EventIncludeToggle.Content?.ToString() != "Include: 1")
@@ -1674,6 +1684,38 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Event Journal control is clipped outside the responsive toolbar.");
         }
+
+        // Inspect actual WPF templates, not screenshots or XAML text alone.
+        // All Event Journal actions must share Search's 32-DIP optical height.
+        System.Windows.Controls.Primitives.ButtonBase[] actions =
+        [
+            EventIncludeToggle, EventExcludeToggle, EventHistoryPreviousButton,
+            EventHistoryNextButton, EventHistoryLatestButton, EventHistoryExportButton
+        ];
+        foreach (var action in actions)
+        {
+            action.ApplyTemplate();
+            if (action.Template.FindName("EventJournalButtonSurface", action) is not Border surface ||
+                Math.Abs(action.ActualHeight - EventsSearchShell.ActualHeight) > 0.6 ||
+                Math.Abs(action.ActualHeight - 32) > 0.6 ||
+                Math.Abs(surface.CornerRadius.TopLeft - 16) > 0.6 ||
+                surface.CornerRadius.TopLeft != surface.CornerRadius.BottomRight)
+                throw new InvalidOperationException(
+                    $"Event Journal action {action.Name} lost the shared pill 32-DIP design token.");
+        }
+        // Exact operator-approved Lucide chevrons: slender stroke, round caps.
+        // 32x32 controls with radius 16 must be circular, not tiny square buttons.
+        if (EventHistoryPreviousButton.Content is not System.Windows.Shapes.Path previous ||
+            EventHistoryNextButton.Content is not System.Windows.Shapes.Path next ||
+            Math.Abs(EventHistoryPreviousButton.ActualWidth - 32) > 0.6 ||
+            Math.Abs(EventHistoryNextButton.ActualWidth - 32) > 0.6 ||
+            previous.Data.ToString() != Geometry.Parse("M15,18 L9,12 L15,6").ToString() ||
+            next.Data.ToString() != Geometry.Parse("M9,18 L15,12 L9,6").ToString() ||
+            Math.Abs(previous.StrokeThickness - 2) > 0.1 ||
+            Math.Abs(next.StrokeThickness - 2) > 0.1 ||
+            previous.Fill is not null || next.Fill is not null)
+            throw new InvalidOperationException(
+                "Event Journal navigation must show 32-DIP circles with Lucide 2-DIP stroke chevrons.");
         var bottom = toolbar.TranslatePoint(
             new Point(0, toolbar.ActualHeight), this).Y;
         var gridTop = RelayEventGrid.TranslatePoint(new Point(), this).Y;

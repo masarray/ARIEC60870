@@ -13,6 +13,76 @@
         FontFamily="{StaticResource AppFont}" Loaded="QuickFindWindow_Loaded">
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
+
+        <!-- Event Journal shared tokens: pill action buttons, 32-DIP circular
+             navigation controls, all 32 DIP tall to align with Search.
+             Template preserves WPF commands, toggle state, focus and accessibility. -->
+        <SolidColorBrush x:Key="EventJournalActionHoverBrush" Color="#F2F7FD"/>
+        <SolidColorBrush x:Key="EventJournalActionPressedBrush" Color="#E5F0FC"/>
+        <SolidColorBrush x:Key="EventJournalActionHoverStrokeBrush" Color="#B6CEE9"/>
+        <SolidColorBrush x:Key="EventJournalActionPressedStrokeBrush" Color="#84B0DF"/>
+        <ControlTemplate x:Key="EventJournalRoundedActionTemplate" TargetType="{x:Type ButtonBase}">
+            <Border x:Name="EventJournalButtonSurface" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="16" SnapsToDevicePixels="True">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="{StaticResource EventJournalActionHoverBrush}"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource EventJournalActionHoverStrokeBrush}"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="EventJournalButtonSurface" Property="Background" Value="{StaticResource EventJournalActionPressedBrush}"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource EventJournalActionPressedStrokeBrush}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                    <Setter TargetName="EventJournalButtonSurface" Property="BorderThickness" Value="1.5"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.48"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+        <Style x:Key="EventJournalActionButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalRoundedActionTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource EventJournalActionButtonStyle}">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template" Value="{StaticResource EventJournalRoundedActionTemplate}"/>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#EDF4FF"/>
+                    <Setter Property="BorderBrush" Value="#94B6E8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <!-- Setup only: compact track optically centered with the caption; preserve
              real WPF CheckBox semantics, accessible name, IsChecked bindings,
              Checked/Unchecked handlers and keyboard Space support unchanged. -->
@@ -1537,14 +1607,12 @@
                                 </Border>
                                 <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
                                             VerticalAlignment="Center">
-                                    <ToggleButton x:Name="EventIncludeToggle" Width="113" Height="29" FocusVisualStyle="{x:Null}"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
-                                                  Content="Include: All" ToolTip="Include categories; all selected by default"/>
-                                    <ToggleButton x:Name="EventExcludeToggle" Width="114" Height="29" FocusVisualStyle="{x:Null}" Margin="5,0,0,0"
-                                                  Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1"
-                                                  FontSize="11" FontWeight="Normal"
-                                                  Content="Exclude: None" ToolTip="Exclude categories; none selected by default"/>
+                                    <ToggleButton x:Name="EventIncludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
+                                                  Width="113" Content="Include: All"
+                                                  ToolTip="Include categories; all selected by default"/>
+                                    <ToggleButton x:Name="EventExcludeToggle" Style="{StaticResource EventJournalActionToggleStyle}"
+                                                  Width="114" Margin="5,0,0,0" Content="Exclude: None"
+                                                  ToolTip="Exclude categories; none selected by default"/>
                                     <Popup x:Name="EventIncludePopup" PlacementTarget="{Binding ElementName=EventIncludeToggle}"
                                            Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                                            IsOpen="{Binding IsChecked, ElementName=EventIncludeToggle, Mode=TwoWay}">
@@ -1563,8 +1631,8 @@
                                                 <CheckBox Content="Other / IEC-103" Tag="Other" IsChecked="True" Margin="2,3"
                                                           Checked="EventIncludeCheck_Changed" Unchecked="EventIncludeCheck_Changed"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <Button Content="All" Padding="9,3" Click="EventIncludeAll_Click"/>
-                                                    <Button Content="None" Padding="9,3" Margin="6,0,0,0" Click="EventIncludeNone_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="All" Padding="9,0" Click="EventIncludeAll_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="None" Padding="9,0" Margin="6,0,0,0" Click="EventIncludeNone_Click"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
@@ -1587,8 +1655,8 @@
                                                 <CheckBox Content="Other / IEC-103" Tag="Other" Margin="2,3"
                                                           Checked="EventExcludeCheck_Changed" Unchecked="EventExcludeCheck_Changed"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                    <Button Content="None" Padding="9,3" Click="EventExcludeNone_Click"/>
-                                                    <Button Content="All" Padding="9,3" Margin="6,0,0,0" Click="EventExcludeAll_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="None" Padding="9,0" Click="EventExcludeNone_Click"/>
+                                                    <Button Style="{StaticResource EventJournalActionButtonStyle}" Content="All" Padding="9,0" Margin="6,0,0,0" Click="EventExcludeAll_Click"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>
@@ -1600,33 +1668,31 @@
                                            Width="122" Margin="8,0,6,0" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis" TextAlignment="Right"
                                            ToolTip="Indexed Event Journal rows; not the RTU-generated SOE count."/>
-                                <Button x:Name="EventHistoryPreviousButton" Content="‹"
-                                        Click="EventHistoryPrevious_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Previous 100 matching events"/>
+                                <Button x:Name="EventHistoryPreviousButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryPrevious_Click"
+                                        ToolTip="Previous 100 matching events" AutomationProperties.Name="Previous events">
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="{StaticResource Ink700Brush}" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="M15,18 L9,12 L15,6"/>
+                                </Button>
                                 <TextBlock x:Name="EventHistoryPageText" Text="0–0" FontSize="11.2"
                                            Foreground="{StaticResource Ink600Brush}"
-                                           Width="104" TextAlignment="Center" VerticalAlignment="Center"
+                                           Width="84" TextAlignment="Center" VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <Button x:Name="EventHistoryNextButton" Content="›"
-                                        Click="EventHistoryNext_Click" Width="30" Height="29"
-                                        FontSize="16" FontWeight="Normal" Background="White"
-                                        Foreground="{StaticResource Ink700Brush}"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                        ToolTip="Next 100 matching events"/>
-                                <Button x:Name="EventHistoryLatestButton" Content="Latest"
-                                        Click="EventHistoryLatest_Click" Height="29" Padding="9,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                <Button x:Name="EventHistoryNextButton" Style="{StaticResource EventJournalCircleNavigationStyle}"
+                                        Click="EventHistoryNext_Click"
+                                        ToolTip="Next 100 matching events" AutomationProperties.Name="Next events">
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="{x:Null}"
+                                          Stroke="{StaticResource Ink700Brush}" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Data="M9,18 L15,12 L9,6"/>
+                                </Button>
+                                <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="Latest" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
                                         ToolTip="Jump to the most recent matching events"/>
-                                <Button x:Name="EventHistoryExportButton" Content="Export CSV"
-                                        Click="EventHistoryExport_Click" Height="29" Padding="10,3"
-                                        Margin="7,0,0,0" FontSize="11" FontWeight="Normal"
-                                        Foreground="{StaticResource Ink700Brush}" Background="White"
-                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                <Button x:Name="EventHistoryExportButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                        Content="Export CSV" Click="EventHistoryExport_Click" Margin="7,0,0,0"
                                         ToolTip="Export filtered events or all indexed events">
                                     <Button.ContextMenu>
                                         <ContextMenu>
@@ -1655,7 +1721,18 @@
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="#" Binding="{Binding EventNumber}" Width="67" MinWidth="57" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <!-- No. is the sequential position in the active query (e.g. 1–100);
+                                         original Event # stays immutable and is revealed on hover, in
+                                         source search (#123), original frame navigation and CSV export. -->
+                                    <DataGridTextColumn Header="No." Binding="{Binding DisplayNumber}" Width="67" MinWidth="57">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
+                                                <Setter Property="ToolTip" Value="{Binding DisplayNumberTooltip}"/>
+                                                <Setter Property="ToolTipService.IsEnabled" Value="True"/>
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="Event time" Binding="{Binding DisplayRelayTime}" Width="205" MinWidth="195" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     

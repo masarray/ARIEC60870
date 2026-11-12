@@ -69,6 +69,25 @@ public sealed class EventHistoryQuerySnapshot
         Array.Copy(_ordinals, checked((int)start), selected, 0, take);
         return journal.ReadSelected(selected);
     }
+
+    /// <summary>
+    /// Page projection for the operator grid only. The displayed No. follows
+    /// the current query order (including page offset), while EventNumber and
+    /// its typed original-frame evidence remain unchanged for engineering audit.
+    /// </summary>
+    public IReadOnlyList<RelayEventRow> ReadDisplayPage(
+        EventHistoryJournal journal, long start, int limit = EventHistoryPagination.PageSize)
+    {
+        var entries = ReadPage(journal, start, limit);
+        var rows = new RelayEventRow[entries.Count];
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var row = entries[i].ToRow();
+            row.DisplayNumber = checked(start + i + 1);
+            rows[i] = row;
+        }
+        return rows;
+    }
 }
 
 /// <summary>

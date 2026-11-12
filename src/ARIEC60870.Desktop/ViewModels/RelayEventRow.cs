@@ -72,8 +72,18 @@ public sealed class RelayEventRow
         RawHex = item.RawHex;
     }
 
-    // Monotonic Event Log ordinal; distinct from the original wire frame number.
+    // Immutable identity in the indexed source. This number MUST NOT change
+    // when filters or pages change; search, CSV and original-frame navigation
+    // use it as the forensic event reference.
     public long EventNumber { get; internal set; }
+
+    // One-based visual position within the currently matching query, across
+    // pages. A filter can skip EventNumbers but never creates holes in this
+    // operator-facing ordinal. Assigned before publishing a page to WPF.
+    public long DisplayNumber { get; internal set; }
+    public string DisplayNumberTooltip => DisplayNumber == EventNumber
+        ? $"Original Event #{EventNumber:N0} (indexed session identity)"
+        : $"Result {DisplayNumber:N0} · Original Event #{EventNumber:N0}";
     public Iec103RelayEventLogEntry SourceEntry { get; }
     public long Sequence { get; }
     public string PhysicalSource { get; }

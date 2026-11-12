@@ -71,6 +71,43 @@ public sealed class EventHistoryQueryTests
     }
 
     [Fact]
+    public void FilteredGridNumbersAreConsecutiveAcrossPagesWithoutRewritingEventIds()
+    {
+        using var journal = new EventHistoryJournal();
+        for (var i = 1; i <= 300; i++) journal.Append(Make(i));
+
+        var digital = EventHistoryQueryEngine.Build(journal, journal.Count,
+            "", ["Digital"], [], Category);
+        var first = digital.ReadDisplayPage(journal, 0);
+        Assert.Equal(100, first.Count);
+        Assert.Equal([1L, 2L, 3L, 4L], first.Take(4).Select(x => x.DisplayNumber));
+        Assert.Equal([1L, 3L, 5L, 7L], first.Take(4).Select(x => x.EventNumber));
+        Assert.Contains("Original Event #3", first[1].DisplayNumberTooltip);
+        Assert.Equal(100, first[^1].DisplayNumber);
+        Assert.Equal(199, first[^1].EventNumber);
+
+        var second = digital.ReadDisplayPage(journal, 100);
+        Assert.Equal(50, second.Count);
+        Assert.Equal(101, second[0].DisplayNumber);
+        Assert.Equal(201, second[0].EventNumber);
+        Assert.Equal(150, second[^1].DisplayNumber);
+        Assert.Equal(299, second[^1].EventNumber);
+
+        var sourceSearch = EventHistoryQueryEngine.Build(journal, journal.Count,
+            "#5", All, [], Category);
+        var searched = Assert.Single(sourceSearch.ReadDisplayPage(journal, 0));
+        Assert.Equal(1, searched.DisplayNumber);
+        Assert.Equal(5, searched.EventNumber);
+        Assert.Contains("Original Event #5", searched.DisplayNumberTooltip);
+
+        var unfiltered = EventHistoryQueryEngine.Build(journal, journal.Count,
+            "", All, [], Category);
+        var unfilteredPage = unfiltered.ReadDisplayPage(journal, 100);
+        Assert.Equal(101, unfilteredPage[0].DisplayNumber);
+        Assert.Equal(101, unfilteredPage[0].EventNumber);
+    }
+
+    [Fact]
     public async Task FilteredCsvUsesMatchingSourceIdsAndNeutralizesFormulaCells()
     {
         using var journal = new EventHistoryJournal();
