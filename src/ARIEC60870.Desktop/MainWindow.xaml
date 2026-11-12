@@ -85,9 +85,10 @@
                 <Trigger Property="IsKeyboardFocusWithin" Value="True">
                     <Setter TargetName="EventJournalPillFocusRing" Property="Visibility" Value="Visible"/>
                 </Trigger>
+                <!-- Disabled remains visibly pill-shaped: dim the control
+                     while retaining its restrained material and elevation. -->
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.46"/>
-                    <Setter TargetName="EventJournalPillSurface" Property="Effect" Value="{x:Null}"/>
+                    <Setter Property="Opacity" Value="0.62"/>
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -123,9 +124,10 @@
                 <Trigger Property="IsKeyboardFocusWithin" Value="True">
                     <Setter TargetName="EventJournalCircleFocusRing" Property="Visibility" Value="Visible"/>
                 </Trigger>
+                <!-- A disabled navigation button must still LOOK circular,
+                     not dissolve into the toolbar background. -->
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.44"/>
-                    <Setter TargetName="EventJournalCircleSurface" Property="Effect" Value="{x:Null}"/>
+                    <Setter Property="Opacity" Value="0.64"/>
                 </Trigger>
             </ControlTemplate.Triggers>
         </ControlTemplate>

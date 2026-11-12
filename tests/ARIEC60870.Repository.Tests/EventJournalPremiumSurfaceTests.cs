@@ -61,6 +61,26 @@ public sealed class EventJournalPremiumSurfaceTests
             (string?)e.Attribute("Value") == "32");
     }
 
+    [Fact]
+    public void DisabledControlsRetainTheirCircleOrPillElevation()
+    {
+        var doc = XDocument.Load(FindMainWindowXaml());
+        foreach (var template in new[] {
+                     "EventJournalPremiumPillTemplate",
+                     "EventJournalPremiumCircleTemplate" })
+        {
+            var trigger = Resource(doc, "ControlTemplate", template)
+                .Descendants().Single(e => e.Name.LocalName == "Trigger" &&
+                    (string?)e.Attribute("Property") == "IsEnabled" &&
+                    (string?)e.Attribute("Value") == "False");
+            Assert.Contains(trigger.Elements(), e => e.Name.LocalName == "Setter" &&
+                (string?)e.Attribute("Property") == "Opacity");
+            Assert.False(trigger.Elements().Any(e =>
+                (string?)e.Attribute("Property") == "Effect"),
+                template + " removed its depth when disabled.");
+        }
+    }
+
     [Theory]
     [InlineData("EventHistoryPreviousButton", "M15,18 L9,12 L15,6")]
     [InlineData("EventHistoryNextButton", "M9,18 L15,12 L9,6")]
