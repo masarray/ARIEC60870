@@ -98,6 +98,69 @@ public sealed class ReleaseUpdateServiceTests
             Path.Combine(root, "v3.6.9-rc.1", UpdateStartupHandshake.AckFileName)));
     }
 
+    [Theory]
+    [InlineData(0L, 128L, 128L)]
+    [InlineData(500L, 128L, 628L)]
+    public void UpdateSpaceRequirementIncludesExplicitReserve(long data, long reserve, long expected)
+    {
+        Assert.Equal(expected, UpdateStorageSafety.RequiredFreeBytes(data, reserve));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            UpdateStorageSafety.RequiredFreeBytes(-1, reserve));
+        Assert.Throws<OverflowException>(() =>
+            UpdateStorageSafety.RequiredFreeBytes(long.MaxValue, reserve));
+    }
+
+    [Fact]
+    public void BackupInventoryIncludesNestedFilesAndCountsBytes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "arsee-safe-backup-" +
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "plugins"));
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "main.exe"), new byte[11]);
+            File.WriteAllBytes(Path.Combine(root, "plugins", "plugin.dll"), new byte[7]);
+            var files = UpdateStorageSafety.EnumerateSafeFiles(root);
+            Assert.Equal(2, files.Count);
+            Assert.Equal(18, UpdateStorageSafety.TotalBytes(files));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void BackupInventoryRefusesSymlinkDirectoryWithoutTraversingIt()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "arsee-symlink-backup-" +
+            Guid.NewGuid().ToString("N"));
+        var external = Path.Combine(Path.GetTempPath(), "arsee-symlink-outside-" +
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(external);
+        try
+        {
+            File.WriteAllText(Path.Combine(external, "outside.txt"), "never-copy");
+            var link = Path.Combine(root, "linked-external");
+            try
+            {
+                Directory.CreateSymbolicLink(link, external);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                // Windows machines without developer mode may deny symlink creation.
+                return;
+            }
+            Assert.Throws<IOException>(() => UpdateStorageSafety.EnumerateSafeFiles(root));
+        }
+        finally
+        {
+            // Never recursively delete through the link to external content.
+            var link = Path.Combine(root, "linked-external");
+            if (Directory.Exists(link)) Directory.Delete(link);
+            Directory.Delete(root, true);
+            Directory.Delete(external, true);
+        }
+    }
+
     [Fact]
     public void PortableCopiesAreNeverSilentlyReplaced()
     {
