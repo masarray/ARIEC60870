@@ -27,6 +27,16 @@ public static class EventFrameExchange
         return true;
     }
 
+    public static bool IsUnaddressedSecondaryReply(Iec103MasterEvidenceEvent frame) =>
+        frame.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+        frame.Direction == FrameDirection.SlaveToMaster &&
+        (frame.Frame?.IsSingleCharacterAck == true ||
+         frame.Frame?.IsSingleCharacterNack == true);
+
+    public static bool SamePhysicalSource(string? left, string? right) =>
+        string.Equals(NormalizeSource(left), NormalizeSource(right),
+            StringComparison.Ordinal);
+
     public static bool IsClassPoll(Iec103MasterEvidenceEvent frame) =>
         frame.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
         frame.Direction == FrameDirection.MasterToSlave &&
@@ -112,6 +122,11 @@ public static class EventFrameExchange
         for (var i = targetIndex - 1; i >= 0; i--)
         {
             var candidate = frames[i];
+            // E5 has no link address: it may already have completed the poll.
+            // Never jump across it to invent an older TX/RX association.
+            if (IsUnaddressedSecondaryReply(candidate) &&
+                SamePhysicalSource(candidate.PhysicalSource, reply.PhysicalSource))
+                return null;
             if (!TryLinkKey(candidate, out var candidateKey) || candidateKey != key)
                 continue;
             if (candidate.Direction == FrameDirection.SlaveToMaster)
