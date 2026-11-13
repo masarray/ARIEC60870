@@ -328,9 +328,24 @@ public sealed class PassiveMonitorP0Tests
             var session = new PassiveMonitorSession(Options(folder),
                 new ReplayTap("COM7", Enumerable.Repeat((byte)0xA5, 200).ToArray(), 20),
                 new ReplayTap("COM8", new byte[] { 0x10, 0x49, 0x69, 0x00, 0xB2, 0x16 }, 6));
-            using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(140));
-            var result = await session.RunAsync(stop.Token);
+            // Wait for actual source bytes instead of racing a 140 ms wall
+            // clock. On a busy Windows runner, an empty stream was extended
+            // by the corruption write and misdiagnosed as a record-length
+            // failure, obscuring the intended deterministic CRC32 contract.
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var running = session.RunAsync(stop.Token);
+            while (!running.IsCompleted && !stop.IsCancellationRequested)
+            {
+                var progress = session.GetProgress();
+                if (progress.ScadaBytes >= 200 && progress.RtuBytes >= 6)
+                    break;
+                await Task.Delay(10);
+            }
+            stop.Cancel();
+            var result = await running;
             var file = Path.Combine(result.Directory, "stream-00.bin");
+            Assert.True(new FileInfo(file).Length > PassiveJournalFormat.HeaderSize,
+                "Fixture must contain a committed record before payload corruption.");
             using (var f = new FileStream(file, FileMode.Open, FileAccess.ReadWrite))
             {
                 f.Position = PassiveJournalFormat.HeaderSize;

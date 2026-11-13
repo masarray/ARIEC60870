@@ -24,6 +24,7 @@ public partial class MainWindow
     private CancellationTokenSource? _releaseUpdateCheckCancellation;
     private ReleaseUpdateCandidate? _releaseUpdateCandidate;
     private UpdateInstallPlan? _pendingUpdatePlan;
+    private CancellationTokenSource? _releaseUpdateDownloadCancellation;
     private bool _releaseUpdateIsDownloading;
 
     private void StartLazyReleaseUpdateCheck()
@@ -36,6 +37,8 @@ public partial class MainWindow
     private void CancelReleaseUpdateCheck()
     {
         try { _releaseUpdateCheckCancellation?.Cancel(); }
+        catch (ObjectDisposedException) { }
+        try { _releaseUpdateDownloadCancellation?.Cancel(); }
         catch (ObjectDisposedException) { }
     }
 
@@ -84,20 +87,23 @@ public partial class MainWindow
         var state = ReadReleaseUpdateState();
         if (state?.LastPromptedTag == latest.Tag ||
             !ReleaseUpdateService.HasManagedInstallation(Environment.ProcessPath ?? string.Empty) ||
-            _sessionCancellation is not null || _passiveMonitorSession is not null ||
-            _passiveReplayCancellation is not null)
+            IsReleaseUpdateSessionActive())
             return;
         SaveReleaseUpdateCheckState(latest.Tag, promptedTag: latest.Tag);
         if (ModernMessageBox.Show(this,
             $"ArSee {latest.Tag} is available.\n\nDownload and install the update now? ArSee will safely close, install, and reopen automatically.\n\nYour settings, signal lists and saved captures are preserved. The published Windows package may be unsigned.",
             "Update available", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-            _ = BeginUpdateAsync();
+            _ = BeginUpdateAsync(alreadyConfirmed: true);
     }
 
     private async void UpdateAvailable_Click(object sender, RoutedEventArgs e)
         => await BeginUpdateAsync();
 
-    private async Task BeginUpdateAsync()
+    private bool IsReleaseUpdateSessionActive() =>
+        _sessionCancellation is not null || _passiveMonitorSession is not null ||
+        _passiveReplayCancellation is not null;
+
+    private async Task BeginUpdateAsync(bool alreadyConfirmed = false)
     {
         if (_releaseUpdateIsDownloading || _releaseUpdateCandidate is null) return;
         var currentExe = Environment.ProcessPath ?? string.Empty;
@@ -112,8 +118,30 @@ public partial class MainWindow
 
         var candidate = _releaseUpdateCandidate;
         if (candidate.Version <= GetCurrentProductVersion()) return;
+        if (_pendingUpdatePlan is not null)
+        {
+            if (ModernMessageBox.Show(this,
+                "The update is already downloaded and verified. Close ArSee and install it now? Any active IEC session will first be finalized by the normal safe shutdown procedure.",
+                "Install prepared update", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) == MessageBoxResult.Yes)
+                Close();
+            return;
+        }
+
+        if (!alreadyConfirmed)
+        {
+            var prompt = IsReleaseUpdateSessionActive()
+                ? "An IEC session is active. Download now, then install only after you close ArSee normally?\n\nMonitoring and evidence recording will continue during download."
+                : "Download and install the verified update? ArSee will close normally, run Windows Setup and reopen.\n\nSaved profiles and captures will be preserved.";
+            if (ModernMessageBox.Show(this, prompt, "ArSee update",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+        }
+
         _releaseUpdateIsDownloading = true;
         UpdateAvailableButton.IsEnabled = false;
+        using var downloadCancellation = new CancellationTokenSource();
+        _releaseUpdateDownloadCancellation = downloadCancellation;
         try
         {
             UpdateAvailableButton.Content = "Downloading 0%";
@@ -125,11 +153,27 @@ public partial class MainWindow
             // No application shutdown before the package is fully downloaded,
             // exact-size verified and SHA-256 matched.
             var plan = await ReleaseUpdateService.DownloadAndStageAsync(
-                candidate, currentExe, progress, CancellationToken.None);
+                candidate, currentExe, progress, downloadCancellation.Token);
             _pendingUpdatePlan = plan;
-            UpdateAvailableButton.Content = "Installing after safe close…";
             Closed += LaunchVerifiedUpdateWorkerOnClosed;
-            Close(); // Existing active/passive shutdown gate owns safe final close.
+            if (IsReleaseUpdateSessionActive())
+            {
+                // A verified download never interrupts an ongoing IEC session.
+                UpdateAvailableButton.Content = "Ready · install on exit";
+                UpdateAvailableButton.ToolTip =
+                    "Installer verified. Close ArSee normally after the IEC session ends to apply the update.";
+            }
+            else
+            {
+                UpdateAvailableButton.Content = "Installing after safe close…";
+                Close();
+            }
+        }
+        catch (OperationCanceledException) when (downloadCancellation.IsCancellationRequested)
+        {
+            // A window close during download never launches the worker.
+            if (IsLoaded)
+                UpdateAvailableButton.Content = $"Update available · {candidate.Tag}";
         }
         catch (Exception ex)
         {
@@ -142,8 +186,10 @@ public partial class MainWindow
         }
         finally
         {
+            _releaseUpdateDownloadCancellation = null;
             _releaseUpdateIsDownloading = false;
-            UpdateAvailableButton.IsEnabled = true;
+            if (IsLoaded)
+                UpdateAvailableButton.IsEnabled = true;
         }
     }
 

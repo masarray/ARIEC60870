@@ -14,7 +14,7 @@ on:
       profile:
         description: 'Full evidence or installer-upgrade FAT'
         type: choice
-        options: [full, installer]
+        options: [full, installer, updater]
         required: true
         default: full
       expected_sha:
@@ -22,6 +22,12 @@ on:
         type: string
         required: false
         default: ''
+      installer_runner:
+        description: 'Select dedicated interactive Windows FAT VM for updater profile'
+        type: choice
+        options: [hosted, self-hosted]
+        required: true
+        default: hosted
       requested_pr:
         description: 'Optional PR number for head verification'
         type: string
@@ -46,6 +52,7 @@ jobs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
       run_format: ${{ steps.scope.outputs.run_format }}
       run_packages: ${{ steps.scope.outputs.run_packages }}
+      run_updater_fat: ${{ steps.scope.outputs.run_updater_fat }}
       run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
@@ -57,6 +64,7 @@ jobs:
             let runWindows = true;
             let runFormat = true;
             let runPackages = true;
+            let runUpdaterFat = false;
             let runWorkflowLint = context.eventName !== 'workflow_dispatch';
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
@@ -74,6 +82,9 @@ jobs:
               files.every(file => paths(file).every(isStatic));
             const runtimeChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(isRuntime));
+            const updaterChanged = files => fullyListed(files) &&
+              files.some(file => paths(file).some(name =>
+                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake|UpdateStorageSafety|InnoRegistrationSnapshot)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1)$/i.test(name)));
             const workflowChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
@@ -119,6 +130,7 @@ jobs:
               runWindows = !staticOnly(files);
               runFormat = formattingRelevant(files);
               runPackages = runtimeChanged(files);
+              runUpdaterFat = updaterChanged(files);
               runWorkflowLint = workflowChanged(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
@@ -131,6 +143,7 @@ jobs:
                   runWindows = !staticOnly(files);
                   runFormat = formattingRelevant(files);
                   runPackages = runtimeChanged(files);
+                  runUpdaterFat = updaterChanged(files);
                   runWorkflowLint = workflowChanged(files);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
@@ -173,6 +186,7 @@ jobs:
             core.setOutput('run_windows', String(runWindows));
             core.setOutput('run_format', String(runFormat));
             core.setOutput('run_packages', String(runPackages));
+            core.setOutput('run_updater_fat', String(runUpdaterFat));
             core.setOutput('run_workflow_lint', String(runWorkflowLint));
             core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
             core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
@@ -210,8 +224,9 @@ jobs:
     runs-on: ${{ needs.classify.outputs.run_windows == 'true' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 25
     env:
-      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
-      RUN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' }}
+      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (needs.classify.outputs.run_updater_fat == 'true' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
+      RUN_INSTALLER: ${{ needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater')) }}
+      RUN_UPDATER_FAST: ${{ github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true' }}
       COLLECT_COVERAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true') }}
     steps:
       - name: Markdown-only change
@@ -337,7 +352,7 @@ jobs:
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip" -Encoding ascii
 
       - name: Package independent IEC-101 2/4-RX field test tools
-        if: env.RUN_PACKAGES == 'true'
+        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -365,7 +380,7 @@ jobs:
           Set-Content -Path (Join-Path $package 'SHA256SUMS.txt') -Value "$hash  ARIEC60870-IEC101-RX-Field-Tools-win-x64.zip" -Encoding ascii
 
       - name: Upload independent field test toolkit
-        if: env.RUN_PACKAGES == 'true'
+        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-IEC101-RX-Field-Tools-win-x64
@@ -374,7 +389,7 @@ jobs:
           retention-days: 14
 
       - name: OBS-C real-WPF viewport and 1400-frame acceptance
-        if: env.RUN_PACKAGES == 'true'
+        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -390,7 +405,7 @@ jobs:
           if ((Get-ChildItem $output -Filter *.png).Count -lt 7) { throw 'Missing real-WPF viewport screenshots.' }
 
       - name: Upload OBS-C Windows WPF screenshots and metrics
-        if: always() && env.RUN_PACKAGES == 'true'
+        if: always() && env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-OBS-C-ui-evidence
@@ -399,7 +414,7 @@ jobs:
           retention-days: 14
 
       - name: Upload integrated P0 Windows GUI test package
-        if: env.RUN_PACKAGES == 'true'
+        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-Passive-Monitor-P0-GUI-win-x64
@@ -417,14 +432,18 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # Installer upgrade/restart-manager acceptance is deliberately NOT in the
-  # first job: an external installer hang must never delay tests/screenshots.
-  # Only /ci installer or explicit installer dispatch runs this expensive gate.
+  # A staged-worker update FAT is triggered selectively by updater changes,
+  # without also running the slow legacy active-Master reinstall sequence.
+  # The full legacy installer/active-Master gate remains independently available
+  # via /ci installer / explicit installer workflow dispatch.
   installer-upgrade:
     name: Bounded previous-release upgrade and running-Master shutdown
-    needs: build-test
-    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
-    runs-on: windows-latest
+    needs: [classify, build-test]
+    if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater'))
+    # Latest Windows Server image stalled even on a tiny Inno-only canary before
+    # producing any Setup log (PR #194, CI run 43354277092). Use a different
+    # supported Windows image for installer execution; keep all proof gates.
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater') && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout installer scripts
@@ -475,6 +494,7 @@ jobs:
           retention-days: 14
 
       - name: Verify previous release upgrade and active Master shutdown
+        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
         shell: pwsh
         timeout-minutes: 15
         run: |
@@ -582,11 +602,30 @@ jobs:
           "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
+      - name: Explain separate full installer qualification
+        if: needs.classify.outputs.run_updater_fat == 'true' && github.event_name != 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          Write-Warning 'Source CI compiled the exact updater installer but did NOT run full install/restart FAT: even minimal Inno SetupLoader stalls before logging on GitHub-hosted runners. Use dispatch profile=updater on a disposable interactive self-hosted Windows VM before declaring stable release qualified.'
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Windows updater qualification'
+          Add-Content $env:GITHUB_STEP_SUMMARY 'Compilation + unit/WPF gates passed. **Real Inno runtime FAT NOT RUN on this PR.** Block public stable auto-update until dedicated interactive Windows VM acceptance provides evidence; tracked by issue #195.'
+
+      - name: Verify independent update worker from genuine installed previous release
+        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'updater'
+        shell: pwsh
+        timeout-minutes: 8
+        run: ./scripts/test-updater-worker-fat.ps1
+
       - name: Upload successful installer upgrade acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-installer-upgrade-acceptance
-          path: artifacts/installer/UPGRADE-ACCEPTANCE.txt
+          path: |
+            artifacts/installer/UPGRADE-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-FAT-OLD-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-DIRECT-INNO.log
           if-no-files-found: ignore
           retention-days: 14
