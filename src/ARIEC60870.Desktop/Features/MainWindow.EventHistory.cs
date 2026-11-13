@@ -277,6 +277,10 @@ public partial class MainWindow
             return;
         }
         start = Math.Clamp(start, 0, LastHistoryPageStart());
+        // A programmatic/explicit visit to an older page is not a live-tail
+        // subscription. Never let a stale follower flag steal that viewport.
+        if (start < LastHistoryPageStart())
+            _eventHistoryFollowingLatest = false;
         _eventHistoryPageStart = start;
         _eventHistoryPageBusy = true;
         RefreshEventHistoryFooter();
