@@ -2,7 +2,7 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; Compile on Windows with Inno Setup 6.3+.
 #ifndef AppVersion
-  #define AppVersion "3.6.7"
+  #define AppVersion "3.6.9"
 #endif
 #ifndef SourceRoot
   #define SourceRoot "..\artifacts\passive-gui-publish"

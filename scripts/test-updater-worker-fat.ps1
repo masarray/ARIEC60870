@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Windows-only live integration test of the staged worker, not just Inno CLI.
 # Uses actual previous public release from the preceding installer CI step.
-param([string]$PreviousVersion = '3.6.7')
+param([string]$PreviousVersion = '3.6.7', [switch]$Precompiled)
 
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
@@ -31,6 +31,14 @@ $donePath = Join-Path $stage 'completed.marker'
 $log = Join-Path $stage 'worker-fat.txt'
 $currentSetup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
 $oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
+# Native executable startup on GitHub Windows runners succeeded from runner
+# TEMP even when the identical canary under the repository artifact directory
+# timed out before /LOG. Execute setup fixtures from an isolated temp folder
+# (production updater similarly executes its setup from LOCALAPPDATA staging).
+$executionRoot = Join-Path $env:RUNNER_TEMP 'ariec-inno-fat-exec'
+$canaryOutput = Join-Path $executionRoot 'canary'
+New-Item -ItemType Directory -Force -Path $canaryOutput | Out-Null
+$oldSetupRuntime = Join-Path $executionRoot "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
 $oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
 # Never replace an existing engineer installation, even on a CI runner.
 if (Test-Path $installDir) {
@@ -45,9 +53,19 @@ $oldApp = $null
 $workerProcess = $null
 $launched = $null
 function Invoke-Bounded {
-  param([string]$File, [string]$Args, [int]$TimeoutSec = 95, [string]$DiagnosticLog = $oldInstallLog)
+  # Never name a PowerShell function parameter $Args: $args is an automatic
+  # variable holding unbound arguments, not a reliable installer command line.
+  param([string]$File, [string]$InstallerArguments,
+        [int]$TimeoutSec = 95, [string]$DiagnosticLog = $oldInstallLog)
+  if (!$PSBoundParameters.ContainsKey('InstallerArguments') -or
+      [string]::IsNullOrWhiteSpace($InstallerArguments) -or
+      $InstallerArguments -notmatch '(?i)/VERYSILENT' -or
+      $InstallerArguments -notmatch '(?i)/NORESTART') {
+    throw 'Refusing to start CI installer: full silent, no-reboot arguments were not bound.'
+  }
   Write-Host "CI fixture: starting $(Split-Path $File -Leaf) (bounded $TimeoutSec s)"
-  $process = Start-Process -FilePath $File -ArgumentList $Args -PassThru
+  Write-Host "CI fixture: effective process arguments: $InstallerArguments"
+  $process = Start-Process -FilePath $File -ArgumentList $InstallerArguments -PassThru
   if (!$process.WaitForExit($TimeoutSec * 1000)) {
     Write-Warning "CI fixture installer timed out: PID $($process.Id)"
     Get-CimInstance Win32_Process | Where-Object {
@@ -80,23 +98,23 @@ try {
   # Small Inno canary distinguishes a broken Windows runner/Setup loader
   # from a large ArSee packaging problem before expensive version-cross FAT.
   $canaryInstall = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870-CI-Canary'
-  $canaryBinary = Join-Path $output 'ARIEC60870-inno-ci-canary.exe'
-  $canaryLog = Join-Path $output 'UPDATER-FAT-CANARY-INNO.log'
-  & $iscc "/DOutputRoot=$output" installer/ARIEC60870.CI-Canary.iss
+  $canaryBinary = Join-Path $canaryOutput 'ARIEC60870-inno-ci-canary.exe'
+  $canaryLog = Join-Path $canaryOutput 'UPDATER-FAT-CANARY-INNO.log'
+  & $iscc "/DOutputRoot=$canaryOutput" installer/ARIEC60870.CI-Canary.iss
   if ($LASTEXITCODE -ne 0 -or !(Test-Path $canaryBinary)) {
     throw 'Minimal Inno Setup canary compilation failed.'
   }
   $canaryArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /LOG="' + $canaryLog + '"'
   # A real release uses one self-contained SetupLdr EXE; no detached .bin files.
-  Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
+  Invoke-Bounded -File $canaryBinary -InstallerArguments $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
   if (!(Test-Path (Join-Path $canaryInstall 'canary.txt'))) {
     throw 'Minimal Inno Setup canary installed no payload.'
   }
   $canaryUninstall = Join-Path $canaryInstall 'unins000.exe'
-  Invoke-Bounded -File $canaryUninstall -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
+  Invoke-Bounded -File $canaryUninstall -InstallerArguments '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
   Write-Host 'Real single-EXE Inno SetupLoader canary compiled, installed and uninstalled successfully.'
 
-  if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
+  if (!$Precompiled -and !(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     # Dedicated worker FAT must not wait for the separate legacy installer
     # gate. Acquire and verify the previous immutable public release itself.
     New-Item -ItemType Directory -Force -Path $source | Out-Null
@@ -118,22 +136,42 @@ try {
     }
     Expand-Archive -Path $oldZip -DestinationPath $source -Force
   }
-  if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
+  if (!$Precompiled -and !(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     throw 'Verified previous release does not contain ARIEC60870.exe.'
   }
   if (!(Test-Path $currentSetup) -or !(Test-Path $currentSource)) {
     throw 'Current installer or tested WPF binary missing.'
   }
 
-  & $iscc "/DAppVersion=$PreviousVersion" "/DSourceRoot=$source" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
-  if ($LASTEXITCODE -ne 0 -or !(Test-Path $oldSetup)) {
-    throw 'Previous-version installer compilation failed.'
+  if (!$Precompiled) {
+    & $iscc "/DAppVersion=$PreviousVersion" "/DSourceRoot=$source" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+    if ($LASTEXITCODE -ne 0 -or !(Test-Path $oldSetup)) {
+      throw 'Previous-version installer compilation failed.'
+    }
+  } else {
+    # The independent FAT job MUST NOT compile a large setup on the same
+    # Windows runner that executes installers. Verify exact bytes supplied by
+    # the preceding build-only CI job; never trust a filename alone.
+    $manifest = Join-Path $output 'FAT-SHA256SUMS.txt'
+    if (!(Test-Path $manifest)) { throw 'Compiled FAT installer manifest missing.' }
+    foreach ($setupFile in @($oldSetup, $currentSetup)) {
+      if (!(Test-Path $setupFile)) { throw "Missing precompiled installer: $setupFile" }
+      $fileName = Split-Path $setupFile -Leaf
+      $lines = @(Get-Content $manifest | Where-Object { $_.EndsWith("  $fileName") })
+      if ($lines.Count -ne 1) { throw "Missing or ambiguous exact digest for $fileName" }
+      $hash = ([regex]::Match($lines[0], '^[0-9a-fA-F]{64}')).Value
+      if (!$hash -or (Get-FileHash $setupFile -Algorithm SHA256).Hash -ine $hash) {
+        throw "Precompiled installer digest mismatch: $fileName"
+      }
+    }
+    Write-Host 'FAT installer inputs: both independently packaged versions passed SHA-256.'
   }
   # /SP- is explicit for unattended runs, even if the Inno compiler's
   # current default already disables startup prompts. The full log proves
   # whether the loader, Restart Manager, or filesystem is the bottleneck.
   $oldArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /NOFORCECLOSEAPPLICATIONS /LOG="' + $oldInstallLog + '"'
-  Invoke-Bounded -File $oldSetup -Args $oldArgs -TimeoutSec 95
+  Copy-Item $oldSetup $oldSetupRuntime -Force
+  Invoke-Bounded -File $oldSetupRuntime -InstallerArguments $oldArgs -TimeoutSec 95
   if (!(Test-Path $installedExe) -or
       (Get-Item $installedExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
     throw 'Prior installed executable version is not genuine previous release.'
@@ -213,9 +251,10 @@ try {
   Copy-Item $log (Join-Path $output 'UPDATER-WORKER-ACCEPTANCE.txt') -Force
 }
 finally {
-  if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log')) {
+  if ($canaryLog -and (Test-Path $canaryLog)) {
     Write-Host 'CI Inno canary diagnostic tail:'
-    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Tail 10
+    Get-Content $canaryLog -Tail 10
+    Copy-Item $canaryLog (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Force
   }
   if (Test-Path $oldInstallLog) {
     Write-Host 'Old installer diagnostic tail:'
@@ -234,7 +273,7 @@ finally {
   } else {
     $uninstall = Join-Path $installDir 'unins000.exe'
     if (Test-Path $uninstall) {
-      Invoke-Bounded -File $uninstall -Args '/VERYSILENT /NORESTART'
+      Invoke-Bounded -File $uninstall -InstallerArguments '/VERYSILENT /NORESTART'
     }
   }
 }

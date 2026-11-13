@@ -1,0 +1,88 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Inno runtime diagnostic
+# Independently reproduce the native SetupLoader stall without running ArSee
+# or requiring the full .NET solution build. This is not an updater acceptance.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/inno-runtime-diagnostic.yml
+      - scripts/diagnose-inno-runner.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  native-canary:
+    name: Diagnose Windows hosted installer bootstrap
+    runs-on: windows-2022
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Inno Setup compiler
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler unavailable.' }
+          }
+      # Compare the identical tiny SetupLoader before and after a large
+      # immutable public installer download. This isolates environmental
+      # interference without installing ArSee or disabling endpoint security.
+      - name: Tiny native Inno installer before large asset transfer
+        id: before
+        continue-on-error: true
+        shell: pwsh
+        run: ./scripts/diagnose-inno-runner.ps1 -TimeoutSeconds 25 -RunLabel before
+
+      - name: Fetch and verify official 3.6.8 installer without executing it
+        if: steps.before.outcome == 'success'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = 'https://github.com/masarray/ARIEC60870/releases/download/v3.6.8'
+          $name = 'ARIEC60870-v3.6.8-setup-win-x64.exe'
+          $exe = Join-Path $env:RUNNER_TEMP $name
+          $sums = Join-Path $env:RUNNER_TEMP 'arsee-public-sha256.txt'
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $exe "$base/$name"
+          if ($LASTEXITCODE -ne 0) { throw 'Official installer download failed.' }
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sums "$base/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Official installer checksum download failed.' }
+          $lines = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
+          if ($lines.Count -ne 1) { throw 'Official installer checksum entry not unique.' }
+          $hash = ([regex]::Match($lines[0], '^[0-9a-fA-F]{64}')).Value
+          if (!$hash -or (Get-FileHash $exe -Algorithm SHA256).Hash -ine $hash) {
+            throw 'Official installer checksum verification failed.'
+          }
+          Write-Host "Verified SHA256 official installer $name. Deliberately not executing it."
+
+      - name: Tiny native Inno installer after large asset transfer
+        id: after
+        if: steps.before.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: ./scripts/diagnose-inno-runner.ps1 -TimeoutSeconds 25 -RunLabel after
+
+      - name: Publish truthful before/after environment evidence
+        if: always()
+        shell: pwsh
+        env:
+          BEFORE: ${{ steps.before.outcome }}
+          AFTER: ${{ steps.after.outcome }}
+        run: |
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Native Windows Inno Setup before/after large signed release transfer'
+          Add-Content $env:GITHUB_STEP_SUMMARY "Before download: **$env:BEFORE**; after download: **$env:AFTER**."
+          Add-Content $env:GITHUB_STEP_SUMMARY 'This is only an environment diagnostic; it never qualifies an ArSee updater release.'
+
+      - name: Preserve process/session/security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inno-native-diagnostic
+          path: |
+            ${{ runner.temp }}/arsee-inno-runtime-probe-before/
+            ${{ runner.temp }}/arsee-inno-runtime-probe-after/
+          if-no-files-found: warn
+          retention-days: 14

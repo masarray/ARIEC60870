@@ -84,7 +84,7 @@ jobs:
               files.some(file => paths(file).some(isRuntime));
             const updaterChanged = files => fullyListed(files) &&
               files.some(file => paths(file).some(name =>
-                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake|UpdateStorageSafety|InnoRegistrationSnapshot)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1)$/i.test(name)));
+                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake|UpdateStorageSafety|InnoRegistrationSnapshot)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1|Directory\.Build\.props)$/i.test(name)));
             const workflowChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
@@ -440,10 +440,10 @@ jobs:
     name: Bounded previous-release upgrade and running-Master shutdown
     needs: [classify, build-test]
     if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater'))
-    # Latest Windows Server image stalled even on a tiny Inno-only canary before
-    # producing any Setup log (PR #194, CI run 43354277092). Use a different
-    # supported Windows image for installer execution; keep all proof gates.
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater') && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
+    # Installer *compilation* stays on the build runner. Native updater FAT
+    # executes on a separate, fresh Windows job without large ISCC activity.
+    # The old direct-Inno manual acceptance may still use a controlled VM.
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout installer scripts
@@ -492,6 +492,79 @@ jobs:
           path: artifacts/installer-deliverable/*
           if-no-files-found: error
           retention-days: 14
+
+      - name: Prepare SHA256-verified previous public Setup for isolated updater FAT
+        if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          $oldVersion = if ([version]$version -gt [version]'3.6.8') { '3.6.8' } else { '3.6.7' }
+          $output = (Resolve-Path 'artifacts/installer').Path
+          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          $sums = Join-Path $env:RUNNER_TEMP 'ariec-prev-release-sha256.txt'
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sums "$baseUrl/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Official previous SHA256SUMS download failed.' }
+          if ($oldVersion -eq '3.6.8') {
+            # Use the actual published previous stable installer; this is
+            # stronger and faster than reconstructing it from the portable ZIP.
+            $name = "ARIEC60870-v$oldVersion-setup-win-x64.exe"
+            $oldSetup = Join-Path $output $name
+            curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldSetup "$baseUrl/$name"
+            if ($LASTEXITCODE -ne 0) { throw 'Previous stable installer download failed.' }
+            $expected = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
+            if ($expected.Count -ne 1) { throw 'Previous installer checksum is missing or ambiguous.' }
+            $digest = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
+            if (!$digest -or (Get-FileHash $oldSetup -Algorithm SHA256).Hash -ine $digest) {
+              throw 'Previous stable public installer checksum mismatch.'
+            }
+          } else {
+            # v3.6.7 shipped only a portable ZIP. Build its Inno wrapper from
+            # the exact hashed public ZIP; no synthetic substitute executable.
+            $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous'
+            New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
+            $oldZip = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous.zip'
+            $name = "ARIEC60870-v$oldVersion-win-x64.zip"
+            curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/$name"
+            if ($LASTEXITCODE -ne 0) { throw 'Previous published ZIP download failed.' }
+            $expected = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
+            if ($expected.Count -ne 1) { throw 'Previous public ZIP checksum missing or ambiguous.' }
+            $digest = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
+            if (!$digest -or (Get-FileHash $oldZip -Algorithm SHA256).Hash -ine $digest) {
+              throw 'Previous published ZIP checksum mismatch.'
+            }
+            Expand-Archive $oldZip $oldSource -Force
+            if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
+              throw 'Genuine previous release binary missing.'
+            }
+            $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+            & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+            if ($LASTEXITCODE -ne 0) { throw 'Previous Inno wrapper compilation failed.' }
+          }
+          $files = @(
+            (Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"),
+            (Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe")
+          )
+          foreach ($file in $files) {
+            if (!(Test-Path $file)) { throw "Expected FAT setup missing: $file" }
+          }
+          $lines = foreach ($file in $files) {
+            '{0}  {1}' -f (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant(), (Split-Path $file -Leaf)
+          }
+          $lines | Set-Content (Join-Path $output 'FAT-SHA256SUMS.txt') -Encoding ascii
+
+      - name: Upload old and new installer bytes for fresh independent Windows FAT
+        if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-updater-fat-installer-pair
+          path: |
+            artifacts/installer/ARIEC60870-v*-setup-win-x64.exe
+            artifacts/installer/FAT-SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Verify previous release upgrade and active Master shutdown
         if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
@@ -602,20 +675,6 @@ jobs:
           "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
-      - name: Explain separate full installer qualification
-        if: needs.classify.outputs.run_updater_fat == 'true' && github.event_name != 'workflow_dispatch'
-        shell: pwsh
-        run: |
-          Write-Warning 'Source CI compiled the exact updater installer but did NOT run full install/restart FAT: even minimal Inno SetupLoader stalls before logging on GitHub-hosted runners. Use dispatch profile=updater on a disposable interactive self-hosted Windows VM before declaring stable release qualified.'
-          Add-Content $env:GITHUB_STEP_SUMMARY '### Windows updater qualification'
-          Add-Content $env:GITHUB_STEP_SUMMARY 'Compilation + unit/WPF gates passed. **Real Inno runtime FAT NOT RUN on this PR.** Block public stable auto-update until dedicated interactive Windows VM acceptance provides evidence; tracked by issue #195.'
-
-      - name: Verify independent update worker from genuine installed previous release
-        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'updater'
-        shell: pwsh
-        timeout-minutes: 8
-        run: ./scripts/test-updater-worker-fat.ps1
-
       - name: Upload successful installer upgrade acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -623,6 +682,66 @@ jobs:
           name: ARIEC60870-installer-upgrade-acceptance
           path: |
             artifacts/installer/UPGRADE-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-FAT-OLD-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-DIRECT-INNO.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The native Inno Setup bootstrap can hang on Windows runners after a large
+  # ISCC compilation has executed. Run only the *runtime* installer FAT in a
+  # new Windows job: compiled installers are immutable same-run artifacts.
+  # Every installer digest is verified again before execution. No live IEC
+  # devices are touched; the script refuses pre-existing ArSee installations.
+  updater-worker-fat:
+    name: Native Windows independent updater FAT
+    needs: [classify, installer-upgrade]
+    if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
+    timeout-minutes: 11
+    steps:
+      - name: Checkout exact accepted source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+
+      - name: Download identical tested WPF single-file binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-installer-input
+          path: artifacts/passive-gui-publish/
+
+      - name: Download verified prior/current setup bytes from package runner
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-updater-fat-installer-pair
+          path: artifacts/installer/
+
+      - name: Check native Inno Setup compiler for tiny isolated canary
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to acquire Inno Setup compiler.' }
+          }
+
+      - name: Verify independent update worker from genuine installed previous release
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [version]([string]$props.Project.PropertyGroup.Version)
+          $previous = if ($version -gt [version]'3.6.8') { '3.6.8' } else { '3.6.7' }
+          ./scripts/test-updater-worker-fat.ps1 -Precompiled -PreviousVersion $previous
+
+      - name: Preserve native installer and WPF restart evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-updater-worker-fat-evidence
+          path: |
             artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
             artifacts/installer/UPDATER-FAT-OLD-INNO.log
             artifacts/installer/UPDATER-FAT-CANARY-INNO.log
