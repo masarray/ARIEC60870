@@ -79,6 +79,52 @@ public sealed class EventHistoryJournalTests
     }
 
     [Fact]
+    public void ObservedMasterPollIsPersistedBesideOldRxEventWithoutReassigningItsSource()
+    {
+        using var journal = new EventHistoryJournal();
+        var row = Row(1);
+        var original = row.OriginalFrameEvidence!;
+        const string requestHex = "10 5A 69 C3 16";
+        var request = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 195,
+            TimestampUtc = original.TimestampUtc.AddMilliseconds(-25),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.MasterToSlave,
+            PhysicalSource = "Link A",
+            LinkAddress = 105,
+            RawHex = requestHex,
+            Frame = Ft12Parser.ForIec101(1).Decode(
+                Convert.FromHexString(requestHex.Replace(" ", "")))
+        };
+        Assert.True(EventFrameExchange.IsObservedPollReply(request, original));
+        row.ObservedRequestFrame = request;
+        journal.Append(row);
+        var recovered = journal.ReadAfter(0, 1).Single().ToRow();
+        Assert.Equal(row.EvidenceReference, recovered.OriginalFrameEvidence?.EvidenceReference);
+        Assert.Equal(row.RawHex, recovered.OriginalFrameEvidence?.RawHex);
+        Assert.Equal(requestHex, recovered.ObservedRequestFrame?.RawHex);
+        Assert.Equal(FrameDirection.MasterToSlave, recovered.ObservedRequestFrame?.Direction);
+        Assert.Equal(10, recovered.ObservedRequestFrame?.Frame?.LinkControl?.FunctionCode);
+        Assert.True(EventFrameExchange.IsObservedPollReply(
+            recovered.ObservedRequestFrame!, recovered.OriginalFrameEvidence!));
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(0, 801, false)]
+    [InlineData(100, 801, false)]
+    [InlineData(700, 801, false)]
+    [InlineData(800, 801, true)]
+    [InlineData(0, 100, true)]
+    public void PageBottomResumesOnlyOnActualLastPage(
+        long pageStart, long eventCount, bool expected)
+    {
+        Assert.Equal(expected,
+            EventHistoryPagination.CanResumeFromVisiblePage(pageStart, eventCount));
+    }
+
+    [Fact]
     public void ReadersAreBoundedAndIndexUsesOriginalImmutableNumbers()
     {
         using var journal = new EventHistoryJournal();
