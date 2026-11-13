@@ -160,6 +160,10 @@ public partial class MainWindow
             SetupConnectButton.ActualHeight < 35 ||
             SetupCloseButton.ActualWidth < 35 ||
             SetupCloseButton.ActualHeight < 35 ||
+            SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
+                is not Border { CornerRadius: { TopLeft: 18, TopRight: 18 } } ||
+            !double.IsNaN(SetupConnectButton.Width) ||
+            SetupConnectButton.MinWidth < 116 ||
             connectFill.GradientStops.Count != 3)
             throw new InvalidOperationException(
                 "Config Connect gradient or icon-only Close button template was not rendered.");
