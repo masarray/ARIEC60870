@@ -665,15 +665,6 @@ jobs:
           Add-Content $env:GITHUB_STEP_SUMMARY '### Windows updater qualification'
           Add-Content $env:GITHUB_STEP_SUMMARY 'Compilation + unit/WPF gates passed. **Real Inno runtime FAT NOT RUN on this PR.** Block public stable auto-update until dedicated interactive Windows VM acceptance provides evidence; tracked by issue #195.'
 
-      # Updater-specific PRs also exercise the full worker FAT, now using a
-      # proven Windows TEMP native installer launch location. This is limited
-      # to release/updater source changes; normal feature PRs stay fast.
-      - name: Verify independent update worker from genuine installed previous release
-        if: (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater') || (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true')
-        shell: pwsh
-        timeout-minutes: 8
-        run: ./scripts/test-updater-worker-fat.ps1
-
       - name: Upload successful installer upgrade acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -681,6 +672,62 @@ jobs:
           name: ARIEC60870-installer-upgrade-acceptance
           path: |
             artifacts/installer/UPGRADE-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-FAT-OLD-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-DIRECT-INNO.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The native Inno Setup bootstrap can hang on Windows runners after a large
+  # ISCC compilation has executed. Run only the *runtime* installer FAT in a
+  # new Windows job: compiled installers are immutable same-run artifacts.
+  # Every installer digest is verified again before execution. No live IEC
+  # devices are touched; the script refuses pre-existing ArSee installations.
+  updater-worker-fat:
+    name: Native Windows independent updater FAT
+    needs: [classify, installer-upgrade]
+    if: (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true') || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
+    timeout-minutes: 11
+    steps:
+      - name: Checkout exact accepted source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+
+      - name: Download identical tested WPF single-file binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-installer-input
+          path: artifacts/passive-gui-publish/
+
+      - name: Download verified prior/current setup bytes from package runner
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-updater-fat-installer-pair
+          path: artifacts/installer/
+
+      - name: Check native Inno Setup compiler for tiny isolated canary
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to acquire Inno Setup compiler.' }
+          }
+
+      - name: Verify independent update worker from genuine installed previous release
+        shell: pwsh
+        timeout-minutes: 8
+        run: ./scripts/test-updater-worker-fat.ps1 -Precompiled
+
+      - name: Preserve native installer and WPF restart evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-updater-worker-fat-evidence
+          path: |
             artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
             artifacts/installer/UPDATER-FAT-OLD-INNO.log
             artifacts/installer/UPDATER-FAT-CANARY-INNO.log
