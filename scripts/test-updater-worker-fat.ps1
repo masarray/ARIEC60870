@@ -53,9 +53,19 @@ $oldApp = $null
 $workerProcess = $null
 $launched = $null
 function Invoke-Bounded {
-  param([string]$File, [string]$Args, [int]$TimeoutSec = 95, [string]$DiagnosticLog = $oldInstallLog)
+  # Never name a PowerShell function parameter $Args: $args is an automatic
+  # variable holding unbound arguments, not a reliable installer command line.
+  param([string]$File, [string]$InstallerArguments,
+        [int]$TimeoutSec = 95, [string]$DiagnosticLog = $oldInstallLog)
+  if (!$PSBoundParameters.ContainsKey('InstallerArguments') -or
+      [string]::IsNullOrWhiteSpace($InstallerArguments) -or
+      $InstallerArguments -notmatch '(?i)/VERYSILENT' -or
+      $InstallerArguments -notmatch '(?i)/NORESTART') {
+    throw 'Refusing to start CI installer: full silent, no-reboot arguments were not bound.'
+  }
   Write-Host "CI fixture: starting $(Split-Path $File -Leaf) (bounded $TimeoutSec s)"
-  $process = Start-Process -FilePath $File -ArgumentList $Args -PassThru
+  Write-Host "CI fixture: effective process arguments: $InstallerArguments"
+  $process = Start-Process -FilePath $File -ArgumentList $InstallerArguments -PassThru
   if (!$process.WaitForExit($TimeoutSec * 1000)) {
     Write-Warning "CI fixture installer timed out: PID $($process.Id)"
     Get-CimInstance Win32_Process | Where-Object {
@@ -96,12 +106,12 @@ try {
   }
   $canaryArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /LOG="' + $canaryLog + '"'
   # A real release uses one self-contained SetupLdr EXE; no detached .bin files.
-  Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
+  Invoke-Bounded -File $canaryBinary -InstallerArguments $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
   if (!(Test-Path (Join-Path $canaryInstall 'canary.txt'))) {
     throw 'Minimal Inno Setup canary installed no payload.'
   }
   $canaryUninstall = Join-Path $canaryInstall 'unins000.exe'
-  Invoke-Bounded -File $canaryUninstall -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
+  Invoke-Bounded -File $canaryUninstall -InstallerArguments '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
   Write-Host 'Real single-EXE Inno SetupLoader canary compiled, installed and uninstalled successfully.'
 
   if (!$Precompiled -and !(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
@@ -161,7 +171,7 @@ try {
   # whether the loader, Restart Manager, or filesystem is the bottleneck.
   $oldArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /NOFORCECLOSEAPPLICATIONS /LOG="' + $oldInstallLog + '"'
   Copy-Item $oldSetup $oldSetupRuntime -Force
-  Invoke-Bounded -File $oldSetupRuntime -Args $oldArgs -TimeoutSec 95
+  Invoke-Bounded -File $oldSetupRuntime -InstallerArguments $oldArgs -TimeoutSec 95
   if (!(Test-Path $installedExe) -or
       (Get-Item $installedExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
     throw 'Prior installed executable version is not genuine previous release.'
@@ -263,7 +273,7 @@ finally {
   } else {
     $uninstall = Join-Path $installDir 'unins000.exe'
     if (Test-Path $uninstall) {
-      Invoke-Bounded -File $uninstall -Args '/VERYSILENT /NORESTART'
+      Invoke-Bounded -File $uninstall -InstallerArguments '/VERYSILENT /NORESTART'
     }
   }
 }
