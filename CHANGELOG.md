@@ -1,3 +1,18 @@
+## [3.6.10] - 2026-11-13
+
+### ArSee forensic workflow and IEC-101 receive reliability
+- Integrated context-aware Event Journal live-follow and forensic **Open Original Frame** correlation for genuinely captured TX/RX, with explicit partial evidence when an original TX is unavailable (PR #197), and isolated real-WPF test fixtures (PR #198).
+- Hardened IEC-101 transaction-owned original-frame evidence, bounded correlation and multi-IOA mapping without inventing matching TX frames (PR #199). Aligned brand PNG in the header without disturbing the sidebar (PR #200).
+- Reconciled the bundled IEC-101/104 utility SCADA I/O example with **31 uniquely mapped points**: FEEDER/KOPEL/TRAFO CB status, bay-specific Local/Remote and control command, BUSBAR voltage status and four RTU alarm IOAs; fail closed instead of using wrong-CA or wrong-type signal names (PR #201).
+- Improved IEC-101 FT1.2 RX at **1200 bps** with bounded baud-aware frame completion, per-connection persistent framing in single-link and A/B, partial-fragment evidence, and suppression of ambiguous stale E5 after a broken telegram (PR #202).
+- Added regression tests for bay identity, wrong CA/Type ID, command-feedback pairing, slow serial frames, incomplete responses, cancellation and cross-poll stale-E5.
+- Maintained source-to-master reconciliation of unmerged shared transaction core PR #145; no bulk merge, no automatic command replay, and no assertion of physical RTU interoperability.
+
+### Validation and limitations
+- Previous master `3ee6453a6a391015290b9d131b6a15b7e4edc51a` passed 1,032 xUnit tests, protocol smoke, Windows Release build, real-WPF OBS-C acceptance and CodeQL; the final **v3.6.10 release source SHA** must separately pass all matching release gates including native Windows updater FAT before publication.
+- Physical SICAM A8000 field FAT, dual-link failover, GI/SBO readback and 60/500/2,000 SOE event-count reconciliation remain pending. An installed application update does not reconnect to any IEC device without operator action.
+- Windows Setup is not Authenticode-signed; verify published SHA256SUMS and release provenance. Existing saved IOA profiles are not silently overwritten by the updated bundled sample.
+
 ## [3.6.9] - 2026-11-13
 
 ### ArSee installed auto-updater milestone
