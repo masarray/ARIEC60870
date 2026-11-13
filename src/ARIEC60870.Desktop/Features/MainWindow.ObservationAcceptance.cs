@@ -7,6 +7,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -25,9 +26,17 @@ namespace ARIEC60870.Desktop;
 /// </summary>
 public partial class MainWindow
 {
+    // Styled signal previews are WPF Runs, not a plain Text binding.
+    // Reconstruct from the ACTUAL rendered inlines so an invisible/empty
+    // source binding can never satisfy the real-WPF acceptance.
+    private static string RenderedTraceText(TextBlock block) =>
+        block.Inlines.Count > 0 && block.Inlines.All(inline => inline is Run)
+            ? string.Concat(block.Inlines.Cast<Run>().Select(run => run.Text))
+            : block.Text;
+
     private static bool HasVisibleRawLine(DependencyObject node, string expected)
     {
-        if (node is TextBlock text && text.Text == expected &&
+        if (node is TextBlock text && RenderedTraceText(text) == expected &&
             text.Visibility == Visibility.Visible && text.IsVisible)
             return true;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
@@ -42,7 +51,7 @@ public partial class MainWindow
 
     private static TextBlock? FindVisibleTraceText(DependencyObject node, string expected)
     {
-        if (node is TextBlock text && text.Text == expected &&
+        if (node is TextBlock text && RenderedTraceText(text) == expected &&
             text.Visibility == Visibility.Visible && text.IsVisible)
             return text;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
@@ -606,9 +615,15 @@ public partial class MainWindow
         UpdateLayout();
         if (FrameTraceGrid.ItemContainerGenerator.ContainerFromItem(timedFrameRow)
                 is not ListBoxItem timedVisual ||
-            !HasVisibleRawLine(timedVisual, timedFrameRow.TimelineSignalDigest))
+            FindVisibleTraceText(timedVisual, timedFrameRow.TimelineSignalDigest)
+                is not TextBlock renderedTimedSignal ||
+            !renderedTimedSignal.Inlines.OfType<Run>().Any(run =>
+                run.Text.Contains("05-11-2026", StringComparison.Ordinal) &&
+                run.Foreground is SolidColorBrush brush &&
+                brush.Color == Color.FromRgb(22, 99, 63) &&
+                run.FontWeight == FontWeights.SemiBold))
             throw new InvalidOperationException(
-                "Actual WPF Frame Interpreter did not display typed CP56 time after frame selection.");
+                "Actual WPF Frame Interpreter did not display highlighted, source-typed CP56 time after frame selection.");
         SaveRealWpfBitmap(outputDirectory, "engineer-device-time-valid-genuine.png");
 
         // P0-B actual-WPF acceptance: visual frame preview can be retained
@@ -1498,7 +1513,7 @@ public partial class MainWindow
             multiObjectRow.Source.AsduDetails?.Objects.Any(obj => obj.Cp56TimeDetails is not null) == true &&
             (!multiObjectRow.TimelineSignalDigest.Contains("Timestamp Valid", StringComparison.Ordinal) ||
              !multiObjectRow.TimelineSignalDigest.Contains("Genuine (GEN=0)", StringComparison.Ordinal)) ||
-            visibleSignalText.Text.Contains(" | ", StringComparison.Ordinal) ||
+            RenderedTraceText(visibleSignalText).Contains(" | ", StringComparison.Ordinal) ||
             visibleSignalText.ActualWidth < rawSignalHex.ActualWidth * 1.55 ||
             visibleSignalText.ActualHeight < 24)
             throw new InvalidOperationException(
@@ -1655,7 +1670,7 @@ public partial class MainWindow
                 cause.TextWrapping != TextWrapping.Wrap ||
                 cause.TextTrimming != TextTrimming.None ||
                 signals.ActualWidth < 130 || signals.ActualHeight < 16 ||
-                !signals.Text.Contains("IOA ", StringComparison.Ordinal) ||
+                !RenderedTraceText(signals).Contains("IOA ", StringComparison.Ordinal) ||
                 !cause.Text.Contains("Cause Of Transmission: ", StringComparison.Ordinal))
                 throw new InvalidOperationException(
                     $"Frame interpreter clipped/hidden at {viewport.Name}: trace={FrameTraceGrid.ActualWidth:0}, layout={expectedLayout}, signals={signals?.ActualWidth:0}x{signals?.ActualHeight:0}.");
