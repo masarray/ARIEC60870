@@ -46,6 +46,7 @@ jobs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
       run_format: ${{ steps.scope.outputs.run_format }}
       run_packages: ${{ steps.scope.outputs.run_packages }}
+      run_updater_fat: ${{ steps.scope.outputs.run_updater_fat }}
       run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
@@ -57,6 +58,7 @@ jobs:
             let runWindows = true;
             let runFormat = true;
             let runPackages = true;
+            let runUpdaterFat = false;
             let runWorkflowLint = context.eventName !== 'workflow_dispatch';
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
@@ -74,6 +76,9 @@ jobs:
               files.every(file => paths(file).every(isStatic));
             const runtimeChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(isRuntime));
+            const updaterChanged = files => fullyListed(files) &&
+              files.some(file => paths(file).some(name =>
+                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1)$/i.test(name)));
             const workflowChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
@@ -119,6 +124,7 @@ jobs:
               runWindows = !staticOnly(files);
               runFormat = formattingRelevant(files);
               runPackages = runtimeChanged(files);
+              runUpdaterFat = updaterChanged(files);
               runWorkflowLint = workflowChanged(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
@@ -131,6 +137,7 @@ jobs:
                   runWindows = !staticOnly(files);
                   runFormat = formattingRelevant(files);
                   runPackages = runtimeChanged(files);
+                  runUpdaterFat = updaterChanged(files);
                   runWorkflowLint = workflowChanged(files);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
@@ -173,6 +180,7 @@ jobs:
             core.setOutput('run_windows', String(runWindows));
             core.setOutput('run_format', String(runFormat));
             core.setOutput('run_packages', String(runPackages));
+            core.setOutput('run_updater_fat', String(runUpdaterFat));
             core.setOutput('run_workflow_lint', String(runWorkflowLint));
             core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
             core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
@@ -210,8 +218,8 @@ jobs:
     runs-on: ${{ needs.classify.outputs.run_windows == 'true' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 25
     env:
-      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
-      RUN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' }}
+      RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (needs.classify.outputs.run_updater_fat == 'true' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
+      RUN_INSTALLER: ${{ needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && inputs.profile == 'installer') }}
       COLLECT_COVERAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true') }}
     steps:
       - name: Markdown-only change
@@ -422,8 +430,8 @@ jobs:
   # Only /ci installer or explicit installer dispatch runs this expensive gate.
   installer-upgrade:
     name: Bounded previous-release upgrade and running-Master shutdown
-    needs: build-test
-    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
+    needs: [classify, build-test]
+    if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && inputs.profile == 'installer')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -582,11 +590,19 @@ jobs:
           "Previous released binary v$oldVersion -> current $version; running WPF and active Master demo shutdown; user data preserved." |
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
+      - name: Verify independent update worker from genuine installed previous release
+        if: needs.classify.outputs.run_updater_fat == 'true'
+        shell: pwsh
+        timeout-minutes: 8
+        run: ./scripts/test-updater-worker-fat.ps1
+
       - name: Upload successful installer upgrade acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-installer-upgrade-acceptance
-          path: artifacts/installer/UPGRADE-ACCEPTANCE.txt
+          path: |
+            artifacts/installer/UPGRADE-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
           if-no-files-found: ignore
           retention-days: 14
