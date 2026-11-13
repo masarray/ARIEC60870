@@ -166,7 +166,7 @@ public sealed class ReleaseUpdateServiceTests
     public void FailedUpgradeRestoresExactPreviousInnoRegistryAndRemovesNewValues()
     {
         if (!OperatingSystem.IsWindows()) return;
-        var keyPath = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ArSee-Test-" +
+        var keyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ArSee-Test-" +
             Guid.NewGuid().ToString("N");
         var folder = Path.Combine(Path.GetTempPath(), "arsee-reg-rollback-" +
             Guid.NewGuid().ToString("N"));
