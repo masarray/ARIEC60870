@@ -6,9 +6,16 @@ Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tes
 - Latest public stable v3.6.10: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10
 - Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-setup-win-x64.exe
 - Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-win-x64.zip
-- Previous stable v3.6.7: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7
-- Integrated engine/UI Windows WPF/CI evidence: https://github.com/masarray/ARIEC60870/actions/runs/43157628091
+- Previous stable v3.6.9: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.9
+- Exact-source public Windows package and attestations: https://github.com/masarray/ARIEC60870/actions/runs/43436696449
+- Source Windows CI, real-WPF acceptance and native updater FAT: https://github.com/masarray/ARIEC60870/actions/runs/43435781986
 - Unmerged SICAM IEC-101 serial changes in PR #145 are excluded and remain subject to physical FAT.
+
+## Verified v3.6.10 improvements
+- Context-aware Event Journal links to real captured Original Frame TX/RX evidence; missing TX is explicitly unknown.
+- The bundled 31-point IEC-101/104 utility I/O sample distinguishes bays and checks CA/IOA/IEC Type ID family without overwriting user profiles.
+- Bounded IEC-101 FT1.2 completion at 1,200 bps, continuous per-COM-epoch RX and ambiguous stale-E5 suppression; physical SICAM FAT remains pending.
+- Operator-approved stable updater for the installed per-user Windows edition only; unsigned installer, SHA-256 checksums and GitHub provenance available.
 
 ## Pages
 - EN: https://masarray.github.io/ARIEC60870/

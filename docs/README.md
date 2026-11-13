@@ -8,6 +8,6 @@ Engineering docs: [User Guide](USER_GUIDE.md), [Quick Start](QUICK_START.md), [A
 
 Draft PRs, simulator results and unverified field behavior must not be marketed as released or certified.
 
-**Active IEC-101 P0 implementation authority:** [Transaction/serial reliability blueprint](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) · [Deterministic test & field FAT matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) · [Milestone issue #143](https://github.com/masarray/ARIEC60870/issues/143). This is an implementation target, **not** a released feature claim; it supplements cross-protocol PRD/ARD and keeps draft serial PR #145 separate from the public RC.
+**Active IEC-101 P0 implementation authority:** [Transaction/serial reliability blueprint](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) · [Deterministic test & field FAT matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) · [Milestone issue #143](https://github.com/masarray/ARIEC60870/issues/143). This is an implementation target, **not** a released feature claim; it supplements cross-protocol PRD/ARD and keeps draft IEC-101 PR #145 separate from the published v3.6.10 stable software.
 
 Stable v3.6.10 contains merged PRs #197–#202, not the draft transaction/reconnect PR #145. See [ArSee repository and Pages rename plan](ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
