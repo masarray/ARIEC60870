@@ -46,8 +46,16 @@ public static class ReleaseInstallWorker
             // from a recovery image or escape the intended install tree.
             var previousFiles = UpdateStorageSafety.EnumerateSafeFiles(installFolder);
             var previousBytes = UpdateStorageSafety.TotalBytes(previousFiles);
-            UpdateStorageSafety.EnsureAvailableSpace(plan.StageDirectory, previousBytes);
-            UpdateStorageSafety.EnsureAvailableSpace(installFolder, plan.InstallerBytes);
+            // When backup and application share one volume, reserve room for
+            // BOTH the backup and setup extraction, not either one separately.
+            if (UpdateStorageSafety.SharesVolume(plan.StageDirectory, installFolder))
+                UpdateStorageSafety.EnsureAvailableSpace(plan.StageDirectory,
+                    checked(previousBytes + plan.InstallerBytes));
+            else
+            {
+                UpdateStorageSafety.EnsureAvailableSpace(plan.StageDirectory, previousBytes);
+                UpdateStorageSafety.EnsureAvailableSpace(installFolder, plan.InstallerBytes);
+            }
             backupDir = Path.Combine(plan.StageDirectory, "previous-install");
             BackupInstallation(installFolder, backupDir, previousFiles);
 
@@ -252,6 +260,10 @@ public static class ReleaseInstallWorker
         var plan = JsonSerializer.Deserialize<UpdateInstallPlan>(
             await File.ReadAllTextAsync(path).ConfigureAwait(false))
             ?? throw new InvalidDataException("Update plan is empty.");
+        if (Directory.Exists(plan.StageDirectory))
+            UpdateStorageSafety.RejectLinkedDirectory(plan.StageDirectory);
+        if (Directory.Exists(ReleaseUpdateService.UpdatesRoot))
+            UpdateStorageSafety.RejectLinkedDirectory(ReleaseUpdateService.UpdatesRoot);
         if (!string.Equals(Path.GetFullPath(plan.StageDirectory),
                 Path.GetFullPath(Path.Combine(ReleaseUpdateService.UpdatesRoot, plan.Tag)),
                 StringComparison.OrdinalIgnoreCase) ||
