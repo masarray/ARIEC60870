@@ -126,6 +126,15 @@ public static class ReleaseUpdateService
         Directory.CreateDirectory(stage);
         var stagedInstaller = Path.Combine(stage, release.FileName);
         var part = stagedInstaller + ".part";
+        // The worker must exist outside the installation before its parent
+        // closes. Fail early while the operator can still use the old app.
+        // Existing verified downloads do not need a second full download.
+        var requiredDownload = await VerifyFileAsync(stagedInstaller,
+            release.Sha256, release.ByteCount, token).ConfigureAwait(false)
+            ? 0L : release.ByteCount;
+        var workerBytes = new FileInfo(installedExecutable).Length;
+        UpdateStorageSafety.EnsureAvailableSpace(stage,
+            checked(requiredDownload + workerBytes));
         if (!await VerifyFileAsync(stagedInstaller, release.Sha256, release.ByteCount, token).ConfigureAwait(false))
         {
             for (var attempt = 1; attempt <= 3; attempt++)
