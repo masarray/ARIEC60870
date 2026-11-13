@@ -98,8 +98,9 @@ public sealed class EventHistoryJournalTests
                 Convert.FromHexString(requestHex.Replace(" ", "")))
         };
         Assert.True(EventFrameExchange.IsObservedPollReply(request, original));
-        row.ObservedRequestFrame = request;
-        journal.Append(row);
+        var withExchange = new RelayEventRow(row.SourceEntry, original,
+            eventNumber: 1, observedRequestFrame: request);
+        journal.Append(withExchange);
         var recovered = journal.ReadAfter(0, 1).Single().ToRow();
         Assert.Equal(row.EvidenceReference, recovered.OriginalFrameEvidence?.EvidenceReference);
         Assert.Equal(row.RawHex, recovered.OriginalFrameEvidence?.RawHex);
