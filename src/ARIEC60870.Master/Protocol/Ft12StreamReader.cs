@@ -19,14 +19,37 @@ public sealed class Ft12StreamReader
     private readonly Action<Ft12StreamCandidate> _onCandidate;
     private byte[]? _frame;
     private long _receivedBytes;
+    private readonly int _fixedFrameCompletionBudgetMs;
+    private readonly int _variableFrameCompletionBudgetMs;
     // A damaged FT1.2 prefix can contain 0xE5 inside its payload. Its
     // resynchronized single byte is NOT a proved reply to the Master request.
     private bool _uncertainFrameBoundary;
     public long AmbiguousShortResponsesSuppressed { get; private set; }
+    /// <summary>
+    /// Total physical octets consumed by this single connection's RX owner.
+    /// This is NOT a validated telegram count. Compare around a read exchange
+    /// to prohibit retransmission when even partial serial response bytes arrived.
+    /// </summary>
+    public long ReceivedByteCount => _receivedBytes;
+    /// <summary>Physical fragments abandoned at a response deadline or cancellation.
+    /// Counts are per reader/connection, never inferred as a valid RTU response.</summary>
+    public long ExpiredPartialFrames { get; private set; }
+    public long ExpiredPartialBytes { get; private set; }
 
-    public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1)
+    public Ft12StreamReader(IByteTransport transport, int linkAddressSize = 1, int baudRate = 0)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        // One maximum FT1.2 telegram takes up to 262 octets. Reserve the full
+        // wire time at the selected baud (12 bits/octet covers 8E2) plus a
+        // bounded converter/Windows scheduling margin. Silence still uses the
+        // configured response timeout; only a physical frame start extends it.
+        if (baudRate > 0)
+        {
+            _fixedFrameCompletionBudgetMs = Math.Clamp(
+                (int)Math.Ceiling((linkAddressSize + 4d) * 12 * 1000 / baudRate) + 200, 250, 30000);
+            _variableFrameCompletionBudgetMs = Math.Clamp(
+                (int)Math.Ceiling(262d * 12 * 1000 / baudRate) + 300, 500, 30000);
+        }
         // Master never adopts a different link-address profile implicitly.
         // A complete malformed-end frame is retained for the existing
         // secondary response validator and frame-quality diagnostics.
@@ -62,6 +85,7 @@ public sealed class Ft12StreamReader
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(Math.Max(1, timeoutMs));
+        var frameStartObserved = false;
         try
         {
             while (true)
@@ -77,6 +101,18 @@ public sealed class Ft12StreamReader
                     await Task.Delay(1, deadline.Token).ConfigureAwait(false);
                     continue;
                 }
+                // Do not time out midway through a legitimate slow serial frame.
+                // A single bounded extension is granted only for a FT1.2 start
+                // byte; noise cannot perpetually prolong the request deadline.
+                if (!frameStartObserved && _byte[0] is 0x10 or 0x68)
+                {
+                    frameStartObserved = true;
+                    var completionBudgetMs = _byte[0] == 0x10
+                        ? _fixedFrameCompletionBudgetMs
+                        : _variableFrameCompletionBudgetMs;
+                    if (completionBudgetMs > timeoutMs)
+                        deadline.CancelAfter(completionBudgetMs);
+                }
                 _framer.Feed(_byte.AsSpan(0, read), _receivedBytes,
                     _onCandidate, flushNoiseAtEnd: false);
                 _receivedBytes += read;
@@ -87,19 +123,32 @@ public sealed class Ft12StreamReader
                 }
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // An incomplete frame cannot silently become a response during
-            // the next independent Master request on a persistent reader.
-            _framer.ExpireIncomplete();
-            _frame = null;
+            // Both response timeout and operator Stop invalidate a partial
+            // FT1.2 prefix. A later E5 has no address and cannot clear this
+            // ambiguity; only a verified addressed frame can re-establish it.
+            ExpirePartialFrame();
+            if (cancellationToken.IsCancellationRequested)
+                throw;
             return null;
         }
         catch (TimeoutException)
         {
-            _framer.ExpireIncomplete();
-            _frame = null;
+            ExpirePartialFrame();
             return null;
         }
+    }
+
+    private void ExpirePartialFrame()
+    {
+        var partial = _framer.ExpireIncomplete();
+        if (partial is not null)
+        {
+            ExpiredPartialFrames++;
+            ExpiredPartialBytes += partial.RawBytes.Length;
+            _uncertainFrameBoundary = true;
+        }
+        _frame = null;
     }
 }
