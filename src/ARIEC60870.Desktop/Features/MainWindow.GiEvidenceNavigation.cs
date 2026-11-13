@@ -337,7 +337,10 @@ public partial class MainWindow
             // Event frames instead of silently substituting unrelated frames.
             var ordered = _relayEventStore.Snapshot()
                 .Where(ev => ev.OriginalFrameEvidence is { RawHex.Length: > 0 } &&
-                    ev.OriginalFrameEvidence.ProtocolMode == protocol)
+                    ev.OriginalFrameEvidence.ProtocolMode == protocol &&
+                    SourceMatches(ev.OriginalFrameEvidence.PhysicalSource, physicalSource) &&
+                    (!frame.Source.LinkAddress.HasValue ||
+                     ev.OriginalFrameEvidence.LinkAddress == frame.Source.LinkAddress))
                 .Select(ev => ev.OriginalFrameEvidence!)
                 .DistinctBy(ev => Iec10xObservationIdentity.EvidenceReference(ev).Split("|object:")[0])
                 .OrderBy(ev => ev.TimestampUtc).ToArray();
