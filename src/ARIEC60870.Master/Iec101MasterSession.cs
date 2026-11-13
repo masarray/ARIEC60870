@@ -711,7 +711,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
     {
-        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize);
+        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;
