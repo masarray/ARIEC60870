@@ -443,7 +443,7 @@ jobs:
     # Latest Windows Server image stalled even on a tiny Inno-only canary before
     # producing any Setup log (PR #194, CI run 43354277092). Use a different
     # supported Windows image for installer execution; keep all proof gates.
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'updater' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater') && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout installer scripts
