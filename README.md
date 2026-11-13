@@ -46,7 +46,14 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-**Included in v3.6.8:** one indexed Event Journal, 100-row pages, Previous/Next/Latest navigation, full-history search, Include/Exclude filters, and CSV export with original-frame references. Earlier Frame Interpreter, HOLD/AUTO, and IEC-101 Reset Remote Link improvements remain. Draft transaction/FCB work is excluded; physical RTU FAT remains required.
+## What's improved in stable v3.6.10
+
+- **Event Journal → Original Frame:** context-aware live-follow, historical paging and navigation to captured TX/RX frames. Missing original TX is reported as incomplete evidence rather than invented.
+- **Bay-aware SCADA labels:** the **bundled 31-point utility I/O example** distinguishes FEEDER, KOPEL, TRAFO CB/Local-Remote, relevant commands, busbar voltage and RTU alarms. Invalid CA/IOA/IEC Type ID families fail closed; existing user-owned profiles are **not automatically overwritten**.
+- **IEC-101 at 1,200 bps:** bounded baud-aware FT1.2 frame completion after a physical start, persistent RX framing across polls per COM epoch, and regression tests for incomplete telegrams and ambiguous E5. This does **not** prove physical RTU interoperability.
+- **Windows upgrade assurance:** operator-approved updates for the **installed** edition (portable ZIP does not self-replace), qualified by native Windows updater FAT, 1,032 passing xUnit tests and real-WPF acceptance on the [exact source commit](https://github.com/masarray/ARIEC60870/actions/runs/43435781986).
+
+Read [v3.6.10 release notes](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) and [package / provenance results](https://github.com/masarray/ARIEC60870/actions/runs/43436696449). The [shared IEC-101 transaction core draft #145](https://github.com/masarray/ARIEC60870/pull/145) remains **unmerged**. **FIELD FAT PENDING:** physical SICAM A8000 1,200-bps SOE 60/500/2,000 batches, GI/SBO lifecycle, COM recovery and A/B failover.
 
 An acknowledged frame or GI termination is **not** proof that every configured point was received or that a physical control operated.
 
