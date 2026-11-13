@@ -141,6 +141,36 @@ public sealed class EventFrameExchangeTrackerTests
     }
 
     [Fact]
+    public void UnaddressedE5DoesNotLeaveStaleClassPollsOnThatPhysicalCircuit()
+    {
+        var tracker = new EventFrameExchangeTracker();
+        var a1 = Frame(640, 0x5A, link: 11, source: "Link A");
+        var a2 = Frame(641, 0x5A, link: 12, source: "Link A");
+        var otherSource = Frame(642, 0x5A, link: 11, source: "Link B");
+        tracker.Observe(a1);
+        tracker.Observe(a2);
+        tracker.Observe(otherSource);
+        var single = Ft12Parser.ForIec101(1).Decode([0xE5]);
+        Assert.True(single.IsSingleCharacterAck);
+        tracker.Observe(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 643, TimestampUtc = Time.AddMilliseconds(40),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "Link A",
+            Frame = single,
+            RawHex = single.Hex
+            // No link address exists in E5; matching one by guess is forbidden.
+        });
+        Assert.Null(tracker.RequestForEvent(
+            Frame(644, 0x08, link: 11, source: "Link A", delayMs: 75)));
+        Assert.Null(tracker.RequestForEvent(
+            Frame(645, 0x08, link: 12, source: "Link A", delayMs: 80)));
+        Assert.Same(otherSource, tracker.RequestForEvent(
+            Frame(646, 0x08, link: 11, source: "Link B", delayMs: 85)));
+    }
+
+    [Fact]
     public void TrackedLinkCountIsBoundedAndOldestSourceIsSafelyEvicted()
     {
         var tracker = new EventFrameExchangeTracker(maxTrackedLinks: 2);
