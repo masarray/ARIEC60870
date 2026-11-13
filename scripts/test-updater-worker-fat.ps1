@@ -55,6 +55,24 @@ function Invoke-Bounded {
   Write-Host "CI fixture process exit 0: $(Split-Path $File -Leaf)"
 }
 try {
+  # Small Inno canary distinguishes a broken Windows runner/Setup loader
+  # from a large ArSee packaging problem before expensive version-cross FAT.
+  $canaryInstall = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870-CI-Canary'
+  $canaryBinary = Join-Path $output 'ARIEC60870-inno-ci-canary.exe'
+  $canaryLog = Join-Path $output 'UPDATER-FAT-CANARY-INNO.log'
+  & $iscc "/DOutputRoot=$output" installer/ARIEC60870.CI-Canary.iss
+  if ($LASTEXITCODE -ne 0 -or !(Test-Path $canaryBinary)) {
+    throw 'Minimal Inno Setup canary compilation failed.'
+  }
+  $canaryArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /LOG="' + $canaryLog + '"'
+  Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 35
+  if (!(Test-Path (Join-Path $canaryInstall 'canary.txt'))) {
+    throw 'Minimal Inno Setup canary installed no payload.'
+  }
+  $canaryUninstall = Join-Path $canaryInstall 'unins000.exe'
+  Invoke-Bounded -File $canaryUninstall -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
+  Write-Host 'Minimal Inno Setup canary compiled, installed, and uninstalled successfully.'
+
   if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     # Dedicated worker FAT must not wait for the separate legacy installer
     # gate. Acquire and verify the previous immutable public release itself.
@@ -172,6 +190,10 @@ try {
   Copy-Item $log (Join-Path $output 'UPDATER-WORKER-ACCEPTANCE.txt') -Force
 }
 finally {
+  if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log')) {
+    Write-Host 'CI Inno canary diagnostic tail:'
+    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Tail 10
+  }
   if (Test-Path $oldInstallLog) {
     Write-Host 'Old installer diagnostic tail:'
     Get-Content $oldInstallLog -Tail 12

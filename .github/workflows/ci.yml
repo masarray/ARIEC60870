@@ -607,5 +607,6 @@ jobs:
             artifacts/installer/UPGRADE-ACCEPTANCE.txt
             artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
             artifacts/installer/UPDATER-FAT-OLD-INNO.log
+            artifacts/installer/UPDATER-FAT-CANARY-INNO.log
           if-no-files-found: ignore
           retention-days: 14
