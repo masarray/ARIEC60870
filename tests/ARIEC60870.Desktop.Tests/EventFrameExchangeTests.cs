@@ -40,7 +40,12 @@ public sealed class EventFrameExchangeTests
             Direction = FrameDirection.SlaveToMaster,
             PhysicalSource = source,
             LinkAddress = link,
-            RawHex = "10 08 69 71 16"
+            RawHex = "10 08 69 71 16",
+            Frame = new Ft12FrameDecode
+            {
+                LinkAddress = link,
+                LinkControl = new LinkControlInfo { Prm = false, FunctionCode = 8 }
+            }
         };
 
     [Fact]
@@ -58,6 +63,22 @@ public sealed class EventFrameExchangeTests
         Assert.False(EventFrameExchange.IsObservedPollReply(Poll(), Reply(delayMs: 60000)));
         Assert.False(EventFrameExchange.IsObservedPollReply(Poll(), Reply(sequence: 29)));
         Assert.False(EventFrameExchange.IsObservedPollReply(Poll(function: 3), Reply()));
+        var unsolicited = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 31,
+            TimestampUtc = Utc.AddMilliseconds(80),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "Link A",
+            LinkAddress = 105,
+            RawHex = "10 4B 69 B4 16",
+            Frame = new Ft12FrameDecode
+            {
+                LinkAddress = 105,
+                LinkControl = new LinkControlInfo { Prm = true, FunctionCode = 11 }
+            }
+        };
+        Assert.False(EventFrameExchange.IsObservedPollReply(Poll(), unsolicited));
     }
 
     [Fact]
