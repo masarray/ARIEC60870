@@ -40,6 +40,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # A second push to an RC branch cannot cancel release evidence mid-publication.
 concurrency:
@@ -237,6 +238,73 @@ jobs:
             } catch(error) {
               if(error.status!==404) throw error;
             }
+      # Runtime installer acceptance is distinct from compilation and xUnit.
+      # For stable versions introducing the updater, require a completed real
+      # updater FAT on the exact commit, not just a green PR or skipped step.
+      - name: Require exact-source Windows updater FAT before stable publication
+        if: steps.release.outputs.publish_release == 'true' && steps.release.outputs.prerelease == 'false' && steps.tag_check.outputs.already_published != 'true'
+        uses: actions/github-script@v7
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        with:
+          script: |
+            const {owner,repo}=context.repo;
+            const version=process.env.RELEASE_VERSION;
+            const parts=version.split('.').map(Number);
+            if(parts.length!==3 || parts.some(n=>!Number.isSafeInteger(n))) {
+              core.setFailed('Invalid stable version for FAT gate.');
+              return;
+            }
+            // Already-published v3.6.8 predates this gate. Any later stable
+            // automatic-updater release must carry actual installer evidence.
+            const requiresFAT=parts[0]>3 ||
+              (parts[0]===3 && (parts[1]>6 || (parts[1]===6 && parts[2]>=9)));
+            if(!requiresFAT) {
+              core.notice('Legacy stable release: updater FAT gate not applicable.');
+              return;
+            }
+
+            const runs=await github.paginate(github.rest.actions.listWorkflowRuns,{
+              owner,repo,workflow_id:'ci.yml',event:'workflow_dispatch',
+              status:'success',head_sha:context.sha,per_page:100
+            });
+            const candidates=runs.filter(run=>
+              run.event==='workflow_dispatch' &&
+              run.head_sha?.toLowerCase()===context.sha.toLowerCase() &&
+              run.conclusion==='success' &&
+              run.created_at && Date.now()-Date.parse(run.created_at)<30*24*3600*1000);
+            let verified=null;
+            for(const run of candidates) {
+              const jobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun,{
+                owner,repo,run_id:run.id,per_page:100
+              });
+              const fat=jobs.find(job=>
+                job.name==='Bounded previous-release upgrade and running-Master shutdown' &&
+                job.conclusion==='success' &&
+                (job.steps||[]).some(step=>
+                  step.name==='Verify independent update worker from genuine installed previous release' &&
+                  step.conclusion==='success'));
+              if(fat){verified={run,job:fat};break;}
+            }
+            if(!verified) {
+              core.setFailed(
+                'Stable '+version+' updater release is BLOCKED: no successful standalone '+
+                'Inno upgrade FAT for exact source commit '+context.sha+'. '+
+                'Run CI profile=updater on a disposable interactive Windows VM '+
+                '(installer_runner=self-hosted) and obtain a successful worker FAT step. '+
+                'A green build, WPF unit tests, or compiled setup are NOT enough. '+
+                'See issue #195.');
+              return;
+            }
+            const evidenceUrl='https://github.com/'+owner+'/'+repo+
+              '/actions/runs/'+verified.run.id;
+            core.notice('Validated exact-source Windows installed updater FAT: '+evidenceUrl);
+            await core.summary
+              .addHeading('Windows updater runtime acceptance')
+              .addRaw('Real Inno worker FAT succeeded on the exact release commit. ')
+              .addLink('View test evidence',evidenceUrl)
+              .write();
+
   package:
     name: Build, verify, SBOM, and attest package
     needs: resolve
