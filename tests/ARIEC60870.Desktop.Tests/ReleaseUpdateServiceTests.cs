@@ -150,6 +150,7 @@ public sealed class ReleaseUpdateServiceTests
                 return;
             }
             Assert.Throws<IOException>(() => UpdateStorageSafety.EnumerateSafeFiles(root));
+            Assert.Throws<IOException>(() => UpdateStorageSafety.RejectLinkedDirectory(link));
         }
         finally
         {
