@@ -8,6 +8,10 @@ $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
   throw 'CI-only fixture: this script installs and uninstalls ArSee. Never run it on an engineer workstation.'
 }
+if ($env:RUNNER_ENVIRONMENT -eq 'self-hosted' -and
+    $env:ARSEE_UPDATER_DISPOSABLE_VM -ne '1') {
+  throw 'Refusing to install on a self-hosted PC. This destructive FAT requires an isolated disposable Windows VM with ARSEE_UPDATER_DISPOSABLE_VM=1 preconfigured.'
+}
 [xml]$props = Get-Content Directory.Build.props
 $version = [string]$props.Project.PropertyGroup.Version
 if ([version]$version -le [version]$PreviousVersion) {
@@ -28,6 +32,15 @@ $log = Join-Path $stage 'worker-fat.txt'
 $currentSetup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
 $oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
 $oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
+# Never replace an existing engineer installation, even on a CI runner.
+if (Test-Path $installDir) {
+  throw "FAT fixture refuses to touch an existing installation directory: $installDir"
+}
+$registered = @(Get-ChildItem 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall' -ErrorAction SilentlyContinue |
+  Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq 'ArSee' })
+if ($registered.Count -gt 0) {
+  throw 'FAT fixture refuses to touch an existing ArSee Windows uninstall registration.'
+}
 $oldApp = $null
 $workerProcess = $null
 $launched = $null
