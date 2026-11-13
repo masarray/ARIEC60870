@@ -17,9 +17,9 @@ DisableDirPage=yes
 CloseApplications=no
 RestartApplications=no
 Compression=none
-; Diagnostic only: skip SetupLdr extraction to distinguish loader vs Setup runtime.
-UseSetupLdr=no
+; Exercise the same single-EXE Setup Loader used by public Inno releases.
+UseSetupLdr=yes
 OutputDir={#OutputRoot}
-OutputBaseFilename=ARIEC60870-inno-ci-direct
+OutputBaseFilename=ARIEC60870-inno-ci-canary
 [Files]
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "canary.txt"; Flags: ignoreversion
