@@ -124,6 +124,8 @@ public static class ReleaseUpdateService
 
         var stage = Path.Combine(UpdatesRoot, release.Tag);
         Directory.CreateDirectory(stage);
+        UpdateStorageSafety.RejectLinkedDirectory(UpdatesRoot);
+        UpdateStorageSafety.RejectLinkedDirectory(stage);
         var stagedInstaller = Path.Combine(stage, release.FileName);
         var part = stagedInstaller + ".part";
         // The worker must exist outside the installation before its parent
