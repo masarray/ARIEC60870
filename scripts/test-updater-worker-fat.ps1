@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Windows-only live integration test of the staged worker, not just Inno CLI.
 # Uses actual previous public release from the preceding installer CI step.
-param([string]$PreviousVersion = '3.6.7')
+param([string]$PreviousVersion = '3.6.7', [switch]$Precompiled)
 
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
@@ -104,7 +104,7 @@ try {
   Invoke-Bounded -File $canaryUninstall -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
   Write-Host 'Real single-EXE Inno SetupLoader canary compiled, installed and uninstalled successfully.'
 
-  if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
+  if (!$Precompiled -and !(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     # Dedicated worker FAT must not wait for the separate legacy installer
     # gate. Acquire and verify the previous immutable public release itself.
     New-Item -ItemType Directory -Force -Path $source | Out-Null
@@ -126,16 +126,35 @@ try {
     }
     Expand-Archive -Path $oldZip -DestinationPath $source -Force
   }
-  if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
+  if (!$Precompiled -and !(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     throw 'Verified previous release does not contain ARIEC60870.exe.'
   }
   if (!(Test-Path $currentSetup) -or !(Test-Path $currentSource)) {
     throw 'Current installer or tested WPF binary missing.'
   }
 
-  & $iscc "/DAppVersion=$PreviousVersion" "/DSourceRoot=$source" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
-  if ($LASTEXITCODE -ne 0 -or !(Test-Path $oldSetup)) {
-    throw 'Previous-version installer compilation failed.'
+  if (!$Precompiled) {
+    & $iscc "/DAppVersion=$PreviousVersion" "/DSourceRoot=$source" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+    if ($LASTEXITCODE -ne 0 -or !(Test-Path $oldSetup)) {
+      throw 'Previous-version installer compilation failed.'
+    }
+  } else {
+    # The independent FAT job MUST NOT compile a large setup on the same
+    # Windows runner that executes installers. Verify exact bytes supplied by
+    # the preceding build-only CI job; never trust a filename alone.
+    $manifest = Join-Path $output 'FAT-SHA256SUMS.txt'
+    if (!(Test-Path $manifest)) { throw 'Compiled FAT installer manifest missing.' }
+    foreach ($setupFile in @($oldSetup, $currentSetup)) {
+      if (!(Test-Path $setupFile)) { throw "Missing precompiled installer: $setupFile" }
+      $fileName = Split-Path $setupFile -Leaf
+      $lines = @(Get-Content $manifest | Where-Object { $_.EndsWith("  $fileName") })
+      if ($lines.Count -ne 1) { throw "Missing or ambiguous exact digest for $fileName" }
+      $hash = ([regex]::Match($lines[0], '^[0-9a-fA-F]{64}')).Value
+      if (!$hash -or (Get-FileHash $setupFile -Algorithm SHA256).Hash -ine $hash) {
+        throw "Precompiled installer digest mismatch: $fileName"
+      }
+    }
+    Write-Host 'FAT installer inputs: both independently packaged versions passed SHA-256.'
   }
   # /SP- is explicit for unattended runs, even if the Inno compiler's
   # current default already disables startup prompts. The full log proves
