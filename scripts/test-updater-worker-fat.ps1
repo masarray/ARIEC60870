@@ -5,6 +5,9 @@
 param([string]$PreviousVersion = '3.6.7')
 
 $ErrorActionPreference = 'Stop'
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
+  throw 'CI-only fixture: this script installs and uninstalls ArSee. Never run it on an engineer workstation.'
+}
 [xml]$props = Get-Content Directory.Build.props
 $version = [string]$props.Project.PropertyGroup.Version
 if ([version]$version -le [version]$PreviousVersion) {

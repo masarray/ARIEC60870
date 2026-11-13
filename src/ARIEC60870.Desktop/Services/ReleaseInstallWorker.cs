@@ -118,6 +118,15 @@ public static class ReleaseInstallWorker
                         ? "Updated ArSee exited before its WPF window was ready."
                         : "Updated ArSee started but did not confirm its WPF window; leaving its running files untouched.");
 
+            // The first rendered frame can precede immediate startup faults.
+            // Preserve the backup during a small bounded crash-observation
+            // window; a clean operator close is not a failed update.
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            if (restarted.HasExited && restarted.ExitCode != 0)
+                throw new InvalidOperationException(
+                    "Updated ArSee crashed immediately after its first WPF frame (exit " +
+                    restarted.ExitCode + ").");
+
             WriteStatus(plan, "Success " + plan.Tag + "; new WPF first frame acknowledged");
             TryDeleteDirectory(backupDir);
             TryDeleteFile(plan.InstallerPath);
@@ -236,7 +245,10 @@ public static class ReleaseInstallWorker
         var plan = JsonSerializer.Deserialize<UpdateInstallPlan>(
             await File.ReadAllTextAsync(path).ConfigureAwait(false))
             ?? throw new InvalidDataException("Update plan is empty.");
-        if (!ReleaseUpdateService.TryParseStableTag(plan.Tag, out var newVersion) ||
+        if (!string.Equals(Path.GetFullPath(plan.StageDirectory),
+                Path.GetFullPath(Path.Combine(ReleaseUpdateService.UpdatesRoot, plan.Tag)),
+                StringComparison.OrdinalIgnoreCase) ||
+            !ReleaseUpdateService.TryParseStableTag(plan.Tag, out var newVersion) ||
             !Version.TryParse(FileVersionInfo.GetVersionInfo(plan.InstalledExecutable).FileVersion,
                 out var oldVersion) || newVersion <= oldVersion ||
             plan.InstallerSha256.Length != 64 ||
