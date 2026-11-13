@@ -30,10 +30,13 @@ public partial class App : Application
                     string.Equals(arg, "--observation-out", StringComparison.OrdinalIgnoreCase));
                 var output = outputOption >= 0 && outputOption + 1 < e.Args.Length
                     ? e.Args[outputOption + 1] : Path.Join(Path.GetTempPath(), "ARIEC60870-OBS-C");
+                // OBS-C asserts the clean application startup layout. Running
+                // earlier interactive smoke probes in this same MainWindow
+                // opens Frame Details and contaminates that initial state.
+                // The independent --passive-gui-smoke executable gate already
+                // exercises those probes; keep OBS-C on its own fresh window.
                 var window = new MainWindow();
                 window.Show();
-                await window.RunPassiveGuiSmokeProbeAsync();
-                await window.RunPassiveHistoryGuiSmokeProbeAsync();
                 await window.RunObservationUiAcceptanceProbeAsync(output);
                 window.Close();
                 Shutdown(0);
