@@ -67,25 +67,21 @@ try {
   # Small Inno canary distinguishes a broken Windows runner/Setup loader
   # from a large ArSee packaging problem before expensive version-cross FAT.
   $canaryInstall = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870-CI-Canary'
-  $canaryBinary = Join-Path $output 'ARIEC60870-inno-ci-direct.exe'
-  $canaryLog = Join-Path $output 'UPDATER-FAT-CANARY-DIRECT-INNO.log'
+  $canaryBinary = Join-Path $output 'ARIEC60870-inno-ci-canary.exe'
+  $canaryLog = Join-Path $output 'UPDATER-FAT-CANARY-INNO.log'
   & $iscc "/DOutputRoot=$output" installer/ARIEC60870.CI-Canary.iss
   if ($LASTEXITCODE -ne 0 -or !(Test-Path $canaryBinary)) {
     throw 'Minimal Inno Setup canary compilation failed.'
   }
   $canaryArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /LOG="' + $canaryLog + '"'
-  foreach ($suffix in @('-0.bin', '-1.bin')) {
-    if (!(Test-Path (Join-Path $output "ARIEC60870-inno-ci-direct$suffix"))) {
-      throw "Direct Setup must contain both data segments; missing $suffix."
-    }
-  }
+  # A real release uses one self-contained SetupLdr EXE; no detached .bin files.
   Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
   if (!(Test-Path (Join-Path $canaryInstall 'canary.txt'))) {
     throw 'Minimal Inno Setup canary installed no payload.'
   }
   $canaryUninstall = Join-Path $canaryInstall 'unins000.exe'
   Invoke-Bounded -File $canaryUninstall -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -TimeoutSec 35
-  Write-Host 'Direct Setup (UseSetupLdr=no) canary compiled, installed, and uninstalled successfully; bundled SetupLdr remains separately unqualified.'
+  Write-Host 'Real single-EXE Inno SetupLoader canary compiled, installed and uninstalled successfully.'
 
   if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
     # Dedicated worker FAT must not wait for the separate legacy installer
@@ -204,9 +200,9 @@ try {
   Copy-Item $log (Join-Path $output 'UPDATER-WORKER-ACCEPTANCE.txt') -Force
 }
 finally {
-  if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-DIRECT-INNO.log')) {
+  if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log')) {
     Write-Host 'CI Inno canary diagnostic tail:'
-    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-DIRECT-INNO.log') -Tail 10
+    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Tail 10
   }
   if (Test-Path $oldInstallLog) {
     Write-Host 'Old installer diagnostic tail:'
