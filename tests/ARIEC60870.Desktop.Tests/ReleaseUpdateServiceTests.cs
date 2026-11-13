@@ -65,6 +65,40 @@ public sealed class ReleaseUpdateServiceTests
     }
 
     [Fact]
+    public void UpdateStartupTokenIsUniqueAndCannotBeSpoofedByAnotherProcessOrVersion()
+    {
+        var token = UpdateStartupHandshake.NewToken();
+        var other = UpdateStartupHandshake.NewToken();
+        Assert.NotEqual(token, other);
+        Assert.True(UpdateStartupHandshake.IsValidToken(token));
+        Assert.False(UpdateStartupHandshake.IsValidToken(token[..47]));
+        Assert.False(UpdateStartupHandshake.IsValidToken(new string('z', 48)));
+
+        var record = new UpdateStartupAck(1234, token, "3.6.9.0");
+        var json = System.Text.Json.JsonSerializer.Serialize(record);
+        Assert.True(UpdateStartupHandshake.IsExpectedAck(json, 1234, token, new Version(3, 6, 9)));
+        Assert.False(UpdateStartupHandshake.IsExpectedAck(json, 5678, token, new Version(3, 6, 9)));
+        Assert.False(UpdateStartupHandshake.IsExpectedAck(json, 1234, other, new Version(3, 6, 9)));
+        Assert.False(UpdateStartupHandshake.IsExpectedAck(json, 1234, token, new Version(3, 7, 0)));
+        Assert.False(UpdateStartupHandshake.IsExpectedAck("{broken", 1234, token, new Version(3, 6, 9)));
+        Assert.False(UpdateStartupHandshake.IsExpectedAck(new string(' ', 2048), 1234, token, new Version(3, 6, 9)));
+    }
+
+    [Fact]
+    public void StartupAcknowledgementCannotWriteArbitraryFileOutsideUpdateStaging()
+    {
+        var root = ReleaseUpdateService.UpdatesRoot;
+        Assert.True(UpdateStartupHandshake.IsValidAckPath(
+            Path.Combine(root, "v3.6.9", UpdateStartupHandshake.AckFileName)));
+        Assert.False(UpdateStartupHandshake.IsValidAckPath(
+            Path.Combine(root, "v3.6.9", "any-other-name.json")));
+        Assert.False(UpdateStartupHandshake.IsValidAckPath(
+            Path.Combine(Path.GetTempPath(), "v3.6.9", UpdateStartupHandshake.AckFileName)));
+        Assert.False(UpdateStartupHandshake.IsValidAckPath(
+            Path.Combine(root, "v3.6.9-rc.1", UpdateStartupHandshake.AckFileName)));
+    }
+
+    [Fact]
     public void PortableCopiesAreNeverSilentlyReplaced()
     {
         var folder = Path.Combine(Path.GetTempPath(), "arsee-update-install-" + Guid.NewGuid().ToString("N"));
