@@ -53,16 +53,12 @@ public sealed class EventFrameExchangeTracker
         // outstanding station slots. Never leave any of those polls eligible
         // for a later unrelated FC8 RX: invalidate candidates only on this
         // observed physical source, without assigning E5 to a guessed station.
-        if (frame.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
-            frame.Direction == FrameDirection.SlaveToMaster &&
-            frame.Frame is { IsSingleCharacterAck: true } or
-                { IsSingleCharacterNack: true })
+        if (EventFrameExchange.IsUnaddressedSecondaryReply(frame))
         {
-            var source = string.IsNullOrWhiteSpace(frame.PhysicalSource)
-                ? "SINGLE" : frame.PhysicalSource.Trim().ToUpperInvariant();
             foreach (var link in _links)
             {
-                if (link.Key.Source != source) continue;
+                if (!EventFrameExchange.SamePhysicalSource(
+                        link.Key.Source, frame.PhysicalSource)) continue;
                 link.Value.PendingPoll = null;
                 link.Value.LastResponse = null;
                 link.Value.MatchedPoll = null;
