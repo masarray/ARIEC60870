@@ -265,11 +265,12 @@ jobs:
             }
 
             const runs=await github.paginate(github.rest.actions.listWorkflowRuns,{
-              owner,repo,workflow_id:'ci.yml',event:'workflow_dispatch',
+              owner,repo,workflow_id:'ci.yml',
               status:'success',head_sha:context.sha,per_page:100
             });
             const candidates=runs.filter(run=>
-              run.event==='workflow_dispatch' &&
+              (run.event==='workflow_dispatch' ||
+                (run.event==='push' && ['master','main'].includes(run.head_branch))) &&
               run.head_sha?.toLowerCase()===context.sha.toLowerCase() &&
               run.conclusion==='success' &&
               run.created_at && Date.now()-Date.parse(run.created_at)<30*24*3600*1000);
@@ -290,8 +291,8 @@ jobs:
               core.setFailed(
                 'Stable '+version+' updater release is BLOCKED: no successful standalone '+
                 'Inno upgrade FAT for exact source commit '+context.sha+'. '+
-                'Run CI profile=updater on a disposable interactive Windows VM '+
-                '(installer_runner=self-hosted) and obtain a successful worker FAT step. '+
+                'Require green exact-SHA master push native FAT or explicit '+
+                'CI profile=updater on an isolated Windows VM. '+
                 'A green build, WPF unit tests, or compiled setup are NOT enough. '+
                 'See issue #195.');
               return;
