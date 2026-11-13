@@ -81,7 +81,8 @@ public sealed class EventHistoryJournal : IDisposable
             var row = rows[i] ?? throw new ArgumentException("Null event row.", nameof(rows));
             payloads[i] = JsonSerializer.SerializeToUtf8Bytes(new Entry(
                 row.EventNumber, row.SourceEntry,
-                EventHistoryOriginalSnapshot.Capture(row.OriginalFrameEvidence, row.SourceEntry.RawHex)));
+                EventHistoryOriginalSnapshot.Capture(row.OriginalFrameEvidence, row.SourceEntry.RawHex),
+                EventHistoryOriginalSnapshot.Capture(row.ObservedRequestFrame)));
             if (payloads[i].Length is < 1 or > 1024 * 1024)
                 throw new IOException("Event history record outside bounded size.");
         }
@@ -177,9 +178,10 @@ public sealed class EventHistoryJournal : IDisposable
     }
 
     public sealed record Entry(long EventNumber, Iec103RelayEventLogEntry Source,
-        EventHistoryOriginalSnapshot? Original)
+        EventHistoryOriginalSnapshot? Original, EventHistoryOriginalSnapshot? Request = null)
     {
-        public RelayEventRow ToRow() => new(Source, Original?.Restore(Source.RawHex), EventNumber);
+        public RelayEventRow ToRow() => new(Source, Original?.Restore(Source.RawHex),
+            EventNumber, Request?.Restore());
 
         // Querying 50k+ events must not re-parse FT1.2 bytes simply to match
         // a signal name, value or category. Only preserve the typed edge flag
