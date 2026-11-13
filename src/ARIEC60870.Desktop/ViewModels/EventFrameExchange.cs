@@ -39,6 +39,9 @@ public static class EventFrameExchange
         if (!IsClassPoll(request) ||
             reply.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
             reply.Direction != FrameDirection.SlaveToMaster ||
+            // A secondary user-data reply is required. A primary unsolicited
+            // telegram or ACK is not evidence of this particular poll response.
+            reply.Frame?.LinkControl is not { Prm: false, FunctionCode: 8 } ||
             string.IsNullOrWhiteSpace(reply.RawHex) ||
             !TryLinkKey(request, out var source) ||
             !TryLinkKey(reply, out var destination) || source != destination)
