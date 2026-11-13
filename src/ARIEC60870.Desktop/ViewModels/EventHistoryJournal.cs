@@ -8,6 +8,7 @@ using System.Text.Json;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop.ViewModels;
 
@@ -224,7 +225,8 @@ public sealed record EventHistoryOriginalSnapshot(
     int? Cot, string CauseName, int? Ca, int? Ioa,
     string SignalName, string SignalValue, string RelayTime,
     bool IsRelayEdgeEvent, bool IsRelayValue, bool IsMappedSignal,
-    bool RawHexSharedWithSource)
+    bool RawHexSharedWithSource,
+    int? CotWidth = null, int? CaWidth = null, int? IoaWidth = null)
 {
     public static EventHistoryOriginalSnapshot? Capture(
         Iec103MasterEvidenceEvent? source, string? eventRawHex = null)
@@ -243,7 +245,10 @@ public sealed record EventHistoryOriginalSnapshot(
             source.SignalDisplayValue, source.RelayTimestampText,
             source.IsRelayEdgeEvent, source.IsRelayValue, source.IsMappedSignal,
             !string.IsNullOrEmpty(source.RawHex) &&
-            string.Equals(source.RawHex, eventRawHex, StringComparison.Ordinal));
+            string.Equals(source.RawHex, eventRawHex, StringComparison.Ordinal),
+            source.AsduDetails?.CotWidth,
+            source.AsduDetails?.CommonAddressWidth,
+            source.AsduDetails?.InformationObjectAddressWidth);
 
     public Iec103MasterEvidenceEvent Restore(string? eventRawHex = null)
     {
@@ -251,18 +256,34 @@ public sealed record EventHistoryOriginalSnapshot(
         // original physical frame share identical bytes; never infer equality.
         var rawHex = RawHexSharedWithSource ? eventRawHex ?? string.Empty : RawHex;
         Ft12FrameDecode? frame = null;
-        if (Protocol is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec103 &&
-            LinkAddressWidth is >= 0 and <= 2 && !string.IsNullOrWhiteSpace(rawHex))
+        Iec10xAsduDecode? asdu = null;
+        if (!string.IsNullOrWhiteSpace(rawHex))
         {
             try
             {
                 var raw = Convert.FromHexString(rawHex.Replace(" ", "", StringComparison.Ordinal));
-                frame = Protocol == Iec60870ProtocolMode.Iec101
-                    ? Ft12Parser.ForIec101(LinkAddressWidth).Decode(raw)
-                    : Ft12Parser.ForIec103(LinkAddressWidth).Decode(raw);
+                if (Protocol is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104)
+                {
+                    // Re-decode from the exact indexed raw bytes and recorded
+                    // source field widths; never guess using current Setup.
+                    // Integrity failure preserves raw/link evidence, not a
+                    // seemingly valid application payload.
+                    var restored = Iec10xArchivedFrameDecoder.Decode(Protocol,
+                        raw, LinkAddressWidth, CotWidth, CaWidth, IoaWidth);
+                    frame = restored.SerialFrame;
+                    if (restored.IsIntegrityValid)
+                        asdu = restored.Asdu;
+                }
+                else if (Protocol == Iec60870ProtocolMode.Iec103 &&
+                         LinkAddressWidth is >= 0 and <= 2)
+                    frame = Ft12Parser.ForIec103(LinkAddressWidth).Decode(raw);
             }
             catch (FormatException) { /* raw evidence stays verbatim */ }
         }
+        // An ASDU can contain multiple events; select this event's exact IOA
+        // while retaining every physical information object in Full Properties.
+        var selectedObject = asdu?.Objects.FirstOrDefault(o =>
+            o.InformationObjectAddress == Ioa);
         return new Iec103MasterEvidenceEvent
         {
             SequenceNumber = Sequence,
@@ -276,6 +297,10 @@ public sealed record EventHistoryOriginalSnapshot(
             PhysicalFrameSequenceNumber = FrameSequence,
             LinkAddress = LinkAddress,
             Frame = frame,
+            AsduDetails = asdu,
+            InformationObjectDetails = selectedObject,
+            CauseDetails = asdu?.CauseDetails,
+            QualityDetails = selectedObject?.QualityDetails,
             TypeId = TypeId,
             TypeName = TypeName,
             CauseOfTransmission = Cot,
