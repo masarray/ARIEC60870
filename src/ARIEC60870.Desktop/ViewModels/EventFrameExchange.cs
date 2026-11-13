@@ -31,7 +31,35 @@ public static class EventFrameExchange
         frame.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
         frame.Direction == FrameDirection.MasterToSlave &&
         !string.IsNullOrWhiteSpace(frame.RawHex) &&
-        frame.Frame?.LinkControl is { Prm: true, FunctionCode: 10 or 11 };
+        frame.Frame is
+        {
+            IsChecksumValid: true, IsLengthValid: true,
+            LinkControl: { Prm: true, FunctionCode: 10 or 11 }
+        };
+
+    /// <summary>Two object projections must share a proven physical frame,
+    /// not merely a timestamp, signal name, station or raw HEX. A missing
+    /// frame identity is NOT a license to deduplicate different RX telegrams.</summary>
+    public static bool SamePhysicalResponse(Iec103MasterEvidenceEvent left,
+        Iec103MasterEvidenceEvent right)
+    {
+        if (left.ProtocolMode != right.ProtocolMode ||
+            left.Direction != FrameDirection.SlaveToMaster ||
+            right.Direction != FrameDirection.SlaveToMaster ||
+            !TryLinkKey(left, out var a) || !TryLinkKey(right, out var b) || a != b)
+            return false;
+
+        if (left.PhysicalStreamId.HasValue || right.PhysicalStreamId.HasValue)
+            return left.PhysicalStreamId.HasValue && right.PhysicalStreamId.HasValue &&
+                left.RawStreamOffset.HasValue && right.RawStreamOffset.HasValue &&
+                left.PhysicalStreamId == right.PhysicalStreamId &&
+                left.RawStreamOffset == right.RawStreamOffset;
+
+        var leftPhysical = left.PhysicalFrameSequenceNumber ?? left.SequenceNumber;
+        var rightPhysical = right.PhysicalFrameSequenceNumber ?? right.SequenceNumber;
+        return leftPhysical > 0 && rightPhysical > 0 &&
+            leftPhysical == rightPhysical;
+    }
 
     public static bool IsObservedPollReply(Iec103MasterEvidenceEvent request,
         Iec103MasterEvidenceEvent reply)
@@ -41,7 +69,11 @@ public static class EventFrameExchange
             reply.Direction != FrameDirection.SlaveToMaster ||
             // A secondary user-data reply is required. A primary unsolicited
             // telegram or ACK is not evidence of this particular poll response.
-            reply.Frame?.LinkControl is not { Prm: false, FunctionCode: 8 } ||
+            reply.Frame is not
+            {
+                IsChecksumValid: true, IsLengthValid: true,
+                LinkControl: { Prm: false, FunctionCode: 8 }
+            } ||
             string.IsNullOrWhiteSpace(reply.RawHex) ||
             !TryLinkKey(request, out var source) ||
             !TryLinkKey(reply, out var destination) || source != destination)
@@ -62,17 +94,34 @@ public static class EventFrameExchange
         Iec103MasterEvidenceEvent reply,
         IEnumerable<Iec103MasterEvidenceEvent> chronologicalFrames)
     {
-        if (!TryLinkKey(reply, out var key)) return null;
+        if (!TryLinkKey(reply, out var key) ||
+            reply.Direction != FrameDirection.SlaveToMaster) return null;
         var frames = chronologicalFrames as IReadOnlyList<Iec103MasterEvidenceEvent> ??
             chronologicalFrames.ToArray();
+        // The exact RX must still be in this bounded chronological Trace.
+        // Without it, the surrounding TX/RX order is unknowable.
+        var targetIndex = -1;
         for (var i = frames.Count - 1; i >= 0; i--)
         {
+            if (!SamePhysicalResponse(frames[i], reply)) continue;
+            targetIndex = i;
+            break;
+        }
+        if (targetIndex < 0) return null;
+
+        for (var i = targetIndex - 1; i >= 0; i--)
+        {
             var candidate = frames[i];
-            if (candidate.Direction != FrameDirection.MasterToSlave ||
-                !TryLinkKey(candidate, out var candidateKey) || candidateKey != key ||
-                candidate.TimestampUtc > reply.TimestampUtc)
+            if (!TryLinkKey(candidate, out var candidateKey) || candidateKey != key)
                 continue;
-            return IsObservedPollReply(candidate, reply) ? candidate : null;
+            if (candidate.Direction == FrameDirection.SlaveToMaster)
+            {
+                // A previous, different reply already consumed the old poll.
+                if (SamePhysicalResponse(candidate, reply)) continue;
+                return null;
+            }
+            if (candidate.Direction == FrameDirection.MasterToSlave)
+                return IsObservedPollReply(candidate, reply) ? candidate : null;
         }
         return null;
     }
