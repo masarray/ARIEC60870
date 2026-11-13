@@ -41,8 +41,15 @@ public static class ReleaseInstallWorker
             if (HasAnotherInstalledInstance(plan.InstalledExecutable))
                 throw new InvalidOperationException(
                     "Another ArSee window is still open. Close other instances before updating.");
+            // Inventory every file and directory before touching the backup.
+            // Junctions/symlinks must fail closed, never silently disappear
+            // from a recovery image or escape the intended install tree.
+            var previousFiles = UpdateStorageSafety.EnumerateSafeFiles(installFolder);
+            var previousBytes = UpdateStorageSafety.TotalBytes(previousFiles);
+            UpdateStorageSafety.EnsureAvailableSpace(plan.StageDirectory, previousBytes);
+            UpdateStorageSafety.EnsureAvailableSpace(installFolder, plan.InstallerBytes);
             backupDir = Path.Combine(plan.StageDirectory, "previous-install");
-            BackupInstallation(installFolder, backupDir);
+            BackupInstallation(installFolder, backupDir, previousFiles);
 
             // The backup is verified before allowing the installer to run.
             // An incomplete backup is never considered usable for rollback.
@@ -355,14 +362,17 @@ public static class ReleaseInstallWorker
             throw new InvalidOperationException("Could not reopen installed ArSee.");
     }
 
-    private static void BackupInstallation(string folder, string backup)
+    private static void BackupInstallation(string folder, string backup, IReadOnlyList<string> verifiedFiles)
     {
-        if (Directory.Exists(backup)) Directory.Delete(backup, recursive: true);
-        Directory.CreateDirectory(backup);
-        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        if (Directory.Exists(backup))
         {
-            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException("Linked files in the application folder prevent safe backup.");
+            if ((File.GetAttributes(backup) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Linked update backup directory is not trusted.");
+            Directory.Delete(backup, recursive: true);
+        }
+        Directory.CreateDirectory(backup);
+        foreach (var file in verifiedFiles)
+        {
             var relative = Path.GetRelativePath(folder, file);
             var target = Path.Combine(backup, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
