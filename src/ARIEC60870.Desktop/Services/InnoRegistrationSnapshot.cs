@@ -120,6 +120,9 @@ public sealed class InnoRegistrationSnapshot
                 folder, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException
-            or PathTooLongException) { return false; }
+            or PathTooLongException)
+        {
+            return false;
+        }
     }
 }
