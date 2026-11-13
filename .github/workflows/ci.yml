@@ -603,7 +603,7 @@ jobs:
             Set-Content (Join-Path $output 'UPGRADE-ACCEPTANCE.txt') -Encoding utf8
 
       - name: Explain separate full installer qualification
-        if: needs.classify.outputs.run_updater_fat == 'true' && github.event_name != 'workflow_dispatch'
+        if: needs.classify.outputs.run_updater_fat == 'true' && github.event_name == 'push'
         shell: pwsh
         run: |
           Write-Warning 'Source CI compiled the exact updater installer but did NOT run full install/restart FAT: even minimal Inno SetupLoader stalls before logging on GitHub-hosted runners. Use dispatch profile=updater on a disposable interactive self-hosted Windows VM before declaring stable release qualified.'
