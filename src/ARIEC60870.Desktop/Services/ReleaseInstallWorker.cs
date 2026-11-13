@@ -19,26 +19,38 @@ public static class ReleaseInstallWorker
     {
         UpdateInstallPlan? plan = null;
         string? backupDir = null;
+        string? priorExecutableDigest = null;
         var parentExited = false;
         var backupComplete = false;
-        var installerStillRunning = false;
+        var installerFinished = true;
+        Process? restarted = null;
         try
         {
             plan = await ReadValidatedPlanAsync(planPath).ConfigureAwait(false);
             if (!await WaitForParentExitAsync(plan.ParentPid).ConfigureAwait(false))
-                throw new InvalidOperationException("ArSee did not close safely. Update was cancelled; no files were modified.");
+                throw new InvalidOperationException(
+                    "ArSee did not close safely. Installation was not started.");
+
             parentExited = true;
             if (!await ReleaseUpdateService.VerifyFileAsync(plan.InstallerPath,
                 plan.InstallerSha256, plan.InstallerBytes, CancellationToken.None).ConfigureAwait(false))
                 throw new InvalidDataException("Staged installer changed or failed SHA-256 verification.");
 
-            // An offline, restorable copy is made BEFORE starting the installer.
-            // Settings/capture journals remain entirely outside the install path.
             var installFolder = Path.GetDirectoryName(plan.InstalledExecutable)!;
             backupDir = Path.Combine(plan.StageDirectory, "previous-install");
             BackupInstallation(installFolder, backupDir);
+
+            // The backup is verified before allowing the installer to run.
+            // An incomplete backup is never considered usable for rollback.
+            var priorExe = Path.Combine(backupDir, Path.GetFileName(plan.InstalledExecutable));
+            if (!File.Exists(priorExe))
+                throw new IOException("Previous executable was not preserved in backup.");
+            priorExecutableDigest = CalculateFileSha256(priorExe);
+            if (!string.Equals(priorExecutableDigest,
+                    CalculateFileSha256(plan.InstalledExecutable), StringComparison.Ordinal))
+                throw new IOException("Previous executable backup could not be verified.");
             backupComplete = true;
-            WriteStatus(plan, "Installing " + plan.Tag);
+            WriteStatus(plan, "Installer verified, previous installation backed up: " + plan.Tag);
 
             using var setup = Process.Start(new ProcessStartInfo(plan.InstallerPath)
             {
@@ -47,87 +59,136 @@ public static class ReleaseInstallWorker
                 ArgumentList =
                 {
                     "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-                    "/NORESTARTAPPLICATIONS", "/CLOSEAPPLICATIONS", "/SP-",
-                    "/RESTARTEXITCODE=3010"
+                    "/NORESTARTAPPLICATIONS", "/CLOSEAPPLICATIONS", "/SP-"
                 }
             }) ?? throw new InvalidOperationException("Windows could not launch the installer.");
 
-            installerStillRunning = true;
+            installerFinished = false;
             using (var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(12)))
             {
                 try
                 {
                     await setup.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                    installerFinished = true;
                 }
                 catch (OperationCanceledException)
                 {
-                    // Never kill an installer while it may be writing files.
-                    throw new TimeoutException("Installer exceeded twelve minutes. Its process was not forcibly terminated.");
+                    // Never overwrite a partially installed application while
+                    // Inno might still be writing to its directory.
+                    throw new TimeoutException(
+                        "Installer exceeded twelve minutes. No forced termination or concurrent rollback was attempted.");
                 }
             }
 
-            installerStillRunning = false;
             if (setup.ExitCode != 0 || !File.Exists(plan.InstalledExecutable))
-                throw new InvalidOperationException("Installer did not finish successfully (exit " + setup.ExitCode + ").");
+                throw new InvalidOperationException(
+                    "Installer did not finish successfully (exit " + setup.ExitCode + ").");
 
-            var installed = FileVersionInfo.GetVersionInfo(plan.InstalledExecutable).FileVersion;
             if (!ReleaseUpdateService.TryParseStableTag(plan.Tag, out var expected) ||
-                !Version.TryParse(installed, out var actual) || actual < expected)
+                !Version.TryParse(
+                    FileVersionInfo.GetVersionInfo(plan.InstalledExecutable).FileVersion, out var actual) ||
+                actual < expected)
                 throw new InvalidDataException("Installed executable does not report the expected new version.");
 
-            WriteStatus(plan, "Installed " + plan.Tag + "; restarting ArSee");
-            var restarted = StartInstalledApp(plan.InstalledExecutable);
-            // Catch immediate crash/regression; preserve the old application
-            // if the new binary fails before the engineer can use it.
-            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            if (restarted.HasExited && restarted.ExitCode != 0)
-                throw new InvalidOperationException("New ArSee version exited immediately (code " + restarted.ExitCode + ").");
+            // Process.Start alone is not success. Require the real WPF window
+            // to report Loaded from the same launched PID and expected version.
+            var token = UpdateStartupHandshake.NewToken();
+            var ackPath = UpdateStartupHandshake.GetAckPath(plan);
+            TryDeleteFile(ackPath);
+            WriteStatus(plan, "Installer completed: " + plan.Tag + "; verifying WPF startup");
+            restarted = StartInstalledApp(plan.InstalledExecutable, ackPath, token);
+            var ready = await UpdateStartupHandshake.WaitForReadyAsync(
+                ackPath, restarted, token, expected, TimeSpan.FromSeconds(45),
+                CancellationToken.None).ConfigureAwait(false);
+            if (!ready)
+                throw new InvalidOperationException(
+                    restarted.HasExited
+                        ? "Updated ArSee exited before its WPF window was ready."
+                        : "Updated ArSee started but did not confirm its WPF window; leaving its running files untouched.");
 
-            WriteStatus(plan, "Success " + plan.Tag);
+            WriteStatus(plan, "Success " + plan.Tag + "; new WPF window acknowledged");
             TryDeleteDirectory(backupDir);
             TryDeleteFile(plan.InstallerPath);
             TryDeleteFile(planPath);
-            // The copied worker remains locked until this process exits. A
-            // subsequent normal app startup removes completed old staging.
-            File.WriteAllText(Path.Combine(plan.StageDirectory, "completed.marker"), DateTime.UtcNow.ToString("O"));
+            // A successful restart leaves the worker EXE locked briefly.
+            // A subsequent normal app startup prunes completed staging.
+            try
+            {
+                File.WriteAllText(Path.Combine(plan.StageDirectory, "completed.marker"),
+                    DateTime.UtcNow.ToString("O"));
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
             return 0;
         }
         catch (Exception exception)
         {
             if (plan is not null)
             {
-                WriteStatus(plan, "Update failed: " + exception.Message);
-                if (backupComplete && !installerStillRunning && backupDir is not null && Directory.Exists(backupDir))
+                WriteStatus(plan, "Update did not complete: " + exception.Message);
+                var newAppStillRunning = restarted is not null && !restarted.HasExited;
+                var canRollback = parentExited && installerFinished &&
+                    backupComplete && !newAppStillRunning &&
+                    backupDir is not null && priorExecutableDigest is not null &&
+                    Directory.Exists(backupDir);
+
+                if (canRollback)
                 {
                     try
                     {
-                        RestoreInstallation(backupDir, Path.GetDirectoryName(plan.InstalledExecutable)!);
-                        WriteStatus(plan, "Previous installation restored.");
+                        RestoreInstallation(backupDir!, Path.GetDirectoryName(plan.InstalledExecutable)!);
+                        if (!string.Equals(CalculateFileSha256(plan.InstalledExecutable),
+                                priorExecutableDigest, StringComparison.Ordinal))
+                            throw new IOException("Restored executable failed its backup checksum.");
+                        WriteStatus(plan, "Verified previous installed executable restored.");
                     }
                     catch (Exception recovery)
                     {
-                        WriteStatus(plan, "Manual recovery may be needed: " + recovery.Message);
+                        WriteStatus(plan, "Automatic file recovery incomplete: " + recovery.Message);
                     }
                 }
 
-                // Do not strand the operator. If old EXE exists and can launch,
-                // return them to the prior version without opening GitHub.
+                // No process kill, COM interference, or automatic double
+                // installation. Restart the old version only if it is safe.
                 try
                 {
-                    if (parentExited && !installerStillRunning && File.Exists(plan.InstalledExecutable))
+                    if (parentExited && installerFinished && !newAppStillRunning &&
+                        File.Exists(plan.InstalledExecutable) &&
+                        (canRollback || !backupComplete))
                         StartInstalledApp(plan.InstalledExecutable);
                 }
                 catch (Exception recovery)
                 {
-                    WriteStatus(plan, "Cannot restart old installation: " + recovery.Message);
+                    WriteStatus(plan, "Failed to reopen existing ArSee: " + recovery.Message);
                 }
+
+                var guidance = !installerFinished
+                    ? "The installer may still be running. Do not start another update until it exits."
+                    : newAppStillRunning
+                        ? "The updated application is still running. Its files were not overwritten; a recovery backup was retained."
+                        : "You can reopen ArSee or retry the update. Technical details remain in updates/last-update.log.";
+                MessageBox.Show(
+                    "ArSee could not confirm a successful update. Stored profiles and capture evidence were not deleted.\\n\\n" +
+                    exception.Message + "\\n\\n" + guidance,
+                    "ArSee update not completed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-            MessageBox.Show(
-                "ArSee could not complete the update. Your stored profiles and capture evidence have not been deleted.\n\n" +
-                exception.Message + "\n\nYou can retry from ArSee. Technical details are in the local updates/last-update.log.",
-                "ArSee update not completed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            else
+            {
+                MessageBox.Show("ArSee update plan could not be validated. No application files were changed.\\n\\n" +
+                    exception.Message, "ArSee update rejected", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
             return 1;
         }
+        finally
+        {
+            restarted?.Dispose();
+        }
+    }
+
+    private static string CalculateFileSha256(string path)
+    {
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file));
     }
 
     public static void CleanupCompletedUpdates()
@@ -157,7 +218,9 @@ public static class ReleaseInstallWorker
         var plan = JsonSerializer.Deserialize<UpdateInstallPlan>(
             await File.ReadAllTextAsync(path).ConfigureAwait(false))
             ?? throw new InvalidDataException("Update plan is empty.");
-        if (!ReleaseUpdateService.TryParseStableTag(plan.Tag, out _) ||
+        if (!ReleaseUpdateService.TryParseStableTag(plan.Tag, out var newVersion) ||
+            !Version.TryParse(FileVersionInfo.GetVersionInfo(plan.InstalledExecutable).FileVersion,
+                out var oldVersion) || newVersion <= oldVersion ||
             plan.InstallerSha256.Length != 64 ||
             !plan.InstallerSha256.All(Uri.IsHexDigit) ||
             plan.InstallerBytes < 1_000_000 || plan.InstallerBytes > 300L * 1024 * 1024 ||
@@ -185,12 +248,22 @@ public static class ReleaseInstallWorker
         catch (OperationCanceledException) { return false; }
     }
 
-    private static Process StartInstalledApp(string path)
-        => Process.Start(new ProcessStartInfo(path)
+    private static Process StartInstalledApp(string path, string? ackPath = null, string? token = null)
+    {
+        var info = new ProcessStartInfo(path)
         {
             UseShellExecute = true,
             WorkingDirectory = Path.GetDirectoryName(path)!
-        }) ?? throw new InvalidOperationException("Could not reopen installed ArSee.");
+        };
+        if (ackPath is not null && token is not null)
+        {
+            info.ArgumentList.Add(UpdateStartupHandshake.StartupArgument);
+            info.ArgumentList.Add(ackPath);
+            info.ArgumentList.Add(token);
+        }
+        return Process.Start(info) ??
+            throw new InvalidOperationException("Could not reopen installed ArSee.");
+    }
 
     private static void BackupInstallation(string folder, string backup)
     {
