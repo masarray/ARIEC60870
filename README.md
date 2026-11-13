@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
 
@@ -17,14 +17,14 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public stable** | **v3.6.8** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/ARIEC60870-v3.6.8-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/ARIEC60870-v3.6.8-win-x64.zip) | Published stable: unified indexed Event Journal, global workspace search and Windows installer + portable ZIP |
-| **Previous stable-tagged release** | **v3.6.7** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7) | Previous stable release without the latest interface refinements |
+| **Latest public stable** | **v3.6.10** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-win-x64.zip) | Event → Original Frame forensic evidence, 31 bay-aware IEC-101/104 signal labels, bounded 1200-bps FT1.2 reception and tested Windows updater |
+| **Previous stable** | **v3.6.9** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.9) | Introduced operator-approved installed Windows self-updater |
 
-**ArSee is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.**
+**ArSee** is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.
 
-**v3.6.8 is the latest stable-tagged software release, not proof of hardware certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/SHA256SUMS.txt) before running unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8) also provides SPDX SBOM and the [exact Windows release workflow](https://github.com/masarray/ARIEC60870/actions/runs/43157628091) provides build attestations, xUnit and real-WPF screenshots.
+**v3.6.10 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) includes SPDX SBOM; [exact-source Windows package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43436696449) records full tests, WPF acceptance and provenance.
 
-> GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest **non-prerelease** release (currently v3.6.8). Newer RCs, when published, may be available separately; the landing page resolves the most recent complete public Windows package.
+> GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. The version-pinned links above point to the complete public assets. Draft engine PR #145 is not included.
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
@@ -32,7 +32,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.8 packaging workflow](https://github.com/masarray/ARIEC60870/actions/runs/43157628091) validates the packaged Windows executable and WPF evidence; physical RTU FAT is separate.*
+*Illustrative product media. The [v3.6.10 package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43436696449) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Supported engineering workflows
 
