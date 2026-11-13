@@ -1,0 +1,58 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Inno runtime diagnostic
+# Independently reproduce the native SetupLoader stall without running ArSee
+# or requiring the full .NET solution build. This is not an updater acceptance.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/inno-runtime-diagnostic.yml
+      - scripts/diagnose-inno-runner.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  native-canary:
+    name: Diagnose Windows hosted installer bootstrap
+    runs-on: windows-2022
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Inno Setup compiler
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler unavailable.' }
+          }
+      - name: Bounded synthetic Inno installer diagnostic (not ArSee)
+        id: probe
+        continue-on-error: true
+        shell: pwsh
+        run: ./scripts/diagnose-inno-runner.ps1 -TimeoutSeconds 25
+      - name: Publish truthful native Windows runtime status
+        if: always()
+        shell: pwsh
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+        run: |
+          Add-Content $env:GITHUB_STEP_SUMMARY '### Native Windows Inno Setup test'
+          if ($env:PROBE_OUTCOME -eq 'success') {
+            Add-Content $env:GITHUB_STEP_SUMMARY 'Synthetic SetupLoader test **passed**. This is only a canary; it does not qualify the full updater.'
+          } else {
+            Add-Content $env:GITHUB_STEP_SUMMARY 'Synthetic SetupLoader test **blocked/failed**. Source CI is separate; installer production FAT remains unqualified (issue #195).'
+          }
+      - name: Preserve process/session/security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inno-native-diagnostic
+          path: |
+            ${{ runner.temp }}/arsee-inno-runtime-probe/diagnostic.txt
+            ${{ runner.temp }}/arsee-inno-runtime-probe/compile.txt
+            ${{ runner.temp }}/arsee-inno-runtime-probe/inno-canary.log
+          if-no-files-found: warn
+          retention-days: 14
