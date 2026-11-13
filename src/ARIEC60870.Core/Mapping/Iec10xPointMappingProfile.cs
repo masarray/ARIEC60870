@@ -184,43 +184,15 @@ public sealed class Iec10xPointMappingProfile
         return copy;
     }
 
+    /// <summary>
+    /// Compatibility lookup. Use the same fail-closed CA/IOA/TI-family identity rules
+    /// as live evidence resolution. A mismatched station or command/feedback family
+    /// must not silently inherit a plausible-but-wrong bay label.
+    /// Configuration diagnostics and explicitly qualified read-only aliases are
+    /// handled by the separate runtime reconciler, never by this lookup.
+    /// </summary>
     public Iec10xPointMappingEntry? Resolve(int? commonAddress, int? ioa, int? typeId)
-    {
-        if (!ioa.HasValue)
-        {
-            return null;
-        }
-
-        // Strict match first: project databases should normally match CA + IOA + Type ID.
-        var strict = Points.FirstOrDefault(x =>
-                x.Ioa == ioa.Value &&
-                (!x.Ca.HasValue || !commonAddress.HasValue || x.Ca.Value == commonAddress.Value) &&
-                (!x.TypeId.HasValue || !typeId.HasValue || x.TypeId.Value == typeId.Value))
-            ?? Points.FirstOrDefault(x =>
-                x.Ioa == ioa.Value &&
-                (!x.Ca.HasValue || !commonAddress.HasValue || x.Ca.Value == commonAddress.Value));
-        if (strict is not null)
-        {
-            return strict;
-        }
-
-        // Field-test fallback: some lab simulators/devices return CA different from the
-        // approved sheet while the IOA list itself is still the intended database.
-        // Keep the signal readable, then let the forensic layer/report highlight CA mismatch.
-        var sameIoa = Points.Where(x => x.Ioa == ioa.Value).ToArray();
-        if (sameIoa.Length == 0)
-        {
-            return null;
-        }
-
-        var typeMatch = sameIoa.Where(x => !x.TypeId.HasValue || !typeId.HasValue || x.TypeId.Value == typeId.Value).ToArray();
-        if (typeMatch.Length == 1)
-        {
-            return typeMatch[0];
-        }
-
-        return sameIoa.Length == 1 ? sameIoa[0] : null;
-    }
+        => ResolveObservedSignal(commonAddress, ioa, typeId);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
