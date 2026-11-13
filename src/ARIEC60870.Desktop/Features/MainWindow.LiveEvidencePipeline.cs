@@ -1079,6 +1079,9 @@ public partial class MainWindow
 
     private void ApplyEvidenceToUi(Iec103MasterEvidenceEvent item)
     {
+        // Capture the immediately preceding master request independently of
+        // trace visibility/suppression, before RX Event projections are indexed.
+        ObserveEventHistoryTransmit(item);
         // Findings are derived only when their canonical source changes.
         // An idle Dispatcher tick is not a reason to rebuild report inputs.
         _findingsWorkspaceDirty = true;
