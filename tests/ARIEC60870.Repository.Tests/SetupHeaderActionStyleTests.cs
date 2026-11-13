@@ -84,7 +84,7 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
-    public void ConfigCloseHasVisibleRoundedBorderWithoutChangingRedInteractionStates()
+    public void ConfigCloseHasCircularBorderWithoutChangingRedInteractionStates()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
         var close = Resource(theme, "Style", "SetupCloseIconButtonStyle");
