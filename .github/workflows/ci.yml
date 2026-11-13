@@ -606,5 +606,6 @@ jobs:
           path: |
             artifacts/installer/UPGRADE-ACCEPTANCE.txt
             artifacts/installer/UPDATER-WORKER-ACCEPTANCE.txt
+            artifacts/installer/UPDATER-FAT-OLD-INNO.log
           if-no-files-found: ignore
           retention-days: 14

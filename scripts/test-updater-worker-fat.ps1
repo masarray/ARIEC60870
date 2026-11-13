@@ -24,19 +24,35 @@ $donePath = Join-Path $stage 'completed.marker'
 $log = Join-Path $stage 'worker-fat.txt'
 $currentSetup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
 $oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
+$oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
 $oldApp = $null
 $workerProcess = $null
 $launched = $null
 function Invoke-Bounded {
-  param([string]$File, [string]$Args, [int]$TimeoutSec = 150)
+  param([string]$File, [string]$Args, [int]$TimeoutSec = 95)
+  Write-Host "CI fixture: starting $(Split-Path $File -Leaf) (bounded $TimeoutSec s)"
   $process = Start-Process -FilePath $File -ArgumentList $Args -PassThru
   if (!$process.WaitForExit($TimeoutSec * 1000)) {
+    Write-Warning "CI fixture installer timed out: PID $($process.Id)"
+    Get-CimInstance Win32_Process | Where-Object {
+      $_.Name -match '(?i)(setup|unins|ARIEC60870|ArSee)'
+    } | Select-Object ProcessId,ParentProcessId,Name,CommandLine |
+      Format-Table -AutoSize | Out-String | Write-Host
+    if (Test-Path $oldInstallLog) {
+      Write-Host 'Inno Setup diagnostic tail:'
+      Get-Content $oldInstallLog -Tail 70
+    } else {
+      Write-Warning 'No Inno Setup log was created; possible pre-install prompt/early loader stall.'
+    }
+    # CI-only fixture cleanup; production worker NEVER kills installer processes.
     try { $process.Kill($true) } catch { }
-    throw "CI fixture process exceeded $TimeoutSec seconds: $File"
+    throw "CI fixture installer exceeded $TimeoutSec seconds: $File"
   }
   if ($process.ExitCode -ne 0) {
+    if (Test-Path $oldInstallLog) { Get-Content $oldInstallLog -Tail 70 }
     throw "CI fixture process failed with exit $($process.ExitCode): $File"
   }
+  Write-Host "CI fixture process exit 0: $(Split-Path $File -Leaf)"
 }
 try {
   if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
@@ -72,7 +88,11 @@ try {
   if ($LASTEXITCODE -ne 0 -or !(Test-Path $oldSetup)) {
     throw 'Previous-version installer compilation failed.'
   }
-  Invoke-Bounded -File $oldSetup -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NORESTARTAPPLICATIONS'
+  # /SP- is explicit for unattended runs, even if the Inno compiler's
+  # current default already disables startup prompts. The full log proves
+  # whether the loader, Restart Manager, or filesystem is the bottleneck.
+  $oldArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /NOFORCECLOSEAPPLICATIONS /LOG="' + $oldInstallLog + '"'
+  Invoke-Bounded -File $oldSetup -Args $oldArgs -TimeoutSec 95
   if (!(Test-Path $installedExe) -or
       (Get-Item $installedExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
     throw 'Prior installed executable version is not genuine previous release.'
@@ -104,6 +124,9 @@ try {
     StageDirectory = $stage
   }
   $plan | ConvertTo-Json -Depth 3 | Set-Content $planPath -Encoding utf8
+  # A failing worker must return its nonzero result/log in headless CI,
+  # instead of showing an inaccessible Windows modal dialog.
+  $env:ARSEE_UPDATER_CI_MODE = '1'
   $workerProcess = Start-Process -FilePath $workerExe -ArgumentList "--apply-release-update `"$planPath`"" -PassThru
   Start-Sleep -Seconds 2
   if (!$oldApp.CloseMainWindow()) {
@@ -121,7 +144,7 @@ try {
     throw "Autonomous update worker exit $($workerProcess.ExitCode)"
   }
   if (!(Test-Path $ackPath) -or !(Test-Path $donePath)) {
-    throw 'Worker did not receive WPF Loaded acknowledgement and completion marker.'
+    throw 'Worker did not receive first-render WPF acknowledgement and completion marker.'
   }
   $ack = Get-Content $ackPath -Raw | ConvertFrom-Json
   $launched = Get-Process -Id $ack.Pid -ErrorAction SilentlyContinue
@@ -144,11 +167,16 @@ try {
     throw 'Staged worker left stale or duplicate Inno uninstall registration.'
   }
 
-  "PASS: verified old v$PreviousVersion installed WPF normal close -> independent staged worker -> Inno v$version -> actual new WPF Loaded/PID/token ACK -> intact user data and uninstall registry." |
+  "PASS: verified old v$PreviousVersion installed WPF normal close -> independent staged worker -> Inno v$version -> actual new WPF ContentRendered/PID/token ACK -> intact user data and uninstall registry." |
     Set-Content $log -Encoding utf8
   Copy-Item $log (Join-Path $output 'UPDATER-WORKER-ACCEPTANCE.txt') -Force
 }
 finally {
+  if (Test-Path $oldInstallLog) {
+    Write-Host 'Old installer diagnostic tail:'
+    Get-Content $oldInstallLog -Tail 12
+  }
+  $env:ARSEE_UPDATER_CI_MODE = $null
   if ($launched -and !$launched.HasExited) {
     try { $null = $launched.CloseMainWindow(); $null = $launched.WaitForExit(20000) } catch { }
   }

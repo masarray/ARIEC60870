@@ -181,6 +181,8 @@ public static class ReleaseInstallWorker
                     : newAppStillRunning
                         ? "The updated application is still running. Its files were not overwritten; a recovery backup was retained."
                         : "You can reopen ArSee or retry the update. Technical details remain in updates/last-update.log.";
+                if (Environment.GetEnvironmentVariable("ARSEE_UPDATER_CI_MODE") == "1")
+                    return 1; // Explicit unattended Windows acceptance; log already persisted.
                 MessageBox.Show(
                     "ArSee could not confirm a successful update. Stored profiles and capture evidence were not deleted.\n\n" +
                     exception.Message + "\n\n" + guidance,
@@ -188,6 +190,8 @@ public static class ReleaseInstallWorker
             }
             else
             {
+                if (Environment.GetEnvironmentVariable("ARSEE_UPDATER_CI_MODE") == "1")
+                    return 1;
                 MessageBox.Show("ArSee update plan could not be validated. No application files were changed.\n\n" +
                     exception.Message, "ArSee update rejected", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
