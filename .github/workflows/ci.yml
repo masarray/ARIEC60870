@@ -440,10 +440,10 @@ jobs:
     name: Bounded previous-release upgrade and running-Master shutdown
     needs: [classify, build-test]
     if: needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater'))
-    # Latest Windows Server image stalled even on a tiny Inno-only canary before
-    # producing any Setup log (PR #194, CI run 43354277092). Use a different
-    # supported Windows image for installer execution; keep all proof gates.
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater') && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
+    # Installer *compilation* stays on the build runner. Native updater FAT
+    # executes on a separate, fresh Windows job without large ISCC activity.
+    # The old direct-Inno manual acceptance may still use a controlled VM.
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.profile == 'installer' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
     timeout-minutes: 20
     steps:
       - name: Checkout installer scripts
@@ -492,6 +492,61 @@ jobs:
           path: artifacts/installer-deliverable/*
           if-no-files-found: error
           retention-days: 14
+
+      - name: Compile checksummed previous public Inno setup for independent FAT runner
+        if: (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true') || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $oldVersion = '3.6.7'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous'
+          New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
+          $oldZip = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous.zip'
+          $sumFile = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous-sha256.txt'
+          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$oldVersion-win-x64.zip"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch immutable previous release.' }
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sumFile "$baseUrl/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch previous release checksums.' }
+          $expected = @(Get-Content $sumFile | Where-Object { $_.EndsWith("  ARIEC60870-v$oldVersion-win-x64.zip") })
+          if ($expected.Count -ne 1) { throw 'Previous release ZIP digest is missing or ambiguous.' }
+          $hash = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
+          if (!$hash -or (Get-FileHash $oldZip -Algorithm SHA256).Hash -ine $hash) {
+            throw 'Previous public ZIP does not match official SHA256SUMS.'
+          }
+          Expand-Archive $oldZip $oldSource -Force
+          if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
+            throw 'Verified previous binary is missing.'
+          }
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          $output = (Resolve-Path 'artifacts/installer').Path
+          & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Previous Inno setup compilation failed.' }
+          $files = @(
+            (Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"),
+            (Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe")
+          )
+          foreach ($file in $files) {
+            if (!(Test-Path $file)) { throw "Expected FAT setup missing: $file" }
+          }
+          $lines = foreach ($file in $files) {
+            '{0}  {1}' -f (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant(), (Split-Path $file -Leaf)
+          }
+          $lines | Set-Content (Join-Path $output 'FAT-SHA256SUMS.txt') -Encoding ascii
+
+      - name: Upload old and new installer bytes for fresh independent Windows FAT
+        if: (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true') || (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-updater-fat-installer-pair
+          path: |
+            artifacts/installer/ARIEC60870-v*-setup-win-x64.exe
+            artifacts/installer/FAT-SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Verify previous release upgrade and active Master shutdown
         if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
