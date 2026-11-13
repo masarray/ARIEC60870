@@ -13,10 +13,16 @@ public sealed class RelayEventRow
     /// Never matched by address alone and never reinterpreted from display text.</summary>
     public Iec103MasterEvidenceEvent? OriginalFrameEvidence { get; }
 
+    /// <summary>Observed IEC-101 master Class 1/2 poll immediately preceding
+    /// this RX, qualified by physical source/link, not by similar IOA/time.</summary>
+    public Iec103MasterEvidenceEvent? ObservedRequestFrame { get; internal set; }
+
     public RelayEventRow(Iec103RelayEventLogEntry item,
-        Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0)
+        Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0,
+        Iec103MasterEvidenceEvent? observedRequestFrame = null)
     {
         OriginalFrameEvidence = originalFrameEvidence;
+        ObservedRequestFrame = observedRequestFrame;
         SourceEntry = item;
         EventNumber = eventNumber;
         Sequence = item.EvidenceSequenceNumber;
