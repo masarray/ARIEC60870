@@ -131,6 +131,7 @@ public static class ReleaseInstallWorker
                     backupComplete && !newAppStillRunning &&
                     backupDir is not null && priorExecutableDigest is not null &&
                     Directory.Exists(backupDir);
+                var rollbackVerified = false;
 
                 if (canRollback)
                 {
@@ -140,6 +141,7 @@ public static class ReleaseInstallWorker
                         if (!string.Equals(CalculateFileSha256(plan.InstalledExecutable),
                                 priorExecutableDigest, StringComparison.Ordinal))
                             throw new IOException("Restored executable failed its backup checksum.");
+                        rollbackVerified = true;
                         WriteStatus(plan, "Verified previous installed executable restored.");
                     }
                     catch (Exception recovery)
@@ -154,7 +156,7 @@ public static class ReleaseInstallWorker
                 {
                     if (parentExited && installerFinished && !newAppStillRunning &&
                         File.Exists(plan.InstalledExecutable) &&
-                        (canRollback || !backupComplete))
+                        (rollbackVerified || !backupComplete))
                         StartInstalledApp(plan.InstalledExecutable);
                 }
                 catch (Exception recovery)
