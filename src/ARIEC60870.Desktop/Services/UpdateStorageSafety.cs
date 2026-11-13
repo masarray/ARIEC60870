@@ -21,6 +21,18 @@ public static class UpdateStorageSafety
         return checked(dataBytes + reserveBytes);
     }
 
+    public static void RejectLinkedDirectory(string directory)
+    {
+        if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("Linked update staging or backup directories are not trusted.");
+    }
+
+    public static bool SharesVolume(string firstPath, string secondPath)
+        => string.Equals(
+            Path.GetPathRoot(Path.GetFullPath(firstPath)),
+            Path.GetPathRoot(Path.GetFullPath(secondPath)),
+            StringComparison.OrdinalIgnoreCase);
+
     public static void EnsureAvailableSpace(string destination, long additionalBytes)
     {
         var fullPath = Path.GetFullPath(destination);
