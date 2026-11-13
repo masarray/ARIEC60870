@@ -52,7 +52,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. [Download the v3.6.8 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/ARIEC60870-v3.6.8-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/ARIEC60870-v3.6.8-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.8/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.10 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
@@ -62,7 +62,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 ## Scope and safety boundaries
 
-- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** [Draft PR #145](https://github.com/masarray/ARIEC60870/pull/145) shared transaction/FCB and dual-link hardening is **excluded** from v3.6.8; COM recovery, GI/SBO evidence and 1,200-bps SOE FIFO still need physical FAT. Simulated CI is not a wired RTU pass.
+- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** [Draft PR #145](https://github.com/masarray/ARIEC60870/pull/145) shared transaction/FCB and dual-link hardening is **excluded** from v3.6.10; COM recovery, GI/SBO evidence and 1,200-bps SOE FIFO still need physical FAT. Simulated CI is not a wired RTU pass.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
 - ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
