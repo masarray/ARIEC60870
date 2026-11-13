@@ -245,7 +245,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" BorderBrush="Transparent" BorderThickness="0" CornerRadius="18" Padding="8" ClipToBounds="False">
+        <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" BorderBrush="Transparent" BorderThickness="0" CornerRadius="18" Padding="8,0,8,8" ClipToBounds="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                     <GradientStop Color="#FFFFFF" Offset="0" />
@@ -258,7 +258,9 @@
                           HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"
                           CanContentScroll="True" Focusable="False">
             <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center">
-                <Border Width="68" Height="70" Margin="0,0,0,13" BorderThickness="0" Background="Transparent" ClipToBounds="False">
+                <!-- Raise the rendered PNG to the header top; 8 DIP rail inset + 4 DIP transparent PNG edge. -->
+                <!-- Compensating bottom margin preserves Setup/Connect and all subsequent rail button Y positions. -->
+                <Border Width="68" Height="70" Margin="0,-4,0,25" BorderThickness="0" Background="Transparent" ClipToBounds="False">
                     <Image x:Name="ProtocolLogoImage" Source="Assets/Icons/ariec60870-icon.png" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
                 </Border>
 
