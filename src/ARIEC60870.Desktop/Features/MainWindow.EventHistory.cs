@@ -37,6 +37,34 @@ public partial class MainWindow
     private bool _eventHistoryFailureNoticeLogged;
     private bool _eventHistoryCsvRunning;
 
+    // A bounded O(1) per-link observation of the most recent TX. Each indexed
+    // RX Event snapshots its eligible Class 1/2 request before the next poll
+    // replaces this slot. Does not store every TX in the WPF trace ring.
+    private readonly Dictionary<(string Source, int Link), Iec103MasterEvidenceEvent>
+        _eventHistoryLastMasterTransmit = new();
+
+    private void ObserveEventHistoryTransmit(Iec103MasterEvidenceEvent item)
+    {
+        if (item.Direction != FrameDirection.MasterToSlave ||
+            !EventFrameExchange.TryLinkKey(item, out var key)) return;
+
+        // A non-poll TX on the same circuit invalidates an earlier Class poll
+        // as the immediate request for subsequent responses.
+        if (EventFrameExchange.IsClassPoll(item))
+            _eventHistoryLastMasterTransmit[key] = item;
+        else
+            _eventHistoryLastMasterTransmit.Remove(key);
+    }
+
+    private void AttachObservedEventRequest(RelayEventRow row)
+    {
+        if (row.OriginalFrameEvidence is not { } reply ||
+            !EventFrameExchange.TryLinkKey(reply, out var key) ||
+            !_eventHistoryLastMasterTransmit.TryGetValue(key, out var request) ||
+            !EventFrameExchange.IsObservedPollReply(request, reply)) return;
+        row.ObservedRequestFrame = request;
+    }
+
     private void ResetEventHistory()
     {
         _eventHistoryQueryCancel?.Cancel();
@@ -49,6 +77,7 @@ public partial class MainWindow
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
         _eventHistoryFollowingLatest = true;
+        _eventHistoryLastMasterTransmit.Clear();
         _eventHistoryQueryBusy = false;
         _eventHistoryRefreshBusy = false;
         _eventHistoryPageBusy = false;
@@ -82,6 +111,7 @@ public partial class MainWindow
     /// </summary>
     private void RecordEventHistory(RelayEventRow row)
     {
+        AttachObservedEventRequest(row);
         row.EventNumber = ++_eventHistoryObserved;
         _eventHistoryWriter?.TryEnqueue(row);
     }
