@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
 using Xunit;
@@ -26,6 +27,8 @@ public sealed class EventFrameExchangeTests
             Frame = new Ft12FrameDecode
             {
                 LinkAddress = link,
+                IsChecksumValid = true,
+                IsLengthValid = true,
                 LinkControl = new LinkControlInfo { Prm = true, FunctionCode = function }
             }
         };
@@ -44,6 +47,8 @@ public sealed class EventFrameExchangeTests
             Frame = new Ft12FrameDecode
             {
                 LinkAddress = link,
+                IsChecksumValid = true,
+                IsLengthValid = true,
                 LinkControl = new LinkControlInfo { Prm = false, FunctionCode = 8 }
             }
         };
@@ -82,12 +87,81 @@ public sealed class EventFrameExchangeTests
     }
 
     [Fact]
+    public void TheEarlierReplyIsAnExplicitBarrierForLiveTraceFallback()
+    {
+        var poll = Poll();
+        var earlier = Reply(sequence: 31);
+        var later = Reply(delayMs: 180, sequence: 32);
+        Assert.Null(EventFrameExchange.FindLatestObservedPoll(later,
+            new[] { poll, earlier, later }));
+    }
+
+    [Fact]
+    public void TraceFallbackStopsAtUnaddressedE5OnMatchingPhysicalSource()
+    {
+        var poll = Poll();
+        var reply = Reply(sequence: 33, delayMs: 120);
+        var single = Ft12Parser.ForIec101(1).Decode([0xE5]);
+        var ack = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 32,
+            TimestampUtc = Utc.AddMilliseconds(80),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "Link A",
+            RawHex = single.Hex,
+            Frame = single
+        };
+        Assert.True(EventFrameExchange.IsUnaddressedSecondaryReply(ack));
+        Assert.Null(EventFrameExchange.FindLatestObservedPoll(
+            reply, new[] { poll, ack, reply }));
+
+        var unrelatedAck = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 32,
+            TimestampUtc = Utc.AddMilliseconds(80),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "Link B",
+            RawHex = single.Hex,
+            Frame = single
+        };
+        Assert.Same(poll, EventFrameExchange.FindLatestObservedPoll(
+            reply, new[] { poll, unrelatedAck, reply }));
+    }
+
+    [Fact]
+    public void InvalidChecksumOrLengthIsNotCertifiedAsAMatchedExchange()
+    {
+        var request = Poll();
+        var damagedRx = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 31,
+            TimestampUtc = Utc.AddMilliseconds(80),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "Link A", LinkAddress = 105,
+            RawHex = "10 08 69 70 16",
+            Frame = new Ft12FrameDecode
+            {
+                IsChecksumValid = false, IsLengthValid = true,
+                LinkAddress = 105,
+                LinkControl = new LinkControlInfo { Prm = false, FunctionCode = 8 }
+            }
+        };
+        Assert.False(EventFrameExchange.IsObservedPollReply(request, damagedRx));
+        Assert.Null(EventFrameExchange.FindLatestObservedPoll(damagedRx,
+            new[] { request, damagedRx }));
+    }
+
+    [Fact]
     public void ANewerNonPollTxCannotLeaveAnOlderPollFalselyPaired()
     {
         var poll = Poll();
         var unrelated = Poll(function: 3, sequence: 31);
         var reply = Reply(sequence: 32);
-        Assert.Null(EventFrameExchange.FindLatestObservedPoll(reply, new[] { poll, unrelated }));
-        Assert.Same(poll, EventFrameExchange.FindLatestObservedPoll(reply, new[] { poll }));
+        Assert.Null(EventFrameExchange.FindLatestObservedPoll(reply, new[] { poll, unrelated, reply }));
+        Assert.Same(poll, EventFrameExchange.FindLatestObservedPoll(reply, new[] { poll, reply }));
+        Assert.Null(EventFrameExchange.FindLatestObservedPoll(reply, new[] { poll }));
     }
 }

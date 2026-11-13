@@ -37,32 +37,17 @@ public partial class MainWindow
     private bool _eventHistoryFailureNoticeLogged;
     private bool _eventHistoryCsvRunning;
 
-    // A bounded O(1) per-link observation of the most recent TX. Each indexed
-    // RX Event snapshots its eligible Class 1/2 request before the next poll
-    // replaces this slot. Does not store every TX in the WPF trace ring.
-    private readonly Dictionary<(string Source, int Link), Iec103MasterEvidenceEvent>
-        _eventHistoryLastMasterTransmit = new();
+    // Independent of the WPF Trace ring. A secondary reply consumes exactly
+    // one master poll, but its sibling IOAs share the same verified TX.
+    private readonly EventFrameExchangeTracker _eventHistoryExchanges = new();
 
-    private void ObserveEventHistoryTransmit(Iec103MasterEvidenceEvent item)
-    {
-        if (item.Direction != FrameDirection.MasterToSlave ||
-            !EventFrameExchange.TryLinkKey(item, out var key)) return;
-
-        // A non-poll TX on the same circuit invalidates an earlier Class poll
-        // as the immediate request for subsequent responses.
-        if (EventFrameExchange.IsClassPoll(item))
-            _eventHistoryLastMasterTransmit[key] = item;
-        else
-            _eventHistoryLastMasterTransmit.Remove(key);
-    }
+    private void ObserveEventHistoryExchange(Iec103MasterEvidenceEvent item)
+        => _eventHistoryExchanges.Observe(item);
 
     private void AttachObservedEventRequest(RelayEventRow row)
     {
-        if (row.OriginalFrameEvidence is not { } reply ||
-            !EventFrameExchange.TryLinkKey(reply, out var key) ||
-            !_eventHistoryLastMasterTransmit.TryGetValue(key, out var request) ||
-            !EventFrameExchange.IsObservedPollReply(request, reply)) return;
-        row.ObservedRequestFrame = request;
+        if (row.OriginalFrameEvidence is { } reply)
+            row.ObservedRequestFrame = _eventHistoryExchanges.RequestForEvent(reply);
     }
 
     private void ResetEventHistory()
@@ -77,7 +62,7 @@ public partial class MainWindow
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
         _eventHistoryFollowingLatest = true;
-        _eventHistoryLastMasterTransmit.Clear();
+        _eventHistoryExchanges.Reset();
         _eventHistoryQueryBusy = false;
         _eventHistoryRefreshBusy = false;
         _eventHistoryPageBusy = false;
@@ -568,7 +553,7 @@ public partial class MainWindow
             decodedRx.Asdu?.FirstObject?.InformationObjectAddress != 7)
             throw new InvalidOperationException("Synthetic exchange fixture is invalid.");
         var current = DateTime.UtcNow;
-        ObserveEventHistoryTransmit(new Iec103MasterEvidenceEvent
+        ObserveEventHistoryExchange(new Iec103MasterEvidenceEvent
         {
             SequenceNumber = 621, TimestampUtc = current,
             Direction = FrameDirection.MasterToSlave,
