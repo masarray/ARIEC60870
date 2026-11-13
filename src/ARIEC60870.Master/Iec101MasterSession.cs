@@ -17,6 +17,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Ft12Parser _ft12;
+    // A single authoritative FT1.2 receive owner per physical COM epoch.
+    // Retain unfinished-frame ambiguity and raw-byte counters across exchanges.
+    private Ft12StreamReader _reader;
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
@@ -41,6 +44,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
+        _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 
@@ -72,6 +76,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         {
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            // A reopened physical port starts a new framing/ambiguity epoch;
+            // individual Class-1/2/status requests must reuse this reader.
+            _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
             DrainTransportDiagnostics("Open transport");
             // A Windows COM handle does not establish IEC-101 RTU connectivity.
             SetState(Iec103MasterState.OpeningTransport,
@@ -711,7 +718,6 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, CancellationToken cancellationToken)
     {
-        var reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize);
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
         Ft12FrameDecode? acceptedFrame = null;
@@ -719,7 +725,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
                && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
         {
-            raw = await reader.ReadFrameAsync(
+            raw = await _reader.ReadFrameAsync(
                 Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
                 cancellationToken).ConfigureAwait(false);
             if (raw is null || raw.Length == 0) break;
