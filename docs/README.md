@@ -1,6 +1,6 @@
 # ArSee documentation and GitHub Pages mirror
 
-Official site: https://masarray.github.io/ARIEC60870/ · [v3.6.8-rc.5 public prerelease](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.8-rc.5) · [Stable v3.6.7](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.7).
+Official site: https://masarray.github.io/ARIEC60870/ · [Stable v3.6.10](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) · [Previous stable v3.6.9](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.9).
 
 **Canonical public site: `site/`.** HTML, CSS and SEO assets copied into `docs/` are a generated **GitHub Pages compatibility mirror**, not a separate website. After editing `site/`, run `scripts/sync-github-pages-docs-mirror.ps1` and the repository tests. Never hand-edit the mirror independently.
 
@@ -10,4 +10,4 @@ Draft PRs, simulator results and unverified field behavior must not be marketed 
 
 **Active IEC-101 P0 implementation authority:** [Transaction/serial reliability blueprint](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) · [Deterministic test & field FAT matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) · [Milestone issue #143](https://github.com/masarray/ARIEC60870/issues/143). This is an implementation target, **not** a released feature claim; it supplements cross-protocol PRD/ARD and keeps draft serial PR #145 separate from the public RC.
 
-RC .5 includes merged Event Journal work, not draft IEC-101 PR #145. See [ArSee repository and Pages rename plan](ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
+Stable v3.6.10 contains merged PRs #197–#202, not the draft transaction/reconnect PR #145. See [ArSee repository and Pages rename plan](ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
