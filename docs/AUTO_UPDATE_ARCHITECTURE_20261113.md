@@ -32,3 +32,10 @@ User profiles, signal lists, stored capture/evidence and setup preferences in `%
 ## Windows qualification remaining before labeling production-hardened
 
 Perform an end-to-end **new stable vN -> next stable vN+1** test using *two published GitHub release assets* on a standard Windows user account, including running active master and passive capture, offline and interrupted download, malformed checksum, running installer timeout, low disk, AV lock, old-app backup restoration, update app reopening, and cleanup. Use a simulated/bench device only for automated acceptance, not an unapproved energized station.
+
+
+## Storage and rollback safety (13 November follow-up)
+
+The updater checks writable volume capacity **before** downloading the installer and copying the independent worker. The worker checks both the backup volume and the target installation volume before starting Inno Setup, keeping a 128 MiB reserve on each check. These checks reduce (but cannot eliminate) out-of-space failure because available space may change during installation. The backup file inventory visits each nested directory explicitly and rejects reparse-point files, directory links and junctions rather than silently omitting them or following them outside the application tree. When a preflight fails, the existing ArSee installation is left in place.
+
+**Windows CI limitation:** The targeted real Inno worker FAT currently fails even its isolated tiny, no-SetupLdr, file-only Inno canary before any installer log can be written (observed on GitHub-hosted Windows runners). This is an unverified installer execution environment, not successful FAT evidence. Source-level WPF/desktop/protocol validation is independent; a green build cannot substitute for verified installation, restart and rollback on Windows. Do not publish the feature as fully qualified merely because compilation, static analysis and unit tests pass.
