@@ -22,7 +22,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "3.6.7",
+    [string]$Version = "3.6.9",
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",

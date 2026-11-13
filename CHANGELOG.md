@@ -1,3 +1,13 @@
+## [3.6.9] - 2026-11-13
+
+### ArSee installed auto-updater milestone
+- Ships the in-app, operator-approved stable GitHub Releases updater in the Windows installed edition. The already-published v3.6.8 package predates this new feature, so upgrade to v3.6.9 once using the official installer; subsequent stable releases can be applied from within ArSee.
+- Downloads only exact official stable installer assets with SHA-256 and size verification; preserves profiles and capture evidence and never interrupts an active IEC session.
+- Runs the updater in an independent staged process after normal WPF close, validates the actual replacement WPF first frame and matching process ID/version/token, and keeps safe rollback backups.
+- Adds preflight disk-space and symlink/junction safety checks, plus per-user Inno uninstall registration verification and metadata rollback.
+- Introduces version-bound Windows native installer FAT and a release gate that rejects stable publication without a passing same-commit installer/restart acceptance.
+- Clarifies that public Windows installers are currently unsigned and that real IEC device communication is never automatically reconnected after an update.
+
 ## [3.6.8-rc.3] - 2026-11-10 (public prerelease)
 
 ### Release and public presentation
