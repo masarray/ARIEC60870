@@ -78,7 +78,7 @@ jobs:
               files.some(file => paths(file).some(isRuntime));
             const updaterChanged = files => fullyListed(files) &&
               files.some(file => paths(file).some(name =>
-                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1)$/i.test(name)));
+                /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake|UpdateStorageSafety)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1)$/i.test(name)));
             const workflowChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
