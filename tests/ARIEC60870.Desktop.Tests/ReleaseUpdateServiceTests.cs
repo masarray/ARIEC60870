@@ -163,6 +163,57 @@ public sealed class ReleaseUpdateServiceTests
     }
 
     [Fact]
+    public void FailedUpgradeRestoresExactPreviousInnoRegistryAndRemovesNewValues()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var keyPath = @"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ArSee-Test-" +
+            Guid.NewGuid().ToString("N");
+        var folder = Path.Combine(Path.GetTempPath(), "arsee-reg-rollback-" +
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var exe = Path.Combine(folder, "ARIEC60870.exe");
+        try
+        {
+            using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(keyPath)!)
+            {
+                key.SetValue("DisplayName", "ArSee");
+                key.SetValue("InstallLocation", folder);
+                key.SetValue("DisplayVersion", "3.6.7");
+                key.SetValue("UninstallString", Path.Combine(folder, "unins000.exe"));
+                key.SetValue("EstimatedSize", 154,
+                    Microsoft.Win32.RegistryValueKind.DWord);
+            }
+            var original = InnoRegistrationSnapshot.Capture(exe);
+            Assert.Equal("3.6.7", original.PreviousDisplayVersion);
+            using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyPath, true)!)
+            {
+                key.SetValue("DisplayVersion", "3.6.8");
+                key.SetValue("UninstallString", "wrong-uninstaller.exe");
+                key.SetValue("EstimatedSize", 999,
+                    Microsoft.Win32.RegistryValueKind.DWord);
+                key.SetValue("FailedUpdateResidue", "remove-me");
+            }
+            Assert.True(original.IsRegisteredVersion(exe, new Version(3, 6, 8)));
+            original.Restore(exe);
+            using var verified = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyPath)!;
+            Assert.Equal("3.6.7", verified.GetValue("DisplayVersion"));
+            Assert.Equal(Path.Combine(folder, "unins000.exe"),
+                verified.GetValue("UninstallString"));
+            Assert.Equal(154, verified.GetValue("EstimatedSize"));
+            Assert.Equal(Microsoft.Win32.RegistryValueKind.DWord,
+                verified.GetValueKind("EstimatedSize"));
+            Assert.Null(verified.GetValue("FailedUpdateResidue"));
+            Assert.False(original.IsRegisteredVersion(exe, new Version(3, 6, 8)));
+        }
+        finally
+        {
+            Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(keyPath,
+                throwOnMissingSubKey: false);
+            Directory.Delete(folder, true);
+        }
+    }
+
+    [Fact]
     public void PortableCopiesAreNeverSilentlyReplaced()
     {
         var folder = Path.Combine(Path.GetTempPath(), "arsee-update-install-" + Guid.NewGuid().ToString("N"));
