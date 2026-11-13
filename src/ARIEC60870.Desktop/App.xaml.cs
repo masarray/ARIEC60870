@@ -102,6 +102,14 @@ public partial class App : Application
         // StartupUri was deliberately removed from App.xaml: normal and
         // test-mode launches now each create exactly one MainWindow.
         var main = new MainWindow();
+        if (e.Args.Length == 3 &&
+            string.Equals(e.Args[0], UpdateStartupHandshake.StartupArgument, StringComparison.Ordinal))
+        {
+            // Acknowledge only after WPF's actual main window is loaded.
+            // Invalid paths/tokens silently do nothing; this is not an
+            // application command or an auto-connect instruction.
+            main.Loaded += (_, _) => UpdateStartupHandshake.WriteReadyAcknowledgement(e.Args);
+        }
         main.Show();
     }
 }
