@@ -321,7 +321,10 @@ public static class ReleaseInstallWorker
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-            or ArgumentException or System.Security.SecurityException) { }
+            or ArgumentException or System.Security.SecurityException)
+        {
+            // Unreadable uninstall metadata must fail closed.
+        }
         return false;
     }
 
