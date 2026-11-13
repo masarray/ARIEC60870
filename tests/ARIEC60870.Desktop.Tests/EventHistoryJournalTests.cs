@@ -5,6 +5,7 @@ using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 using Xunit;
 
 namespace ARIEC60870.Desktop.Tests;
@@ -76,6 +77,110 @@ public sealed class EventHistoryJournalTests
         Assert.Equal((long)count * 9, original.RawStreamOffset);
         Assert.Equal(last[^1].Source.EvidenceReference, original.EvidenceReference);
         Assert.Equal(count, last[^1].ToRow().EventNumber);
+    }
+
+    [Fact]
+    public void ObservedMasterPollIsPersistedBesideOldRxEventWithoutReassigningItsSource()
+    {
+        using var journal = new EventHistoryJournal();
+        var row = Row(1);
+        var original = row.OriginalFrameEvidence!;
+        const string requestHex = "10 5A 69 C3 16";
+        var request = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 195,
+            TimestampUtc = original.TimestampUtc.AddMilliseconds(-25),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.MasterToSlave,
+            PhysicalSource = "Link A",
+            LinkAddress = 105,
+            RawHex = requestHex,
+            Frame = Ft12Parser.ForIec101(1).Decode(
+                Convert.FromHexString(requestHex.Replace(" ", "")))
+        };
+        Assert.True(EventFrameExchange.IsObservedPollReply(request, original));
+        var withExchange = new RelayEventRow(row.SourceEntry, original,
+            eventNumber: 1, observedRequestFrame: request);
+        journal.Append(withExchange);
+        var recovered = journal.ReadAfter(0, 1).Single().ToRow();
+        Assert.Equal(row.EvidenceReference, recovered.OriginalFrameEvidence?.EvidenceReference);
+        Assert.Equal(row.RawHex, recovered.OriginalFrameEvidence?.RawHex);
+        Assert.Equal(requestHex, recovered.ObservedRequestFrame?.RawHex);
+        Assert.Equal(FrameDirection.MasterToSlave, recovered.ObservedRequestFrame?.Direction);
+        Assert.Equal(10, recovered.ObservedRequestFrame?.Frame?.LinkControl?.FunctionCode);
+        Assert.True(EventFrameExchange.IsObservedPollReply(
+            recovered.ObservedRequestFrame!, recovered.OriginalFrameEvidence!));
+    }
+
+    [Fact]
+    public void IndexedEventRestoresAllRxAsduObjectsAndQualityWithRecordedWidths()
+    {
+        // One IEC-101 FT1.2 FC8 response with a real M_SP_NA_1 payload.
+        // COT=3, CA=105, IOA=7, SIQ=0x81 (ON, IV=1).
+        byte[] payload = [1, 1, 3, 0, 105, 0, 7, 0, 0, 0x81];
+        byte[] body = [0x08, 0x69, .. payload];
+        var length = (byte)body.Length;
+        byte[] raw = [0x68, length, length, 0x68, .. body,
+            (byte)(body.Sum(o => o) & 0xFF), 0x16];
+        var decoded = Iec10xArchivedFrameDecoder.Decode(
+            Iec60870ProtocolMode.Iec101, raw, 1, 2, 2, 3);
+        Assert.True(decoded.IsIntegrityValid);
+        Assert.True(decoded.Asdu?.FirstObject?.QualityDetails?.Invalid);
+        var original = new Iec103MasterEvidenceEvent
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            SequenceNumber = 88,
+            TimestampUtc = new DateTime(2026, 11, 13, 7, 12, 0, DateTimeKind.Utc),
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "SINGLE",
+            LinkAddress = 105,
+            Frame = decoded.SerialFrame,
+            AsduDetails = decoded.Asdu,
+            InformationObjectDetails = decoded.Asdu?.FirstObject,
+            TypeId = 1,
+            CommonAddressNumber = 105,
+            InformationObjectAddress = 7,
+            RawHex = Convert.ToHexString(raw)
+        };
+        var entry = new Iec103RelayEventLogEntry
+        {
+            EvidenceSequenceNumber = original.SequenceNumber,
+            ProtocolMode = original.ProtocolMode,
+            PhysicalSource = original.PhysicalSource,
+            EvidenceReference = original.EvidenceReference,
+            RawHex = original.RawHex,
+            TypeId = 1,
+            CommonAddress = 105,
+            InformationObjectAddress = 7,
+            SignalName = "Breaker status",
+            NewValue = "ON"
+        };
+        using var journal = new EventHistoryJournal();
+        journal.Append(new RelayEventRow(entry, original, 1));
+        var restored = journal.ReadAfter(0, 1).Single().ToRow().OriginalFrameEvidence;
+        Assert.NotNull(restored);
+        Assert.Equal(original.RawHex, restored.RawHex);
+        Assert.True(restored.Frame?.IsChecksumValid);
+        Assert.Equal(3, restored.AsduDetails?.CauseOfTransmission);
+        Assert.Equal(105, restored.AsduDetails?.CommonAddress);
+        Assert.Equal(7, restored.AsduDetails?.FirstObject?.InformationObjectAddress);
+        Assert.True(restored.AsduDetails?.FirstObject?.QualityDetails?.Invalid);
+        Assert.Equal(7, restored.InformationObjectDetails?.InformationObjectAddress);
+        Assert.Contains("Quality: Invalid", new EvidenceRow(restored).TimelineSignalDigest);
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(0, 801, false)]
+    [InlineData(100, 801, false)]
+    [InlineData(700, 801, false)]
+    [InlineData(800, 801, true)]
+    [InlineData(0, 100, true)]
+    public void PageBottomResumesOnlyOnActualLastPage(
+        long pageStart, long eventCount, bool expected)
+    {
+        Assert.Equal(expected,
+            EventHistoryPagination.CanResumeFromVisiblePage(pageStart, eventCount));
     }
 
     [Fact]

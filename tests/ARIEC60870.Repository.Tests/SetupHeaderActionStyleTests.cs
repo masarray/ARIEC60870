@@ -27,6 +27,9 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("{StaticResource SetupCloseIconButtonStyle}", (string?)close.Attribute("Style"));
         Assert.Equal("Close configuration",
             (string?)close.Attribute("AutomationProperties.Name"));
+        // Dynamic "Start Relay & Monitor" must measure naturally, not clip at 116 DIP.
+        Assert.Null(connect.Attribute("Width"));
+        Assert.Equal("116", (string?)connect.Attribute("MinWidth"));
         Assert.Null(close.Attribute("Content"));
 
         var glyph = close.Elements().Single(x => x.Name.LocalName == "Path");
@@ -81,7 +84,7 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
-    public void ConfigCloseHasVisibleRoundedBorderWithoutChangingRedInteractionStates()
+    public void ConfigCloseHasCircularBorderWithoutChangingRedInteractionStates()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
         var close = Resource(theme, "Style", "SetupCloseIconButtonStyle");
@@ -90,7 +93,7 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("#BCCCDD", SetterValue(close, "BorderBrush"));
         var surface = template.Descendants().Single(x => x.Name.LocalName == "Border" &&
             (string?)x.Attribute(Xaml + "Name") == "SetupCloseSurface");
-        Assert.Equal("12", (string?)surface.Attribute("CornerRadius"));
+        Assert.Equal("18", (string?)surface.Attribute("CornerRadius"));
         Assert.Equal("1", (string?)surface.Attribute("BorderThickness"));
         Assert.Equal("#FFF0EF", TriggerSetterValue(Trigger(template, "IsMouseOver"),
             "SetupCloseSurface", "Background"));

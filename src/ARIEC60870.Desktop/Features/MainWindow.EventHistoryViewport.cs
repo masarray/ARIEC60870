@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using ARIEC60870.Desktop.ViewModels;
 
 namespace ARIEC60870.Desktop;
 
@@ -86,6 +87,9 @@ public partial class MainWindow
         MarkEventHistoryUserScroll();
         if (delta > 0)
             _eventHistoryFollowingLatest = false;
+        else if (!EventHistoryPagination.CanResumeFromVisiblePage(
+                     _eventHistoryPageStart, _eventHistoryQuery.Count))
+            _eventHistoryFollowingLatest = false;
         else if (IsEventHistoryViewportAtBottom())
             FollowEventHistoryTailFromViewport();
         // Normal WPF scrolling happens after PreviewMouseWheel. ScrollChanged
@@ -100,7 +104,9 @@ public partial class MainWindow
             !ReferenceEquals(e.OriginalSource, EventHistoryScrollViewer()))
             return;
 
-        if (e.VerticalChange > 0 && IsEventHistoryViewportAtBottom())
+        if (e.VerticalChange > 0 && IsEventHistoryViewportAtBottom() &&
+            EventHistoryPagination.CanResumeFromVisiblePage(
+                _eventHistoryPageStart, _eventHistoryQuery.Count))
             FollowEventHistoryTailFromViewport();
         else
             _eventHistoryFollowingLatest = false;
@@ -108,7 +114,11 @@ public partial class MainWindow
 
     private void FollowEventHistoryTailFromViewport()
     {
-        if (!IsEventsTabActive() || _eventHistoryQuery.Count == 0) return;
+        // A page-bottom is not the end of the Event Journal. Reaching row 200
+        // on page 2/9 must NEVER jump to event 801 on page 9.
+        // Only the actual last page may opt back into automatic tail following.
+        if (!IsEventsTabActive() || !EventHistoryPagination.CanResumeFromVisiblePage(
+                _eventHistoryPageStart, _eventHistoryQuery.Count)) return;
         _eventHistoryFollowingLatest = true;
         RelayEventGrid.SelectedItem = null;
         if (_eventHistoryTailResumeRunning) return;

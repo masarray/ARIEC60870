@@ -160,6 +160,10 @@ public partial class MainWindow
             SetupConnectButton.ActualHeight < 35 ||
             SetupCloseButton.ActualWidth < 35 ||
             SetupCloseButton.ActualHeight < 35 ||
+            SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
+                is not Border { CornerRadius: { TopLeft: 18, TopRight: 18 } } ||
+            !double.IsNaN(SetupConnectButton.Width) ||
+            SetupConnectButton.MinWidth < 116 ||
             connectFill.GradientStops.Count != 3)
             throw new InvalidOperationException(
                 "Config Connect gradient or icon-only Close button template was not rendered.");
@@ -1391,9 +1395,9 @@ public partial class MainWindow
         await ShowEventHistoryPageAsync(0);
         if (_eventHistoryQuery.Count > EventHistoryPagination.PageSize)
         {
-            // Operator wheel-down at the bottom of a historical page must
-            // reach the real indexed tail automatically, without clicking
-            // the Latest Event shortcut. A wheel-up must hold that viewport.
+            // A historical page bottom must NOT jump to the indexed tail.
+            // Only explicit Latest (or scrolling on the actual final page)
+            // permits live-follow. A wheel-up must pin that viewport.
             RelayEventGrid.ScrollIntoView(_historicalEventRows[^1]);
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             UpdateLayout();
@@ -1402,11 +1406,16 @@ public partial class MainWindow
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             ObserveEventHistoryWheelInput(-120);
             await (_eventHistoryTailResumeTask ?? Task.CompletedTask);
+            if (_eventHistoryFollowingLatest || _eventHistoryPageStart != 0 ||
+                _historicalEventRows[^1].EventNumber > EventHistoryPagination.PageSize)
+                throw new InvalidOperationException(
+                    "Scrolling to the bottom of an older Event page stole its viewport.");
+            await JumpEventHistoryToLatestAsync();
             if (!_eventHistoryFollowingLatest ||
                 _eventHistoryPageStart != LastHistoryPageStart() ||
                 _historicalEventRows[^1].EventNumber != _eventHistoryJournal?.Count)
                 throw new InvalidOperationException(
-                    "Scrolling to history bottom failed to resume real indexed latest events.");
+                    "Explicit Latest failed to reveal real indexed events.");
             ObserveEventHistoryWheelInput(120);
             if (_eventHistoryFollowingLatest)
                 throw new InvalidOperationException(

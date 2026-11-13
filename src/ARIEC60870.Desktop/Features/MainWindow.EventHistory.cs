@@ -37,6 +37,34 @@ public partial class MainWindow
     private bool _eventHistoryFailureNoticeLogged;
     private bool _eventHistoryCsvRunning;
 
+    // A bounded O(1) per-link observation of the most recent TX. Each indexed
+    // RX Event snapshots its eligible Class 1/2 request before the next poll
+    // replaces this slot. Does not store every TX in the WPF trace ring.
+    private readonly Dictionary<(string Source, int Link), Iec103MasterEvidenceEvent>
+        _eventHistoryLastMasterTransmit = new();
+
+    private void ObserveEventHistoryTransmit(Iec103MasterEvidenceEvent item)
+    {
+        if (item.Direction != FrameDirection.MasterToSlave ||
+            !EventFrameExchange.TryLinkKey(item, out var key)) return;
+
+        // A non-poll TX on the same circuit invalidates an earlier Class poll
+        // as the immediate request for subsequent responses.
+        if (EventFrameExchange.IsClassPoll(item))
+            _eventHistoryLastMasterTransmit[key] = item;
+        else
+            _eventHistoryLastMasterTransmit.Remove(key);
+    }
+
+    private void AttachObservedEventRequest(RelayEventRow row)
+    {
+        if (row.OriginalFrameEvidence is not { } reply ||
+            !EventFrameExchange.TryLinkKey(reply, out var key) ||
+            !_eventHistoryLastMasterTransmit.TryGetValue(key, out var request) ||
+            !EventFrameExchange.IsObservedPollReply(request, reply)) return;
+        row.ObservedRequestFrame = request;
+    }
+
     private void ResetEventHistory()
     {
         _eventHistoryQueryCancel?.Cancel();
@@ -49,6 +77,7 @@ public partial class MainWindow
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
         _eventHistoryFollowingLatest = true;
+        _eventHistoryLastMasterTransmit.Clear();
         _eventHistoryQueryBusy = false;
         _eventHistoryRefreshBusy = false;
         _eventHistoryPageBusy = false;
@@ -82,6 +111,7 @@ public partial class MainWindow
     /// </summary>
     private void RecordEventHistory(RelayEventRow row)
     {
+        AttachObservedEventRequest(row);
         row.EventNumber = ++_eventHistoryObserved;
         _eventHistoryWriter?.TryEnqueue(row);
     }
@@ -247,6 +277,10 @@ public partial class MainWindow
             return;
         }
         start = Math.Clamp(start, 0, LastHistoryPageStart());
+        // A programmatic/explicit visit to an older page is not a live-tail
+        // subscription. Never let a stale follower flag steal that viewport.
+        if (start < LastHistoryPageStart())
+            _eventHistoryFollowingLatest = false;
         _eventHistoryPageStart = start;
         _eventHistoryPageBusy = true;
         RefreshEventHistoryFooter();
@@ -517,5 +551,72 @@ public partial class MainWindow
         await JumpEventHistoryToLatestAsync();
         if (_historicalEventRows.Count != 20 || _historicalEventRows[^1].EventNumber != 620)
             throw new InvalidOperationException("Latest failed to return to the latest indexed page.");
+
+        // Real WPF Event -> Original Frame regression: an old RX must reopen
+        // with its observed TX Class 1 poll AND the original typed ASDU in the
+        // existing two-pane Trace, even after the 1200-frame live ring is gone.
+        var txWire = Ft12Parser.ForIec101(1).Decode([0x10, 0x5A, 0x69, 0xC3, 0x16]);
+        byte[] asdu = [30, 1, 3, 0, 105, 0, 7, 0, 0, 1,
+            0xA1, 0x3D, 12, 7, 13, 11, 26];
+        byte[] replyBody = [0x08, 0x69, .. asdu];
+        var len = (byte)replyBody.Length;
+        byte[] replyWire = [0x68, len, len, 0x68, .. replyBody,
+            (byte)(replyBody.Sum(x => x) & 0xFF), 0x16];
+        var decodedRx = ARIEC60870.Master.Protocol.Iec10x.Iec10xArchivedFrameDecoder.Decode(
+            Iec60870ProtocolMode.Iec101, replyWire, 1, 2, 2, 3);
+        if (!txWire.IsChecksumValid || !decodedRx.IsIntegrityValid ||
+            decodedRx.Asdu?.FirstObject?.InformationObjectAddress != 7)
+            throw new InvalidOperationException("Synthetic exchange fixture is invalid.");
+        var current = DateTime.UtcNow;
+        ObserveEventHistoryTransmit(new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 621, TimestampUtc = current,
+            Direction = FrameDirection.MasterToSlave,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "SINGLE", LinkAddress = 105,
+            Frame = txWire, RawHex = txWire.Hex
+        });
+        var originalRx = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 622, TimestampUtc = current.AddMilliseconds(75),
+            Direction = FrameDirection.SlaveToMaster,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "SINGLE", LinkAddress = 105,
+            Frame = decodedRx.SerialFrame, AsduDetails = decodedRx.Asdu,
+            InformationObjectDetails = decodedRx.Asdu?.FirstObject,
+            CommonAddressNumber = 105, InformationObjectAddress = 7,
+            TypeId = 30, RawHex = Convert.ToHexString(replyWire)
+        };
+        AppendProtocolEvent(new Iec103RelayEventLogEntry
+        {
+            EvidenceSequenceNumber = originalRx.SequenceNumber,
+            PhysicalSource = originalRx.PhysicalSource,
+            EvidenceReference = originalRx.EvidenceReference,
+            ProtocolMode = originalRx.ProtocolMode,
+            SignalName = "Synthetic original RX",
+            TypeId = 30, CommonAddress = 105, InformationObjectAddress = 7,
+            RawHex = originalRx.RawHex, NewValue = "ON"
+        }, originalRx);
+        await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
+        await RefreshEventHistoryQueryAsync();
+        var event621 = _historicalEventRows.FirstOrDefault(x => x.EventNumber == 621);
+        if (event621?.ObservedRequestFrame is null ||
+            event621.OriginalFrameEvidence?.AsduDetails?.FirstObject is null)
+            throw new InvalidOperationException(
+                "Event Journal lost paired TX or exact decoded RX before navigation.");
+        _protocolTraceStore.Clear();
+        RelayEventGrid.SelectedItem = event621;
+        await OpenSelectedEventOriginalFrameAsync();
+        if (FrameTraceRows.Count != 2 ||
+            FrameTraceRows[0].Direction != "TX" ||
+            FrameTraceRows[1].Direction != "RX" ||
+            FrameTraceGrid.SelectedItem is not EvidenceRow selected ||
+            selected.Source.SequenceNumber != originalRx.SequenceNumber ||
+            selected.Source.AsduDetails?.FirstObject?.InformationObjectAddress != 7 ||
+            !selected.TimelineSignalDigest.Contains("Value: ON", StringComparison.Ordinal) ||
+            FrameInterpreterPanel.Visibility != Visibility.Visible ||
+            !FrameTimelineCaption.Text.Contains("2 frames", StringComparison.Ordinal))
+            throw new InvalidOperationException(
+                "Event original-frame navigation did not reveal verified TX/RX, RX signal and Frame Details.");
     }
 }

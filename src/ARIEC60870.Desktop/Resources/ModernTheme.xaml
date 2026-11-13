@@ -367,14 +367,14 @@
     <ControlTemplate x:Key="SetupCloseIconButtonTemplate" TargetType="{x:Type Button}">
         <Grid Background="Transparent" SnapsToDevicePixels="True">
             <Border x:Name="SetupCloseSurface"
-                    CornerRadius="12"
+                    CornerRadius="18"
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="1"/>
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <Border x:Name="SetupCloseFocusRing"
                     IsHitTestVisible="False" Visibility="Collapsed"
-                    CornerRadius="10" Margin="3"
+                    CornerRadius="15" Margin="3"
                     BorderBrush="#D67A85" BorderThickness="1"/>
         </Grid>
         <ControlTemplate.Triggers>
@@ -402,7 +402,7 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Foreground" Value="#1F1F1F"/>
-        <!-- A visible quiet rounded-square surface, not a floating unframed X.
+        <!-- A quiet circular surface, matching the 36-DIP Connect action rhythm.
              Keep the approved muted-red hover and vivid-red pressed state. -->
         <Setter Property="Background" Value="#F8FAFC"/>
         <Setter Property="BorderBrush" Value="#BCCCDD"/>

@@ -1003,7 +1003,7 @@
                                                              newline, not joined as a horizontal
                                                              text run. Only 3 source objects are
                                                              previewed to keep live rows bounded. -->
-                                                        <TextBlock Text="{Binding TimelineSignalDigest}"
+                                                        <TextBlock vm:TraceSignalHighlight.RichText="{Binding TimelineSignalDigest}"
                                                                    FontFamily="Cascadia Mono, Consolas" FontSize="11.2"
                                                                    LineHeight="17.5" LineStackingStrategy="BlockLineHeight"
                                                                    Foreground="#174B73" Margin="0,4,0,0"
@@ -2948,7 +2948,7 @@
                             <Button x:Name="SetupConnectButton"
                                     Content="Connect"
                                     Style="{StaticResource SetupConnectButtonStyle}"
-                                    Width="116"
+                                    MinWidth="116"
                                     Click="CloseSetupAndConnect_Click"
                                     ToolTip="Save settings and connect to the selected device." />
                             <Button x:Name="SetupCloseButton"

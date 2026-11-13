@@ -199,8 +199,15 @@ public partial class MainWindow
             "104" => Iec60870ProtocolMode.Iec104,
             _ => Iec60870ProtocolMode.Iec103
         };
+        // An Event investigation is not a transient one-row preview: reveal
+        // Full Properties and select the originating IOA within the exact RX.
+        _traceInspectorPreferredVisible = true;
+        _traceInspectorForcedOpen = true;
+        ApplyTraceInspectorVisibility(true);
         return NavigateToOriginalFrameCoreAsync(row.EvidenceReference, row.Sequence,
-            row.PhysicalSource, protocol, row.OriginalFrameEvidence);
+            row.PhysicalSource, protocol, row.OriginalFrameEvidence,
+            selectedIoa: row.SourceEntry.InformationObjectAddress,
+            observedRequest: row.ObservedRequestFrame);
     }
 
     private void EventOpenCase_Click(object sender, RoutedEventArgs e)
@@ -254,7 +261,8 @@ public partial class MainWindow
 
     private async Task NavigateToOriginalFrameCoreAsync(string evidenceRef, long sequence,
         string physicalSource, Iec60870ProtocolMode protocol,
-        Iec103MasterEvidenceEvent? retainedOriginal = null, int? selectedIoa = null)
+        Iec103MasterEvidenceEvent? retainedOriginal = null, int? selectedIoa = null,
+        Iec103MasterEvidenceEvent? observedRequest = null)
     {
         // Direct navigation must reveal the original despite a previous quick filter.
         ClearTraceQuickFindForNavigation();
@@ -298,7 +306,32 @@ public partial class MainWindow
 
         MainTabControl.SelectedIndex = 1;
         EnterLineMonitorHoldForUserSelection();
-        if (fromEvent)
+
+        // Event evidence is an IEC-101 exchange, not an isolated application
+        // telegram. The matched poll is captured when the RX Event is indexed,
+        // surviving long after the bounded live Trace ring rolls over.
+        // The source-qualified original RX remains selected for its IOA/Value.
+        var paired = false;
+        if (protocol == Iec60870ProtocolMode.Iec101 &&
+            frame.Source.Direction == FrameDirection.SlaveToMaster)
+        {
+            var request = observedRequest ??
+                EventFrameExchange.FindLatestObservedPoll(frame.Source,
+                    _protocolTraceStore.Snapshot().Select(x => x.Source));
+            if (request is not null &&
+                EventFrameExchange.IsObservedPollReply(request, frame.Source))
+            {
+                FrameTraceRows.ReplaceRange(new[] { new EvidenceRow(request), frame });
+                _historicalTraceViewActive = true;
+                _protocolTraceViewDirtyWhileFrozen = false;
+                var pollClass = request.Frame?.LinkControl?.FunctionCode == 10 ? "Class 1" : "Class 2";
+                FrameTimelineCaption.Text =
+                    $"Observed {pollClass} poll TX → original RX · 2 frames";
+                paired = true;
+            }
+        }
+
+        if (!paired && fromEvent)
         {
             // Legacy in-memory fallback: retain the nearby source-qualified
             // Event frames instead of silently substituting unrelated frames.
@@ -319,13 +352,18 @@ public partial class MainWindow
                 Iec10xObservationIdentity.SamePhysicalFrame(x.Source, evidenceRef, physicalSource, protocol, sequence))
                 ?? frame;
             _historicalTraceViewActive = true;
-            FrameTimelineCaption.Text = $"Retained Event frames · {range.Length} (partial)";
+            FrameTimelineCaption.Text = protocol == Iec60870ProtocolMode.Iec101
+                ? $"Original RX · {range.Length} retained frames (poll TX not observed)"
+                : $"Retained Event frames · {range.Length} (partial)";
         }
-        else
+        else if (!paired)
         {
             _historicalTraceViewActive = false;
             FrameTraceRows.ReplaceRange(_protocolTraceStore.Snapshot());
-            FrameTimelineCaption.Text = "Frame timeline · original selected";
+            FrameTimelineCaption.Text = protocol == Iec60870ProtocolMode.Iec101 &&
+                frame.Source.Direction == FrameDirection.SlaveToMaster
+                ? "Original RX selected · poll TX not retained"
+                : "Frame timeline · original selected";
         }
         TraceOlderButton.Visibility = Visibility.Collapsed;
         TraceNewerButton.Visibility = Visibility.Collapsed;
