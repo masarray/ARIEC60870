@@ -43,6 +43,39 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
+    public void BrandPngAlignsToHeaderTopWithoutShiftingRailButtons()
+    {
+        var doc = XDocument.Load(Source("MainWindow.xaml"));
+        var image = doc.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "ProtocolLogoImage");
+        var logoBox = image.Parent!;
+        var railScroll = doc.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "ActionRailScroll");
+        var railShell = railScroll.Parent!;
+        var header = doc.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "MainWorkspaceHeader");
+
+        Assert.Equal("0", (string?)railShell.Attribute("Grid.Row"));
+        Assert.Equal("0", (string?)header.Attribute("Grid.Row"));
+        Assert.Equal("8,0,8,8", (string?)railShell.Attribute("Padding"));
+        Assert.Equal("0,-4,0,25", (string?)logoBox.Attribute("Margin"));
+        Assert.Equal("68", (string?)logoBox.Attribute("Width"));
+        Assert.Equal("70", (string?)logoBox.Attribute("Height"));
+        Assert.Equal("Assets/Icons/ariec60870-icon.png",
+            (string?)image.Attribute("Source"));
+
+        // Inset(0) + logo Y(-4) + transparent PNG edge(4) = header Y(0).
+        // The 8 DIP removed from the rail's top padding is compensated in
+        // the logo's bottom margin, so Setup/Connect keep their original Y.
+        Assert.Equal(0, 0 - 4 + 4);
+        Assert.Equal(8 + 70 + 13, 0 - 4 + 70 + 25);
+        var buttons = logoBox.Parent!.Elements()
+            .Where(x => x.Name.LocalName == "Button").ToArray();
+        Assert.Equal("SetupButton", (string?)buttons[0].Attribute(Xaml + "Name"));
+        Assert.Equal("StartButton", (string?)buttons[1].Attribute(Xaml + "Name"));
+    }
+
+    [Fact]
     public void ConfigButtonsHaveIndependentHoverAndPressedVisualStates()
     {
         var doc = XDocument.Load(Source("Resources/ModernTheme.xaml"));
