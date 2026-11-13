@@ -402,9 +402,10 @@ public partial class MainWindow
         var resetEvents = 0;
         var totalFrames = 0;
         var testStart = Stopwatch.StartNew();
-        // The executable acceptance first runs two other GUI smoke probes in
-        // the SAME MainWindow. Simulate the actual new passive Start boundary:
-        // clear their historical fixture frames before testing zero-RX UX.
+        // OBS-C is launched in a fresh MainWindow, independently of the
+        // interactive --passive-gui-smoke suite. Do not hide regressions by
+        // forcibly closing the optional inspector before checking startup.
+        // Clear the initial data scope without altering the untouched panel.
         ClearSessionView(clearLog: false);
         // Engineer observation starts with full-width raw+decoded trace,
         // while the optional right properties panel is folded to the edge.
