@@ -108,7 +108,11 @@ public partial class MainWindow
 
     private void FollowEventHistoryTailFromViewport()
     {
-        if (!IsEventsTabActive() || _eventHistoryQuery.Count == 0) return;
+        // A page-bottom is not the end of the Event Journal. Reaching row 200
+        // on page 2/9 must NEVER jump to event 801 on page 9.
+        // Only the actual last page may opt back into automatic tail following.
+        if (!IsEventsTabActive() || _eventHistoryQuery.Count == 0 ||
+            _eventHistoryPageStart != LastHistoryPageStart()) return;
         _eventHistoryFollowingLatest = true;
         RelayEventGrid.SelectedItem = null;
         if (_eventHistoryTailResumeRunning) return;
