@@ -21,6 +21,7 @@ public static class ReleaseInstallWorker
         UpdateInstallPlan? plan = null;
         string? backupDir = null;
         string? priorExecutableDigest = null;
+        InnoRegistrationSnapshot? previousRegistration = null;
         var parentExited = false;
         var backupComplete = false;
         var installerFinished = true;
@@ -68,8 +69,11 @@ public static class ReleaseInstallWorker
             if (!string.Equals(priorExecutableDigest,
                     CalculateFileSha256(plan.InstalledExecutable), StringComparison.Ordinal))
                 throw new IOException("Previous executable backup could not be verified.");
+            // Back up Windows uninstall metadata too: copying the old binary
+            // alone would leave Programs & Features reporting the failed version.
+            previousRegistration = InnoRegistrationSnapshot.Capture(plan.InstalledExecutable);
             backupComplete = true;
-            WriteStatus(plan, "Installer verified, previous installation backed up: " + plan.Tag);
+            WriteStatus(plan, "Installer verified, executable and uninstall registration backed up: " + plan.Tag);
 
             // Existing application closure is under ArSee's journal gate.
             // Never let Inno's Restart Manager silently close a second user
@@ -114,8 +118,10 @@ public static class ReleaseInstallWorker
             if (!ReleaseUpdateService.TryParseStableTag(plan.Tag, out var expected) ||
                 !Version.TryParse(
                     FileVersionInfo.GetVersionInfo(plan.InstalledExecutable).FileVersion, out var actual) ||
-                actual < expected)
-                throw new InvalidDataException("Installed executable does not report the expected new version.");
+                actual < expected ||
+                previousRegistration is null ||
+                !previousRegistration.IsRegisteredVersion(plan.InstalledExecutable, expected))
+                throw new InvalidDataException("Installed executable or Inno registration does not report the expected new version.");
 
             // Process.Start alone is not success. Require the WPF window's
             // first ContentRendered event from the same PID and expected version.
@@ -165,6 +171,7 @@ public static class ReleaseInstallWorker
                 var newAppStillRunning = restarted is not null && !restarted.HasExited;
                 var canRollback = parentExited && installerFinished &&
                     backupComplete && !newAppStillRunning &&
+                    previousRegistration is not null &&
                     backupDir is not null && priorExecutableDigest is not null &&
                     Directory.Exists(backupDir);
                 var rollbackVerified = false;
@@ -177,8 +184,9 @@ public static class ReleaseInstallWorker
                         if (!string.Equals(CalculateFileSha256(plan.InstalledExecutable),
                                 priorExecutableDigest, StringComparison.Ordinal))
                             throw new IOException("Restored executable failed its backup checksum.");
+                        previousRegistration!.Restore(plan.InstalledExecutable);
                         rollbackVerified = true;
-                        WriteStatus(plan, "Verified previous installed executable restored.");
+                        WriteStatus(plan, "Verified prior executable and Inno uninstall metadata restored.");
                     }
                     catch (Exception recovery)
                     {
