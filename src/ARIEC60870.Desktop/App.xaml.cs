@@ -105,10 +105,10 @@ public partial class App : Application
         if (e.Args.Length == 3 &&
             string.Equals(e.Args[0], UpdateStartupHandshake.StartupArgument, StringComparison.Ordinal))
         {
-            // Acknowledge only after WPF's actual main window is loaded.
+            // Acknowledge only after WPF's real first frame is rendered.
             // Invalid paths/tokens silently do nothing; this is not an
             // application command or an auto-connect instruction.
-            main.Loaded += (_, _) => UpdateStartupHandshake.WriteReadyAcknowledgement(e.Args);
+            main.ContentRendered += (_, _) => UpdateStartupHandshake.WriteReadyAcknowledgement(e.Args);
         }
         main.Show();
     }

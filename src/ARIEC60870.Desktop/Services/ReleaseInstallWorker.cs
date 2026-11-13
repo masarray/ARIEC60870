@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using Microsoft.Win32;
 
 namespace ARIEC60870.Desktop.Services;
 
@@ -37,6 +38,9 @@ public static class ReleaseInstallWorker
                 throw new InvalidDataException("Staged installer changed or failed SHA-256 verification.");
 
             var installFolder = Path.GetDirectoryName(plan.InstalledExecutable)!;
+            if (HasAnotherInstalledInstance(plan.InstalledExecutable))
+                throw new InvalidOperationException(
+                    "Another ArSee window is still open. Close other instances before updating.");
             backupDir = Path.Combine(plan.StageDirectory, "previous-install");
             BackupInstallation(installFolder, backupDir);
 
@@ -52,14 +56,22 @@ public static class ReleaseInstallWorker
             backupComplete = true;
             WriteStatus(plan, "Installer verified, previous installation backed up: " + plan.Tag);
 
+            // Existing application closure is under ArSee's journal gate.
+            // Never let Inno's Restart Manager silently close a second user
+            // instance with a live IEC-101/103/104 link.
+            if (HasAnotherInstalledInstance(plan.InstalledExecutable))
+                throw new InvalidOperationException(
+                    "An ArSee window reopened during staging. Installation safely cancelled.");
+            var innoLog = Path.Combine(plan.StageDirectory, "update-inno.log");
             using var setup = Process.Start(new ProcessStartInfo(plan.InstallerPath)
             {
                 UseShellExecute = false,
                 WorkingDirectory = plan.StageDirectory,
                 ArgumentList =
                 {
-                    "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-                    "/NORESTARTAPPLICATIONS", "/CLOSEAPPLICATIONS", "/SP-"
+                    "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
+                    "/NORESTARTAPPLICATIONS", "/NOCLOSEAPPLICATIONS",
+                    "/NOFORCECLOSEAPPLICATIONS", "/LOG=" + innoLog
                 }
             }) ?? throw new InvalidOperationException("Windows could not launch the installer.");
 
@@ -90,8 +102,8 @@ public static class ReleaseInstallWorker
                 actual < expected)
                 throw new InvalidDataException("Installed executable does not report the expected new version.");
 
-            // Process.Start alone is not success. Require the real WPF window
-            // to report Loaded from the same launched PID and expected version.
+            // Process.Start alone is not success. Require the WPF window's
+            // first ContentRendered event from the same PID and expected version.
             var token = UpdateStartupHandshake.NewToken();
             var ackPath = UpdateStartupHandshake.GetAckPath(plan);
             TryDeleteFile(ackPath);
@@ -106,7 +118,7 @@ public static class ReleaseInstallWorker
                         ? "Updated ArSee exited before its WPF window was ready."
                         : "Updated ArSee started but did not confirm its WPF window; leaving its running files untouched.");
 
-            WriteStatus(plan, "Success " + plan.Tag + "; new WPF window acknowledged");
+            WriteStatus(plan, "Success " + plan.Tag + "; new WPF first frame acknowledged");
             TryDeleteDirectory(backupDir);
             TryDeleteFile(plan.InstallerPath);
             TryDeleteFile(planPath);
@@ -170,13 +182,13 @@ public static class ReleaseInstallWorker
                         ? "The updated application is still running. Its files were not overwritten; a recovery backup was retained."
                         : "You can reopen ArSee or retry the update. Technical details remain in updates/last-update.log.";
                 MessageBox.Show(
-                    "ArSee could not confirm a successful update. Stored profiles and capture evidence were not deleted.\\n\\n" +
-                    exception.Message + "\\n\\n" + guidance,
+                    "ArSee could not confirm a successful update. Stored profiles and capture evidence were not deleted.\n\n" +
+                    exception.Message + "\n\n" + guidance,
                     "ArSee update not completed", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
-                MessageBox.Show("ArSee update plan could not be validated. No application files were changed.\\n\\n" +
+                MessageBox.Show("ArSee update plan could not be validated. No application files were changed.\n\n" +
                     exception.Message, "ArSee update rejected", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             return 1;
@@ -232,9 +244,69 @@ public static class ReleaseInstallWorker
             !string.Equals(plan.InstallerPath,
                 Path.Combine(plan.StageDirectory, "ARIEC60870-" + plan.Tag + "-setup-win-x64.exe"),
                 StringComparison.OrdinalIgnoreCase) ||
-            !ReleaseUpdateService.HasManagedInstallation(plan.InstalledExecutable))
+            !ReleaseUpdateService.HasManagedInstallation(plan.InstalledExecutable) ||
+            !IsRegisteredInstallationTarget(plan.InstalledExecutable))
             throw new InvalidDataException("Update plan failed local path, version or installation validation.");
         return plan;
+    }
+
+    /// <summary>
+    /// The managed target must agree with Inno's HKCU installed-app record.
+    /// This permits operator-chosen installation directories but refuses
+    /// update plans aiming at a mock ARIEC60870.exe in an arbitrary folder.
+    /// </summary>
+    private static bool IsRegisteredInstallationTarget(string executable)
+    {
+        try
+        {
+            using var root = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Uninstall");
+            if (root is null) return false;
+            var folder = Path.GetFullPath(Path.GetDirectoryName(executable)!);
+            foreach (var subkey in root.GetSubKeyNames())
+            {
+                using var app = root.OpenSubKey(subkey);
+                if (!string.Equals(app?.GetValue("DisplayName") as string,
+                        "ArSee", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var location = app?.GetValue("InstallLocation") as string;
+                if (!string.IsNullOrWhiteSpace(location) &&
+                    string.Equals(folder,
+                        Path.TrimEndingDirectorySeparator(Path.GetFullPath(location)),
+                        StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            or ArgumentException or System.Security.SecurityException) { }
+        return false;
+    }
+
+    private static bool HasAnotherInstalledInstance(string executable)
+    {
+        var expected = Path.GetFullPath(executable);
+        foreach (var process in Process.GetProcessesByName(
+                     Path.GetFileNameWithoutExtension(executable)))
+        {
+            using (process)
+            {
+                if (process.Id == Environment.ProcessId || process.HasExited)
+                    continue;
+                try
+                {
+                    if (string.Equals(Path.GetFullPath(process.MainModule!.FileName),
+                            expected, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException
+                    or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
+                {
+                    // Cannot establish an ArSee process's path: fail closed.
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static async Task<bool> WaitForParentExitAsync(int pid)

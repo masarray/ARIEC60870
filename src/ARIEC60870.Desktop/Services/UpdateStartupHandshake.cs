@@ -48,7 +48,7 @@ public static class UpdateStartupHandshake
         }
     }
 
-    /// <summary>Invoked only from MainWindow.Loaded on the normal WPF dispatcher.</summary>
+    /// <summary>Invoked only from MainWindow.ContentRendered on the normal WPF dispatcher.</summary>
     public static void WriteReadyAcknowledgement(string[] args)
     {
         if (args.Length != 3 || !string.Equals(args[0], StartupArgument, StringComparison.Ordinal) ||
