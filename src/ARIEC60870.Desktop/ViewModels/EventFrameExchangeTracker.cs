@@ -47,6 +47,30 @@ public sealed class EventFrameExchangeTracker
     public void Observe(Iec103MasterEvidenceEvent frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
+
+        // IEC-101 permits unaddressed E5 as ACK or NO DATA. With no link
+        // address on the wire, a single physical circuit may have multiple
+        // outstanding station slots. Never leave any of those polls eligible
+        // for a later unrelated FC8 RX: invalidate candidates only on this
+        // observed physical source, without assigning E5 to a guessed station.
+        if (frame.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+            frame.Direction == FrameDirection.SlaveToMaster &&
+            frame.Frame is { IsSingleCharacterAck: true } or
+                { IsSingleCharacterNack: true })
+        {
+            var source = string.IsNullOrWhiteSpace(frame.PhysicalSource)
+                ? "SINGLE" : frame.PhysicalSource.Trim().ToUpperInvariant();
+            foreach (var link in _links)
+            {
+                if (link.Key.Source != source) continue;
+                link.Value.PendingPoll = null;
+                link.Value.LastResponse = null;
+                link.Value.MatchedPoll = null;
+                link.Value.Touch = ++_nextTouch;
+            }
+            return;
+        }
+
         if (!EventFrameExchange.TryLinkKey(frame, out var key) ||
             string.IsNullOrWhiteSpace(frame.RawHex) ||
             frame.Direction is not (FrameDirection.MasterToSlave or FrameDirection.SlaveToMaster))
