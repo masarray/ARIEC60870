@@ -1745,12 +1745,28 @@ public partial class MainWindow
             throw new InvalidOperationException(
                 "Closing properties must restore full trace width and retain held selection.");
 
+        // Previous point/Event navigation legitimately pins a partial
+        // historical exchange. The next scenario checks the complete LIVE
+        // source, so explicitly follow the same "Resume Live Trace" operation
+        // available to an engineer instead of assuming the held window
+        // contains every frame from the whole session.
+        var invalidSourceFrame = _protocolTraceStore.Snapshot().LastOrDefault(x =>
+            x.Source.AsduDetails?.Objects.Any(obj => obj.QualityDetails?.Invalid == true) == true);
+        if (invalidSourceFrame is null)
+            throw new InvalidOperationException(
+                "Authoritative live source lost its IEC-101 IV=1 process-quality frame.");
+        ResumeProtocolTraceLiveView();
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+        UpdateLayout();
+
         // Active invalid quality must remain readable directly in the inline
-        // interpreter when the optional property dock is hidden.
+        // interpreter after returning to the complete live frame timeline.
         var invalidPointFrame = FrameTraceRows.LastOrDefault(x =>
+            ReferenceEquals(x, invalidSourceFrame) &&
             x.TimelineAlerts.Contains("IV=1", StringComparison.Ordinal));
         if (invalidPointFrame is null)
-            throw new InvalidOperationException("WPF fixture lost its IV=1 process-quality frame.");
+            throw new InvalidOperationException(
+                "Resume Live Trace did not restore the source-typed IV=1 process-quality frame.");
         FrameTraceGrid.SelectedItem = invalidPointFrame;
         FrameTraceGrid.ScrollIntoView(invalidPointFrame);
         await Dispatcher.Yield(DispatcherPriority.Loaded);
