@@ -40,7 +40,29 @@ function Invoke-Bounded {
 }
 try {
   if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
-    throw 'Previous public release was not extracted by standard Inno FAT.'
+    # Dedicated worker FAT must not wait for the separate legacy installer
+    # gate. Acquire and verify the previous immutable public release itself.
+    New-Item -ItemType Directory -Force -Path $source | Out-Null
+    $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$PreviousVersion"
+    $oldZip = Join-Path $env:RUNNER_TEMP 'arsee-updater-previous.zip'
+    $sumFile = Join-Path $env:RUNNER_TEMP 'arsee-updater-previous-sums.txt'
+    curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$PreviousVersion-win-x64.zip"
+    if ($LASTEXITCODE -ne 0) { throw 'Previous public release download failed.' }
+    curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sumFile "$baseUrl/SHA256SUMS.txt"
+    if ($LASTEXITCODE -ne 0) { throw 'Previous release checksum download failed.' }
+    $expectedLine = Get-Content $sumFile |
+      Where-Object { $_.EndsWith("  ARIEC60870-v$PreviousVersion-win-x64.zip") } |
+      Select-Object -First 1
+    if (!$expectedLine) { throw 'Canonical previous ZIP digest missing.' }
+    $previousDigest = ([regex]::Match($expectedLine, '^[0-9a-fA-F]{64}')).Value
+    if (!$previousDigest -or
+        (Get-FileHash $oldZip -Algorithm SHA256).Hash -ine $previousDigest) {
+      throw 'Previous public release SHA-256 mismatch.'
+    }
+    Expand-Archive -Path $oldZip -DestinationPath $source -Force
+  }
+  if (!(Test-Path (Join-Path $source 'ARIEC60870.exe'))) {
+    throw 'Verified previous release does not contain ARIEC60870.exe.'
   }
   if (!(Test-Path $currentSetup) -or !(Test-Path $currentSource)) {
     throw 'Current installer or tested WPF binary missing.'
