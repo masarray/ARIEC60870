@@ -36,7 +36,7 @@ $oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
 if (Test-Path $installDir) {
   throw "FAT fixture refuses to touch an existing installation directory: $installDir"
 }
-$registered = @(Get-ChildItem 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall' -ErrorAction SilentlyContinue |
+$registered = @(Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue |
   Where-Object { (Get-ItemProperty $_.PsPath -ErrorAction SilentlyContinue).DisplayName -eq 'ArSee' })
 if ($registered.Count -gt 0) {
   throw 'FAT fixture refuses to touch an existing ArSee Windows uninstall registration.'
