@@ -279,7 +279,7 @@ jobs:
                 owner,repo,run_id:run.id,per_page:100
               });
               const fat=jobs.find(job=>
-                job.name==='Bounded previous-release upgrade and running-Master shutdown' &&
+                job.name==='Native Windows independent updater FAT' &&
                 job.conclusion==='success' &&
                 (job.steps||[]).some(step=>
                   step.name==='Verify independent update worker from genuine installed previous release' &&
