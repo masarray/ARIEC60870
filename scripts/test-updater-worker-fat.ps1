@@ -31,6 +31,14 @@ $donePath = Join-Path $stage 'completed.marker'
 $log = Join-Path $stage 'worker-fat.txt'
 $currentSetup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
 $oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
+# Native executable startup on GitHub Windows runners succeeded from runner
+# TEMP even when the identical canary under the repository artifact directory
+# timed out before /LOG. Execute setup fixtures from an isolated temp folder
+# (production updater similarly executes its setup from LOCALAPPDATA staging).
+$executionRoot = Join-Path $env:RUNNER_TEMP 'ariec-inno-fat-exec'
+$canaryOutput = Join-Path $executionRoot 'canary'
+New-Item -ItemType Directory -Force -Path $canaryOutput | Out-Null
+$oldSetupRuntime = Join-Path $executionRoot "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
 $oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
 # Never replace an existing engineer installation, even on a CI runner.
 if (Test-Path $installDir) {
@@ -80,9 +88,9 @@ try {
   # Small Inno canary distinguishes a broken Windows runner/Setup loader
   # from a large ArSee packaging problem before expensive version-cross FAT.
   $canaryInstall = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870-CI-Canary'
-  $canaryBinary = Join-Path $output 'ARIEC60870-inno-ci-canary.exe'
-  $canaryLog = Join-Path $output 'UPDATER-FAT-CANARY-INNO.log'
-  & $iscc "/DOutputRoot=$output" installer/ARIEC60870.CI-Canary.iss
+  $canaryBinary = Join-Path $canaryOutput 'ARIEC60870-inno-ci-canary.exe'
+  $canaryLog = Join-Path $canaryOutput 'UPDATER-FAT-CANARY-INNO.log'
+  & $iscc "/DOutputRoot=$canaryOutput" installer/ARIEC60870.CI-Canary.iss
   if ($LASTEXITCODE -ne 0 -or !(Test-Path $canaryBinary)) {
     throw 'Minimal Inno Setup canary compilation failed.'
   }
@@ -133,7 +141,8 @@ try {
   # current default already disables startup prompts. The full log proves
   # whether the loader, Restart Manager, or filesystem is the bottleneck.
   $oldArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NORESTARTAPPLICATIONS /NOCLOSEAPPLICATIONS /NOFORCECLOSEAPPLICATIONS /LOG="' + $oldInstallLog + '"'
-  Invoke-Bounded -File $oldSetup -Args $oldArgs -TimeoutSec 95
+  Copy-Item $oldSetup $oldSetupRuntime -Force
+  Invoke-Bounded -File $oldSetupRuntime -Args $oldArgs -TimeoutSec 95
   if (!(Test-Path $installedExe) -or
       (Get-Item $installedExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
     throw 'Prior installed executable version is not genuine previous release.'
@@ -213,9 +222,10 @@ try {
   Copy-Item $log (Join-Path $output 'UPDATER-WORKER-ACCEPTANCE.txt') -Force
 }
 finally {
-  if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log')) {
+  if ($canaryLog -and (Test-Path $canaryLog)) {
     Write-Host 'CI Inno canary diagnostic tail:'
-    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Tail 10
+    Get-Content $canaryLog -Tail 10
+    Copy-Item $canaryLog (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Force
   }
   if (Test-Path $oldInstallLog) {
     Write-Host 'Old installer diagnostic tail:'
