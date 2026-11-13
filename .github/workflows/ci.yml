@@ -425,9 +425,10 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # Installer upgrade/restart-manager acceptance is deliberately NOT in the
-  # first job: an external installer hang must never delay tests/screenshots.
-  # Only /ci installer or explicit installer dispatch runs this expensive gate.
+  # A staged-worker update FAT is triggered selectively by updater changes,
+  # without also running the slow legacy active-Master reinstall sequence.
+  # The full legacy installer/active-Master gate remains independently available
+  # via /ci installer / explicit installer workflow dispatch.
   installer-upgrade:
     name: Bounded previous-release upgrade and running-Master shutdown
     needs: [classify, build-test]
@@ -483,6 +484,7 @@ jobs:
           retention-days: 14
 
       - name: Verify previous release upgrade and active Master shutdown
+        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'installer'
         shell: pwsh
         timeout-minutes: 15
         run: |
