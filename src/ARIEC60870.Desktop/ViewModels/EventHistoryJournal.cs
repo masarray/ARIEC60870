@@ -297,6 +297,9 @@ public sealed record EventHistoryOriginalSnapshot(
 public static class EventHistoryPagination
 {
     public const int PageSize = 100;
+    /// <summary>Reaching the bottom of page 2/9 is not reaching the live tail.</summary>
+    public static bool CanResumeFromVisiblePage(long pageStart, long matchingEvents) =>
+        matchingEvents > 0 && pageStart == StartForEvent(matchingEvents);
     public static long PageCount(long total) => total <= 0 ? 0 :
         (total - 1) / PageSize + 1;
     public static long StartForEvent(long eventNumber)
