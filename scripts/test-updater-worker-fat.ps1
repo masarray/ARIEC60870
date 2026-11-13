@@ -32,7 +32,7 @@ $oldApp = $null
 $workerProcess = $null
 $launched = $null
 function Invoke-Bounded {
-  param([string]$File, [string]$Args, [int]$TimeoutSec = 95)
+  param([string]$File, [string]$Args, [int]$TimeoutSec = 95, [string]$DiagnosticLog = $oldInstallLog)
   Write-Host "CI fixture: starting $(Split-Path $File -Leaf) (bounded $TimeoutSec s)"
   $process = Start-Process -FilePath $File -ArgumentList $Args -PassThru
   if (!$process.WaitForExit($TimeoutSec * 1000)) {
@@ -41,11 +41,17 @@ function Invoke-Bounded {
       $_.Name -match '(?i)(setup|unins|ARIEC60870|ArSee)'
     } | Select-Object ProcessId,ParentProcessId,Name,CommandLine |
       Format-Table -AutoSize | Out-String | Write-Host
-    if (Test-Path $oldInstallLog) {
+    Write-Host 'Windows installer process threads:'
+    try {
+      (Get-Process -Id $process.Id -ErrorAction Stop).Threads |
+        Select-Object -First 10 Id, ThreadState, WaitReason |
+        Format-Table -AutoSize | Out-String | Write-Host
+    } catch { Write-Warning 'Unable to inspect installer threads before cleanup.' }
+    if (Test-Path $DiagnosticLog) {
       Write-Host 'Inno Setup diagnostic tail:'
-      Get-Content $oldInstallLog -Tail 70
+      Get-Content $DiagnosticLog -Tail 70
     } else {
-      Write-Warning 'No Inno Setup log was created; possible pre-install prompt/early loader stall.'
+      Write-Warning 'No Inno Setup log was created; setup stalled before logging.'
     }
     # CI-only fixture cleanup; production worker NEVER kills installer processes.
     try { $process.Kill($true) } catch { }
@@ -68,10 +74,12 @@ try {
     throw 'Minimal Inno Setup canary compilation failed.'
   }
   $canaryArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /NOCLOSEAPPLICATIONS /LOG="' + $canaryLog + '"'
-  if (!(Test-Path (Join-Path $output 'ARIEC60870-inno-ci-direct-1.bin'))) {
-    throw 'Direct Setup binary must have its separate data payload; compiler output incomplete.'
+  foreach ($suffix in @('-0.bin', '-1.bin')) {
+    if (!(Test-Path (Join-Path $output "ARIEC60870-inno-ci-direct$suffix"))) {
+      throw "Direct Setup must contain both data segments; missing $suffix."
+    }
   }
-  Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 40
+  Invoke-Bounded -File $canaryBinary -Args $canaryArgs -TimeoutSec 40 -DiagnosticLog $canaryLog
   if (!(Test-Path (Join-Path $canaryInstall 'canary.txt'))) {
     throw 'Minimal Inno Setup canary installed no payload.'
   }
@@ -198,7 +206,7 @@ try {
 finally {
   if (Test-Path (Join-Path $output 'UPDATER-FAT-CANARY-DIRECT-INNO.log')) {
     Write-Host 'CI Inno canary diagnostic tail:'
-    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-INNO.log') -Tail 10
+    Get-Content (Join-Path $output 'UPDATER-FAT-CANARY-DIRECT-INNO.log') -Tail 10
   }
   if (Test-Path $oldInstallLog) {
     Write-Host 'Old installer diagnostic tail:'
