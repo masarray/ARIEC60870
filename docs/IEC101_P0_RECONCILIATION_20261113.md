@@ -26,8 +26,8 @@
 2. At 1200 bps, allow a complete variable FT1.2 reply to finish after the **first-byte response timeout** only after a physical `0x10`/`0x68` start, with a one-time, baud-derived upper bound. Pure silence retains the original deadline.
 3. Report physical octets, expired partial frames and expired partial bytes separately from accepted/decoded frames.
 4. A truncated frame invalidates the current assembly; a following unaddressed `E5` is ambiguous until a verified addressed frame re-establishes the boundary.
-5. Reader construction is link-specific: IEC-101 single and A/B pass their configured baud, while IEC-103 stays on the existing default.
-6. Tests run using deterministic paced/fragmented transports without physical RTU claims.
+5. Reader construction is link-specific: IEC-101 single and A/B pass their configured baud, while IEC-103 stays on the existing default. The IEC-101 single-link Master now **retains one reader across polling exchanges per physical COM epoch**, resetting framing state only when the transport is reopened. This closes the cross-exchange stale-E5 gap absent from the draft's partial reader-only transfer.
+6. Tests run using deterministic paced/fragmented transports, including a full single-link Master first-FC9-partial / second-FC9-E5 sequence, without physical RTU claims.
 
 ## Gate and remaining P0
 
