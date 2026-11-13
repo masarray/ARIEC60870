@@ -494,7 +494,7 @@ jobs:
           retention-days: 14
 
       - name: Compile checksummed previous public Inno setup for independent FAT runner
-        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'updater'
+        if: (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater') || (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true')
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -538,7 +538,7 @@ jobs:
           $lines | Set-Content (Join-Path $output 'FAT-SHA256SUMS.txt') -Encoding ascii
 
       - name: Upload old and new installer bytes for fresh independent Windows FAT
-        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'updater'
+        if: (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater') || (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-updater-fat-installer-pair
@@ -687,7 +687,7 @@ jobs:
   updater-worker-fat:
     name: Native Windows independent updater FAT
     needs: [classify, installer-upgrade]
-    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'updater'
+    if: (github.event_name == 'workflow_dispatch' && inputs.profile == 'updater') || (github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true')
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.installer_runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","updater-fat"]') || fromJSON('["windows-2022"]') }}
     timeout-minutes: 11
     steps:
