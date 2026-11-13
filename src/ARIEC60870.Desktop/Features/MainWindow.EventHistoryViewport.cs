@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using ARIEC60870.Desktop.ViewModels;
 
 namespace ARIEC60870.Desktop;
 
