@@ -73,9 +73,19 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var stamp = active is null ? default :
             new Iec101OwnerStamp(active.Name, active.CommandAuthorityEpoch,
                 Volatile.Read(ref _activeGeneration));
+        var readyAtAdmission = active is { IsHealthy: true, HasVerifiedCommandAuthority: true } &&
+            !_switchInProgress;
+        if (IsMutatingCommand(request) && !readyAtAdmission)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-ACTIVE-UNVERIFIED",
+                "IEC-101 A/B physical control rejected before queue admission",
+                request.Summary,
+                "The active secondary link is not freshly verified, or an A/B switch is in progress.",
+                "Verify the active physical link, then issue a deliberate new control.");
+            return false;
+        }
         if (!_controlCommands.TryEnqueue(new QueuedControl(request, stamp,
-                active?.IsHealthy == true && active.HasVerifiedCommandAuthority &&
-                !_switchInProgress, DateTime.UtcNow)))
+                readyAtAdmission, DateTime.UtcNow)))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
                 "IEC-101 A/B operator command rejected: bounded queue full",
