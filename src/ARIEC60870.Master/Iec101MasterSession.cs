@@ -69,6 +69,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
         var queued = new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
             Volatile.Read(ref _linkGeneration), DateTime.UtcNow);
+        if (IsMutatingCommand(request) && !queued.ReadyWhenQueued)
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-LINK-UNVERIFIED",
+                "IEC-101 physical control rejected before queue admission",
+                request.Summary,
+                "The addressed secondary link is not verified or is DFC-busy.",
+                "Verify the active IEC-101 link, then intentionally issue a new control.");
+            return false;
+        }
         if (!_controlCommands.TryEnqueue(queued))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-QUEUE-FULL",
