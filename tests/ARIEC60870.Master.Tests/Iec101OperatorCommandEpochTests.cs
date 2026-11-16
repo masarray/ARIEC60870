@@ -183,6 +183,65 @@ public sealed class Iec101OperatorCommandEpochTests
             x.Direction == FrameDirection.MasterToSlave && x.TypeId == 45);
     }
 
+    [Fact]
+    public async Task SingleSboExecuteWithoutMatchedSelectIsNeverTransmitted()
+    {
+        var settings = Settings();
+        await using var transport = new SimulatedIec101Transport(settings);
+        var session = new Iec101MasterSession(settings, transport);
+        var queued = false;
+        session.EvidenceReceived += (_, e) =>
+        {
+            if (queued || e.Direction != FrameDirection.SlaveToMaster) return;
+            queued = true;
+            session.QueueControlCommand(new Iec60870ControlCommandRequest
+            {
+                Kind = Iec60870ControlCommandKind.DoubleCommand,
+                InformationObjectAddress = 101,
+                Value = 2,
+                OperationMode = Iec60870ControlOperationMode.ExecuteSelected
+            });
+        };
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(queued);
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-SBO-EXECUTE-NOT-SELECTED");
+        Assert.DoesNotContain(result.Events, x =>
+            x.Direction == FrameDirection.MasterToSlave && x.TypeId == 46);
+    }
+
+    [Fact]
+    public async Task DualSboExecuteWithoutActiveSourceSelectIsNeverTransmitted()
+    {
+        var settings = Settings();
+        var options = DualOptions(settings);
+        await using var a = new SimulatedIec101Transport(options.LinkA.ApplyTo(settings));
+        await using var b = new SimulatedIec101Transport(options.LinkB.ApplyTo(settings));
+        var session = new Iec101DualLinkRedundancySession(options, a, b);
+        var queued = false;
+        session.EvidenceReceived += (_, e) =>
+        {
+            if (queued || e.Direction != FrameDirection.SlaveToMaster ||
+                e.PhysicalSource != "Link A") return;
+            queued = true;
+            session.QueueControlCommand(new Iec60870ControlCommandRequest
+            {
+                Kind = Iec60870ControlCommandKind.DoubleCommand,
+                InformationObjectAddress = 101,
+                Value = 2,
+                OperationMode = Iec60870ControlOperationMode.ExecuteSelected
+            });
+        };
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(900), CancellationToken.None);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(queued);
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-SBO-EXECUTE-NOT-SELECTED");
+        Assert.DoesNotContain(result.Events, x =>
+            x.Direction == FrameDirection.MasterToSlave && x.TypeId == 46);
+    }
+
     private static Iec60870ControlCommandRequest ReadOnlyGi() => new()
     {
         Kind = Iec60870ControlCommandKind.GeneralInterrogation
