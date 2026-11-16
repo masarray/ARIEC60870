@@ -33,6 +33,11 @@ on:
         type: string
         required: false
         default: ''
+      release_expected_sha:
+        description: 'Exact master source SHA lease for release-command updater FAT'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -164,6 +169,13 @@ jobs:
             if (context.eventName === 'workflow_dispatch') {
               const expected = (context.payload.inputs?.expected_sha || '').trim();
               const prText = (context.payload.inputs?.requested_pr || '').trim();
+              const releaseSha = (context.payload.inputs?.release_expected_sha || '').trim();
+              if (releaseSha && (!/^[0-9a-f]{40}$/i.test(releaseSha) ||
+                  releaseSha.toLowerCase() !== context.sha.toLowerCase() ||
+                  prText || context.payload.inputs?.profile !== 'updater')) {
+                core.setFailed('Release updater must be master-only and pinned to its exact 40-digit source SHA.');
+                return;
+              }
               if (expected && !/^[0-9a-f]{40}$/i.test(expected)) {
                 core.setFailed('Expected PR head must be a 40-character commit SHA');
                 return;
