@@ -146,6 +146,8 @@ public sealed class Iec101OperatorCommandEpochTests
         Assert.True(queued);
         Assert.Contains(result.Events, x => x.Direction == FrameDirection.MasterToSlave &&
             x.TypeId == 45 && x.PhysicalSource == "Link A");
+        Assert.DoesNotContain(result.Events, x =>
+            x.Category == "TX" && string.IsNullOrWhiteSpace(x.PhysicalSource));
         Assert.DoesNotContain(result.Findings, x => x.Id == "IEC101-DUAL-COMMAND-STALE-OWNER");
     }
 
