@@ -132,7 +132,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
     }
 
     [Fact]
-    public async Task ObservedProcessCommonAddressRetriesGiWithLearnedCa()
+    public async Task ObservedProcessCaRetriesGiWithoutMutatingConfiguredCaOrRetargetingBreaker()
     {
         var settings = CreateFastSimulatedIec101Settings();
         settings.CommonAddress = 105;
@@ -150,17 +150,35 @@ public sealed class Iec101DualLinkRedundancySessionTests
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
         };
 
+        var transportA = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140);
         var session = new Iec101DualLinkRedundancySession(
-            options,
-            new WrongConfiguredCaIec101Transport(options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 140),
+            options, transportA,
             new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        session.FindingRaised += (_, finding) =>
+        {
+            if (finding.Id == "IEC101-DUAL-CA-AUTO-LEARNED")
+            {
+                // Exercise the control path *after* observed CA=1 was learned.
+                // An unspecified command CA must still mean configured CA=105.
+                session.QueueControlCommand(new Iec60870ControlCommandRequest
+                {
+                    Kind = Iec60870ControlCommandKind.DoubleCommand,
+                    InformationObjectAddress = 140,
+                    Value = 2
+                });
+            }
+        };
 
-        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1200), CancellationToken.None);
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1500), CancellationToken.None);
         var valueEvents = result.Events
             .Where(x => x.Direction == FrameDirection.SlaveToMaster && x.TypeId == 1)
             .ToArray();
 
-        Assert.Equal(1, result.Settings.CommonAddress);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(105, settings.CommonAddress);
+        Assert.Contains(transportA.DispatchedControlCommonAddresses, ca => ca == 105);
+        Assert.DoesNotContain(transportA.DispatchedControlCommonAddresses, ca => ca == 1);
         Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-CA-AUTO-LEARNED");
         Assert.Contains(result.Events, x => x.Direction == FrameDirection.MasterToSlave && x.TypeId == 100 && x.CommonAddressNumber == 1 && x.PollingReason == "Dual-link GI retry using observed CA 1");
         Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 140 && x.SignalDisplayValue.Contains("ON", StringComparison.OrdinalIgnoreCase));
@@ -603,6 +621,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private bool _sentLearnedSequence;
         private bool _sentLearnedGiEnd;
         private int _class2ValueResponses;
+        public List<int> DispatchedControlCommonAddresses { get; } = new();
 
         public WrongConfiguredCaIec101Transport(Iec103MasterSettings settings, int configuredCa, int observedCa, int baseIoa)
         {
@@ -651,6 +670,12 @@ public sealed class Iec101DualLinkRedundancySessionTests
             if (decoded.AsduBytes.Count > 0)
             {
                 var asdu = _asduDecoder.Decode(decoded.AsduBytes);
+                if (asdu.TypeId == 46)
+                {
+                    DispatchedControlCommonAddresses.Add(asdu.CommonAddress);
+                    await EnqueueAsync(FixedSecondary(functionCode: 0, acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
                 if (asdu.TypeId == 100)
                 {
                     var qoi = decoded.AsduBytes[^1];
@@ -686,7 +711,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
-            if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 2)
+            if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 3)
             {
                 var ioa = _baseIoa + 20 + _class2ValueResponses;
                 _class2ValueResponses++;
