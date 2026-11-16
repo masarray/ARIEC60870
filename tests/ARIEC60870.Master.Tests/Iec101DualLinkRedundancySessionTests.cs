@@ -4,6 +4,7 @@
 using System.Threading.Channels;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Iec101;
 using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol;
@@ -172,6 +173,57 @@ public sealed class Iec101DualLinkRedundancySessionTests
     }
 
     [Fact]
+    public async Task SingleLinkGiDisabledKeepsPollingObservedCaWithoutUnrequestedGi()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = false;
+        settings.Class2PollIntervalMs = 40;
+        await using var outstation = new WrongConfiguredCaIec101Transport(
+            settings, configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var result = await new Iec101MasterSession(settings, outstation)
+            .RunForAsync(TimeSpan.FromMilliseconds(650), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, outstation.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(outstation.Class2Polls > 1, "Normal IEC101 background polling must remain active.");
+    }
+
+    [Fact]
+    public async Task DualGiDisabledStillPollsButDoesNotRetargetGiOrCommands()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.Class2PollIntervalMs = 40;
+        settings.SendGeneralInterrogationOnConnect = false;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(500),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        await using var active = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var session = new Iec101DualLinkRedundancySession(options, active,
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, active.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(active.Class2Polls > 1, "Dual active Class2 must continue with GI disabled.");
+    }
+
+    [Fact]
     public async Task ManualFailoverBypassesStabilizationGuardButStillRequiresPromotableStandby()
     {
         var settings = CreateFastSimulatedIec101Settings();
@@ -319,28 +371,28 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.Equal("Link A", snapshot.ActiveLinkName);
     }
 
-    private static Iec103MasterSettings CreateFastSimulatedIec101Settings()        => new()
-        {
-            ProtocolMode = Iec60870ProtocolMode.Iec101,
-            UseSimulatedSlave = true,
-            TargetProfile = "IEC-101 dual-link simulated outstation",
-            LinkAddress = 1,
-            LinkAddressSize = 1,
-            CommonAddress = 1,
-            CommonAddressSize = 2,
-            CauseOfTransmissionSize = 2,
-            InformationObjectAddressSize = 3,
-            ResponseTimeoutMs = 250,
-            Class2PollIntervalMs = 60,
-            Class1DrainDelayMs = 0,
-            MaxClass1DrainFrames = 16,
-            ResetRemoteLinkOnConnect = false,
-            ResetFcbOnConnect = false,
-            SendGeneralInterrogationOnConnect = false,
-            SendClockSyncOnConnect = false,
-            RequestClass2ImmediatelyAfterStartup = true,
-            MaxRetainedEvidenceEvents = 2000
-        };
+    private static Iec103MasterSettings CreateFastSimulatedIec101Settings() => new()
+    {
+        ProtocolMode = Iec60870ProtocolMode.Iec101,
+        UseSimulatedSlave = true,
+        TargetProfile = "IEC-101 dual-link simulated outstation",
+        LinkAddress = 1,
+        LinkAddressSize = 1,
+        CommonAddress = 1,
+        CommonAddressSize = 2,
+        CauseOfTransmissionSize = 2,
+        InformationObjectAddressSize = 3,
+        ResponseTimeoutMs = 250,
+        Class2PollIntervalMs = 60,
+        Class1DrainDelayMs = 0,
+        MaxClass1DrainFrames = 16,
+        ResetRemoteLinkOnConnect = false,
+        ResetFcbOnConnect = false,
+        SendGeneralInterrogationOnConnect = false,
+        SendClockSyncOnConnect = false,
+        RequestClass2ImmediatelyAfterStartup = true,
+        MaxRetainedEvidenceEvents = 2000
+    };
 
     // Drop entire scripted RTU exchanges, not transient zero-byte reads:
     // FT1.2 P0 correctly tolerates the latter within its receive deadline.
@@ -606,6 +658,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private bool _sentLearnedSequence;
         private bool _sentLearnedGiEnd;
         private int _class2ValueResponses;
+        public int GiRequests { get; private set; }
+        public int Class2Polls { get; private set; }
 
         public WrongConfiguredCaIec101Transport(Iec103MasterSettings settings, int configuredCa, int observedCa, int baseIoa)
         {
@@ -630,6 +684,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
             _sentLearnedSequence = false;
             _sentLearnedGiEnd = false;
             _class2ValueResponses = 0;
+            GiRequests = 0;
+            Class2Polls = 0;
             return ValueTask.CompletedTask;
         }
 
@@ -656,6 +712,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 var asdu = _asduDecoder.Decode(decoded.AsduBytes);
                 if (asdu.TypeId == 100)
                 {
+                    GiRequests++;
                     var qoi = decoded.AsduBytes[^1];
                     if (asdu.CommonAddress == _observedCa && qoi == 20)
                     {
@@ -689,12 +746,18 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
-            if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 2)
+            if (decoded.LinkControl?.FunctionCode == 11)
             {
-                var ioa = _baseIoa + 20 + _class2ValueResponses;
-                _class2ValueResponses++;
-                await EnqueueAsync(UserData(Iec10xAsduBuilder.FloatMeasurement(SettingsForCa(_observedCa), ioa, 12.5f + _class2ValueResponses, cause: 3), acd: false), cancellationToken).ConfigureAwait(false);
-                return;
+                Class2Polls++;
+                // Three independent complete process ASDUs meet the
+                // new conservative CA-evidence threshold (not VSQ objects).
+                if (_class2ValueResponses < Iec101ObservedCaPolicy.MinimumProcessAsdus)
+                {
+                    var ioa = _baseIoa + 20 + _class2ValueResponses;
+                    _class2ValueResponses++;
+                    await EnqueueAsync(UserData(Iec10xAsduBuilder.FloatMeasurement(SettingsForCa(_observedCa), ioa, 12.5f + _class2ValueResponses, cause: 3), acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
             }
 
             await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);

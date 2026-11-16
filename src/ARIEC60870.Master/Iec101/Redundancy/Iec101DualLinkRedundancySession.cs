@@ -35,6 +35,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private bool _switchInProgress;
     private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
+    // Per-active-owner authorization, never inferred from passive RX or old owner GI.
+    private bool _giRequestedOnActiveOwner;
 
     public Iec101DualLinkRedundancySession(
         Iec101DualLinkRedundancyOptions options,
@@ -90,6 +92,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _observedCa.Reset();
             _retriedGiWithObservedCommonAddress = false;
             _learnedCommonAddress = null;
+            _giRequestedOnActiveOwner = false;
             await OpenBothLinksAsync(cancellationToken).ConfigureAwait(false);
             await BootstrapActiveLinkAsync(cancellationToken).ConfigureAwait(false);
 
@@ -259,8 +262,30 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (_active.LinkState.Acd)
         {
-            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+            var ownerAtDrain = _active;
+            var yieldedToClass2 = await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
             await EvaluateActiveHealthAsync("Class 1 drain", cancellationToken).ConfigureAwait(false);
+            // Under sustained ACD, periodically supervise standby using FC9 only.
+            if (ReferenceEquals(_active, ownerAtDrain) && _standby is not null &&
+                DateTime.UtcNow - _lastStandbySupervisionUtc >= _options.StandbySupervisionInterval)
+            {
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            // No Class 2 on standby or a newly promoted owner; no DFC-busy poll.
+            if (yieldedToClass2 && ReferenceEquals(_active, ownerAtDrain) &&
+                _active.IsHealthy && !_active.LinkState.Dfc && _active.LinkState.Acd &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+            {
+                _counters.Class2Requests++;
+                await _active.RequestClass2Async(
+                    "ACD Class 1 fairness yield to Class 2 on active A/B link",
+                    cancellationToken).ConfigureAwait(false);
+                _lastClass2PollUtc = DateTime.UtcNow;
+                await EvaluateActiveHealthAsync("Class 2 fairness", cancellationToken).ConfigureAwait(false);
+            }
             return;
         }
 
@@ -403,18 +428,29 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         return true;
     }
 
-    private async Task DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         if (_active is null)
         {
-            return;
+            return false;
         }
 
         _counters.Class1DrainBursts++;
         var drained = 0;
+        var yieldedToClass2 = false;
         var stoppedByGiEnd = false;
         while (!cancellationToken.IsCancellationRequested && drained < _options.BaseSettings.MaxClass1DrainFrames)
         {
+            if (!stopWhenGiEnds && drained > 0 &&
+                _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                drained % _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 == 0 &&
+                DateTime.UtcNow - _lastClass2PollUtc >=
+                    TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+            {
+                yieldedToClass2 = true;
+                break;
+            }
+
             var beforeGood = _active.LinkState.LastGoodResponseUtc;
             _counters.Class1Requests++;
             var response = await _active.RequestClass1Async(reason, cancellationToken).ConfigureAwait(false);
@@ -461,6 +497,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 stopWhenGiEnds ? "The post-switch or startup application image may be incomplete." : "The outstation may have a large event queue or stuck ACD bit.",
                 "Increase the bounded drain limit for this outstation profile and inspect ACD/NO DATA/ACTTERM behavior.");
         }
+
+        return yieldedToClass2;
     }
 
     private async Task SuperviseStandbyAsync(CancellationToken cancellationToken)
@@ -699,6 +737,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
             _active = to;
             _standby = from;
+            // Old-owner CA evidence and GI intent cannot cross A/B promotion.
+            _observedCa.Reset();
+            _learnedCommonAddress = null;
+            _retriedGiWithObservedCommonAddress = false;
+            _giRequestedOnActiveOwner = false;
             _lastClass2PollUtc = DateTime.MinValue;
             _lastStandbySupervisionUtc = DateTime.MinValue;
 
@@ -810,6 +853,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         var effectiveCommonAddress = ResolveRuntimeCommonAddress(commonAddress);
         _imageTracker.MarkGiStarted(DateTime.UtcNow);
+        // Entered only for configured startup, deliberate manual or post-switch GI.
+        _giRequestedOnActiveOwner = true;
         _counters.GiCommands++;
         var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
         if (response.TimedOut || response.Frame is null ||
@@ -1011,12 +1056,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_active is null || _retriedGiWithObservedCommonAddress || !_observedCa.GiRetryCandidate.HasValue)
+        var observedCandidate = _observedCa.GiRetryCandidate;
+        var active = _active;
+        if (active is null || !active.IsHealthy || active.LinkState.Dfc ||
+            !_giRequestedOnActiveOwner || _retriedGiWithObservedCommonAddress ||
+            !observedCandidate.HasValue)
         {
             return false;
         }
 
-        var observedCa = _observedCa.GiRetryCandidate.Value;
+        var observedCa = observedCandidate.GetValueOrDefault();
         var configuredCa = _options.BaseSettings.CommonAddress;
         if (observedCa == configuredCa)
         {
@@ -1036,7 +1085,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             FindingSeverity.Warning,
             "IEC101-DUAL-CA-AUTO-LEARNED",
             "IEC-101 dual-link observed CA used for GI retry only",
-            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={_active.Name}.",
+            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={active.Name}.",
             "Station GI can be retried using observed process evidence; this never proves a safe command target.",
             "Verify the station CA in setup before controls. Automatic CA observations affect GI retry only, never operator command routing.");
 
@@ -1050,11 +1099,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     }
 
     private int? ResolveRuntimeCommonAddress(int? requestedCommonAddress)
-        => requestedCommonAddress ??
-            (_learnedCommonAddress.HasValue &&
-             _observedCa.GiRetryCandidate == _learnedCommonAddress.Value
-                ? _learnedCommonAddress
-                : null);
+        => requestedCommonAddress; // Null uses configured CA; auto-learn is retry-only.
 
     private string FormatCommonAddress(int? requestedCommonAddress)
         => (ResolveRuntimeCommonAddress(requestedCommonAddress) ??

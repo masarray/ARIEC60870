@@ -27,7 +27,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
     private bool _linkVerified;
-    private byte[] _lastTxFrame = Array.Empty<byte>(); 
+    private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
     private long _sequence;
@@ -37,6 +37,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private int _lastMeasuredClass2CycleMs;
     private readonly Iec101ObservedCaPolicy _observedCa = new();
     private bool _retriedGiWithObservedCommonAddress;
+    private bool _giRequestedThisSession;
     private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
 
     public Iec101MasterSession(Iec103MasterSettings settings, IByteTransport transport)
@@ -81,6 +82,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
             _observedCa.Reset();
             _retriedGiWithObservedCommonAddress = false;
+            _giRequestedThisSession = false;
             DrainTransportDiagnostics("Open transport");
             // A Windows COM handle does not establish IEC-101 RTU connectivity.
             SetState(Iec103MasterState.OpeningTransport,
@@ -154,7 +156,19 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
                 if (_acd)
                 {
-                    await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                    var yieldedToClass2 = await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                    // The next scheduler loop would otherwise choose Class 1
+                    // forever while ACD stays asserted. Poll one due Class 2
+                    // request after the bounded Class 1 fairness yield.
+                    if (yieldedToClass2 && _acd && _linkVerified &&
+                        _settings.MaxConsecutiveClass1BeforeClass2 > 0 &&
+                        (DateTime.UtcNow - _lastClass2PollUtc).TotalMilliseconds >= _settings.Class2PollIntervalMs)
+                    {
+                        _counters.Class2Requests++;
+                        await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, true,
+                            "ACD Class 1 fairness yield to Class 2", cancellationToken).ConfigureAwait(false);
+                        _lastClass2PollUtc = DateTime.UtcNow;
+                    }
                     continue;
                 }
 
@@ -216,6 +230,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
         if (!_settings.SendGeneralInterrogationOnConnect) return;
 
+        _giRequestedThisSession = true;
         _counters.GiCommands++;
         var giResponse = await SendVariableAndReceiveAsync(
             "IEC-101 general interrogation", "Class 2",
@@ -243,12 +258,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_observedCa.GiRetryCandidate.HasValue)
+        // Process traffic alone never authorizes interrogation of an RTU.
+        var observedCandidate = _observedCa.GiRetryCandidate;
+        if (!_giRequestedThisSession || !_linkVerified ||
+            _retriedGiWithObservedCommonAddress || !observedCandidate.HasValue)
         {
             return false;
         }
 
-        var observedCa = _observedCa.GiRetryCandidate.Value;
+        var observedCa = observedCandidate.Value;
         if (observedCa == _settings.CommonAddress)
         {
             return false;
@@ -326,6 +344,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         switch (request.Kind)
         {
             case Iec60870ControlCommandKind.GeneralInterrogation:
+                _giRequestedThisSession = true;
                 _counters.GiCommands++;
                 var manualGiResponse = await SendVariableAndReceiveAsync("IEC-101 manual general interrogation", "Class 2", Iec10xAsduBuilder.GeneralInterrogation(commandSettings), "Manual command dock GI", cancellationToken).ConfigureAwait(false);
                 if (IsNegativeConfirmation(manualGiResponse, 100))
@@ -521,7 +540,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
     }
 
-    private async Task DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         _counters.Class1DrainBursts++;
         SetState(
@@ -627,6 +646,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Frames drained={drained}; stop={stopReason}; returning to Class 2 background scan.",
                 dataClass: "Class 1");
         }
+
+        return stoppedByClass2Fairness;
     }
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)

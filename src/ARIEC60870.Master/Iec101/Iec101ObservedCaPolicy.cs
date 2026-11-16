@@ -6,83 +6,100 @@ using ARIEC60870.Master.Protocol.Iec10x;
 namespace ARIEC60870.Master.Iec101;
 
 /// <summary>
-/// Session-scoped, bounded evidence policy for IEC-101 application CA discovery.
-/// A valid secondary link reply does not by itself prove process-station identity.
-/// Observations are advisory for a single bounded GI retry, NEVER command routing.
+/// Session-scoped, bounded and thread-safe evidence for a GI-only alternative CA.
+/// Link ACK and passive data never authorize a new interrogation or control target.
 /// </summary>
 public sealed class Iec101ObservedCaPolicy
 {
+    // One ASDU counts once regardless of VSQ. Conservative advisory evidence
+    // is not independent physical station identity proof.
+    public const int MinimumProcessAsdus = 3;
+
+    private readonly object _gate = new();
     private int? _singleObservedCa;
     private int _hits;
     private bool _conflictingStations;
 
-    public bool HasConflictingStations => _conflictingStations;
+    public bool HasConflictingStations
+    {
+        get { lock (_gate) return _conflictingStations; }
+    }
 
     /// <summary>
-    /// A CA is usable for a GI retry only after two fully decoded process ASDUs
-    /// from the same station, with no second station seen in this session.
+    /// Eligible only after three fully decoded process ASDUs identify one
+    /// station, with no contradictory station in the current session epoch.
     /// </summary>
-    public int? GiRetryCandidate => !_conflictingStations && _hits >= 2 ? _singleObservedCa : null;
+    public int? GiRetryCandidate
+    {
+        get
+        {
+            lock (_gate)
+                return !_conflictingStations && _hits >= MinimumProcessAsdus
+                    ? _singleObservedCa : null;
+        }
+    }
 
     public void Reset()
     {
-        _singleObservedCa = null;
-        _hits = 0;
-        _conflictingStations = false;
+        lock (_gate)
+        {
+            _singleObservedCa = null;
+            _hits = 0;
+            _conflictingStations = false;
+        }
     }
 
     public void Observe(Iec10xAsduDecode? asdu)
     {
-        if (!IsValidProcessEvidence(asdu) || _conflictingStations)
+        if (!IsValidProcessEvidence(asdu)) return;
+        lock (_gate)
         {
-            return;
-        }
-
-        var ca = asdu!.CommonAddress;
-        if (!_singleObservedCa.HasValue)
-        {
-            _singleObservedCa = ca;
-            _hits = 1;
-        }
-        else if (_singleObservedCa.Value != ca)
-        {
-            // Fail closed on a multi-station bus. Never pick a majority CA by
-            // arrival order, frequency, or the current poller's timing.
-            _conflictingStations = true;
-            _singleObservedCa = null;
-            _hits = 0;
-        }
-        else if (_hits < 2)
-        {
-            _hits++;
+            if (_conflictingStations) return;
+            var ca = asdu!.CommonAddress;
+            if (!_singleObservedCa.HasValue)
+            {
+                _singleObservedCa = ca;
+                _hits = 1;
+            }
+            else if (_singleObservedCa.Value != ca)
+            {
+                // Fail closed for the rest of the session; never majority-vote.
+                _conflictingStations = true;
+                _singleObservedCa = null;
+                _hits = 0;
+            }
+            else if (_hits < MinimumProcessAsdus)
+            {
+                _hits++;
+            }
         }
     }
 
     public static bool IsValidProcessEvidence(Iec10xAsduDecode? asdu)
     {
-        if (asdu is null || !asdu.IsHeaderValid || asdu.CommonAddress <= 0 ||
+        if (asdu is null || !asdu.IsHeaderValid ||
             asdu.IsTest || asdu.IsNegativeConfirm || asdu.IsControlCommand ||
             asdu.IsOpaqueVendorSpecific || asdu.Issues.Count != 0 ||
-            asdu.Objects.Count == 0 || asdu.Objects.Count != asdu.ObjectCount)
-        {
+            asdu.ObjectCount <= 0 || asdu.Objects.Count != asdu.ObjectCount)
             return false;
-        }
 
-        // Reject malformed/truncated object payloads, not just broken headers.
+        // CA=0 and all-ones are not unique process-station addresses.
+        var broadcastCa = asdu.CommonAddressWidth switch
+        {
+            1 => byte.MaxValue,
+            2 => ushort.MaxValue,
+            _ => 0
+        };
+        if (asdu.CommonAddress <= 0 || asdu.CommonAddress >= broadcastCa)
+            return false;
+
         foreach (var obj in asdu.Objects)
         {
-            if (obj.Issues.Count != 0)
-            {
-                return false;
-            }
+            if (obj.Issues.Count != 0) return false;
         }
 
-        // Only standard process measurements and spontaneous/interrogated
-        // process value causes can contribute to address discovery.
-        if (asdu.CauseOfTransmission is not (1 or 2 or 3 or 5 or >= 20 and <= 36))
-        {
+        if (asdu.CauseOfTransmission is not (1 or 2 or 3 or 4 or 5 or >= 20 and <= 36))
             return false;
-        }
 
         return asdu.TypeId is 1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or
             13 or 14 or 30 or 31 or 34 or 35 or 36;
