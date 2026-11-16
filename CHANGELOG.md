@@ -1,3 +1,16 @@
+## [3.6.12] - 2026-11-16
+
+### Profile-mapped signal names across IEC-101/104 workspaces
+- Unify read-only IEC-101/104 process-point display names across Values, Events, Event History (including search, paging and CSV), Frame Trace, Inspector and offline captures (PR #210). CA 105 / IOA 16712689 / TI31 uses the bundled FEEDER CB STATUS mapping where configured, instead of falling back to a raw IOA label.
+- Refresh existing Value rows and history projections on profile change, and preserve the actual locally selected profile path for reopening while still redacting displayed paths.
+- Allow narrowly gated, single-station **display-only** reconciliation for uniquely identified process points, with conflict/multi-station/command exclusions; never fabricate physical CA/IOA/TI, GI evidence or control feedback identity. Unknown IOA 388725 remains unmapped unless explicitly configured.
+- Add Core and Desktop regression tests for mapping parity, historical CSV re-projection, command feedback safety, and conflicting/missing point identities.
+- Preserve v3.6.11 IEC-101 service-correlated reply safeguards, prior forensic workspaces, and public download/documentation work from #211. Draft PR #145 remains unmerged.
+
+### Release boundary
+- Publication requires same-commit Windows build, protocol smoke, six xUnit suites, WPF executable acceptance, ZIP/Setup/SBOM/SHA-256/provenance and independent installed updater FAT; see actual workflow for pass/fail.
+- Physical SICAM A8000 1200-bps test, 60/500/2,000 SOE completeness, COM unplug/replug, dual-link and GI/SBO control FAT remain pending; binary unsigned and no IEC conformance certification is claimed.
+
 ## [3.6.11] - 2026-11-16
 
 ### IEC-101 unbalanced Master: safer correlation of physical replies
