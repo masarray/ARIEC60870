@@ -465,13 +465,38 @@ public sealed class PassiveMonitorP0Tests
         // COM8 is forbidden to yield bytes until COM7 has already faulted.
         // The former session-wide cancellation lost this independently healthy stream.
         using var fault = new ManualResetEventSlim(false);
+        using var healthyRead = new ManualResetEventSlim(false);
         byte[] good = [0x10, 0x29, 0x69, 0x92, 0x16];
         var bad = new FailingReadTap("COM7", fault);
-        var healthy = new GatedReadTap(new ReplayTap("COM8", good, 1), fault);
+        var healthy = new GatedReadTap(new ReplayTap("COM8", good, 1), fault, healthyRead);
         var options = Options(string.Empty) with { RecordFullSession = false };
         var session = new PassiveMonitorSession(options, bad, healthy);
-        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(350));
-        var result = await session.RunAsync(stop.Token);
+        // A hard wall-clock deadline is only a deadlock guard. The test ends on
+        // observable fault and committed-byte evidence, not an arbitrary 350-ms
+        // cancellation that can fire before dedicated COM readers are scheduled.
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        var running = session.RunAsync(stop.Token);
+        try
+        {
+            Assert.True(fault.Wait(TimeSpan.FromSeconds(4)), "Faulting COM7 reader was not started.");
+            Assert.True(healthyRead.Wait(TimeSpan.FromSeconds(4)),
+                "Independent COM8 reader did not resume after the COM7 fault.");
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                var progress = session.GetProgress();
+                return progress.ReaderFaultPorts.Contains("COM7", StringComparison.Ordinal) &&
+                    progress.ReaderRtuBytes == good.Length &&
+                    progress.QueuedRtuBytes == good.Length &&
+                    progress.RtuBytes == good.Length;
+            }, TimeSpan.FromSeconds(4)),
+                "Reader fault and healthy-source bytes did not converge at the writer boundary.");
+        }
+        finally
+        {
+            stop.Cancel();
+        }
+
+        var result = await running;
         Assert.True(fault.IsSet);
         Assert.True(bad.WasClosed && healthy.WasClosed);
         Assert.Equal("IntegrityUncertain", result.Manifest.Status);
@@ -551,10 +576,13 @@ public sealed class PassiveMonitorP0Tests
     {
         private readonly IReadOnlySerialTap _inner;
         private readonly ManualResetEventSlim _gate;
-        public GatedReadTap(IReadOnlySerialTap inner, ManualResetEventSlim gate)
+        private readonly ManualResetEventSlim _delivered;
+        public GatedReadTap(IReadOnlySerialTap inner, ManualResetEventSlim gate,
+            ManualResetEventSlim delivered)
         {
             _inner = inner;
             _gate = gate;
+            _delivered = delivered;
         }
         public string PortName => _inner.PortName;
         public long DriverErrorCount => _inner.DriverErrorCount;
@@ -563,7 +591,9 @@ public sealed class PassiveMonitorP0Tests
         public int Read(byte[] buffer, int offset, int count)
         {
             if (!_gate.IsSet) { Thread.Sleep(2); return 0; }
-            return _inner.Read(buffer, offset, count);
+            var bytesRead = _inner.Read(buffer, offset, count);
+            if (bytesRead > 0) _delivered.Set();
+            return bytesRead;
         }
         public void Close() { _inner.Close(); WasClosed = true; }
         public void Dispose() => Close();
