@@ -13,9 +13,13 @@ namespace ARIEC60870.Desktop.ViewModels;
 
 public sealed partial class EvidenceRow
 {
-    public EvidenceRow(Iec103MasterEvidenceEvent item, Iec10xPointMappingEntry? ioaPoint = null)
+    private readonly Iec10xPointDisplayIndex? _pointNames;
+
+    public EvidenceRow(Iec103MasterEvidenceEvent item, Iec10xPointMappingEntry? ioaPoint = null,
+        Iec10xPointDisplayIndex? names = null)
     {
         Source = item;
+        _pointNames = names;
         Sequence = item.SequenceNumber;
         Time = item.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Direction = item.DirectionText;
@@ -79,7 +83,7 @@ public sealed partial class EvidenceRow
         ProfileName = ioaPoint is not null && string.IsNullOrWhiteSpace(item.MappingProfileName) ? "IOA profile" : item.MappingProfileName;
         RelayTime = string.IsNullOrWhiteSpace(item.RelayTimestampText) ? "-" : item.RelayTimestampText;
         Edge = item.IsRelayEdgeEvent ? item.EdgeReason : "-";
-        Mapped = item.IsMappedSignal ? "Yes" : "No";
+        Mapped = item.IsMappedSignal || ioaPoint is not null ? "Yes" : "No";
         SignalOrAddress = BuildSignalOrAddress();
         ProtocolAddress = BuildProtocolAddress();
         ProtocolService = BuildProtocolService();
@@ -318,8 +322,11 @@ public sealed partial class EvidenceRow
         // original octets and every object remain available in Full Properties.
         var visible = asdu.Objects.Take(InlineSignalPreviewLimit).Select(obj =>
         {
-            var name = asdu.Objects.Count == 1 && Source.IsMappedSignal &&
-                !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null;
+            var mapped = _pointNames?.Resolve(asdu.CommonAddress,
+                obj.InformationObjectAddress, asdu.TypeId,
+                allowNameOnly: Direction == "RX").Point?.Name;
+            var name = mapped ?? (asdu.Objects.Count == 1 && Mapped == "Yes" &&
+                !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null);
             return Iec10xSignalTraceFormatter.TraceObject(asdu, obj, name);
         });
         return string.Join(Environment.NewLine, visible);
@@ -506,8 +513,9 @@ public sealed partial class EvidenceRow
 
 
 
-    public EvidenceRow(CaptureFrameSnapshot capture)
+    public EvidenceRow(CaptureFrameSnapshot capture, Iec10xPointDisplayIndex? names = null)
     {
+        _pointNames = names;
         Source = RestoreCaptureSource(capture);
 
         Sequence = capture.Sequence;
