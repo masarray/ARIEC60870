@@ -162,7 +162,7 @@ public partial class MainWindow
             var result = search.Page;
 
             ClearTraceQuickFindForNavigation();
-            var rows = result.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
+            var rows = result.Rows.Select(snapshot => new EvidenceRow(snapshot, _displayPointIndex)).ToArray();
             EnterLineMonitorHoldForUserSelection();
             _historicalTraceViewActive = true;
             _recordedArchiveViewActive = true;
