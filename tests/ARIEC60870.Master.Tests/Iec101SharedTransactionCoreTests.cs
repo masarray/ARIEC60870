@@ -213,6 +213,92 @@ public sealed class Iec101SharedTransactionCoreTests
         Assert.False(engine.FrameCountBit);
     }
 
+    [Theory]
+    [InlineData("single")]
+    [InlineData("A")]
+    [InlineData("B")]
+    public void L11LateFc11AfterExpiredStatusCannotVerifyNextExchange(string source)
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        var addressedFc11 = Parser.Decode(Convert.FromHexString("100B69007416"));
+
+        using (var expired = engine.BeginFixed(9, false, 105, 2, source))
+        {
+            engine.MarkTransmitAttempt(expired);
+            engine.MarkAwaitingResponse(expired);
+            Assert.Equal(Iec101ExchangeVerdict.Unconfirmed, engine.Complete(expired).Verdict);
+        }
+
+        using (var nextStatus = engine.BeginFixed(9, false, 105, 2, source))
+        {
+            engine.MarkTransmitAttempt(nextStatus);
+            engine.MarkAwaitingResponse(nextStatus);
+            var ambiguous = engine.ValidateCandidate(nextStatus, addressedFc11);
+            Assert.False(ambiguous.IsValid);
+            Assert.False(ambiguous.AdvancesFcb);
+            Assert.Equal("IEC101-RX-AMBIGUOUS-LATE-FC11", ambiguous.Code);
+            Assert.Equal(1, nextStatus.RejectedCandidates);
+            Assert.Equal(Iec101ExchangeVerdict.Unconfirmed, engine.Complete(nextStatus).Verdict);
+        }
+
+        // Once the first plausible stale frame has been quarantined, a new
+        // addressed status in a subsequent exchange can restore status proof.
+        using (var verified = engine.BeginFixed(9, false, 105, 2, source))
+        {
+            engine.MarkTransmitAttempt(verified);
+            engine.MarkAwaitingResponse(verified);
+            var validation = engine.ValidateCandidate(verified, addressedFc11);
+            Assert.True(validation.IsValid);
+            Assert.Equal(Iec101ExchangeVerdict.ConfirmedPositive, engine.Complete(verified).Verdict);
+        }
+        Assert.False(engine.FrameCountBit); // FC9 cannot toggle FCB.
+    }
+
+    [Fact]
+    public void L11WrongAddressCannotConsumeLateStatusQuarantine()
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        using (var expired = engine.BeginFixed(9, false, 105, 2, "A"))
+        {
+            engine.MarkTransmitAttempt(expired);
+            engine.MarkAwaitingResponse(expired);
+            engine.Complete(expired);
+        }
+
+        using var next = engine.BeginFixed(9, false, 105, 2, "A");
+        engine.MarkTransmitAttempt(next);
+        engine.MarkAwaitingResponse(next);
+        var foreign = engine.ValidateCandidate(next,
+            Parser.Decode(Convert.FromHexString("100B6A007516")));
+        Assert.Equal("IEC101-RX-LINK-ADDRESS-MISMATCH", foreign.Code);
+        var late = engine.ValidateCandidate(next,
+            Parser.Decode(Convert.FromHexString("100B69007416")));
+        Assert.Equal("IEC101-RX-AMBIGUOUS-LATE-FC11", late.Code);
+        Assert.False(engine.Complete(next).FrameCountAdvanced);
+    }
+
+    [Fact]
+    public void L11NewConnectionEpochDiscardsOldStatusQuarantine()
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        using (var expired = engine.BeginFixed(9, false, 105, 2, "A"))
+        {
+            engine.MarkTransmitAttempt(expired);
+            engine.MarkAwaitingResponse(expired);
+            engine.Complete(expired);
+        }
+        engine.StartConnectionEpoch();
+        using var verified = engine.BeginFixed(9, false, 105, 2, "A");
+        engine.MarkTransmitAttempt(verified);
+        engine.MarkAwaitingResponse(verified);
+        Assert.True(engine.ValidateCandidate(verified,
+            Parser.Decode(Convert.FromHexString("100B69007416"))).IsValid);
+        Assert.Equal(Iec101ExchangeVerdict.ConfirmedPositive, engine.Complete(verified).Verdict);
+    }
+
     [Fact]
     public void ReadPollingMayPreserveOriginalFrameButMutatingUnknownMustNotReplay()
     {
