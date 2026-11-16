@@ -58,7 +58,7 @@ public partial class MainWindow
             OpenCaptureButton.IsEnabled = false;
             UpdateStableHeader("Opening capture", "Verifying raw evidence…");
             var imported = await Task.Run(() => CaptureArchiveReader.Read(dialog.FileName));
-            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
+            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot, _displayPointIndex)).ToArray();
             if (rows.Length == 0)
             {
                 ModernMessageBox.Show(this,
