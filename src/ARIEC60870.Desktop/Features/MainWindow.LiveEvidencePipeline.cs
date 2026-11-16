@@ -1086,7 +1086,7 @@ public partial class MainWindow
         // Findings are derived only when their canonical source changes.
         // An idle Dispatcher tick is not a reason to rebuild report inputs.
         _findingsWorkspaceDirty = true;
-        var row = new EvidenceRow(item, ResolveIoaPoint(item));
+        var row = new EvidenceRow(item, ResolveIoaPoint(item), _displayPointIndex);
         ObserveIecProtocolTriggerWatch(item, row);
         AddDualLinkTimelineRowIfImportant(item);
 
