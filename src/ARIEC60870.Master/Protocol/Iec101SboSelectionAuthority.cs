@@ -32,6 +32,16 @@ public sealed class Iec101SboSelectionAuthority
     /// <summary>Invoke only AFTER transport.WriteAsync succeeds, not at queue admission.</summary>
     public void ObserveTransmitted(Iec10xAsduDecode? asdu, DateTime nowUtc)
     {
+        // COT=8 is a deliberate deactivation intent. Even while the RTU response
+        // is pending, a cancelled SELECT must never authorize a later EXECUTE.
+        if (asdu?.CauseOfTransmission == 8 &&
+            (Iec10xCommandWireIdentity.TryCreate(asdu, select: true, out _) ||
+             Iec10xCommandWireIdentity.TryCreate(asdu, select: false, out _)))
+        {
+            Reset();
+            return;
+        }
+
         if (!Iec10xCommandWireIdentity.TryCreate(asdu, select: true, out var identity))
         {
             // Any other valid on-wire control execution consumes previous SELECT.
