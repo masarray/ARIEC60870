@@ -20,8 +20,9 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly Func<Iec103MasterEvidenceEvent, long> _publish;
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
-    private byte[] _lastTxFrame = Array.Empty<byte>(); 
+    private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
+    private long _connectionEpoch;
 
     public Iec101DualLinkChannel(
         Iec101DualLinkEndpoint endpoint,
@@ -37,7 +38,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         _observeAsdu = observeAsdu ?? throw new ArgumentNullException(nameof(observeAsdu));
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
-    
+
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
     }
 
@@ -47,6 +48,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public Iec101RedundancyChannelState State { get; private set; } = Iec101RedundancyChannelState.Closed;
     public Iec101LinkLayerState LinkState { get; } = new();
     public bool IsOpen => _transport.IsOpen;
+    public long ConnectionEpoch => Volatile.Read(ref _connectionEpoch);
     public bool IsHealthy => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures == 0;
     public bool IsPromotable(int failureThreshold) => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
     public bool HasRecentGoodResponse(TimeSpan window)
@@ -63,6 +65,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     public async Task OpenAsync(Iec101RedundancyChannelRole role, CancellationToken cancellationToken)
     {
+        // Reopening the same COM port never reuses an earlier command's authority.
+        Interlocked.Increment(ref _connectionEpoch);
         Role = role;
         State = Iec101RedundancyChannelState.Opening;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} opening", $"Role={role}, endpoint={Endpoint}.");
@@ -74,6 +78,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     public async Task CloseAsync(CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref _connectionEpoch);
         State = Iec101RedundancyChannelState.Closed;
         try
         {
