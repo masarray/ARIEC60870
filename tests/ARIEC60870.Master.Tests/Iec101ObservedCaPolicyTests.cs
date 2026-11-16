@@ -17,6 +17,8 @@ public sealed class Iec101ObservedCaPolicyTests
         Assert.Null(policy.GiRetryCandidate);
 
         policy.Observe(Process(ca: 105, cot: 20));
+        Assert.Null(policy.GiRetryCandidate);
+        policy.Observe(Process(ca: 105));
         Assert.Equal(105, policy.GiRetryCandidate);
         Assert.False(policy.HasConflictingStations);
 
@@ -41,6 +43,8 @@ public sealed class Iec101ObservedCaPolicyTests
     {
         var policy = new Iec101ObservedCaPolicy();
         policy.Observe(Process(ca: 105));
+        policy.Observe(Process(ca: 105));
+        Assert.Null(policy.GiRetryCandidate);
         policy.Observe(Process(ca: 105));
         Assert.Equal(105, policy.GiRetryCandidate);
         policy.Observe(Process(ca: 106));
@@ -82,7 +86,34 @@ public sealed class Iec101ObservedCaPolicyTests
         policy.Observe(Process(ca: 105));
         Assert.Null(policy.GiRetryCandidate); // invalid samples never incremented hits
         policy.Observe(Process(ca: 105));
+        Assert.Null(policy.GiRetryCandidate);
+        policy.Observe(Process(ca: 105));
         Assert.Equal(105, policy.GiRetryCandidate);
+    }
+
+    [Fact]
+    public void GlobalBroadcastCaAndZeroAreNeverStationEvidence()
+    {
+        var policy = new Iec101ObservedCaPolicy();
+        for (var i = 0; i < Iec101ObservedCaPolicy.MinimumProcessAsdus + 1; i++)
+        {
+            policy.Observe(Process(ca: ushort.MaxValue));
+            policy.Observe(Process(ca: 0));
+        }
+        Assert.Null(policy.GiRetryCandidate);
+        Assert.False(policy.HasConflictingStations);
+        for (var i = 0; i < Iec101ObservedCaPolicy.MinimumProcessAsdus; i++)
+            policy.Observe(Process(ca: 105));
+        Assert.Equal(105, policy.GiRetryCandidate);
+    }
+
+    [Fact]
+    public void ConcurrentDualReaderObservationsFailClosedAfterStationConflict()
+    {
+        var policy = new Iec101ObservedCaPolicy();
+        Parallel.For(0, 200, i => policy.Observe(Process(ca: i % 2 == 0 ? 105 : 106)));
+        Assert.True(policy.HasConflictingStations);
+        Assert.Null(policy.GiRetryCandidate);
     }
 
     private static Iec10xAsduDecode Process(
@@ -93,6 +124,7 @@ public sealed class Iec101ObservedCaPolicyTests
         {
             IsHeaderValid = headerValid,
             CommonAddress = ca,
+            CommonAddressWidth = 2,
             TypeId = typeId,
             CauseOfTransmission = cot,
             IsTest = test,

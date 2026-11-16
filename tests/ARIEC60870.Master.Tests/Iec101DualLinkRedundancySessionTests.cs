@@ -172,6 +172,57 @@ public sealed class Iec101DualLinkRedundancySessionTests
     }
 
     [Fact]
+    public async Task SingleLinkGiDisabledKeepsPollingObservedCaWithoutUnrequestedGi()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.SendGeneralInterrogationOnConnect = false;
+        settings.Class2PollIntervalMs = 40;
+        await using var outstation = new WrongConfiguredCaIec101Transport(
+            settings, configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var result = await new Iec101MasterSession(settings, outstation)
+            .RunForAsync(TimeSpan.FromMilliseconds(650), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, outstation.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(outstation.Class2Polls > 1, "Normal IEC101 background polling must remain active.");
+    }
+
+    [Fact]
+    public async Task DualGiDisabledStillPollsButDoesNotRetargetGiOrCommands()
+    {
+        var settings = CreateFastSimulatedIec101Settings();
+        settings.CommonAddress = 105;
+        settings.Class2PollIntervalMs = 40;
+        settings.SendGeneralInterrogationOnConnect = false;
+        var options = new Iec101DualLinkRedundancyOptions
+        {
+            BaseSettings = settings,
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            StandbySupervisionInterval = TimeSpan.FromMilliseconds(500),
+            PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
+        };
+        await using var active = new WrongConfiguredCaIec101Transport(
+            options.LinkA.ApplyTo(settings), configuredCa: 105, observedCa: 1, baseIoa: 240);
+        var session = new Iec101DualLinkRedundancySession(options, active,
+            new SimulatedIec101Transport(options.LinkB.ApplyTo(settings)));
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(0, result.Counters.GiCommands);
+        Assert.Equal(0, active.GiRequests);
+        Assert.Contains(result.Events, e => e.Direction == FrameDirection.SlaveToMaster &&
+            e.CommonAddressNumber == 1 && e.TypeId == 13);
+        Assert.True(active.Class2Polls > 1, "Dual active Class2 must continue with GI disabled.");
+    }
+
+    [Fact]
     public async Task ManualFailoverBypassesStabilizationGuardButStillRequiresPromotableStandby()
     {
         var settings = CreateFastSimulatedIec101Settings();
