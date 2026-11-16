@@ -13,6 +13,32 @@ The primary product role is:
 IEC-103 remains the mature protection-relay path. IEC-101 and IEC-104 are expanded as practical telecontrol analyzer paths with protocol-aware UX and clean-room 10x ASDU/APCI decoding. IEC-101 dual-link redundancy is implemented as a dedicated workspace and engine path; single-link IEC-101 remains a separate clean workflow.
 
 
+## IEC-101 active command safety — Stage 7A (source-qualified SBO)
+
+SBO is not equivalent to a direct operation. The WPF command dock sends explicit
+`Direct`, `Select`, or `ExecuteSelected` intent while preserving IEC-101's
+wire-level S/E qualifier bit. This distinction is essential: an IEC-101 FT1.2
+link acknowledgement does **not** prove application-level selection acceptance.
+
+The active IEC-101 single-link session and the current A/B owner use one shared
+command-ASDU factory and an independent per-physical-COM SBO selection authority.
+SELECT enters pending state only after successful physical TX. The tracker
+requires a service-validated positive COT7 ACTCON on the **same physical
+channel**, with matching TI, CA, originator, IOA, command value and qualifier.
+An SBO EXECUTE is rejected before transmission if that proof is missing,
+negative, ambiguous, stale (>30 seconds), or revoked by timeout, DFC/NACK,
+physical COM reopen, or A/B promotion/demotion. A deliberate Direct Operate
+is still supported and is not silently converted into SBO.
+
+Positive SELECT ACTCON authorizes **only the next matching selected EXECUTE
+attempt**, not a claim that switchgear moved or that EXECUTE was accepted.
+Application EXECUTE ACTCON/ACTTERM, mapping-qualified target feedback, genuine
+field SOE parity and physical IEC-101 FAT remain separate acceptance gates.
+The public stable v3.6.12 is not retroactively changed by this source work.
+
+Implementation details and test boundaries:
+[Stage 7A SBO authority](IEC101_STAGE7A_SBO_AUTHORITY_20261116.md).
+
 ## Protocol-Aware UX Contract
 
 The desktop UI must never expose irrelevant fields for the selected protocol.
