@@ -448,8 +448,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             Direction = FrameDirection.Unknown,
             State = Iec103MasterState.GeneralInterrogation,
             Category = Iec101RedundancyEventKind.CommandDispatchedOnActive.ToString(),
-            DataClass = $"Command · {_active.Name}/Active",
-            Summary = $"IEC-101 command routed to active link {_active.Name}",
+            DataClass = $"Command · {owner.Name}/Active",
+            Summary = $"IEC-101 command routed to active link {owner.Name}",
             Detail = request.Summary,
             OperatorMessage = "Command is dispatched on active link only.",
             ProtocolMeaning = "Dual-link standby is protected from command dispatch and event/background queue draining.",
@@ -469,8 +469,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return true;
         }
 
-        await _active.SendControlCommandAsync(request, cancellationToken).ConfigureAwait(false);
-        if (_active.LinkState.Acd)
+        await owner.SendControlCommandAsync(request, cancellationToken).ConfigureAwait(false);
+        if (owner.LinkState.Acd)
         {
             await DrainClass1OnActiveAsync("Command feedback drain on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
