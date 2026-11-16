@@ -24,6 +24,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private Iec101TransmitHistory _transmitHistory = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
     private readonly Iec101GiLifecycleTracker _giLifecycle = new();
+    private readonly Iec101SboSelectionAuthority _sboSelection = new();
     private long _connectionEpoch;
     private long _commandAuthorityEpoch;
     private bool _commandAuthorityReady;
@@ -90,6 +91,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
         _transactions.StartConnectionEpoch();
         _giLifecycle.Reset();
+        _sboSelection.Reset();
         // A new physical port epoch cannot reuse partial FT1.2 framing,
         // earlier echo history, RTU secondary health or prior FCB.
         _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
@@ -109,6 +111,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         State = Iec101RedundancyChannelState.Closed;
         _transactions.EndConnectionEpoch();
         _giLifecycle.Reset();
+        _sboSelection.Reset();
         LinkState.ResetConnectionEvidence();
         try
         {
@@ -124,6 +127,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public void PromoteToActive()
     {
         _giLifecycle.Reset(); // Old-owner GI proof cannot authorize a newly elected owner.
+        _sboSelection.Reset(); // SELECT never transfers through A/B promotion.
         Role = Iec101RedundancyChannelRole.Active;
         State = Iec101RedundancyChannelState.Promoting;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} promoted to active", "This link now owns Class 1/Class 2 polling, GI and command dispatch.");
@@ -133,6 +137,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public void DemoteToStandby()
     {
         _giLifecycle.Reset(); // No GI response may belong to the former active-owner session.
+        _sboSelection.Reset();
         Role = Iec101RedundancyChannelRole.Standby;
         State = Iec101RedundancyChannelState.Demoting;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} demoted to standby", "This link is limited to standby supervision and must not drain Class 1/Class 2 traffic.");
@@ -249,22 +254,21 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         return await SendFixedAndReceiveAsync("Request Class 2", "Class 2", 11, fcv: true, reason, cancellationToken).ConfigureAwait(false);
     }
 
+    public bool CanDispatchSboExecute(Iec60870ControlCommandRequest request)
+    {
+        if (!Iec101ControlAsduFactory.IsIntentConsistent(request)) return false;
+        return request.OperationMode != Iec60870ControlOperationMode.ExecuteSelected ||
+               _sboSelection.CanExecuteSelected(
+                   _asduDecoder.Decode(Iec101ControlAsduFactory.Build(request, SettingsForCommand(request))),
+                   DateTime.UtcNow);
+    }
+
     public async Task<Iec101ChannelExchangeResult> SendControlCommandAsync(Iec60870ControlCommandRequest request, CancellationToken cancellationToken)
     {
         EnsureActiveOwner("control command");
-        var asdu = request.Kind switch
-        {
-            Iec60870ControlCommandKind.GeneralInterrogation => Iec10xAsduBuilder.GeneralInterrogation(SettingsForCommand(request)),
-            Iec60870ControlCommandKind.ClockSync => Iec10xAsduBuilder.ClockSynchronization(SettingsForCommand(request), DateTime.Now),
-            Iec60870ControlCommandKind.Read => Iec10xAsduBuilder.ReadCommand(SettingsForCommand(request), request.InformationObjectAddress),
-            Iec60870ControlCommandKind.SingleCommand => Iec10xAsduBuilder.SingleCommand(SettingsForCommand(request), request.InformationObjectAddress, request.Value != 0, request.SelectBeforeOperate, request.Qualifier),
-            Iec60870ControlCommandKind.DoubleCommand => Iec10xAsduBuilder.DoubleCommand(SettingsForCommand(request), request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier),
-            Iec60870ControlCommandKind.RegulatingStepCommand => Iec10xAsduBuilder.RegulatingStepCommand(SettingsForCommand(request), request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier),
-            Iec60870ControlCommandKind.SetpointNormalizedCommand => Iec10xAsduBuilder.SetpointNormalizedCommand(SettingsForCommand(request), request.InformationObjectAddress, request.NumericValue, request.SelectBeforeOperate, request.Qualifier),
-            _ => throw new InvalidOperationException("Unsupported IEC-101 control command kind: " + request.Kind)
-        };
-
-        return await SendVariableAndReceiveAsync(request.Summary, "Command", asdu, "Dual-link active command route", cancellationToken).ConfigureAwait(false);
+        var asdu = Iec101ControlAsduFactory.Build(request, SettingsForCommand(request));
+        return await SendVariableAndReceiveAsync(request.Summary, "Command", asdu,
+            "Dual-link active command route", cancellationToken).ConfigureAwait(false);
     }
 
     public Iec101RedundancyChannelSnapshot CreateSnapshot(int standbyFailureThreshold)
@@ -381,6 +385,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
         _giLifecycle.ObserveTransmitted(asdu); // Wire TX only; not an RTU application ACK.
+        _sboSelection.ObserveTransmitted(asdu, DateTime.UtcNow);
         _publish(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.MasterToSlave,
@@ -465,6 +470,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         if (acceptedFrame is null)
         {
             LinkState.MarkTimeout(now);
+            _sboSelection.Reset(); // A timed-out transaction revokes selected control.
             // A valid subsequent probe must never resurrect commands queued
             // before the uncertain or failed service exchange.
             Interlocked.Increment(ref _commandAuthorityEpoch);
@@ -492,6 +498,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var decoded = acceptedFrame;
         if (decoded.LinkControl is { Dfc: true } or { FunctionCode: 1 })
         {
+            _sboSelection.Reset();
             Interlocked.Increment(ref _commandAuthorityEpoch);
             Volatile.Write(ref _commandAuthorityReady, false);
         }
@@ -510,6 +517,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
         var matchedGiActterm = _giLifecycle.ObserveReceived(asdu) ==
                                Iec101GiLifecycleObservation.MatchedActterm;
+        _sboSelection.ObserveReceived(asdu);
         _observeAsdu(asdu, now, matchedGiActterm, Name);
 
         var isNoData = false;

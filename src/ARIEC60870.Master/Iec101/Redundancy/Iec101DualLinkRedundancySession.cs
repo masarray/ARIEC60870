@@ -633,6 +633,18 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return true;
         }
 
+        // Selection authority belongs to this exact physical active COM and
+        // is never borrowed from the standby or a previous A/B owner.
+        if (!owner.CanDispatchSboExecute(request))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-SBO-EXECUTE-NOT-SELECTED",
+                "IEC-101 dual-link SBO execute blocked before physical transmission",
+                $"{request.Summary}; active={owner.Name}.",
+                "No current positive, matching SELECT ACTCON on this active physical COM, or SELECT intent conflicts with the encoded S/E bit.",
+                "Issue SELECT and verify its ACTCON on the same active channel, then deliberately EXECUTE.");
+            return true;
+        }
+
         // Commands retain their explicitly selected CA, or the configured CA.
         // A CA inferred from observed process traffic is for bounded GI retry only.
         AddEvent(new Iec103MasterEvidenceEvent

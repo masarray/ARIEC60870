@@ -14,6 +14,14 @@ public enum Iec60870ControlCommandKind
     SetpointNormalizedCommand
 }
 
+/// <summary>Explicit operator workflow intent; wire S/E remains SelectBeforeOperate.</summary>
+public enum Iec60870ControlOperationMode
+{
+    Direct,
+    Select,
+    ExecuteSelected
+}
+
 public sealed class Iec60870ControlCommandRequest
 {
     public Iec60870ControlCommandKind Kind { get; init; }
@@ -22,6 +30,8 @@ public sealed class Iec60870ControlCommandRequest
     public int Value { get; init; }
     public double NumericValue { get; init; }
     public bool SelectBeforeOperate { get; init; }
+    // Legacy callers default to Direct; GUI sends an explicit SBO EXECUTE intent.
+    public Iec60870ControlOperationMode OperationMode { get; init; } = Iec60870ControlOperationMode.Direct;
     public int Qualifier { get; init; }
     public DateTime RequestedUtc { get; init; } = DateTime.UtcNow;
     public string OperatorNote { get; init; } = string.Empty;

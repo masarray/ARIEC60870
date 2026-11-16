@@ -27,6 +27,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     private readonly Iec103MasterCounters _counters = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
     private readonly Iec101GiLifecycleTracker _giLifecycle = new();
+    private readonly Iec101SboSelectionAuthority _sboSelection = new();
     private bool _linkVerified;
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private Iec101TransmitHistory _transmitHistory = new();
@@ -130,6 +131,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                     Interlocked.Increment(ref _linkGeneration);
                     _acd = false;
                     _observedCa.Reset();
+                    _sboSelection.Reset(); // A new COM epoch cannot borrow a SELECT.
                     _giRequestedThisSession = false;
                     _retriedGiWithObservedCommonAddress = false;
                     var discarded = _controlCommands.Clear();
@@ -180,6 +182,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         finally
         {
             _transactions.EndConnectionEpoch();
+            _sboSelection.Reset();
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
             Volatile.Write(ref _controlLinkReady, false);
             _linkVerified = false;
@@ -231,6 +234,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         }
         _transactions.StartConnectionEpoch();
         _giLifecycle.Reset(); // Never carry old COM GI confirmation into a reopened port.
+        _sboSelection.Reset();
         _lastTxFrame = Array.Empty<byte>();
         _transmitHistory = new Iec101TransmitHistory();
         _acd = false;
@@ -518,21 +522,36 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                 if (_acd) await DrainClass1Async("Read command follow-up", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                 break;
             case Iec60870ControlCommandKind.SingleCommand:
-                await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SingleCommand(commandSettings, request.InformationObjectAddress, request.Value != 0, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Single command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                break;
             case Iec60870ControlCommandKind.DoubleCommand:
-                await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.DoubleCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_DC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Double command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                break;
             case Iec60870ControlCommandKind.RegulatingStepCommand:
-                await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.RegulatingStepCommand(commandSettings, request.InformationObjectAddress, request.Value, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_RC_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Regulating step feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                break;
             case Iec60870ControlCommandKind.SetpointNormalizedCommand:
-                await SendVariableAndReceiveAsync(request.Summary, "Command", Iec10xAsduBuilder.SetpointNormalizedCommand(commandSettings, request.InformationObjectAddress, request.NumericValue, request.SelectBeforeOperate, request.Qualifier), "Manual command dock C_SE_NA_1", cancellationToken).ConfigureAwait(false);
-                if (_acd) await DrainClass1Async("Setpoint feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                break;
+                {
+                    if (!Iec101ControlAsduFactory.IsIntentConsistent(request))
+                    {
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-INTENT-CONFLICT",
+                            "IEC-101 command rejected: contradictory SBO intent", request.Summary,
+                            "SELECT/EXECUTE workflow and the encoded S/E bit disagree.",
+                            "Reissue from the correct command mode.");
+                        break;
+                    }
+
+                    var asdu = Iec101ControlAsduFactory.Build(request, commandSettings);
+                    if (request.OperationMode == Iec60870ControlOperationMode.ExecuteSelected &&
+                        !_sboSelection.CanExecuteSelected(_asduDecoder.Decode(asdu), DateTime.UtcNow))
+                    {
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-EXECUTE-NOT-SELECTED",
+                            "IEC-101 SBO execute blocked before physical transmission", request.Summary,
+                            "No matching positive SELECT ACTCON for the current COM epoch and CA/OA/IOA/TI/value/qualifier, or selection expired.",
+                            "Send SELECT, verify a matching positive ACTCON, then issue EXECUTE on this same link.");
+                        break;
+                    }
+
+                    await SendVariableAndReceiveAsync(request.Summary, "Command", asdu,
+                        "Manual command dock IEC-101 control", cancellationToken).ConfigureAwait(false);
+                    if (_acd)
+                        await DrainClass1Async("IEC-101 command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
         }
 
         return true;
@@ -840,6 +859,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
         _giLifecycle.ObserveTransmitted(asdu); // TX intent only; link/application acceptance still unproven.
+        _sboSelection.ObserveTransmitted(asdu, DateTime.UtcNow);
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.MasterToSlave,
@@ -919,6 +939,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         if (acceptedFrame is null)
         {
             _counters.Timeouts++;
+            _sboSelection.Reset(); // Unanswered exchange revokes selection.
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
             // Even one unanswered request makes previously queued physical
@@ -964,6 +985,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         // without changing the existing link-status/background polling mechanism.
         if (decoded.LinkControl is { Dfc: true } or { FunctionCode: 1 })
         {
+            _sboSelection.Reset();
             if (Volatile.Read(ref _controlLinkReady))
             {
                 Volatile.Write(ref _controlLinkReady, false);
@@ -996,6 +1018,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         // A TI100/COT10 alone cannot finish an unrelated CA/QOI or an older GI.
         // Require the matching per-COM TX and positive ACTCON before counting.
         var giObservation = _giLifecycle.ObserveReceived(asdu);
+        _sboSelection.ObserveReceived(asdu);
         if (giObservation == Iec101GiLifecycleObservation.MatchedActterm)
             _counters.GiEndResponses++;
         if (asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
@@ -1010,7 +1033,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             Detail = BuildReceiveDetail(decoded, asdu),
             OperatorMessage = BuildReceiveOperatorMessage(decoded, asdu),
             ProtocolMeaning = asdu?.ShortMeaning ?? decoded.ShortMeaning,
-            OperatorAction = BuildReceiveAction(decoded, asdu),
+            OperatorAction = BuildReceiveAction(decoded, asdu, giObservation),
             RawHex = ToHex(raw!),
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds),
             Frame = decoded,
@@ -1172,10 +1195,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         return decoded.ShortMeaning;
     }
 
-    private static string BuildReceiveAction(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu)
+    private static string BuildReceiveAction(Ft12FrameDecode decoded, Iec10xAsduDecode? asdu,
+        Iec101GiLifecycleObservation giObservation = Iec101GiLifecycleObservation.None)
     {
         if (decoded.Format == Ft12FrameFormat.Malformed || !decoded.IsChecksumValid) return "Check serial settings, converter direction control, line quality, and address configuration.";
-        if (Iec10xGiTermination.IsObserved(asdu)) return "General interrogation completed; continue normal background scan.";
+        if (Iec10xGiTermination.IsObserved(asdu)) return giObservation == Iec101GiLifecycleObservation.MatchedActterm
+            ? "Source-matched GI ACTCON and ACTTERM observed; verify mapped IOA coverage separately."
+            : "GI ACTTERM observed without current source-matched lifecycle proof; inspect original request, CA and QOI.";
         if (decoded.IsSingleCharacterNack) return "Treat as a negative link-layer response; inspect polling class, link address, FCB/FCV and outstation busy/no-data policy.";
         if (decoded.LinkControl?.Acd == true) return "Drain Class 1 in a bounded loop; do not storm the link blindly.";
         return "Continue configured IEC-101 polling policy.";
