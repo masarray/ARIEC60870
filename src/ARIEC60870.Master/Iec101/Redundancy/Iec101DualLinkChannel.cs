@@ -19,10 +19,11 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private Ft12StreamReader _reader;
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly Func<Iec103MasterEvidenceEvent, long> _publish;
-    private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
+    private readonly Action<Iec10xAsduDecode?, DateTime, bool, string> _observeAsdu;
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private Iec101TransmitHistory _transmitHistory = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
+    private readonly Iec101GiLifecycleTracker _giLifecycle = new();
     private long _connectionEpoch;
     private long _commandAuthorityEpoch;
     private bool _commandAuthorityReady;
@@ -32,7 +33,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Iec103MasterSettings settings,
         IByteTransport transport,
         Func<Iec103MasterEvidenceEvent, long> publish,
-        Action<Iec10xAsduDecode?, DateTime> observeAsdu)
+        Action<Iec10xAsduDecode?, DateTime, bool, string> observeAsdu)
     {
         Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -88,6 +89,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         }
 
         _transactions.StartConnectionEpoch();
+        _giLifecycle.Reset();
         // A new physical port epoch cannot reuse partial FT1.2 framing,
         // earlier echo history, RTU secondary health or prior FCB.
         _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
@@ -106,6 +108,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Volatile.Write(ref _commandAuthorityReady, false);
         State = Iec101RedundancyChannelState.Closed;
         _transactions.EndConnectionEpoch();
+        _giLifecycle.Reset();
         LinkState.ResetConnectionEvidence();
         try
         {
@@ -120,6 +123,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     public void PromoteToActive()
     {
+        _giLifecycle.Reset(); // Old-owner GI proof cannot authorize a newly elected owner.
         Role = Iec101RedundancyChannelRole.Active;
         State = Iec101RedundancyChannelState.Promoting;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} promoted to active", "This link now owns Class 1/Class 2 polling, GI and command dispatch.");
@@ -128,6 +132,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     public void DemoteToStandby()
     {
+        _giLifecycle.Reset(); // No GI response may belong to the former active-owner session.
         Role = Iec101RedundancyChannelRole.Standby;
         State = Iec101RedundancyChannelState.Demoting;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} demoted to standby", "This link is limited to standby supervision and must not drain Class 1/Class 2 traffic.");
@@ -375,6 +380,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         LinkState.TxFrames++;
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
+        _giLifecycle.ObserveTransmitted(asdu); // Wire TX only; not an RTU application ACK.
         _publish(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.MasterToSlave,
@@ -502,7 +508,9 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             LinkState.MarkGoodResponse(now);
 
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
-        _observeAsdu(asdu, now);
+        var matchedGiActterm = _giLifecycle.ObserveReceived(asdu) ==
+                               Iec101GiLifecycleObservation.MatchedActterm;
+        _observeAsdu(asdu, now, matchedGiActterm, Name);
 
         var isNoData = false;
         var isUserData = asdu is not null;
@@ -579,6 +587,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             Dfc = LinkState.Dfc,
             Frame = decoded,
             Asdu = asdu,
+            MatchedGiActterm = matchedGiActterm,
             ResponseTimeMs = (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds)
         };
     }
