@@ -22,7 +22,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 **ArSee** is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.
 
-**v3.6.12 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) includes SPDX SBOM; [exact-source Windows package workflow history](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml) records full tests, WPF acceptance and provenance.
+**v3.6.12 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) includes SPDX SBOM; [exact-source Windows package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/43802516487) records full tests, WPF acceptance and provenance.
 
 > GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. The version-pinned links above point to the complete public assets. Draft engine PR #145 is not included.
 
@@ -32,7 +32,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.12 package workflow history](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
+*Illustrative product media. The [v3.6.12 package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/43802516487) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Supported engineering workflows
 
@@ -57,7 +57,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 - **IEC-101 at 1,200 bps:** bounded baud-aware FT1.2 frame completion after a physical start, persistent RX framing across polls per COM epoch, and regression tests for incomplete telegrams and ambiguous E5. This does **not** prove physical RTU interoperability.
 - **Windows upgrade assurance:** operator-approved updates for the **installed** edition (portable ZIP does not self-replace), qualified by native Windows updater FAT, full xUnit regressions and real-WPF acceptance on the [exact source commit](https://github.com/masarray/ARIEC60870/actions/runs/43794902788).
 
-Read [v3.6.12 release notes](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) and [package / provenance workflow](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml). The [shared IEC-101 transaction core draft #145](https://github.com/masarray/ARIEC60870/pull/145) remains **unmerged**. **FIELD FAT PENDING:** physical SICAM A8000 1,200-bps SOE 60/500/2,000 batches, GI/SBO lifecycle, COM recovery and A/B failover.
+Read [v3.6.12 release notes](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) and [package / provenance workflow](https://github.com/masarray/ARIEC60870/actions/runs/43802516487). The [shared IEC-101 transaction core draft #145](https://github.com/masarray/ARIEC60870/pull/145) remains **unmerged**. **FIELD FAT PENDING:** physical SICAM A8000 1,200-bps SOE 60/500/2,000 batches, GI/SBO lifecycle, COM recovery and A/B failover.
 
 An acknowledged frame or GI termination is **not** proof that every configured point was received or that a physical control operated.
 
@@ -82,7 +82,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 The WPF UI, IEC protocol components and typed evidence engine live under `src/`; six test projects and site hygiene checks live in `tests/`. The English/Indonesian public landing site is maintained in `site/`, with a generated fallback mirror in `docs/`.
 
-The [CI workflow](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml) covers Release build, protocol regression and Windows WPF acceptance. The [Package workflow](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml) verifies the *actual published executable* and builds ZIP, installer, checksums, SBOM and provenance. These are software checks, **not physical FAT**.
+The [CI workflow](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml) covers Release build, protocol regression and Windows WPF acceptance. The [Package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43802516487) verifies the *actual published executable* and builds ZIP, installer, checksums, SBOM and provenance. These are software checks, **not physical FAT**.
 
 Read [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), [Support](SUPPORT.md), [Code of Conduct](CODE_OF_CONDUCT.md), [Changelog](CHANGELOG.md), [License](LICENSE) and [Third-party notices](THIRD_PARTY_NOTICES.md). Apache-2.0 permits commercial use under its terms; ARIEC60870 requires no subscription or activation key.
 
