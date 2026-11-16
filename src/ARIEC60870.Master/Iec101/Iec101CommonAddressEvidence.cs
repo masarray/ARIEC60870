@@ -25,7 +25,7 @@ public sealed class Iec101CommonAddressEvidence
 
     public Iec101CommonAddressEvidence(int configuredCommonAddress)
     {
-        if (configuredCommonAddress <= 0 || configuredCommonAddress > ushort.MaxValue)
+        if (configuredCommonAddress < 0 || configuredCommonAddress > ushort.MaxValue)
         {
             throw new ArgumentOutOfRangeException(nameof(configuredCommonAddress));
         }
