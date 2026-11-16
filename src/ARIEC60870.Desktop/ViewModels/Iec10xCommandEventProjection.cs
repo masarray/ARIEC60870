@@ -12,7 +12,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class Iec10xCommandEventProjection
 {
-    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null)
+    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null, string? mappedSignalName = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) ||
@@ -40,7 +40,10 @@ public static class Iec10xCommandEventProjection
         };
         var target = asdu.InformationObjectAddress.HasValue
             ? "IOA " + asdu.InformationObjectAddress.Value : "CA " + asdu.CommonAddress;
-        var signal = commandLabel + " · " + target;
+        // Label only; original TX/RX command target and lifecycle stay on-wire.
+        var signal = string.IsNullOrWhiteSpace(mappedSignalName)
+            ? commandLabel + " · " + target
+            : mappedSignalName + " · " + target;
         var qualifier = asdu.CommandDetails?.ValueMeaning ?? string.Empty;
         // CP56Time2a belongs to the original command ASDU, not the USB/PC receipt.
         // Keep invalid-time explicitly marked; only use host time when wire time is absent.
