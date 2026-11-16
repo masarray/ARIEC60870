@@ -88,15 +88,19 @@ async function findIntent(github, context, sha, pr, owner, repo) {
   if (context.eventName === 'issue_comment') {
     request = comments.find(c => c.id === context.payload.comment.id);
     if (!request || !recentCommand(request)) throw new Error('Release request not found or expired.');
+    if (!await authorized(github, owner, repo, request.user?.login))
+      throw new Error('Only write-access maintainers may publish.');
   } else {
-    // Only a recent explicit maintainer command on the exact merge commit can resume.
-    const matches = comments.filter(c => recentCommand(c));
-    request = matches.at(-1);
+    // A public reader cannot replace or poison an earlier authorized intent.
+    const permissionCache = new Map();
+    for (const candidate of comments.slice().reverse()) {
+      if (!recentCommand(candidate)) continue;
+      const login = candidate.user?.login || '';
+      if (!permissionCache.has(login))
+        permissionCache.set(login, await authorized(github, owner, repo, login));
+      if (permissionCache.get(login)) { request = candidate; break; }
+    }
     if (!request) return null;
-  }
-  if (!await authorized(github, owner, repo, request.user?.login)) {
-    if (context.eventName === 'issue_comment') throw new Error('Only write-access maintainers may publish.');
-    return null;
   }
   return {request, comments};
 }
@@ -111,14 +115,20 @@ async function run({github, context, core}) {
   const {owner, repo} = context.repo;
   if (context.eventName === 'issue_comment' && context.payload.comment?.body?.trim() !== COMMAND) return;
   if (context.eventName === 'workflow_run') {
-    const run = context.payload.workflow_run;
-    if (run.head_branch !== 'master' || run.conclusion !== 'success' ||
-        !['push','workflow_dispatch'].includes(run.event) ||
-        run.display_title?.startsWith('CI PR #')) return;
+    const completed = context.payload.workflow_run;
+    const packageFinished = completed.name === 'Package';
+    if (!packageFinished &&
+        (completed.head_branch !== 'master' || completed.conclusion !== 'success' ||
+         !['push','workflow_dispatch'].includes(completed.event) ||
+         completed.display_title?.startsWith('CI PR #'))) return;
   }
   const branch = (await github.rest.repos.getBranch({owner,repo,branch:'master'})).data;
   const sha = branch.commit.sha;
-  if (context.eventName === 'workflow_run' && context.payload.workflow_run.head_sha !== sha) return;
+  // Completion of an older Package run frees the global lock, but it is
+  // NEVER test or source evidence for the current master SHA.
+  if (context.eventName === 'workflow_run' &&
+      context.payload.workflow_run.name !== 'Package' &&
+      context.payload.workflow_run.head_sha !== sha) return;
   const pr = await findLatestMergedPr(github,owner,repo,sha);
   if (!pr) {
     if (context.eventName === 'issue_comment') throw new Error('No same-repository PR merged at current master HEAD.');
