@@ -112,7 +112,7 @@ public sealed class OfflineTransactionProjectionTests
         // valid CP56Time2a. The active Signal List describes CA=105.
         var asdu = new byte[] {
             31, 1, 3, 0, 1, 0,
-            (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16),
+            (byte)(ioa & 0xFF), (byte)((ioa >> 8) & 0xFF), (byte)((ioa >> 16) & 0xFF),
             2, 0, 0, 23, 7, 16, 11, 26
         };
         var capture = Capture(90, 0x08, asdu, "RX");
@@ -144,7 +144,7 @@ public sealed class OfflineTransactionProjectionTests
     {
         const int ioa = 16712689;
         var asdu = new byte[] { 3, 1, 3, 0, 1, 0,
-            (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), 2 };
+            (byte)(ioa & 0xFF), (byte)((ioa >> 8) & 0xFF), (byte)((ioa >> 16) & 0xFF), 2 };
         var capture = Capture(91, 0x08, asdu, "RX");
         capture.SignalOrAddress = "IOA 16712689";
         var names = new ARIEC60870.Core.Mapping.Iec10xPointDisplayIndex(
