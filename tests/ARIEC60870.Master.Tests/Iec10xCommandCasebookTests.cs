@@ -62,6 +62,35 @@ public sealed class Iec10xCommandCasebookTests
         };
     }
 
+    private static Iec103MasterEvidenceEvent FeedbackMany(params (int Ioa, int Code)[] values)
+    {
+        var raw = new List<byte> { 3, (byte)values.Length, 3, 0, 5, 0 };
+        foreach (var (ioa, code) in values)
+        {
+            raw.Add((byte)ioa);
+            raw.Add((byte)(ioa >> 8));
+            raw.Add((byte)(ioa >> 16));
+            raw.Add((byte)code);
+        }
+
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw.ToArray());
+        return new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = DateTime.UtcNow,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "A",
+            LinkAddress = 105,
+            CommonAddressNumber = 5,
+            TypeId = 3,
+            CauseDetails = asdu.CauseDetails,
+            AsduDetails = asdu,
+            IsRelayValue = true,
+            RawHex = Convert.ToHexString(raw.ToArray())
+        };
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -161,6 +190,34 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal(2, b.ActiveCount);
         Assert.All(b.Snapshot(), c => Assert.Equal("Ambiguous", c.Status));
         Assert.All(b.Snapshot(), c => Assert.Contains("multiple", c.Interpretation));
+    }
+
+    [Fact]
+    public void MultiObjectDpiFeedbackCanResolveIndependentCommandMappings()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, ioa: 123, code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, ioa: 123, code: 2, rtu: true));
+        b.Observe(Command(select: false, ioa: 124, code: 1), feedbackIoa: 202);
+        b.Observe(Command(cot: 7, select: false, ioa: 124, code: 1, rtu: true));
+        Assert.True(b.Observe(FeedbackMany((201, 2), (202, 1))));
+        Assert.All(b.Snapshot(), c => Assert.Equal("Feedback matched · ACTTERM pending", c.Status));
+    }
+
+    [Fact]
+    public void MultiObjectFeedbackAmbiguityOnlyAffectsSharedIoaNotIndependentIoa()
+    {
+        var b = new Iec10xCommandCasebook();
+        foreach (var ioa in new[] { 123, 124, 125 })
+        {
+            b.Observe(Command(select: false, ioa: ioa), feedbackIoa: ioa == 125 ? 202 : 201);
+            b.Observe(Command(cot: 7, select: false, ioa: ioa, rtu: true));
+        }
+
+        Assert.True(b.Observe(FeedbackMany((201, 2), (202, 2))));
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+        Assert.Equal("Ambiguous", b.Snapshot()[1].Status);
+        Assert.Equal("Feedback matched · ACTTERM pending", b.Snapshot()[2].Status);
     }
 
     [Fact]
