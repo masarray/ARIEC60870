@@ -16,12 +16,12 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Ft12Parser _ft12;
-    private readonly Ft12StreamReader _reader;
+    private Ft12StreamReader _reader;
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly Func<Iec103MasterEvidenceEvent, long> _publish;
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
     private byte[] _lastTxFrame = Array.Empty<byte>();
-    private readonly Iec101TransmitHistory _transmitHistory = new();
+    private Iec101TransmitHistory _transmitHistory = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
     private long _connectionEpoch;
     private long _commandAuthorityEpoch;
@@ -76,9 +76,23 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Volatile.Write(ref _commandAuthorityReady, false);
         Role = role;
         State = Iec101RedundancyChannelState.Opening;
+        LinkState.ResetConnectionEvidence();
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} opening", $"Role={role}, endpoint={Endpoint}.");
-        await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception fault) when (Iec101PhysicalPortRecovery.IsRecoverable(fault, _transport, cancellationToken))
+        {
+            throw new Iec101PhysicalLinkFault(Name, fault);
+        }
+
         _transactions.StartConnectionEpoch();
+        // A new physical port epoch cannot reuse partial FT1.2 framing,
+        // earlier echo history, RTU secondary health or prior FCB.
+        _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
+        _transmitHistory = new Iec101TransmitHistory();
+        _lastTxFrame = Array.Empty<byte>();
         LinkState.FrameCountBit = _transactions.FrameCountBit;
         State = role == Iec101RedundancyChannelRole.Active ? Iec101RedundancyChannelState.ActivePolling : Iec101RedundancyChannelState.StandbySupervising;
         PublishState(Iec101RedundancyEventKind.ChannelOpened, $"{Name} opened as {role}", Endpoint.ToString());
@@ -92,6 +106,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Volatile.Write(ref _commandAuthorityReady, false);
         State = Iec101RedundancyChannelState.Closed;
         _transactions.EndConnectionEpoch();
+        LinkState.ResetConnectionEvidence();
         try
         {
             await _transport.CloseAsync(cancellationToken).ConfigureAwait(false);
@@ -347,7 +362,14 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
     {
-        await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception fault) when (Iec101PhysicalPortRecovery.IsRecoverable(fault, _transport, cancellationToken))
+        {
+            throw new Iec101PhysicalLinkFault(Name, fault);
+        }
         _lastTxFrame = frame;
         _transmitHistory.Record(frame);
         LinkState.TxFrames++;
@@ -400,9 +422,16 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         while (sw.ElapsedMilliseconds < _settings.ResponseTimeoutMs
                && rejected < Iec101SecondaryResponseValidator.MaxRejectedFramesPerExchange)
         {
-            raw = await _reader.ReadFrameAsync(
-                Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
-                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                raw = await _reader.ReadFrameAsync(
+                    Math.Max(1, _settings.ResponseTimeoutMs - (int)sw.ElapsedMilliseconds),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception fault) when (Iec101PhysicalPortRecovery.IsRecoverable(fault, _transport, cancellationToken))
+            {
+                throw new Iec101PhysicalLinkFault(Name, fault);
+            }
             if (raw is null || raw.Length == 0) break;
 
             LinkState.RxFrames++; // Count physical frames separately from validated responses.

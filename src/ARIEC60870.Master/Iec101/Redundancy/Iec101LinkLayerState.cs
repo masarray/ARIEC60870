@@ -29,6 +29,20 @@ public sealed class Iec101LinkLayerState
     public int ForeignPrimaryFrames { get; set; }
     public int LinkAddressMismatchFrames { get; set; }
 
+    /// <summary>Invalidate secondary proof on a new physical COM epoch without
+    /// erasing cumulative TX/RX/error evidence or historical recovery timestamps.</summary>
+    public void ResetConnectionEvidence()
+    {
+        FrameCountBit = false;
+        Acd = false;
+        Dfc = false;
+        LastGoodResponseUtc = null;
+        LastTimeoutUtc = null;
+        ConsecutiveTimeouts = 0;
+        ConsecutiveFailures = 0;
+        ConsecutiveGoodResponses = 0;
+    }
+
     public void MarkGoodResponse(DateTime utcNow)
     {
         LastGoodResponseUtc = utcNow;
