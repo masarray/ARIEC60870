@@ -12,7 +12,7 @@ using ARIEC60870.Master.Transport;
 
 namespace ARIEC60870.Master;
 
-public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolControlCommandSession
+public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolCommandAdmissionSession
 {
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
@@ -61,8 +61,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     public bool SupportsRuntimeControlCommands => true;
 
     public void QueueControlCommand(Iec60870ControlCommandRequest request)
+        => TryQueueControlCommand(request);
+
+    public bool TryQueueControlCommand(Iec60870ControlCommandRequest request)
     {
-        if (request is null) return;
+        if (request is null) return false;
 
         var queued = new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
             Volatile.Read(ref _linkGeneration), DateTime.UtcNow);
@@ -73,7 +76,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 "Capacity=64; new command was NOT admitted: " + request.Summary,
                 "Existing queued intents were not overwritten and no control was transmitted.",
                 "Wait for the active IEC-101 exchange to complete, then issue a new command.");
+            return false;
         }
+        return true;
     }
 
     public async Task<Iec103MasterRunResult> RunForAsync(TimeSpan duration, CancellationToken cancellationToken)
