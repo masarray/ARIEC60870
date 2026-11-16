@@ -233,11 +233,20 @@ public partial class MainWindow
             Class2StartupCheckBox.IsChecked = prefs.RequestClass2ImmediatelyAfterStartup;
             ClockSyncCheckBox.IsChecked = prefs.SendClockSyncOnConnect;
             GiCheckBox.IsChecked = prefs.SendGeneralInterrogationOnConnect;
-            var savedMappingPath = SanitizeSavedMappingProfilePath(prefs.MappingProfilePath);
-            MappingProfilePathBox.Text = savedMappingPath;
+            // Persist the full path only in local setup preferences. The UI
+            // remains redacted for customer/site-identifying filenames.
+            var savedMappingPath = prefs.MappingProfilePath;
+            MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(savedMappingPath);
             if (!string.IsNullOrWhiteSpace(savedMappingPath) && File.Exists(savedMappingPath))
             {
                 TryLoadMappingProfile(savedMappingPath, showMessage: false);
+            }
+            else if (!string.IsNullOrWhiteSpace(savedMappingPath))
+            {
+                AddUiDiagnostic("Warning", "Mapping", "IEC10X-SAVED-PROFILE-MISSING",
+                    "Saved Signal List file unavailable",
+                    "The previously selected mapping file cannot be opened. The bundled example may be shown instead.",
+                    "Select the project Signal List again before interpreting IOA names.");
             }
             // Migrate pre-OBS UI preferences: old default was always expanded.
             // Only a preference explicitly saved by the new observation UX may reopen it.
@@ -342,7 +351,7 @@ public partial class MainWindow
                 RequestClass2ImmediatelyAfterStartup = settings.RequestClass2ImmediatelyAfterStartup,
                 SendClockSyncOnConnect = settings.SendClockSyncOnConnect,
                 SendGeneralInterrogationOnConnect = settings.SendGeneralInterrogationOnConnect,
-                MappingProfilePath = SanitizeSavedMappingProfilePath(settings.MappingProfilePath),
+                MappingProfilePath = _activeMappingProfileFilePath,
                 CommandDockExpanded = _commandDockExpanded,
                 ObservationDockPreferenceVersion = 1,
                 DurationSeconds = durationSeconds,
