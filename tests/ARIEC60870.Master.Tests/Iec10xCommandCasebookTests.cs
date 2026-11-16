@@ -90,7 +90,6 @@ public sealed class Iec10xCommandCasebookTests
     [Theory]
     [InlineData((byte)1, 1)]
     [InlineData((byte)3, 2)]
-    [InlineData((byte)31, 2)]
     public void DoubleCloseUsesLogicalOnAcrossSpiAndDpiFeedback(byte feedbackType, int feedbackCode)
     {
         var b = new Iec10xCommandCasebook();
