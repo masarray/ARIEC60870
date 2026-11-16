@@ -171,6 +171,48 @@ public sealed class Iec101SharedTransactionCoreTests
         Assert.False(engine.FrameCountBit);
     }
 
+
+    [Fact]
+    public void ResetFcbRequiresPositiveLinkReplyAndCannotErasePendingExchange()
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        using (var poll = engine.BeginFixed(11, true, 105, 2, "single"))
+        {
+            engine.MarkTransmitAttempt(poll);
+            engine.MarkAwaitingResponse(poll);
+            Assert.True(engine.ValidateCandidate(poll,
+                Parser.Decode(Convert.FromHexString("100969007216"))).IsValid);
+            Assert.True(engine.Complete(poll).FrameCountAdvanced);
+        }
+
+        Assert.True(engine.FrameCountBit);
+        using (var reset = engine.BeginFixed(7, false, 105, 2, "single"))
+        {
+            engine.MarkTransmitAttempt(reset);
+            engine.MarkAwaitingResponse(reset);
+            Assert.Throws<InvalidOperationException>(() => engine.ResetFrameCount());
+            Assert.True(engine.ValidateCandidate(reset,
+                Parser.Decode(Convert.FromHexString("100169006A16"))).IsValid);
+            Assert.Equal(Iec101ExchangeVerdict.ConfirmedNegative,
+                engine.Complete(reset).Verdict);
+        }
+
+        // A negative reset is not permission to erase the FCB.
+        Assert.True(engine.FrameCountBit);
+        using (var confirmedReset = engine.BeginFixed(7, false, 105, 2, "single"))
+        {
+            engine.MarkTransmitAttempt(confirmedReset);
+            engine.MarkAwaitingResponse(confirmedReset);
+            Assert.True(engine.ValidateCandidate(confirmedReset,
+                Parser.Decode(Convert.FromHexString("100069006916"))).IsValid);
+            Assert.Equal(Iec101ExchangeVerdict.ConfirmedPositive,
+                engine.Complete(confirmedReset).Verdict);
+        }
+        engine.ResetFrameCount();
+        Assert.False(engine.FrameCountBit);
+    }
+
     [Fact]
     public void ReadPollingMayPreserveOriginalFrameButMutatingUnknownMustNotReplay()
     {
