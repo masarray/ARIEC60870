@@ -8,7 +8,6 @@ on:
   workflow_run:
     workflows: [CI, CodeQL, Repository hygiene, Package]
     types: [completed]
-    branches: [master]
 
 permissions:
   contents: read
@@ -26,8 +25,9 @@ jobs:
        github.event.issue.pull_request &&
        github.event.comment.body == '/release stable') ||
       (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.head_branch == 'master' &&
-       github.event.workflow_run.conclusion == 'success')
+       (github.event.workflow_run.name == 'Package' ||
+        (github.event.workflow_run.head_branch == 'master' &&
+         github.event.workflow_run.conclusion == 'success')))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     permissions:
