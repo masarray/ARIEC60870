@@ -45,11 +45,16 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
     {
         var state = new Iec101LinkLayerState
         {
-            FrameCountBit = true, Acd = true, Dfc = true,
+            FrameCountBit = true,
+            Acd = true,
+            Dfc = true,
             LastGoodResponseUtc = DateTime.UtcNow,
             LastTimeoutUtc = DateTime.UtcNow,
-            ConsecutiveTimeouts = 2, ConsecutiveFailures = 2,
-            ConsecutiveGoodResponses = 4, TxFrames = 30, RxFrames = 21
+            ConsecutiveTimeouts = 2,
+            ConsecutiveFailures = 2,
+            ConsecutiveGoodResponses = 4,
+            TxFrames = 30,
+            RxFrames = 21
         };
         state.ResetConnectionEvidence();
         Assert.False(state.FrameCountBit);
