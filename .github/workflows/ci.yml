@@ -51,6 +51,7 @@ jobs:
     outputs:
       run_windows: ${{ steps.scope.outputs.run_windows }}
       run_format: ${{ steps.scope.outputs.run_format }}
+      format_files_json: ${{ steps.scope.outputs.format_files_json }}
       run_packages: ${{ steps.scope.outputs.run_packages }}
       run_updater_fat: ${{ steps.scope.outputs.run_updater_fat }}
       run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
@@ -63,6 +64,7 @@ jobs:
             const { owner, repo } = context.repo;
             let runWindows = true;
             let runFormat = true;
+            let formatFiles = [];
             let runPackages = true;
             let runUpdaterFat = false;
             let runWorkflowLint = context.eventName !== 'workflow_dispatch';
@@ -91,6 +93,12 @@ jobs:
             const formattingRelevant = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
+            // Gate only changed, existing C# files: historic formatting debt
+            // elsewhere must not block an unrelated engineering change.
+            const formattingSources = files => [...new Set(files
+              .filter(file => file.status !== 'removed')
+              .map(file => file.filename)
+              .filter(name => /^(src|tests)\/[A-Za-z0-9_./-]+\.cs$/i.test(name)))];
             // Cheap deterministic matrix: detect accidental gate bypass before
             // looking at live GitHub changes. No runner/checkout or external deps.
             const fixtures = [
@@ -129,6 +137,7 @@ jobs:
               });
               runWindows = !staticOnly(files);
               runFormat = formattingRelevant(files);
+              formatFiles = formattingSources(files);
               runPackages = runtimeChanged(files);
               runUpdaterFat = updaterChanged(files);
               runWorkflowLint = workflowChanged(files);
@@ -142,6 +151,7 @@ jobs:
                   const files = data.files || [];
                   runWindows = !staticOnly(files);
                   runFormat = formattingRelevant(files);
+                  formatFiles = formattingSources(files);
                   runPackages = runtimeChanged(files);
                   runUpdaterFat = updaterChanged(files);
                   runWorkflowLint = workflowChanged(files);
@@ -181,8 +191,14 @@ jobs:
                   owner, repo, pull_number: number, per_page: 100
                 });
                 runFormat = formattingRelevant(files);
+                formatFiles = formattingSources(files);
+              } else {
+                // Manual full runs have no changed-file scope; they retain
+                // the full build/test/FAT gates without a fake format success.
+                runFormat = false;
               }
             }
+            core.setOutput('format_files_json', JSON.stringify(formatFiles));
             core.setOutput('run_windows', String(runWindows));
             core.setOutput('run_format', String(runFormat));
             core.setOutput('run_packages', String(runPackages));
@@ -276,12 +292,20 @@ jobs:
         if: needs.classify.outputs.run_windows == 'true'
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Check code formatting (only C# or formatter config changes)
+      - name: Check code formatting (changed C# sources only, blocking)
         if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
-        continue-on-error: true
+        env:
+          FORMAT_FILES_JSON: ${{ needs.classify.outputs.format_files_json }}
         run: |
-          dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal
+          $ErrorActionPreference = 'Stop'
+          $files = @($env:FORMAT_FILES_JSON | ConvertFrom-Json)
+          if ($files.Count -eq 0) {
+            throw 'Format gate requires an explicit changed-file scope; refusing unscoped success.'
+          }
+          # Direct array arguments: no shell interpolation of GitHub filenames.
+          dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal --include @files
+          if ($LASTEXITCODE -ne 0) { throw 'Changed C# source formatting is not clean.' }
 
       - name: Run dependency-free protocol smoke tests
         if: needs.classify.outputs.run_windows == 'true'
