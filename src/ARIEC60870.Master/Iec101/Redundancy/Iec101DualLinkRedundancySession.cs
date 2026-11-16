@@ -71,7 +71,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             new Iec101OwnerStamp(active.Name, active.CommandAuthorityEpoch,
                 Volatile.Read(ref _activeGeneration));
         if (!_controlCommands.TryEnqueue(new QueuedControl(request, stamp,
-                active?.IsHealthy == true && !_switchInProgress, DateTime.UtcNow)))
+                active?.IsHealthy == true && active.HasVerifiedCommandAuthority &&
+                !_switchInProgress, DateTime.UtcNow)))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
                 "IEC-101 A/B operator command rejected: bounded queue full",
@@ -417,7 +418,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         // Do not consume operator intents while the physical active owner is
         // unverified, DFC-busy, or midway through an A/B promotion.
         var owner = _active;
-        if (owner is null || _switchInProgress || !owner.IsHealthy)
+        if (owner is null || _switchInProgress || !owner.IsHealthy ||
+            !owner.HasVerifiedCommandAuthority)
             return false;
 
         if (!_controlCommands.TryDequeue(out var queued))
