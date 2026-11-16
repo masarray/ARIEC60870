@@ -42,12 +42,15 @@ public partial class MainWindow
         var link = frame?.LinkControl;
 
         // Only the selected row pays for the full point and field projections.
-        // Strict, read-only signal-list lookup for every decoded object.
-        // Do not apply source-CA alias learning or invent names in the inspector.
+        // One display-only index for all decoded objects, including commands.
+        // Name-only recovery is limited to unique process IOAs; no TX remap.
         Func<int, string?>? signalName = asdu is { Issues.Count: 0 } &&
-            row.Direction == "RX" && row.ProtocolMode is "101" or "104"
-            ? ioa => _ioaProfile.ResolveObservedSignal(
-                asdu.CommonAddress, ioa, asdu.TypeId)?.Name
+            row.Source.Frame?.IsChecksumValid != false &&
+            (row.Direction is "RX" or "TX") &&
+            (row.ProtocolMode is "101" or "104")
+            ? ioa => _displayPointIndex.Resolve(asdu.CommonAddress, ioa,
+                asdu.TypeId, allowNameOnly: row.Direction == "RX" &&
+                    _runtimeCaReconciler?.HasSourceConflict(row.Source.PhysicalSource) != true).Point?.Name
             : null;
         var decodedPoints = DecodedPointRow.FromAsdu(asdu, signalName);
         foreach (var point in decodedPoints)

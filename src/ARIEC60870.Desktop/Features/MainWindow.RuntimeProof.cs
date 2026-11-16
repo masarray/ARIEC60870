@@ -530,11 +530,10 @@ public partial class MainWindow
             return null;
         }
 
-        var point = _ioaProfile.Points.FirstOrDefault(x =>
-            x.Ioa == item.InformationObjectAddress.Value &&
-            (!x.TypeId.HasValue || !item.TypeId.HasValue || x.TypeId.Value == item.TypeId.Value) &&
-            (!x.Ca.HasValue || !item.CommonAddressNumber.HasValue || x.Ca.Value == item.CommonAddressNumber.Value));
-
+        // Real command correlation requires exact station/IOA/TI identity.
+        // A display-only CA alias must never become physical feedback proof.
+        var point = _displayPointIndex.Resolve(item.CommonAddressNumber,
+            item.InformationObjectAddress, item.TypeId).Point;
         return point?.FeedbackIoa;
     }
 

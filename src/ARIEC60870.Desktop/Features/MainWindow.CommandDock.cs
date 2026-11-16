@@ -248,8 +248,13 @@ public partial class MainWindow
             };
 
             var ca = point.Ca?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "*";
+            // Never borrow a feedback label from another Common Address.
             var feedbackPoint = point.FeedbackIoa.HasValue
-                ? _ioaProfile.Points.FirstOrDefault(x => x.Ioa == point.FeedbackIoa.Value)
+                ? _ioaProfile.Points.FirstOrDefault(x =>
+                    x.Ioa == point.FeedbackIoa.Value &&
+                    (x.Ca ?? _ioaProfile.CommonAddress) ==
+                    (point.Ca ?? _ioaProfile.CommonAddress) &&
+                    !IsCommandPoint(x))
                 : null;
             var fb = point.FeedbackIoa.HasValue ? $" · FB IOA {point.FeedbackIoa.Value}" : string.Empty;
             var range = point.EngineeringMin.HasValue || point.EngineeringMax.HasValue

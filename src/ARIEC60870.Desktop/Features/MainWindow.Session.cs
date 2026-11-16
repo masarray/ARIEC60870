@@ -400,7 +400,7 @@ public partial class MainWindow
         settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
         settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
         settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
-        settings.MappingProfilePath = SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text.Trim());
+        settings.MappingProfilePath = _activeMappingProfileFilePath;
         ApplyLowBaudSerialTimingGuard(settings);
 
         var serialMode = (SerialModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "8E1";

@@ -82,8 +82,8 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string PhysicalSource { get; }
     public string EvidenceReference { get; }
     public string Protocol { get; }
-    public string Signal { get; }
-    public string Group { get; }
+    public string Signal { get; private set; }
+    public string Group { get; private set; }
     public string Value { get; }
     public string OperatorValue => IecOperatorValueFormatter.ForGrid(Protocol, TypeId, Value);
     public string FullOperatorValue => Value;
@@ -119,8 +119,28 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string QualityDetail { get; }
     public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
-    public string Mapped { get; }
+    public string Mapped { get; private set; }
     public string RawHex { get; }
+
+    public void ApplyDisplayName(string name, string group, bool mapped)
+    {
+        if (Signal != name)
+        {
+            Signal = name;
+            OnPropertyChanged(nameof(Signal));
+        }
+        if (Group != group)
+        {
+            Group = group;
+            OnPropertyChanged(nameof(Group));
+        }
+        var status = mapped ? "Yes" : "No";
+        if (Mapped != status)
+        {
+            Mapped = status;
+            OnPropertyChanged(nameof(Mapped));
+        }
+    }
 
     public bool IsRecentlyChanged
     {

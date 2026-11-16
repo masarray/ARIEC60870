@@ -4,6 +4,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using ARIEC60870.Core.Mapping;
 using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Desktop.ViewModels;
@@ -76,13 +77,15 @@ public sealed class EventHistoryQuerySnapshot
     /// its typed original-frame evidence remain unchanged for engineering audit.
     /// </summary>
     public IReadOnlyList<RelayEventRow> ReadDisplayPage(
-        EventHistoryJournal journal, long start, int limit = EventHistoryPagination.PageSize)
+        EventHistoryJournal journal, long start, int limit = EventHistoryPagination.PageSize,
+        Iec10xPointDisplayIndex? names = null)
     {
         var entries = ReadPage(journal, start, limit);
         var rows = new RelayEventRow[entries.Count];
         for (var i = 0; i < entries.Count; i++)
         {
             var row = entries[i].ToRow();
+            row.ApplyDisplayNames(names);
             row.DisplayNumber = checked(start + i + 1);
             rows[i] = row;
         }
@@ -100,7 +103,8 @@ public static class EventHistoryQueryEngine
     public static EventHistoryQuerySnapshot Build(
         EventHistoryJournal journal, long ceiling, string? query,
         IReadOnlyCollection<string> include, IReadOnlyCollection<string> exclude,
-        Func<RelayEventRow, string> classify, CancellationToken cancellationToken = default)
+        Func<RelayEventRow, string> classify, CancellationToken cancellationToken = default,
+        Iec10xPointDisplayIndex? names = null)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(include);
@@ -116,14 +120,15 @@ public static class EventHistoryQueryEngine
                 .All(allowed.Contains);
         if (all) return new EventHistoryQuerySnapshot(ceiling, null);
         var matches = Scan(journal, 0, ceiling, search, allowed, blocked,
-            classify, cancellationToken);
+            classify, cancellationToken, names);
         return new EventHistoryQuerySnapshot(ceiling, matches.ToArray());
     }
 
     public static EventHistoryQuerySnapshot Extend(
         EventHistoryJournal journal, EventHistoryQuerySnapshot previous, long newCeiling,
         string? query, IReadOnlyCollection<string> include, IReadOnlyCollection<string> exclude,
-        Func<RelayEventRow, string> classify, CancellationToken cancellationToken = default)
+        Func<RelayEventRow, string> classify, CancellationToken cancellationToken = default,
+        Iec10xPointDisplayIndex? names = null)
     {
         ArgumentNullException.ThrowIfNull(previous);
         if (newCeiling < previous.Ceiling || newCeiling > journal.Count)
@@ -132,13 +137,14 @@ public static class EventHistoryQueryEngine
         if (!previous.IsFiltered) return previous.Append(newCeiling, Array.Empty<long>());
         var added = Scan(journal, previous.Ceiling, newCeiling, query?.Trim() ?? "",
             new HashSet<string>(include, StringComparer.Ordinal),
-            new HashSet<string>(exclude, StringComparer.Ordinal), classify, cancellationToken);
+            new HashSet<string>(exclude, StringComparer.Ordinal), classify, cancellationToken, names);
         return previous.Append(newCeiling, added);
     }
 
     private static List<long> Scan(EventHistoryJournal journal, long start, long ceiling,
         string search, HashSet<string> allowed, HashSet<string> blocked,
-        Func<RelayEventRow, string> classify, CancellationToken cancellationToken)
+        Func<RelayEventRow, string> classify, CancellationToken cancellationToken,
+        Iec10xPointDisplayIndex? names)
     {
         var matches = new List<long>();
         for (var cursor = start; cursor < ceiling; cursor += 200)
@@ -151,6 +157,7 @@ public static class EventHistoryQueryEngine
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var row = entry.ToQueryRow();
+                row.ApplyDisplayNames(names);
                 var category = classify(row);
                 if (!allowed.Contains(category) || blocked.Contains(category)) continue;
                 if (search.Length > 0 &&
@@ -178,7 +185,8 @@ public static class EventHistoryCsvExporter
 {
     public static async Task<long> ExportAsync(
         EventHistoryJournal journal, EventHistoryQuerySnapshot snapshot,
-        string destination, CancellationToken cancellationToken = default)
+        string destination, CancellationToken cancellationToken = default,
+        Iec10xPointDisplayIndex? names = null)
     {
         ArgumentNullException.ThrowIfNull(journal);
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -207,6 +215,7 @@ public static class EventHistoryCsvExporter
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var row = entry.ToRow();
+                        row.ApplyDisplayNames(names);
                         var original = row.OriginalFrameEvidence;
                         var data = new[]
                         {

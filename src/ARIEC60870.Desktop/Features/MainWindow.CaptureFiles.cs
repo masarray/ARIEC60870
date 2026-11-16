@@ -58,7 +58,7 @@ public partial class MainWindow
             OpenCaptureButton.IsEnabled = false;
             UpdateStableHeader("Opening capture", "Verifying raw evidence…");
             var imported = await Task.Run(() => CaptureArchiveReader.Read(dialog.FileName));
-            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot)).ToArray();
+            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot, _displayPointIndex)).ToArray();
             if (rows.Length == 0)
             {
                 ModernMessageBox.Show(this,
@@ -91,7 +91,11 @@ public partial class MainWindow
                 _commandCasebook.Observe(row.Source,
                     IsIec10xCommandType(row.Source.TypeId) ? ResolveFeedbackIoaForCommand(row.Source) : null);
                 var commandCase = _commandCasebook.FindByEvidence(row.Source);
-                var commandStage = Iec10xCommandEventProjection.Project(row.Source, commandCase?.CaseId);
+                var mappedCommand = _displayPointIndex.Resolve(
+                    row.Source.CommonAddressNumber, row.Source.InformationObjectAddress,
+                    row.Source.TypeId).Point?.Name;
+                var commandStage = Iec10xCommandEventProjection.Project(
+                    row.Source, commandCase?.CaseId, mappedCommand);
                 if (commandStage is not null)
                     AppendProtocolEvent(commandStage, row.Source);
                 var giStage = _giCasebook.Observe(row.Source);

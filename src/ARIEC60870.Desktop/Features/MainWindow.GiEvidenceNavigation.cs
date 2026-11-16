@@ -290,7 +290,7 @@ public partial class MainWindow
                 Iec10xObservationIdentity.SamePhysicalFrame(original,
                     evidenceRef, physicalSource, protocol, sequence))
             {
-                frame = new EvidenceRow(original, ResolveIoaPoint(original));
+                frame = new EvidenceRow(original, ResolveIoaPoint(original), _displayPointIndex);
                 fromEvent = true;
             }
         }

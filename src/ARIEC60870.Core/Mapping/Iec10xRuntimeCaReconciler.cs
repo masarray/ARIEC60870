@@ -61,6 +61,12 @@ public sealed class Iec10xRuntimeCaReconciler
 
     public bool IsSingleStation => _singleProfileCa.HasValue;
 
+    public bool HasSourceConflict(string? source)
+    {
+        var channel = string.IsNullOrWhiteSpace(source) ? "SINGLE" : source.Trim();
+        return _sources.TryGetValue(channel, out var state) && state.Conflict;
+    }
+
     public Result Observe(string? source, int ca, int ioa, int typeId)
     {
         if (ca is < 0 or > 65535 || ioa is < 0 or > 0xFFFFFF || typeId is < 0 or > 255)

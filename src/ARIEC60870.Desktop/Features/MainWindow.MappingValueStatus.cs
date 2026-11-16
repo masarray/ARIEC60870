@@ -33,6 +33,7 @@ public partial class MainWindow
 {
     private readonly HashSet<string> _reportedProfileCaMismatchSources = new(StringComparer.OrdinalIgnoreCase);
     private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
+    private Iec10xPointDisplayIndex _displayPointIndex = new(Iec10xPointMappingProfile.Empty);
     private readonly HashSet<(string Source, int Ioa, int ExpectedTi, int ActualTi)> _reportedTiMismatch = new();
     private string? _sessionSubtitleBeforeCaRecovery;
 
@@ -61,6 +62,7 @@ public partial class MainWindow
             if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
             {
                 _mappingProfile = Iec103SignalMappingProfile.LoadFromFile(fileName);
+                _activeMappingProfileFilePath = fileName;
                 MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 MappingProfileStatusText.Text = $"Loaded: {_mappingProfile.ProfileName} ({_mappingProfile.Signals.Count} signals)";
                 AppendSessionLog("IEC-103 mapping profile loaded: " + _mappingProfile.ProfileName);
@@ -68,6 +70,7 @@ public partial class MainWindow
             else
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(fileName);
+                _activeMappingProfileFilePath = fileName;
                 ResetReadOnlyNameAliasCache();
                 MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
@@ -93,6 +96,7 @@ public partial class MainWindow
         _ioaProfile = Iec10xPointMappingProfile.Empty;
         ResetReadOnlyNameAliasCache();
         MappingProfilePathBox.Text = string.Empty;
+        _activeMappingProfileFilePath = string.Empty;
         RefreshIoaProfileRows();
         MappingProfileStatusText.Text = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103
             ? "No mapping profile loaded. Raw FUN/INF will be shown."
@@ -122,6 +126,7 @@ public partial class MainWindow
         if (editor.ShowDialog() == true)
         {
             _ioaProfile = editor.Profile;
+            _activeMappingProfileFilePath = editor.SavedProfilePath;
             ResetReadOnlyNameAliasCache();
             MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(editor.SavedProfilePath);
             ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
@@ -141,6 +146,28 @@ public partial class MainWindow
         _runtimeCaReconciler = null;
         _reportedTiMismatch.Clear();
         _reportedProfileCaMismatchSources.Clear();
+        _displayPointIndex = new Iec10xPointDisplayIndex(_ioaProfile);
+        RefreshCachedSignalNames();
+    }
+
+    // Re-label Values and indexed Events without rewriting physical evidence.
+    // Invoked once per profile change, never from the serial RX hot path.
+    private void RefreshCachedSignalNames()
+    {
+        foreach (var row in _valueRowsByKey.Values)
+        {
+            if (row.Protocol is not ("101" or "104") ||
+                !int.TryParse(row.CommonAddress, out var ca) ||
+                !int.TryParse(row.IoAddress, out var ioa) ||
+                !int.TryParse(row.TypeId, out var typeId))
+                continue;
+            var match = _displayPointIndex.Resolve(ca, ioa, typeId, allowNameOnly: true);
+            row.ApplyDisplayName(match.Point?.Name ?? $"IOA {ioa}",
+                match.Point?.Group ?? "Unmapped", match.Point is not null);
+        }
+        _valueRowsDirty = true;
+        if (_eventHistoryJournal is not null)
+            RequestEventHistoryQuery();
     }
 
     private Iec10xPointMappingEntry? ResolveIoaPoint(Iec103MasterEvidenceEvent item)
@@ -151,8 +178,8 @@ public partial class MainWindow
         }
 
         if (!item.InformationObjectAddress.HasValue) return null;
-        var strict = _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
-            item.InformationObjectAddress.Value, item.TypeId);
+        var strict = _displayPointIndex.Resolve(item.CommonAddressNumber,
+            item.InformationObjectAddress.Value, item.TypeId).Point;
         // The canonical Monitor writer, not its lossy live frame preview,
         // establishes trustworthy process facts for both Physical RX-only and
         // Virtual Inline. Permit read-only unique IOA names for those facts,
@@ -230,7 +257,13 @@ public partial class MainWindow
                     : $" · RX DL={observedDl} / CA={ca} ! (setup {CommonAddressBox.Text}, profile {originalCa})");
             AppendSessionLog("Smart CA recovery: " + message);
         }
-        return match.Point ?? strict;
+        // A unique monitor IOA can recover its label for display only.
+        // This must never redefine the wire CA or a control target.
+        return match.Point ?? strict ??
+            (_runtimeCaReconciler.HasSourceConflict(item.PhysicalSource)
+                ? null
+                : _displayPointIndex.Resolve(ca, item.InformationObjectAddress.Value,
+                    type, allowNameOnly: true).Point);
     }
 
     private void ReportUnmatchedProfileCommonAddress(Iec103MasterEvidenceEvent item)
@@ -323,7 +356,10 @@ public partial class MainWindow
         // Every actual typed TX/RX application command is an event fact, independently
         // of whether a process value changed. No fabricated RTU success on ACTCON.
         var commandCase = _commandCasebook.FindByEvidence(item);
-        var commandStage = Iec10xCommandEventProjection.Project(item, commandCase?.CaseId);
+        var mappedCommand = _displayPointIndex.Resolve(
+            item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId).Point?.Name;
+        var commandStage = Iec10xCommandEventProjection.Project(item,
+            commandCase?.CaseId, mappedCommand);
         if (commandStage is not null)
             AppendProtocolEvent(commandStage, item);
 
@@ -367,7 +403,10 @@ public partial class MainWindow
         if (shouldShowValue)
         {
             // Only a point compatible with the configured CA/Type can satisfy GI.
-            if (ioaPoint is not null && !_passiveLedgerFactProjection) MarkGiValueReceived(item, ioaPoint);
+            if (ioaPoint is not null && !_passiveLedgerFactProjection &&
+                _displayPointIndex.Resolve(item.CommonAddressNumber,
+                    item.InformationObjectAddress, item.TypeId).Point is not null)
+                MarkGiValueReceived(item, ioaPoint);
             // In dual-link mode (or wildcard-CA mapping) an actual physical point
             // has a different key than the seeded SINGLE placeholder. Remove the
             // stale placeholder without merging Link A/B process snapshots.
