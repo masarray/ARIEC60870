@@ -17,6 +17,10 @@ public sealed class Iec101PerLinkTransactionEngine
     private long _lastExchangeId;
     private bool _fcb;
     private Iec101PendingExchange? _pending;
+    // FC11 carries no exchange ID. After an unanswered FC9, the first later
+    // matching FC11 could belong to the expired status probe. Quarantine it
+    // before allowing another reply to establish new status authority.
+    private bool _statusReplyMayBelongToExpiredProbe;
 
     // Exactly one optional retransmission of an unchanged *read* exchange.
     // No retry on an out-of-context/garbled candidate or mutating FC3.
@@ -40,6 +44,7 @@ public sealed class Iec101PerLinkTransactionEngine
                 ? Iec101ExchangeState.Unknown : Iec101ExchangeState.Failed;
             _pending = null;
         }
+        _statusReplyMayBelongToExpiredProbe = false;
         _epoch++;
     }
 
@@ -135,6 +140,19 @@ public sealed class Iec101PerLinkTransactionEngine
         var validation = Iec101SecondaryResponseValidator.Validate(candidate,
             exchange.LinkAddress, exchange.OriginalTransmit, matchesEarlierTransmit,
             exchange.PrimaryFunctionCode);
+        if (validation.IsValid && _statusReplyMayBelongToExpiredProbe &&
+            exchange.PrimaryFunctionCode is 8 or 9 &&
+            candidate.LinkControl is { Prm: false, FunctionCode: 11 })
+        {
+            // Cannot distinguish an old FC11 from a fresh one on the same COM.
+            // Never promote one ambiguous response into link readiness. Consume
+            // one plausible late status; a later exchange needs its own proof.
+            _statusReplyMayBelongToExpiredProbe = false;
+            validation = new Iec101SecondaryResponseValidation(false, false,
+                "IEC101-RX-AMBIGUOUS-LATE-FC11",
+                "Valid addressed FC11 after an earlier unanswered FC8/FC9 can be a delayed reply. " +
+                "Quarantined without validating link health or advancing FCB; require another response.");
+        }
         if (!validation.IsValid) exchange.RejectedCandidates++;
         if (validation.IsValid && exchange.AcceptedValidation is null)
         {
@@ -170,6 +188,15 @@ public sealed class Iec101PerLinkTransactionEngine
         else
             verdict = Iec101ExchangeVerdict.Unconfirmed;
 
+        if (exchange.PrimaryFunctionCode is 8 or 9 &&
+            exchange.TransmitStartedAt != 0 &&
+            accepted is null)
+        {
+            // Continue the guard across silent FC9 attempts until a plausible
+            // late FC11 has actually been observed and rejected.
+            _statusReplyMayBelongToExpiredProbe = true;
+        }
+
         exchange.State = verdict is Iec101ExchangeVerdict.ConfirmedPositive or Iec101ExchangeVerdict.NoData
             ? Iec101ExchangeState.Completed
             : verdict == Iec101ExchangeVerdict.UnknownDelivery
@@ -183,6 +210,8 @@ public sealed class Iec101PerLinkTransactionEngine
         if (!ReferenceEquals(_pending, exchange)) return;
         exchange.State = exchange.TransmitStartedAt != 0
             ? Iec101ExchangeState.Unknown : Iec101ExchangeState.Failed;
+        if (exchange.PrimaryFunctionCode is 8 or 9 && exchange.TransmitStartedAt != 0)
+            _statusReplyMayBelongToExpiredProbe = true;
         _pending = null;
     }
 
