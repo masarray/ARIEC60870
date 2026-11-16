@@ -121,3 +121,6 @@ if ($failures.Count -gt 0)
 }
 
 Write-Host 'Incremental C# formatting gate PASSED. Untouched legacy whitespace debt is not silently treated as new.'
+# dotnet format exits nonzero for known legacy violations outside edited lines.
+# Explicitly return the validated gate status, not the last native exit code.
+exit 0
