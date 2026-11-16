@@ -14,7 +14,9 @@ public sealed class Iec10xCommandCasebookTests
     private static Iec103MasterEvidenceEvent Command(int cot = 6, bool select = true,
         bool rtu = false, bool negative = false, string source = "A", int ca = 5,
         int ioa = 123, int code = 2, int link = 105, byte type = 46,
-        int qualifier = 0, int oa = 0, bool test = false)
+        int qualifier = 0, int oa = 0, bool test = false,
+        Iec60870ProtocolMode protocol = Iec60870ProtocolMode.Iec101,
+        string connectionId = "", long? observedSequence = null, DateTime? observedUtc = null)
     {
         var qoc = (byte)((select ? 0x80 : 0) | (code & 3) | ((qualifier & 31) << 2));
         var raw = new byte[] { type, 1, (byte)(cot | (negative ? 0x40 : 0) | (test ? 0x80 : 0)), (byte)oa,
@@ -22,12 +24,13 @@ public sealed class Iec10xCommandCasebookTests
         var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw);
         return new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
-            TimestampUtc = DateTime.UtcNow,
-            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            SequenceNumber = observedSequence ?? System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = observedUtc ?? DateTime.UtcNow,
+            ProtocolMode = protocol,
             Direction = rtu ? FrameDirection.SlaveToMaster : FrameDirection.MasterToSlave,
             PhysicalSource = source,
-            LinkAddress = link,
+            ConnectionInstanceId = connectionId,
+            LinkAddress = protocol == Iec60870ProtocolMode.Iec101 ? link : null,
             CommonAddressNumber = ca,
             InformationObjectAddress = ioa,
             TypeId = type,
@@ -39,19 +42,22 @@ public sealed class Iec10xCommandCasebookTests
     }
 
     private static Iec103MasterEvidenceEvent Feedback(int code = 2, int quality = 0,
-        string source = "A", int ca = 5, int ioa = 201, byte type = 3, int? link = 105)
+        string source = "A", int ca = 5, int ioa = 201, byte type = 3, int? link = 105,
+        Iec60870ProtocolMode protocol = Iec60870ProtocolMode.Iec101,
+        string connectionId = "", long? observedSequence = null, DateTime? observedUtc = null)
     {
         var raw = new byte[] { type, 1, 3, 0, (byte)ca, 0,
             (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), (byte)(code | quality) };
         var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw);
         return new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
-            TimestampUtc = DateTime.UtcNow,
-            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            SequenceNumber = observedSequence ?? System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = observedUtc ?? DateTime.UtcNow,
+            ProtocolMode = protocol,
             Direction = FrameDirection.SlaveToMaster,
             PhysicalSource = source,
-            LinkAddress = link,
+            ConnectionInstanceId = connectionId,
+            LinkAddress = protocol == Iec60870ProtocolMode.Iec101 ? link : null,
             CommonAddressNumber = ca,
             InformationObjectAddress = ioa,
             TypeId = type,
@@ -89,6 +95,120 @@ public sealed class Iec10xCommandCasebookTests
             IsRelayValue = true,
             RawHex = Convert.ToHexString(raw.ToArray())
         };
+    }
+
+    private static Iec103MasterEvidenceEvent TimedFeedback(byte minuteFlags)
+    {
+        var raw = new byte[]
+        {
+            31, 1, 3, 0, 5, 0, 201, 0, 0, 2, // DPI=ON
+            0, 0, minuteFlags, 7, 16, 11, 26 // CP56Time2a
+        };
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw);
+        return new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = DateTime.UtcNow,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "A",
+            LinkAddress = 105,
+            CommonAddressNumber = 5,
+            TypeId = 31,
+            CauseDetails = asdu.CauseDetails,
+            AsduDetails = asdu,
+            IsRelayValue = true,
+            RawHex = Convert.ToHexString(raw)
+        };
+    }
+
+    [Fact]
+    public void TcpReconnectCannotConsumeActconOrFeedbackFromPreviousConnection()
+    {
+        const Iec60870ProtocolMode protocol = Iec60870ProtocolMode.Iec104;
+        var b = new Iec10xCommandCasebook();
+        var first = Command(select: false, protocol: protocol, connectionId: "tcp-a");
+        Assert.True(b.Observe(first, feedbackIoa: 201));
+
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true,
+            protocol: protocol, connectionId: "tcp-b")));
+        Assert.Equal("EXECUTE sent", b.Snapshot()[0].Status);
+        Assert.Equal("Unmatched response", b.Snapshot()[1].Status);
+        Assert.Equal(1, b.ActiveCount);
+
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true,
+            protocol: protocol, connectionId: "tcp-a")));
+        Assert.False(b.Observe(Feedback(protocol: protocol, connectionId: "tcp-b")));
+        Assert.Equal("EXECUTE accepted", b.Snapshot()[0].Status);
+        Assert.True(b.Observe(Feedback(protocol: protocol, connectionId: "tcp-a")));
+        Assert.Equal("Feedback matched · ACTTERM pending", b.Snapshot()[0].Status);
+        Assert.Contains("tcp-a", b.Snapshot()[0].ToEvidenceText());
+        Assert.Null(b.FindByEvidence(Command(cot: 7, select: false, rtu: true,
+            protocol: protocol, connectionId: "tcp-b")));
+    }
+
+    [Fact]
+    public void ParallelTcpConnectionEpochsHaveIndependentFeedbackOwners()
+    {
+        const Iec60870ProtocolMode protocol = Iec60870ProtocolMode.Iec104;
+        var b = new Iec10xCommandCasebook();
+        foreach (var connection in new[] { "tcp-a", "tcp-b" })
+        {
+            Assert.True(b.Observe(Command(select: false, protocol: protocol,
+                connectionId: connection), feedbackIoa: 201));
+            Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true,
+                protocol: protocol, connectionId: connection)));
+        }
+
+        Assert.True(b.Observe(Feedback(protocol: protocol, connectionId: "tcp-b")));
+        Assert.Equal("EXECUTE accepted", b.Snapshot()[0].Status);
+        Assert.Equal("Feedback matched · ACTTERM pending", b.Snapshot()[1].Status);
+        Assert.Equal(2, b.ActiveCount);
+        Assert.True(b.Observe(Feedback(protocol: protocol, connectionId: "tcp-a")));
+        Assert.All(b.Snapshot(), c => Assert.Equal("Feedback matched · ACTTERM pending", c.Status));
+    }
+
+    [Fact]
+    public void ReplayedFeedbackOlderThanActconCannotConfirmCurrentControl()
+    {
+        var b = new Iec10xCommandCasebook();
+        var utc = new DateTime(2026, 11, 16, 10, 0, 0, DateTimeKind.Utc);
+        b.Observe(Command(select: false, observedSequence: 1000, observedUtc: utc), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, rtu: true,
+            observedSequence: 1001, observedUtc: utc.AddSeconds(2)));
+        Assert.True(b.Observe(Feedback(observedSequence: 1002, observedUtc: utc.AddSeconds(1))));
+        Assert.Equal("Feedback unverified", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback(observedSequence: 999, observedUtc: utc.AddSeconds(3))));
+        Assert.Equal("Feedback unverified", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback(observedSequence: 1003, observedUtc: utc.AddSeconds(3))));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+    }
+
+    [Fact]
+    public void ReplayedActconBeforeCommandTxCannotAuthorizeResponse()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, observedSequence: 5000));
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true,
+            observedSequence: 4999)));
+        Assert.Equal("Ambiguous", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true,
+            observedSequence: 5001)));
+        Assert.NotEqual("EXECUTE accepted", Assert.Single(b.Snapshot()).Status);
+    }
+
+    [Theory]
+    [InlineData((byte)0x8A)]
+    [InlineData((byte)0x4A)]
+    public void InvalidOrSubstitutedCp56FeedbackCannotProveExecution(byte minuteFlags)
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, rtu: true));
+        Assert.True(b.Observe(TimedFeedback(minuteFlags)));
+        Assert.Equal("Feedback unverified", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback()));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
     }
 
     [Theory]

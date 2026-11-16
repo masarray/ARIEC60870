@@ -31,6 +31,8 @@ public sealed class Iec103MasterEvidenceEvent
     public string RawHex { get; init; } = string.Empty;
     /// <summary>Physical observation source, independent of user signal mapping.</summary>
     public string PhysicalSource { get; init; } = string.Empty;
+    /// <summary>Unique IEC-104 TCP connection attempt. Empty for IEC-101 and legacy captures.</summary>
+    public string ConnectionInstanceId { get; init; } = string.Empty;
     /// <summary>Original RX journal provenance. Null for active master frames.</summary>
     public int? PhysicalStreamId { get; init; }
     public long? RawStreamOffset { get; init; }

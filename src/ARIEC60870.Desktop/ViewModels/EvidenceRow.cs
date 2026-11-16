@@ -682,6 +682,7 @@ public sealed partial class EvidenceRow
             RawHex = capture.RawHex,
             PollingReason = "offline-capture",
             PhysicalSource = capture.PhysicalSource,
+            ConnectionInstanceId = capture.ConnectionInstanceId,
             PhysicalStreamId = capture.PhysicalStreamId,
             RawStreamOffset = capture.RawStreamOffset,
             ProtocolMode = mode,

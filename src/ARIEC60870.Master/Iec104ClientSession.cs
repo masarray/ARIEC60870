@@ -27,6 +27,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     private int _oldestUnacknowledgedSend;
     private bool _startDtConfirmed;
     private long _sequence;
+    private string _connectionInstanceId = string.Empty;
     private Iec103MasterState _state = Iec103MasterState.Created;
     private DateTime _lastTestFrameUtc = DateTime.MinValue;
     private DateTime _lastBackgroundReadUtc = DateTime.MinValue;
@@ -62,6 +63,9 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
 
     public async Task<Iec103MasterRunResult> RunAsync(CancellationToken cancellationToken)
     {
+        // A new TCP transport connection must not inherit command proof from an
+        // earlier connection, even if CA/IOA and APCI N(S) are reused.
+        _connectionInstanceId = Guid.NewGuid().ToString("N");
         var started = DateTime.UtcNow;
         var completion = "Stopped by cancellation or requested duration.";
         try
@@ -638,6 +642,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             OperatorAction = item.OperatorAction,
             RawHex = item.RawHex,
             PhysicalSource = item.PhysicalSource,
+            ConnectionInstanceId = _connectionInstanceId,
             PhysicalStreamId = item.PhysicalStreamId,
             RawStreamOffset = item.RawStreamOffset,
             PhysicalFrameSequenceNumber = item.PhysicalFrameSequenceNumber,
