@@ -1,7 +1,7 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Collections.Concurrent;
+using ARIEC60870.Master.Protocol;
 using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Master.Model;
@@ -16,8 +16,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101DualLinkChannel _linkA;
     private readonly Iec101DualLinkChannel _linkB;
     private readonly Iec101ApplicationImageTracker _imageTracker = new();
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
-    private readonly ConcurrentQueue<string> _manualFailoverRequests = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
+    private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
+        Iec101OwnerStamp OwnerAtQueue, bool VerifiedWhenQueued, DateTime QueuedUtc);
+    private readonly Iec101BoundedFifo<string> _manualFailoverRequests = new(8);
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
     private readonly Iec101ObservedCaPolicy _observedCa = new();
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
@@ -35,6 +39,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private bool _switchInProgress;
     private bool _startupGiPending;
     private bool _retriedGiWithObservedCommonAddress;
+    private int _activeGeneration;
     // Per-active-owner authorization, never inferred from passive RX or old owner GI.
     private bool _giRequestedOnActiveOwner;
 
@@ -59,9 +64,19 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     public void QueueControlCommand(Iec60870ControlCommandRequest request)
     {
-        if (request is not null)
+        if (request is null) return;
+        var active = Volatile.Read(ref _active);
+        var stamp = active is null ? default :
+            new Iec101OwnerStamp(active.Name, active.ConnectionEpoch,
+                Volatile.Read(ref _activeGeneration));
+        if (!_controlCommands.TryEnqueue(new QueuedControl(request, stamp,
+                active?.IsHealthy == true && !_switchInProgress, DateTime.UtcNow)))
         {
-            _controlCommands.Enqueue(request);
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-QUEUE-FULL",
+                "IEC-101 A/B operator command rejected: bounded queue full",
+                "Capacity=64; new intent was NOT admitted: " + request.Summary,
+                "Old commands are retained in arrival order without replacement.",
+                "Reissue the control after the active-link queue drains.");
         }
     }
 
@@ -71,9 +86,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     /// </summary>
     public void QueueManualFailover(string reason)
     {
-        _manualFailoverRequests.Enqueue(string.IsNullOrWhiteSpace(reason)
-            ? "Operator requested manual dual-link switchover"
-            : reason.Trim());
+        if (!_manualFailoverRequests.TryEnqueue(string.IsNullOrWhiteSpace(reason)
+                ? "Operator requested manual dual-link switchover"
+                : reason.Trim()))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-FAILOVER-QUEUE-FULL",
+                "IEC-101 manual failover request rejected: bounded queue full",
+                "Capacity=8; additional switch was NOT admitted.",
+                "A pending switchover cannot create an unbounded replay backlog.",
+                "Retry after the current failover operation completes.");
+        }
     }
 
     public async Task<Iec103MasterRunResult> RunForAsync(TimeSpan duration, CancellationToken cancellationToken)
@@ -89,6 +111,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
+            Interlocked.Increment(ref _activeGeneration);
             _observedCa.Reset();
             _retriedGiWithObservedCommonAddress = false;
             _learnedCommonAddress = null;
@@ -114,6 +137,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         finally
         {
             SetControllerState(Iec101RedundancyControllerState.Stopping, "Stopping IEC-101 dual-link redundancy", "Closing both link transports.");
+            Interlocked.Increment(ref _activeGeneration);
+            var droppedControls = _controlCommands.Clear();
+            var droppedSwitches = _manualFailoverRequests.Clear();
+            if (droppedControls + droppedSwitches > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-QUEUES-DISCARDED-ON-STOP",
+                    "IEC-101 A/B pending operator intents discarded on stop",
+                    $"Unsent controls={droppedControls}; pending manual failovers={droppedSwitches}.",
+                    "A stopped session cannot replay physical commands or failover requests.",
+                    "Reissue operator intents after validating the active physical link.");
             await CloseBothLinksAsync().ConfigureAwait(false);
             SetControllerState(Iec101RedundancyControllerState.Stopped, "IEC-101 dual-link redundancy stopped", completion);
         }
@@ -381,14 +413,31 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private async Task<bool> ProcessPendingControlCommandAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
-        {
+        // Do not consume operator intents while the physical active owner is
+        // unverified, DFC-busy, or midway through an A/B promotion.
+        var owner = _active;
+        if (owner is null || _switchInProgress || !owner.IsHealthy)
             return false;
-        }
 
-        if (_active is null)
+        if (!_controlCommands.TryDequeue(out var queued))
+            return false;
+
+        var request = queued.Request;
+        var ownerMatches = queued.OwnerAtQueue.LinkName is null ||
+            queued.OwnerAtQueue.Matches(owner.Name, owner.ConnectionEpoch,
+                Volatile.Read(ref _activeGeneration));
+        if (!ownerMatches ||
+            (IsMutatingCommand(request) &&
+             (!queued.VerifiedWhenQueued ||
+              DateTime.UtcNow - queued.QueuedUtc > TimeSpan.FromSeconds(30))))
         {
-            RaiseFinding(FindingSeverity.Error, "IEC101-DUAL-COMMAND-NO-ACTIVE", "IEC-101 command blocked because no active link exists", request.Summary, "Operator command cannot be delivered safely.", "Restore at least one healthy active link before issuing controls.");
+            RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-STALE-OWNER",
+                "IEC-101 operator command rejected: stale active-link ownership",
+                $"{request.Summary}; owner-at-queue={queued.OwnerAtQueue.LinkName ?? "none"}; " +
+                $"current-active={owner.Name}; verified-at-queue={queued.VerifiedWhenQueued}; " +
+                $"age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "Queued commands must not be replayed after active link switch, reconnect or uncertain link proof.",
+                "Reissue the explicit command on the freshly verified active link.");
             return true;
         }
 
@@ -737,6 +786,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
             _active = to;
             _standby = from;
+            Interlocked.Increment(ref _activeGeneration);
+            var discardedSwitchRequests = _manualFailoverRequests.Clear();
+            if (discardedSwitchRequests > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-STALE-FAILOVER-REQUESTS",
+                    "Old manual failover requests discarded after active ownership changed",
+                    $"Discarded pending switch requests={discardedSwitchRequests}; active={to.Name}.",
+                    "A previously queued switchover must not reverse the newly selected owner.",
+                    "Issue a new manual failover if another physical switch is intended.");
             // Old-owner CA evidence and GI intent cannot cross A/B promotion.
             _observedCa.Reset();
             _learnedCommonAddress = null;
