@@ -26,10 +26,10 @@ const ci = {id:4,head_sha:SHA,head_branch:'master',event:'push',
 const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'};
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
-   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true}={}) {
+   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[]}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'},
-    ...markers.map(m => ({id:100+m.length,body:m,user:{login:'github-actions[bot]'},created_at:now}))];
+    ...markers.map(m => ({id:100+m.length,body:m,user:{login:'github-actions[bot]'},created_at:now})),...extraComments];
   const content = path => {
     const txt = path === 'Directory.Build.props' ? `<Project><Version>${version}</Version></Project>` : '# release notes';
     return {data:{type:'file',encoding:'base64',content:Buffer.from(txt).toString('base64')}};
@@ -46,7 +46,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
     rest:{
       repos:{
         getBranch:async()=>({data:ref}),getContent:async({path})=>content(path),
-        getCollaboratorPermissionLevel:async()=>({data:{permission:'admin'}}),
+        getCollaboratorPermissionLevel:async({username})=>({data:{permission:username==='masarray'?'admin':'read'}}),
         getLatestRelease:async()=>({data:{tag_name:latestTag}}),
         getCommit:async()=>({data:{files:[{filename:'.github/workflows/release-comment.yml'}]}}),
         getReleaseByTag:async()=>{throw {status:404};}
@@ -70,7 +70,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
   };
   const context = {repo:{owner:'masarray',repo:'ARIEC60870'},eventName:commentEvent?'issue_comment':'workflow_run',
     payload:commentEvent?{comment:command,issue:{number:250,pull_request:{url:'pr'}}}:
-      {workflow_run:{head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
+      {workflow_run:{name:'CI',head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
   const core={notice:()=>{},info:()=>{}};
   return {github,context,core,calls};
 }
@@ -140,4 +140,19 @@ test('stale release comment and unrelated PR cannot publish',async()=>{
 test('a matching completed workflow_run can resume the stored source-bound request',async()=>{
   const m=mock({commentEvent:false,fat:true});await run(m);
   assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+});
+
+test('untrusted recent comment cannot suppress a previous valid release intent',async()=>{
+  const m=mock({commentEvent:false,extraComments:[{id:66,body:'/release stable',
+    created_at:now,user:{login:'untrusted-reader'}}]});
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+});
+test('completion of older Package run wakes current intent without borrowing its SHA',async()=>{
+  const m=mock({commentEvent:false});
+  m.context.payload.workflow_run={name:'Package',head_sha:'b'.repeat(40),
+    head_branch:'release/rc-3.6.13-rc.1',event:'push',conclusion:'failure'};
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+  assert.equal(m.calls.filter(x=>x.type==='dispatch')[0].args.inputs.expected_sha,SHA);
 });
