@@ -26,7 +26,7 @@ const ci = {id:4,head_sha:SHA,head_branch:'master',event:'push',
 const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'};
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
-   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[]}={}) {
+   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],artifactFromPr=false}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
   const content = path => {
@@ -56,7 +56,12 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
       actions:{
         listWorkflowRuns:async({workflow_id})=>({data:{workflow_runs:workflowRuns(workflow_id)}}),
         listJobsForWorkflowRun:async()=>({data:{jobs:fat?qualifiedJobs:qualifiedJobs.slice(0,1)}}),
-        listArtifactsForRepo:async({name})=>({data:{artifacts:markers.includes(name)?[{name,expired:false}]:[]}})
+        listArtifactsForRepo:async({name})=>({data:{artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
+        getWorkflowRun:async()=>({data:{
+          path:artifactFromPr?'.github/workflows/ci.yml':'.github/workflows/release-comment.yml',
+          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:'issue_comment',
+          repository:{full_name:'masarray/ARIEC60870'}
+        }})
       }
     },
     paginate:async(fn,args)=>{
@@ -146,4 +151,10 @@ test('completion of older Package run wakes current intent without borrowing its
   await run(m);
   assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
   assert.equal(m.calls.find(x=>x.key==='sha')?.value,SHA);
+});
+
+test('a forged PR-workflow artifact cannot reserve the release stage',async()=>{
+  const m=mock({markers:[stage('package')],artifactFromPr:true});
+  await run(m);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
 });
