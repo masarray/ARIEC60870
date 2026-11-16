@@ -17,9 +17,11 @@ public sealed class Iec101CommonAddressEvidence
     // are saturated rather than retained in an unbounded per-station dictionary.
     public const int MinimumProcessAsdus = 3;
 
+    private readonly object _gate = new();
     private readonly int _configuredCommonAddress;
     private int _observedCommonAddress;
     private int _acceptedObservations;
+    private bool _isAmbiguous;
 
     public Iec101CommonAddressEvidence(int configuredCommonAddress)
     {
@@ -34,37 +36,57 @@ public sealed class Iec101CommonAddressEvidence
     /// <summary>
     /// True when more than one station CA produced eligible process ASDUs.
     /// Once ambiguous, this session must never auto-select an alternative CA.
+    /// Both RX readers may report evidence concurrently.
     /// </summary>
-    public bool IsAmbiguous { get; private set; }
-
-    public int? UniqueAlternativeForGi =>
-        !IsAmbiguous && _acceptedObservations >= MinimumProcessAsdus &&
-        _observedCommonAddress != _configuredCommonAddress
-            ? _observedCommonAddress
-            : null;
-
-    public void Observe(Iec10xAsduDecode? asdu)
+    public bool IsAmbiguous
     {
-        if (!IsEligibleProcessAsdu(asdu) || IsAmbiguous)
+        get { lock (_gate) return _isAmbiguous; }
+    }
+
+    public int? UniqueAlternativeForGi
+    {
+        get
         {
-            return;
+            lock (_gate)
+            {
+                return !_isAmbiguous && _acceptedObservations >= MinimumProcessAsdus &&
+                    _observedCommonAddress != _configuredCommonAddress
+                        ? _observedCommonAddress
+                        : null;
+            }
+        }
+    }
+
+    /// <returns>True only for the first transition to ambiguous CA evidence.</returns>
+    public bool Observe(Iec10xAsduDecode? asdu)
+    {
+        if (!IsEligibleProcessAsdu(asdu))
+        {
+            return false;
         }
 
-        var ca = asdu!.CommonAddress;
-        if (_acceptedObservations == 0)
+        lock (_gate)
         {
-            _observedCommonAddress = ca;
-            _acceptedObservations = 1;
-        }
-        else if (_observedCommonAddress != ca)
-        {
-            // Even a valid frame from the configured CA is evidence against
-            // attributing this physical link to one automatically learned CA.
-            IsAmbiguous = true;
-        }
-        else if (_acceptedObservations < MinimumProcessAsdus)
-        {
-            _acceptedObservations++;
+            if (_isAmbiguous) return false;
+
+            var ca = asdu!.CommonAddress;
+            if (_acceptedObservations == 0)
+            {
+                _observedCommonAddress = ca;
+                _acceptedObservations = 1;
+            }
+            else if (_observedCommonAddress != ca)
+            {
+                // Even a valid frame from the configured CA is evidence against
+                // attributing this physical link to one automatically learned CA.
+                _isAmbiguous = true;
+                return true;
+            }
+            else if (_acceptedObservations < MinimumProcessAsdus)
+            {
+                _acceptedObservations++;
+            }
+            return false;
         }
     }
 
