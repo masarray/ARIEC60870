@@ -4,7 +4,7 @@
 (() => {
   "use strict";
   const repo = "https://github.com/masarray/ARIEC60870";
-  const fallbackTag = "v3.6.11";
+  const fallbackTag = "v3.6.12";
   const api = "https://api.github.com/repos/masarray/ARIEC60870/releases?per_page=30";
   const validTag = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 
