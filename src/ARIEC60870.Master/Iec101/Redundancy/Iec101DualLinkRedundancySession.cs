@@ -27,7 +27,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private Iec101RedundancyControllerState _controllerState = Iec101RedundancyControllerState.Created;
     private Iec101DualLinkChannel? _active;
     private Iec101DualLinkChannel? _standby;
-    private int? _learnedCommonAddress;
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
     private DateTime _lastStandbySupervisionUtc = DateTime.MinValue;
     private DateTime _lastFailoverUtc = DateTime.MinValue;
@@ -1023,9 +1022,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         _retriedGiWithObservedCommonAddress = true;
-        _learnedCommonAddress = observedCa;
-        // Retain the operator's configured CA. Learned CA is an explicit,
-        // read-only GI retry hint; the channel's control defaults never change.
+        // Retain the operator's configured CA. The observed address is supplied
+        // only to this one GI attempt; no control or future GI is retargeted.
 
         SetControllerState(
             Iec101RedundancyControllerState.BootstrappingApplicationImage,
@@ -1049,11 +1047,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         return true;
     }
 
-    private int? ResolveRuntimeCommonAddress(int? requestedCommonAddress)
-        => requestedCommonAddress ?? _learnedCommonAddress;
+    // Ordinary startup/manual/post-switch GI always retains configured CA.
+    // Only the one explicit evidence-backed retry passes an alternate CA.
+    // A previously observed CA must not silently persist as route authority.
+    private static int? ResolveRuntimeCommonAddress(int? requestedCommonAddress)
+        => requestedCommonAddress;
 
     private string FormatCommonAddress(int? requestedCommonAddress)
-        => (requestedCommonAddress ?? _learnedCommonAddress ?? _options.BaseSettings.CommonAddress)
+        => (requestedCommonAddress ?? _options.BaseSettings.CommonAddress)
             .ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private void PublishApplicationImageMilestone()
