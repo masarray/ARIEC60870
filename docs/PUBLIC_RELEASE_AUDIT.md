@@ -4,7 +4,11 @@ This document summarizes the public-release readiness status of the repository. 
 
 ## Current status
 
-ARIEC60870 is prepared for public source review and Windows portable package distribution. A **v3.6.8-rc.1** prerelease is intended solely for volunteer engineering test benches. CI passing is not a substitute for low-baud hardware or multi-vendor FAT; release notes list the exact unverified scenarios.
+**Latest published stable: [ArSee v3.6.12](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12)** (source tag `01ac138530f0c848dd63e4b875706698fdb174fc`). Windows x64 installer and portable ZIP, SHA-256, SPDX SBOM, provenance and exact-source updater FAT passed in [release package run 43802516487](https://github.com/masarray/ARIEC60870/actions/runs/43802516487) and [native FAT run 43801986135](https://github.com/masarray/ARIEC60870/actions/runs/43801986135). The later mainline commit updating the public Pages/README is documentation-only and does **not** change the immutable v3.6.12 release executable.
+
+The historical **v3.6.8-rc.1** audit is archived context, not current publication status. The release contains merged IEC-101 service-correlated reply validation (#208), signal-name parity in Events/Values/Trace/History (#210), and the prior bounded 1200-bps FT1.2/forensic work. CI passing is **not** a substitute for low-baud SICAM A8000/multi-vendor physical FAT: real SOE counts 60/500/2,000, COM recovery, dual-link A/B, GI and SBO/DO confirmation remain unproven.
+
+Ongoing hardening work on other branches (including the shared CA observation policy) must not be claimed as part of the v3.6.12 binary until a new exact-source release is built and published. Draft PR #145 remains unmerged. Repository branch protection / mandatory PR checks are tracked separately in [issue #159](https://github.com/masarray/ARIEC60870/issues/159) and require an administrative ruleset; green YAML alone does not enforce merges.
 
 The repository includes:
 
