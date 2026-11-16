@@ -78,8 +78,12 @@ public sealed class SimulatedIec101Transport : IByteTransport
         {
             case 0:
             case 7:
-            case 9:
                 await EnqueueAsync(FixedSecondary(functionCode: 0, acd: HasClass1Pending), cancellationToken).ConfigureAwait(false);
+                break;
+            case 9:
+                // FC9 requests secondary link status, which must answer FC11.
+                // FC0 is a confirmation for a different primary service.
+                await EnqueueAsync(FixedSecondary(functionCode: 11, acd: HasClass1Pending), cancellationToken).ConfigureAwait(false);
                 break;
             case 10:
                 if (_class1Queue.Count > 0)
