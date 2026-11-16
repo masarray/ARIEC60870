@@ -75,6 +75,32 @@ public sealed class OfflineTransactionProjectionTests
     }
 
     [Fact]
+    public void Iec104OfflineCaptureRetainsTcpConnectionProvenance()
+    {
+        var asdu = new byte[] { 46, 1, 6, 0, 1, 0, 25, 0, 0, 0x82 };
+        var raw = Iec104FrameBuilder.I(0, 0, asdu);
+        var captured = new CaptureFrameSnapshot
+        {
+            Sequence = 71,
+            Direction = "TX",
+            ProtocolMode = "104",
+            DecoderSchema = "IEC10X-OBJECT-V1",
+            CotWidth = 2,
+            CaWidth = 2,
+            IoaWidth = 3,
+            RawHex = Convert.ToHexString(raw),
+            ConnectionInstanceId = "tcp-20261116-01"
+        };
+        var restored = new EvidenceRow(captured).Source;
+        Assert.Equal("tcp-20261116-01", restored.ConnectionInstanceId);
+        Assert.Equal(Iec60870ProtocolMode.Iec104, restored.ProtocolMode);
+        Assert.Equal(46, restored.TypeId);
+        var c = new Iec10xCommandCasebook();
+        Assert.True(c.Observe(restored));
+        Assert.Equal("tcp-20261116-01", Assert.Single(c.Snapshot()).ConnectionInstanceId);
+    }
+
+    [Fact]
     public void LegacyWithoutDecoderMetadataDoesNotInventAGiCase()
     {
         var snapshot = new CaptureFrameSnapshot

@@ -126,6 +126,10 @@ public sealed class Iec104SessionSafetyTests
         Assert.Equal(accepted[0].EvidenceReference.Split("|object:")[0],
             accepted[1].EvidenceReference.Split("|object:")[0]);
         Assert.Equal(2, transport.SFrameWrites); // each well-formed I receives a contiguous N(R) acknowledgement
+        var connectionIds = result.Events.Select(e => e.ConnectionInstanceId).Distinct().ToArray();
+        var connectionId = Assert.Single(connectionIds);
+        Assert.True(Guid.TryParseExact(connectionId, "N", out _));
+        Assert.All(result.Events, e => Assert.Equal(connectionId, e.ConnectionInstanceId));
     }
 
     private sealed class InvalidAckThenValidMultiObjectTransport : IByteTransport

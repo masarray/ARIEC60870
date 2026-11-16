@@ -65,6 +65,32 @@ pressure, adding UI modes or implying independently verified switchgear travel.
 See [Stage 7B casebook evidence verification](IEC10X_STAGE7B_COMMAND_EVIDENCE_20261116.md).
 Unverified RTU serial field FAT and the public stable release remain separate.
 
+## IEC-104 command association epochs and IEC-10x feedback freshness — Stage 7C
+
+An IEC-104 TCP reconnect is a **new transport association**, even when an RTU
+reuses common address, IOA, command qualifier or APCI N(S). Each
+`Iec104ClientSession.RunAsync` attempt stamps a new opaque
+`ConnectionInstanceId` on every observed event. The same identifier is
+retained in selected `.ariec` capture records and restored typed evidence.
+The Master-owned command casebook includes it in IEC-104 command identity,
+feedback candidate ownership and source-evidence lookup. IEC-101 keeps its
+existing physical-COM link identity and is not forced into this model.
+
+A confirmed EXECUTE can only acquire feedback from an observation with a later
+host sequence and, when both UTC arrival stamps exist, not an earlier host
+arrival time. Replayed/out-of-order ACTCON does not authorize a transaction.
+CP56Time2a with invalid/substituted/reserved/inconsistent calendar fields remains
+visible in original evidence but **cannot** yield a positive command feedback
+verdict. A valid CP56 time has no encoded timezone: it is never silently compared
+against host UTC as if it were a synchronized device clock.
+
+These are **evidence correctness** changes, not new protocol retries, polling
+loops, automatic control requests, or proof of physical switchgear travel.
+Legacy capture files without connection instance IDs remain readable, but their
+cross-reconnect association cannot be authenticated retrospectively.
+Detailed acceptance boundaries:
+[Stage 7C evidence contract](IEC10X_STAGE7C_CONNECTION_FEEDBACK_20261116.md).
+
 ## Protocol-Aware UX Contract
 
 The desktop UI must never expose irrelevant fields for the selected protocol.
