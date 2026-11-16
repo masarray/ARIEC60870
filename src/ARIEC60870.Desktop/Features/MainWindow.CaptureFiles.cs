@@ -58,7 +58,9 @@ public partial class MainWindow
             OpenCaptureButton.IsEnabled = false;
             UpdateStableHeader("Opening capture", "Verifying raw evidence…");
             var imported = await Task.Run(() => CaptureArchiveReader.Read(dialog.FileName));
-            var rows = imported.Rows.Select(snapshot => new EvidenceRow(snapshot, _displayPointIndex)).ToArray();
+            // Decode each archived frame once; calculate CA conflicts across the
+            // entire trusted preview before applying read-only Signal List aliases.
+            var rows = Iec10xArchiveNameProjection.Project(imported.Rows, _displayPointIndex);
             if (rows.Length == 0)
             {
                 ModernMessageBox.Show(this,

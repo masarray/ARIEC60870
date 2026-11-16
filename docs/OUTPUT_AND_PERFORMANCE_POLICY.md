@@ -71,6 +71,34 @@ The master engine keeps full counters but bounded retained records:
 
 Old retained records may be dropped from memory, but counters continue to reflect the whole session.
 
+**IEC-101 Stage 7D (2026-11-16):** Both single-link and A/B Master
+sessions use the same O(1), fixed-capacity FIFO for report evidence
+(`MaxRetainedEvidenceEvents`, minimum 100 records). A newly decoded
+evidence event is delivered to the existing live subscriber regardless of
+subsequent in-memory report eviction. The report retains only the newest
+window. `EvidenceEventsDroppedFromMemory` counts exact evictions; it does
+not measure serial wire loss or RTU FIFO overflow. This buffer is **not** a
+permanent raw capture. Operators requiring complete original bytes must use
+the explicit full raw-journal workflow or independent captured wire evidence.
+
+`ObservedSpontaneousDigitalObjects` counts individually decoded,
+accepted IEC-101 RX digital objects at spontaneous COT=3 (including sibling
+IOAs in SQ0/SQ1). Rejected/malformed/TEST/COT20 GI frames are excluded.
+It is a cumulative host-observed count, independent of report retention.
+The historical `DpiEvents` counter is a per-ASDU statistic and **must not**
+be compared directly to an RTU-produced SOE count. Neither metric proves
+events the outstation never transmitted or that the RTU FIFO did not overflow.
+
+On `.ariec` Open Capture, one canonical decode per saved frame is reused
+for source-wide CA conflict analysis and display projection. A single-station
+Signal List supplies a unique read-only name across CA only when that
+physical source/IEC-104 TCP association has one observed trusted CA.
+Conflicting sources remain raw-IOA labeled unless the exact CA/TI matches.
+Malformed, rejected and stored-display-caption-only evidence cannot
+authorize name-only aliases. The same strict source-CA principle applies
+to Value Viewer name refresh when the operator switches Signal Lists.
+Physical addresses, command/GI targets and raw bytes never change.
+
 ### Snapshot model
 
 The UI must prefer snapshots over append-only rendering:

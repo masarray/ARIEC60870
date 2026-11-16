@@ -14,12 +14,19 @@ namespace ARIEC60870.Desktop.ViewModels;
 public sealed partial class EvidenceRow
 {
     private readonly Iec10xPointDisplayIndex? _pointNames;
+    // Authorization for read-only CA aliases is derived from trusted source
+    // evidence, never by the mere presence of a Signal List name index.
+    private readonly bool _readOnlyNameAliasAuthorized;
 
     public EvidenceRow(Iec103MasterEvidenceEvent item, Iec10xPointMappingEntry? ioaPoint = null,
         Iec10xPointDisplayIndex? names = null)
     {
         Source = item;
         _pointNames = names;
+        _readOnlyNameAliasAuthorized = ioaPoint is not null &&
+            names?.Resolve(item.CommonAddressNumber, item.InformationObjectAddress,
+                item.TypeId, allowNameOnly: true).NameOnly == true &&
+            Iec10xObservationIdentity.HasTrustedDecodedPayload(item);
         Sequence = item.SequenceNumber;
         Time = item.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Direction = item.DirectionText;
@@ -324,7 +331,7 @@ public sealed partial class EvidenceRow
         {
             var mapped = _pointNames?.Resolve(asdu.CommonAddress,
                 obj.InformationObjectAddress, asdu.TypeId,
-                allowNameOnly: Direction == "RX").Point?.Name;
+                allowNameOnly: Direction == "RX" && _readOnlyNameAliasAuthorized).Point?.Name;
             var name = mapped ?? (asdu.Objects.Count == 1 && Mapped == "Yes" &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null);
             return Iec10xSignalTraceFormatter.TraceObject(asdu, obj, name);
@@ -514,9 +521,18 @@ public sealed partial class EvidenceRow
 
 
     public EvidenceRow(CaptureFrameSnapshot capture, Iec10xPointDisplayIndex? names = null)
+        : this(capture, names, RestoreCaptureSource(capture), allowNameOnly: false)
+    {
+    }
+
+    // The archive projection builds the source-wide CA scope from the same
+    // canonical decoded instances, then reuses them here with zero re-decode.
+    internal EvidenceRow(CaptureFrameSnapshot capture, Iec10xPointDisplayIndex? names,
+        Iec103MasterEvidenceEvent restoredSource, bool allowNameOnly)
     {
         _pointNames = names;
-        Source = RestoreCaptureSource(capture);
+        Source = restoredSource;
+        _readOnlyNameAliasAuthorized = allowNameOnly;
 
         Sequence = capture.Sequence;
         Time = string.IsNullOrWhiteSpace(capture.Time) ? "-" : capture.Time;
@@ -597,7 +613,8 @@ public sealed partial class EvidenceRow
             Iec10xObservationIdentity.HasTrustedDecodedPayload(Source)
             ? names?.Resolve(trusted10x.CommonAddress, observedPoint.InformationObjectAddress,
                 trusted10x.TypeId,
-                allowNameOnly: Source.Direction == FrameDirection.SlaveToMaster &&
+                allowNameOnly: allowNameOnly &&
+                    Source.Direction == FrameDirection.SlaveToMaster &&
                     Iec10xPointTypeFamily.SameProcessKind(trusted10x.TypeId, trusted10x.TypeId))
             : null;
         SemanticLabel = nameMatch?.Point?.Name ??
@@ -622,7 +639,7 @@ public sealed partial class EvidenceRow
         ProtocolTraceMeta = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeta) ? $"#{Sequence}  {Time}  {ProtocolName}" : capture.ProtocolTraceMeta;
     }
 
-    private static Iec103MasterEvidenceEvent RestoreCaptureSource(CaptureFrameSnapshot capture)
+    internal static Iec103MasterEvidenceEvent RestoreCaptureSource(CaptureFrameSnapshot capture)
     {
         var mode = capture.ProtocolMode switch
         {
