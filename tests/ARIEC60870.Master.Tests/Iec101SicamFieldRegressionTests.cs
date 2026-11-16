@@ -153,7 +153,18 @@ public sealed class Iec101SicamFieldRegressionTests
                 EnqueueFragmented(_previousRequest ?? request);
             }
 
-            EnqueueFragmented(StatusResponse);
+            // Respond with the service-specific reply, not a generic FC11
+            // for every request (which would hide false GI/Class success).
+            var primaryFc = request[0] == 0x10 ? request[1] & 0x0F
+                : request[0] == 0x68 ? request[4] & 0x0F : -1;
+            var reply = primaryFc switch
+            {
+                9 => StatusResponse,
+                10 or 11 => Convert.FromHexString("100969007216"), // FC9: no data
+                0 or 1 or 3 or 7 => Convert.FromHexString("100069006916"), // FC0: confirmed
+                _ => throw new InvalidOperationException("Unexpected primary FC in IEC101 regression.")
+            };
+            EnqueueFragmented(reply);
             _previousRequest = request;
             return ValueTask.CompletedTask;
         }
