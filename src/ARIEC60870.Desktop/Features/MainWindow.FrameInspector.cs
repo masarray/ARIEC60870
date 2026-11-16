@@ -49,7 +49,8 @@ public partial class MainWindow
             (row.Direction is "RX" or "TX") &&
             (row.ProtocolMode is "101" or "104")
             ? ioa => _displayPointIndex.Resolve(asdu.CommonAddress, ioa,
-                asdu.TypeId, allowNameOnly: row.Direction == "RX").Point?.Name
+                asdu.TypeId, allowNameOnly: row.Direction == "RX" &&
+                    _runtimeCaReconciler?.HasSourceConflict(row.Source.PhysicalSource) != true).Point?.Name
             : null;
         var decodedPoints = DecodedPointRow.FromAsdu(asdu, signalName);
         foreach (var point in decodedPoints)
