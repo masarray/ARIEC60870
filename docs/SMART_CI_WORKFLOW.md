@@ -59,9 +59,12 @@ dispatches **one** `CI profile=updater`; the CI completion webhook automatically
 resumes the existing intent and, if successful, dispatches **one** Package run,
 without a second user comment.
 
-Durable `release-control` stage markers bind comment ID, commit SHA and
-release stage; duplicate comments and workflow-completion callbacks do not enqueue
-extra Windows work. Controller admission is serialized repository-wide. Package
+Durable short-lived **Actions artifact reservations**, uploaded before dispatch,
+bind comment ID, commit SHA and release stage. This avoids relying on
+`GITHUB_TOKEN` write access to issue comments (which is restricted in this repo)
+while ensuring duplicate comments and completion callbacks cannot enqueue extra
+Windows work. Only the maintainer's original comment authorizes the release.
+Controller admission is serialized repository-wide. Package
 also uses a global concurrency key across branches/tags, and its
 `expected_sha` lease refuses moving HEAD before Windows packaging begins.
 It still independently verifies FAT and then compiles/tests/attests immutable
