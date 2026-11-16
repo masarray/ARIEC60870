@@ -3,15 +3,16 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.11: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11
-- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-win-x64.zip
-- Previous stable v3.6.10: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10
+- Latest public stable v3.6.12: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12
+- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/ARIEC60870-v3.6.12-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/ARIEC60870-v3.6.12-win-x64.zip
+- Previous stable v3.6.11: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11
 - Exact-source public Windows package and attestations: https://github.com/masarray/ARIEC60870/actions/runs/43795901608
 - Source Windows CI, real-WPF acceptance and native updater FAT: https://github.com/masarray/ARIEC60870/actions/runs/43794902788
 - Unmerged SICAM IEC-101 serial changes in PR #145 are excluded and remain subject to physical FAT.
 
-## Verified v3.6.11 improvements
+## v3.6.12 improvements
+- Mapped IEC-101/104 process point names now align across Events, Values, Event History, search/CSV, and Frame Trace using the active IOA profile; unresolved points remain unmapped.
 - IEC-101 single and A/B secondary replies are matched to their pending primary service; FC11, short E5 and busy DFC status cannot prove an unrelated transaction.
 - Context-aware Event Journal links to real captured Original Frame TX/RX evidence; missing TX is explicitly unknown.
 - The bundled 31-point IEC-101/104 utility I/O sample distinguishes bays and checks CA/IOA/IEC Type ID family without overwriting user profiles.
