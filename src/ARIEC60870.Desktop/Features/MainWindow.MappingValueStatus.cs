@@ -174,8 +174,8 @@ public partial class MainWindow
         }
 
         if (!item.InformationObjectAddress.HasValue) return null;
-        var strict = _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
-            item.InformationObjectAddress.Value, item.TypeId);
+        var strict = _displayPointIndex.Resolve(item.CommonAddressNumber,
+            item.InformationObjectAddress.Value, item.TypeId).Point;
         // The canonical Monitor writer, not its lossy live frame preview,
         // establishes trustworthy process facts for both Physical RX-only and
         // Virtual Inline. Permit read-only unique IOA names for those facts,
@@ -397,8 +397,8 @@ public partial class MainWindow
         {
             // Only a point compatible with the configured CA/Type can satisfy GI.
             if (ioaPoint is not null && !_passiveLedgerFactProjection &&
-                _ioaProfile.ResolveObservedSignal(item.CommonAddressNumber,
-                    item.InformationObjectAddress, item.TypeId) is not null)
+                _displayPointIndex.Resolve(item.CommonAddressNumber,
+                    item.InformationObjectAddress, item.TypeId).Point is not null)
                 MarkGiValueReceived(item, ioaPoint);
             // In dual-link mode (or wildcard-CA mapping) an actual physical point
             // has a different key than the seeded SINGLE placeholder. Remove the
