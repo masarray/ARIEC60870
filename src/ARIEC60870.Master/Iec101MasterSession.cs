@@ -810,11 +810,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
+            // Even one unanswered request makes previously queued physical
+            // commands ambiguous. Keep protocol link-recovery thresholds separate.
+            if (Volatile.Read(ref _controlLinkReady))
+            {
+                Volatile.Write(ref _controlLinkReady, false);
+                Interlocked.Increment(ref _linkGeneration);
+            }
             if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
             {
                 _linkVerified = false;
-                Volatile.Write(ref _controlLinkReady, false);
-                Interlocked.Increment(ref _linkGeneration);
                 RaiseFinding(FindingSeverity.Warning, "IEC101-LINK-LOST",
                     "IEC-101 link no longer responding",
                     $"Three consecutive exchanges lacked a validated secondary reply on {_settings.PortName}.",
