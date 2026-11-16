@@ -10,7 +10,7 @@ using ARIEC60870.Master.Transport;
 
 namespace ARIEC60870.Master.Iec101.Redundancy;
 
-public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IProtocolControlCommandSession
+public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IProtocolCommandAdmissionSession
 {
     private readonly Iec101DualLinkRedundancyOptions _options;
     private readonly Iec101DualLinkChannel _linkA;
@@ -64,8 +64,11 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     public IReadOnlyList<Iec101FailoverJournalEntry> FailoverJournal => _failoverJournal;
 
     public void QueueControlCommand(Iec60870ControlCommandRequest request)
+        => TryQueueControlCommand(request);
+
+    public bool TryQueueControlCommand(Iec60870ControlCommandRequest request)
     {
-        if (request is null) return;
+        if (request is null) return false;
         var active = Volatile.Read(ref _active);
         var stamp = active is null ? default :
             new Iec101OwnerStamp(active.Name, active.CommandAuthorityEpoch,
@@ -79,7 +82,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 "Capacity=64; new intent was NOT admitted: " + request.Summary,
                 "Old commands are retained in arrival order without replacement.",
                 "Reissue the control after the active-link queue drains.");
+            return false;
         }
+        return true;
     }
 
     /// <summary>
