@@ -182,9 +182,17 @@ public sealed class Iec10xCommandCasebook
                 }
                 var c = NewCase(item, key, target, feedbackIoa, select ? "SELECT sent" : "EXECUTE sent",
                     "Waiting for source-matched RTU ACTCON; link ACK is not application acceptance.");
-                state = new State { Key = key, Current = c, Target = target,
-                    WireIdentity = wireIdentity, ExpectedOn = ExpectedLogicalOn(command),
-                    FeedbackIoa = feedbackIoa, LastRequestSelect = select, Executed = !select };
+                state = new State
+                {
+                    Key = key,
+                    Current = c,
+                    Target = target,
+                    WireIdentity = wireIdentity,
+                    ExpectedOn = ExpectedLogicalOn(command),
+                    FeedbackIoa = feedbackIoa,
+                    LastRequestSelect = select,
+                    Executed = !select
+                };
                 _active.Add(key, state);
                 return true;
             }
@@ -310,8 +318,11 @@ public sealed class Iec10xCommandCasebook
         foreach (var state in _active.Values)
         {
             if (state.Current.Status is "Ambiguous" or "RTU rejected" or "Cancelled") continue;
-            Replace(state, state.Current with { Status = "Observed incomplete",
-                Interpretation = "Observation window ended without full source-matched command and target feedback evidence. Not an RTU failure verdict." });
+            Replace(state, state.Current with
+            {
+                Status = "Observed incomplete",
+                Interpretation = "Observation window ended without full source-matched command and target feedback evidence. Not an RTU failure verdict."
+            });
         }
         _active.Clear();
     }
@@ -336,8 +347,12 @@ public sealed class Iec10xCommandCasebook
                 (item.ProtocolMode != Iec60870ProtocolMode.Iec101 || state.Key.Link == item.LinkAddress))
             .Select(state => (State: state, Object: asdu.Objects.FirstOrDefault(
                 obj => obj.InformationObjectAddress == state.FeedbackIoa!.Value)))
-            .Where(candidate => candidate.Object is { Issues.Count: 0, RawBytes.Count: > 0,
-                QualityDetails: { Invalid: false, Blocked: not true, Substituted: not true, NotTopical: not true } })
+            .Where(candidate => candidate.Object is
+            {
+                Issues.Count: 0,
+                RawBytes.Count: > 0,
+                QualityDetails: { Invalid: false, Blocked: not true, Substituted: not true, NotTopical: not true }
+            })
             .ToArray();
 
         if (candidates.Length > 1)
@@ -419,9 +434,14 @@ public sealed class Iec10xCommandCasebook
         var stages = !didTruncate
             ? current.Stages.Append(Stage(item, phase, explanation)).ToArray()
             : current.Stages.Skip(1).Append(Stage(item, phase, explanation)).ToArray();
-        Replace(state, current with { Status = status, Interpretation = meaning,
-            LastSequence = item.SequenceNumber, Stages = stages,
-            StagesTruncated = current.StagesTruncated || didTruncate });
+        Replace(state, current with
+        {
+            Status = status,
+            Interpretation = meaning,
+            LastSequence = item.SequenceNumber,
+            Stages = stages,
+            StagesTruncated = current.StagesTruncated || didTruncate
+        });
     }
 
     private void Replace(State state, CommandCase next)
