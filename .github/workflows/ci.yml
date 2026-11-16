@@ -279,7 +279,6 @@ jobs:
       - name: Check code formatting (only C# or formatter config changes)
         if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
-        continue-on-error: true
         run: |
           dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal
 
