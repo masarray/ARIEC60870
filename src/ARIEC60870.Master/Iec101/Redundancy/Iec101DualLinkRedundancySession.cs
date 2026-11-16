@@ -703,7 +703,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 break;
             }
 
-            if (Iec10xGiTermination.IsObserved(response.Asdu))
+            if (response.MatchedGiActterm)
             {
                 _counters.GiEndResponses++;
                 stoppedByGiEnd = true;
@@ -1280,9 +1280,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
     }
 
-    private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow)
+    private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow,
+        bool matchedGiActterm, string physicalSource)
     {
-        _imageTracker.Observe(asdu, utcNow);
+        // A/B standby may supervise FC9, but it cannot certify the active owner's
+        // application image, CA evidence, or GI lifecycle.
+        if (_active is null || !string.Equals(_active.Name, physicalSource, StringComparison.Ordinal))
+            return;
+        _imageTracker.Observe(asdu, utcNow, matchedGiActterm);
         _observedCa.Observe(asdu);
         if (_learnedCommonAddress.HasValue && _observedCa.HasConflictingStations)
         {
@@ -1298,9 +1303,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 "Station identity can no longer be inferred from received process traffic.",
                 "Use the configured CA or explicitly choose the GI/command target after verifying the RTU station configuration.");
         }
-        if (Iec10xGiTermination.IsObserved(asdu))
+        if (matchedGiActterm)
         {
-            AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 GI activation termination observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
+            AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 source-matched GI ACTTERM observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
         }
     }
 
