@@ -46,8 +46,8 @@ public partial class MainWindow
         // Name-only recovery is limited to unique process IOAs; no TX remap.
         Func<int, string?>? signalName = asdu is { Issues.Count: 0 } &&
             row.Source.Frame?.IsChecksumValid != false &&
-            row.Direction is "RX" or "TX" &&
-            row.ProtocolMode is "101" or "104"
+            (row.Direction is "RX" or "TX") &&
+            (row.ProtocolMode is "101" or "104")
             ? ioa => _displayPointIndex.Resolve(asdu.CommonAddress, ioa,
                 asdu.TypeId, allowNameOnly: row.Direction == "RX").Point?.Name
             : null;
