@@ -169,10 +169,12 @@ public partial class MainWindow
         var search = _eventsQuickQuery;
         var included = _eventIncludeCategories.ToArray();
         var excluded = _eventExcludeCategories.ToArray();
+        var names = _displayPointIndex;
         try
         {
             var next = await Task.Run(() => EventHistoryQueryEngine.Extend(
-                journal, previous, ceiling, search, included, excluded, ClassifyEventCategory));
+                journal, previous, ceiling, search, included, excluded,
+                ClassifyEventCategory, names: names));
             if (generation != _eventHistoryQueryGeneration ||
                 !ReferenceEquals(journal, _eventHistoryJournal) ||
                 !ReferenceEquals(previous, _eventHistoryQuery)) return;
@@ -216,11 +218,12 @@ public partial class MainWindow
         var included = _eventIncludeCategories.ToArray();
         var excluded = _eventExcludeCategories.ToArray();
         var ceiling = journal.Count;
+        var names = _displayPointIndex;
         try
         {
             var result = await Task.Run(() => EventHistoryQueryEngine.Build(
                 journal, ceiling, scopeQuery, included, excluded,
-                ClassifyEventCategory, token), token);
+                ClassifyEventCategory, token, names), token);
             if (generation != _eventHistoryQueryGeneration ||
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
             _eventHistoryQuery = result;
@@ -269,9 +272,11 @@ public partial class MainWindow
         _eventHistoryPageStart = start;
         _eventHistoryPageBusy = true;
         RefreshEventHistoryFooter();
+        var names = _displayPointIndex;
         try
         {
-            var page = await Task.Run(() => snapshot.ReadDisplayPage(journal, start));
+            var page = await Task.Run(() =>
+                snapshot.ReadDisplayPage(journal, start, names: names));
             if (generation != _eventHistoryPageGeneration ||
                 !ReferenceEquals(snapshot, _eventHistoryQuery) ||
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
@@ -285,7 +290,9 @@ public partial class MainWindow
                 for (var i = 0; i < page.Count; i++)
                 {
                     if (_historicalEventRows[i].EventNumber == page[i].EventNumber &&
-                        _historicalEventRows[i].DisplayNumber == page[i].DisplayNumber)
+                        _historicalEventRows[i].DisplayNumber == page[i].DisplayNumber &&
+                        _historicalEventRows[i].Signal == page[i].Signal &&
+                        _historicalEventRows[i].Mapped == page[i].Mapped)
                         continue;
                     samePage = false;
                     break;
@@ -418,10 +425,11 @@ public partial class MainWindow
         _eventHistoryCsvCancel = new CancellationTokenSource();
         EventHistoryExportButton.Content = "Cancel export";
         RefreshEventHistoryFooter();
+        var names = _displayPointIndex;
         try
         {
             var exported = await EventHistoryCsvExporter.ExportAsync(
-                journal, snapshot, save.FileName, _eventHistoryCsvCancel.Token);
+                journal, snapshot, save.FileName, _eventHistoryCsvCancel.Token, names);
             AppendSessionLog($"CSV exported {exported:N0} indexed events: {save.FileName}");
         }
         catch (OperationCanceledException)
