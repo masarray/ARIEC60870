@@ -26,9 +26,14 @@ public sealed class Iec10xCommandCasebookTests
             TimestampUtc = DateTime.UtcNow,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             Direction = rtu ? FrameDirection.SlaveToMaster : FrameDirection.MasterToSlave,
-            PhysicalSource = source, LinkAddress = link, CommonAddressNumber = ca,
-            InformationObjectAddress = ioa, TypeId = type, CauseDetails = asdu.CauseDetails,
-            CommandDetails = asdu.CommandDetails, AsduDetails = asdu,
+            PhysicalSource = source,
+            LinkAddress = link,
+            CommonAddressNumber = ca,
+            InformationObjectAddress = ioa,
+            TypeId = type,
+            CauseDetails = asdu.CauseDetails,
+            CommandDetails = asdu.CommandDetails,
+            AsduDetails = asdu,
             RawHex = Convert.ToHexString(raw)
         };
     }
@@ -43,10 +48,16 @@ public sealed class Iec10xCommandCasebookTests
         {
             SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
             TimestampUtc = DateTime.UtcNow,
-            ProtocolMode = Iec60870ProtocolMode.Iec101, Direction = FrameDirection.SlaveToMaster,
-            PhysicalSource = source, LinkAddress = link,
-            CommonAddressNumber = ca, InformationObjectAddress = ioa,
-            TypeId = type, CauseDetails = asdu.CauseDetails, AsduDetails = asdu, IsRelayValue = true,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = source,
+            LinkAddress = link,
+            CommonAddressNumber = ca,
+            InformationObjectAddress = ioa,
+            TypeId = type,
+            CauseDetails = asdu.CauseDetails,
+            AsduDetails = asdu,
+            IsRelayValue = true,
             RawHex = Convert.ToHexString(raw)
         };
     }
