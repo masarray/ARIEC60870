@@ -70,11 +70,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         if (request is null) return false;
         var active = Volatile.Read(ref _active);
+        var beforeElection = Volatile.Read(ref _activeGeneration);
+        var beforeEpoch = active?.CommandAuthorityEpoch ?? 0;
+        var validLink = active is { IsHealthy: true, HasVerifiedCommandAuthority: true };
+        var afterEpoch = active?.CommandAuthorityEpoch ?? 0;
+        var afterElection = Volatile.Read(ref _activeGeneration);
+        var readyAtAdmission = validLink && !_switchInProgress &&
+            ReferenceEquals(active, Volatile.Read(ref _active)) &&
+            beforeElection == afterElection && beforeEpoch == afterEpoch;
         var stamp = active is null ? default :
-            new Iec101OwnerStamp(active.Name, active.CommandAuthorityEpoch,
-                Volatile.Read(ref _activeGeneration));
-        var readyAtAdmission = active is { IsHealthy: true, HasVerifiedCommandAuthority: true } &&
-            !_switchInProgress;
+            new Iec101OwnerStamp(active.Name, afterEpoch, afterElection);
         if (IsMutatingCommand(request) && !readyAtAdmission)
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-DUAL-COMMAND-ACTIVE-UNVERIFIED",
