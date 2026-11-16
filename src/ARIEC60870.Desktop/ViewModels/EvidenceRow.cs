@@ -588,18 +588,31 @@ public sealed partial class EvidenceRow
         Fun = "-";
         Inf = "-";
         FunInf = "-";
-        SemanticLabel = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
-        SemanticCategory = "Offline Capture";
+        // Captured display labels are not the naming authority. Only verified
+        // decoded CA/IOA/TI may be mapped through the operator's Signal List.
+        // Name-only CA adaptation is read-only and restricted to received process
+        // objects with a unique, process-compatible profile IOA.
+        var observedPoint = Source.InformationObjectDetails;
+        var nameMatch = trusted10x is not null && observedPoint is { Issues.Count: 0 } &&
+            Iec10xObservationIdentity.HasTrustedDecodedPayload(Source)
+            ? names?.Resolve(trusted10x.CommonAddress, observedPoint.InformationObjectAddress,
+                trusted10x.TypeId,
+                allowNameOnly: Source.Direction == FrameDirection.SlaveToMaster &&
+                    Iec10xPointTypeFamily.SameProcessKind(trusted10x.TypeId, trusted10x.TypeId))
+            : null;
+        SemanticLabel = nameMatch?.Point?.Name ??
+            (string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress);
+        SemanticCategory = nameMatch?.Point?.Group ?? "Offline Capture";
         var verifiedValue = trusted10x is null ? null : Source.InformationObjectDetails?.ShortValue;
         SemanticState = is10x ? (string.IsNullOrWhiteSpace(verifiedValue) ? "-" : verifiedValue) :
             string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
-        ProfileName = "ARIEC capture";
+        ProfileName = nameMatch?.Point is null ? "ARIEC capture" : "Active Signal List · display name only";
         var verifiedRelayTime = trusted10x is null ? null : Source.InformationObjectDetails?.TimestampText;
         RelayTime = is10x ? (string.IsNullOrWhiteSpace(verifiedRelayTime) ? "-" : verifiedRelayTime) :
             string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
         Edge = "-";
-        Mapped = "-";
-        SignalOrAddress = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
+        Mapped = nameMatch?.Point is null ? "-" : nameMatch.Value.NameOnly ? "Name only" : "Yes";
+        SignalOrAddress = SemanticLabel;
         ProtocolAddress = string.IsNullOrWhiteSpace(capture.Address) ? "-" : capture.Address;
         ProtocolService = string.IsNullOrWhiteSpace(capture.Service) ? "-" : capture.Service;
         ReadableMeaning = string.IsNullOrWhiteSpace(capture.Meaning) ? capture.ProtocolTraceMeaning : capture.Meaning;

@@ -154,17 +154,7 @@ public partial class MainWindow
     // Invoked once per profile change, never from the serial RX hot path.
     private void RefreshCachedSignalNames()
     {
-        foreach (var row in _valueRowsByKey.Values)
-        {
-            if (row.Protocol is not ("101" or "104") ||
-                !int.TryParse(row.CommonAddress, out var ca) ||
-                !int.TryParse(row.IoAddress, out var ioa) ||
-                !int.TryParse(row.TypeId, out var typeId))
-                continue;
-            var match = _displayPointIndex.Resolve(ca, ioa, typeId, allowNameOnly: true);
-            row.ApplyDisplayName(match.Point?.Name ?? $"IOA {ioa}",
-                match.Point?.Group ?? "Unmapped", match.Point is not null);
-        }
+        Iec10xValueNameReconciler.Apply(_valueRowsByKey.Values.ToArray(), _displayPointIndex);
         _valueRowsDirty = true;
         if (_eventHistoryJournal is not null)
             RequestEventHistoryQuery();

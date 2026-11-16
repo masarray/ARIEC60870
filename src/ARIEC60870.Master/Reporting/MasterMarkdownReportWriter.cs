@@ -50,7 +50,8 @@ public sealed class MasterMarkdownReportWriter
         sb.AppendLine($"| Reset remote link / Reset FCB | {c.ResetRemoteLinkCommands} / {c.ResetFcbCommands} |");
         sb.AppendLine($"| GI commands / GI END | {c.GiCommands} / {c.GiEndResponses} |");
         sb.AppendLine($"| Clock sync commands | {c.ClockSyncCommands} |");
-        sb.AppendLine($"| DPI events | {c.DpiEvents} |");
+        sb.AppendLine($"| DPI events (legacy received-ASDU count) | {c.DpiEvents} |");
+        sb.AppendLine($"| IEC-101 spontaneous digital objects observed (accepted wire evidence) | {c.ObservedSpontaneousDigitalObjects} |");
         sb.AppendLine($"| Unknown ASDU responses | {c.UnknownAsduResponses} |");
         sb.AppendLine($"| Timeouts / timeout recoveries | {c.Timeouts} / {c.TimeoutRecoveries} |");
         sb.AppendLine($"| Transport exceptions captured | {c.TransportExceptions} |");

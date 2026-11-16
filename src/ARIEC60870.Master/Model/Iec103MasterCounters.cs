@@ -34,6 +34,8 @@ public sealed class Iec103MasterCounters
     public int Class1DrainStoppedByAcdClear { get; set; }
     public int Class1DrainLimitReached { get; set; }
     public int DpiEvents { get; set; }
+    /// <summary>Accepted IEC-101 spontaneous digital information objects, not ASDUs or RTU-produced events.</summary>
+    public long ObservedSpontaneousDigitalObjects { get; set; }
     public int IdentificationResponses { get; set; }
     public int UnknownAsduResponses { get; set; }
     public int ConsecutiveTimeouts { get; set; }
