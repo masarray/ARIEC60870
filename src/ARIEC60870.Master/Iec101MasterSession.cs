@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Iec101;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol;
 using ARIEC60870.Master.Protocol.Iec10x;
@@ -34,8 +35,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
     private DateTime _lastClass2ResponseUtc = DateTime.MinValue;
     private int _lastMeasuredClass2CycleMs;
-    private readonly Dictionary<int, int> _observedCommonAddressHits = new();
-    private int? _dominantObservedCommonAddress;
+    private readonly Iec101CommonAddressEvidence _commonAddressEvidence;
     private bool _retriedGiWithObservedCommonAddress;
     private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
 
@@ -46,6 +46,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
+        _commonAddressEvidence = new Iec101CommonAddressEvidence(settings.CommonAddress);
     }
 
     public event EventHandler<Iec103MasterEvidenceEvent>? EvidenceReceived;
@@ -241,39 +242,26 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
     {
-        if (asdu is null)
+        var wasAmbiguous = _commonAddressEvidence.IsAmbiguous;
+        _commonAddressEvidence.Observe(asdu);
+        if (!wasAmbiguous && _commonAddressEvidence.IsAmbiguous)
         {
-            return;
-        }
-
-        var ca = asdu.CommonAddress;
-        if (ca <= 0)
-        {
-            return;
-        }
-
-        _observedCommonAddressHits.TryGetValue(ca, out var count);
-        _observedCommonAddressHits[ca] = count + 1;
-
-        var dominant = _observedCommonAddressHits
-            .OrderByDescending(x => x.Value)
-            .ThenBy(x => x.Key)
-            .First();
-
-        if (dominant.Value >= 2)
-        {
-            _dominantObservedCommonAddress = dominant.Key;
+            RaiseFinding(FindingSeverity.Warning, "IEC101-CA-MULTISTATION",
+                "Multiple IEC-101 process Common Addresses observed",
+                "Two distinct CAs supplied complete process ASDUs on this physical link.",
+                "The observed traffic cannot safely identify one alternate GI destination.",
+                "Keep configured CA for commands and GI; verify the RTU station/CA profile manually.");
         }
     }
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        if (_retriedGiWithObservedCommonAddress || !_commonAddressEvidence.UniqueAlternativeForGi.HasValue)
         {
             return false;
         }
 
-        var observedCa = _dominantObservedCommonAddress.Value;
+        var observedCa = _commonAddressEvidence.UniqueAlternativeForGi!.Value;
         if (observedCa == _settings.CommonAddress)
         {
             return false;
@@ -285,7 +273,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         SetState(
             Iec103MasterState.GeneralInterrogation,
             "IEC-101 observed CA learned",
-            $"Live ASDU traffic is using CA={observedCa}, while configured GI CA={_settings.CommonAddress}. Retrying station/group interrogation with observed CA.",
+            $"Three complete, unambiguous process ASDUs indicate CA={observedCa} while configured GI CA={_settings.CommonAddress}. Retrying GI only; configured control targets are unchanged.",
             category: "Warning",
             dataClass: "Class 2");
 
