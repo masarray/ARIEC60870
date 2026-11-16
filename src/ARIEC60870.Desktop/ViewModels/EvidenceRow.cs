@@ -14,12 +14,19 @@ namespace ARIEC60870.Desktop.ViewModels;
 public sealed partial class EvidenceRow
 {
     private readonly Iec10xPointDisplayIndex? _pointNames;
+    // Authorization for read-only CA aliases is derived from trusted source
+    // evidence, never by the mere presence of a Signal List name index.
+    private readonly bool _readOnlyNameAliasAuthorized;
 
     public EvidenceRow(Iec103MasterEvidenceEvent item, Iec10xPointMappingEntry? ioaPoint = null,
         Iec10xPointDisplayIndex? names = null)
     {
         Source = item;
         _pointNames = names;
+        _readOnlyNameAliasAuthorized = ioaPoint is not null &&
+            names?.Resolve(item.CommonAddressNumber, item.InformationObjectAddress,
+                item.TypeId, allowNameOnly: true).NameOnly == true &&
+            Iec10xObservationIdentity.HasTrustedDecodedPayload(item);
         Sequence = item.SequenceNumber;
         Time = item.TimestampUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
         Direction = item.DirectionText;
@@ -324,7 +331,7 @@ public sealed partial class EvidenceRow
         {
             var mapped = _pointNames?.Resolve(asdu.CommonAddress,
                 obj.InformationObjectAddress, asdu.TypeId,
-                allowNameOnly: Direction == "RX").Point?.Name;
+                allowNameOnly: Direction == "RX" && _readOnlyNameAliasAuthorized).Point?.Name;
             var name = mapped ?? (asdu.Objects.Count == 1 && Mapped == "Yes" &&
                 !string.IsNullOrWhiteSpace(SemanticLabel) ? SemanticLabel : null);
             return Iec10xSignalTraceFormatter.TraceObject(asdu, obj, name);
@@ -514,9 +521,18 @@ public sealed partial class EvidenceRow
 
 
     public EvidenceRow(CaptureFrameSnapshot capture, Iec10xPointDisplayIndex? names = null)
+        : this(capture, names, RestoreCaptureSource(capture), allowNameOnly: false)
+    {
+    }
+
+    // The archive projection builds the source-wide CA scope from the same
+    // canonical decoded instances, then reuses them here with zero re-decode.
+    internal EvidenceRow(CaptureFrameSnapshot capture, Iec10xPointDisplayIndex? names,
+        Iec103MasterEvidenceEvent restoredSource, bool allowNameOnly)
     {
         _pointNames = names;
-        Source = RestoreCaptureSource(capture);
+        Source = restoredSource;
+        _readOnlyNameAliasAuthorized = allowNameOnly;
 
         Sequence = capture.Sequence;
         Time = string.IsNullOrWhiteSpace(capture.Time) ? "-" : capture.Time;
@@ -588,18 +604,32 @@ public sealed partial class EvidenceRow
         Fun = "-";
         Inf = "-";
         FunInf = "-";
-        SemanticLabel = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
-        SemanticCategory = "Offline Capture";
+        // Captured display labels are not the naming authority. Only verified
+        // decoded CA/IOA/TI may be mapped through the operator's Signal List.
+        // Name-only CA adaptation is read-only and restricted to received process
+        // objects with a unique, process-compatible profile IOA.
+        var observedPoint = Source.InformationObjectDetails;
+        var nameMatch = trusted10x is not null && observedPoint is { Issues.Count: 0 } &&
+            Iec10xObservationIdentity.HasTrustedDecodedPayload(Source)
+            ? names?.Resolve(trusted10x.CommonAddress, observedPoint.InformationObjectAddress,
+                trusted10x.TypeId,
+                allowNameOnly: allowNameOnly &&
+                    Source.Direction == FrameDirection.SlaveToMaster &&
+                    Iec10xPointTypeFamily.SameProcessKind(trusted10x.TypeId, trusted10x.TypeId))
+            : null;
+        SemanticLabel = nameMatch?.Point?.Name ??
+            (string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress);
+        SemanticCategory = nameMatch?.Point?.Group ?? "Offline Capture";
         var verifiedValue = trusted10x is null ? null : Source.InformationObjectDetails?.ShortValue;
         SemanticState = is10x ? (string.IsNullOrWhiteSpace(verifiedValue) ? "-" : verifiedValue) :
             string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
-        ProfileName = "ARIEC capture";
+        ProfileName = nameMatch?.Point is null ? "ARIEC capture" : "Active Signal List · display name only";
         var verifiedRelayTime = trusted10x is null ? null : Source.InformationObjectDetails?.TimestampText;
         RelayTime = is10x ? (string.IsNullOrWhiteSpace(verifiedRelayTime) ? "-" : verifiedRelayTime) :
             string.IsNullOrWhiteSpace(capture.RelayTime) ? "-" : capture.RelayTime;
         Edge = "-";
-        Mapped = "-";
-        SignalOrAddress = string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress;
+        Mapped = nameMatch?.Point is null ? "-" : nameMatch.Value.NameOnly ? "Name only" : "Yes";
+        SignalOrAddress = SemanticLabel;
         ProtocolAddress = string.IsNullOrWhiteSpace(capture.Address) ? "-" : capture.Address;
         ProtocolService = string.IsNullOrWhiteSpace(capture.Service) ? "-" : capture.Service;
         ReadableMeaning = string.IsNullOrWhiteSpace(capture.Meaning) ? capture.ProtocolTraceMeaning : capture.Meaning;
@@ -609,7 +639,7 @@ public sealed partial class EvidenceRow
         ProtocolTraceMeta = string.IsNullOrWhiteSpace(capture.ProtocolTraceMeta) ? $"#{Sequence}  {Time}  {ProtocolName}" : capture.ProtocolTraceMeta;
     }
 
-    private static Iec103MasterEvidenceEvent RestoreCaptureSource(CaptureFrameSnapshot capture)
+    internal static Iec103MasterEvidenceEvent RestoreCaptureSource(CaptureFrameSnapshot capture)
     {
         var mode = capture.ProtocolMode switch
         {

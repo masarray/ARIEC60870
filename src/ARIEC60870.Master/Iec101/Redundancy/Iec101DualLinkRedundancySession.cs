@@ -23,7 +23,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
         => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
     private readonly Iec101ObservedCaPolicy _observedCa = new();
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Iec101BoundedEvidenceHistory _events;
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly object _findingGate = new();
     private readonly List<Iec101FailoverJournalEntry> _failoverJournal = new();
@@ -54,6 +54,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
+        _events = new Iec101BoundedEvidenceHistory(_options.BaseSettings.MaxRetainedEvidenceEvents);
         _linkA = new Iec101DualLinkChannel(_options.LinkA, _options.LinkA.ApplyTo(_options.BaseSettings), linkATransport ?? throw new ArgumentNullException(nameof(linkATransport)), AddEvent, ObserveApplicationAsdu);
         _linkB = new Iec101DualLinkChannel(_options.LinkB, _options.LinkB.ApplyTo(_options.BaseSettings), linkBTransport ?? throw new ArgumentNullException(nameof(linkBTransport)), AddEvent, ObserveApplicationAsdu);
     }
@@ -196,7 +197,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             ProductMode = "IEC 60870-5-101 Dual Link Redundancy Master",
             Settings = _options.BaseSettings.CreateReportSnapshot(),
             Counters = _counters,
-            Events = _events.ToArray(),
+            Events = _events.Snapshot(),
             Findings = SnapshotFindings(),
             StartedUtc = started,
             FinishedUtc = DateTime.UtcNow,
@@ -1664,13 +1665,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
-        var retainedLimit = Math.Max(100, _options.BaseSettings.MaxRetainedEvidenceEvents);
-        if (_events.Count > retainedLimit)
-        {
-            _events.RemoveAt(0);
-            _counters.EvidenceEventsDroppedFromMemory++;
-        }
+        _counters.EvidenceEventsDroppedFromMemory += _events.Append(enriched);
+        if (Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(enriched))
+            _counters.ObservedSpontaneousDigitalObjects++;
         EvidenceReceived?.Invoke(this, enriched);
         return enriched.SequenceNumber;
     }

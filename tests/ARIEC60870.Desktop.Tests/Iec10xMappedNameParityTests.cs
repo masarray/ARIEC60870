@@ -106,6 +106,69 @@ public sealed class Iec10xMappedNameParityTests
         Assert.Equal(1, row.SourceEntry.CommonAddress);
     }
 
+    private static ValueRow ObservedValue(string source, int ca, int ioa,
+        int type, bool verified = true)
+        => new(new Iec103ValuePoint
+        {
+            Key = Iec10xObservationIdentity.ValueKey(Iec60870ProtocolMode.Iec101,
+                source, ca, ioa),
+            PhysicalSource = source,
+            EvidenceReference = verified ? "101|seq:100|object:0" : "",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            CommonAddress = ca,
+            InformationObjectAddress = ioa,
+            TypeId = type,
+            SignalName = $"IOA {ioa}"
+        });
+
+    [Fact]
+    public void ProfileSwitchRecoversFeederNameForAcceptedSingleStationCaAlias()
+    {
+        var value = ObservedValue("Link A", ca: 1, ioa: 16712689, type: 3);
+        Iec10xValueNameReconciler.Apply([value], Names());
+        Assert.Equal("FEEDER CB STATUS", value.Signal);
+        Assert.Equal("1", value.CommonAddress);
+        Assert.Equal("16712689", value.IoAddress);
+        Assert.Equal("Yes", value.Mapped);
+    }
+
+    [Fact]
+    public void ProfileSwitchDoesNotGuessFeederNameAcrossMultipleCaOnSameSource()
+    {
+        var feeder = ObservedValue("Link A", ca: 1, ioa: 16712689, type: 31);
+        var otherStation = ObservedValue("Link A", ca: 2, ioa: 16712690, type: 31);
+        Iec10xValueNameReconciler.Apply([feeder, otherStation], Names());
+        Assert.Equal("IOA 16712689", feeder.Signal);
+        Assert.Equal("No", feeder.Mapped);
+        Assert.Equal("1", feeder.CommonAddress);
+        Assert.Equal("IOA 16712690", otherStation.Signal);
+    }
+
+    [Fact]
+    public void IndependentSourcesCanRetainSafeUniqueNameAliases()
+    {
+        var a = ObservedValue("Link A", ca: 1, ioa: 16712689, type: 31);
+        var b = ObservedValue("Link B", ca: 2, ioa: 16712689, type: 3);
+        Iec10xValueNameReconciler.Apply([a, b], Names());
+        Assert.Equal("FEEDER CB STATUS", a.Signal);
+        Assert.Equal("FEEDER CB STATUS", b.Signal);
+        Assert.NotEqual(a.CommonAddress, b.CommonAddress);
+    }
+
+    [Fact]
+    public void UnverifiedPlaceholderCannotBorrowFeederNameFromAnotherCa()
+    {
+        var placeholder = ObservedValue("SINGLE", ca: 1, ioa: 16712689, type: 31,
+            verified: false);
+        Iec10xValueNameReconciler.Apply([placeholder], Names());
+        Assert.Equal("IOA 16712689", placeholder.Signal);
+        Assert.Equal("No", placeholder.Mapped);
+        var exact = ObservedValue("SINGLE", ca: 105, ioa: 16712689, type: 31,
+            verified: false);
+        Iec10xValueNameReconciler.Apply([exact], Names());
+        Assert.Equal("FEEDER CB STATUS", exact.Signal);
+    }
+
     [Fact]
     public void ObservedControlEventCanUseNameWithoutChangingItsTargetOrStage()
     {

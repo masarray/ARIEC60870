@@ -21,7 +21,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     // Retain unfinished-frame ambiguity and raw-byte counters across exchanges.
     private Ft12StreamReader _reader;
     private readonly Iec10xAsduDecoder _asduDecoder;
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Iec101BoundedEvidenceHistory _events;
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly object _findingGate = new();
     private readonly Iec103MasterCounters _counters = new();
@@ -52,6 +52,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _events = new Iec101BoundedEvidenceHistory(_settings.MaxRetainedEvidenceEvents);
         _ft12 = Ft12Parser.ForIec101(settings.LinkAddressSize);
         _reader = new Ft12StreamReader(transport, settings.LinkAddressSize, settings.BaudRate);
         _asduDecoder = new Iec10xAsduDecoder(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
@@ -205,7 +206,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             ProductMode = "IEC 60870-5-101 Serial Master Tester",
             Settings = _settings.CreateReportSnapshot(),
             Counters = _counters,
-            Events = _events.ToArray(),
+            Events = _events.Snapshot(),
             Findings = SnapshotFindings(),
             StartedUtc = started,
             FinishedUtc = DateTime.UtcNow,
@@ -1380,7 +1381,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        _counters.EvidenceEventsDroppedFromMemory += _events.Append(enriched);
+        if (Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(enriched))
+            _counters.ObservedSpontaneousDigitalObjects++;
         EvidenceReceived?.Invoke(this, enriched);
     }
 

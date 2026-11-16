@@ -105,6 +105,143 @@ public sealed class OfflineTransactionProjectionTests
     }
 
     [Fact]
+    public void VerifiedOfflineFeederCbStatusGetsCurrentProfileNameWithoutChangingWireIdentity()
+    {
+        const int ioa = 16712689;
+        // M_DP_TB_1, CA=1, two-byte COT, one explicit IOA, DPI=ON,
+        // valid CP56Time2a. The active Signal List describes CA=105.
+        var asdu = new byte[] {
+            31, 1, 3, 0, 1, 0,
+            (byte)(ioa & 0xFF), (byte)((ioa >> 8) & 0xFF), (byte)((ioa >> 16) & 0xFF),
+            2, 0, 0, 23, 7, 16, 11, 26
+        };
+        var capture = Capture(90, 0x08, asdu, "RX");
+        capture.SignalOrAddress = "IOA 16712689";
+        var names = new ARIEC60870.Core.Mapping.Iec10xPointDisplayIndex(
+            new ARIEC60870.Core.Mapping.Iec10xPointMappingProfile
+            {
+                CommonAddress = 105,
+                Points = [new ARIEC60870.Core.Mapping.Iec10xPointMappingEntry
+                {
+                    Ca = 105,
+                    Ioa = ioa,
+                    TypeId = 31,
+                    Name = "FEEDER CB STATUS",
+                    CommandPolicy = "MonitorOnly"
+                }]
+            });
+        var row = Assert.Single(Iec10xArchiveNameProjection.Project([capture], names));
+        Assert.Equal("FEEDER CB STATUS", row.SignalOrAddress);
+        Assert.Equal("FEEDER CB STATUS", row.SemanticLabel);
+        Assert.Equal("Name only", row.Mapped);
+        Assert.Equal("1", row.CommonAddress);
+        Assert.Equal(ioa, row.Source.InformationObjectAddress);
+        Assert.Equal("31", row.TypeId);
+    }
+
+    [Fact]
+    public void AmbiguousOfflineCaCannotBorrowAnotherFeederLabel()
+    {
+        const int ioa = 16712689;
+        var asdu = new byte[] { 3, 1, 3, 0, 1, 0,
+            (byte)(ioa & 0xFF), (byte)((ioa >> 8) & 0xFF), (byte)((ioa >> 16) & 0xFF), 2 };
+        var capture = Capture(91, 0x08, asdu, "RX");
+        capture.SignalOrAddress = "IOA 16712689";
+        var names = new ARIEC60870.Core.Mapping.Iec10xPointDisplayIndex(
+            new ARIEC60870.Core.Mapping.Iec10xPointMappingProfile
+            {
+                CommonAddress = 105,
+                Points =
+                [
+                    new() { Ca = 105, Ioa = ioa, TypeId = 31,
+                        Name = "FEEDER A CB STATUS", CommandPolicy = "MonitorOnly" },
+                    new() { Ca = 106, Ioa = ioa, TypeId = 31,
+                        Name = "FEEDER B CB STATUS", CommandPolicy = "MonitorOnly" }
+                ]
+            });
+        var row = Assert.Single(Iec10xArchiveNameProjection.Project([capture], names));
+        Assert.Equal("IOA 16712689", row.SignalOrAddress);
+        Assert.Equal("-", row.Mapped);
+        Assert.Equal("1", row.CommonAddress);
+    }
+
+    [Fact]
+    public void OfflineMultipleCommonAddressesOnSameSourceDisableOnlyNameAliases()
+    {
+        const int ioa = 16712689;
+        static CaptureFrameSnapshot Frame(int ca, long seq)
+        {
+            const int address = 16712689;
+            var asdu = new byte[]
+            {
+                3, 1, 3, 0, (byte)ca, 0,
+                (byte)(address & 0xFF), (byte)((address >> 8) & 0xFF),
+                (byte)((address >> 16) & 0xFF), 2
+            };
+            var frame = Capture(seq, 0x08, asdu, "RX");
+            frame.SignalOrAddress = "IOA 16712689";
+            return frame;
+        }
+
+        var names = new ARIEC60870.Core.Mapping.Iec10xPointDisplayIndex(
+            new ARIEC60870.Core.Mapping.Iec10xPointMappingProfile
+            {
+                CommonAddress = 105,
+                Points =
+                [
+                    new() { Ca = 105, Ioa = ioa, TypeId = 31,
+                        Name = "FEEDER CB STATUS", CommandPolicy = "MonitorOnly" }
+                ]
+            });
+        var ca1 = Frame(1, 101);
+        var ca2 = Frame(2, 102);
+        var strict = Frame(105, 103);
+        var rows = Iec10xArchiveNameProjection.Project([ca1, ca2, strict], names);
+
+        Assert.Equal("IOA 16712689", rows[0].SignalOrAddress);
+        Assert.Equal("IOA 16712689", rows[1].SignalOrAddress);
+        Assert.Equal("-", rows[0].Mapped);
+        Assert.Equal("-", rows[1].Mapped);
+        Assert.Equal("FEEDER CB STATUS", rows[2].SignalOrAddress);
+        Assert.Equal("Yes", rows[2].Mapped);
+        Assert.Equal(new[] { "1", "2", "105" }, rows.Select(x => x.CommonAddress));
+    }
+
+    [Fact]
+    public void OfflineSeparatePhysicalSourcesCanResolveUniqueAliasesIndependently()
+    {
+        const int ioa = 16712689;
+        static CaptureFrameSnapshot Frame(int ca, string source, long seq)
+        {
+            const int address = 16712689;
+            var asdu = new byte[]
+            {
+                3, 1, 3, 0, (byte)ca, 0,
+                (byte)(address & 0xFF), (byte)((address >> 8) & 0xFF),
+                (byte)((address >> 16) & 0xFF), 2
+            };
+            var frame = Capture(seq, 0x08, asdu, "RX");
+            frame.PhysicalSource = source;
+            frame.SignalOrAddress = "IOA 16712689";
+            return frame;
+        }
+
+        var names = new ARIEC60870.Core.Mapping.Iec10xPointDisplayIndex(
+            new ARIEC60870.Core.Mapping.Iec10xPointMappingProfile
+            {
+                CommonAddress = 105,
+                Points = [new() { Ca = 105, Ioa = ioa, TypeId = 31,
+                    Name = "FEEDER CB STATUS", CommandPolicy = "MonitorOnly" }]
+            });
+        var rows = Iec10xArchiveNameProjection.Project(
+            [Frame(1, "Link A", 1), Frame(2, "Link B", 2)], names);
+
+        Assert.All(rows, x => Assert.Equal("FEEDER CB STATUS", x.SignalOrAddress));
+        Assert.All(rows, x => Assert.Equal("Name only", x.Mapped));
+        Assert.NotEqual(rows[0].CommonAddress, rows[1].CommonAddress);
+    }
+
+    [Fact]
     public void LegacyWithoutDecoderMetadataDoesNotInventAGiCase()
     {
         var snapshot = new CaptureFrameSnapshot
