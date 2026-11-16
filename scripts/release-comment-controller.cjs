@@ -106,9 +106,22 @@ async function findIntent(github, context, sha, pr, owner, repo) {
 }
 // Stage reservations are tiny Actions artifacts uploaded before dispatch.
 // No write token for Issues/PRs and no duplicate expensive runner launches.
-async function reserved(github, owner, repo, name) {
+async function reserved(github, owner, repo, name, sha) {
   const {data} = await github.rest.actions.listArtifactsForRepo({owner,repo,name,per_page:20});
-  return (data.artifacts || []).some(a => !a.expired && a.name === name);
+  // Artifact name alone is untrusted: PR CI can upload arbitrary names.
+  // Only a matching artifact produced by the trusted master control plane counts.
+  for (const artifact of (data.artifacts || []).filter(a =>
+    !a.expired && a.name === name && a.workflow_run?.id).slice(0,5)) {
+    const {data: run} = await github.rest.actions.getWorkflowRun({owner,repo,
+      run_id:artifact.workflow_run.id});
+    const path = String(run.path || '').split('@')[0];
+    if ((path === '.github/workflows/release-comment.yml' ||
+         path.endsWith('/.github/workflows/release-comment.yml')) &&
+        run.repository?.full_name === `${owner}/${repo}` &&
+        run.head_branch === 'master' && run.head_sha === sha &&
+        ['issue_comment','workflow_run'].includes(run.event)) return true;
+  }
+  return false;
 }
 
 async function run({github, context, core}) {
@@ -206,8 +219,8 @@ async function run({github, context, core}) {
   const completedCiError = !qualified && ciRuns[0]?.conclusion === 'failure';
   const activePackage = packages.some(isActive);
   const [packageReserved, updaterReserved] = await Promise.all([
-    reserved(github,owner,repo,stageMarker(request.id,sha,'package')),
-    reserved(github,owner,repo,stageMarker(request.id,sha,'updater'))
+    reserved(github,owner,repo,stageMarker(request.id,sha,'package'),sha),
+    reserved(github,owner,repo,stageMarker(request.id,sha,'updater'),sha)
   ]);
   const next = chooseAction({published, packageReserved, updaterReserved,
     activePackage, activeCi:runningCi, completedCiError, qualified,
