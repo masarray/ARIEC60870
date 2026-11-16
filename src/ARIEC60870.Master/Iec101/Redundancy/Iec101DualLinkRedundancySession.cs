@@ -263,7 +263,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (_active.LinkState.Acd)
         {
             var ownerAtDrain = _active;
-            await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+            var yieldedToClass2 = await DrainClass1OnActiveAsync("ACD=1 event data pending on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
             await EvaluateActiveHealthAsync("Class 1 drain", cancellationToken).ConfigureAwait(false);
             // Under sustained ACD, periodically supervise standby using FC9 only.
             if (ReferenceEquals(_active, ownerAtDrain) && _standby is not null &&
@@ -273,8 +273,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
 
             // No Class 2 on standby or a newly promoted owner; no DFC-busy poll.
-            if (ReferenceEquals(_active, ownerAtDrain) && _active.IsHealthy &&
-                !_active.LinkState.Dfc && _active.LinkState.Acd &&
+            if (yieldedToClass2 && ReferenceEquals(_active, ownerAtDrain) &&
+                _active.IsHealthy && !_active.LinkState.Dfc && _active.LinkState.Acd &&
                 _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
                 DateTime.UtcNow - _lastClass2PollUtc >=
                     TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
@@ -428,15 +428,16 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         return true;
     }
 
-    private async Task DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         if (_active is null)
         {
-            return;
+            return false;
         }
 
         _counters.Class1DrainBursts++;
         var drained = 0;
+        var yieldedToClass2 = false;
         var stoppedByGiEnd = false;
         while (!cancellationToken.IsCancellationRequested && drained < _options.BaseSettings.MaxClass1DrainFrames)
         {
@@ -445,7 +446,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 drained % _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 == 0 &&
                 DateTime.UtcNow - _lastClass2PollUtc >=
                     TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
+            {
+                yieldedToClass2 = true;
                 break;
+            }
 
             var beforeGood = _active.LinkState.LastGoodResponseUtc;
             _counters.Class1Requests++;
@@ -493,6 +497,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 stopWhenGiEnds ? "The post-switch or startup application image may be incomplete." : "The outstation may have a large event queue or stuck ACD bit.",
                 "Increase the bounded drain limit for this outstation profile and inspect ACD/NO DATA/ACTTERM behavior.");
         }
+
+        return yieldedToClass2;
     }
 
     private async Task SuperviseStandbyAsync(CancellationToken cancellationToken)
