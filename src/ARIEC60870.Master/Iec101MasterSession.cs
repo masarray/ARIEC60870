@@ -156,11 +156,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
                 if (_acd)
                 {
-                    await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
+                    var yieldedToClass2 = await DrainClass1Async("ACD=1 event data pending", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                     // The next scheduler loop would otherwise choose Class 1
                     // forever while ACD stays asserted. Poll one due Class 2
                     // request after the bounded Class 1 fairness yield.
-                    if (_acd && _linkVerified &&
+                    if (yieldedToClass2 && _acd && _linkVerified &&
                         _settings.MaxConsecutiveClass1BeforeClass2 > 0 &&
                         (DateTime.UtcNow - _lastClass2PollUtc).TotalMilliseconds >= _settings.Class2PollIntervalMs)
                     {
@@ -540,7 +540,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         }
     }
 
-    private async Task DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
+    private async Task<bool> DrainClass1Async(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
     {
         _counters.Class1DrainBursts++;
         SetState(
@@ -646,6 +646,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
                 $"Frames drained={drained}; stop={stopReason}; returning to Class 2 background scan.",
                 dataClass: "Class 1");
         }
+
+        return stoppedByClass2Fairness;
     }
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
