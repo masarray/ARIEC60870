@@ -23,6 +23,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
     private long _connectionEpoch;
+    private long _commandAuthorityEpoch;
 
     public Iec101DualLinkChannel(
         Iec101DualLinkEndpoint endpoint,
@@ -49,6 +50,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public Iec101LinkLayerState LinkState { get; } = new();
     public bool IsOpen => _transport.IsOpen;
     public long ConnectionEpoch => Volatile.Read(ref _connectionEpoch);
+    public long CommandAuthorityEpoch => Volatile.Read(ref _commandAuthorityEpoch);
     public bool IsHealthy => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures == 0;
     public bool IsPromotable(int failureThreshold) => IsOpen && !LinkState.Dfc && LinkState.LastGoodResponseUtc.HasValue && LinkState.ConsecutiveFailures < Math.Max(1, failureThreshold);
     public bool HasRecentGoodResponse(TimeSpan window)
@@ -67,6 +69,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     {
         // Reopening the same COM port never reuses an earlier command's authority.
         Interlocked.Increment(ref _connectionEpoch);
+        Interlocked.Increment(ref _commandAuthorityEpoch);
         Role = role;
         State = Iec101RedundancyChannelState.Opening;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} opening", $"Role={role}, endpoint={Endpoint}.");
@@ -79,6 +82,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     public async Task CloseAsync(CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _connectionEpoch);
+        Interlocked.Increment(ref _commandAuthorityEpoch);
         State = Iec101RedundancyChannelState.Closed;
         try
         {
@@ -419,6 +423,9 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         if (acceptedFrame is null)
         {
             LinkState.MarkTimeout(now);
+            // A valid subsequent probe must never resurrect commands queued
+            // before the uncertain or failed service exchange.
+            Interlocked.Increment(ref _commandAuthorityEpoch);
             State = Iec101RedundancyChannelState.TimeoutSuspect;
             _publish(new Iec103MasterEvidenceEvent
             {
@@ -440,6 +447,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         }
 
         var decoded = acceptedFrame;
+        if (decoded.LinkControl is { Dfc: true } or { FunctionCode: 1 })
+            Interlocked.Increment(ref _commandAuthorityEpoch);
         // Busy/NACK and addressless first replies are evidence, not fresh
         // positive, source-qualified readiness for standby promotion.
         if (validation.AdvancesFcb &&
