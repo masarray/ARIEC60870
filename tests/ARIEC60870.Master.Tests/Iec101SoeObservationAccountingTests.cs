@@ -38,6 +38,24 @@ public sealed class Iec101SoeObservationAccountingTests
         }).ToArray();
     }
 
+    private static Iec103MasterEvidenceEvent Reproject(
+        Iec103MasterEvidenceEvent source, long sequence, string? category = null)
+        => new()
+        {
+            SequenceNumber = sequence,
+            ProtocolMode = source.ProtocolMode,
+            Direction = source.Direction,
+            Category = category ?? source.Category,
+            TypeId = source.TypeId,
+            CauseDetails = source.CauseDetails,
+            AsduDetails = source.AsduDetails,
+            InformationObjectDetails = source.InformationObjectDetails,
+            IsRelayValue = source.IsRelayValue,
+            IsRelayEdgeEvent = source.IsRelayEdgeEvent,
+            CommonAddressNumber = source.CommonAddressNumber,
+            InformationObjectAddress = source.InformationObjectAddress
+        };
+
     [Fact]
     public void MultiObjectAsduCountsEveryDigitalSoeObjectNotOneFrame()
     {
@@ -54,7 +72,7 @@ public sealed class Iec101SoeObservationAccountingTests
             Assert.False(Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(x)));
         Assert.All(DecodeTwoObjects(test: true), x =>
             Assert.False(Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(x)));
-        var warning = DecodeTwoObjects()[0] with { Category = "RX Warning" };
+        var warning = Reproject(DecodeTwoObjects()[0], 1, "RX Warning");
         Assert.False(Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(warning));
     }
 
@@ -69,7 +87,7 @@ public sealed class Iec101SoeObservationAccountingTests
         long observed = 0;
         for (var i = 1; i <= count; i++)
         {
-            var eventFact = fixture with { SequenceNumber = i };
+            var eventFact = Reproject(fixture, i);
             if (Iec101SoeObservationPolicy.IsAcceptedSpontaneousDigitalObject(eventFact))
                 observed++;
             history.Append(eventFact);
