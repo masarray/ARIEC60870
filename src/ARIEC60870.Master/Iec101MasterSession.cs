@@ -242,9 +242,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
     {
-        var wasAmbiguous = _commonAddressEvidence.IsAmbiguous;
-        _commonAddressEvidence.Observe(asdu);
-        if (!wasAmbiguous && _commonAddressEvidence.IsAmbiguous)
+        if (_commonAddressEvidence.Observe(asdu))
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-CA-MULTISTATION",
                 "Multiple IEC-101 process Common Addresses observed",
@@ -256,12 +254,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_commonAddressEvidence.UniqueAlternativeForGi.HasValue)
+        if (_retriedGiWithObservedCommonAddress)
         {
             return false;
         }
 
-        var observedCa = _commonAddressEvidence.UniqueAlternativeForGi!.Value;
+        var observed = _commonAddressEvidence.UniqueAlternativeForGi;
+        if (!observed.HasValue) return false;
+        var observedCa = observed.Value;
         if (observedCa == _settings.CommonAddress)
         {
             return false;
