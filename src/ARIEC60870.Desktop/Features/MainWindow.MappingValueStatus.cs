@@ -343,28 +343,28 @@ public partial class MainWindow
               _passiveMonitorSession is not null &&
               item.PollingReason.StartsWith("PASSIVE-", StringComparison.Ordinal)))
         {
-        // Every actual typed TX/RX application command is an event fact, independently
-        // of whether a process value changed. No fabricated RTU success on ACTCON.
-        var commandCase = _commandCasebook.FindByEvidence(item);
-        var mappedCommand = _displayPointIndex.Resolve(
-            item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId).Point?.Name;
-        var commandStage = Iec10xCommandEventProjection.Project(item,
-            commandCase?.CaseId, mappedCommand);
-        if (commandStage is not null)
-            AppendProtocolEvent(commandStage, item);
+            // Every actual typed TX/RX application command is an event fact, independently
+            // of whether a process value changed. No fabricated RTU success on ACTCON.
+            var commandCase = _commandCasebook.FindByEvidence(item);
+            var mappedCommand = _displayPointIndex.Resolve(
+                item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId).Point?.Name;
+            var commandStage = Iec10xCommandEventProjection.Project(item,
+                commandCase?.CaseId, mappedCommand);
+            if (commandStage is not null)
+                AppendProtocolEvent(commandStage, item);
 
-        // Application semantics live in Master; the WPF projection only receives typed
-        // milestones. Interrogated data updates GI counters, not one SOE row per value.
-        var giMilestone = _giCasebook.Observe(item);
-        if (giMilestone is not null)
-        {
-            _giCasesDirty = true;
-            AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone), item);
-        }
-        else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 } ||
-                 _giCasebook.ActiveCount > 0 && item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
-                 item.Frame?.LinkControl is { IsPrimaryRequestClass1: true })
-            _giCasesDirty = true;
+            // Application semantics live in Master; the WPF projection only receives typed
+            // milestones. Interrogated data updates GI counters, not one SOE row per value.
+            var giMilestone = _giCasebook.Observe(item);
+            if (giMilestone is not null)
+            {
+                _giCasesDirty = true;
+                AppendProtocolEvent(Iec10xGiEventProjection.Project(item, giMilestone), item);
+            }
+            else if (item.AsduDetails is { CauseDetails: { Code: >= 20 and <= 36 }, TypeId: not 100 } ||
+                     _giCasebook.ActiveCount > 0 && item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                     item.Frame?.LinkControl is { IsPrimaryRequestClass1: true })
+                _giCasesDirty = true;
         }
         // The indexed passive writer is the sole authoritative process-value source.
         // Loses preview frames must never replace its resolved signal names with
