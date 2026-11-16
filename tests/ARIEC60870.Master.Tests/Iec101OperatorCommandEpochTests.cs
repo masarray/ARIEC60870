@@ -52,6 +52,30 @@ public sealed class Iec101OperatorCommandEpochTests
     }
 
     [Fact]
+    public void SingleQueueAdmissionReportsCapacityWithoutEvictingOldRequests()
+    {
+        var settings = Settings();
+        using var transport = new SimulatedIec101Transport(settings);
+        var session = new Iec101MasterSession(settings, transport);
+        for (var i = 0; i < 64; i++)
+            Assert.True(session.TryQueueControlCommand(SingleCommand()));
+        Assert.False(session.TryQueueControlCommand(SingleCommand()));
+    }
+
+    [Fact]
+    public void DualQueueAdmissionReportsCapacityWithoutEvictingOldRequests()
+    {
+        var settings = Settings();
+        var options = DualOptions(settings);
+        using var a = new SimulatedIec101Transport(options.LinkA.ApplyTo(settings));
+        using var b = new SimulatedIec101Transport(options.LinkB.ApplyTo(settings));
+        var session = new Iec101DualLinkRedundancySession(options, a, b);
+        for (var i = 0; i < 64; i++)
+            Assert.True(session.TryQueueControlCommand(SingleCommand()));
+        Assert.False(session.TryQueueControlCommand(SingleCommand()));
+    }
+
+    [Fact]
     public async Task SinglePreLinkPhysicalControlIsNeverTransmittedAfterVerification()
     {
         var settings = Settings();
