@@ -86,11 +86,14 @@ public sealed class Iec101GiLifecycleTracker
     }
 
     private static bool ValidGi(Iec10xAsduDecode? asdu)
-        => asdu is { IsHeaderValid: true, TypeId: 100, ObjectCount: 1,
-                     Issues.Count: 0, InformationObjectAddress: 0 }
-           && asdu.Objects.Count == 1
-           && asdu.Objects[0].Issues.Count == 0
-           && asdu.CommandDetails?.QualifierValue is >= 20 and <= 36;
+    {
+        if (asdu is null) return false;
+        return asdu.IsHeaderValid && asdu.TypeId == 100 &&
+               asdu.ObjectCount == 1 && asdu.Issues.Count == 0 &&
+               asdu.InformationObjectAddress == 0 && asdu.Objects.Count == 1 &&
+               asdu.Objects[0].Issues.Count == 0 &&
+               asdu.CommandDetails?.QualifierValue is >= 20 and <= 36;
+    }
 }
 
 public enum Iec101GiLifecycleObservation
