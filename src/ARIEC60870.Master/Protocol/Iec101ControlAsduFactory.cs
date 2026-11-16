@@ -9,6 +9,15 @@ namespace ARIEC60870.Master.Protocol;
 /// <summary>One IEC-101 control encoder shared by single and A/B physical channels.</summary>
 public static class Iec101ControlAsduFactory
 {
+    /// <summary>Reject contradictory typed intent, never infer SBO from button text.</summary>
+    public static bool IsIntentConsistent(Iec60870ControlCommandRequest request)
+        => request.OperationMode switch
+        {
+            Iec60870ControlOperationMode.Select => request.SelectBeforeOperate,
+            Iec60870ControlOperationMode.ExecuteSelected => !request.SelectBeforeOperate,
+            _ => true // Preserve compatibility with pre-existing direct/SELECT callers.
+        };
+
     public static byte[] Build(Iec60870ControlCommandRequest request, Iec103MasterSettings settings)
         => request.Kind switch
         {
