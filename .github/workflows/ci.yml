@@ -276,11 +276,12 @@ jobs:
         if: needs.classify.outputs.run_windows == 'true'
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Check code formatting (only C# or formatter config changes)
+      - name: Check changed C# formatting (blocking, preserve legacy baseline)
         if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
-        run: |
-          dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal
+        env:
+          FORMAT_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || '' }}
+        run: ./scripts/check-changed-csharp-format.ps1 -BaseSha $env:FORMAT_BASE_SHA
 
       - name: Run dependency-free protocol smoke tests
         if: needs.classify.outputs.run_windows == 'true'
