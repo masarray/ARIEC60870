@@ -447,6 +447,7 @@ public partial class MainWindow : Window
             try
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(path);
+                ResetReadOnlyNameAliasCache();
                 if (GetSelectedProtocolMode() != Iec60870ProtocolMode.Iec103 && string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
                 {
                     MappingProfilePathBox.Text = path;
