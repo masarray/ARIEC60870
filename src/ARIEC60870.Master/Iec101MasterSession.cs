@@ -570,7 +570,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             category: "Warning",
             dataClass: "Class 2");
 
-        var acceptedGroups = 0;
+        var linkRepliedGroups = 0;
         var negativeGroups = 0;
         var noResponseGroups = 0;
         var firstGroup = 21;
@@ -597,15 +597,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             }
             else
             {
-                acceptedGroups++;
+                linkRepliedGroups++;
                 await DrainClass1Async($"Group GI QOI={qoi} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
             }
 
-            // When the outstation says NO DATA after a group request and no group has been accepted
-            // yet, still continue through the remaining groups. Some RTUs implement only a subset.
-            // Once at least one group has been accepted, two consecutive NO DATA/negative groups are
-            // enough to prevent this fallback from monopolizing a slow 1200 bps link.
-            if (acceptedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, acceptedGroups + 2))
+            // This counter tracks the link reply only; FC0/E5 does NOT mean
+            // the RTU accepted group GI. ACTCON/ACTTERM remain separate evidence.
+            // Bound subsequent attempts so fallback cannot monopolize 1200 bps.
+            if (linkRepliedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, linkRepliedGroups + 2))
             {
                 break;
             }
@@ -619,7 +618,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         SetState(
             Iec103MasterState.NormalClass2Polling,
             "IEC-101 group interrogation fallback completed",
-            $"Groups accepted={acceptedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.",
+            $"Groups with link replies={linkRepliedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.",
             dataClass: "Class 2");
     }
 
