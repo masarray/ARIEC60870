@@ -355,21 +355,34 @@ public sealed class Iec10xCommandCasebook
             })
             .ToArray();
 
-        if (candidates.Length > 1)
-        {
-            foreach (var candidate in candidates)
-            {
-                candidate.State.Ambiguous = true;
-                Update(candidate.State, item, "Shared feedback ambiguous",
-                    $"Mapped feedback IOA {candidate.State.FeedbackIoa} matches multiple active command cases.",
-                    "Ambiguous", "One RTU process value cannot uniquely verify multiple pending commands.");
-            }
-            return true;
-        }
-
         if (candidates.Length == 0) return false;
-        var (state, obj) = candidates[0];
-        var digitalCode = item.TypeId is 1 or 30 ? obj!.RawBytes[0] & 1 : obj!.RawBytes[0] & 3;
+
+        // Ambiguity is per mapped process object, not per received ASDU.
+        // A legitimate multi-object DPI frame may carry independent feedback
+        // for separate controls in a single physical response.
+        foreach (var group in candidates.GroupBy(candidate => candidate.State.FeedbackIoa!.Value))
+        {
+            if (group.Count() > 1)
+            {
+                foreach (var candidate in group)
+                {
+                    candidate.State.Ambiguous = true;
+                    Update(candidate.State, item, "Shared feedback ambiguous",
+                        $"Mapped feedback IOA {candidate.State.FeedbackIoa} matches multiple active command cases.",
+                        "Ambiguous", "One RTU process value cannot uniquely verify multiple pending commands.");
+                }
+                continue;
+            }
+
+            var candidateForObject = group.Single();
+            ApplyDigitalFeedback(candidateForObject.State, candidateForObject.Object!, item);
+        }
+        return true;
+    }
+
+    private void ApplyDigitalFeedback(State state, Iec10xInformationObject obj, Iec103MasterEvidenceEvent item)
+    {
+        var digitalCode = item.TypeId is 1 or 30 ? obj.RawBytes[0] & 1 : obj.RawBytes[0] & 3;
         // IEC 60870 SPI 0=OFF/1=ON; DPI 1=OFF/2=ON (0/3 are indeterminate).
         // Command DCS 1=OFF/2=ON: the raw codes are NOT interchangeable.
         bool? observedOn = item.TypeId switch
@@ -383,7 +396,7 @@ public sealed class Iec10xCommandCasebook
             Update(state, item, "Feedback indeterminate",
                 $"Mapped IOA {state.FeedbackIoa}: DPI={digitalCode} is intermediate/indeterminate, not ON/OFF.",
                 "Feedback indeterminate", "The RTU did not report a definite digital target state.");
-            return true;
+            return;
         }
 
         var agrees = observedOn.Value == state.ExpectedOn!.Value;
@@ -398,7 +411,6 @@ public sealed class Iec10xCommandCasebook
                 ? "Matching observed RTU digital state; not independently verified physical switchgear position."
                 : "The mapped feedback is not at the requested target; investigate relay/RTU/plant state.");
         if (agrees && state.Terminated) _active.Remove(state.Key);
-        return true;
     }
 
     private static bool? ExpectedLogicalOn(Iec10xCommandDetails command)
