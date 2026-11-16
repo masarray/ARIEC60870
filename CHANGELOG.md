@@ -15,7 +15,7 @@
 
 ### Release qualification boundary
 - These are source changes **beyond the published v3.6.12**. Next release requires exact-commit Windows Release/xUnit/protocol smoke/WPF executable acceptance, CodeQL, installer upgrade and native updater FAT, self-contained ZIP and Inno installer, checksums, SPDX SBOM and provenance. Never reuse a v3.6.12 package as new-source evidence.
-- Field validation remains separate: real IEC-101 1200-bps SICAM A8000 CP8050/CI8551 60/500/2,000 SOE FIFO parity, COM unplug/replug and dual A/B, controls with actual feedback, independent IEC-103 and multi-vendor IEC-104. No universal conformance certification or signed binary is claimed.
+- Field validation remains separate: real IEC-101 1200-bps RTU/gateway 60/500/2,000 SOE FIFO parity, COM unplug/replug and dual A/B, controls with actual feedback, independent IEC-103 and multi-vendor IEC-104. No universal conformance certification or signed binary is claimed.
 - Draft #145 remains **unmerged**; only reviewed independent hardening PRs #219–#230 landed. Existing user-owned Signal Lists are not overwritten.
 
 ## [3.6.12] - 2026-11-16
