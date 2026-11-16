@@ -1,3 +1,17 @@
+## [3.6.11] - 2026-11-16
+
+### IEC-101 unbalanced Master: safer correlation of physical replies
+- Require every IEC-101 single-link and dual-link A/B secondary reply to match the active primary service, not only frame checksum, PRM and link address. Reject out-of-context status FC11 after application FC3 or Class 1/2 polling; retain original RX evidence without falsely advancing FCB or declaring a GI/command successful (PR #208).
+- Link-status primary FC9 requires addressed secondary FC11; reject addressless E5 as status proof, and reject raw A2 as a valid IEC-101 NACK. A first addressless E5 does not establish the outstation's identity; a positive addressed secondary reply is required.
+- Prevent busy DFC=1 secondary evidence from declaring a dual-link standby eligible for promotion. Preserve distinct NACK, busy and rejected-RX diagnostics.
+- Correct the simulated IEC-101 outstation and three dual-link integration fixtures to return service-specific FC11 for FC9 status. Add positive and fail-closed regression cases for matched/mismatched FC, E5, A2 and initial link identity. Do not hide invalid staged GI evidence by permitting an unrelated FC8 as a reply to FC3.
+
+### Scope and release validation
+- Preserve v3.6.10 Event Journal, Original Frame navigation, 31-point bay-aware sample profile, 1200-bps bounded FT1.2 receive, the unchanged GUI, IEC-103/104 and RX-only monitor.
+- Distribution is conditioned on passing exact-source Windows Release build, 19 protocol smoke checks, all xUnit suites, WPF executable acceptance, package SHA-256/SBOM/provenance and independent native updater FAT. Record actual workflow results at publication; source changes alone do not constitute release qualification.
+- Draft PR #145 remains unmerged: a full shared per-link FCB/retry/physical COM reconnect/staged GI/SBO engine is **not claimed by this release**.
+- **Physical SICAM A8000 1200-bps FAT pending** for 60/500/2,000 event FIFO completeness, COM unplug/replug, A/B failover and controls. These binaries are not IEC conformance-certified and are currently unsigned.
+
 ## [3.6.10] - 2026-11-13
 
 ### ArSee forensic workflow and IEC-101 receive reliability
