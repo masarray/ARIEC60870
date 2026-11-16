@@ -447,7 +447,20 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         // Reopened active has no inherited health and must pass FC9 first.
         if (!_active.LinkState.LastGoodResponseUtc.HasValue)
         {
-            await _active.RequestLinkStatusAsync("Recovered active COM FC9 secondary proof", cancellationToken).ConfigureAwait(false);
+            var ownerAtProbe = _active;
+            await _active.RequestLinkStatusAsync("Unverified active COM FC9 secondary proof", cancellationToken).ConfigureAwait(false);
+            // An open COM with a silent RTU must not hold the active election
+            // forever while standby has freshly verified secondary proof.
+            if (ReferenceEquals(_active, ownerAtProbe) && !_active.IsHealthy &&
+                _standby.IsOpen && ActiveNeedsRescue())
+            {
+                await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
+                if (ReferenceEquals(_active, ownerAtProbe) &&
+                    _standby.CanRescueFailedActive(
+                        _options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
+                    await TryFailoverAsync("Active COM open but secondary silent; verified standby rescue",
+                        cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+            }
             return;
         }
 
