@@ -447,20 +447,24 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         // Reopened active has no inherited health and must pass FC9 first.
         if (!_active.LinkState.LastGoodResponseUtc.HasValue)
         {
-            var ownerAtProbe = _active;
-            await _active.RequestLinkStatusAsync("Unverified active COM FC9 secondary proof", cancellationToken).ConfigureAwait(false);
-            // An open COM with a silent RTU must not hold the active election
-            // forever while standby has freshly verified secondary proof.
-            if (ReferenceEquals(_active, ownerAtProbe) && !_active.IsHealthy &&
-                _standby.IsOpen && ActiveNeedsRescue())
+            // One failed FC9 already marks a timeout-suspect active. Preserve
+            // the existing fast standby rescue instead of giving active a
+            // second FC9 attempt before evaluating a healthy independent B.
+            if (ActiveNeedsRescue() && _standby.IsOpen)
             {
+                var failingOwner = _active;
                 await SuperviseStandbyAsync(cancellationToken).ConfigureAwait(false);
-                if (ReferenceEquals(_active, ownerAtProbe) &&
+                if (ReferenceEquals(_active, failingOwner) &&
                     _standby.CanRescueFailedActive(
                         _options.StandbyFailureThreshold, BuildRecentGoodRescueWindow()))
-                    await TryFailoverAsync("Active COM open but secondary silent; verified standby rescue",
+                    await TryFailoverAsync("Active secondary silent; independently verified standby rescue",
                         cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
+                return;
             }
+
+            // A newly opened physical link has no stale RTU readiness. Only
+            // addressed FC9 can establish its first good secondary response.
+            await _active.RequestLinkStatusAsync("Unverified active COM FC9 secondary proof", cancellationToken).ConfigureAwait(false);
             return;
         }
 
