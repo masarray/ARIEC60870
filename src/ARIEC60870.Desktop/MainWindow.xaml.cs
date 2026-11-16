@@ -46,6 +46,8 @@ public partial class MainWindow : Window
     private long _visibleLogLinesDropped;
     private Iec103SignalMappingProfile _mappingProfile = Iec103SignalMappingProfile.Empty;
     private Iec10xPointMappingProfile _ioaProfile = Iec10xPointMappingProfile.Empty;
+    // Local-only persistence: never confuse a redacted display path with the loaded profile.
+    private string _activeMappingProfileFilePath = string.Empty;
     private IProtocolControlCommandSession? _activeControlSession;
     private Iec101DualLinkRedundancySession? _activeDualLinkSession;
     private bool _commandDockExpanded; // observation-first default: never reserve 320px for idle commands
@@ -447,6 +449,7 @@ public partial class MainWindow : Window
             try
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(path);
+                _activeMappingProfileFilePath = path;
                 ResetReadOnlyNameAliasCache();
                 if (GetSelectedProtocolMode() != Iec60870ProtocolMode.Iec103 && string.IsNullOrWhiteSpace(MappingProfilePathBox.Text))
                 {
