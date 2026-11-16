@@ -38,10 +38,8 @@ public sealed class Iec101GiRuntimeIntegrationTests
         var options = new Iec101DualLinkRedundancyOptions
         {
             BaseSettings = settings,
-            LinkA = new Iec101DualLinkEndpoint
-                { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
-            LinkB = new Iec101DualLinkEndpoint
-                { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
+            LinkA = new Iec101DualLinkEndpoint { Name = "Link A", PortName = "SIM-A", LinkAddress = 1 },
+            LinkB = new Iec101DualLinkEndpoint { Name = "Link B", PortName = "SIM-B", LinkAddress = 1 },
             StandbySupervisionInterval = TimeSpan.FromMilliseconds(250),
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
         };
