@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Globalization;
+using ARIEC60870.Core.Mapping;
 using ARIEC60870.Master.Model;
 
 namespace ARIEC60870.Desktop.ViewModels;
@@ -99,7 +100,7 @@ public sealed class RelayEventRow
     public string Protocol { get; }
     public string RelayTime { get; }
     public string DisplayRelayTime => RelayTime == "no timestamp" ? "—" : RelayTime;
-    public string Signal { get; }
+    public string Signal { get; private set; }
     public string Previous { get; }
     public string NewValue { get; }
     public string DisplayValue { get; }
@@ -128,8 +129,24 @@ public sealed class RelayEventRow
     public string QualityDetail { get; }
     public bool IsQualityInvalid { get; }
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
-    public string Mapped { get; }
+    public string Mapped { get; private set; }
     public string RawHex { get; }
+
+    /// <summary>
+    /// Re-project only the user-facing name from the active mapping. Event #,
+    /// captured source snapshot, CA/IOA/TI and original frame stay untouched.
+    /// A missing new match preserves the name recorded at observation time.
+    /// </summary>
+    public void ApplyDisplayNames(Iec10xPointDisplayIndex? names)
+    {
+        if (names is null || Protocol is not ("101" or "104")) return;
+        var match = names.Resolve(SourceEntry.CommonAddress,
+            SourceEntry.InformationObjectAddress, SourceEntry.TypeId,
+            allowNameOnly: SourceEntry.TransactionKind is not ("GI" or "Command"));
+        if (match.Point is null) return;
+        Signal = match.Point.Name;
+        Mapped = match.NameOnly ? "Name only" : "Yes";
+    }
 
     private static string ShortEventValue(Iec103RelayEventLogEntry entry, string full)
     {
