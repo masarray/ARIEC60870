@@ -125,6 +125,38 @@ public sealed class Iec101OperatorCommandEpochTests
         Assert.DoesNotContain(result.Findings, x => x.Id == "IEC101-DUAL-COMMAND-STALE-OWNER");
     }
 
+    [Fact]
+    public async Task QueuedControlCannotCrossManualAtoBPromotionOrCauseSecondSwitch()
+    {
+        var settings = Settings();
+        var options = DualOptions(settings);
+        await using var a = new SimulatedIec101Transport(options.LinkA.ApplyTo(settings));
+        await using var b = new SimulatedIec101Transport(options.LinkB.ApplyTo(settings));
+        var session = new Iec101DualLinkRedundancySession(options, a, b);
+        var queued = false;
+        session.EvidenceReceived += (_, e) =>
+        {
+            if (queued || e.Direction != FrameDirection.SlaveToMaster ||
+                e.PhysicalSource != "Link A") return;
+            queued = true;
+            session.QueueControlCommand(SingleCommand());
+            session.QueueManualFailover("promote B before dispatching queued A command");
+            session.QueueManualFailover("stale second switch must not ping-pong back to A");
+        };
+
+        var result = await session.RunForAsync(TimeSpan.FromMilliseconds(1600), CancellationToken.None);
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(queued);
+        Assert.Contains(session.FailoverJournal, x =>
+            x.Completed && x.FromLink == "Link A" && x.ToLink == "Link B");
+        Assert.DoesNotContain(session.FailoverJournal, x =>
+            x.Completed && x.FromLink == "Link B" && x.ToLink == "Link A");
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-COMMAND-STALE-OWNER");
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-STALE-FAILOVER-REQUESTS");
+        Assert.DoesNotContain(result.Events, x =>
+            x.Direction == FrameDirection.MasterToSlave && x.TypeId == 45);
+    }
+
     private static Iec60870ControlCommandRequest SingleCommand() => new()
     {
         Kind = Iec60870ControlCommandKind.SingleCommand,
