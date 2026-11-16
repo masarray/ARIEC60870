@@ -944,7 +944,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var from = _active;
         var to = _standby;
         var fromWasFailed = from.LinkState.ConsecutiveFailures >= _options.ActiveFailureThreshold
-            || from.State == Iec101RedundancyChannelState.TimeoutSuspect;
+            || from.State is Iec101RedundancyChannelState.TimeoutSuspect
+                or Iec101RedundancyChannelState.FailedLatched;
         try
         {
             SetControllerState(Iec101RedundancyControllerState.Switching, "IEC-101 failover started", $"{from.Name} → {to.Name}. Reason: {reason}.", Iec101RedundancyEventKind.FailoverStarted.ToString());
