@@ -148,6 +148,7 @@ public sealed class Iec101PerLinkTransactionEngine
             // Never promote one ambiguous response into link readiness. Consume
             // one plausible late status; a later exchange needs its own proof.
             _statusReplyMayBelongToExpiredProbe = false;
+            exchange.LateStatusQuarantined = true;
             validation = new Iec101SecondaryResponseValidation(false, false,
                 "IEC101-RX-AMBIGUOUS-LATE-FC11",
                 "Valid addressed FC11 after an earlier unanswered FC8/FC9 can be a delayed reply. " +
@@ -190,7 +191,7 @@ public sealed class Iec101PerLinkTransactionEngine
 
         if (exchange.PrimaryFunctionCode is 8 or 9 &&
             exchange.TransmitStartedAt != 0 &&
-            accepted is null)
+            accepted is null && !exchange.LateStatusQuarantined)
         {
             // Continue the guard across silent FC9 attempts until a plausible
             // late FC11 has actually been observed and rejected.
@@ -210,7 +211,8 @@ public sealed class Iec101PerLinkTransactionEngine
         if (!ReferenceEquals(_pending, exchange)) return;
         exchange.State = exchange.TransmitStartedAt != 0
             ? Iec101ExchangeState.Unknown : Iec101ExchangeState.Failed;
-        if (exchange.PrimaryFunctionCode is 8 or 9 && exchange.TransmitStartedAt != 0)
+        if (exchange.PrimaryFunctionCode is 8 or 9 &&
+            exchange.TransmitStartedAt != 0 && !exchange.LateStatusQuarantined)
             _statusReplyMayBelongToExpiredProbe = true;
         _pending = null;
     }
@@ -269,6 +271,7 @@ public sealed class Iec101PendingExchange : IDisposable
     public Iec101ExchangeState State { get; internal set; }
     public int ReadRetransmissions { get; internal set; }
     public int RejectedCandidates { get; internal set; }
+    internal bool LateStatusQuarantined { get; set; }
     internal bool RetryAuthorized { get; set; }
     public long TransmitStartedAt { get; internal set; }
     internal Iec101SecondaryResponseValidation? AcceptedValidation { get; set; }
