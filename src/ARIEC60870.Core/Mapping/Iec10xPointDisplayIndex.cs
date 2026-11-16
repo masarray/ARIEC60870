@@ -30,6 +30,10 @@ public sealed class Iec10xPointDisplayIndex
         }
     }
 
+    private static bool IsTimedCommandVariant(int expected, int observed) =>
+        expected is >= 45 and <= 51 && observed == expected + 13 ||
+        observed is >= 45 and <= 51 && expected == observed + 13;
+
     public readonly record struct Match(
         Iec10xPointMappingEntry? Point, bool NameOnly,
         bool CommonAddressMismatch, bool TypeMismatch);
@@ -59,7 +63,8 @@ public sealed class Iec10xPointDisplayIndex
                 exact = point;
                 exactCount++;
             }
-            else if (Iec10xPointTypeFamily.SameObservationFamily(point.TypeId.Value, typeId.Value))
+            else if (Iec10xPointTypeFamily.SameObservationFamily(point.TypeId.Value, typeId.Value) ||
+                     IsTimedCommandVariant(point.TypeId.Value, typeId.Value))
             {
                 family = point;
                 familyCount++;
