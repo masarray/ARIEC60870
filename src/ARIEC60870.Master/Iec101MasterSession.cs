@@ -525,33 +525,33 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             case Iec60870ControlCommandKind.DoubleCommand:
             case Iec60870ControlCommandKind.RegulatingStepCommand:
             case Iec60870ControlCommandKind.SetpointNormalizedCommand:
-            {
-                if (!Iec101ControlAsduFactory.IsIntentConsistent(request))
                 {
-                    RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-INTENT-CONFLICT",
-                        "IEC-101 command rejected: contradictory SBO intent", request.Summary,
-                        "SELECT/EXECUTE workflow and the encoded S/E bit disagree.",
-                        "Reissue from the correct command mode.");
+                    if (!Iec101ControlAsduFactory.IsIntentConsistent(request))
+                    {
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-INTENT-CONFLICT",
+                            "IEC-101 command rejected: contradictory SBO intent", request.Summary,
+                            "SELECT/EXECUTE workflow and the encoded S/E bit disagree.",
+                            "Reissue from the correct command mode.");
+                        break;
+                    }
+
+                    var asdu = Iec101ControlAsduFactory.Build(request, commandSettings);
+                    if (request.OperationMode == Iec60870ControlOperationMode.ExecuteSelected &&
+                        !_sboSelection.CanExecuteSelected(_asduDecoder.Decode(asdu), DateTime.UtcNow))
+                    {
+                        RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-EXECUTE-NOT-SELECTED",
+                            "IEC-101 SBO execute blocked before physical transmission", request.Summary,
+                            "No matching positive SELECT ACTCON for the current COM epoch and CA/OA/IOA/TI/value/qualifier, or selection expired.",
+                            "Send SELECT, verify a matching positive ACTCON, then issue EXECUTE on this same link.");
+                        break;
+                    }
+
+                    await SendVariableAndReceiveAsync(request.Summary, "Command", asdu,
+                        "Manual command dock IEC-101 control", cancellationToken).ConfigureAwait(false);
+                    if (_acd)
+                        await DrainClass1Async("IEC-101 command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
                     break;
                 }
-
-                var asdu = Iec101ControlAsduFactory.Build(request, commandSettings);
-                if (request.OperationMode == Iec60870ControlOperationMode.ExecuteSelected &&
-                    !_sboSelection.CanExecuteSelected(_asduDecoder.Decode(asdu), DateTime.UtcNow))
-                {
-                    RaiseFinding(FindingSeverity.Warning, "IEC101-SBO-EXECUTE-NOT-SELECTED",
-                        "IEC-101 SBO execute blocked before physical transmission", request.Summary,
-                        "No matching positive SELECT ACTCON for the current COM epoch and CA/OA/IOA/TI/value/qualifier, or selection expired.",
-                        "Send SELECT, verify a matching positive ACTCON, then issue EXECUTE on this same link.");
-                    break;
-                }
-
-                await SendVariableAndReceiveAsync(request.Summary, "Command", asdu,
-                    "Manual command dock IEC-101 control", cancellationToken).ConfigureAwait(false);
-                if (_acd)
-                    await DrainClass1Async("IEC-101 command feedback drain", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
-                break;
-            }
         }
 
         return true;
