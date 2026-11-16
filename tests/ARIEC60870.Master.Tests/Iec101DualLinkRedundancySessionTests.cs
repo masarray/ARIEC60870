@@ -125,8 +125,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.DoesNotContain(result.Findings, x => x.Id == "IEC101-DUAL-GI-NEGATIVE-CONFIRMATION");
         Assert.DoesNotContain(result.Events, x => x.Summary == "IEC-101 group interrogation fallback started");
         Assert.Contains(result.Events, x => x.PollingReason == "IEC101-RX-UNEXPECTED-FUNCTION");
-        Assert.Empty(valueEvents);
-        Assert.Equal(0, session.CreateSnapshot().ApplicationImageObjectCount);
+        // Standby Link B may legitimately emit unrelated spontaneous observations.
+        // Only the out-of-context Link A group objects must remain absent.
+        Assert.DoesNotContain(valueEvents, x => x.PhysicalSource == "Link A" &&
+            (x.InformationObjectAddress == 120 || x.InformationObjectAddress == 121));
     }
 
     [Fact]
@@ -659,7 +661,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
                         return;
                     }
 
-                    await EnqueueAsync(UserData(NegativeInterrogationConfirmation(asdu.CommonAddress, qoi), acd: false), cancellationToken).ConfigureAwait(false);
+                    // The primary FC3 GI first requires a link-layer FC0 confirmation.
+                    // A direct secondary FC8 application negative here is out of context
+                    // and would incorrectly suppress later Class 2 CA-learning traffic.
+                    await EnqueueAsync(FixedSecondary(functionCode: 0, acd: false), cancellationToken).ConfigureAwait(false);
                     return;
                 }
             }
