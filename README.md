@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
 
@@ -17,12 +17,12 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public stable** | **v3.6.10** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-win-x64.zip) | Event → Original Frame forensic evidence, 31 bay-aware IEC-101/104 signal labels, bounded 1200-bps FT1.2 reception and tested Windows updater |
-| **Previous stable** | **v3.6.9** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.9) | Introduced operator-approved installed Windows self-updater |
+| **Latest public stable** | **v3.6.11** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-win-x64.zip) | IEC-101 service-matched replies, guarded E5/FC11/DFC handling, plus v3.6.10 forensic GUI and 1200-bps receive |
+| **Previous stable** | **v3.6.10** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) | Event Journal forensic evidence, 31-point bay-aware example and bounded 1200-bps FT1.2 receive |
 
 **ArSee** is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.
 
-**v3.6.10 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) includes SPDX SBOM; [exact-source Windows package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43436696449) records full tests, WPF acceptance and provenance.
+**v3.6.11 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11) includes SPDX SBOM; [exact-source Windows package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43795901608) records full tests, WPF acceptance and provenance.
 
 > GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. The version-pinned links above point to the complete public assets. Draft engine PR #145 is not included.
 
@@ -32,7 +32,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.10 package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43436696449) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
+*Illustrative product media. The [v3.6.11 package workflow](https://github.com/masarray/ARIEC60870/actions/runs/43795901608) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Supported engineering workflows
 
@@ -46,20 +46,22 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-## What's improved in stable v3.6.10
+## What's improved in stable v3.6.11
+
+- **IEC-101 service-matched replies:** delayed FC11 status cannot complete another request; E5 cannot verify first link identity or FC9; unsupported A2 is rejected, and busy DFC prevents A/B standby promotion. See [PR #208](https://github.com/masarray/ARIEC60870/pull/208).
 
 - **Event Journal → Original Frame:** context-aware live-follow, historical paging and navigation to captured TX/RX frames. Missing original TX is reported as incomplete evidence rather than invented.
 - **Bay-aware SCADA labels:** the **bundled 31-point utility I/O example** distinguishes FEEDER, KOPEL, TRAFO CB/Local-Remote, relevant commands, busbar voltage and RTU alarms. Invalid CA/IOA/IEC Type ID families fail closed; existing user-owned profiles are **not automatically overwritten**.
 - **IEC-101 at 1,200 bps:** bounded baud-aware FT1.2 frame completion after a physical start, persistent RX framing across polls per COM epoch, and regression tests for incomplete telegrams and ambiguous E5. This does **not** prove physical RTU interoperability.
-- **Windows upgrade assurance:** operator-approved updates for the **installed** edition (portable ZIP does not self-replace), qualified by native Windows updater FAT, 1,032 passing xUnit tests and real-WPF acceptance on the [exact source commit](https://github.com/masarray/ARIEC60870/actions/runs/43435781986).
+- **Windows upgrade assurance:** operator-approved updates for the **installed** edition (portable ZIP does not self-replace), qualified by native Windows updater FAT, full xUnit regressions and real-WPF acceptance on the [exact source commit](https://github.com/masarray/ARIEC60870/actions/runs/43794902788).
 
-Read [v3.6.10 release notes](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10) and [package / provenance results](https://github.com/masarray/ARIEC60870/actions/runs/43436696449). The [shared IEC-101 transaction core draft #145](https://github.com/masarray/ARIEC60870/pull/145) remains **unmerged**. **FIELD FAT PENDING:** physical SICAM A8000 1,200-bps SOE 60/500/2,000 batches, GI/SBO lifecycle, COM recovery and A/B failover.
+Read [v3.6.11 release notes](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11) and [package / provenance results](https://github.com/masarray/ARIEC60870/actions/runs/43795901608). The [shared IEC-101 transaction core draft #145](https://github.com/masarray/ARIEC60870/pull/145) remains **unmerged**. **FIELD FAT PENDING:** physical SICAM A8000 1,200-bps SOE 60/500/2,000 batches, GI/SBO lifecycle, COM recovery and A/B failover.
 
 An acknowledged frame or GI termination is **not** proof that every configured point was received or that a physical control operated.
 
 ## Five-minute first run
 
-1. [Download the v3.6.10 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/ARIEC60870-v3.6.10-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.10/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.11 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/ARIEC60870-v3.6.11-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.11/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
@@ -69,7 +71,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 ## Scope and safety boundaries
 
-- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** [Draft PR #145](https://github.com/masarray/ARIEC60870/pull/145) shared transaction/FCB and dual-link hardening is **excluded** from v3.6.10; COM recovery, GI/SBO evidence and 1,200-bps SOE FIFO still need physical FAT. Simulated CI is not a wired RTU pass.
+- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** [Draft PR #145](https://github.com/masarray/ARIEC60870/pull/145) shared transaction/FCB and dual-link hardening is **excluded** from v3.6.11; COM recovery, GI/SBO evidence and 1,200-bps SOE FIFO still need physical FAT. Simulated CI is not a wired RTU pass.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
 - ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
