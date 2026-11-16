@@ -22,6 +22,8 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 **ArSee** is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.
 
+**Upcoming v3.6.13 source (not yet published):** `master` contains subsequent IEC-101 single/A/B reliability improvements, source-qualified GI/SBO, safer SOE/Signal List evidence and IEC-104 GI correlation (PRs #219–#230). The download links above remain on **published stable v3.6.12** until a distinct v3.6.13 package passes exact-source Windows updater FAT, integrity/provenance and release gates. See [v3.6.13 release preparation](docs/archive/release-notes/RELEASE_NOTES_v3.6.13.md). The historic draft #145 was **not bulk merged**. Physical SICAM/multi-vendor FAT remains separate.
+
 **v3.6.12 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) includes SPDX SBOM; [exact-source Windows package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/43802516487) records full tests, WPF acceptance and provenance.
 
 > GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. The version-pinned links above point to the complete public assets. Draft engine PR #145 is not included.

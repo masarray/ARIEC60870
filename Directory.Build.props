@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.12</Version>
-    <AssemblyVersion>3.6.12.0</AssemblyVersion>
-    <FileVersion>3.6.12.0</FileVersion>
-    <InformationalVersion>3.6.12+mapped-event-value-trace-parity</InformationalVersion>
+    <Version>3.6.13</Version>
+    <AssemblyVersion>3.6.13.0</AssemblyVersion>
+    <FileVersion>3.6.13.0</FileVersion>
+    <InformationalVersion>3.6.13+iec101-reliability-iec104-gi-evidence</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Evidence Analyzer</Product>
