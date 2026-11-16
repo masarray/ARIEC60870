@@ -1,3 +1,23 @@
+## [3.6.13] - Release source prepared 2026-11-16 (not published)
+
+### Source-qualified IEC-101 Master reliability (post-v3.6.12)
+- Align configured GI with observed CA, isolate multiple-station ambiguity, preserve RTU ACD/Class 1 event-drain fairness and Class 2 progress (#219).
+- Admit IEC-101 operator controls through bounded, verified physical-owner/epoch queues and shared per-link FCB/transaction authority (#220, #221).
+- Restore single and dual A/B physical COM ports after actual driver failures with bounded retries and new owner proofs, without replaying ambiguous mutating commands or conflating DFC with COM loss (#222, #223).
+- Quarantine delayed identical FC11 status after ambiguous timeout (#224). Require the actual source/CA/OA/QOI GI activation, positive ACTCON and matching ACTTERM for end-of-GI proof (#225).
+- Bind SBO execute admission to the current selection and command-owner evidence (#226). Tighten feedback and target data correlation, including IEC-104 association-scoped command proof (#227, #228). No ACTCON/ACTTERM alone is presented as physical breaker operation.
+
+### Accurate signal names, SOE accounting and bounded evidence
+- Preserve the verified FEEDER CB STATUS mapping for CA 105, IOA 16712689, TI31, with carefully limited read-only, source-qualified CA and compatible-Type aliases. Conflicting stations are left as raw IOA rather than guessed names, including when opening an offline `.ariec` capture (#229).
+- Count accepted IEC-101 spontaneous digital **information objects** (including multiple IOAs in one ASDU) separately from per-frame/per-ASDU counters; synthetic 60/500/2,000-event regression does not prove external RTU SOE completeness (#229).
+- Use bounded O(1) rolling Master report evidence for IEC-101 single/A/B and IEC-104. Retention eviction is explicitly counted; incoming live event callbacks remain intact (#229, #230).
+- Reject IEC-104 false GI termination/counter promotion from a stray, negative, TEST, wrong-CA/OA/QOI or pre-ACTCON TI100/COT10. Reuse the proven GI lifecycle tracker per TCP association instead of creating another state machine (#230).
+
+### Release qualification boundary
+- These are source changes **beyond the published v3.6.12**. Next release requires exact-commit Windows Release/xUnit/protocol smoke/WPF executable acceptance, CodeQL, installer upgrade and native updater FAT, self-contained ZIP and Inno installer, checksums, SPDX SBOM and provenance. Never reuse a v3.6.12 package as new-source evidence.
+- Field validation remains separate: real IEC-101 1200-bps SICAM A8000 CP8050/CI8551 60/500/2,000 SOE FIFO parity, COM unplug/replug and dual A/B, controls with actual feedback, independent IEC-103 and multi-vendor IEC-104. No universal conformance certification or signed binary is claimed.
+- Draft #145 remains **unmerged**; only reviewed independent hardening PRs #219–#230 landed. Existing user-owned Signal Lists are not overwritten.
+
 ## [3.6.12] - 2026-11-16
 
 ### Profile-mapped signal names across IEC-101/104 workspaces
