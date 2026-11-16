@@ -84,6 +84,25 @@ public sealed class Iec101SboSelectionAuthorityTests
     }
 
     [Fact]
+    public void CancellationTxRevokesPriorPositiveSelectWithoutWaitingForDeactcon()
+    {
+        var now = DateTime.UtcNow;
+        var authority = new Iec101SboSelectionAuthority();
+        authority.ObserveTransmitted(Command(6, select: true), now);
+        authority.ObserveReceived(Command(7, select: true));
+        Assert.True(authority.CanExecuteSelected(Command(6, select: false), now.AddSeconds(1)));
+
+        authority.ObserveTransmitted(Command(8, select: true), now.AddSeconds(1));
+        Assert.False(authority.CanExecuteSelected(Command(6, select: false), now.AddSeconds(2)));
+        authority.ObserveReceived(Command(9, select: true));
+        Assert.False(authority.CanExecuteSelected(Command(6, select: false), now.AddSeconds(2)));
+
+        authority.ObserveTransmitted(Command(6, select: true), now.AddSeconds(3));
+        authority.ObserveReceived(Command(7, select: true));
+        Assert.True(authority.CanExecuteSelected(Command(6, select: false), now.AddSeconds(4)));
+    }
+
+    [Fact]
     public void AAndBHaveIndependentAuthoritativeSelection()
     {
         var now = DateTime.UtcNow;

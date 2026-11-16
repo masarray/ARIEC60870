@@ -39,6 +39,32 @@ The public stable v3.6.12 is not retroactively changed by this source work.
 Implementation details and test boundaries:
 [Stage 7A SBO authority](IEC101_STAGE7A_SBO_AUTHORITY_20261116.md).
 
+## IEC-101/104 command evidence — Stage 7B (logical feedback and exact response)
+
+Forensic control cases use the same canonical decoded command-element identity as
+the IEC-101 pre-TX SBO authority, not an English target string. Command reply
+pairing requires exact TI, CA, OA, IOA, command element (including QU/QL) and
+the observed SELECT/EXECUTE phase. Only the protocol S/E bit is normalized.
+A differing qualifier or setpoint payload cannot silently become ACTCON.
+
+RTU process feedback is mapped by engineer-approved feedback IOA and physical
+source / IEC-101 link. Digital values must be interpreted according to their
+**own** information type: SPI 0=OFF, 1=ON; DPI 1=OFF, 2=ON; DPI 0/3 have no
+definite boolean meaning. A Double Command DCS=1 (OFF) must never be treated as
+equal to SPI=1 (ON). Missing IEC-101 link identity, invalid quality and
+shared feedback matching multiple active controls cannot produce an unambiguous
+feedback match. Unexpected COT9 is incomplete unless preceded by matching
+Master COT8. Pending mismatch evidence remains visible after ACTTERM.
+
+For IEC-101 runtime safety, successful physical COT8 deactivation TX also
+revokes prior selected-command authority immediately; later ACTCON/DEACTCON
+cannot resurrect the cancelled SELECT. This milestone updates observation
+logic and cancellation gating without issuing extra TX, introducing polling
+pressure, adding UI modes or implying independently verified switchgear travel.
+
+See [Stage 7B casebook evidence verification](IEC10X_STAGE7B_COMMAND_EVIDENCE_20261116.md).
+Unverified RTU serial field FAT and the public stable release remain separate.
+
 ## Protocol-Aware UX Contract
 
 The desktop UI must never expose irrelevant fields for the selected protocol.

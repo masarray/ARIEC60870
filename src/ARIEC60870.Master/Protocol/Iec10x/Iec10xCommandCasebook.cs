@@ -28,7 +28,8 @@ public sealed class Iec10xCommandCasebook
         public required CommandKey Key { get; init; }
         public required CommandCase Current { get; set; }
         public required string Target { get; init; }
-        public required int? ExpectedDigital { get; init; }
+        public required string WireIdentity { get; init; }
+        public required bool? ExpectedOn { get; init; }
         public int? FeedbackIoa { get; set; }
         public bool SelectAccepted { get; set; }
         public bool Executed { get; set; }
@@ -37,6 +38,8 @@ public sealed class Iec10xCommandCasebook
         public bool FeedbackMatched { get; set; }
         public bool Ambiguous { get; set; }
         public bool Negative { get; set; }
+        public bool FeedbackMismatchSeen { get; set; }
+        public bool CancelRequested { get; set; }
         public bool LastRequestSelect { get; set; }
     }
 
@@ -133,7 +136,8 @@ public sealed class Iec10xCommandCasebook
         if (item.Frame?.IsChecksumValid == false ||
             item.AsduDetails?.Issues.Count > 0 || item.AsduDetails?.ObjectCount is > 1 or 0 ||
             string.Equals(item.Category, "RX Warning", StringComparison.OrdinalIgnoreCase) ||
-            cot.Test)
+            cot.Test ||
+            !Iec10xCommandWireIdentity.TryCreate(item.AsduDetails, command.Select.Value, out var wireIdentity))
             return false;
 
         var key = new CommandKey(item.ProtocolMode, Normalize(item.PhysicalSource),
@@ -150,6 +154,15 @@ public sealed class Iec10xCommandCasebook
             if (cot.Code == 8)
             {
                 if (state is null) return false;
+                if (!string.Equals(state.WireIdentity, wireIdentity, StringComparison.Ordinal))
+                {
+                    state.Ambiguous = true;
+                    Update(state, item, "CANCEL target mismatch",
+                        "Deactivation request changes command value/qualifier; no unique cancellation pairing.",
+                        "Ambiguous", "Inspect original SELECT, CANCEL and RTU reply bytes.");
+                    return true;
+                }
+                state.CancelRequested = true;
                 Update(state, item, "CANCEL request", "Master requested deactivation; wait for RTU response.",
                     "Cancellation requested", "Cancellation is not execution.");
                 return true;
@@ -169,15 +182,24 @@ public sealed class Iec10xCommandCasebook
                 }
                 var c = NewCase(item, key, target, feedbackIoa, select ? "SELECT sent" : "EXECUTE sent",
                     "Waiting for source-matched RTU ACTCON; link ACK is not application acceptance.");
-                state = new State { Key = key, Current = c, Target = target,
-                    ExpectedDigital = ExpectedDigitalState(command), FeedbackIoa = feedbackIoa,
-                    LastRequestSelect = select, Executed = !select };
+                state = new State
+                {
+                    Key = key,
+                    Current = c,
+                    Target = target,
+                    WireIdentity = wireIdentity,
+                    ExpectedOn = ExpectedLogicalOn(command),
+                    FeedbackIoa = feedbackIoa,
+                    LastRequestSelect = select,
+                    Executed = !select
+                };
                 _active.Add(key, state);
                 return true;
             }
 
-            if (state.Ambiguous || state.Executed || !state.LastRequestSelect ||
-                !state.SelectAccepted || select || !string.Equals(state.Target, target, StringComparison.Ordinal))
+            if (state.Ambiguous || state.CancelRequested || state.Executed || !state.LastRequestSelect ||
+                !state.SelectAccepted || select || !string.Equals(state.Target, target, StringComparison.Ordinal) ||
+                !string.Equals(state.WireIdentity, wireIdentity, StringComparison.Ordinal))
             {
                 state.Ambiguous = true;
                 Update(state, item, phase + " overlapping", "Unresolved/repeated or changed-target Master request.",
@@ -216,7 +238,8 @@ public sealed class Iec10xCommandCasebook
         }
 
         if (state.Ambiguous || select != state.LastRequestSelect ||
-            !string.Equals(target, state.Target, StringComparison.Ordinal))
+            !string.Equals(target, state.Target, StringComparison.Ordinal) ||
+            !string.Equals(wireIdentity, state.WireIdentity, StringComparison.Ordinal))
         {
             state.Ambiguous = true;
             Update(state, item, "RTU reply ambiguous", "Reply echo or phase mismatches Master request.",
@@ -235,7 +258,14 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Code == 9)
         {
-            Update(state, item, "RTU DEACTCON", "Deactivation confirmation, not control execution.",
+            if (!state.CancelRequested)
+            {
+                Update(state, item, "Unsolicited RTU DEACTCON",
+                    "No matching Master COT=8 deactivation request observed in this case.",
+                    "Observed incomplete", "COT=9 alone cannot prove this command was cancelled.");
+                return true;
+            }
+            Update(state, item, "RTU DEACTCON", "Deactivation confirmation matched a Master COT=8 request.",
                 "Cancelled", "No physical operation proved.");
             _active.Remove(key);
             return true;
@@ -243,6 +273,13 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Code == 7)
         {
+            if (state.CancelRequested)
+            {
+                Update(state, item, "ACTCON during cancellation",
+                    "Positive activation echo arrived after a deactivation request; do not authorize new operation.",
+                    "Observed incomplete", "Await exact DEACTCON or inspect full source order.");
+                return true;
+            }
             if (select) state.SelectAccepted = true;
             else state.ExecuteAccepted = true;
             Update(state, item, select ? "SELECT ACTCON" : "EXECUTE ACTCON",
@@ -263,7 +300,8 @@ public sealed class Iec10xCommandCasebook
             }
             state.Terminated = true;
             Update(state, item, "EXECUTE ACTTERM", "Application activation ended.",
-                state.FeedbackMatched ? "Feedback matched" : "ACTTERM observed",
+                state.FeedbackMatched ? "Feedback matched" :
+                    state.FeedbackMismatchSeen ? "Feedback mismatch" : "ACTTERM observed",
                 state.FeedbackMatched
                     ? "Source-matched feedback reached expected digital state; this still does not independently prove physical equipment."
                     : "No verified target feedback yet; physical state remains unverified.");
@@ -280,8 +318,11 @@ public sealed class Iec10xCommandCasebook
         foreach (var state in _active.Values)
         {
             if (state.Current.Status is "Ambiguous" or "RTU rejected" or "Cancelled") continue;
-            Replace(state, state.Current with { Status = "Observed incomplete",
-                Interpretation = "Observation window ended without full source-matched command and target feedback evidence. Not an RTU failure verdict." });
+            Replace(state, state.Current with
+            {
+                Status = "Observed incomplete",
+                Interpretation = "Observation window ended without full source-matched command and target feedback evidence. Not an RTU failure verdict."
+            });
         }
         _active.Clear();
     }
@@ -289,55 +330,97 @@ public sealed class Iec10xCommandCasebook
     private bool ObserveDigitalFeedback(Iec103MasterEvidenceEvent item)
     {
         if (item.TypeId is not (1 or 3 or 30 or 31) ||
-            item.AsduDetails is not { Issues: { Count: 0 } } asdu || asdu.CauseDetails?.Test == true ||
+            item.AsduDetails is not { IsHeaderValid: true, Issues: { Count: 0 } } asdu ||
+            !item.IsRelayValue || asdu.CauseDetails?.Test == true ||
             item.Frame?.IsChecksumValid == false || item.CauseDetails?.Test == true)
             return false;
 
-        var matched = false;
-        foreach (var state in _active.Values.ToArray())
+        // Candidate ownership must be unique BEFORE observing the process value.
+        // The same mapped IOA can appear in more than one active control case;
+        // a single RTU feedback telegram is not proof of both commands.
+        var candidates = _active.Values
+            .Where(state => state.Executed && state.ExecuteAccepted && !state.Ambiguous &&
+                state.FeedbackIoa.HasValue && state.ExpectedOn.HasValue &&
+                state.Key.Protocol == item.ProtocolMode &&
+                string.Equals(state.Key.Source, Normalize(item.PhysicalSource), StringComparison.Ordinal) &&
+                state.Key.Ca == asdu.CommonAddress &&
+                (item.ProtocolMode != Iec60870ProtocolMode.Iec101 || state.Key.Link == item.LinkAddress))
+            .Select(state => (State: state, Object: asdu.Objects.FirstOrDefault(
+                obj => obj.InformationObjectAddress == state.FeedbackIoa!.Value)))
+            .Where(candidate => candidate.Object is
+            {
+                Issues.Count: 0,
+                RawBytes.Count: > 0,
+                QualityDetails: { Invalid: false, Blocked: not true, Substituted: not true, NotTopical: not true }
+            })
+            .ToArray();
+
+        if (candidates.Length == 0) return false;
+
+        // Ambiguity is per mapped process object, not per received ASDU.
+        // A legitimate multi-object DPI frame may carry independent feedback
+        // for separate controls in a single physical response.
+        foreach (var group in candidates.GroupBy(candidate => candidate.State.FeedbackIoa!.Value))
         {
-            if (!state.Executed || !state.ExecuteAccepted || state.Ambiguous ||
-                !state.FeedbackIoa.HasValue || !state.ExpectedDigital.HasValue ||
-                state.Key.Protocol != item.ProtocolMode ||
-                !string.Equals(state.Key.Source, Normalize(item.PhysicalSource), StringComparison.Ordinal) ||
-                state.Key.Ca != asdu.CommonAddress ||
-                (item.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
-                 state.Key.Link.HasValue && item.LinkAddress.HasValue &&
-                 state.Key.Link != item.LinkAddress))
+            if (group.Count() > 1)
+            {
+                foreach (var candidate in group)
+                {
+                    candidate.State.Ambiguous = true;
+                    Update(candidate.State, item, "Shared feedback ambiguous",
+                        $"Mapped feedback IOA {candidate.State.FeedbackIoa} matches multiple active command cases.",
+                        "Ambiguous", "One RTU process value cannot uniquely verify multiple pending commands.");
+                }
                 continue;
+            }
 
-            // All objects in SQ=0 and SQ=1 use the canonical decoded per-object IOA.
-            var obj = asdu.Objects.FirstOrDefault(x => x.InformationObjectAddress == state.FeedbackIoa.Value);
-            if (obj is null) continue;
-            var q = obj.QualityDetails;
-            if (q is not { Invalid: false } || q.Blocked == true || q.Substituted == true ||
-                q.NotTopical == true || obj.Issues.Count > 0 || obj.RawBytes.Count == 0)
-                continue;
-
-            var observed = item.TypeId is 1 or 30 ? obj.RawBytes[0] & 1 : obj.RawBytes[0] & 3;
-            var expected = state.ExpectedDigital.Value;
-            var agrees = observed == expected;
-            state.FeedbackMatched |= agrees;
-            Update(state, item, agrees ? "Feedback matched" : "Feedback mismatch",
-                $"Mapped IOA {state.FeedbackIoa}: observed digital code={observed}, expected={expected}, quality valid.",
-                agrees ? state.Terminated ? "Feedback matched" : "Feedback matched · ACTTERM pending" : "Feedback mismatch",
-                agrees
-                    ? "Matching observed RTU digital state; not independently verified physical switchgear position."
-                    : "The mapped feedback is not at the requested target; investigate relay/RTU/plant state.");
-            if (agrees && state.Terminated) _active.Remove(state.Key);
-            matched = true;
+            var candidateForObject = group.Single();
+            ApplyDigitalFeedback(candidateForObject.State, candidateForObject.Object!, item);
         }
-        return matched;
+        return true;
     }
 
-    private static int? ExpectedDigitalState(Iec10xCommandDetails command)
+    private void ApplyDigitalFeedback(State state, Iec10xInformationObject obj, Iec103MasterEvidenceEvent item)
+    {
+        var digitalCode = item.TypeId is 1 or 30 ? obj.RawBytes[0] & 1 : obj.RawBytes[0] & 3;
+        // IEC 60870 SPI 0=OFF/1=ON; DPI 1=OFF/2=ON (0/3 are indeterminate).
+        // Command DCS 1=OFF/2=ON: the raw codes are NOT interchangeable.
+        bool? observedOn = item.TypeId switch
+        {
+            1 or 30 => digitalCode == 1,
+            3 or 31 => digitalCode switch { 1 => false, 2 => true, _ => null },
+            _ => null
+        };
+        if (!observedOn.HasValue)
+        {
+            Update(state, item, "Feedback indeterminate",
+                $"Mapped IOA {state.FeedbackIoa}: DPI={digitalCode} is intermediate/indeterminate, not ON/OFF.",
+                "Feedback indeterminate", "The RTU did not report a definite digital target state.");
+            return;
+        }
+
+        var agrees = observedOn.Value == state.ExpectedOn!.Value;
+        state.FeedbackMatched |= agrees;
+        if (!agrees) state.FeedbackMismatchSeen = true;
+        Update(state, item, agrees ? "Feedback matched" : "Feedback mismatch",
+            $"Mapped IOA {state.FeedbackIoa}: RTU-reported {(observedOn.Value ? "ON" : "OFF")} " +
+            $"(raw code={digitalCode}), expected {(state.ExpectedOn.Value ? "ON" : "OFF")}, quality valid.",
+            agrees ? state.Terminated ? "Feedback matched" : "Feedback matched · ACTTERM pending"
+                   : "Feedback mismatch",
+            agrees
+                ? "Matching observed RTU digital state; not independently verified physical switchgear position."
+                : "The mapped feedback is not at the requested target; investigate relay/RTU/plant state.");
+        if (agrees && state.Terminated) _active.Remove(state.Key);
+    }
+
+    private static bool? ExpectedLogicalOn(Iec10xCommandDetails command)
     {
         if (!command.QualifierRaw.HasValue) return null;
         var bits = command.QualifierRaw.Value;
         return command.TypeId switch
         {
-            45 or 58 => bits & 1,
-            46 or 59 when (bits & 3) is 1 or 2 => bits & 3,
+            45 or 58 => (bits & 1) == 1,
+            46 or 59 => (bits & 3) switch { 1 => false, 2 => true, _ => null },
             _ => null
         };
     }
@@ -363,9 +446,14 @@ public sealed class Iec10xCommandCasebook
         var stages = !didTruncate
             ? current.Stages.Append(Stage(item, phase, explanation)).ToArray()
             : current.Stages.Skip(1).Append(Stage(item, phase, explanation)).ToArray();
-        Replace(state, current with { Status = status, Interpretation = meaning,
-            LastSequence = item.SequenceNumber, Stages = stages,
-            StagesTruncated = current.StagesTruncated || didTruncate });
+        Replace(state, current with
+        {
+            Status = status,
+            Interpretation = meaning,
+            LastSequence = item.SequenceNumber,
+            Stages = stages,
+            StagesTruncated = current.StagesTruncated || didTruncate
+        });
     }
 
     private void Replace(State state, CommandCase next)

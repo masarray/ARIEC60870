@@ -13,11 +13,12 @@ public sealed class Iec10xCommandCasebookTests
     private static long _sequence;
     private static Iec103MasterEvidenceEvent Command(int cot = 6, bool select = true,
         bool rtu = false, bool negative = false, string source = "A", int ca = 5,
-        int ioa = 123, int code = 2, int link = 105, byte type = 46)
+        int ioa = 123, int code = 2, int link = 105, byte type = 46,
+        int qualifier = 0, int oa = 0, bool test = false)
     {
-        var qualifier = (byte)((select ? 0x80 : 0) | code);
-        var raw = new byte[] { type, 1, (byte)(cot | (negative ? 0x40 : 0)), 0,
-            (byte)ca, (byte)(ca >> 8), (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), qualifier };
+        var qoc = (byte)((select ? 0x80 : 0) | (code & 3) | ((qualifier & 31) << 2));
+        var raw = new byte[] { type, 1, (byte)(cot | (negative ? 0x40 : 0) | (test ? 0x80 : 0)), (byte)oa,
+            (byte)ca, (byte)(ca >> 8), (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), qoc };
         var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw);
         return new Iec103MasterEvidenceEvent
         {
@@ -25,15 +26,20 @@ public sealed class Iec10xCommandCasebookTests
             TimestampUtc = DateTime.UtcNow,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             Direction = rtu ? FrameDirection.SlaveToMaster : FrameDirection.MasterToSlave,
-            PhysicalSource = source, LinkAddress = link, CommonAddressNumber = ca,
-            InformationObjectAddress = ioa, TypeId = type, CauseDetails = asdu.CauseDetails,
-            CommandDetails = asdu.CommandDetails, AsduDetails = asdu,
+            PhysicalSource = source,
+            LinkAddress = link,
+            CommonAddressNumber = ca,
+            InformationObjectAddress = ioa,
+            TypeId = type,
+            CauseDetails = asdu.CauseDetails,
+            CommandDetails = asdu.CommandDetails,
+            AsduDetails = asdu,
             RawHex = Convert.ToHexString(raw)
         };
     }
 
     private static Iec103MasterEvidenceEvent Feedback(int code = 2, int quality = 0,
-        string source = "A", int ca = 5, int ioa = 201, byte type = 3, int? link = null)
+        string source = "A", int ca = 5, int ioa = 201, byte type = 3, int? link = 105)
     {
         var raw = new byte[] { type, 1, 3, 0, (byte)ca, 0,
             (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16), (byte)(code | quality) };
@@ -42,11 +48,46 @@ public sealed class Iec10xCommandCasebookTests
         {
             SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
             TimestampUtc = DateTime.UtcNow,
-            ProtocolMode = Iec60870ProtocolMode.Iec101, Direction = FrameDirection.SlaveToMaster,
-            PhysicalSource = source, LinkAddress = link,
-            CommonAddressNumber = ca, InformationObjectAddress = ioa,
-            TypeId = type, CauseDetails = asdu.CauseDetails, AsduDetails = asdu, IsRelayValue = true,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = source,
+            LinkAddress = link,
+            CommonAddressNumber = ca,
+            InformationObjectAddress = ioa,
+            TypeId = type,
+            CauseDetails = asdu.CauseDetails,
+            AsduDetails = asdu,
+            IsRelayValue = true,
             RawHex = Convert.ToHexString(raw)
+        };
+    }
+
+    private static Iec103MasterEvidenceEvent FeedbackMany(params (int Ioa, int Code)[] values)
+    {
+        var raw = new List<byte> { 3, (byte)values.Length, 3, 0, 5, 0 };
+        foreach (var (ioa, code) in values)
+        {
+            raw.Add((byte)ioa);
+            raw.Add((byte)(ioa >> 8));
+            raw.Add((byte)(ioa >> 16));
+            raw.Add((byte)code);
+        }
+
+        var asdu = new Iec10xAsduDecoder(2, 2, 3).Decode(raw.ToArray());
+        return new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = System.Threading.Interlocked.Increment(ref _sequence),
+            TimestampUtc = DateTime.UtcNow,
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = "A",
+            LinkAddress = 105,
+            CommonAddressNumber = 5,
+            TypeId = 3,
+            CauseDetails = asdu.CauseDetails,
+            AsduDetails = asdu,
+            IsRelayValue = true,
+            RawHex = Convert.ToHexString(raw.ToArray())
         };
     }
 
@@ -69,6 +110,140 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal(0, b.ActiveCount);
         Assert.Contains("HEX:", c.ToEvidenceText());
         Assert.Contains("Source: A", c.ToEvidenceText());
+    }
+
+    [Fact]
+    public void DoubleOpenDcsOneMustNotAcceptSinglePointOnSpiOne()
+    {
+        var b = new Iec10xCommandCasebook();
+        Assert.True(b.Observe(Command(select: false, code: 1), feedbackIoa: 201));
+        Assert.True(b.Observe(Command(cot: 7, select: false, code: 1, rtu: true)));
+        Assert.True(b.Observe(Feedback(code: 1, type: 1))); // SPI=1 means ON, DCS=1 means OFF.
+        Assert.Equal("Feedback mismatch", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback(code: 0, type: 1))); // SPI=0 correctly means OFF.
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Command(cot: 10, select: false, code: 1, rtu: true)));
+        Assert.Equal("Feedback matched", Assert.Single(b.Snapshot()).Status);
+        Assert.Equal(0, b.ActiveCount);
+    }
+
+    [Theory]
+    [InlineData((byte)1, 1)]
+    [InlineData((byte)3, 2)]
+    public void DoubleCloseUsesLogicalOnAcrossSpiAndDpiFeedback(byte feedbackType, int feedbackCode)
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, code: 2, rtu: true));
+        Assert.True(b.Observe(Feedback(code: feedbackCode, type: feedbackType)));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 2)]
+    public void SingleCommandUsesDpiLogicalTargetNotNumericalCode(int commandCode, int dpiCode)
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, type: 45, code: commandCode), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, type: 45, code: commandCode, rtu: true));
+        Assert.True(b.Observe(Feedback(code: dpiCode, type: 3)));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public void DpiIntermediateAndIndeterminateNeverConfirmTarget(int dpiCode)
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, rtu: true));
+        Assert.True(b.Observe(Feedback(code: dpiCode)));
+        Assert.Equal("Feedback indeterminate", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Command(cot: 10, select: false, rtu: true)));
+        Assert.NotEqual("Feedback matched", Assert.Single(b.Snapshot()).Status);
+        Assert.Equal(1, b.ActiveCount);
+    }
+
+    [Fact]
+    public void QualifierEchoMismatchWithSameTargetCannotProduceAcceptedSelect()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(qualifier: 0));
+        Assert.True(b.Observe(Command(cot: 7, rtu: true, qualifier: 3)));
+        Assert.Equal("Ambiguous", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Command(select: false)));
+        Assert.Equal("Ambiguous", Assert.Single(b.Snapshot()).Status);
+        Assert.DoesNotContain(b.Snapshot(), c => c.Status == "Feedback matched");
+    }
+
+    [Fact]
+    public void OneMappedRtuFeedbackCannotCompleteTwoActiveCommands()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, ioa: 123), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, ioa: 123, rtu: true));
+        b.Observe(Command(select: false, ioa: 124), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, ioa: 124, rtu: true));
+        Assert.True(b.Observe(Feedback()));
+        Assert.Equal(2, b.ActiveCount);
+        Assert.All(b.Snapshot(), c => Assert.Equal("Ambiguous", c.Status));
+        Assert.All(b.Snapshot(), c => Assert.Contains("multiple", c.Interpretation));
+    }
+
+    [Fact]
+    public void MultiObjectDpiFeedbackCanResolveIndependentCommandMappings()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, ioa: 123, code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, ioa: 123, code: 2, rtu: true));
+        b.Observe(Command(select: false, ioa: 124, code: 1), feedbackIoa: 202);
+        b.Observe(Command(cot: 7, select: false, ioa: 124, code: 1, rtu: true));
+        Assert.True(b.Observe(FeedbackMany((201, 2), (202, 1))));
+        Assert.All(b.Snapshot(), c => Assert.Equal("Feedback matched · ACTTERM pending", c.Status));
+    }
+
+    [Fact]
+    public void MultiObjectFeedbackAmbiguityOnlyAffectsSharedIoaNotIndependentIoa()
+    {
+        var b = new Iec10xCommandCasebook();
+        foreach (var ioa in new[] { 123, 124, 125 })
+        {
+            b.Observe(Command(select: false, ioa: ioa), feedbackIoa: ioa == 125 ? 202 : 201);
+            b.Observe(Command(cot: 7, select: false, ioa: ioa, rtu: true));
+        }
+
+        Assert.True(b.Observe(FeedbackMany((201, 2), (202, 2))));
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+        Assert.Equal("Ambiguous", b.Snapshot()[1].Status);
+        Assert.Equal("Feedback matched · ACTTERM pending", b.Snapshot()[2].Status);
+    }
+
+    [Fact]
+    public void UnsolicitedDeactconDoesNotCancelWithoutMatchingMasterCotEight()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command());
+        b.Observe(Command(cot: 9, rtu: true));
+        Assert.Equal("Observed incomplete", Assert.Single(b.Snapshot()).Status);
+        Assert.Equal(1, b.ActiveCount);
+        b.Observe(Command(cot: 8));
+        b.Observe(Command(cot: 9, rtu: true));
+        Assert.Equal("Cancelled", Assert.Single(b.Snapshot()).Status);
+        Assert.Equal(0, b.ActiveCount);
+    }
+
+    [Fact]
+    public void FeedbackWithoutKnownMatchingIec101LinkCannotProveControl()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, link: 105), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, select: false, rtu: true, link: 105));
+        Assert.False(b.Observe(Feedback(link: null)));
+        Assert.Equal("EXECUTE accepted", Assert.Single(b.Snapshot()).Status);
+        Assert.True(b.Observe(Feedback(link: 105)));
+        Assert.Equal("Feedback matched · ACTTERM pending", Assert.Single(b.Snapshot()).Status);
     }
 
     [Fact]
