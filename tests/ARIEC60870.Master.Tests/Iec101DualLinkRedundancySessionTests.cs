@@ -4,6 +4,7 @@
 using System.Threading.Channels;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
+using ARIEC60870.Master.Iec101;
 using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol;
@@ -657,6 +658,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
         private bool _sentLearnedSequence;
         private bool _sentLearnedGiEnd;
         private int _class2ValueResponses;
+        public int GiRequests { get; private set; }
+        public int Class2Polls { get; private set; }
 
         public WrongConfiguredCaIec101Transport(Iec103MasterSettings settings, int configuredCa, int observedCa, int baseIoa)
         {
@@ -681,6 +684,8 @@ public sealed class Iec101DualLinkRedundancySessionTests
             _sentLearnedSequence = false;
             _sentLearnedGiEnd = false;
             _class2ValueResponses = 0;
+            GiRequests = 0;
+            Class2Polls = 0;
             return ValueTask.CompletedTask;
         }
 
@@ -707,6 +712,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 var asdu = _asduDecoder.Decode(decoded.AsduBytes);
                 if (asdu.TypeId == 100)
                 {
+                    GiRequests++;
                     var qoi = decoded.AsduBytes[^1];
                     if (asdu.CommonAddress == _observedCa && qoi == 20)
                     {
@@ -740,12 +746,18 @@ public sealed class Iec101DualLinkRedundancySessionTests
                 }
             }
 
-            if (decoded.LinkControl?.FunctionCode == 11 && _class2ValueResponses < 2)
+            if (decoded.LinkControl?.FunctionCode == 11)
             {
-                var ioa = _baseIoa + 20 + _class2ValueResponses;
-                _class2ValueResponses++;
-                await EnqueueAsync(UserData(Iec10xAsduBuilder.FloatMeasurement(SettingsForCa(_observedCa), ioa, 12.5f + _class2ValueResponses, cause: 3), acd: false), cancellationToken).ConfigureAwait(false);
-                return;
+                Class2Polls++;
+                // Three independent complete process ASDUs meet the
+                // new conservative CA-evidence threshold (not VSQ objects).
+                if (_class2ValueResponses < Iec101ObservedCaPolicy.MinimumProcessAsdus)
+                {
+                    var ioa = _baseIoa + 20 + _class2ValueResponses;
+                    _class2ValueResponses++;
+                    await EnqueueAsync(UserData(Iec10xAsduBuilder.FloatMeasurement(SettingsForCa(_observedCa), ioa, 12.5f + _class2ValueResponses, cause: 3), acd: false), cancellationToken).ConfigureAwait(false);
+                    return;
+                }
             }
 
             await EnqueueAsync(FixedSecondary(functionCode: 9, acd: false), cancellationToken).ConfigureAwait(false);
