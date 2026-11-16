@@ -274,7 +274,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
             // No Class 2 on standby or a newly promoted owner; no DFC-busy poll.
             if (ReferenceEquals(_active, ownerAtDrain) && _active.IsHealthy &&
-                !_active.IsRemoteBusy && _active.LinkState.Acd &&
+                !_active.LinkState.Dfc && _active.LinkState.Acd &&
                 _options.BaseSettings.MaxConsecutiveClass1BeforeClass2 > 0 &&
                 DateTime.UtcNow - _lastClass2PollUtc >=
                     TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))
@@ -1051,14 +1051,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
         var observedCandidate = _observedCa.GiRetryCandidate;
-        if (_active is null || !_active.IsHealthy || _active.IsRemoteBusy ||
+        var active = _active;
+        if (active is null || !active.IsHealthy || active.LinkState.Dfc ||
             !_giRequestedOnActiveOwner || _retriedGiWithObservedCommonAddress ||
             !observedCandidate.HasValue)
         {
             return false;
         }
 
-        var observedCa = observedCandidate.Value;
+        var observedCa = observedCandidate.GetValueOrDefault();
         var configuredCa = _options.BaseSettings.CommonAddress;
         if (observedCa == configuredCa)
         {
@@ -1078,7 +1079,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             FindingSeverity.Warning,
             "IEC101-DUAL-CA-AUTO-LEARNED",
             "IEC-101 dual-link observed CA used for GI retry only",
-            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={_active.Name}.",
+            $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={active.Name}.",
             "Station GI can be retried using observed process evidence; this never proves a safe command target.",
             "Verify the station CA in setup before controls. Automatic CA observations affect GI retry only, never operator command routing.");
 
