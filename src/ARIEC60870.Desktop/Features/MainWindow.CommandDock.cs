@@ -531,6 +531,11 @@ public partial class MainWindow
             NumericValue = ParseLeadingDouble(CommandSetpointBox.Text, 0),
             Qualifier = ReadCommandQualifier(kind),
             SelectBeforeOperate = select,
+            OperationMode = select
+                ? Iec60870ControlOperationMode.Select
+                : CommandOperationModeComboBox?.SelectedIndex == 1
+                    ? Iec60870ControlOperationMode.Direct
+                    : Iec60870ControlOperationMode.ExecuteSelected,
             OperatorNote = select ? "Command dock SELECT" : "Command dock OPERATE"
         };
 
