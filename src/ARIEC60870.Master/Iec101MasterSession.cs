@@ -67,8 +67,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     {
         if (request is null) return false;
 
-        var queued = new QueuedControl(request, Volatile.Read(ref _controlLinkReady),
-            Volatile.Read(ref _linkGeneration), DateTime.UtcNow);
+        var beforeGeneration = Volatile.Read(ref _linkGeneration);
+        var ready = Volatile.Read(ref _controlLinkReady);
+        var afterGeneration = Volatile.Read(ref _linkGeneration);
+        // A concurrent timeout or DFC transition cannot produce a mixed,
+        // falsely-ready snapshot of two distinct link-authority generations.
+        var queued = new QueuedControl(request,
+            ready && beforeGeneration == afterGeneration, afterGeneration, DateTime.UtcNow);
         if (IsMutatingCommand(request) && !queued.ReadyWhenQueued)
         {
             RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-LINK-UNVERIFIED",
