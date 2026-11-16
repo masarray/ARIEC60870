@@ -22,6 +22,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Action<Iec10xAsduDecode?, DateTime> _observeAsdu;
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
+    private readonly Iec101PerLinkTransactionEngine _transactions = new();
     private long _connectionEpoch;
     private long _commandAuthorityEpoch;
     private bool _commandAuthorityReady;
@@ -77,6 +78,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         State = Iec101RedundancyChannelState.Opening;
         PublishState(Iec101RedundancyEventKind.StateChanged, $"{Name} opening", $"Role={role}, endpoint={Endpoint}.");
         await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+        _transactions.StartConnectionEpoch();
+        LinkState.FrameCountBit = _transactions.FrameCountBit;
         State = role == Iec101RedundancyChannelRole.Active ? Iec101RedundancyChannelState.ActivePolling : Iec101RedundancyChannelState.StandbySupervising;
         PublishState(Iec101RedundancyEventKind.ChannelOpened, $"{Name} opened as {role}", Endpoint.ToString());
         DrainTransportDiagnostics();
@@ -88,6 +91,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         Interlocked.Increment(ref _commandAuthorityEpoch);
         Volatile.Write(ref _commandAuthorityReady, false);
         State = Iec101RedundancyChannelState.Closed;
+        _transactions.EndConnectionEpoch();
         try
         {
             await _transport.CloseAsync(cancellationToken).ConfigureAwait(false);
@@ -161,7 +165,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         var result = await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, fcv: false, "Dual-link FCB synchronization", cancellationToken).ConfigureAwait(false);
         if (result.Succeeded)
         {
-            LinkState.FrameCountBit = false;
+            _transactions.ResetFrameCount();
+            LinkState.FrameCountBit = _transactions.FrameCountBit;
         }
         return result;
     }
@@ -316,29 +321,27 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
     private async Task<Iec101ChannelExchangeResult> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = LinkState.FrameCountBit;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
-        var frame = Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize);
-        await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
-        if (response.Succeeded && fcv)
-        {
-            LinkState.FrameCountBit = !fcbBefore;
-        }
+        using var exchange = _transactions.BeginFixed(functionCode, fcv, _settings.LinkAddress,
+            _settings.LinkAddressSize, Name);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
+        LinkState.FrameCountBit = _transactions.FrameCountBit; // Snapshot; engine alone toggles FCB.
         return response;
     }
 
     private async Task<Iec101ChannelExchangeResult> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = LinkState.FrameCountBit;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(3, fcv: true, fcb: fcbBefore);
-        var frame = Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize);
-        await SendRawAsync(frame, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
-        if (response.Succeeded)
-        {
-            LinkState.FrameCountBit = !fcbBefore;
-        }
+        using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
+            _settings.LinkAddressSize, Name);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
+        LinkState.FrameCountBit = _transactions.FrameCountBit;
         return response;
     }
 
@@ -387,7 +390,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         });
     }
 
-    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, int primaryFunctionCode, CancellationToken cancellationToken)
+    private async Task<Iec101ChannelExchangeResult> ReceiveOneAsync(string dataClass, string reason, Iec101PendingExchange exchange, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -404,9 +407,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
 
             LinkState.RxFrames++; // Count physical frames separately from validated responses.
             var candidate = _ft12.Decode(raw);
-            validation = Iec101SecondaryResponseValidator.Validate(
-                candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes), primaryFunctionCode);
+            validation = _transactions.ValidateCandidate(exchange, candidate,
+                _transmitHistory.MatchesEarlier(candidate.RawBytes));
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;
