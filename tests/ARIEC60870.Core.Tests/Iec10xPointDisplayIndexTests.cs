@@ -42,6 +42,8 @@ public sealed class Iec10xPointDisplayIndexTests
         Assert.Null(index.Resolve(1, 68542, 46, allowNameOnly: true).Point);
         Assert.Equal("FEEDER CB OPEN/CLOSE COMMAND",
             index.Resolve(105, 68542, 46).Point?.Name);
+        Assert.Equal("FEEDER CB OPEN/CLOSE COMMAND",
+            index.Resolve(105, 68542, 59).Point?.Name);
     }
 
     [Fact]
