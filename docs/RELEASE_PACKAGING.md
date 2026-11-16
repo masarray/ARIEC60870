@@ -61,6 +61,32 @@ Verify package structure:
 pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ARIEC60870-v3.6.5-win-x64.zip
 ```
 
+## Autonomous, comment-controlled stable release
+
+The preferred maintainer flow runs from the latest merged PR on `master`:
+
+1. Increment `Directory.Build.props` and supply a matching
+   `docs/archive/release-notes/RELEASE_NOTES_vX.Y.Z.md`.
+2. After the PR is merged, comment **`/release stable`** on that same PR,
+   whose squash/merge commit must be the exact current master HEAD.
+3. GitHub Actions verifies the commenter has write access, the version is
+   newer than the latest public stable, the tag is not owned by other
+   bytes, and master CI/WPF/native Windows updater FAT is proven for
+   **the exact same commit**.
+4. If native updater FAT has not run on that exact source, **one**
+   `CI profile=updater` is dispatched and completion of the verified
+   CI automatically resumes the release request. No repeated comment.
+5. The existing Package workflow is dispatched once with
+   `expected_sha` and a global one-flight lock across all ref types,
+   then builds/validates/attests/publishes the release artifacts.
+6. Verify actual public ZIP/Setup/SHA-256/SBOM/provenance and sync
+   README/website download links **only after publication succeeds**.
+
+Duplicate requests and concurrent active Package or CI jobs are reused
+instead of enqueueing redundant expensive Windows runners. Incomplete,
+failed, stale or conflicting evidence **blocks** rather than bypasses
+release checks. Actual hardware interoperability is a separate test.
+
 ## GitHub Actions package flow
 
 The repository includes:
@@ -72,7 +98,7 @@ The repository includes:
 Manual release run:
 
 1. Open **Actions**.
-2. Select **Build Windows single-file release**.
+2. Select **Package**.
 3. Click **Run workflow**.
 4. Leave `version` empty to use `Directory.Build.props`, or provide `X.Y.Z`.
 5. Keep **Create or update GitHub Release** enabled when assets should appear on the Releases page.

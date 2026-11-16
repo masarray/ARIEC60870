@@ -1,0 +1,48 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Release comment controller
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: [CI, CodeQL, Repository hygiene, Package]
+    types: [completed]
+
+permissions:
+  contents: read
+
+# One trusted admission control at a time across PRs, release versions and events.
+# GitHub admits no more than one pending run per concurrency key. Never cancel active work.
+concurrency:
+  group: release-comment-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release-admission:
+    if: >-
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       github.event.comment.body == '/release stable') ||
+      (github.event_name == 'workflow_run' &&
+       (github.event.workflow_run.name == 'Package' ||
+        (github.event.workflow_run.head_branch == 'master' &&
+         github.event.workflow_run.conclusion == 'success')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout trusted master control-plane code
+        uses: actions/checkout@v4
+      - name: Deterministic release decision tests (no Windows build)
+        run: node --test tests/release-comment-controller.test.cjs
+      - name: Validate source, CI/FAT evidence and dispatch at most one next stage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const controller = require('./scripts/release-comment-controller.cjs');
+            await controller.run({ github, context, core });

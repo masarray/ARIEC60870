@@ -89,7 +89,8 @@ jobs:
                 /^(src\/ARIEC60870\.Desktop\/Services\/(ReleaseInstallWorker|ReleaseUpdateService|UpdateStartupHandshake|UpdateStorageSafety|InnoRegistrationSnapshot)\.cs|src\/ARIEC60870\.Desktop\/(App\.xaml\.cs|Features\/MainWindow\.ReleaseUpdate\.cs)|installer\/ARIEC60870\.iss|scripts\/test-updater-worker-fat\.ps1|Directory\.Build\.props)$/i.test(name)));
             const workflowChanged = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
-                /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name)));
+                /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name) ||
+                /^(scripts\/release-comment-controller\.cjs|tests\/release-comment-controller\.test\.cjs)$/i.test(name)));
             const formattingRelevant = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
@@ -218,6 +219,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Verify release admission guardrails before downloading lint tooling
+        run: node --test tests/release-comment-controller.test.cjs
       - name: Install checksum-verified pinned actionlint
         shell: bash
         run: |

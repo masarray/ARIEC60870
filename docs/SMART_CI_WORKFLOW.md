@@ -33,9 +33,44 @@ Post a new top-level PR comment with exactly:
 - `/ci full` — full Windows build, protocol/xUnit tests, coverage, portable GUI and monitor-CLI ZIP, WPF acceptance screenshots.
 - `/ci installer` — everything in `/ci full` plus isolated previous-release upgrade, installer registration and live-Master shutdown acceptance.
 
-The dispatcher only accepts authenticated maintainers with repository write access, same-repository open PRs targeting the default branch, and uses the trusted default-branch CI workflow. That workflow checks out and verifies the **exact PR head SHA** rather than interpreting the workflow run's master SHA as tested source. No comment triggers public release or physical hardware.
+The dispatcher only accepts authenticated maintainers with repository write access, same-repository open PRs targeting the default branch, and uses the trusted default-branch CI workflow. That workflow checks out and verifies the **exact PR head SHA** rather than interpreting the workflow run's master SHA as tested source. The `/ci` comments never publish public releases; the separate source-qualified `/release stable` command below may dispatch Package only after exact-SHA evidence gates.
 
 Comment admission is serialized per PR. An active or successful run with matching PR number, profile, tested SHA AND default-branch CI revision will not be started again. If a previous run failed, investigate before requesting a repeat; use GitHub's Re-run failed jobs for verified infrastructure/transient problems.
+
+## Source-qualified stable release by a single comment
+
+Comment **exactly** `/release stable` on the **latest merged same-repository PR whose
+resulting merge commit equals current `master` HEAD**. The comment must originate
+from a repository collaborator with write access. Do not use an old PR, unmerged PR,
+a different issue, an anonymous bot or a copied stale SHA.
+
+The trusted default-branch `.github/workflows/release-comment.yml` controller
+checks exact merge SHA, source `Directory.Build.props`, versioned release notes,
+a stable version newer than the latest published stable and immutable tag ownership.
+It rejects malformed or expired (>24 h) requests. The comment is the durable
+authorization, not a shortcut around release validation.
+
+The controller **reuses** successful exact-SHA master CI, 19 protocol smoke,
+six xUnit suites, real-WPF acceptance and actual native Windows installed-updater
+FAT. A PR-bound manual CI workflow that checked out different bytes is **never**
+accepted as master FAT. Failed gates block; pending CI/CodeQL/hygiene/Package runs
+are awaited rather than duplicated. If exact-source native FAT is absent, it
+dispatches **one** `CI profile=updater`; the CI completion webhook automatically
+resumes the existing intent and, if successful, dispatches **one** Package run,
+without a second user comment.
+
+Durable `release-control` stage markers bind comment ID, commit SHA and
+release stage; duplicate comments and workflow-completion callbacks do not enqueue
+extra Windows work. Controller admission is serialized repository-wide. Package
+also uses a global concurrency key across branches/tags, and its
+`expected_sha` lease refuses moving HEAD before Windows packaging begins.
+It still independently verifies FAT and then compiles/tests/attests immutable
+Setup/ZIP/SBOM/SHA-256 assets. Failed publication needs investigation and a
+**fresh explicit release command**, never a blind retry loop.
+
+The command does not change the public website/README's last-published download
+links by assumption. Sync them after the GitHub Release package succeeds.
+Physical RTU/SCADA FAT remains independent and cannot be inferred from CI.
 
 ## Milestone operation and safety
 

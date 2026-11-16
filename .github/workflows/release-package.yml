@@ -1,12 +1,17 @@
 # Copyright 2026 Ari Sulistiono
 # SPDX-License-Identifier: Apache-2.0
 name: Package
+run-name: "Package ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }} @${{ github.sha }}"
 
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version without leading v. Leave empty to read Directory.Build.props.'
+        required: false
+        default: ''
+      expected_sha:
+        description: 'Optional exact source SHA lease; required for autonomous comment dispatch.'
         required: false
         default: ''
       publish_release:
@@ -42,9 +47,9 @@ permissions:
   contents: read
   actions: read
 
-# A second push to an RC branch cannot cancel release evidence mid-publication.
+# One public packaging build across refs/tags/versions. Never cancel running evidence.
 concurrency:
-  group: package-${{ github.ref }}
+  group: package-exclusive-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -69,6 +74,7 @@ jobs:
         # Never interpolate dispatch inputs directly into executable shell text.
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_SHA: ${{ inputs.expected_sha }}
           REQUESTED_PUBLISH: ${{ inputs.publish_release }}
           REQUESTED_PRERELEASE: ${{ inputs.prerelease }}
           REQUESTED_DRAFT: ${{ inputs.draft }}
@@ -76,6 +82,15 @@ jobs:
         run: |
           set -euo pipefail
           repo_version=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('Directory.Build.props').findtext('.//Version') or '')")
+
+          # Release comment dispatch carries an immutable master SHA lease.
+          # Refuse branch moves before even reserving a Windows packaging runner.
+          if [[ -n "$REQUESTED_SHA" ]]; then
+            if [[ ! "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ || "${REQUESTED_SHA,,}" != "${GITHUB_SHA,,}" ]]; then
+              echo "Release SHA lease mismatch: requested $REQUESTED_SHA; actual $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
 
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             version="${REQUESTED_VERSION#v}"
@@ -269,7 +284,7 @@ jobs:
               status:'success',head_sha:context.sha,per_page:100
             });
             const candidates=runs.filter(run=>
-              (run.event==='workflow_dispatch' ||
+              (run.event==='workflow_dispatch' && run.display_title==='CI master' ||
                 (run.event==='push' && ['master','main'].includes(run.head_branch))) &&
               run.head_sha?.toLowerCase()===context.sha.toLowerCase() &&
               run.conclusion==='success' &&
