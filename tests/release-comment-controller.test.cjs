@@ -1,0 +1,143 @@
+// Copyright 2026 Ari Sulistiono
+// SPDX-License-Identifier: Apache-2.0
+'use strict';
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const {
+  parseVersion, compareVersion, parseSourceVersion, acceptedCiRun, hasNativeUpdaterProof,
+  recentCommand, stageMarker, chooseAction, run
+} = require('../scripts/release-comment-controller.cjs');
+
+const SHA = 'a'.repeat(40);
+const now = new Date().toISOString();
+const command = {id:53,body:'/release stable',created_at:now,user:{login:'masarray'}};
+const stage = (s)=>stageMarker(53,SHA,s);
+const ref = {commit:{sha:SHA}};
+const pr = {number:250,merged_at:now,merge_commit_sha:SHA,
+  base:{ref:'master'},head:{repo:{full_name:'masarray/ARIEC60870'}}};
+const qualifiedJobs = [
+  {name:'build-test',conclusion:'success',steps:[{
+    name:'OBS-C real-WPF viewport and 1400-frame acceptance',conclusion:'success'}]},
+  {name:'Native Windows independent updater FAT',conclusion:'success',steps:[{
+    name:'Verify independent update worker from genuine installed previous release',conclusion:'success'}]}
+];
+const ci = {id:4,head_sha:SHA,head_branch:'master',event:'push',
+  display_title:'CI master',status:'completed',conclusion:'success',created_at:now};
+const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'};
+
+function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
+   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true}={}) {
+  const calls=[];
+  let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'},
+    ...markers.map(m => ({id:100+m.length,body:m,user:{login:'github-actions[bot]'},created_at:now}))];
+  const content = path => {
+    const txt = path === 'Directory.Build.props' ? `<Project><Version>${version}</Version></Project>` : '# release notes';
+    return {data:{type:'file',encoding:'base64',content:Buffer.from(txt).toString('base64')}};
+  };
+  const workflowRuns = id => {
+    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:ci];
+    if(id==='release-package.yml') return runningPackage ?
+      [{id:10,status:'in_progress'}] : [];
+    if(id==='codeql.yml') return codeql?[green]:[];
+    if(id==='repository-hygiene.yml') return hygiene?[green]:[];
+    return [];
+  };
+  const github = {
+    rest:{
+      repos:{
+        getBranch:async()=>({data:ref}),getContent:async({path})=>content(path),
+        getCollaboratorPermissionLevel:async()=>({data:{permission:'admin'}}),
+        getLatestRelease:async()=>({data:{tag_name:latestTag}}),
+        getCommit:async()=>({data:{files:[{filename:'.github/workflows/release-comment.yml'}]}}),
+        getReleaseByTag:async()=>{throw {status:404};}
+      },
+      pulls:{list:async()=>({data:[pr]})},
+      issues:{listComments:async()=>({data:comments}),createComment:async({body})=>{
+        calls.push({type:'comment',body});comments.push({id:500,body,user:{login:'github-actions[bot]'}});
+        return {data:{id:500}};
+      }},
+      git:{getRef:async()=>{throw {status:404};}},
+      actions:{
+        listWorkflowRuns:async({workflow_id})=>({data:{workflow_runs:workflowRuns(workflow_id)}}),
+        listJobsForWorkflowRun:async()=>({data:{jobs:fat?qualifiedJobs:qualifiedJobs.slice(0,1)}}),
+        createWorkflowDispatch:async(args)=>{calls.push({type:'dispatch',args});return {status:204};}
+      }
+    },
+    paginate:async(fn,args)=>{
+      const result = await fn(args);
+      return result.data.jobs || result.data;
+    }
+  };
+  const context = {repo:{owner:'masarray',repo:'ARIEC60870'},eventName:commentEvent?'issue_comment':'workflow_run',
+    payload:commentEvent?{comment:command,issue:{number:250,pull_request:{url:'pr'}}}:
+      {workflow_run:{head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
+  const core={notice:()=>{},info:()=>{}};
+  return {github,context,core,calls};
+}
+
+test('semver refuses malformed, prerelease and leading zeros; compares by numeric components',()=>{
+  assert.deepEqual(parseVersion('3.6.13'),[3,6,13]);
+  assert.equal(compareVersion('3.6.13','3.6.12'),1);
+  assert.equal(compareVersion('3.6.13','3.6.13'),0);
+  for(const v of ['v3.6.13','3.06.13','3.6.13-rc.1','3.6.13; evil',''])
+    assert.throws(()=>parseVersion(v));
+  assert.equal(parseSourceVersion('<Version>3.6.13</Version>'),'3.6.13');
+});
+test('CI proof cannot borrow a PR-bound dispatch or a missing native FAT step',()=>{
+  assert.ok(acceptedCiRun(ci,SHA));
+  assert.ok(!acceptedCiRun({...ci,display_title:'CI PR #250 updater abc',event:'workflow_dispatch'},SHA));
+  assert.ok(acceptedCiRun({...ci,display_title:'CI master',event:'workflow_dispatch'},SHA));
+  assert.ok(hasNativeUpdaterProof(qualifiedJobs));
+  assert.ok(!hasNativeUpdaterProof(qualifiedJobs.slice(0,1)));
+  assert.ok(!hasNativeUpdaterProof(qualifiedJobs.map(j=>({...j,steps:[]}))));
+});
+test('recent exact command only; no timeout or extra shell-like content',()=>{
+  assert.ok(recentCommand(command));
+  assert.ok(!recentCommand({...command,body:'/release stable && run'}));
+  assert.ok(!recentCommand({...command,created_at:'2024-01-01T00:00:00Z'}));
+});
+test('pure decision engine waits/blocks/reuses instead of piling up packages',()=>{
+  const base={published:false,packageReserved:false,updaterReserved:false,activePackage:false,
+    activeCi:false,completedCiError:false,qualified:true,pendingChecks:false,failedChecks:false};
+  assert.equal(chooseAction(base),'package');
+  assert.equal(chooseAction({...base,qualified:false}),'updater');
+  assert.equal(chooseAction({...base,activePackage:true}),'wait');
+  assert.equal(chooseAction({...base,activeCi:true}),'wait');
+  assert.equal(chooseAction({...base,pendingChecks:true}),'wait');
+  assert.equal(chooseAction({...base,completedCiError:true}),'blocked');
+  assert.equal(chooseAction({...base,qualified:false,updaterReserved:true}),'await-updater');
+  assert.equal(chooseAction({...base,packageReserved:true}),'already-dispatched');
+  assert.equal(chooseAction({...base,published:true}),'already-published');
+});
+test('valid current merged PR triggers one Package dispatch pinned to master SHA',async()=>{
+  const m=mock();await run(m);
+  const dispatch=m.calls.filter(x=>x.type==='dispatch');
+  assert.equal(dispatch.length,1);
+  assert.equal(dispatch[0].args.workflow_id,'release-package.yml');
+  assert.equal(dispatch[0].args.inputs.expected_sha,SHA);
+  assert.equal(dispatch[0].args.inputs.version,'3.6.13');
+  assert.equal(dispatch[0].args.inputs.prerelease,'false');
+  assert.equal(m.calls.filter(x=>x.type==='comment').length,1);
+});
+test('unqualified master dispatches only one updater CI; never Package',async()=>{
+  const m=mock({fat:false});await run(m);
+  assert.deepEqual(m.calls.filter(x=>x.type==='dispatch').map(x=>x.args.workflow_id),['ci.yml']);
+  assert.equal(m.calls[1].args.inputs.profile,'updater');
+});
+test('duplicate, active CI or package suppresses additional expensive dispatch',async()=>{
+  for(const cfg of [{markers:[stage('package')]},{markers:[stage('updater')],fat:false},
+    {runningCi:true},{runningPackage:true}]) {
+    const m=mock(cfg);await run(m);
+    assert.equal(m.calls.filter(x=>x.type==='dispatch').length,0,JSON.stringify(cfg));
+  }
+});
+test('stale release comment and unrelated PR cannot publish',async()=>{
+  const a=mock({recent:false});await assert.rejects(()=>run(a));
+  const b=mock();b.context.payload.issue.number=111;
+  await assert.rejects(()=>run(b),/latest merged PR/);
+  assert.equal(b.calls.length,0);
+});
+test('a matching completed workflow_run can resume the stored source-bound request',async()=>{
+  const m=mock({commentEvent:false,fat:true});await run(m);
+  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+});
