@@ -382,6 +382,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             CommonAddressNumber = asdu?.CommonAddress,
             InformationObjectAddress = asdu?.FirstObject?.InformationObjectAddress,
             ObjectSummary = asdu?.ObjectSummary ?? string.Empty,
+            PhysicalSource = Name, // Original physical TX owner, not just display text.
             SignalGroup = "IEC-101 Dual Link"
         });
     }
