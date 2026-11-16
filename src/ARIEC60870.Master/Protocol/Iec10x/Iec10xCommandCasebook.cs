@@ -21,7 +21,7 @@ public sealed class Iec10xCommandCasebook
     private long _nextId;
 
     private readonly record struct CommandKey(Iec60870ProtocolMode Protocol, string Source,
-        int? Link, int Ca, int Ioa, int Type, int? Originator);
+        string ConnectionInstance, int? Link, int Ca, int Ioa, int Type, int? Originator);
 
     private sealed class State
     {
@@ -41,6 +41,10 @@ public sealed class Iec10xCommandCasebook
         public bool FeedbackMismatchSeen { get; set; }
         public bool CancelRequested { get; set; }
         public bool LastRequestSelect { get; set; }
+        public long LastRequestSequence { get; set; }
+        public long? LastReplySequence { get; set; }
+        public long? ExecuteAcceptedSequence { get; set; }
+        public DateTime? ExecuteAcceptedUtc { get; set; }
     }
 
     public sealed record CommandStage(long Sequence, string EvidenceReference, DateTime HostUtc,
@@ -53,6 +57,7 @@ public sealed class Iec10xCommandCasebook
         IReadOnlyList<CommandStage> Stages, int? FeedbackIoa)
     {
         public bool StagesTruncated { get; init; }
+        public string ConnectionInstanceId { get; init; } = string.Empty;
         public string Address => $"CA {CommonAddress} · IOA {Ioa} · TI {TypeId}";
         public string CaseLabel => $"#{CaseId} · {Address}";
         public string FirstTime => FirstUtc.ToLocalTime().ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
@@ -61,6 +66,8 @@ public sealed class Iec10xCommandCasebook
             var b = new StringBuilder();
             b.AppendLine($"# Control case #{CaseId} — {Status}");
             b.AppendLine($"Protocol: {Protocol} | Source: {Source} | Link: {LinkAddress?.ToString() ?? "N/A"}");
+            if (ConnectionInstanceId.Length > 0)
+                b.AppendLine($"IEC-104 TCP connection: {ConnectionInstanceId}");
             b.AppendLine($"Type: {TypeId} | CA: {CommonAddress} | IOA: {Ioa} | Target: {Target}");
             b.AppendLine($"Feedback IOA: {FeedbackIoa?.ToString() ?? "not configured"}");
             b.AppendLine($"Meaning: {Interpretation}");
@@ -97,7 +104,9 @@ public sealed class Iec10xCommandCasebook
         {
             var c = _history[i];
             if (c.Protocol != (item.ProtocolMode == Iec60870ProtocolMode.Iec101 ? "IEC-101" : "IEC-104") ||
-                c.Source != Normalize(item.PhysicalSource))
+                c.Source != Normalize(item.PhysicalSource) ||
+                (item.ProtocolMode == Iec60870ProtocolMode.Iec104 &&
+                 c.ConnectionInstanceId != item.ConnectionInstanceId))
                 continue;
             if (c.Stages.Any(s => s.Sequence == item.SequenceNumber &&
                 s.EvidenceReference == reference))
@@ -141,6 +150,7 @@ public sealed class Iec10xCommandCasebook
             return false;
 
         var key = new CommandKey(item.ProtocolMode, Normalize(item.PhysicalSource),
+            item.ProtocolMode == Iec60870ProtocolMode.Iec104 ? item.ConnectionInstanceId : string.Empty,
             item.ProtocolMode == Iec60870ProtocolMode.Iec101 ? item.LinkAddress : null,
             item.CommonAddressNumber.Value, item.InformationObjectAddress.Value,
             item.TypeId.Value, cot.OriginatorAddress);
@@ -191,6 +201,7 @@ public sealed class Iec10xCommandCasebook
                     ExpectedOn = ExpectedLogicalOn(command),
                     FeedbackIoa = feedbackIoa,
                     LastRequestSelect = select,
+                    LastRequestSequence = item.SequenceNumber,
                     Executed = !select
                 };
                 _active.Add(key, state);
@@ -210,6 +221,10 @@ public sealed class Iec10xCommandCasebook
             state.Executed = true;
             state.LastRequestSelect = false;
             state.ExecuteAccepted = false;
+            state.ExecuteAcceptedSequence = null;
+            state.ExecuteAcceptedUtc = null;
+            state.LastReplySequence = null;
+            state.LastRequestSequence = item.SequenceNumber;
             if (feedbackIoa.HasValue) state.FeedbackIoa = feedbackIoa;
             Update(state, item, "EXECUTE sent", "Following accepted SELECT; awaiting EXECUTE ACTCON.",
                 "EXECUTE sent", "SELECT acceptance does not prove operation.");
@@ -237,6 +252,17 @@ public sealed class Iec10xCommandCasebook
             return true;
         }
 
+        // A replayed or reordered response cannot authorize a new operation.
+        if (item.SequenceNumber <= state.LastRequestSequence ||
+            (state.LastReplySequence.HasValue && item.SequenceNumber <= state.LastReplySequence.Value))
+        {
+            state.Ambiguous = true;
+            Update(state, item, "RTU reply out of order",
+                "Response sequence predates the command request or duplicates an earlier RTU reply.",
+                "Ambiguous", "Only chronological, source-qualified response evidence can authorize command progress.");
+            return true;
+        }
+
         if (state.Ambiguous || select != state.LastRequestSelect ||
             !string.Equals(target, state.Target, StringComparison.Ordinal) ||
             !string.Equals(wireIdentity, state.WireIdentity, StringComparison.Ordinal))
@@ -249,6 +275,7 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Negative || cot.Code is >= 44 and <= 47)
         {
+            state.LastReplySequence = item.SequenceNumber;
             state.Negative = true;
             Update(state, item, "RTU rejection", $"COT={cot.Code}, P/N={(cot.Negative ? 1 : 0)}; application rejection observed.",
                 "RTU rejected", "Check local/remote mode, interlocks, qualifier and target mapping; cause is not proven.");
@@ -258,6 +285,7 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Code == 9)
         {
+            state.LastReplySequence = item.SequenceNumber;
             if (!state.CancelRequested)
             {
                 Update(state, item, "Unsolicited RTU DEACTCON",
@@ -273,6 +301,7 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Code == 7)
         {
+            state.LastReplySequence = item.SequenceNumber;
             if (state.CancelRequested)
             {
                 Update(state, item, "ACTCON during cancellation",
@@ -281,7 +310,12 @@ public sealed class Iec10xCommandCasebook
                 return true;
             }
             if (select) state.SelectAccepted = true;
-            else state.ExecuteAccepted = true;
+            else
+            {
+                state.ExecuteAccepted = true;
+                state.ExecuteAcceptedSequence = item.SequenceNumber;
+                state.ExecuteAcceptedUtc = item.TimestampUtc;
+            }
             Update(state, item, select ? "SELECT ACTCON" : "EXECUTE ACTCON",
                 "Positive application activation confirmation (P/N=0).",
                 select ? "SELECT accepted" : "EXECUTE accepted",
@@ -291,6 +325,7 @@ public sealed class Iec10xCommandCasebook
 
         if (cot.Code == 10)
         {
+            state.LastReplySequence = item.SequenceNumber;
             if (!state.ExecuteAccepted || select)
             {
                 Update(state, item, "RTU ACTTERM without EXECUTE ACTCON",
@@ -342,6 +377,8 @@ public sealed class Iec10xCommandCasebook
             .Where(state => state.Executed && state.ExecuteAccepted && !state.Ambiguous &&
                 state.FeedbackIoa.HasValue && state.ExpectedOn.HasValue &&
                 state.Key.Protocol == item.ProtocolMode &&
+                (item.ProtocolMode != Iec60870ProtocolMode.Iec104 ||
+                 state.Key.ConnectionInstance == item.ConnectionInstanceId) &&
                 string.Equals(state.Key.Source, Normalize(item.PhysicalSource), StringComparison.Ordinal) &&
                 state.Key.Ca == asdu.CommonAddress &&
                 (item.ProtocolMode != Iec60870ProtocolMode.Iec101 || state.Key.Link == item.LinkAddress))
@@ -382,6 +419,29 @@ public sealed class Iec10xCommandCasebook
 
     private void ApplyDigitalFeedback(State state, Iec10xInformationObject obj, Iec103MasterEvidenceEvent item)
     {
+        // Host observation order is separate from device time: CP56 has no TZ.
+        if (!state.ExecuteAcceptedSequence.HasValue ||
+            item.SequenceNumber <= state.ExecuteAcceptedSequence.Value ||
+            (state.ExecuteAcceptedUtc is { } acceptedUtc &&
+             item.TimestampUtc != DateTime.UnixEpoch && acceptedUtc != DateTime.UnixEpoch &&
+             item.TimestampUtc < acceptedUtc))
+        {
+            Update(state, item, "Feedback not chronological",
+                "Feedback capture sequence or host arrival time predates the accepted EXECUTE.",
+                "Feedback unverified", "Old or reordered process observations cannot prove the current operation.");
+            return;
+        }
+
+        if (obj.Cp56TimeDetails is { } timestamp &&
+            (!timestamp.IsValid || timestamp.SubstitutedFlag || timestamp.UnexpectedReservedBits ||
+             timestamp.DayOfWeekMatchesCalendar == false))
+        {
+            Update(state, item, "Feedback device time untrusted",
+                "The RTU time tag is invalid, substituted or inconsistent; its reported bit remains raw evidence.",
+                "Feedback unverified", "Correct RTU time evidence is needed before using this tagged event as trusted command feedback.");
+            return;
+        }
+
         var digitalCode = item.TypeId is 1 or 30 ? obj.RawBytes[0] & 1 : obj.RawBytes[0] & 3;
         // IEC 60870 SPI 0=OFF/1=ON; DPI 1=OFF/2=ON (0/3 are indeterminate).
         // Command DCS 1=OFF/2=ON: the raw codes are NOT interchangeable.
@@ -432,7 +492,10 @@ public sealed class Iec10xCommandCasebook
         var c = new CommandCase(id, item.ProtocolMode == Iec60870ProtocolMode.Iec101 ? "IEC-101" : "IEC-104",
             key.Source, key.Link, key.Ca, key.Ioa, key.Type, target,
             status ?? phase, explanation, item.SequenceNumber, item.SequenceNumber, item.TimestampUtc,
-            new[] { Stage(item, phase, explanation) }, feedbackIoa);
+            new[] { Stage(item, phase, explanation) }, feedbackIoa)
+        {
+            ConnectionInstanceId = key.ConnectionInstance
+        };
         _history.Add(c);
         if (_history.Count > _capacity) _history.RemoveAt(0);
         return c;

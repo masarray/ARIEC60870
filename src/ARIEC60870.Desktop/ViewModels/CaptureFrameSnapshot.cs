@@ -38,6 +38,7 @@ public sealed class CaptureFrameSnapshot
     public string DecoderSchema { get; set; } = string.Empty;
     public DateTime? CaptureArrivalUtc { get; set; }
     public string PhysicalSource { get; set; } = string.Empty;
+    public string ConnectionInstanceId { get; set; } = string.Empty;
     public int? PhysicalStreamId { get; set; }
     public long? RawStreamOffset { get; set; }
     public int? SelectedObjectIndex { get; set; }
