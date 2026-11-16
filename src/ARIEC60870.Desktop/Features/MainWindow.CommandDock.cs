@@ -596,8 +596,8 @@ public partial class MainWindow
         {
             if (!admission.TryQueueControlCommand(request))
             {
-                CommandDockStatusText.Text = "Command not queued: request queue is full. Reissue after it drains.";
-                AppendSessionLog("Command dock rejected (queue full): " + request.Summary);
+                CommandDockStatusText.Text = "Command not queued: active link not verified, remote busy, or queue full.";
+                AppendSessionLog("Command dock rejected by IEC-101 admission: " + request.Summary);
                 return;
             }
         }
