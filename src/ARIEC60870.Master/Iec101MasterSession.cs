@@ -25,7 +25,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly object _findingGate = new();
     private readonly Iec103MasterCounters _counters = new();
-    private bool _fcb;
+    private readonly Iec101PerLinkTransactionEngine _transactions = new();
     private bool _linkVerified;
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
@@ -113,6 +113,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             _linkVerified = false;
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+            _transactions.StartConnectionEpoch();
             // A reopened physical port starts a new framing/ambiguity epoch;
             // individual Class-1/2/status requests must reuse this reader.
             _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
@@ -131,9 +132,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
             if (_settings.ResetFcbOnConnect)
             {
-                await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
+                var resetAck = await SendFixedAndReceiveAsync("Reset FCB", "Link", 7, false,
                     "Startup FCB synchronization", cancellationToken).ConfigureAwait(false);
-                _fcb = false;
+                // Never reset the primary FCB on a lost or negative reset reply.
+                if (Iec101SecondaryResponseValidator.CanAdvanceFcb(resetAck))
+                    _transactions.ResetFrameCount();
             }
 
             if (!_linkVerified)
@@ -231,6 +234,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         }
         finally
         {
+            _transactions.EndConnectionEpoch();
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
             Volatile.Write(ref _controlLinkReady, false);
             _linkVerified = false;
@@ -714,21 +718,26 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(functionCode, fcv, fcv && fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Fixed(control, _settings.LinkAddress, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, functionCode, cancellationToken).ConfigureAwait(false);
-        if (fcv && Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        // One physical transaction owns original TX bytes, reply context and FCB.
+        using var exchange = _transactions.BeginFixed(functionCode, fcv, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
         return response;
     }
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
-        var fcbBefore = _fcb;
-        var control = Ft12FrameBuilder.BuildPrimaryControl(3, true, fcbBefore);
-        await SendRawAsync(Ft12FrameBuilder.Variable(control, _settings.LinkAddress, asdu, _settings.LinkAddressSize), summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
-        var response = await ReceiveOneAsync(dataClass, reason, 3, cancellationToken).ConfigureAwait(false);
-        if (Iec101SecondaryResponseValidator.CanAdvanceFcb(response)) _fcb = !fcbBefore;
+        using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
+            _settings.LinkAddressSize, _settings.PortName);
+        _transactions.MarkTransmitAttempt(exchange);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        _transactions.MarkAwaitingResponse(exchange);
+        var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
+        _transactions.Complete(exchange);
         return response;
     }
 
@@ -774,7 +783,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         });
     }
 
-    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, int primaryFunctionCode, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> ReceiveOneAsync(string dataClass, string reason, Iec101PendingExchange exchange, CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
         byte[]? raw = null;
@@ -790,9 +799,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
             _counters.RxFrames++; // Physical RX bytes, not necessarily a valid outstation reply.
             var candidate = _ft12.Decode(raw);
-            var validation = Iec101SecondaryResponseValidator.Validate(
-                candidate, _settings.LinkAddress, _lastTxFrame,
-                _transmitHistory.MatchesEarlier(candidate.RawBytes), primaryFunctionCode);
+            var validation = _transactions.ValidateCandidate(exchange, candidate,
+                _transmitHistory.MatchesEarlier(candidate.RawBytes));
             if (validation.IsValid)
             {
                 acceptedFrame = candidate;
