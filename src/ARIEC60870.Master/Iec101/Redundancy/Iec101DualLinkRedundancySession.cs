@@ -1155,7 +1155,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         return $"{standby.Name} supervised as standby.";
     }
 
-    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)    {
+    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)
+    {
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
