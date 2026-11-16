@@ -160,7 +160,10 @@ public sealed class Iec101DualLinkRedundancySessionTests
             .Where(x => x.Direction == FrameDirection.SlaveToMaster && x.TypeId == 1)
             .ToArray();
 
-        Assert.Equal(1, result.Settings.CommonAddress);
+        // Observed CA is only advisory for GI; never alter the configured CA
+        // that an implicit operator control command will use.
+        Assert.Equal(105, result.Settings.CommonAddress);
+        Assert.Equal(105, settings.CommonAddress);
         Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-CA-AUTO-LEARNED");
         Assert.Contains(result.Events, x => x.Direction == FrameDirection.MasterToSlave && x.TypeId == 100 && x.CommonAddressNumber == 1 && x.PollingReason == "Dual-link GI retry using observed CA 1");
         Assert.Contains(valueEvents, x => x.CommonAddressNumber == 1 && x.InformationObjectAddress == 140 && x.SignalDisplayValue.Contains("ON", StringComparison.OrdinalIgnoreCase));

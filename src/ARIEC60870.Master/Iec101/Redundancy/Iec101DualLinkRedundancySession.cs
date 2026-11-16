@@ -18,7 +18,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101ApplicationImageTracker _imageTracker = new();
     private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
     private readonly ConcurrentQueue<string> _manualFailoverRequests = new();
-    private readonly Dictionary<int, int> _observedCommonAddressHits = new();
+    private readonly Iec101ObservedCaPolicy _observedCa = new();
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly List<Iec101FailoverJournalEntry> _failoverJournal = new();
@@ -26,7 +26,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private Iec101RedundancyControllerState _controllerState = Iec101RedundancyControllerState.Created;
     private Iec101DualLinkChannel? _active;
     private Iec101DualLinkChannel? _standby;
-    private int? _dominantObservedCommonAddress;
     private int? _learnedCommonAddress;
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
     private DateTime _lastStandbySupervisionUtc = DateTime.MinValue;
@@ -88,6 +87,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
+            _observedCa.Reset();
+            _retriedGiWithObservedCommonAddress = false;
+            _learnedCommonAddress = null;
             await OpenBothLinksAsync(cancellationToken).ConfigureAwait(false);
             await BootstrapActiveLinkAsync(cancellationToken).ConfigureAwait(false);
 
@@ -365,7 +367,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return true;
         }
 
-        request = ApplyLearnedCommonAddress(request);
+        // Commands retain their explicitly selected CA, or the configured CA.
+        // A CA inferred from observed process traffic is for bounded GI retry only.
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
@@ -398,27 +401,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             await DrainClass1OnActiveAsync("Command feedback drain on active link", stopWhenGiEnds: false, cancellationToken).ConfigureAwait(false);
         }
         return true;
-    }
-
-    private Iec60870ControlCommandRequest ApplyLearnedCommonAddress(Iec60870ControlCommandRequest request)
-    {
-        if (request.CommonAddress.HasValue || !_learnedCommonAddress.HasValue)
-        {
-            return request;
-        }
-
-        return new Iec60870ControlCommandRequest
-        {
-            Kind = request.Kind,
-            CommonAddress = _learnedCommonAddress.Value,
-            InformationObjectAddress = request.InformationObjectAddress,
-            Value = request.Value,
-            NumericValue = request.NumericValue,
-            SelectBeforeOperate = request.SelectBeforeOperate,
-            Qualifier = request.Qualifier,
-            RequestedUtc = request.RequestedUtc,
-            OperatorNote = request.OperatorNote
-        };
     }
 
     private async Task DrainClass1OnActiveAsync(string reason, bool stopWhenGiEnds, CancellationToken cancellationToken)
@@ -1006,58 +988,21 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow)
     {
         _imageTracker.Observe(asdu, utcNow);
-        ObserveAsduCommonAddress(asdu);
+        _observedCa.Observe(asdu);
         if (Iec10xGiTermination.IsObserved(asdu))
         {
             AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 GI activation termination observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
         }
     }
 
-    private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
-    {
-        if (asdu is null || !IsCommonAddressLearningCandidate(asdu))
-        {
-            return;
-        }
-
-        var ca = asdu.CommonAddress;
-        if (ca <= 0)
-        {
-            return;
-        }
-
-        _observedCommonAddressHits.TryGetValue(ca, out var count);
-        _observedCommonAddressHits[ca] = count + 1;
-
-        var dominant = _observedCommonAddressHits
-            .OrderByDescending(x => x.Value)
-            .ThenBy(x => x.Key)
-            .First();
-
-        if (dominant.Value >= 2)
-        {
-            _dominantObservedCommonAddress = dominant.Key;
-        }
-    }
-
-    private static bool IsCommonAddressLearningCandidate(Iec10xAsduDecode asdu)
-    {
-        if (asdu.IsNegativeConfirm || asdu.IsControlCommand || asdu.Objects.Count == 0)
-        {
-            return false;
-        }
-
-        return asdu.TypeId is 1 or 2 or 3 or 4 or 9 or 10 or 11 or 12 or 13 or 14 or 30 or 31 or 34 or 35 or 36;
-    }
-
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_active is null || _retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        if (_active is null || _retriedGiWithObservedCommonAddress || !_observedCa.GiRetryCandidate.HasValue)
         {
             return false;
         }
 
-        var observedCa = _dominantObservedCommonAddress.Value;
+        var observedCa = _observedCa.GiRetryCandidate.Value;
         var configuredCa = _options.BaseSettings.CommonAddress;
         if (observedCa == configuredCa)
         {
@@ -1066,7 +1011,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         _retriedGiWithObservedCommonAddress = true;
         _learnedCommonAddress = observedCa;
-        _options.BaseSettings.CommonAddress = observedCa;
+        // Never rewrite configured station CA based on passive observation.
 
         SetControllerState(
             Iec101RedundancyControllerState.BootstrappingApplicationImage,
@@ -1076,10 +1021,10 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         RaiseFinding(
             FindingSeverity.Warning,
             "IEC101-DUAL-CA-AUTO-LEARNED",
-            "IEC-101 dual-link common address auto-corrected",
+            "IEC-101 dual-link observed CA used for GI retry only",
             $"Configured CA={configuredCa}; observed process ASDU CA={observedCa}; active={_active.Name}.",
-            "Station GI/commands sent to the wrong CA can be negatively confirmed while Class 2 process data still proves the link is alive.",
-            "Keep the observed CA in setup for this outstation. The session has switched runtime GI/command CA to the observed value.");
+            "Station GI can be retried using observed process evidence; this never proves a safe command target.",
+            "Verify the station CA in setup before controls. Automatic CA observations affect GI retry only, never operator command routing.");
 
         await RunGeneralInterrogationLifecycleOnActiveAsync(
             $"Dual-link GI retry using observed CA {observedCa}",

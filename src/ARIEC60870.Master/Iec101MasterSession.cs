@@ -6,6 +6,7 @@ using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Iec101;
 using ARIEC60870.Master.Protocol;
 using ARIEC60870.Master.Protocol.Iec10x;
 using ARIEC60870.Master.Transport;
@@ -34,8 +35,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
     private DateTime _lastClass2ResponseUtc = DateTime.MinValue;
     private int _lastMeasuredClass2CycleMs;
-    private readonly Dictionary<int, int> _observedCommonAddressHits = new();
-    private int? _dominantObservedCommonAddress;
+    private readonly Iec101ObservedCaPolicy _observedCa = new();
     private bool _retriedGiWithObservedCommonAddress;
     private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
 
@@ -79,6 +79,8 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             // A reopened physical port starts a new framing/ambiguity epoch;
             // individual Class-1/2/status requests must reuse this reader.
             _reader = new Ft12StreamReader(_transport, _settings.LinkAddressSize, _settings.BaudRate);
+            _observedCa.Reset();
+            _retriedGiWithObservedCommonAddress = false;
             DrainTransportDiagnostics("Open transport");
             // A Windows COM handle does not establish IEC-101 RTU connectivity.
             SetState(Iec103MasterState.OpeningTransport,
@@ -239,41 +241,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             await RunPostGiClass2VerificationSweepAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private void ObserveAsduCommonAddress(Iec10xAsduDecode? asdu)
-    {
-        if (asdu is null)
-        {
-            return;
-        }
-
-        var ca = asdu.CommonAddress;
-        if (ca <= 0)
-        {
-            return;
-        }
-
-        _observedCommonAddressHits.TryGetValue(ca, out var count);
-        _observedCommonAddressHits[ca] = count + 1;
-
-        var dominant = _observedCommonAddressHits
-            .OrderByDescending(x => x.Value)
-            .ThenBy(x => x.Key)
-            .First();
-
-        if (dominant.Value >= 2)
-        {
-            _dominantObservedCommonAddress = dominant.Key;
-        }
-    }
-
     private async Task<bool> TryRetryGiUsingObservedCommonAddressAsync(CancellationToken cancellationToken)
     {
-        if (_retriedGiWithObservedCommonAddress || !_dominantObservedCommonAddress.HasValue)
+        if (_retriedGiWithObservedCommonAddress || !_observedCa.GiRetryCandidate.HasValue)
         {
             return false;
         }
 
-        var observedCa = _dominantObservedCommonAddress.Value;
+        var observedCa = _observedCa.GiRetryCandidate.Value;
         if (observedCa == _settings.CommonAddress)
         {
             return false;
@@ -796,7 +771,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         else if (decoded.IsSingleCharacterNack) _counters.NackResponses++;
 
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
-        ObserveAsduCommonAddress(asdu);
+        _observedCa.Observe(asdu);
         AuditAsduForensicFindings("IEC101", asdu);
         if (decoded.LinkControl is not null && !decoded.LinkControl.Prm)
         {

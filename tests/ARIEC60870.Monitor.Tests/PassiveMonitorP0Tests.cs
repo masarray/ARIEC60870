@@ -470,9 +470,23 @@ public sealed class PassiveMonitorP0Tests
         var healthy = new GatedReadTap(new ReplayTap("COM8", good, 1), fault);
         var options = Options(string.Empty) with { RecordFullSession = false };
         var session = new PassiveMonitorSession(options, bad, healthy);
-        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(350));
-        var result = await session.RunAsync(stop.Token);
-        Assert.True(fault.IsSet);
+        // Let COM7 actually fault before measuring COM8: a short timed run
+        // can expire before the readers start on a loaded Windows runner.
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+        var running = session.RunAsync(stop.Token);
+        var faultObserved = await Task.Run(() => fault.Wait(TimeSpan.FromSeconds(4)));
+        if (faultObserved)
+        {
+            // Wait for physically received COM8 bytes, not a fixed sleep.
+            for (var i = 0; i < 400 &&
+                session.GetProgress().ReaderRtuBytes < good.Length && !running.IsCompleted; i++)
+            {
+                await Task.Delay(10);
+            }
+        }
+        stop.Cancel();
+        var result = await running;
+        Assert.True(faultObserved, "COM7 fault was not injected before the bounded deadline.");
         Assert.True(bad.WasClosed && healthy.WasClosed);
         Assert.Equal("IntegrityUncertain", result.Manifest.Status);
         Assert.Contains("COM7", session.GetProgress().ReaderFaultPorts);
