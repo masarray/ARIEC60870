@@ -33,7 +33,7 @@ public sealed class Iec101ApplicationImageTracker
         }
     }
 
-    public void Observe(Iec10xAsduDecode? asdu, DateTime utcNow)
+    public void Observe(Iec10xAsduDecode? asdu, DateTime utcNow, bool matchedGiCompletion = false)
     {
         if (asdu is null)
         {
@@ -48,7 +48,9 @@ public sealed class Iec101ApplicationImageTracker
             }
         }
 
-        if (Iec10xGiTermination.IsObserved(asdu))
+        // Seeing TI100/COT10 is not evidence that the active owner's GI finished.
+        // Require a current-epoch, CA/QOI/ACTCON-matched application termination.
+        if (matchedGiCompletion && Iec10xGiTermination.IsObserved(asdu))
         {
             LastGiCompletedUtc = utcNow;
             State = Iec101ApplicationImageState.Ready;
