@@ -21,6 +21,8 @@ public sealed class Iec101BoundedEvidenceHistory
     public int Count => _items.Count;
     public long Evicted { get; private set; }
 
+    /// <summary>Add one original evidence fact to the rolling report window.</summary>
+    /// <param name="item">Original accepted or diagnostic event, never rewritten.</param>
     /// <returns>Number evicted from the bounded in-memory report, 0 or 1.</returns>
     public int Append(Iec103MasterEvidenceEvent item)
     {
