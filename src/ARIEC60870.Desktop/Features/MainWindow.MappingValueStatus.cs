@@ -255,8 +255,11 @@ public partial class MainWindow
         }
         // A unique monitor IOA can recover its label for display only.
         // This must never redefine the wire CA or a control target.
-        return match.Point ?? strict ?? _displayPointIndex.Resolve(ca,
-            item.InformationObjectAddress.Value, type, allowNameOnly: true).Point;
+        return match.Point ?? strict ??
+            (_runtimeCaReconciler.HasSourceConflict(item.PhysicalSource)
+                ? null
+                : _displayPointIndex.Resolve(ca, item.InformationObjectAddress.Value,
+                    type, allowNameOnly: true).Point);
     }
 
     private void ReportUnmatchedProfileCommonAddress(Iec103MasterEvidenceEvent item)
