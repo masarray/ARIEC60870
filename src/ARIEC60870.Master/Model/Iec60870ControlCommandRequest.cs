@@ -46,3 +46,12 @@ public interface IProtocolControlCommandSession
     bool SupportsRuntimeControlCommands { get; }
     void QueueControlCommand(Iec60870ControlCommandRequest request);
 }
+
+/// <summary>
+/// Optional compatibility-safe admission contract for bounded command sessions.
+/// True confirms queue admission only; it is NOT TX, ACTCON, ACTTERM or process execution.
+/// </summary>
+public interface IProtocolCommandAdmissionSession : IProtocolControlCommandSession
+{
+    bool TryQueueControlCommand(Iec60870ControlCommandRequest request);
+}
