@@ -989,6 +989,20 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         _imageTracker.Observe(asdu, utcNow);
         _observedCa.Observe(asdu);
+        if (_learnedCommonAddress.HasValue && _observedCa.HasConflictingStations)
+        {
+            // A previously observed single-station CA has become ambiguous.
+            // Never retain this advisory GI target once another station appears.
+            var formerCa = _learnedCommonAddress.Value;
+            _learnedCommonAddress = null;
+            RaiseFinding(
+                FindingSeverity.Warning,
+                "IEC101-DUAL-CA-AMBIGUOUS",
+                "IEC-101 observed CA invalidated by multi-station traffic",
+                $"Former GI retry CA={formerCa}; valid process ASDUs now identify multiple CAs.",
+                "Station identity can no longer be inferred from received process traffic.",
+                "Use the configured CA or explicitly choose the GI/command target after verifying the RTU station configuration.");
+        }
         if (Iec10xGiTermination.IsObserved(asdu))
         {
             AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 GI activation termination observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
@@ -1036,10 +1050,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     }
 
     private int? ResolveRuntimeCommonAddress(int? requestedCommonAddress)
-        => requestedCommonAddress ?? _learnedCommonAddress;
+        => requestedCommonAddress ??
+            (_learnedCommonAddress.HasValue &&
+             _observedCa.GiRetryCandidate == _learnedCommonAddress.Value
+                ? _learnedCommonAddress
+                : null);
 
     private string FormatCommonAddress(int? requestedCommonAddress)
-        => (requestedCommonAddress ?? _learnedCommonAddress ?? _options.BaseSettings.CommonAddress)
+        => (ResolveRuntimeCommonAddress(requestedCommonAddress) ??
+            _options.BaseSettings.CommonAddress)
             .ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private void PublishApplicationImageMilestone()
@@ -1136,7 +1155,8 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         return $"{standby.Name} supervised as standby.";
     }
 
-    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)    {
+    private void AddApplicationImageEvent(Iec101RedundancyEventKind kind, string summary, string detail)
+    {
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.Unknown,
