@@ -6,15 +6,15 @@ using ARIEC60870.Master.Model;
 namespace ARIEC60870.Master.Protocol;
 
 /// <summary>
-/// Bounded O(1) rolling evidence retention for IEC-101 Master session results.
+/// Bounded O(1) rolling evidence retention for IEC-101/104 Master session results.
 /// Original evidence still reaches subscribers before it can be evicted from
 /// this report snapshot. This is not a persistent raw-wire archive.
 /// </summary>
-public sealed class Iec101BoundedEvidenceHistory
+public class Iec10xBoundedEvidenceHistory
 {
     private readonly Queue<Iec103MasterEvidenceEvent> _items = new();
 
-    public Iec101BoundedEvidenceHistory(int configuredCapacity)
+    public Iec10xBoundedEvidenceHistory(int configuredCapacity)
         => Capacity = Math.Max(100, configuredCapacity);
 
     public int Capacity { get; }
@@ -35,4 +35,13 @@ public sealed class Iec101BoundedEvidenceHistory
     }
 
     public Iec103MasterEvidenceEvent[] Snapshot() => _items.ToArray();
+}
+
+
+/// <summary>Compatibility name for existing IEC-101 bounded report-history consumers.</summary>
+public sealed class Iec101BoundedEvidenceHistory : Iec10xBoundedEvidenceHistory
+{
+    public Iec101BoundedEvidenceHistory(int configuredCapacity) : base(configuredCapacity)
+    {
+    }
 }
