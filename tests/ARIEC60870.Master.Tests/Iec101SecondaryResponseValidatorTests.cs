@@ -81,7 +81,6 @@ public sealed class Iec101SecondaryResponseValidatorTests
 
     [Theory]
     [InlineData("E5", true)]
-    [InlineData("A2", false)]
     [InlineData("100169006A16", false)] // Secondary NACK function 1.
     [InlineData("101B69008416", false)] // Secondary response with DFC=1 (0x1B).
     public void AckNackAndBusyPreserveFcbSemantics(string hex, bool advances)
@@ -92,6 +91,41 @@ public sealed class Iec101SecondaryResponseValidatorTests
         Assert.True(check.IsValid);
         Assert.Equal(advances, check.AdvancesFcb);
         Assert.Equal(advances, Iec101SecondaryResponseValidator.CanAdvanceFcb(frame));
+    }
+    [Theory]
+    [InlineData(9, "100B69007416", true, true, "IEC101-RX-ACCEPTED")]
+    [InlineData(9, "E5", false, false, "IEC101-RX-UNEXPECTED-E5-STATUS")]
+    [InlineData(9, "100969007216", false, false, "IEC101-RX-UNEXPECTED-FUNCTION")]
+    [InlineData(3, "100B69007416", false, false, "IEC101-RX-OUT-OF-CONTEXT-FC11")]
+    [InlineData(10, "100B69007416", false, false, "IEC101-RX-OUT-OF-CONTEXT-FC11")]
+    [InlineData(11, "100B69007416", false, false, "IEC101-RX-OUT-OF-CONTEXT-FC11")]
+    [InlineData(3, "100069006916", true, true, "IEC101-RX-ACCEPTED")]
+    [InlineData(10, "100969007216", true, true, "IEC101-RX-ACCEPTED")]
+    [InlineData(11, "100869007116", true, true, "IEC101-RX-ACCEPTED")]
+    [InlineData(3, "100169006A16", true, false, "IEC101-RX-ACCEPTED")]
+    [InlineData(11, "101969008216", true, false, "IEC101-RX-ACCEPTED")]
+    [InlineData(3, "A2", false, false, "IEC101-RX-FORBIDDEN-A2")]
+    public void PendingPrimaryServiceMustMatchSecondaryFunction(
+        int primaryFc, string receivedHex, bool isValid, bool advancesFcb, string code)
+    {
+        var frame = Parser.Decode(Convert.FromHexString(receivedHex));
+        var check = Iec101SecondaryResponseValidator.Validate(
+            frame, 105, Array.Empty<byte>(), pendingPrimaryFunctionCode: primaryFc);
+
+        Assert.Equal(isValid, check.IsValid);
+        Assert.Equal(advancesFcb, check.AdvancesFcb);
+        Assert.Equal(code, check.Code);
+    }
+
+    [Fact]
+    public void AcknowledgmentWithoutAddressNeverVerifiesLinkIdentity()
+    {
+        Assert.False(Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(
+            Parser.Decode(new byte[] { 0xE5 })));
+        Assert.True(Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(
+            Parser.Decode(Convert.FromHexString("100B69007416"))));
+        Assert.False(Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(
+            Parser.Decode(Convert.FromHexString("101B69008416"))));
     }
 }
 
