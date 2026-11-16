@@ -19,7 +19,7 @@ Single-link `Iec101MasterSession` and dual-link `Iec101DualLinkRedundancySession
 ## Control separation
 
 - The configured CA remains immutable during a session and is the default CA for clock/read/control commands. An operator-explicit CA on a request remains authoritative.
-- The learned CA can be used solely by the explicitly labeled GI retry, including a later GI session that has adopted that GI-only hint. It must **never** rewrite or implicitly override the default CA for Double/Single Command, setpoint, regulating, Read or ClockSync.
+- The observed CA is passed only to the **single explicitly labeled evidence-backed GI retry**. Later startup, manual and post-switch GI use the configured CA unless the operator explicitly specifies another CA. It must **never** rewrite or implicitly override the default CA for Double/Single Command, setpoint, regulating, Read or ClockSync.
 - The application should display the observed CA evidence and recommend explicit RTU profile verification. An operator may manually correct setup following site authorization and verification.
 - Never merge the unreviewed draft transaction/FCB implementation from PR #145 wholesale.
 
