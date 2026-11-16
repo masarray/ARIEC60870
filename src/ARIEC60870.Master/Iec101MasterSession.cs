@@ -27,7 +27,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
     private bool _linkVerified;
-    private byte[] _lastTxFrame = Array.Empty<byte>(); 
+    private byte[] _lastTxFrame = Array.Empty<byte>();
     private readonly Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
     private long _sequence;
