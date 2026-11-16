@@ -21,10 +21,14 @@ public sealed class OfflineTransactionProjectionTests
         {
             Sequence = seq,
             DecoderSchema = "IEC10X-OBJECT-V1",
-            CotWidth = 2, CaWidth = 2, IoaWidth = 3, LinkWidth = 1,
+            CotWidth = 2,
+            CaWidth = 2,
+            IoaWidth = 3,
+            LinkWidth = 1,
             RawHex = Convert.ToHexString(raw),
             Direction = direction,
-            ProtocolMode = "101", ProtocolName = "IEC-101",
+            ProtocolMode = "101",
+            ProtocolName = "IEC-101",
             PhysicalSource = "Link A",
             CaptureArrivalUtc = new DateTime(2026, 10, 30, 1, 2, 3, DateTimeKind.Utc)
         };
