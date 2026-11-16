@@ -2,7 +2,7 @@
 
 Canonical English/Indonesian site: https://masarray.github.io/ARIEC60870/
 
-**Latest stable:** [v3.6.11](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11) · **previous stable:** [v3.6.10](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.10). Physical SICAM FAT is not certified and draft IEC-101 engine PR #145 remains unreleased.
+**Latest stable:** [v3.6.12](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) · **previous stable:** [v3.6.11](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11). Physical SICAM FAT is not certified and draft IEC-101 engine PR #145 remains unreleased.
 
 - `index.html`, `id/index.html`: bilingual product landing.
 - `download.html`, `quick-start.html`: Windows installer/portable paths and integrity.
