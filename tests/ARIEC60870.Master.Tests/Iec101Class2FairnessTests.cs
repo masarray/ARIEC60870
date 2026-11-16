@@ -71,9 +71,9 @@ public sealed class Iec101Class2FairnessTests
         {
             BaseSettings = settings,
             LinkA = new Iec101DualLinkEndpoint
-                { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
+            { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
             LinkB = new Iec101DualLinkEndpoint
-                { Name = "B", PortName = "FAKE-B", LinkAddress = 105 },
+            { Name = "B", PortName = "FAKE-B", LinkAddress = 105 },
             StandbySupervisionInterval = TimeSpan.FromSeconds(1),
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
         };
@@ -104,9 +104,9 @@ public sealed class Iec101Class2FairnessTests
         {
             BaseSettings = settings,
             LinkA = new Iec101DualLinkEndpoint
-                { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
+            { Name = "A", PortName = "FAKE-A", LinkAddress = 105 },
             LinkB = new Iec101DualLinkEndpoint
-                { Name = "B", PortName = "FAKE-B", LinkAddress = 105 },
+            { Name = "B", PortName = "FAKE-B", LinkAddress = 105 },
             StandbySupervisionInterval = TimeSpan.FromMilliseconds(250),
             PostSwitchGiPolicy = Iec101PostSwitchGiPolicy.Disabled
         };
