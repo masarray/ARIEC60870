@@ -26,6 +26,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     private readonly object _findingGate = new();
     private readonly Iec103MasterCounters _counters = new();
     private readonly Iec101PerLinkTransactionEngine _transactions = new();
+    private readonly Iec101GiLifecycleTracker _giLifecycle = new();
     private bool _linkVerified;
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private Iec101TransmitHistory _transmitHistory = new();
@@ -229,6 +230,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             throw new Iec101PhysicalLinkFault(_settings.PortName, fault);
         }
         _transactions.StartConnectionEpoch();
+        _giLifecycle.Reset(); // Never carry old COM GI confirmation into a reopened port.
         _lastTxFrame = Array.Empty<byte>();
         _transmitHistory = new Iec101TransmitHistory();
         _acd = false;
@@ -568,7 +570,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             category: "Warning",
             dataClass: "Class 2");
 
-        var acceptedGroups = 0;
+        var linkRepliedGroups = 0;
         var negativeGroups = 0;
         var noResponseGroups = 0;
         var firstGroup = 21;
@@ -595,15 +597,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             }
             else
             {
-                acceptedGroups++;
+                linkRepliedGroups++;
                 await DrainClass1Async($"Group GI QOI={qoi} follow-up drain", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
             }
 
-            // When the outstation says NO DATA after a group request and no group has been accepted
-            // yet, still continue through the remaining groups. Some RTUs implement only a subset.
-            // Once at least one group has been accepted, two consecutive NO DATA/negative groups are
-            // enough to prevent this fallback from monopolizing a slow 1200 bps link.
-            if (acceptedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, acceptedGroups + 2))
+            // This counter tracks the link reply only; FC0/E5 does NOT mean
+            // the RTU accepted group GI. ACTCON/ACTTERM remain separate evidence.
+            // Bound subsequent attempts so fallback cannot monopolize 1200 bps.
+            if (linkRepliedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, linkRepliedGroups + 2))
             {
                 break;
             }
@@ -617,7 +618,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         SetState(
             Iec103MasterState.NormalClass2Polling,
             "IEC-101 group interrogation fallback completed",
-            $"Groups accepted={acceptedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.",
+            $"Groups with link replies={linkRepliedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.",
             dataClass: "Class 2");
     }
 
@@ -838,6 +839,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         _counters.TxFrames++;
         var decoded = _ft12.Decode(frame);
         var asdu = decoded.AsduBytes.Count > 0 ? _asduDecoder.Decode(decoded.AsduBytes) : null;
+        _giLifecycle.ObserveTransmitted(asdu); // TX intent only; link/application acceptance still unproven.
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.MasterToSlave,
@@ -991,8 +993,10 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             else if (decoded.LinkControl.FunctionCode == 8 || asdu is not null) _counters.UserDataResponses++;
         }
 
-        // COT10 is also used by ordinary controls: only TI100 terminates a GI.
-        if (Iec10xGiTermination.IsObserved(asdu))
+        // A TI100/COT10 alone cannot finish an unrelated CA/QOI or an older GI.
+        // Require the matching per-COM TX and positive ACTCON before counting.
+        var giObservation = _giLifecycle.ObserveReceived(asdu);
+        if (giObservation == Iec101GiLifecycleObservation.MatchedActterm)
             _counters.GiEndResponses++;
         if (asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
         AddEvent(new Iec103MasterEvidenceEvent

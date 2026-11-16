@@ -12,6 +12,8 @@ internal sealed class Iec101ChannelExchangeResult
     public bool TimedOut { get; init; }
     public bool IsNoData { get; init; }
     public bool IsUserData { get; init; }
+    /// <summary>Application GI ACTTERM correlated with current physical link's positive ACTCON.</summary>
+    public bool MatchedGiActterm { get; init; }
     public bool Acd { get; init; }
     public bool Dfc { get; init; }
     public Ft12FrameDecode? Frame { get; init; }

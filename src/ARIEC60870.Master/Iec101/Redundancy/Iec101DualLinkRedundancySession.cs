@@ -703,7 +703,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 break;
             }
 
-            if (Iec10xGiTermination.IsObserved(response.Asdu))
+            if (response.MatchedGiActterm)
             {
                 _counters.GiEndResponses++;
                 stoppedByGiEnd = true;
@@ -1162,7 +1162,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             "IEC-101 group interrogation fallback started",
             reason + ". Station interrogation QOI=20 was negatively confirmed; trying bounded group interrogation QOI=21..36 on the active link.");
 
-        var acceptedGroups = 0;
+        var linkRepliedGroups = 0;
         var negativeGroups = 0;
         var noResponseGroups = 0;
         const int firstGroup = 21;
@@ -1187,11 +1187,13 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             }
             else
             {
-                acceptedGroups++;
+                // Link-layer FC0/E5 is not application ACTCON; do not label
+                // an attempted group as an RTU-accepted interrogation.
+                linkRepliedGroups++;
                 await DrainClass1OnActiveAsync($"Group GI QOI={qoi} follow-up drain on active link", stopWhenGiEnds: true, cancellationToken).ConfigureAwait(false);
             }
 
-            if (acceptedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, acceptedGroups + 2))
+            if (linkRepliedGroups > 0 && (negativeGroups + noResponseGroups) >= Math.Max(4, linkRepliedGroups + 2))
             {
                 break;
             }
@@ -1205,7 +1207,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         AddApplicationImageEvent(
             Iec101RedundancyEventKind.ApplicationImagePartial,
             "IEC-101 group interrogation fallback completed",
-            $"Groups accepted={acceptedGroups}; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.");
+            $"Groups with link replies={linkRepliedGroups}; application acceptance requires matched ACTCON; negative/no-response={negativeGroups + noResponseGroups}. Continuing Class 2/background polling.");
     }
 
     private static bool IsNegativeConfirmation(Iec101ChannelExchangeResult? response, int expectedTypeId)
@@ -1280,9 +1282,14 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
     }
 
-    private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow)
+    private void ObserveApplicationAsdu(Iec10xAsduDecode? asdu, DateTime utcNow,
+        bool matchedGiActterm, string physicalSource)
     {
-        _imageTracker.Observe(asdu, utcNow);
+        // A/B standby may supervise FC9, but it cannot certify the active owner's
+        // application image, CA evidence, or GI lifecycle.
+        if (_active is null || !string.Equals(_active.Name, physicalSource, StringComparison.Ordinal))
+            return;
+        _imageTracker.Observe(asdu, utcNow, matchedGiActterm);
         _observedCa.Observe(asdu);
         if (_learnedCommonAddress.HasValue && _observedCa.HasConflictingStations)
         {
@@ -1298,9 +1305,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 "Station identity can no longer be inferred from received process traffic.",
                 "Use the configured CA or explicitly choose the GI/command target after verifying the RTU station configuration.");
         }
-        if (Iec10xGiTermination.IsObserved(asdu))
+        if (matchedGiActterm)
         {
-            AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 GI activation termination observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
+            AddApplicationImageEvent(Iec101RedundancyEventKind.PostSwitchGiCompleted, "IEC-101 source-matched GI ACTTERM observed", $"Application image={_imageTracker.State}; objects={_imageTracker.ObjectCount}.");
         }
     }
 
