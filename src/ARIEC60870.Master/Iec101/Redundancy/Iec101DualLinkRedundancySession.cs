@@ -67,7 +67,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         if (request is null) return;
         var active = Volatile.Read(ref _active);
         var stamp = active is null ? default :
-            new Iec101OwnerStamp(active.Name, active.ConnectionEpoch,
+            new Iec101OwnerStamp(active.Name, active.CommandAuthorityEpoch,
                 Volatile.Read(ref _activeGeneration));
         if (!_controlCommands.TryEnqueue(new QueuedControl(request, stamp,
                 active?.IsHealthy == true && !_switchInProgress, DateTime.UtcNow)))
@@ -424,7 +424,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         var request = queued.Request;
         var ownerMatches = queued.OwnerAtQueue.LinkName is null ||
-            queued.OwnerAtQueue.Matches(owner.Name, owner.ConnectionEpoch,
+            queued.OwnerAtQueue.Matches(owner.Name, owner.CommandAuthorityEpoch,
                 Volatile.Read(ref _activeGeneration));
         if (!ownerMatches ||
             (IsMutatingCommand(request) &&
