@@ -371,28 +371,28 @@ public sealed class Iec101DualLinkRedundancySessionTests
         Assert.Equal("Link A", snapshot.ActiveLinkName);
     }
 
-    private static Iec103MasterSettings CreateFastSimulatedIec101Settings()        => new()
-        {
-            ProtocolMode = Iec60870ProtocolMode.Iec101,
-            UseSimulatedSlave = true,
-            TargetProfile = "IEC-101 dual-link simulated outstation",
-            LinkAddress = 1,
-            LinkAddressSize = 1,
-            CommonAddress = 1,
-            CommonAddressSize = 2,
-            CauseOfTransmissionSize = 2,
-            InformationObjectAddressSize = 3,
-            ResponseTimeoutMs = 250,
-            Class2PollIntervalMs = 60,
-            Class1DrainDelayMs = 0,
-            MaxClass1DrainFrames = 16,
-            ResetRemoteLinkOnConnect = false,
-            ResetFcbOnConnect = false,
-            SendGeneralInterrogationOnConnect = false,
-            SendClockSyncOnConnect = false,
-            RequestClass2ImmediatelyAfterStartup = true,
-            MaxRetainedEvidenceEvents = 2000
-        };
+    private static Iec103MasterSettings CreateFastSimulatedIec101Settings() => new()
+    {
+        ProtocolMode = Iec60870ProtocolMode.Iec101,
+        UseSimulatedSlave = true,
+        TargetProfile = "IEC-101 dual-link simulated outstation",
+        LinkAddress = 1,
+        LinkAddressSize = 1,
+        CommonAddress = 1,
+        CommonAddressSize = 2,
+        CauseOfTransmissionSize = 2,
+        InformationObjectAddressSize = 3,
+        ResponseTimeoutMs = 250,
+        Class2PollIntervalMs = 60,
+        Class1DrainDelayMs = 0,
+        MaxClass1DrainFrames = 16,
+        ResetRemoteLinkOnConnect = false,
+        ResetFcbOnConnect = false,
+        SendGeneralInterrogationOnConnect = false,
+        SendClockSyncOnConnect = false,
+        RequestClass2ImmediatelyAfterStartup = true,
+        MaxRetainedEvidenceEvents = 2000
+    };
 
     // Drop entire scripted RTU exchanges, not transient zero-byte reads:
     // FT1.2 P0 correctly tolerates the latter within its receive deadline.
