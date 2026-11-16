@@ -14,12 +14,15 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
 {
     // Receive ownership includes APCI acceptance, not merely decoded wire bytes.
     // A rejected I-frame is evidence but cannot terminate GI or advance process state.
-    private readonly record struct ReceiveOutcome(Iec104ApduDecode? Apdu, bool AcceptedI);
+    private readonly record struct ReceiveOutcome(Iec104ApduDecode? Apdu, bool AcceptedI,
+        bool MatchedGiActterm = false);
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
     private readonly Iec104ApduParser _parser;
     private readonly Iec104StreamReader _streamReader;
-    private readonly List<Iec103MasterEvidenceEvent> _events = new();
+    private readonly Iec10xBoundedEvidenceHistory _events;
+    // One GI authority per TCP association; no replay across STARTDT or reconnect.
+    private readonly Iec10xGiLifecycleTracker _giLifecycle = new();
     private readonly List<Iec103MasterFinding> _findings = new();
     private readonly Iec103MasterCounters _counters = new();
     private int _sendSequence;
@@ -37,6 +40,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _events = new Iec10xBoundedEvidenceHistory(settings.MaxRetainedEvidenceEvents);
         _parser = new Iec104ApduParser(settings.CauseOfTransmissionSize, settings.CommonAddressSize, settings.InformationObjectAddressSize);
         _streamReader = new Iec104StreamReader(transport);
     }
@@ -66,6 +70,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         // A new TCP transport connection must not inherit command proof from an
         // earlier connection, even if CA/IOA and APCI N(S) are reused.
         _connectionInstanceId = Guid.NewGuid().ToString("N");
+        _giLifecycle.Reset(); // A new TCP association cannot borrow an old GI ACTCON.
         var started = DateTime.UtcNow;
         var completion = "Stopped by cancellation or requested duration.";
         try
@@ -140,7 +145,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             ProductMode = "IEC 60870-5-104 TCP Client Tester",
             Settings = _settings.CreateReportSnapshot(),
             Counters = _counters,
-            Events = _events.ToArray(),
+            Events = _events.Snapshot(),
             Findings = _findings.ToArray(),
             StartedUtc = started,
             FinishedUtc = DateTime.UtcNow,
@@ -294,7 +299,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             received++;
             // A rejected APDU may carry COT10 in its raw bytes. It is not a GI
             // completion and cannot abbreviate the remaining receive window.
-            if (outcome.AcceptedI && Iec10xGiTermination.IsObserved(outcome.Apdu.Asdu)) break;
+            if (outcome.MatchedGiActterm) break;
         }
     }
 
@@ -303,6 +308,10 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
         _counters.TxFrames++;
         var decoded = _parser.Decode(frame);
+        // Register GI only after the actual transport accepted the I-format TX.
+        // The same per-connection authority validates all later ACTCON/ACTTERM.
+        if (decoded.IsValid && decoded.Format == "I")
+            _giLifecycle.ObserveTransmitted(decoded.Asdu);
         AddEvent(new Iec103MasterEvidenceEvent
         {
             Direction = FrameDirection.MasterToSlave,
@@ -382,6 +391,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         var acceptedI = decoded.IsValid && decoded.Format == "I" &&
             decoded.SendSequence == _receiveSequence && _startDtConfirmed &&
             validAcknowledgement;
+        var matchedGiActterm = false;
         if (decoded.Format == "I")
         {
             if (!acceptedI)
@@ -397,7 +407,12 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             {
                 _counters.UserDataResponses++;
                 _receiveSequence = Iec104SequenceWindow.Next(_receiveSequence);
-                if (Iec10xGiTermination.IsObserved(decoded.Asdu)) _counters.GiEndResponses++;
+                if (_giLifecycle.ObserveReceived(decoded.Asdu) ==
+                    Iec101GiLifecycleObservation.MatchedActterm)
+                {
+                    matchedGiActterm = true;
+                    _counters.GiEndResponses++;
+                }
                 if (decoded.Asdu?.TypeId is 1 or 2 or 3 or 4 or 30 or 31) _counters.DpiEvents++;
             }
             // A malformed APCI is retained as evidence, not acknowledged as
@@ -470,7 +485,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
         });
         if (acceptedI)
             AddAdditionalObjectEvents(decoded, raw, dataClass, reason, sw.ElapsedMilliseconds, _sequence);
-        return new ReceiveOutcome(decoded, acceptedI);
+        return new ReceiveOutcome(decoded, acceptedI, matchedGiActterm);
     }
 
     private void AddAdditionalObjectEvents(Iec104ApduDecode decoded, IReadOnlyList<byte> raw, string dataClass, string reason, long responseTimeMs, long physicalFrameSequence)
@@ -685,7 +700,7 @@ public sealed class Iec104ClientSession : IProtocolMasterSession, IProtocolContr
             RelayTimestampText = item.RelayTimestampText,
             RelayTimestampInvalid = item.RelayTimestampInvalid
         };
-        _events.Add(enriched);
+        _counters.EvidenceEventsDroppedFromMemory += _events.Append(enriched);
         EvidenceReceived?.Invoke(this, enriched);
     }
 

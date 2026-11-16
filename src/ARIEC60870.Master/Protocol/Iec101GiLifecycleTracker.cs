@@ -6,12 +6,12 @@ using ARIEC60870.Master.Protocol.Iec10x;
 namespace ARIEC60870.Master.Protocol;
 
 /// <summary>
-/// Per-physical IEC-101 COM-epoch GI application lifecycle gate. Correlates only
-/// actual, decoded TI100 COT6 TX with compatible RTU ACTCON/ACTTERM by CA,
-/// originator and QOI. A link ACK, unrelated GI or ACTTERM without ACTCON
-/// never establishes completed application interrogation.
+/// One IEC-101 physical COM epoch or IEC-104 TCP association GI lifecycle.
+/// Correlates successfully transmitted decoded TI100 COT6 with positive
+/// ACTCON then ACTTERM on an admitted receive stream, by CA, originator
+/// and QOI. Merely observing TI100/COT10 never proves GI completion.
 /// </summary>
-public sealed class Iec101GiLifecycleTracker
+public class Iec10xGiLifecycleTracker
 {
     private int? _ca;
     private int _originator;
@@ -32,8 +32,8 @@ public sealed class Iec101GiLifecycleTracker
     }
 
     /// <summary>
-    /// Call only after a physical IEC-101 TX write succeeded. This does not
-    /// imply a link ACK or an RTU ACTCON.
+    /// Call only after a physical IEC-101/104 GI TX write succeeded.
+    /// This does not imply an RTU positive ACTCON.
     /// </summary>
     public bool ObserveTransmitted(Iec10xAsduDecode? asdu)
     {
@@ -52,7 +52,7 @@ public sealed class Iec101GiLifecycleTracker
         return true;
     }
 
-    /// <summary>Inspect only a service-validated secondary FT1.2 user-data ASDU.</summary>
+    /// <summary>Inspect only a service-validated IEC-101 secondary or accepted IEC-104 I-format ASDU.</summary>
     public Iec101GiLifecycleObservation ObserveReceived(Iec10xAsduDecode? asdu)
     {
         if (!ValidGi(asdu) || asdu!.IsTest ||
@@ -94,6 +94,11 @@ public sealed class Iec101GiLifecycleTracker
                asdu.Objects[0].Issues.Count == 0 &&
                asdu.CommandDetails?.QualifierValue is >= 20 and <= 36;
     }
+}
+
+/// <summary>Preserves the pre-existing IEC-101 API without a second state machine.</summary>
+public sealed class Iec101GiLifecycleTracker : Iec10xGiLifecycleTracker
+{
 }
 
 public enum Iec101GiLifecycleObservation

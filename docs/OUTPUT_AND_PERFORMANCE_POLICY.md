@@ -99,7 +99,27 @@ authorize name-only aliases. The same strict source-CA principle applies
 to Value Viewer name refresh when the operator switches Signal Lists.
 Physical addresses, command/GI targets and raw bytes never change.
 
-### Snapshot model
+#### IEC-104 correlated GI and bounded evidence (2026-11-16)
+
+An IEC-104 received TI100/COT10 is **only an on-wire observation** unless
+the current TCP association has a successfully transmitted, decoded TI100/COT6
+intent, a positive ACTCON for the same CA/OA/QOI and a matching positive
+ACTTERM admitted by APCI N(S)/N(R), STARTDT and ASDU integrity gates.
+Only this matched completion increments `GiEndResponses` and may close
+the GI burst receive window; unrelated, negative, TEST, incomplete or
+cross-association frames do not. This policy reuses the same proven GI
+lifecycle code as IEC-101, with a fresh authority per TCP association.
+A matched ACTTERM proves an observed GI lifecycle, **not complete expected
+IOA coverage or a successful physical command**.
+
+IEC-104 Master report evidence now shares the same O(1) configured
+`MaxRetainedEvidenceEvents` (minimum 100) FIFO policy as IEC-101 single
+and dual-link. `EvidenceEventsDroppedFromMemory` increments on exact
+oldest-first eviction. `EvidenceReceived` continues to emit every
+admitted or diagnostic event to subscribers; an in-memory rolling report
+is never represented as a complete independent wire journal.
+
+## Snapshot model
 
 The UI must prefer snapshots over append-only rendering:
 
