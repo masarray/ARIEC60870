@@ -1,6 +1,6 @@
 # IEC-101 Stage 3 — shared per-link transaction/FCB authority
 
-Base: Stage 2 PR #220 head `e735ec466c95bd776ba62b853770a85e90d098eb` stacked over merged master #219. This is a focused transaction port from draft #145, not a merge of its old orchestrators.
+Base: merged Stage 2 master `2b2274009272df62646ca2f63c4ffaf63e80bf3d` (#220) on top of Stage 1 #219. This is a focused transaction port from draft #145, not a merge of its old orchestrators.
 
 ## Runtime ownership
 
@@ -19,4 +19,4 @@ Base: Stage 2 PR #220 head `e735ec466c95bd776ba62b853770a85e90d098eb` stacked ov
 
 ## Non-goals and release safety
 
-No UI redesign, changed operator command admission, auto GI, physical control retry, clock-sync replay, COM reopen automation, NUC balanced mode or public release. #220's command authority remains preserved by layering on its exact head. Once #220 merges, retarget this PR to current master and validate the new exact head before merging.
+No UI redesign, changed operator command admission, auto GI, physical control retry, clock-sync replay, COM reopen automation, NUC balanced mode or public release. #220's command authority remains preserved by layering on its exact head. Stage 2 #220 has been merged; this focused transaction PR now targets master and requires fresh exact-head CI before merging.
