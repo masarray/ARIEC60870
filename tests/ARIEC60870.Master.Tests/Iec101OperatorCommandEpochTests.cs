@@ -58,8 +58,8 @@ public sealed class Iec101OperatorCommandEpochTests
         using var transport = new SimulatedIec101Transport(settings);
         var session = new Iec101MasterSession(settings, transport);
         for (var i = 0; i < 64; i++)
-            Assert.True(session.TryQueueControlCommand(SingleCommand()));
-        Assert.False(session.TryQueueControlCommand(SingleCommand()));
+            Assert.True(session.TryQueueControlCommand(ReadOnlyGi()));
+        Assert.False(session.TryQueueControlCommand(ReadOnlyGi()));
     }
 
     [Fact]
@@ -71,8 +71,8 @@ public sealed class Iec101OperatorCommandEpochTests
         using var b = new SimulatedIec101Transport(options.LinkB.ApplyTo(settings));
         var session = new Iec101DualLinkRedundancySession(options, a, b);
         for (var i = 0; i < 64; i++)
-            Assert.True(session.TryQueueControlCommand(SingleCommand()));
-        Assert.False(session.TryQueueControlCommand(SingleCommand()));
+            Assert.True(session.TryQueueControlCommand(ReadOnlyGi()));
+        Assert.False(session.TryQueueControlCommand(ReadOnlyGi()));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class Iec101OperatorCommandEpochTests
         session.QueueControlCommand(SingleCommand());
         var result = await session.RunForAsync(TimeSpan.FromMilliseconds(700), CancellationToken.None);
         Assert.True(result.CompletedNormally, result.CompletionReason);
-        Assert.Contains(result.Findings, x => x.Id == "IEC101-COMMAND-STALE-LINK");
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-COMMAND-LINK-UNVERIFIED");
         Assert.DoesNotContain(result.Events, x =>
             x.Direction == FrameDirection.MasterToSlave && x.TypeId == 45);
     }
@@ -120,7 +120,7 @@ public sealed class Iec101OperatorCommandEpochTests
         session.QueueControlCommand(SingleCommand());
         var result = await session.RunForAsync(TimeSpan.FromMilliseconds(750), CancellationToken.None);
         Assert.True(result.CompletedNormally, result.CompletionReason);
-        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-COMMAND-STALE-OWNER");
+        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-COMMAND-ACTIVE-UNVERIFIED");
         Assert.DoesNotContain(result.Events, x =>
             x.Direction == FrameDirection.MasterToSlave && x.TypeId == 45);
     }
@@ -180,6 +180,11 @@ public sealed class Iec101OperatorCommandEpochTests
         Assert.DoesNotContain(result.Events, x =>
             x.Direction == FrameDirection.MasterToSlave && x.TypeId == 45);
     }
+
+    private static Iec60870ControlCommandRequest ReadOnlyGi() => new()
+    {
+        Kind = Iec60870ControlCommandKind.GeneralInterrogation
+    };
 
     private static Iec60870ControlCommandRequest SingleCommand() => new()
     {
