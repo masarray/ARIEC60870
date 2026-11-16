@@ -108,6 +108,23 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
     }
 
     [Fact]
+    public async Task OpenButSilentActiveRtuFailsOverToIndependentlyVerifiedStandby()
+    {
+        var settings = Settings();
+        var options = Options(settings);
+        await using var a = new FlakySimulatedPort(options.LinkA.ApplyTo(settings), suppressReads: true);
+        await using var b = new FlakySimulatedPort(options.LinkB.ApplyTo(settings));
+        var result = await new Iec101DualLinkRedundancySession(options, a, b)
+            .RunForAsync(TimeSpan.FromMilliseconds(1300), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(1, a.OpenCount);
+        Assert.True(b.StatusWrites > 0, "The other physical COM must obtain addressed FC9 proof.");
+        Assert.True(b.Class2Writes > 0, "A silent open COM cannot starve Class 2 polling on healthy B.");
+        Assert.DoesNotContain(result.Findings, f => f.Id == "IEC101-DUAL-COM-PHYSICAL-RECOVERY");
+    }
+
+    [Fact]
     public async Task BothComPortsAbsentRemainsCancellableWithoutTransmitting()
     {
         var settings = Settings();
@@ -131,14 +148,16 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
         private readonly bool _unplugOnFirstClass2;
         private readonly bool _failFirstOpen;
         private readonly bool _alwaysFailOpen;
+        private readonly bool _suppressReads;
 
         public FlakySimulatedPort(Iec103MasterSettings settings, bool unplugOnFirstClass2 = false,
-            bool failFirstOpen = false, bool alwaysFailOpen = false)
+            bool failFirstOpen = false, bool alwaysFailOpen = false, bool suppressReads = false)
         {
             _peer = new SimulatedIec101Transport(settings);
             _unplugOnFirstClass2 = unplugOnFirstClass2;
             _failFirstOpen = failFirstOpen;
             _alwaysFailOpen = alwaysFailOpen;
+            _suppressReads = suppressReads;
         }
 
         public bool IsOpen => _peer.IsOpen;
@@ -178,7 +197,7 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
         }
 
         public ValueTask<int> ReadAsync(Memory<byte> bytes, CancellationToken token)
-            => _peer.ReadAsync(bytes, token);
+            => _suppressReads ? ValueTask.FromResult(0) : _peer.ReadAsync(bytes, token);
 
         public void Dispose() => _peer.Dispose();
         public ValueTask DisposeAsync() => _peer.DisposeAsync();
