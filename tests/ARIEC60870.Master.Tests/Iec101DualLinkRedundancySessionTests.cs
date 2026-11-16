@@ -92,7 +92,7 @@ public sealed class Iec101DualLinkRedundancySessionTests
     }
 
     [Fact]
-    public async Task NegativeStationGiUsesGroupInterrogationFallbackOnActiveLink()
+    public async Task OutOfContextGiNegativeAsduCannotTriggerUnsafeGroupFallback()
     {
         var settings = CreateFastSimulatedIec101Settings();
         settings.SendGeneralInterrogationOnConnect = true;
@@ -118,12 +118,15 @@ public sealed class Iec101DualLinkRedundancySessionTests
             .Where(x => x.Direction == FrameDirection.SlaveToMaster && x.TypeId == 1)
             .ToArray();
 
-        Assert.Contains(result.Findings, x => x.Id == "IEC101-DUAL-GI-NEGATIVE-CONFIRMATION");
-        Assert.Contains(result.Events, x => x.Summary == "IEC-101 group interrogation fallback started");
-        Assert.Contains(result.Events, x => x.PollingReason == "Group interrogation fallback QOI=21");
-        Assert.Contains(valueEvents, x => x.InformationObjectAddress == 120 && x.SignalDisplayValue.Contains("ON", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(valueEvents, x => x.InformationObjectAddress == 121 && x.SignalDisplayValue.Contains("OFF", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(2, session.CreateSnapshot().ApplicationImageObjectCount);
+        // This intentionally out-of-context fixture sends secondary FC8 user
+        // data directly after a primary FC3 GI request, bypassing the required
+        // link-layer confirmation. It must remain raw/rejected evidence and may
+        // not trigger false application GI fallback or create process values.
+        Assert.DoesNotContain(result.Findings, x => x.Id == "IEC101-DUAL-GI-NEGATIVE-CONFIRMATION");
+        Assert.DoesNotContain(result.Events, x => x.Summary == "IEC-101 group interrogation fallback started");
+        Assert.Contains(result.Events, x => x.PollingReason == "IEC101-RX-UNEXPECTED-FUNCTION");
+        Assert.Empty(valueEvents);
+        Assert.Equal(0, session.CreateSnapshot().ApplicationImageObjectCount);
     }
 
     [Fact]
@@ -455,6 +458,14 @@ public sealed class Iec101DualLinkRedundancySessionTests
         {
             EnsureOpen();
             var decoded = _ft12.Decode(buffer.ToArray());
+            // Physical FC9 supervision requires addressed secondary FC11.
+            // The old mock emitted FC9 NO DATA for FC9, hiding wrong-service
+            // acceptance by the real Master.
+            if (decoded.LinkControl?.FunctionCode == 9)
+            {
+                await EnqueueAsync(FixedSecondary(functionCode: 11, acd: false), cancellationToken).ConfigureAwait(false);
+                return;
+            }
             if (decoded.AsduBytes.Count > 0 && decoded.AsduBytes[0] == 100)
             {
                 var qoi = decoded.AsduBytes[^1];
@@ -627,6 +638,14 @@ public sealed class Iec101DualLinkRedundancySessionTests
         {
             EnsureOpen();
             var decoded = _ft12.Decode(buffer.ToArray());
+            // Physical FC9 supervision requires addressed secondary FC11.
+            // The old mock emitted FC9 NO DATA for FC9, hiding wrong-service
+            // acceptance by the real Master.
+            if (decoded.LinkControl?.FunctionCode == 9)
+            {
+                await EnqueueAsync(FixedSecondary(functionCode: 11, acd: false), cancellationToken).ConfigureAwait(false);
+                return;
+            }
             if (decoded.AsduBytes.Count > 0)
             {
                 var asdu = _asduDecoder.Decode(decoded.AsduBytes);
@@ -799,6 +818,14 @@ public sealed class Iec101DualLinkRedundancySessionTests
         {
             EnsureOpen();
             var decoded = _ft12.Decode(buffer.ToArray());
+            // Physical FC9 supervision requires addressed secondary FC11.
+            // The old mock emitted FC9 NO DATA for FC9, hiding wrong-service
+            // acceptance by the real Master.
+            if (decoded.LinkControl?.FunctionCode == 9)
+            {
+                await EnqueueAsync(FixedSecondary(functionCode: 11, acd: false), cancellationToken).ConfigureAwait(false);
+                return;
+            }
             if (decoded.AsduBytes.Count > 0 && decoded.AsduBytes[0] == 100)
             {
                 await EnqueueAsync(FixedSecondary(functionCode: 0, acd: true), cancellationToken).ConfigureAwait(false);
