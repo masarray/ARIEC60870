@@ -25,6 +25,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     private readonly Iec101ObservedCaPolicy _observedCa = new();
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
+    private readonly object _findingGate = new();
     private readonly List<Iec101FailoverJournalEntry> _failoverJournal = new();
     private readonly Iec103MasterCounters _counters = new();
     private Iec101RedundancyControllerState _controllerState = Iec101RedundancyControllerState.Created;
@@ -158,7 +159,7 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             Settings = _options.BaseSettings.CreateReportSnapshot(),
             Counters = _counters,
             Events = _events.ToArray(),
-            Findings = _findings.ToArray(),
+            Findings = SnapshotFindings(),
             StartedUtc = started,
             FinishedUtc = DateTime.UtcNow,
             CompletedNormally = !completion.StartsWith("Fault:", StringComparison.OrdinalIgnoreCase),
@@ -1363,10 +1364,25 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
     private void RaiseFinding(FindingSeverity severity, string id, string title, string evidence, string impact, string recommendation)
     {
-        if (_findings.Any(x => x.Id == id && x.Evidence == evidence)) return;
-        var finding = new Iec103MasterFinding { Severity = severity, Id = id, Title = title, Evidence = evidence, Impact = impact, Recommendation = recommendation };
-        _findings.Add(finding);
+        var finding = new Iec103MasterFinding
+        {
+            Severity = severity, Id = id, Title = title, Evidence = evidence,
+            Impact = impact, Recommendation = recommendation
+        };
+        // UI threads may queue commands while the serial scheduler emits its
+        // own findings. Keep the deduplication and List mutation atomic.
+        lock (_findingGate)
+        {
+            if (_findings.Any(x => x.Id == id && x.Evidence == evidence)) return;
+            _findings.Add(finding);
+        }
+        // Never invoke UI subscribers while holding an internal collection lock.
         FindingRaised?.Invoke(this, finding);
+    }
+
+    private Iec103MasterFinding[] SnapshotFindings()
+    {
+        lock (_findingGate) return _findings.ToArray();
     }
 
     private long AddEvent(Iec103MasterEvidenceEvent item)
