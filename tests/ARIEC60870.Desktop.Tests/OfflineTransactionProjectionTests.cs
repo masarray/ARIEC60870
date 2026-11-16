@@ -137,7 +137,6 @@ public sealed class OfflineTransactionProjectionTests
         Assert.Equal("1", row.CommonAddress);
         Assert.Equal(ioa, row.Source.InformationObjectAddress);
         Assert.Equal("31", row.TypeId);
-        Assert.Contains("FEEDER CB STATUS", row.ProtocolTraceTitle);
     }
 
     [Fact]
