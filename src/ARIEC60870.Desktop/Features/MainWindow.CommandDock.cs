@@ -589,9 +589,25 @@ public partial class MainWindow
             return;
         }
 
-        _activeControlSession.QueueControlCommand(request);
+        // Admission is not link transmission or application confirmation.
+        // Bounded IEC-101 sessions can reject a full queue synchronously;
+        // keep IEC-104 legacy admission supported through the old interface.
+        if (_activeControlSession is IProtocolCommandAdmissionSession admission)
+        {
+            if (!admission.TryQueueControlCommand(request))
+            {
+                CommandDockStatusText.Text = "Command not queued: active link not verified, remote busy, or queue full.";
+                AppendSessionLog("Command dock rejected by IEC-101 admission: " + request.Summary);
+                return;
+            }
+        }
+        else
+        {
+            _activeControlSession.QueueControlCommand(request);
+        }
+
         var selectedName = CommandSignalComboBox?.SelectedItem is CommandSignalOption option ? $" · {option.Name}" : string.Empty;
-        CommandDockStatusText.Text = "Issued priority command: " + request.Summary + selectedName;
-        AppendSessionLog("Command dock issued: " + request.Summary + selectedName);
+        CommandDockStatusText.Text = "Command queued for dispatch (not yet confirmed by RTU): " + request.Summary + selectedName;
+        AppendSessionLog("Command dock queued: " + request.Summary + selectedName);
     }
 }

@@ -1,7 +1,6 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using ARIEC60870.Core.Model;
 using ARIEC60870.Core.Parsing;
@@ -13,7 +12,7 @@ using ARIEC60870.Master.Transport;
 
 namespace ARIEC60870.Master;
 
-public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolControlCommandSession
+public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolCommandAdmissionSession
 {
     private readonly Iec103MasterSettings _settings;
     private readonly IByteTransport _transport;
@@ -24,6 +23,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec10xAsduDecoder _asduDecoder;
     private readonly List<Iec103MasterEvidenceEvent> _events = new();
     private readonly List<Iec103MasterFinding> _findings = new();
+    private readonly object _findingGate = new();
     private readonly Iec103MasterCounters _counters = new();
     private bool _fcb;
     private bool _linkVerified;
@@ -38,7 +38,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     private readonly Iec101ObservedCaPolicy _observedCa = new();
     private bool _retriedGiWithObservedCommonAddress;
     private bool _giRequestedThisSession;
-    private readonly ConcurrentQueue<Iec60870ControlCommandRequest> _controlCommands = new();
+    private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
+    private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
+        bool ReadyWhenQueued, int LinkGeneration, DateTime QueuedUtc);
+    private bool _controlLinkReady;
+    private int _linkGeneration;
+    private static bool IsMutatingCommand(Iec60870ControlCommandRequest request)
+        => request.Kind is not (Iec60870ControlCommandKind.Read or Iec60870ControlCommandKind.GeneralInterrogation);
 
     public Iec101MasterSession(Iec103MasterSettings settings, IByteTransport transport)
     {
@@ -55,11 +61,38 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
     public bool SupportsRuntimeControlCommands => true;
 
     public void QueueControlCommand(Iec60870ControlCommandRequest request)
+        => TryQueueControlCommand(request);
+
+    public bool TryQueueControlCommand(Iec60870ControlCommandRequest request)
     {
-        if (request is not null)
+        if (request is null) return false;
+
+        var beforeGeneration = Volatile.Read(ref _linkGeneration);
+        var ready = Volatile.Read(ref _controlLinkReady);
+        var afterGeneration = Volatile.Read(ref _linkGeneration);
+        // A concurrent timeout or DFC transition cannot produce a mixed,
+        // falsely-ready snapshot of two distinct link-authority generations.
+        var queued = new QueuedControl(request,
+            ready && beforeGeneration == afterGeneration, afterGeneration, DateTime.UtcNow);
+        if (IsMutatingCommand(request) && !queued.ReadyWhenQueued)
         {
-            _controlCommands.Enqueue(request);
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-LINK-UNVERIFIED",
+                "IEC-101 physical control rejected before queue admission",
+                request.Summary,
+                "The addressed secondary link is not verified or is DFC-busy.",
+                "Verify the active IEC-101 link, then intentionally issue a new control.");
+            return false;
         }
+        if (!_controlCommands.TryEnqueue(queued))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-QUEUE-FULL",
+                "IEC-101 operator command rejected: bounded queue full",
+                "Capacity=64; new command was NOT admitted: " + request.Summary,
+                "Existing queued intents were not overwritten and no control was transmitted.",
+                "Wait for the active IEC-101 exchange to complete, then issue a new command.");
+            return false;
+        }
+        return true;
     }
 
     public async Task<Iec103MasterRunResult> RunForAsync(TimeSpan duration, CancellationToken cancellationToken)
@@ -75,6 +108,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         var completion = "Stopped by cancellation or requested duration.";
         try
         {
+            Volatile.Write(ref _controlLinkReady, false);
+            Interlocked.Increment(ref _linkGeneration);
+            _linkVerified = false;
             SetState(Iec103MasterState.OpeningTransport, "Opening IEC-101 serial transport", _settings.SerialSummary);
             await _transport.OpenAsync(cancellationToken).ConfigureAwait(false);
             // A reopened physical port starts a new framing/ambiguity epoch;
@@ -196,6 +232,16 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
         finally
         {
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
+            Volatile.Write(ref _controlLinkReady, false);
+            _linkVerified = false;
+            Interlocked.Increment(ref _linkGeneration);
+            var discarded = _controlCommands.Clear();
+            if (discarded > 0)
+                RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-DISCARDED-ON-STOP",
+                    "IEC-101 pending commands discarded on session stop",
+                    $"Unsent operator requests discarded={discarded}.",
+                    "Commands belong to the original physical session; automatic replay is prohibited.",
+                    "Reissue deliberate commands after fresh secondary link verification.");
             try { await _transport.CloseAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
             DrainTransportDiagnostics("Close transport");
             SetState(Iec103MasterState.Stopped, "IEC-101 stopped", completion);
@@ -208,7 +254,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             Settings = _settings.CreateReportSnapshot(),
             Counters = _counters,
             Events = _events.ToArray(),
-            Findings = _findings.ToArray(),
+            Findings = SnapshotFindings(),
             StartedUtc = started,
             FinishedUtc = DateTime.UtcNow,
             CompletedNormally = !completion.StartsWith("Fault:", StringComparison.OrdinalIgnoreCase),
@@ -333,9 +379,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private async Task<bool> ProcessPendingControlCommandsAsync(CancellationToken cancellationToken)
     {
-        if (!_controlCommands.TryDequeue(out var request))
-        {
+        if (!_linkVerified || !Volatile.Read(ref _controlLinkReady))
             return false;
+        if (!_controlCommands.TryDequeue(out var queued))
+            return false;
+
+        var request = queued.Request;
+        if (IsMutatingCommand(request) &&
+            (!queued.ReadyWhenQueued ||
+             queued.LinkGeneration != Volatile.Read(ref _linkGeneration) ||
+             DateTime.UtcNow - queued.QueuedUtc > TimeSpan.FromSeconds(30)))
+        {
+            RaiseFinding(FindingSeverity.Warning, "IEC101-COMMAND-STALE-LINK",
+                "IEC-101 physical control rejected: link ownership is stale",
+                $"{request.Summary}; ready-at-queue={queued.ReadyWhenQueued}; " +
+                $"queued-generation={queued.LinkGeneration}, current={_linkGeneration}; " +
+                $"age={(DateTime.UtcNow - queued.QueuedUtc).TotalSeconds:0.0}s.",
+                "A mutating command cannot be replayed after unverified link state or timeout.",
+                "Issue a fresh command after verifying the current physical IEC-101 link.");
+            return true;
         }
 
         SetState(Iec103MasterState.GeneralInterrogation, "IEC-101 operator command", request.Summary, category: "Command", dataClass: "Class 2");
@@ -753,6 +815,13 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _counters.Timeouts++;
             _counters.ConsecutiveTimeouts++;
             _counters.MaxConsecutiveTimeouts = Math.Max(_counters.MaxConsecutiveTimeouts, _counters.ConsecutiveTimeouts);
+            // Even one unanswered request makes previously queued physical
+            // commands ambiguous. Keep protocol link-recovery thresholds separate.
+            if (Volatile.Read(ref _controlLinkReady))
+            {
+                Volatile.Write(ref _controlLinkReady, false);
+                Interlocked.Increment(ref _linkGeneration);
+            }
             if (_linkVerified && _counters.ConsecutiveTimeouts >= 3)
             {
                 _linkVerified = false;
@@ -784,6 +853,20 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
             _linkVerified = true;
             SetState(Iec103MasterState.Connected, "IEC-101 secondary link verified",
                 $"Validated PRM=0 response from Link={_settings.LinkAddress} on {_settings.PortName}.");
+        }
+        // DFC and negative confirmations revoke queued physical control authority
+        // without changing the existing link-status/background polling mechanism.
+        if (decoded.LinkControl is { Dfc: true } or { FunctionCode: 1 })
+        {
+            if (Volatile.Read(ref _controlLinkReady))
+            {
+                Volatile.Write(ref _controlLinkReady, false);
+                Interlocked.Increment(ref _linkGeneration);
+            }
+        }
+        else if (_linkVerified && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
+        {
+            Volatile.Write(ref _controlLinkReady, true);
         }
         _counters.TotalResponseTimeMs += sw.ElapsedMilliseconds;
         _counters.MaxResponseTimeMs = Math.Max(_counters.MaxResponseTimeMs, (int)Math.Min(int.MaxValue, sw.ElapsedMilliseconds));
@@ -1068,10 +1151,29 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolContr
 
     private void RaiseFinding(FindingSeverity severity, string id, string title, string evidence, string impact, string recommendation)
     {
-        if (_findings.Any(x => x.Id == id && x.Evidence == evidence)) return;
-        var finding = new Iec103MasterFinding { Severity = severity, Id = id, Title = title, Evidence = evidence, Impact = impact, Recommendation = recommendation };
-        _findings.Add(finding);
+        var finding = new Iec103MasterFinding
+        {
+            Severity = severity,
+            Id = id,
+            Title = title,
+            Evidence = evidence,
+            Impact = impact,
+            Recommendation = recommendation
+        };
+        // UI threads may queue commands while the serial scheduler emits its
+        // own findings. Keep the deduplication and List mutation atomic.
+        lock (_findingGate)
+        {
+            if (_findings.Any(x => x.Id == id && x.Evidence == evidence)) return;
+            _findings.Add(finding);
+        }
+        // Never invoke UI subscribers while holding an internal collection lock.
         FindingRaised?.Invoke(this, finding);
+    }
+
+    private Iec103MasterFinding[] SnapshotFindings()
+    {
+        lock (_findingGate) return _findings.ToArray();
     }
 
     private void DrainTransportDiagnostics(string phase)
