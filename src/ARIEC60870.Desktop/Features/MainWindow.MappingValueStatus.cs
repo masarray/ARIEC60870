@@ -62,6 +62,7 @@ public partial class MainWindow
             if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
             {
                 _mappingProfile = Iec103SignalMappingProfile.LoadFromFile(fileName);
+                _activeMappingProfileFilePath = fileName;
                 MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 MappingProfileStatusText.Text = $"Loaded: {_mappingProfile.ProfileName} ({_mappingProfile.Signals.Count} signals)";
                 AppendSessionLog("IEC-103 mapping profile loaded: " + _mappingProfile.ProfileName);
@@ -69,6 +70,7 @@ public partial class MainWindow
             else
             {
                 _ioaProfile = Iec10xPointMappingProfile.LoadFromFile(fileName);
+                _activeMappingProfileFilePath = fileName;
                 ResetReadOnlyNameAliasCache();
                 MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(fileName);
                 ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
@@ -94,6 +96,7 @@ public partial class MainWindow
         _ioaProfile = Iec10xPointMappingProfile.Empty;
         ResetReadOnlyNameAliasCache();
         MappingProfilePathBox.Text = string.Empty;
+        _activeMappingProfileFilePath = string.Empty;
         RefreshIoaProfileRows();
         MappingProfileStatusText.Text = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103
             ? "No mapping profile loaded. Raw FUN/INF will be shown."
@@ -123,6 +126,7 @@ public partial class MainWindow
         if (editor.ShowDialog() == true)
         {
             _ioaProfile = editor.Profile;
+            _activeMappingProfileFilePath = editor.SavedProfilePath;
             ResetReadOnlyNameAliasCache();
             MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(editor.SavedProfilePath);
             ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
