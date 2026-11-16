@@ -1368,8 +1368,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
     {
         var finding = new Iec103MasterFinding
         {
-            Severity = severity, Id = id, Title = title, Evidence = evidence,
-            Impact = impact, Recommendation = recommendation
+            Severity = severity,
+            Id = id,
+            Title = title,
+            Evidence = evidence,
+            Impact = impact,
+            Recommendation = recommendation
         };
         // UI threads may queue commands while the serial scheduler emits its
         // own findings. Keep the deduplication and List mutation atomic.
