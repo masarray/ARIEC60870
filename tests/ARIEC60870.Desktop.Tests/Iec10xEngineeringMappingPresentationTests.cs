@@ -79,6 +79,32 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     }
 
     [Fact]
+    public void SaveAndApplyImmediatelyReprojectsCachedValuesFromTrustedWireEvidence()
+    {
+        var asdu = ScaledAsdu();
+        var row = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "101/LINK A/105/4015",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "Link A", EvidenceReference = "101|seq:4|object:1",
+            CommonAddress = 105, InformationObjectAddress = 4015,
+            TypeId = 11, SignalName = "IOA 4015",
+            RawValue = "Scaled=13641", DisplayValue = "13641 MVar"
+        }, sourceAsdu: asdu, sourceObject: Assert.Single(asdu.Objects));
+
+        Iec10xValueNameReconciler.Apply([row], Index(105, 0.1));
+        Assert.Equal("1364.1 MVar", row.Value);
+        Assert.Equal("Scaled=13641", row.RawValue);
+
+        // Changing the profile again must use the original 13641,
+        // not double-scale the previous engineering display of 1364.1.
+        Iec10xValueNameReconciler.Apply([row], Index(105, 0.2));
+        Assert.Equal("2728.2 MVar", row.Value);
+        Iec10xValueNameReconciler.Apply([row], Index(106, 0.4));
+        Assert.Equal("Scaled=13641", row.Value);
+    }
+
+    [Fact]
     public void EditorRoundTripDoesNotLoseRatioOffsetOrNormalizedFullScale()
     {
         var point = new Iec10xPointMappingEntry
