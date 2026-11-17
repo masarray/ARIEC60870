@@ -105,9 +105,12 @@ public sealed partial class SignalListEditorWindow
             var view = CollectionViewSource.GetDefaultView(editor._rows) ??
                 throw new InvalidOperationException("Signal Map collection view was not constructed.");
             editor._searchBox.Text = "790449";
-            if (view.Cast<SignalListEditorRow>().Count() != 1 ||
-                !ReferenceEquals(view.Cast<SignalListEditorRow>().Single(), normalized))
-                throw new InvalidOperationException("IOA quick search did not locate the exact TI9 row.");
+            var quickMatches = view.Cast<SignalListEditorRow>().ToArray();
+            if (quickMatches.Length != 1 || !ReferenceEquals(quickMatches[0], normalized))
+                throw new InvalidOperationException(
+                    $"IOA quick search: expected 790449 TI9 only; got {quickMatches.Length}. " +
+                    $"Bay filter='{editor._bayFilter.SelectedItem}', kind='{editor._kindFilter.SelectedItem}', " +
+                    $"query='{editor._searchBox.Text}', visible IOAs=[{string.Join(", ", quickMatches.Select(x => x.Ioa + "/" + x.TypeId))}].");
             editor.SetCurrentCell(normalized);
             editor.UpdateLayout();
             CaptureUiReviewImage(editor, "03-ioa-find-1360x820");
