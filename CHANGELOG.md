@@ -1,4 +1,4 @@
-## [3.6.14] - Candidate, not yet published (2026-11-17)
+## [3.6.14] - Published 2026-11-17
 
 ### IEC-101/104 measurement scaling from trusted wire values
 - Preserve original decoded IEC source bytes, CA/IOA/TI, quality and event proof while presenting independently configured engineering units (PR #239). Expose a choice of Factor/Ratio/Offset and exclusive signed/bipolar source-to-engineering TwoPoint X0/X100/Y0/Y100, with endpoint validation, fail-closed source identity and no hidden clamping or double-scaling. IEEE short float TI13 remains identity where the RTU already transmits MW.
@@ -11,7 +11,7 @@
 - Guard retained original HEX, GI/SBO evidence, IEC-103/104 and live serial/transport paths. No unilateral active profile migration on startup.
 
 ### Verification and release boundary
-- Source PR #239–#241 and exact-merge `master` Windows CI/CodeQL/hygiene passed before this candidate; v3.6.14 still requires **its own exact-commit** CI, native installed-updater FAT, release executable WPF acceptance, signed-off artifact checksums/SBOM/provenance and public publication workflow.
+- **Published stable:** PRs #239–#241 and release-preparation #242 passed exact-source [master CI/real-WPF/native updater FAT](https://github.com/masarray/ARIEC60870/actions/runs/44048682483), [CodeQL](https://github.com/masarray/ARIEC60870/actions/workflows/codeql.yml), repository hygiene, and [Package asset verification/provenance](https://github.com/masarray/ARIEC60870/actions/runs/44049527667) at immutable [v3.6.14](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14).
 - The I/O PDF does not state gateway signed-TI11-to-MVar resolution; theoretical CT/PT nominal 1732.05 MVA is **not** an approved RTU calibration. No claims of field-measured 1730 MVar conversion, IEC conformance, or 1200-bps 2,000-event external SOE completeness.
 
 ## [3.6.13] - Published 2026-11-17 (source prepared 2026-11-16)
