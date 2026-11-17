@@ -62,8 +62,18 @@ without a second user comment.
 Durable short-lived **Actions artifact reservations**, uploaded before dispatch,
 bind comment ID, commit SHA and release stage. This avoids relying on
 `GITHUB_TOKEN` write access to issue comments (which is restricted in this repo)
-while ensuring duplicate comments and completion callbacks cannot enqueue extra
-Windows work. Only the maintainer's original comment authorizes the release.
+while preventing duplicate completion callbacks from enqueueing extra
+Windows work. The controller verifies artifact provenance against the trusted
+default-branch release workflow; **a reservation is not a dispatch receipt**.
+For a completed controller run, its exact `Dispatch one pinned next stage` step
+must have succeeded before the stage is considered dispatched. While the owner
+run is active, other admission runs wait. If the owner fails or is cancelled
+after upload, the stage blocks and reports its original workflow run ID:
+investigate and issue a **new** authorized comment with a distinct request ID.
+No implicit retries, no hiding a failed dispatch as `already-dispatched`, and
+no bypass of SHA/version/FAT gates. Artifact-name lookup is bounded; overflow
+fails closed rather than ignoring a legitimate reservation. Only the maintainer's
+original comment authorizes each request.
 Controller admission is serialized repository-wide. Package
 also uses a global concurrency key across branches/tags, and its
 `expected_sha` lease refuses moving HEAD before Windows packaging begins.
@@ -81,7 +91,7 @@ Physical RTU/SCADA FAT remains independent and cannot be inferred from CI.
 2. When an integration SHA is stable, invoke `/ci full` only if GUI/WPF artifact evidence is required. An identical successful request is reused.
 3. Invoke `/ci installer` only for installer or release-upgrade readiness.
 4. Inspect exact-head screenshots, checksums, release artifacts and tests. Physical IEC-101/RTU FAT and multi-vendor interoperability are separate evidence.
-5. Public packages/releases stay in `release-package.yml`; these comment commands cannot publish a release.
+5. `/ci` comments never publish. A separately authorized `/release stable` comment may invoke `release-package.yml` only after exact-source CI, native updater FAT, version and security gates pass.
 
 Release checks, real serial connectivity and safety requirements are not relaxed by smarter CI scheduling.
 
