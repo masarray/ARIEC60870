@@ -223,6 +223,54 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Esc/IEditableObject must roll back a live binding and restore Clean state.");
 
+            // Exercise the real DataGrid target resolution and edit lifecycle,
+            // not merely the clipboard planner's pure model.
+            editor.ClearFilters();
+            editor.SetCurrentCell(normalized, 3); // Signal name in visible order
+            editor.PasteGridText("WPF visible cell paste");
+            if (normalized.Name != "WPF visible cell paste" || !editor._dirty)
+                throw new InvalidOperationException(
+                    "Real WPF current-cell paste did not update the intended Name column.");
+            editor.UndoGridAction();
+            if (normalized.Name != savedName || editor._dirty)
+                throw new InvalidOperationException("WPF current-cell paste was not undoable.");
+
+            editor.SetCurrentCell(normalized, 3);
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!editor._grid.BeginEdit())
+                throw new InvalidOperationException("F2-style native DataGrid BeginEdit was refused.");
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            var editBox = editor._grid.Columns[3].GetCellContent(normalized) as TextBox;
+            if (editBox is null)
+                throw new InvalidOperationException("Native WPF Name cell did not expose its TextBox editor.");
+            editBox.Text = "this native edit must cancel";
+            BindingOperations.GetBindingExpression(editBox, TextBox.TextProperty)?.UpdateSource();
+            editor._grid.CancelEdit(DataGridEditingUnit.Cell);
+            editor._grid.CancelEdit(DataGridEditingUnit.Row);
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            editor.RecalculateGridDirty();
+            if (normalized.Name != savedName || editor._dirty)
+                throw new InvalidOperationException("Native WPF CancelEdit leaked typed data to the row.");
+
+            editor.SetCurrentCell(normalized, 3);
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!editor._grid.BeginEdit())
+                throw new InvalidOperationException("Second native WPF BeginEdit was refused.");
+            var committedBox = editor._grid.Columns[3].GetCellContent(normalized) as TextBox;
+            if (committedBox is null)
+                throw new InvalidOperationException("Native WPF edit control was not restored.");
+            committedBox.Text = "Native WPF committed";
+            BindingOperations.GetBindingExpression(committedBox, TextBox.TextProperty)?.UpdateSource();
+            if (!editor._grid.CommitEdit(DataGridEditingUnit.Cell, true) ||
+                !editor._grid.CommitEdit(DataGridEditingUnit.Row, true))
+                throw new InvalidOperationException("Native WPF cell/row commit was rejected.");
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            if (normalized.Name != "Native WPF committed" || !editor._dirty)
+                throw new InvalidOperationException("Native WPF commit did not update bound row.");
+            editor.UndoGridAction();
+            if (normalized.Name != savedName || editor._dirty)
+                throw new InvalidOperationException("Native WPF committed edit was not undoable.");
+
             // The field worksheet is an explicit export, never part of
             // navigation, live polling or a default GUI side effect.
             var moreMenu = editor.BuildMoreActionsMenu();
