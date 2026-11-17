@@ -1,3 +1,16 @@
+## [3.6.16-rc.1] - Candidate for isolated IEC-101/104 physical FAT (2026-11-17)
+
+### Signal Map and physical evidence workflow
+- Includes PR #248 Signal Map workbench improvements: visible Ctrl+F quick search, bay and kind filters, compact CA/IOA/TI/name/Bay/business TYPE/mnemonic/scaling grid, optional advanced columns, explicit BAY TYPE + TYPE + MNEMO (+ #) generation. Original scaling-first TwoPoint controls remain above the fold.
+- Adds **Signal List → More → Export blank Field FAT worksheet...** (CSV). Uses exact current in-memory profile and one observation row per point, preserves configured *active* Factor/TwoPoint settings, does not export connection metadata, and leaves observation/reference/quality/evidence fields blank with result **NOT TESTED**. It cannot claim approval, transmit controls or modify saved JSON.
+- Spreadsheet-safe textual CSV encoding (quotes/newlines/Excel formula-prefixed strings), UTF-8 with BOM, invariant numeric formats, fail-fast invalid profile checks, 31-point regression and real-WPF discoverability smoke.
+- [Physical FAT execution matrix](docs/FIELD_FAT_RC_3_6_16.md) includes independent reference measurements, three TI11 Q raw-count→MVar calibration boundaries, TI9 normalized and TI13 float identity, GI COT7/20/10, 1200-bps SOE/FIFO and controlled driver restart/A-B tests.
+- Candidate source version 3.6.16, RC prerelease version **v3.6.16-rc.1**. Stable v3.6.15 remains available and is not overwritten; never publish a production-readiness claim from synthetic software results.
+
+### Physical acceptance boundary
+- The software gate requires Windows WPF/source tests, real packaged-GUI acceptance, CodeQL, native Windows updater FAT, immutable prerelease SHA, checksums, SBOM and provenance.
+- RTU field results, including TI11 signed-count MVar calibration and actual 1200-bps 60/500/2000 SOE completeness, are **NOT TESTED** until a site engineer provides independent wire and RTU evidence. No production link reset, breaker switching, command or clock sync is authorized by this RC.
+
 ## [3.6.15] - Published 2026-11-17
 
 ### Signal List Editor: engineering scaling visible by default
