@@ -1348,8 +1348,7 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         RatioPrimary = point.RatioPrimary.ToString(CultureInfo.InvariantCulture);
         RatioSecondary = point.RatioSecondary.ToString(CultureInfo.InvariantCulture);
         NormalizedFullScale = point.NormalizedFullScale.ToString(CultureInfo.InvariantCulture);
-        ScalingMode = string.Equals(point.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase)
-            ? "TwoPoint" : point.ScalingMode;
+        ScalingMode = point.ScalingMode;
         X0 = point.X0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         X100 = point.X100?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         Y0 = point.Y0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
@@ -1376,7 +1375,14 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string RatioPrimary { get => _ratioPrimary; set => SetField(ref _ratioPrimary, value); }
     public string RatioSecondary { get => _ratioSecondary; set => SetField(ref _ratioSecondary, value); }
     public string NormalizedFullScale { get => _normalizedFullScale; set => SetField(ref _normalizedFullScale, value); }
-    public string ScalingMode { get => _scalingMode; set => SetField(ref _scalingMode, value); }
+    public string ScalingMode
+    {
+        get => _scalingMode;
+        set => SetField(ref _scalingMode,
+            string.Equals(value, "TwoPoint", StringComparison.OrdinalIgnoreCase) ? "TwoPoint" :
+            string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, "Factor", StringComparison.OrdinalIgnoreCase) ? "Factor" : value?.Trim());
+    }
     public string X0 { get => _x0; set => SetField(ref _x0, value); }
     public string X100 { get => _x100; set => SetField(ref _x100, value); }
     public string Y0 { get => _y0; set => SetField(ref _y0, value); }
