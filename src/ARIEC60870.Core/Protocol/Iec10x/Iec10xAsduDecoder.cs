@@ -56,9 +56,15 @@ public sealed class Iec10xAsduDecoder
 
         // TI 128..255 is private: preserve raw header and payload but do not
         // fabricate standard IOA/quality/value or a false corruption warning.
-        IReadOnlyList<Iec10xInformationObject> objects = type >= 128
+        // Unknown standard/reserved Type IDs have no reliable information
+        // element width. Never guess SQ=1 implied addresses or assign the
+        // remaining opaque payload to invented objects.
+        var unsupportedType = type < 128 && InformationElementLength(type) < 0;
+        IReadOnlyList<Iec10xInformationObject> objects = type >= 128 || unsupportedType
             ? Array.Empty<Iec10xInformationObject>()
             : DecodeObjects(type, raw, offset, objectCount, sq, issues);
+        if (unsupportedType)
+            issues.Add($"Unsupported Type ID {type}: information-object layout unknown; original ASDU payload retained as raw evidence.");
         var first = objects.FirstOrDefault();
         var causeDetails = new Iec10xCauseDetails(cotRaw, cot, negative, test, _cotSize == 2 ? oa : null);
         var commandDetails = Iec10xCommandDetails.Decode(type, first, causeDetails);
@@ -86,7 +92,9 @@ public sealed class Iec10xAsduDecoder
             InformationObjectAddress = first?.InformationObjectAddress,
             ObjectSummary = type >= 128
                 ? $"Vendor-specific payload ({raw.Length - offset} bytes); standard information objects not decoded"
-                : objects.Count == 0 ? "No information objects decoded" : string.Join(" | ", objects.Select(x => x.ReadableSummary)),
+                : unsupportedType
+                    ? $"Unsupported Type ID {type} · {raw.Length - offset} raw payload bytes; no verified information-object layout"
+                    : objects.Count == 0 ? "No information objects decoded" : string.Join(" | ", objects.Select(x => x.ReadableSummary)),
             ValueText = first?.ShortValue ?? string.Empty,
             QualityText = first?.QualityText ?? string.Empty,
             TimestampText = first?.TimestampText ?? string.Empty,
@@ -107,7 +115,8 @@ public sealed class Iec10xAsduDecoder
         var dataLength = InformationElementLength(type);
         if (dataLength < 0)
         {
-            issues.Add($"Type ID {type} does not have a built-in information-element decoder yet; raw object bytes will be shown.");
+            issues.Add($"Unsupported Type ID {type}: information-object layout unknown; original ASDU payload retained as raw evidence.");
+            return objects;
         }
 
         int? sequenceBaseIoa = null;
@@ -285,8 +294,8 @@ public sealed class Iec10xAsduDecoder
                 51 or 64 => data.Length >= 4 ? $"Bitstring command=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 100 => data.Length >= 1 ? $"Interrogation qualifier QOI={data[0]}" : string.Empty,
                 101 => data.Length >= 1 ? $"Counter interrogation qualifier QCC=0x{data[0]:X2}" : string.Empty,
-                 70 => data.Length >= 1 ? $"Initialization COI={data[0] & 0x7F}, LPC={((data[0] & 0x80) != 0 ? 1 : 0)}" : string.Empty,
-                 106 => data.Length >= 2 ? $"Delay acquisition={BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2))} ms (CP16Time2a)" : string.Empty,
+                70 => data.Length >= 1 ? $"Initialization COI={data[0] & 0x7F}, LPC={((data[0] & 0x80) != 0 ? 1 : 0)}" : string.Empty,
+                106 => data.Length >= 2 ? $"Delay acquisition={BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2))} ms (CP16Time2a)" : string.Empty,
                 102 => "Read command",
                 103 => data.Length >= 7 ? "Clock sync" : string.Empty,
                 _ => data.Length > 0 ? $"Payload={ToHex(data)}" : string.Empty
