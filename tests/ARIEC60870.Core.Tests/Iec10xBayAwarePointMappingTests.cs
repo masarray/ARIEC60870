@@ -218,9 +218,11 @@ public sealed class Iec10xBayAwarePointMappingTests
         var root = RepositoryRoot();
         // Installer/portable scripts copy profiles/*; the unverified
         // nominal-range hypothesis must remain downloadable docs-only.
-        Assert.False(File.Exists(Path.Combine(root, "profiles",
+        // Path.Join never silently overrides the source-checkout root
+        // when a later segment is rooted, unlike Path.Combine.
+        Assert.False(File.Exists(Path.Join(root, "profiles",
             "PROVISIONAL_io_list_scada_101_ctpt_nominal.json")));
-        var path = Path.Combine(root, "docs", "profiles",
+        var path = Path.Join(root, "docs", "profiles",
             "PROVISIONAL_io_list_scada_101_ctpt_nominal.json");
         var profile = Iec10xPointMappingProfile.LoadFromFile(path);
         Assert.Equal(31, profile.Points.Count);
