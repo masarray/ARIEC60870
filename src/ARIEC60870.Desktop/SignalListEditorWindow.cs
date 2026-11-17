@@ -385,23 +385,26 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.CellEditEnding += Grid_CellEditEnding;
         _grid.BeginningEdit += Grid_BeginningEdit;
 
-        AddTextColumn("CA", nameof(SignalListEditorRow.Ca), 72);
-        AddTextColumn("IOA", nameof(SignalListEditorRow.Ioa), 96);
-        AddTextColumn("Type ID", nameof(SignalListEditorRow.TypeId), 78);
-        AddTextColumn("Name", nameof(SignalListEditorRow.Name), 220, minWidth: 140);
-        AddTextColumn("Group", nameof(SignalListEditorRow.Group), 136, minWidth: 110);
-        AddTextColumn("Type / Role", nameof(SignalListEditorRow.SignalType), 190, minWidth: 150);
-        AddTextColumn("Unit", nameof(SignalListEditorRow.Unit), 72);
-        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 96);
-        AddTextColumn("Scale", nameof(SignalListEditorRow.Scale), 76);
-        AddTextColumn("Class", nameof(SignalListEditorRow.ExpectedClass), 70);
-        AddTextColumn("COT", nameof(SignalListEditorRow.ExpectedCot), 70);
-        AddTextColumn("Command policy", nameof(SignalListEditorRow.CommandPolicy), 160, minWidth: 130);
-        AddTextColumn("Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa), 112);
-        AddTextColumn("State map", nameof(SignalListEditorRow.StateMap), 180, minWidth: 140);
-        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 104);
-        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 128);
-        AddTextColumn("Description", nameof(SignalListEditorRow.Description), 260, minWidth: 180);
+        // Daily mapping columns fit the default window. Protocol detail remains
+        // editable in the inspector; advanced table columns are opt-in.
+        AddTextColumn("CA", nameof(SignalListEditorRow.Ca), 60);
+        AddTextColumn("IOA", nameof(SignalListEditorRow.Ioa), 92);
+        AddTextColumn("TI", nameof(SignalListEditorRow.TypeId), 55);
+        AddTextColumn("Signal name", nameof(SignalListEditorRow.Name), 225, minWidth: 155);
+        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 114);
+        AddTextColumn("TYPE", nameof(SignalListEditorRow.TestCategory), 74);
+        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 94);
+        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 90);
+        AddTextColumn("Unit", nameof(SignalListEditorRow.Unit), 66, advanced: true);
+        AddTextColumn("Group", nameof(SignalListEditorRow.Group), 120, advanced: true);
+        AddTextColumn("IEC role", nameof(SignalListEditorRow.SignalType), 150, advanced: true);
+        AddTextColumn("Scale", nameof(SignalListEditorRow.Scale), 76, advanced: true);
+        AddTextColumn("Class", nameof(SignalListEditorRow.ExpectedClass), 70, advanced: true);
+        AddTextColumn("COT", nameof(SignalListEditorRow.ExpectedCot), 70, advanced: true);
+        AddTextColumn("Command policy", nameof(SignalListEditorRow.CommandPolicy), 155, advanced: true);
+        AddTextColumn("Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa), 105, advanced: true);
+        AddTextColumn("State map", nameof(SignalListEditorRow.StateMap), 160, advanced: true);
+        AddTextColumn("Description", nameof(SignalListEditorRow.Description), 220, advanced: true);
         _grid.FrozenColumnCount = 4; // Keep CA, IOA, Type and Name visible while reviewing any column.
     }
 
@@ -924,7 +927,7 @@ public sealed partial class SignalListEditorWindow : Window
         return style;
     }
 
-    private void AddTextColumn(string header, string path, double width, double? minWidth = null)
+    private void AddTextColumn(string header, string path, double width, double? minWidth = null, bool advanced = false)
     {
         var binding = new Binding(path)
         {
@@ -955,6 +958,21 @@ public sealed partial class SignalListEditorWindow : Window
             IsReadOnly = false
         };
         _grid.Columns.Add(column);
+        if (advanced)
+        {
+            column.Visibility = Visibility.Collapsed;
+            _advancedColumns.Add(column);
+        }
+    }
+
+    private void ToggleExtraColumns()
+    {
+        _allColumnsVisible = !_allColumnsVisible;
+        foreach (var column in _advancedColumns)
+            column.Visibility = _allColumnsVisible ? Visibility.Visible : Visibility.Collapsed;
+        UpdateStatus(_allColumnsVisible
+            ? "All columns shown. Scroll horizontally to inspect protocol fields."
+            : "Essential columns shown. Select a row to edit full mapping and scaling.");
     }
 
     private void AddEditorField(Panel parent, string label, string path, string? hint = null, bool compact = false, bool multiline = false)
@@ -1050,12 +1068,14 @@ public sealed partial class SignalListEditorWindow : Window
         _loadingRows = true;
         try
         {
+            ClearFilters();
             _rows.Clear();
             foreach (var point in profile.Points.OrderBy(x => x.Ioa).ThenBy(x => x.TypeId ?? 0))
             {
                 AddEditorRow(new SignalListEditorRow(point), markDirty: false);
             }
             _dirty = false;
+            RefreshBayChoices();
             RefreshFilter();
             UpdateCounters();
             if (_rows.Count > 0)
@@ -1074,6 +1094,7 @@ public sealed partial class SignalListEditorWindow : Window
     {
         row.PropertyChanged += Row_PropertyChanged;
         _rows.Add(row);
+        RefreshBayChoices();
         if (markDirty) MarkDirty();
         UpdateCounters();
     }
@@ -1081,6 +1102,10 @@ public sealed partial class SignalListEditorWindow : Window
     private void Row_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_loadingRows) return;
+        if (e.PropertyName == nameof(SignalListEditorRow.BayType))
+            RefreshBayChoices();
+        if (_searchBox.Text.Length > 0 || _bayFilter.SelectedIndex > 0 || _kindFilter.SelectedIndex > 0)
+            RefreshFilter();
         UpdateDetailSelection();
         MarkDirty();
     }
@@ -1107,6 +1132,7 @@ public sealed partial class SignalListEditorWindow : Window
             CommandPolicy = "MonitorOnly",
             Description = "Created in Signal List Editor"
         };
+        ClearFilters();
         AddEditorRow(row, markDirty: true);
         SetCurrentCell(row);
         UpdateStatus("New editable signal row added. Complete CA, IOA, Type ID, and engineering name.");
@@ -1118,6 +1144,8 @@ public sealed partial class SignalListEditorWindow : Window
         if (row is null) return;
         row.PropertyChanged -= Row_PropertyChanged;
         _rows.Remove(row);
+        RefreshBayChoices();
+        RefreshFilter();
         MarkDirty();
         UpdateCounters();
         UpdateDetailSelection();
@@ -1131,6 +1159,7 @@ public sealed partial class SignalListEditorWindow : Window
         var copy = source.Clone();
         copy.Ioa = ((ParseInt(source.Ioa) ?? 0) + 1).ToString(CultureInfo.InvariantCulture);
         copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? "Copied signal" : copy.Name + " copy";
+        ClearFilters();
         AddEditorRow(copy, markDirty: true);
         SetCurrentCell(copy);
         UpdateStatus("Selected signal duplicated. Review IOA and feedback IOA before saving.");
@@ -1441,26 +1470,56 @@ public sealed partial class SignalListEditorWindow : Window
 
     private void UpdateCounters()
     {
-        _rowCountText.Text = _rows.Count == 1 ? "1 signal" : $"{_rows.Count} signals";
+        var shown = CollectionViewSource.GetDefaultView(_rows)?.Cast<object>().Count() ?? _rows.Count;
+        _rowCountText.Text = shown == _rows.Count
+            ? (_rows.Count == 1 ? "1 signal" : $"{_rows.Count} signals")
+            : $"{shown} / {_rows.Count} signals";
         _dirtyText.Text = _dirty ? "Unsaved" : "Clean";
         _dirtyText.Foreground = _dirty ? DangerBrush : SuccessBrush;
         if (_dirtyText.Parent is StackPanel) { }
+    }
+
+    private void RefreshBayChoices()
+    {
+        var selected = _bayFilter.SelectedItem as string ?? AllBays;
+        var bays = _rows.Select(x => x.BayType?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _bayFilter.ItemsSource = new[] { AllBays }.Concat(bays).ToArray();
+        _bayFilter.SelectedItem = bays.Contains(selected, StringComparer.OrdinalIgnoreCase)
+            ? bays.First(x => string.Equals(x, selected, StringComparison.OrdinalIgnoreCase))
+            : AllBays;
     }
 
     private void RefreshFilter()
     {
         var view = CollectionViewSource.GetDefaultView(_rows);
         if (view is null) return;
-        var query = _searchBox.Text?.Trim();
+        var terms = (_searchBox.Text ?? string.Empty).Split(' ',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var bay = _bayFilter.SelectedItem as string ?? AllBays;
+        var kind = _kindFilter.SelectedItem as string ?? AllKinds;
         view.Filter = item =>
         {
-            if (string.IsNullOrWhiteSpace(query)) return true;
             if (item is not SignalListEditorRow row) return false;
-            return Contains(row.Ca, query) || Contains(row.Ioa, query) || Contains(row.TypeId, query) ||
-                   Contains(row.Name, query) || Contains(row.Group, query) || Contains(row.SignalType, query) ||
-                   Contains(row.CommandPolicy, query) || Contains(row.FeedbackIoa, query) || Contains(row.StateMap, query) ||
-                   Contains(row.Mnemonic, query) || Contains(row.BayType, query) ||
-                   Contains(row.TestCategory, query) || Contains(row.Description, query);
+            if (bay != AllBays && !string.Equals(row.BayType?.Trim(), bay, StringComparison.OrdinalIgnoreCase))
+                return false;
+            var command = !string.IsNullOrWhiteSpace(row.CommandPolicy) &&
+                !string.Equals(row.CommandPolicy, "MonitorOnly", StringComparison.OrdinalIgnoreCase);
+            if (kind == "Commands" && !command) return false;
+            if (kind == "Measured analog" && (command || !IsMeasuredAnalog(row))) return false;
+            if (kind == "Digital status" && (command || IsMeasuredAnalog(row))) return false;
+            return terms.All(term =>
+                Contains(row.Ca, term) || Contains(row.Ioa, term) || Contains(row.TypeId, term) ||
+                Contains(row.Name, term) || Contains(row.Group, term) || Contains(row.SignalType, term) ||
+                Contains(row.Unit, term) || Contains(row.ScalingMode, term) ||
+                Contains(row.CommandPolicy, term) || Contains(row.FeedbackIoa, term) ||
+                Contains(row.StateMap, term) || Contains(row.Mnemonic, term) ||
+                Contains(row.BayType, term) || Contains(row.TestCategory, term) ||
+                Contains(row.Description, term));
         };
         view.Refresh();
         UpdateCounters();
