@@ -27,7 +27,7 @@ namespace ARIEC60870.Desktop;
 /// The editor stays inside the same desktop app so field engineers can correct
 /// a project database during FAT/SAT without touching JSON manually.
 /// </summary>
-public sealed class SignalListEditorWindow : Window
+public sealed partial class SignalListEditorWindow : Window
 {
     private static readonly Brush AppBackgroundBrush = BrushFromRgb(0xF5, 0xF7, 0xFB);
     private static readonly Brush CardBrush = Brushes.White;
@@ -56,6 +56,12 @@ public sealed class SignalListEditorWindow : Window
     private readonly Border _selectionBadge = CreatePill("No selection", TextMutedBrush, BrushFromRgb(0xF1, 0xF5, 0xF9), BorderBrushSoft);
     private readonly DataGrid _grid = new();
     private readonly ScrollViewer _detailScroll = new();
+    private readonly ScrollViewer _scalingScroll = new();
+    private readonly Button _scalingTabButton = new();
+    private readonly Button _mappingTabButton = new();
+    private readonly TextBlock _scalingSourceNote = new();
+    private SignalListEditorRow? _activeDetailRow;
+    private bool _showScalingTab = true;
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
     private bool _saved;
@@ -94,7 +100,7 @@ public sealed class SignalListEditorWindow : Window
 
     private UIElement BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(14) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -120,7 +126,7 @@ public sealed class SignalListEditorWindow : Window
 
     private UIElement BuildHero()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 14), new Thickness(18, 16, 18, 16));
+        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(16, 11, 16, 11));
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -130,7 +136,7 @@ public sealed class SignalListEditorWindow : Window
         left.Children.Add(new TextBlock
         {
             Text = "Signal List Editor",
-            FontSize = 24,
+            FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMainBrush,
             Margin = new Thickness(0, 0, 0, 3)
@@ -158,7 +164,7 @@ public sealed class SignalListEditorWindow : Window
 
     private UIElement BuildToolbarCard()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 14), new Thickness(14, 12, 14, 12));
+        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(12, 9, 12, 9));
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -223,7 +229,7 @@ public sealed class SignalListEditorWindow : Window
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(395) });
 
         var tableCard = CreateCard(new Thickness(0), new Thickness(0));
         tableCard.Child = _grid;
@@ -293,6 +299,7 @@ public sealed class SignalListEditorWindow : Window
         AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 104);
         AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 128);
         AddTextColumn("Description", nameof(SignalListEditorRow.Description), 260, minWidth: 180);
+        _grid.FrozenColumnCount = 4; // Keep CA, IOA, Type and Name visible while reviewing any column.
     }
 
     private void Grid_BeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
@@ -429,63 +436,67 @@ public sealed class SignalListEditorWindow : Window
 
     private UIElement BuildDetailPanel()
     {
-        var card = CreateCard(new Thickness(0), new Thickness(16, 14, 16, 14));
-        var root = new DockPanel();
+        var card = CreateCard(new Thickness(0), new Thickness(14, 12, 14, 12));
+        var root = new DockPanel { LastChildFill = true };
         card.Child = root;
 
-        var header = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 10) };
-        header.Children.Add(new TextBlock
-        {
-            Text = "Selected signal",
-            FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = TextMainBrush
-        });
-        header.Children.Add(new TextBlock
-        {
-            Text = "Arrow keys move cells. Type to replace the selected cell, F2/Enter edits, Tab commits. You can also edit the selected signal here.",
-            FontSize = 12,
-            Foreground = TextMutedBrush,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 3, 0, 8)
-        });
+        // Keep signal identity and edit actions visible while switching pages.
+        var header = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
         _selectionTitle.Text = "No row selected";
-        _selectionTitle.FontSize = 13.5;
+        _selectionTitle.FontSize = 13.2;
         _selectionTitle.FontWeight = FontWeights.SemiBold;
+        _selectionTitle.TextTrimming = TextTrimming.CharacterEllipsis;
+        _selectionTitle.ToolTip = "Full signal name";
         _selectionTitle.Foreground = AccentDarkBrush;
         _selectionSubtitle.Text = "Select a signal from the table.";
-        _selectionSubtitle.FontSize = 12;
+        _selectionSubtitle.FontSize = 11.5;
         _selectionSubtitle.Foreground = TextMutedBrush;
         header.Children.Add(_selectionTitle);
         header.Children.Add(_selectionSubtitle);
-        header.Children.Add(_selectionBadge);
+        // Keep the identity line compact; the full policy remains editable on
+        // Mapping & Commands without consuming another row of the viewport.
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
-        var footer = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 12, 0, 0) };
-        var validateButton = CreateToolbarButton("Validate row", ValidateSelectedRow_Click, false, false);
-        validateButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-        validateButton.Margin = new Thickness(0, 0, 0, 8);
-        footer.Children.Add(validateButton);
-        var duplicateButton = CreateToolbarButton("Duplicate selected", DuplicateRow_Click, false, false);
-        duplicateButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-        footer.Children.Add(duplicateButton);
-        DockPanel.SetDock(footer, Dock.Bottom);
-        root.Children.Add(footer);
+        var tabs = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        ConfigureInspectorTabButton(_scalingTabButton, "Engineering Scaling", scaling: true);
+        ConfigureInspectorTabButton(_mappingTabButton, "Mapping & Commands", scaling: false);
+        tabs.Children.Add(_scalingTabButton);
+        Grid.SetColumn(_mappingTabButton, 1);
+        tabs.Children.Add(_mappingTabButton);
+        DockPanel.SetDock(tabs, Dock.Top);
+        root.Children.Add(tabs);
 
-        var panel = new StackPanel { Orientation = Orientation.Vertical };
-        AddEditorField(panel, "CA", nameof(SignalListEditorRow.Ca), "Common Address", compact: true);
-        AddEditorField(panel, "IOA", nameof(SignalListEditorRow.Ioa), "Information Object Address", compact: true);
-        AddEditorField(panel, "Type ID", nameof(SignalListEditorRow.TypeId), "IEC 60870 type identifier", compact: true);
-        AddEditorField(panel, "Name", nameof(SignalListEditorRow.Name));
-        AddEditorField(panel, "Group", nameof(SignalListEditorRow.Group));
-        AddEditorField(panel, "Type / Role", nameof(SignalListEditorRow.SignalType));
-        AddEditorField(panel, "Unit", nameof(SignalListEditorRow.Unit), compact: true);
-        AddEditorCombo(panel, "Engineering scaling mode", nameof(SignalListEditorRow.ScalingMode),
+        // The toolbar already exposes Validate and Duplicate. Reserve the
+        // vertical workspace for engineering input instead of redundant buttons.
+
+        // Scaling is now a first-class page, instead of being buried after
+        // seven unrelated fields inside a long inspector.
+        var scaling = new StackPanel();
+        _scalingSourceNote.TextWrapping = TextWrapping.Wrap;
+        _scalingSourceNote.FontSize = 10.8;
+        _scalingSourceNote.Foreground = TextMutedBrush;
+        _scalingSourceNote.Margin = new Thickness(0, 0, 0, 6);
+        scaling.Children.Add(_scalingSourceNote);
+
+        // Put mode and unit on one line: both TwoPoint endpoint rows should
+        // be available above the fold in the normal 820px editor window.
+        var scalingSelectors = new Grid();
+        scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var unitColumn = new StackPanel { Margin = new Thickness(0, 0, 5, 0) };
+        AddEditorField(unitColumn, "Unit", nameof(SignalListEditorRow.Unit));
+        var modeColumn = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+        AddEditorCombo(modeColumn, "Scaling mode", nameof(SignalListEditorRow.ScalingMode),
             new[] { "Factor", "TwoPoint" }, allowCustom: false);
+        scalingSelectors.Children.Add(unitColumn);
+        Grid.SetColumn(modeColumn, 1);
+        scalingSelectors.Children.Add(modeColumn);
+        scaling.Children.Add(scalingSelectors);
 
-        // The modes are intentionally exclusive. Editing a linear range
-        // must not also apply a hidden legacy CT/VT ratio or offset.
+        // Factor and TwoPoint never compound. Display only the active mode.
         var linearPanel = new StackPanel();
         var linearStyle = new Style(typeof(StackPanel));
         linearStyle.Setters.Add(new Setter(VisibilityProperty, Visibility.Collapsed));
@@ -499,17 +510,17 @@ public sealed class SignalListEditorWindow : Window
         linearPanel.Style = linearStyle;
         linearPanel.Children.Add(new TextBlock
         {
-            Text = "Two-point linear: X = decoded IEC source, Y = engineering unit. No additional factor/ratio. Out-of-range readings are not clamped.",
+            Text = "TwoPoint: X = decoded IEC input; Y = engineering output. Factor/ratio is not applied again.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 10.8,
             Foreground = TextMutedBrush,
-            Margin = new Thickness(0, 0, 0, 9)
+            Margin = new Thickness(0, 0, 0, 8)
         });
-        AddTwoPointPair(linearPanel, "X0 · input low", nameof(SignalListEditorRow.X0),
-            "X100 · input high", nameof(SignalListEditorRow.X100));
+        AddTwoPointPair(linearPanel, "X0 · source low", nameof(SignalListEditorRow.X0),
+            "X100 · source high", nameof(SignalListEditorRow.X100));
         AddTwoPointPair(linearPanel, "Y0 · output low", nameof(SignalListEditorRow.Y0),
             "Y100 · output high", nameof(SignalListEditorRow.Y100));
-        panel.Children.Add(linearPanel);
+        scaling.Children.Add(linearPanel);
 
         var factorPanel = new StackPanel();
         var factorStyle = new Style(typeof(StackPanel));
@@ -521,44 +532,87 @@ public sealed class SignalListEditorWindow : Window
         hideFactor.Setters.Add(new Setter(VisibilityProperty, Visibility.Collapsed));
         factorStyle.Triggers.Add(hideFactor);
         factorPanel.Style = factorStyle;
-        AddEditorField(factorPanel, "Scale", nameof(SignalListEditorRow.Scale),
-            "IEC scaled integer resolution or short-float multiplier; default 1.", compact: true);
-        AddEditorField(factorPanel, "Offset", nameof(SignalListEditorRow.Offset),
-            "Engineering zero offset, applied after scaling.", compact: true);
-        AddEditorField(factorPanel, "Ratio primary", nameof(SignalListEditorRow.RatioPrimary),
-            "Optional approved CT/VT or gateway ratio numerator; default 1.", compact: true);
-        AddEditorField(factorPanel, "Ratio secondary", nameof(SignalListEditorRow.RatioSecondary),
-            "Ratio denominator > 0; default 1. Never duplicate an RTU-applied ratio.", compact: true);
-        AddEditorField(factorPanel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
-            "For IEC TI9/10/21/34 only: NVA [-1,1) multiplied by engineering full-scale.", compact: true);
-        panel.Children.Add(factorPanel);
-        AddTwoPointPair(panel, "Engineering min · metadata", nameof(SignalListEditorRow.EngineeringMin),
+        AddTwoPointPair(factorPanel, "Scale", nameof(SignalListEditorRow.Scale),
+            "Offset", nameof(SignalListEditorRow.Offset));
+        AddTwoPointPair(factorPanel, "Ratio primary", nameof(SignalListEditorRow.RatioPrimary),
+            "Ratio secondary", nameof(SignalListEditorRow.RatioSecondary));
+        AddEditorField(factorPanel, "Normalized full-scale (NVA only)", nameof(SignalListEditorRow.NormalizedFullScale),
+            "Used by TI9/10/21/34; do not apply twice if the gateway has already scaled.");
+        scaling.Children.Add(factorPanel);
+
+        _scalingScroll.Content = scaling;
+        _scalingScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        _scalingScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+
+        var details = new StackPanel();
+        AddTwoPointPair(details, "CA", nameof(SignalListEditorRow.Ca),
+            "IOA", nameof(SignalListEditorRow.Ioa));
+        AddEditorField(details, "IEC Type ID", nameof(SignalListEditorRow.TypeId), compact: true);
+        AddEditorField(details, "Name", nameof(SignalListEditorRow.Name));
+        AddEditorField(details, "Group", nameof(SignalListEditorRow.Group));
+        AddEditorField(details, "Type / Role", nameof(SignalListEditorRow.SignalType));
+        AddTwoPointPair(details, "Engineering min · metadata", nameof(SignalListEditorRow.EngineeringMin),
             "Engineering max · metadata", nameof(SignalListEditorRow.EngineeringMax));
-        panel.Children.Add(new TextBlock
+        details.Children.Add(new TextBlock
         {
-            Text = "Reference limits only, not calibration endpoints or clamping.",
+            Text = "Reference limits only — not calibration or clamping.",
             FontSize = 10.5,
             Foreground = TextMutedBrush,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 7)
+            Margin = new Thickness(0, 0, 0, 8)
         });
-        AddEditorField(panel, "Class", nameof(SignalListEditorRow.ExpectedClass), "Expected IEC-101 class", compact: true);
-        AddEditorField(panel, "COT", nameof(SignalListEditorRow.ExpectedCot), "Expected cause of transmission", compact: true);
-        AddEditorCombo(panel, "Command policy", nameof(SignalListEditorRow.CommandPolicy), new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
-        AddEditorField(panel, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
-        AddEditorField(panel, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
-        AddEditorField(panel, "Mnemonic", nameof(SignalListEditorRow.Mnemonic));
-        AddEditorField(panel, "Business type (TM / TSD / TSS / RCD...)", nameof(SignalListEditorRow.TestCategory), compact: true);
-        AddEditorField(panel, "Bay", nameof(SignalListEditorRow.BayType));
-        AddEditorField(panel, "Description", nameof(SignalListEditorRow.Description), multiline: true);
-
-        _detailScroll.Content = panel;
+        AddTwoPointPair(details, "Class", nameof(SignalListEditorRow.ExpectedClass),
+            "COT", nameof(SignalListEditorRow.ExpectedCot));
+        AddEditorCombo(details, "Command policy", nameof(SignalListEditorRow.CommandPolicy),
+            new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
+        AddEditorField(details, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
+        AddEditorField(details, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
+        AddEditorField(details, "Mnemonic", nameof(SignalListEditorRow.Mnemonic));
+        AddEditorField(details, "Business type (TM / TSD / TSS / RCD...)", nameof(SignalListEditorRow.TestCategory));
+        AddEditorField(details, "Bay", nameof(SignalListEditorRow.BayType));
+        AddEditorField(details, "Description", nameof(SignalListEditorRow.Description), multiline: true);
+        _detailScroll.Content = details;
         _detailScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _detailScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
-        root.Children.Add(_detailScroll);
 
+        var tabContent = new Grid();
+        tabContent.Children.Add(_scalingScroll);
+        tabContent.Children.Add(_detailScroll);
+        root.Children.Add(tabContent);
+        ShowInspectorTab(scaling: true);
         return card;
     }
+
+    private void ConfigureInspectorTabButton(Button button, string text, bool scaling)
+    {
+        button.Content = text;
+        button.Name = scaling ? "EngineeringScalingTab" : "MappingCommandsTab";
+        button.FontSize = 11.3;
+        button.MinHeight = 33;
+        button.Margin = scaling ? new Thickness(0, 0, 4, 0) : new Thickness(4, 0, 0, 0);
+        button.Padding = new Thickness(5, 7, 5, 7);
+        button.Style = CreateRoundedButtonStyle();
+        button.Cursor = Cursors.Hand;
+        button.Click += (_, _) => ShowInspectorTab(scaling);
+    }
+
+    private void ShowInspectorTab(bool scaling)
+    {
+        _showScalingTab = scaling;
+        _scalingScroll.Visibility = scaling ? Visibility.Visible : Visibility.Collapsed;
+        _detailScroll.Visibility = scaling ? Visibility.Collapsed : Visibility.Visible;
+        _scalingTabButton.Background = scaling ? AccentBrush : AccentSoftBrush;
+        _scalingTabButton.Foreground = scaling ? Brushes.White : AccentDarkBrush;
+        _scalingTabButton.BorderBrush = scaling ? AccentBrush : BorderBrushSoft;
+        _mappingTabButton.Background = scaling ? AccentSoftBrush : AccentBrush;
+        _mappingTabButton.Foreground = scaling ? AccentDarkBrush : Brushes.White;
+        _mappingTabButton.BorderBrush = scaling ? BorderBrushSoft : AccentBrush;
+        if (scaling) _scalingScroll.ScrollToTop();
+        else _detailScroll.ScrollToTop();
+    }
+
+    private static bool IsMeasuredAnalog(SignalListEditorRow row) =>
+        ParseInt(row.TypeId) is 9 or 10 or 11 or 12 or 13 or 14 or 21 or 34 or 35 or 36;
 
     private UIElement BuildFooter()
     {
@@ -1317,19 +1371,40 @@ public sealed class SignalListEditorWindow : Window
         var row = GetCurrentRow();
         if (row is null)
         {
+            _activeDetailRow = null;
             _detailScroll.DataContext = null;
+            _scalingScroll.DataContext = null;
+            _scalingTabButton.IsEnabled = false;
+            ShowInspectorTab(scaling: false);
             _selectionTitle.Text = "No row selected";
             _selectionSubtitle.Text = "Select a signal from the table.";
             SetPillText(_selectionBadge, "No selection", TextMutedBrush, BrushFromRgb(0xF1, 0xF5, 0xF9));
             return;
         }
 
+        var selectionChanged = !ReferenceEquals(row, _activeDetailRow);
+        _activeDetailRow = row;
         _detailScroll.DataContext = row;
+        _scalingScroll.DataContext = row;
         _selectionTitle.Text = string.IsNullOrWhiteSpace(row.Name) ? $"IOA {row.Ioa}" : row.Name;
-        _selectionSubtitle.Text = $"CA {Safe(row.Ca)} · IOA {Safe(row.Ioa)} · Type {Safe(row.TypeId)}";
+        _selectionSubtitle.Text = $"CA {Safe(row.Ca)} · IOA {Safe(row.Ioa)} · TI {Safe(row.TypeId)}";
         var policy = string.IsNullOrWhiteSpace(row.CommandPolicy) ? "MonitorOnly" : row.CommandPolicy;
         var isCommand = !policy.Equals("MonitorOnly", StringComparison.OrdinalIgnoreCase);
         SetPillText(_selectionBadge, isCommand ? "Command capable" : "Monitor only", isCommand ? AccentBrush : SuccessBrush, isCommand ? AccentSoftBrush : SuccessSoftBrush);
+
+        var isAnalog = IsMeasuredAnalog(row) && !isCommand;
+        _scalingTabButton.IsEnabled = isAnalog;
+        _scalingSourceNote.Text = ParseInt(row.TypeId) switch
+        {
+            9 or 10 or 21 or 34 => "NVA: X is the decoded normalized fraction [-1, 1), not the signed I16 bytes.",
+            11 or 12 or 35 => "SVA: X is signed I16 (-32768..32767). Raw counts are not MVar without approved RTU scaling.",
+            13 or 14 or 36 => "Float: X is the decoded IEEE-754 value. Use identity where the RTU already sends engineering units.",
+            _ => "Scaling is only available for IEC measured-value types."
+        };
+        // Default to scaling for analog measurements; keep a manually
+        // selected tab while the user edits fields on the same signal.
+        if (selectionChanged || !isAnalog && _showScalingTab)
+            ShowInspectorTab(scaling: isAnalog);
     }
 
     private static string Safe(string? text) => string.IsNullOrWhiteSpace(text) ? "-" : text.Trim();
