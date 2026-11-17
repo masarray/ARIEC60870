@@ -48,6 +48,13 @@ public sealed partial class SignalListEditorWindow : Window
     private readonly TextBox _profileNameBox = new();
     private readonly TextBox _pathBox = new();
     private readonly TextBox _searchBox = new();
+    private readonly TextBlock _searchWatermark = new();
+    private readonly ComboBox _bayFilter = new();
+    private readonly ComboBox _kindFilter = new();
+    private readonly List<DataGridColumn> _advancedColumns = new();
+    private bool _allColumnsVisible;
+    private const string AllBays = "All bays";
+    private const string AllKinds = "All signals";
     private readonly TextBlock _statusText = new();
     private readonly TextBlock _rowCountText = new();
     private readonly TextBlock _dirtyText = new();
@@ -80,7 +87,7 @@ public sealed partial class SignalListEditorWindow : Window
         SavedProfilePath = profilePath ?? string.Empty;
         Profile = CloneProfile(_template);
 
-        Title = "Signal List Editor - IEC-101/104 IOA Mapping";
+        Title = "Signal Map - IEC-101/104 IOA Mapping";
         Width = 1360;
         Height = 820;
         MinWidth = 1120;
@@ -135,15 +142,15 @@ public sealed partial class SignalListEditorWindow : Window
         var left = new StackPanel { Orientation = Orientation.Vertical };
         left.Children.Add(new TextBlock
         {
-            Text = "Signal List Editor",
-            FontSize = 20,
+            Text = "Signal Map",
+            FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMainBrush,
             Margin = new Thickness(0, 0, 0, 3)
         });
         left.Children.Add(new TextBlock
         {
-            Text = "Edit IEC-101/104 IOA mapping, command policy, feedback IOA, state map, class, COT, and engineering metadata without touching JSON manually.",
+            Text = "Find an IOA or bay, edit the selected signal, then validate and apply. All IEC settings remain available in Details.",
             FontSize = 12.5,
             Foreground = TextMutedBrush,
             TextWrapping = TextWrapping.Wrap,
@@ -164,44 +171,85 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildToolbarCard()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(12, 9, 12, 9));
-        var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        card.Child = grid;
+        var card = CreateCard(new Thickness(0, 0, 0, 10), new Thickness(12, 8, 12, 8));
+        var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        card.Child = root;
 
         _profileNameBox.Text = _template.ProfileName;
         _profileNameBox.Style = CreateTextBoxStyle();
-        _profileNameBox.Margin = new Thickness(0, 0, 10, 0);
-        _profileNameBox.ToolTip = "Profile name saved into the JSON database";
+        _profileNameBox.Margin = new Thickness(0, 0, 8, 0);
+        _profileNameBox.ToolTip = "Editable profile name";
         _profileNameBox.TextChanged += (_, _) => MarkDirty();
-        grid.Children.Add(_profileNameBox);
+        root.Children.Add(_profileNameBox);
 
         _pathBox.Text = SavedProfilePath;
         _pathBox.IsReadOnly = true;
         _pathBox.Style = CreateTextBoxStyle(readOnly: true);
-        _pathBox.Margin = new Thickness(0, 0, 0, 0);
+        _pathBox.ToolTip = "Current JSON file. Use More > Save As to create a copy.";
         Grid.SetColumn(_pathBox, 1);
-        grid.Children.Add(_pathBox);
+        root.Children.Add(_pathBox);
 
-        var actionRow = new Grid { Margin = new Thickness(0, 10, 0, 0) };
-        actionRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
-        actionRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetRow(actionRow, 1);
-        Grid.SetColumnSpan(actionRow, 2);
-        grid.Children.Add(actionRow);
+        var actions = new Grid { Margin = new Thickness(0, 7, 0, 0) };
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(139) });
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetRow(actions, 1);
+        Grid.SetColumnSpan(actions, 2);
+        root.Children.Add(actions);
 
+        var searchArea = new Grid { Margin = new Thickness(0, 0, 7, 0) };
         _searchBox.Style = CreateTextBoxStyle();
-        _searchBox.Margin = new Thickness(0, 0, 12, 0);
-        _searchBox.TextChanged += (_, _) => RefreshFilter();
-        _searchBox.ToolTip = "Filter by CA, IOA, name, group, mnemonic, policy, or description";
-        _searchBox.Text = string.Empty;
-        _searchBox.Tag = "Search signal list...";
-        actionRow.Children.Add(_searchBox);
+        _searchBox.ToolTip = "Search all fields: name, CA, IOA, Type ID, bay, mnemonic, TYPE, group, unit or description (Ctrl+F)";
+        _searchBox.TextChanged += (_, _) =>
+        {
+            _searchWatermark.Visibility = string.IsNullOrEmpty(_searchBox.Text) ?
+                Visibility.Visible : Visibility.Collapsed;
+            RefreshFilter();
+        };
+        _searchBox.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && !string.IsNullOrEmpty(_searchBox.Text))
+            {
+                _searchBox.Clear();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter)
+            {
+                var first = CollectionViewSource.GetDefaultView(_rows)?.Cast<SignalListEditorRow>().FirstOrDefault();
+                if (first is not null) SetCurrentCell(first);
+                e.Handled = first is not null;
+            }
+        };
+        searchArea.Children.Add(_searchBox);
+        _searchWatermark.Text = "Search IOA, name, bay...  Ctrl+F";
+        _searchWatermark.Foreground = TextMutedBrush;
+        _searchWatermark.FontSize = 11.5;
+        _searchWatermark.Margin = new Thickness(10, 0, 0, 0);
+        _searchWatermark.VerticalAlignment = VerticalAlignment.Center;
+        _searchWatermark.IsHitTestVisible = false;
+        searchArea.Children.Add(_searchWatermark);
+        actions.Children.Add(searchArea);
 
-        var toolbar = new WrapPanel
+        ConfigureFilterCombo(_bayFilter, "Filter by bay", actions, 1);
+        ConfigureFilterCombo(_kindFilter, "Filter by signal kind", actions, 2);
+        _kindFilter.ItemsSource = new[] { AllKinds, "Measured analog", "Digital status", "Commands" };
+        _kindFilter.SelectedIndex = 0;
+
+        var clear = CreateToolbarButton("×", (_, _) => ClearFilters(), false, false);
+        clear.Margin = new Thickness(0, 0, 4, 0);
+        clear.MinWidth = 29;
+        clear.Padding = new Thickness(5, 5, 5, 5);
+        clear.ToolTip = "Clear search and both filters";
+        Grid.SetColumn(clear, 3);
+        actions.Children.Add(clear);
+
+        var toolbar = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -210,18 +258,73 @@ public sealed partial class SignalListEditorWindow : Window
         AddToolbarButton(toolbar, "+ Add", AddRow_Click);
         AddToolbarButton(toolbar, "Duplicate", DuplicateRow_Click);
         AddToolbarButton(toolbar, "Delete", DeleteRow_Click, danger: true);
-        AddToolbarButton(toolbar, "Load", LoadList_Click);
-        AddToolbarButton(toolbar, "Sync 31 I/O", SyncScadaIoList_Click);
         AddToolbarButton(toolbar, "Save", SaveList_Click);
-        AddToolbarButton(toolbar, "Save As", SaveAs_Click);
-        AddToolbarButton(toolbar, "Validate", Validate_Click);
-        if (_observedCommonAddress.HasValue)
-            AddToolbarButton(toolbar, $"Align to CA {_observedCommonAddress.Value}", AlignToObservedCa_Click);
-        AddToolbarButton(toolbar, "Save & Apply", SaveApply_Click, isPrimary: true);
-        Grid.SetColumn(toolbar, 1);
-        actionRow.Children.Add(toolbar);
 
+        var more = CreateToolbarButton("More ▾", (_, _) => { }, false, false);
+        more.ContextMenu = BuildMoreActionsMenu();
+        more.Click += (_, _) =>
+        {
+            more.ContextMenu.PlacementTarget = more;
+            more.ContextMenu.Placement = PlacementMode.Bottom;
+            more.ContextMenu.IsOpen = true;
+        };
+        toolbar.Children.Add(more);
+        AddToolbarButton(toolbar, "Save & Apply", SaveApply_Click, isPrimary: true);
+        Grid.SetColumn(toolbar, 4);
+        actions.Children.Add(toolbar);
+
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                _searchBox.Focus();
+                _searchBox.SelectAll();
+                e.Handled = true;
+            }
+        };
         return card;
+    }
+
+    private void ConfigureFilterCombo(ComboBox combo, string tip, Grid parent, int column)
+    {
+        combo.MinHeight = 33;
+        combo.FontSize = 11.5;
+        combo.Padding = new Thickness(6, 5, 6, 5);
+        combo.Margin = new Thickness(0, 0, 7, 0);
+        combo.Background = Brushes.White;
+        combo.BorderBrush = BorderBrushSoft;
+        combo.ToolTip = tip;
+        combo.SelectionChanged += (_, _) => RefreshFilter();
+        Grid.SetColumn(combo, column);
+        parent.Children.Add(combo);
+    }
+
+    private ContextMenu BuildMoreActionsMenu()
+    {
+        var menu = new ContextMenu();
+        void Item(string caption, RoutedEventHandler action)
+        {
+            var item = new MenuItem { Header = caption, FontSize = 12 };
+            item.Click += action;
+            menu.Items.Add(item);
+        }
+        Item("Load profile...", LoadList_Click);
+        Item("Save As new profile...", SaveAs_Click);
+        Item("Validate entire list", Validate_Click);
+        Item("Sync 31 I/O reference...", SyncScadaIoList_Click);
+        if (_observedCommonAddress.HasValue)
+            Item($"Align profile to CA {_observedCommonAddress.Value}...", AlignToObservedCa_Click);
+        menu.Items.Add(new Separator());
+        Item("Show / hide extra table columns", (_, _) => ToggleExtraColumns());
+        return menu;
+    }
+
+    private void ClearFilters()
+    {
+        _searchBox.Clear();
+        _bayFilter.SelectedIndex = 0;
+        _kindFilter.SelectedIndex = 0;
+        RefreshFilter();
     }
 
     private UIElement BuildWorkspace()
@@ -229,7 +332,7 @@ public sealed partial class SignalListEditorWindow : Window
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(395) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(405) });
 
         var tableCard = CreateCard(new Thickness(0), new Thickness(0));
         tableCard.Child = _grid;
