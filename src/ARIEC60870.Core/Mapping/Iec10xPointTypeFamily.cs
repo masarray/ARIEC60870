@@ -40,7 +40,7 @@ public static class Iec10xPointTypeFamily
             3 or 4 or 31 => 3,       // double point
             5 or 6 or 32 => 5,       // step position
             7 or 8 or 33 => 7,       // bitstring
-            9 or 10 or 34 => 9,     // normalized
+            9 or 10 or 21 or 34 => 9, // normalized, TI21 has no QDS
             11 or 12 or 35 => 11,   // scaled
             13 or 14 or 36 => 13,   // short float
             15 or 16 or 37 => 15,   // counters
