@@ -47,6 +47,10 @@ public static class Iec10xValueNameReconciler
             var match = names.Resolve(ca, ioa, type, allowNameOnly: allowAlias);
             row.ApplyDisplayName(match.Point?.Name ?? $"IOA {ioa}",
                 match.Point?.Group ?? "Unmapped", match.Point is not null);
+            // Numeric engineering transforms are NEVER inherited from a
+            // read-only CA name alias. Existing last-value source bytes are
+            // retained so edits take effect immediately, without new RX.
+            row.ApplyMeasurementScale(names.Resolve(ca, ioa, type).Point);
         }
     }
 

@@ -84,9 +84,17 @@ public sealed partial class EvidenceRow
         FunInf = Fun == "-" && Inf == "-" ? "-" : $"{Fun}/{Inf}";
         SemanticLabel = ioaPoint?.Name ?? item.SignalName;
         SemanticCategory = ioaPoint?.Group ?? item.SignalGroup;
-        SemanticState = ioaPoint is not null && !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
-            ? ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(item.SignalDisplayValue))
-            : item.SignalDisplayValue;
+        var strictEngineeringPoint = names?.Resolve(item.CommonAddressNumber,
+            item.InformationObjectAddress, item.TypeId).Point;
+        SemanticState = strictEngineeringPoint is not null &&
+            Iec10xEngineeringValue.TryFormat(strictEngineeringPoint,
+                item.AsduDetails, item.InformationObjectDetails, out var engValue)
+            ? engValue
+            : ioaPoint is not null &&
+              !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1) &&
+              !string.IsNullOrWhiteSpace(item.SignalDisplayValue)
+                ? ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(item.SignalDisplayValue))
+                : item.SignalDisplayValue;
         ProfileName = ioaPoint is not null && string.IsNullOrWhiteSpace(item.MappingProfileName) ? "IOA profile" : item.MappingProfileName;
         RelayTime = string.IsNullOrWhiteSpace(item.RelayTimestampText) ? "-" : item.RelayTimestampText;
         Edge = item.IsRelayEdgeEvent ? item.EdgeReason : "-";
@@ -621,8 +629,12 @@ public sealed partial class EvidenceRow
             (string.IsNullOrWhiteSpace(capture.SignalOrAddress) ? "-" : capture.SignalOrAddress);
         SemanticCategory = nameMatch?.Point?.Group ?? "Offline Capture";
         var verifiedValue = trusted10x is null ? null : Source.InformationObjectDetails?.ShortValue;
-        SemanticState = is10x ? (string.IsNullOrWhiteSpace(verifiedValue) ? "-" : verifiedValue) :
-            string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
+        SemanticState = trusted10x is not null && !nameMatch.GetValueOrDefault().NameOnly &&
+            nameMatch?.Point is { } scalePoint &&
+            Iec10xEngineeringValue.TryFormat(scalePoint, trusted10x, observedPoint, out var archiveValue)
+            ? archiveValue
+            : is10x ? (string.IsNullOrWhiteSpace(verifiedValue) ? "-" : verifiedValue) :
+                string.IsNullOrWhiteSpace(capture.Value) ? "-" : capture.Value;
         ProfileName = nameMatch?.Point is null ? "ARIEC capture" : "Active Signal List · display name only";
         var verifiedRelayTime = trusted10x is null ? null : Source.InformationObjectDetails?.TimestampText;
         RelayTime = is10x ? (string.IsNullOrWhiteSpace(verifiedRelayTime) ? "-" : verifiedRelayTime) :

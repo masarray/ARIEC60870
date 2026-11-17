@@ -13,11 +13,23 @@ namespace ARIEC60870.Desktop.ViewModels;
 public sealed class ValueRow : INotifyPropertyChanged
 {
     private bool _isRecentlyChanged;
+    // Retain only the last trusted analog object for a Value row so Save &
+    // Apply can re-project the currently visible measurement without waiting
+    // for another RTU poll. Raw HEX and decoder-owned bytes remain immutable.
+    private readonly Iec10xAsduDecode? _sourceMeasurementAsdu;
+    private readonly Iec10xInformationObject? _sourceMeasurementObject;
 
     public ValueRow(Iec103ValuePoint item, int? wireDl = null, int? configuredDl = null,
         int? configuredCa = null, int? mappedCa = null, bool readOnlyAlias = false,
-        int? mappedTi = null)
+        int? mappedTi = null, Iec10xAsduDecode? sourceAsdu = null,
+        Iec10xInformationObject? sourceObject = null)
     {
+        if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+            Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1))
+        {
+            _sourceMeasurementAsdu = sourceAsdu;
+            _sourceMeasurementObject = sourceObject;
+        }
         Key = item.Key;
         PhysicalSource = item.PhysicalSource;
         EvidenceReference = item.EvidenceReference;
@@ -84,7 +96,7 @@ public sealed class ValueRow : INotifyPropertyChanged
     public string Protocol { get; }
     public string Signal { get; private set; }
     public string Group { get; private set; }
-    public string Value { get; }
+    public string Value { get; private set; }
     public string OperatorValue => IecOperatorValueFormatter.ForGrid(Protocol, TypeId, Value);
     public string FullOperatorValue => Value;
     public DigitalStateBadge? DiscreteBadge { get; }
@@ -121,6 +133,27 @@ public sealed class ValueRow : INotifyPropertyChanged
     public IReadOnlyList<ProtocolFlagChip> QualityChips { get; }
     public string Mapped { get; private set; }
     public string RawHex { get; }
+
+    /// <summary>
+    /// Recalculate display after an operator changes the Signal List.
+    /// The strict profile match is established by the caller; a name-only
+    /// CA alias must never import another station's calibration.
+    /// </summary>
+    public void ApplyMeasurementScale(Iec10xPointMappingEntry? strictPoint)
+    {
+        if (_sourceMeasurementAsdu is not { IsHeaderValid: true, Issues.Count: 0 } ||
+            _sourceMeasurementObject is not { Issues.Count: 0 })
+            return;
+        var display = strictPoint is not null &&
+            Iec10xEngineeringValue.TryFormat(strictPoint, _sourceMeasurementAsdu,
+                _sourceMeasurementObject, out var result)
+            ? result : _sourceMeasurementObject.ShortValue;
+        if (Value == display) return;
+        Value = display;
+        OnPropertyChanged(nameof(Value));
+        OnPropertyChanged(nameof(OperatorValue));
+        OnPropertyChanged(nameof(FullOperatorValue));
+    }
 
     public void ApplyDisplayName(string name, string group, bool mapped)
     {

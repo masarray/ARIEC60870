@@ -223,7 +223,7 @@ public static class EventHistoryCsvExporter
                             entry.Source.ArrivalTimeUtc.ToString("O", CultureInfo.InvariantCulture),
                             entry.Source.RelayTimeText,
                             row.Protocol, row.PhysicalSource, row.Signal, row.Previous,
-                            row.NewValue, row.CommonAddress, row.IoAddress,
+                            row.DisplayValue, row.CommonAddress, row.IoAddress,
                             row.TypeId, row.Cot, row.Quality,
                             row.IsQualityInvalid ? "true" : "false",
                             original?.EvidenceReference ?? row.EvidenceReference,

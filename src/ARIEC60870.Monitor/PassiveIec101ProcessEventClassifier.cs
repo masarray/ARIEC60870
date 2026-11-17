@@ -196,7 +196,7 @@ public sealed class PassiveIec101ProcessEventClassifier
         // Keep parity with the supported IEC-101 process families of the
         // existing Values/Event projector. Unsupported/vendor-private stays raw.
         if ((!digital && !measurement) ||
-            asdu.TypeId is not (>= 1 and <= 16 or >= 30 and <= 37))
+            asdu.TypeId is not (>= 1 and <= 16 or 21 or >= 30 and <= 37))
         {
             Interlocked.Add(ref _objectsExcluded, asdu.Objects.Count);
             return;

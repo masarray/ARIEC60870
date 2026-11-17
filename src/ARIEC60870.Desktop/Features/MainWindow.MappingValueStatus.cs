@@ -154,7 +154,16 @@ public partial class MainWindow
     // Invoked once per profile change, never from the serial RX hot path.
     private void RefreshCachedSignalNames()
     {
-        Iec10xValueNameReconciler.Apply(_valueRowsByKey.Values.ToArray(), _displayPointIndex);
+        var projectedRows = _valueRowsByKey.Values.ToArray();
+        Iec10xValueNameReconciler.Apply(projectedRows, _displayPointIndex);
+        // A profile edit changes engineering presentation, not the physical
+        // process. Refresh the comparison baseline from the same source-backed
+        // latest measurement so the next identical RX is not a false change.
+        foreach (var row in projectedRows)
+            if (row.Protocol is "101" or "104" &&
+                !string.IsNullOrWhiteSpace(row.EvidenceReference) &&
+                Iec10xEngineeringValue.IsMeasurementType(row.TypeSortKey))
+                _lastDisplayedValueByKey[row.Key] = row.Value;
         _valueRowsDirty = true;
         if (_eventHistoryJournal is not null)
             RequestEventHistoryQuery();
@@ -383,6 +392,12 @@ public partial class MainWindow
             (!_passiveLedgerFactProjection || _passiveLedgerSnapshotProjection);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
+        // A CA-reconciled/name-only alias may supply an operator label, not
+        // the numeric engineering calibration of another station. Scaling
+        // requires an exact, unambiguous CA/IOA/TI-family Signal List match.
+        var engineeringPoint = _displayPointIndex.Resolve(
+            item.CommonAddressNumber, item.InformationObjectAddress,
+            item.TypeId).Point;
         var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
             item.TypeId is int receivedTi &&
             !Iec10xPointTypeFamily.SameObservationFamily(declaredTi, receivedTi);
@@ -423,8 +438,17 @@ public partial class MainWindow
             : !string.IsNullOrWhiteSpace(item.ObjectSummary)
                 ? item.ObjectSummary
                 : item.SignalRawValue;
-        if (ioaPoint is not null && !profileTiMismatch)
+        if (engineeringPoint is not null &&
+            Iec10xEngineeringValue.TryFormat(engineeringPoint,
+                item.AsduDetails, item.InformationObjectDetails, out var engineeringValue))
         {
+            displayValue = engineeringValue;
+        }
+        else if (ioaPoint is not null && !profileTiMismatch &&
+                 !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1))
+        {
+            // Digital StateMap remains display-only; numeric measurements
+            // must come from verified IEC wire bytes, not formatted text.
             displayValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(displayValue));
         }
 
@@ -433,8 +457,13 @@ public partial class MainWindow
         {
             previousValue = item.PreviousSignalValue;
         }
-        if (ioaPoint is not null && !profileTiMismatch && !string.IsNullOrWhiteSpace(previousValue))
+        if (ioaPoint is not null && !profileTiMismatch &&
+            !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1) &&
+            string.IsNullOrWhiteSpace(previousValueBeforeUpdate) &&
+            !string.IsNullOrWhiteSpace(previousValue))
         {
+            // Previous values already stored in _lastDisplayedValueByKey
+            // are engineering values: never scale them a second time.
             previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
         }
 
@@ -481,7 +510,8 @@ public partial class MainWindow
             ioaPoint is not null && item.CommonAddressNumber.HasValue &&
                 (ioaPoint.Ca ?? _ioaProfile.CommonAddress) is int profileCa &&
                 profileCa != item.CommonAddressNumber.Value,
-            ioaPoint?.TypeId)
+            ioaPoint?.TypeId,
+            item.AsduDetails, item.InformationObjectDetails)
             {
                 IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
             };
@@ -689,7 +719,7 @@ public partial class MainWindow
             return false;
         }
 
-        return item.TypeId.Value is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37;
+        return item.TypeId.Value is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37;
     }
 
     private static bool IsIec10xDigitalEdgeEvent(Iec103MasterEvidenceEvent item)

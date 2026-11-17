@@ -36,6 +36,19 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 *Illustrative product media. The [v3.6.13 package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/44001183168) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
+## Engineering-unit scaling in Signal List
+
+IEC-101/104 measurements may be transmitted as **normalized (TI9/10/21/34)**,
+**scaled signed integer (TI11/12/35)**, or **short float (TI13/14/36)**.
+A Signal List's unit label (such as MVar) does not automatically convert a
+raw IEC integer. The operator must configure the **approved RTU scale,
+offset, optional primary/secondary ratio, and normalized full-scale** on
+the selected signal; the original HEX/IOA/quality remain unchanged.
+See the [engineering scaling guide](docs/IEC10X_ENGINEERING_SCALING.md)
+for formulas, Signal List steps, and field-verification boundaries.
+This functionality is post-v3.6.13 source work until a separately
+qualified release publishes it.
+
 ## Supported engineering workflows
 
 | Area | What you can inspect |
