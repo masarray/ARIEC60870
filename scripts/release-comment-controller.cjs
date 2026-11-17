@@ -228,7 +228,11 @@ async function run({github, context, core}) {
   const hygienePassed = sec[1].some(r => r.conclusion === 'success');
   if (!hygienePassed && !sec[1].some(isActive))
     throw new Error(`No successful master repository hygiene check at ${sha}.`);
-  const completedCiError = !qualified && ciRuns[0]?.conclusion === 'failure';
+  // A cancelled/timed-out updater FAT is not "still awaiting" forever.
+  // Never retry an ambiguous or failed installed-updater test automatically.
+  const latestCi = ciRuns[0];
+  const completedCiError = !qualified && latestCi?.status === 'completed' &&
+    !['success', 'skipped', 'neutral'].includes(latestCi.conclusion);
   const activePackage = packages.some(isActive);
   const [packageReserved, updaterReserved] = await Promise.all([
     reserved(github,owner,repo,stageMarker(request.id,sha,'package'),sha),
