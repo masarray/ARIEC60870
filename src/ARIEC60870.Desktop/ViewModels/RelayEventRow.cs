@@ -103,8 +103,8 @@ public sealed class RelayEventRow
     public string Signal { get; private set; }
     public string Previous { get; }
     public string NewValue { get; }
-    public string DisplayValue { get; }
-    public string CompactDisplayValue { get; }
+    public string DisplayValue { get; private set; }
+    public string CompactDisplayValue { get; private set; }
     public string OperatorValue => CompactDisplayValue;
     public string FullOperatorValue => DisplayValue;
     public DigitalStateBadge? DiscreteBadge { get; }
@@ -146,6 +146,16 @@ public sealed class RelayEventRow
         if (match.Point is null) return;
         Signal = match.Point.Name;
         Mapped = match.NameOnly ? "Name only" : "Yes";
+        // Re-project only from original verified wire bytes, outside the RX
+        // hot path. A name-only CA alias never borrows calibration.
+        if (!match.NameOnly && OriginalFrameEvidence is { } source &&
+            Iec10xEngineeringValue.TryFormat(match.Point,
+                source.AsduDetails, source.InformationObjectDetails, out var engineering))
+        {
+            DisplayValue = engineering;
+            CompactDisplayValue = ShortEventValue(SourceEntry,
+                IecOperatorValueFormatter.ForGrid(Protocol, TypeId, engineering));
+        }
     }
 
     private static string ShortEventValue(Iec103RelayEventLogEntry entry, string full)
