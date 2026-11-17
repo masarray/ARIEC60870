@@ -25,9 +25,12 @@ public sealed class Iec10xEngineeringMappingPresentationTests
             [
                 new Iec10xPointMappingEntry
                 {
-                    Ca = ca, Ioa = 4015, TypeId = 11,
+                    Ca = ca,
+                    Ioa = 4015,
+                    TypeId = 11,
                     Name = "FEEDER REACTIVE POWER (Q)",
-                    Unit = "MVar", Scale = scale
+                    Unit = "MVar",
+                    Scale = scale
                 }
             ]
         });
@@ -48,9 +51,12 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         return new RelayEventRow(new Iec103RelayEventLogEntry
         {
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            CommonAddress = ca, InformationObjectAddress = 4015,
-            TypeId = 11, SignalType = "M_ME_NB_1",
-            SignalName = "IOA 4015", NewValue = "Scaled=13641"
+            CommonAddress = ca,
+            InformationObjectAddress = 4015,
+            TypeId = 11,
+            SignalType = "M_ME_NB_1",
+            SignalName = "IOA 4015",
+            NewValue = "Scaled=13641"
         }, source);
     }
 
@@ -86,10 +92,14 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         {
             Key = "101/LINK A/105/4015",
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            PhysicalSource = "Link A", EvidenceReference = "101|seq:4|object:1",
-            CommonAddress = 105, InformationObjectAddress = 4015,
-            TypeId = 11, SignalName = "IOA 4015",
-            RawValue = "Scaled=13641", DisplayValue = "13641 MVar"
+            PhysicalSource = "Link A",
+            EvidenceReference = "101|seq:4|object:1",
+            CommonAddress = 105,
+            InformationObjectAddress = 4015,
+            TypeId = 11,
+            SignalName = "IOA 4015",
+            RawValue = "Scaled=13641",
+            DisplayValue = "13641 MVar"
         }, sourceAsdu: asdu, sourceObject: Assert.Single(asdu.Objects));
 
         Iec10xValueNameReconciler.Apply([row], Index(105, 0.1));
@@ -109,7 +119,10 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     {
         var row = new SignalListEditorRow(new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q"
+            Ca = 105,
+            Ioa = 4015,
+            TypeId = 11,
+            Name = "Q"
         });
         row.Scale = "unfinished";
         row.RatioSecondary = "";
@@ -130,8 +143,11 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         var point = new Iec10xPointMappingEntry
         {
             Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q",
-            Scale = 0.1, Offset = -2, RatioPrimary = 100,
-            RatioSecondary = 5, NormalizedFullScale = 200
+            Scale = 0.1,
+            Offset = -2,
+            RatioPrimary = 100,
+            RatioSecondary = 5,
+            NormalizedFullScale = 200
         };
         var row = new SignalListEditorRow(point);
         var restored = row.ToPoint();
