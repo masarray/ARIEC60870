@@ -61,6 +61,114 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         }, source, eventNumber: eventNumber);
     }
 
+    private static Iec10xPointDisplayIndex LinearIndex(int ca = 105) =>
+        new(new Iec10xPointMappingProfile
+        {
+            CommonAddress = ca,
+            Points =
+            [
+                new Iec10xPointMappingEntry
+                {
+                    Ca = ca,
+                    Ioa = 4015,
+                    TypeId = 11,
+                    Name = "FEEDER REACTIVE POWER (Q)",
+                    Unit = "MVar",
+                    ScalingMode = "TwoPoint",
+                    X0 = 0,
+                    X100 = 10000,
+                    Y0 = 0,
+                    Y100 = 2000,
+                    Scale = 99,             // Inactive when TwoPoint is chosen.
+                    RatioPrimary = 50,
+                    RatioSecondary = 2,
+                    Offset = 25
+                }
+            ]
+        });
+
+    [Fact]
+    public void TwoPointEditorRoundTripPreservesFourEndpointsAndMode()
+    {
+        var point = new Iec10xPointMappingEntry
+        {
+            Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q",
+            ScalingMode = "TwoPoint", X0 = -32768, X100 = 32767,
+            Y0 = -2000, Y100 = 2000
+        };
+        var draft = new SignalListEditorRow(point);
+        Assert.Equal("TwoPoint", draft.ScalingMode);
+        Assert.Equal("-32768", draft.X0);
+        Assert.Equal("32767", draft.X100);
+        var copy = draft.Clone();
+        Assert.Equal(draft.X0, copy.X0);
+        Assert.Equal(draft.Y100, copy.Y100);
+
+        var restored = copy.ToPoint();
+        Assert.Equal(point.ScalingMode, restored.ScalingMode);
+        Assert.Equal(point.X0, restored.X0);
+        Assert.Equal(point.X100, restored.X100);
+        Assert.Equal(point.Y0, restored.Y0);
+        Assert.Equal(point.Y100, restored.Y100);
+        new Iec10xPointMappingProfile { Points = [restored] }.Validate();
+
+        copy.X100 = copy.X0;
+        Assert.Throws<InvalidOperationException>(() =>
+            new Iec10xPointMappingProfile { Points = [copy.ToPoint()] }.Validate());
+        copy.X100 = "not a number";
+        Assert.Throws<InvalidOperationException>(() => copy.ToPoint());
+        Assert.Equal("32767", draft.X100);
+    }
+
+    [Fact]
+    public void TwoPointCalibratesEventHistoryAndValuesButNotRawEvidence()
+    {
+        var profile = LinearIndex();
+        var row = Row(eventNumber: 42);
+        row.ApplyDisplayNames(profile);
+        Assert.Equal("2728.2 MVar", row.DisplayValue);
+        Assert.Equal("Scaled=13641", row.SourceEntry.NewValue);
+
+        using var journal = new EventHistoryJournal();
+        journal.Append(row);
+        var entry = Assert.Single(journal.ReadAfter(0, 1));
+        Assert.Equal(13641, entry.EngineeringSample?.SourceNumber);
+        var search = EventHistoryQueryEngine.Build(journal, journal.Count, "2728.2",
+            ["Digital", "Measurement", "Commands", "GI", "Other"], [],
+            _ => "Measurement", names: profile);
+        Assert.Equal(1, search.Count);
+        var result = Assert.Single(search.ReadDisplayPage(journal, 0, names: profile));
+        Assert.Equal("2728.2 MVar", result.DisplayValue);
+        Assert.Equal("Scaled=13641", entry.EngineeringSample?.OriginalValue);
+
+        var asdu = ScaledAsdu();
+        var value = new ValueRow(new Iec103ValuePoint
+        {
+            Key = "101/LINK A/105/4015",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "Link A",
+            EvidenceReference = "101|seq:1|object:1",
+            CommonAddress = 105,
+            InformationObjectAddress = 4015,
+            TypeId = 11,
+            SignalName = "IOA 4015",
+            RawValue = "Scaled=13641",
+            DisplayValue = "13641 MVar"
+        }, sourceAsdu: asdu, sourceObject: Assert.Single(asdu.Objects));
+        Iec10xValueNameReconciler.Apply([value], profile);
+        Assert.Equal("2728.2 MVar", value.Value);
+        Assert.Equal("Scaled=13641", value.RawValue);
+        Iec10xValueNameReconciler.Apply([value], Index(105, 0.1));
+        Assert.Equal("1364.1 MVar", value.Value);
+        Iec10xValueNameReconciler.Apply([value], profile);
+        Assert.Equal("2728.2 MVar", value.Value);
+
+        var differentStation = Row(ca: 1);
+        differentStation.ApplyDisplayNames(profile);
+        Assert.Equal("Name only", differentStation.Mapped);
+        Assert.Equal("Scaled=13641", differentStation.DisplayValue);
+    }
+
     [Fact]
     public void HistoryPageAppliesActiveSignalListEngineeringFactorWithoutEditingWireValue()
     {
