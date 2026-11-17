@@ -101,7 +101,7 @@ public static class Iec10xEngineeringValue
                 point.Y0 is not double y0 || point.Y100 is not double y100 ||
                 !double.IsFinite(x0) || !double.IsFinite(x100) ||
                 !double.IsFinite(y0) || !double.IsFinite(y100) ||
-                x0 == x100 || !double.IsFinite(x100 - x0) ||
+                Math.Abs(x100 - x0) <= double.Epsilon || !double.IsFinite(x100 - x0) ||
                 !double.IsFinite(y100 - y0))
                 return false;
             var slope = (y100 - y0) / (x100 - x0);
