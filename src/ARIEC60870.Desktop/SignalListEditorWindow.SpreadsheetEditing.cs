@@ -463,13 +463,19 @@ public sealed partial class SignalListEditorWindow
     {
         if (changes.Count == 0) return;
         _undoGrid.Push(changes);
-        if (_undoGrid.Count > 100)
+        // 100 transactions AND 50k edited cells, whichever comes first. A
+        // large one-off Excel paste must not make history unbounded.
+        var retained = new List<IReadOnlyList<SignalGridCellChange>>();
+        var cellBudget = 0;
+        foreach (var action in _undoGrid)
         {
-            // Retain most recent 100 transactions without unbounded snapshots.
-            var newest = _undoGrid.Take(100).Reverse().ToArray();
-            _undoGrid.Clear();
-            foreach (var action in newest) _undoGrid.Push(action);
+            if (retained.Count >= 100 || (retained.Count > 0 &&
+                cellBudget + action.Count > 50_000)) break;
+            retained.Add(action);
+            cellBudget += action.Count;
         }
+        _undoGrid.Clear();
+        for (var i = retained.Count - 1; i >= 0; i--) _undoGrid.Push(retained[i]);
         _redoGrid.Clear();
     }
 
