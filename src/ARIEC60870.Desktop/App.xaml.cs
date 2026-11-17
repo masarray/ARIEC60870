@@ -91,6 +91,9 @@ public partial class App : Application
                 await window.RunPassiveGuiSmokeProbeAsync();
                 await window.RunPassiveHistoryGuiSmokeProbeAsync();
                 await window.RunEventHistoryGuiSmokeProbeAsync();
+                // Exercise the actual Signal List Editor viewport as well; a
+                // compiled TwoPoint feature hidden below unrelated fields is not usable.
+                await SignalListEditorWindow.VerifyScalingFirstViewportAsync();
                 window.Close();
                 Shutdown(0);
             }
