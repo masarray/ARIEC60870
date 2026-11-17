@@ -1,4 +1,4 @@
-## [3.6.13] - Release source prepared 2026-11-16 (not published)
+## [3.6.13] - Published 2026-11-17 (source prepared 2026-11-16)
 
 ### Source-qualified IEC-101 Master reliability (post-v3.6.12)
 - Align configured GI with observed CA, isolate multiple-station ambiguity, preserve RTU ACD/Class 1 event-drain fairness and Class 2 progress (#219).
@@ -14,7 +14,7 @@
 - Reject IEC-104 false GI termination/counter promotion from a stray, negative, TEST, wrong-CA/OA/QOI or pre-ACTCON TI100/COT10. Reuse the proven GI lifecycle tracker per TCP association instead of creating another state machine (#230).
 
 ### Release qualification boundary
-- These are source changes **beyond the published v3.6.12**. Next release requires exact-commit Windows Release/xUnit/protocol smoke/WPF executable acceptance, CodeQL, installer upgrade and native updater FAT, self-contained ZIP and Inno installer, checksums, SPDX SBOM and provenance. Never reuse a v3.6.12 package as new-source evidence.
+- **Published stable:** exact source `289caefe877f58e9f84397112065cae5a0bfa563` passed [Windows CI/native FAT](https://github.com/masarray/ARIEC60870/actions/runs/43997921951) and [Package build/provenance](https://github.com/masarray/ARIEC60870/actions/runs/44001183168), publishing [v3.6.13](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) with installer, ZIP, checksum and SPDX SBOM. Physical RTU FAT remains separate.
 - Field validation remains separate: real IEC-101 1200-bps RTU/gateway 60/500/2,000 SOE FIFO parity, COM unplug/replug and dual A/B, controls with actual feedback, independent IEC-103 and multi-vendor IEC-104. No universal conformance certification or signed binary is claimed.
 - Draft #145 remains **unmerged**; only reviewed independent hardening PRs #219–#230 landed. Existing user-owned Signal Lists are not overwritten.
 

@@ -1,6 +1,6 @@
 # ArSee documentation and GitHub Pages mirror
 
-Official site: https://masarray.github.io/ARIEC60870/ · [Stable v3.6.12](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) · [Previous stable v3.6.11](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11).
+Official site: https://masarray.github.io/ARIEC60870/ · [Stable v3.6.13](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) · [Previous stable v3.6.12](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12).
 
 **Canonical public site: `site/`.** HTML, CSS and SEO assets copied into `docs/` are a generated **GitHub Pages compatibility mirror**, not a separate website. After editing `site/`, run `scripts/sync-github-pages-docs-mirror.ps1` and the repository tests. Never hand-edit the mirror independently.
 
@@ -8,6 +8,6 @@ Engineering docs: [User Guide](USER_GUIDE.md), [Quick Start](QUICK_START.md), [A
 
 Draft PRs, simulator results and unverified field behavior must not be marketed as released or certified.
 
-**Active IEC-101 P0 implementation authority:** [Transaction/serial reliability blueprint](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) · [Deterministic test & field FAT matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) · [Milestone issue #143](https://github.com/masarray/ARIEC60870/issues/143). This is an implementation target, **not** a released feature claim; it supplements cross-protocol PRD/ARD and keeps draft IEC-101 PR #145 separate from the published v3.6.12 stable software.
+**Active IEC-101 P0 implementation authority:** [Transaction/serial reliability blueprint](IEC101_RELIABILITY_IMPLEMENTATION_PLAN.md) · [Deterministic test & field FAT matrix](IEC101_RELIABILITY_VERIFICATION_MATRIX.md) · [Milestone issue #143](https://github.com/masarray/ARIEC60870/issues/143). This is an implementation target, **not** a released feature claim; it supplements cross-protocol PRD/ARD and keeps draft IEC-101 PR #145 separate from the published v3.6.13 stable software.
 
-Stable v3.6.12 contains merged PRs #197–#202 and service-correlation PR #208 and mapping consistency PR #210, not draft transaction/reconnect PR #145. See [ArSee repository and Pages rename plan](ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
+Stable v3.6.13 contains reviewed IEC-101 and IEC-104 improvements #219–#230 in addition to earlier releases; the broad historic draft transaction/reconnect PR #145 remains unmerged. Physical IEC/SCADA interoperability FAT remains pending. See [ArSee repository and Pages rename plan](ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).

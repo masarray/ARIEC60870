@@ -3,15 +3,17 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.12: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12
-- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/ARIEC60870-v3.6.12-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.12/ARIEC60870-v3.6.12-win-x64.zip
-- Previous stable v3.6.11: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.11
-- Exact-source public Windows package and attestations: https://github.com/masarray/ARIEC60870/actions/runs/43795901608
-- Source Windows CI, real-WPF acceptance and native updater FAT: https://github.com/masarray/ARIEC60870/actions/runs/43794902788
+- Latest public stable v3.6.13: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13
+- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-win-x64.zip
+- Previous stable v3.6.12: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12
+- Exact-source public Windows package and attestations: https://github.com/masarray/ARIEC60870/actions/runs/44001183168
+- Source Windows CI, real-WPF acceptance and native updater FAT: https://github.com/masarray/ARIEC60870/actions/runs/43997921951
 - Unmerged SICAM IEC-101 serial changes in PR #145 are excluded and remain subject to physical FAT.
 
-## v3.6.12 improvements
+## v3.6.13 improvements
+- Source-qualified per-physical COM IEC-101 transaction/FCB authority, bounded COM recovery, and independent A/B link evidence (#219–#225).
+- Source-aware GI/SBO, IEC-104 GI proof, mapped point names and bounded per-object SOE accounting (#226–#230).
 - Mapped IEC-101/104 process point names now align across Events, Values, Event History, search/CSV, and Frame Trace using the active IOA profile; unresolved points remain unmapped.
 - IEC-101 single and A/B secondary replies are matched to their pending primary service; FC11, short E5 and busy DFC status cannot prove an unrelated transaction.
 - Context-aware Event Journal links to real captured Original Frame TX/RX evidence; missing TX is explicitly unknown.
