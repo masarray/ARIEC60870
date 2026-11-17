@@ -19,10 +19,10 @@ public sealed class Iec10xMappedNameParityTests
         Points =
         [
             new() { Ca = 105, Ioa = 16712689, TypeId = 31,
-                Name = "FEEDER CB STATUS", Group = "Telesignal Double",
+                Name = "FEEDER TSD CB", Group = "Telesignal Double",
                 CommandPolicy = "MonitorOnly" },
             new() { Ca = 105, Ioa = 68542, TypeId = 46,
-                Name = "FEEDER CB OPEN/CLOSE COMMAND", CommandPolicy = "DoubleCommandRemoteOnly" }
+                Name = "FEEDER RCD CB", CommandPolicy = "DoubleCommandRemoteOnly" }
         ]
     });
 
@@ -59,7 +59,7 @@ public sealed class Iec10xMappedNameParityTests
         value.ApplyDisplayName(hit.Point!.Name, hit.Point.Group, mapped: true);
         var history = FeederEvent();
         history.ApplyDisplayNames(names);
-        Assert.Equal("FEEDER CB STATUS", value.Signal);
+        Assert.Equal("FEEDER TSD CB", value.Signal);
         Assert.Equal(value.Signal, history.Signal);
         Assert.Equal("16712689", value.IoAddress);
         Assert.Equal("16712689", history.IoAddress);
@@ -74,10 +74,10 @@ public sealed class Iec10xMappedNameParityTests
         using var journal = new EventHistoryJournal();
         journal.Append(FeederEvent());
         var filtered = EventHistoryQueryEngine.Build(journal, journal.Count,
-            "FEEDER CB STATUS", ["Digital"], [],
+            "FEEDER TSD CB", ["Digital"], [],
             _ => "Digital", names: names);
         var row = Assert.Single(filtered.ReadDisplayPage(journal, 0, names: names));
-        Assert.Equal("FEEDER CB STATUS", row.Signal);
+        Assert.Equal("FEEDER TSD CB", row.Signal);
         Assert.Equal(1, row.EventNumber);
         var filename = Path.Combine(Path.GetTempPath(),
             "ariec-mapped-name-" + Guid.NewGuid().ToString("N") + ".csv");
@@ -86,7 +86,7 @@ public sealed class Iec10xMappedNameParityTests
             Assert.Equal(1, await EventHistoryCsvExporter.ExportAsync(
                 journal, filtered, filename, names: names));
             var text = await File.ReadAllTextAsync(filename);
-            Assert.Contains("FEEDER CB STATUS", text);
+            Assert.Contains("FEEDER TSD CB", text);
             Assert.Contains("16712689", text);
         }
         finally
@@ -100,7 +100,7 @@ public sealed class Iec10xMappedNameParityTests
     {
         var row = FeederEvent(ca: 1);
         row.ApplyDisplayNames(Names());
-        Assert.Equal("FEEDER CB STATUS", row.Signal);
+        Assert.Equal("FEEDER TSD CB", row.Signal);
         Assert.Equal("Name only", row.Mapped);
         Assert.Equal("1", row.CommonAddress);
         Assert.Equal(1, row.SourceEntry.CommonAddress);
@@ -126,7 +126,7 @@ public sealed class Iec10xMappedNameParityTests
     {
         var value = ObservedValue("Link A", ca: 1, ioa: 16712689, type: 3);
         Iec10xValueNameReconciler.Apply([value], Names());
-        Assert.Equal("FEEDER CB STATUS", value.Signal);
+        Assert.Equal("FEEDER TSD CB", value.Signal);
         Assert.Equal("1", value.CommonAddress);
         Assert.Equal("16712689", value.IoAddress);
         Assert.Equal("Yes", value.Mapped);
@@ -150,8 +150,8 @@ public sealed class Iec10xMappedNameParityTests
         var a = ObservedValue("Link A", ca: 1, ioa: 16712689, type: 31);
         var b = ObservedValue("Link B", ca: 2, ioa: 16712689, type: 3);
         Iec10xValueNameReconciler.Apply([a, b], Names());
-        Assert.Equal("FEEDER CB STATUS", a.Signal);
-        Assert.Equal("FEEDER CB STATUS", b.Signal);
+        Assert.Equal("FEEDER TSD CB", a.Signal);
+        Assert.Equal("FEEDER TSD CB", b.Signal);
         Assert.NotEqual(a.CommonAddress, b.CommonAddress);
     }
 
@@ -166,7 +166,7 @@ public sealed class Iec10xMappedNameParityTests
         var exact = ObservedValue("SINGLE", ca: 105, ioa: 16712689, type: 31,
             verified: false);
         Iec10xValueNameReconciler.Apply([exact], Names());
-        Assert.Equal("FEEDER CB STATUS", exact.Signal);
+        Assert.Equal("FEEDER TSD CB", exact.Signal);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class Iec10xMappedNameParityTests
         var label = Names().Resolve(105, 68542, 46).Point?.Name;
         var projected = Iec10xCommandEventProjection.Project(evidence, mappedSignalName: label);
         Assert.NotNull(projected);
-        Assert.Contains("FEEDER CB OPEN/CLOSE COMMAND", projected!.SignalName);
+        Assert.Contains("FEEDER RCD CB", projected!.SignalName);
         Assert.Contains("IOA 68542", projected.SignalName);
         Assert.Equal(68542, projected.InformationObjectAddress);
     }
