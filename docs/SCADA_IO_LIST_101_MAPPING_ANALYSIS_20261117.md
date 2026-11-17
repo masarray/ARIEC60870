@@ -2,7 +2,7 @@
 
 **Source inspected:** operator-supplied one-page `IO List SCADA 101.pdf`, heading **I/O LIST PENGUJIAN SCADA**, page 1, rows 1–31 and parameter section B (17 November 2026). This project source is the authority for identifiers, type labels, LAB numbers, nominal CT/PT and the explicitly listed 0/1000 setting. It is **not** an RTU analog scaling/configuration database.
 
-**Status:** implementation source *after* immutable public v3.6.13. Source/tests must pass CI; physical RTU scaling remains **UNVERIFIED**. The generic bundled example contains only document-backed mapping; a separate clearly labeled opt-in **PROVISIONAL** profile illustrates one plausible, but unconfirmed, nominal CT/PT conversion. Neither profile modifies original ASDU bytes, IEC QDS, timestamps or a control-command write path.
+**Status:** implementation source *after* immutable public v3.6.13. Source/tests must pass CI; physical RTU scaling remains **UNVERIFIED**. The generic bundled example contains only document-backed mapping; a separate clearly labeled docs-only opt-in **PROVISIONAL** JSON example illustrates one plausible, but unconfirmed, nominal CT/PT conversion. Neither profile modifies original ASDU bytes, IEC QDS, timestamps or a control-command write path.
 
 ## 1. Facts supplied by the PDF (page 1)
 
@@ -46,7 +46,7 @@ A **candidate bipolar envelope** of about **-1732 to +1732 MW** for P and **-173
 
 For the **provisional** TI11 candidate above, zero raw maps exactly to zero engineering. Negative -32768 is one count below X0 and **extrapolates** (not silently clamped); QDS OV/IV flags must remain source-owned. A raw 13641 would be ~**721.058 MVar** under this hypothesis, **not 1730 MVar**: that difference demonstrates why the hypothesis must be checked against actual gateway scale before use.
 
-The default **Q** points are therefore labeled `counts` and have no invented ±260 MW/MVar engineering acceptance bounds. The separate opt-in candidate `profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json` has all four signed Q endpoints for laboratory comparison, but is **not installed/selected automatically**. The documented POAQ positive normalized 0..1000 is mapped in the bundled example; IEEE TI13 P remains unmultiplied.
+The default **Q** points are therefore labeled `counts` and have no invented ±260 MW/MVar engineering acceptance bounds. The separate manual-download documentation candidate `docs/profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json` has all four signed Q endpoints for laboratory comparison, but is **not included by default in the Windows installer/ZIP or selected automatically**; an engineer must intentionally download and import it. The documented POAQ positive normalized 0..1000 is mapped in the bundled example; IEEE TI13 P remains unmultiplied.
 
 ## 4. Signal names directly from BAY TYPE + TYPE + MNEMO + LAB number
 
