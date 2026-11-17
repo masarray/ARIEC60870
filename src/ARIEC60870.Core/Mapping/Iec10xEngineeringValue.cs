@@ -22,7 +22,10 @@ public static class Iec10xEngineeringValue
         text = string.Empty;
         if (point is null || asdu is not { IsHeaderValid: true, Issues.Count: 0 } ||
             asdu.IsOpaqueVendorSpecific || asdu.ObjectCount != asdu.Objects.Count ||
-            obj is not { Issues.Count: 0 } || !IsMeasurementType(asdu.TypeId) ||
+            obj is not { Issues.Count: 0 } ||
+            point.Ioa != obj.InformationObjectAddress ||
+            point.Ca is int expectedCa && expectedCa != asdu.CommonAddress ||
+            !IsMeasurementType(asdu.TypeId) ||
             !string.Equals(point.CommandPolicy, "MonitorOnly", StringComparison.OrdinalIgnoreCase) ||
             point.TypeId is int expected &&
             expected != asdu.TypeId &&
