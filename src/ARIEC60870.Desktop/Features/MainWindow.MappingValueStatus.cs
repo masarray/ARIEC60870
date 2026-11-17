@@ -154,7 +154,16 @@ public partial class MainWindow
     // Invoked once per profile change, never from the serial RX hot path.
     private void RefreshCachedSignalNames()
     {
-        Iec10xValueNameReconciler.Apply(_valueRowsByKey.Values.ToArray(), _displayPointIndex);
+        var projectedRows = _valueRowsByKey.Values.ToArray();
+        Iec10xValueNameReconciler.Apply(projectedRows, _displayPointIndex);
+        // A profile edit changes engineering presentation, not the physical
+        // process. Refresh the comparison baseline from the same source-backed
+        // latest measurement so the next identical RX is not a false change.
+        foreach (var row in projectedRows)
+            if (row.Protocol is "101" or "104" &&
+                !string.IsNullOrWhiteSpace(row.EvidenceReference) &&
+                Iec10xEngineeringValue.IsMeasurementType(row.TypeSortKey))
+                _lastDisplayedValueByKey[row.Key] = row.Value;
         _valueRowsDirty = true;
         if (_eventHistoryJournal is not null)
             RequestEventHistoryQuery();
