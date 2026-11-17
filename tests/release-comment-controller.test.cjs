@@ -26,7 +26,8 @@ const ci = {id:4,head_sha:SHA,head_branch:'master',event:'push',
 const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'};
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
-   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],artifactFromPr=false}={}) {
+   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],
+    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
   const content = path => {
@@ -55,11 +56,15 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
       git:{getRef:async()=>{throw {status:404};}},
       actions:{
         listWorkflowRuns:async({workflow_id})=>({data:{workflow_runs:workflowRuns(workflow_id)}}),
-        listJobsForWorkflowRun:async()=>({data:{jobs:fat?qualifiedJobs:qualifiedJobs.slice(0,1)}}),
-        listArtifactsForRepo:async({name})=>({data:{artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
+        listJobsForWorkflowRun:async({run_id})=>({data:{jobs:run_id===789 ? [{name:'release-admission',steps:[
+          {name:'Dispatch one pinned next stage',conclusion:artifactDispatch}]}] :
+          (fat?qualifiedJobs:qualifiedJobs.slice(0,1))}}),
+        listArtifactsForRepo:async({name})=>({data:{total_count:artifactOverflow?101:markers.includes(name)?1:0,
+          artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
         getWorkflowRun:async()=>({data:{
           path:artifactFromPr?'.github/workflows/ci.yml':'.github/workflows/release-comment.yml',
           head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:'issue_comment',
+          status:artifactStatus,conclusion:artifactStatus==='completed'?'success':null,
           repository:{full_name:'masarray/ARIEC60870'}
         }})
       }
@@ -157,4 +162,24 @@ test('a forged PR-workflow artifact cannot reserve the release stage',async()=>{
   const m=mock({markers:[stage('package')],artifactFromPr:true});
   await run(m);
   assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
+});
+
+test('a reservation is only complete after its controller dispatch step succeeded',async()=>{
+  const failed=mock({markers:[stage('package')],artifactDispatch:'failure'});
+  await assert.rejects(()=>run(failed),/dispatch was not proven successful/);
+  assert.equal(failed.calls.filter(x=>x.key==='stage').length,0);
+  const cancelled=mock({markers:[stage('updater')],fat:false,artifactDispatch:'cancelled'});
+  await assert.rejects(()=>run(cancelled),/dispatch was not proven successful/);
+});
+
+test('an in-progress trusted controller lease prevents concurrent dispatch',async()=>{
+  const m=mock({markers:[stage('package')],artifactStatus:'in_progress',artifactDispatch:null});
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('artifact name flooding fails closed rather than dispatching twice',async()=>{
+  const m=mock({markers:[stage('package')],artifactOverflow:true});
+  await assert.rejects(()=>run(m),/Too many artifacts/);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
 });
