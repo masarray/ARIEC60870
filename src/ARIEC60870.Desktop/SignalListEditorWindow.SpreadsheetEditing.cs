@@ -349,21 +349,27 @@ public sealed partial class SignalListEditorWindow
         {
             if (!Clipboard.ContainsText(TextDataFormat.UnicodeText))
                 throw new InvalidOperationException("Clipboard contains no text. Copy cells from Excel first.");
-            var (rows, fields) = VisibleGrid();
-            var current = _grid.CurrentCell;
-            var rowIndex = Array.IndexOf(rows, current.Item as SignalListEditorRow);
-            var colIndex = Array.IndexOf(fields,
-                (current.Column as DataGridTextColumn)?.Binding is Binding b ? b.Path.Path : string.Empty);
-            if (rowIndex < 0 || colIndex < 0)
-                throw new InvalidOperationException("Select the starting cell in the visible grid before pasting.");
-            var changes = SignalGridEditModel.PlanPaste(rows, fields,
-                rowIndex, colIndex, Clipboard.GetText(TextDataFormat.UnicodeText));
-            ApplyNewGridTransaction(changes, "Paste", warnOnBulk: true);
+            PasteGridText(Clipboard.GetText(TextDataFormat.UnicodeText));
         }
         catch (Exception ex)
         {
             UpdateStatus("Paste cancelled: " + ex.Message, danger: true);
         }
+    }
+
+    // Same target resolution for real Ctrl+V and deterministic Windows WPF
+    // acceptance. Never replace Clipboard data during the smoke test.
+    private void PasteGridText(string text)
+    {
+        var (rows, fields) = VisibleGrid();
+        var current = _grid.CurrentCell;
+        var rowIndex = Array.IndexOf(rows, current.Item as SignalListEditorRow);
+        var colIndex = Array.IndexOf(fields,
+            (current.Column as DataGridTextColumn)?.Binding is Binding b ? b.Path.Path : string.Empty);
+        if (rowIndex < 0 || colIndex < 0)
+            throw new InvalidOperationException("Select the starting cell in the visible grid before pasting.");
+        var changes = SignalGridEditModel.PlanPaste(rows, fields, rowIndex, colIndex, text);
+        ApplyNewGridTransaction(changes, "Paste", warnOnBulk: true);
     }
 
     private void FillDownGridSelection()
