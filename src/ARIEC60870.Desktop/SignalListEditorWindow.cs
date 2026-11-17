@@ -388,14 +388,14 @@ public sealed partial class SignalListEditorWindow : Window
 
         // Daily mapping columns fit the default window. Protocol detail remains
         // editable in the inspector; advanced table columns are opt-in.
-        AddTextColumn("CA", nameof(SignalListEditorRow.Ca), 60);
-        AddTextColumn("IOA", nameof(SignalListEditorRow.Ioa), 92);
-        AddTextColumn("TI", nameof(SignalListEditorRow.TypeId), 55);
-        AddTextColumn("Signal name", nameof(SignalListEditorRow.Name), 225, minWidth: 155);
-        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 114);
-        AddTextColumn("TYPE", nameof(SignalListEditorRow.TestCategory), 74);
-        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 94);
-        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 90);
+        AddTextColumn("CA", nameof(SignalListEditorRow.Ca), 54);
+        AddTextColumn("IOA", nameof(SignalListEditorRow.Ioa), 90);
+        AddTextColumn("TI", nameof(SignalListEditorRow.TypeId), 50);
+        AddTextColumn("Signal name", nameof(SignalListEditorRow.Name), 225, minWidth: 145, fill: true);
+        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 100);
+        AddTextColumn("TYPE", nameof(SignalListEditorRow.TestCategory), 68);
+        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 87);
+        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 85);
         AddTextColumn("Unit", nameof(SignalListEditorRow.Unit), 66, advanced: true);
         AddTextColumn("Group", nameof(SignalListEditorRow.Group), 120, advanced: true);
         AddTextColumn("IEC role", nameof(SignalListEditorRow.SignalType), 150, advanced: true);
@@ -988,7 +988,7 @@ public sealed partial class SignalListEditorWindow : Window
         return style;
     }
 
-    private void AddTextColumn(string header, string path, double width, double? minWidth = null, bool advanced = false)
+    private void AddTextColumn(string header, string path, double width, double? minWidth = null, bool advanced = false, bool fill = false)
     {
         var binding = new Binding(path)
         {
@@ -1012,7 +1012,7 @@ public sealed partial class SignalListEditorWindow : Window
         {
             Header = header,
             Binding = binding,
-            Width = new DataGridLength(width),
+            Width = fill ? new DataGridLength(1, DataGridLengthUnitType.Star) : new DataGridLength(width),
             MinWidth = minWidth ?? Math.Min(width, 84),
             ElementStyle = viewStyle,
             EditingElementStyle = editStyle,
