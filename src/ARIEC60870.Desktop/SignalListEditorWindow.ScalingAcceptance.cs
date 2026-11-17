@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 
@@ -58,6 +59,7 @@ public sealed partial class SignalListEditorWindow
                 "Y0 · output low", "Y100 · output high"
             })
                 AssertInputAboveFold(editor._scalingScroll, label);
+            CaptureUiReviewImage(editor, "01-analog-scaling-1360x820");
 
             var q = editor._rows.Single(r => r.Ca == "105" &&
                 r.Ioa == "790447" && r.TypeId == "11");
@@ -77,6 +79,8 @@ public sealed partial class SignalListEditorWindow
                 editor._scalingTabButton.IsEnabled)
                 throw new InvalidOperationException(
                     "Digital/command signals must default to Mapping & Commands.");
+            editor.UpdateLayout();
+            CaptureUiReviewImage(editor, "02-digital-mapping-1360x820");
 
             // Changing the selected row must not mutate field calibration.
             if (normalized.X0 != "0" || normalized.X100 != "1" ||
@@ -104,6 +108,9 @@ public sealed partial class SignalListEditorWindow
             if (view.Cast<SignalListEditorRow>().Count() != 1 ||
                 !ReferenceEquals(view.Cast<SignalListEditorRow>().Single(), normalized))
                 throw new InvalidOperationException("IOA quick search did not locate the exact TI9 row.");
+            editor.SetCurrentCell(normalized);
+            editor.UpdateLayout();
+            CaptureUiReviewImage(editor, "03-ioa-find-1360x820");
             editor._searchBox.Text = "TRAFO SOGI POAQ";
             if (!view.Cast<SignalListEditorRow>().Contains(normalized))
                 throw new InvalidOperationException("Multi-term signal search did not match bay and mnemonic.");
@@ -133,11 +140,45 @@ public sealed partial class SignalListEditorWindow
                 editor._dirty)
                 throw new InvalidOperationException(
                     "Name suggestion must be explicit, require three labels, preserve optional # and not dirty navigation.");
+
+            editor.Width = 1140;
+            editor.SetCurrentCell(normalized);
+            editor.UpdateDetailSelection();
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            editor.UpdateLayout();
+            foreach (var label in new[]
+            {
+                "X0 · source low", "X100 · source high",
+                "Y0 · output low", "Y100 · output high"
+            })
+                AssertInputAboveFold(editor._scalingScroll, label);
+            CaptureUiReviewImage(editor, "04-analog-scaling-1140x820");
         }
         finally
         {
             editor.Close();
         }
+    }
+
+    private static void CaptureUiReviewImage(Window editor, string filename)
+    {
+        var directory = Environment.GetEnvironmentVariable("SIGNAL_MAP_SMOKE_SCREENSHOT_DIR");
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        Directory.CreateDirectory(directory);
+        editor.UpdateLayout();
+        var width = (int)Math.Ceiling(editor.ActualWidth);
+        var height = (int)Math.Ceiling(editor.ActualHeight);
+        if (width < 600 || height < 500)
+            throw new InvalidOperationException("Signal Map review screenshot has invalid WPF viewport dimensions.");
+
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(editor);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(directory, filename + ".png"));
+        png.Save(stream);
     }
 
     private static void AssertInputAboveFold(ScrollViewer viewer, string label)
