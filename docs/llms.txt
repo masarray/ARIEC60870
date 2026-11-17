@@ -3,20 +3,19 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.14: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14
-- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-win-x64.zip
-- Previous stable v3.6.13: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13
-- Exact-source public package: https://github.com/masarray/ARIEC60870/actions/runs/44049527667
-- Source Windows CI, WPF acceptance and native updater FAT: https://github.com/masarray/ARIEC60870/actions/runs/44048682483
-- Unmerged historic IEC-101 engine draft PR #145 remains excluded.
+- Latest public stable v3.6.15: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.15
+- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.15/ARIEC60870-v3.6.15-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.15/ARIEC60870-v3.6.15-win-x64.zip
+- Previous stable v3.6.14: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14
+- Exact-source public package and provenance: https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml
+- Native Windows updater and real-WPF acceptance evidence: https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml
+- Historical broad IEC-101 draft #145 is unmerged; real RTU FAT still separate.
 
-## v3.6.14 improvements
-- IEC-101/104 measured values can be projected with explicit Factor/Ratio/Offset or bipolar TwoPoint X0/X100/Y0/Y100 from trusted decoded sources, retaining original bytes and quality.
-- 31 source-derived IEC-101 SCADA I/O names use BAY TYPE + TYPE + MNEMO + optional LAB number; exact CA/IOA/TI identity is required.
-- TI9 POAQ normalized 0..1000 follows the documented source; TI13 float remains identity if RTU already transmits MW. Unverified TI11 Q signed integers remain counts until field calibration.
-- User-owned profiles can be explicitly reconciled via Signal List -> Sync 31 I/O and Save As, without overwriting command/feedback, CA or calibrated engineering values.
-- Preserves earlier IEC-101 single/A-B reliability, GI/SBO evidence, IEC-104 GI and event-log performance, with actual physical RTU FAT still separate.
+## v3.6.15 improvements
+- Engineering Scaling tab now immediately opens on measured IEC-101/104 analog points (TI9/10/11/12/13/14/21/34/35/36). In the default 1360x820 editor, Factor/TwoPoint and X0/X100/Y0/Y100 are visible without vertical scrolling.
+- Mapping & Commands remains separate for digital/control and other metadata, and the DataGrid freezes CA/IOA/IEC Type/Name for reliable horizontal review.
+- Actual WPF viewport acceptance checks every TwoPoint input, signed TI11 raw-count warnings and navigation without profile mutation.
+- v3.6.14 analog decoder/scaling engine, 31-point source names and opt-in Safe Sync 31 I/O remain unchanged. Real TI11 counts-to-MVar conversion requires authorized gateway calibration (#243).
 
 ## Pages
 - EN: https://masarray.github.io/ARIEC60870/

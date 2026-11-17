@@ -1,4 +1,4 @@
-## [3.6.15] - Release candidate, not yet published (2026-11-17)
+## [3.6.15] - Published 2026-11-17
 
 ### Signal List Editor: engineering scaling visible by default
 - Fix the operator-reported IEC-101/104 Signal List UX regression where X0/X100/Y0/Y100 were buried below CA/IOA/name/metadata in a long scrolling inspector, often showing only Bay/Description when a TI9 analog was selected (#245).
@@ -9,7 +9,7 @@
 ### Validation and release boundary
 - Source PR #245 includes a **real Windows WPF executable acceptance test** that opens the actual editor, verifies all four TwoPoint inputs are within the visible viewport, checks TI11 warning and digital Mapping default, and proves no navigation-time calibration/profile mutation. Previous initial layout candidate **failed** this test, and was corrected rather than loosening acceptance.
 - No IEC decoding, original HEX/quality, GI, remote controls, gateway calibration, RTU measurement unit or private project settings are modified.
-- Stable v3.6.15 requires its own exact-commit Windows CI, CodeQL, native previous-installation updater FAT, release GUI acceptance, Setup/ZIP/SHA-256/SBOM/provenance and public GitHub publication. **No release claimed while this candidate PR is open.** Field calibration of Q counts to MVar is separately tracked by #243.
+- **Published stable:** [v3.6.15](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.15) from versioned source PR #246 after exact-source Windows CI, CodeQL, native installed-updater FAT, WPF packaged-executable viewport acceptance and [Package build/provenance](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml). Field calibration of Q counts to MVar is separately tracked by #243.
 
 ## [3.6.14] - Published 2026-11-17
 
