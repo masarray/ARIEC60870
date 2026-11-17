@@ -522,6 +522,9 @@ public sealed partial class SignalListEditorWindow
                     RememberGridTransaction([new SignalGridCellChange(
                         start.Row, start.Field, start.Before, after)]);
             }
+            if (_searchBox.Text.Length > 0 ||
+                _bayFilter.SelectedIndex > 0 || _kindFilter.SelectedIndex > 0)
+                RefreshFilter();
         }), DispatcherPriority.Background);
     }
 
