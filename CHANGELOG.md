@@ -1,3 +1,19 @@
+## [3.6.14] - Candidate, not yet published (2026-11-17)
+
+### IEC-101/104 measurement scaling from trusted wire values
+- Preserve original decoded IEC source bytes, CA/IOA/TI, quality and event proof while presenting independently configured engineering units (PR #239). Expose a choice of Factor/Ratio/Offset and exclusive signed/bipolar source-to-engineering TwoPoint X0/X100/Y0/Y100, with endpoint validation, fail-closed source identity and no hidden clamping or double-scaling. IEEE short float TI13 remains identity where the RTU already transmits MW.
+- Source-documented 31-point IEC-101/104 Signal List naming from the operator-provided I/O list (PR #240): `BAY TYPE + TYPE + MNEMO + LAB`, exact CA/IOA/TI and previously reviewed control/feedback identities. The document supports normalized TI9 POAQ 0..1000, **not** a signed TI11 integer-to-MVar factor.
+- Prevent uncalibrated TI11 Q integers such as 13641 being presented as 13641 MVar. Fresh bundled examples explicitly retain raw `counts` until the operator enters project-approved RTU scaling. A separate **PROVISIONAL, not FAT-approved** nominal CT/PT scaling example stays opt-in and is never installed as default.
+
+### Non-destructive legacy profile migration
+- Add opt-in `Signal List → Sync 31 I/O` to reconcile only exact CA105+IOA+TI documented point names/business metadata, and legacy identity Q units, without touching operator-owned command policy, feedback, CA, Scale/Ratio/Offset or existing TwoPoint endpoints (PR #241).
+- Upgrade only an unconfigured identity TI9 POAQ legacy row to the document-backed 0..1000 range with confirmation. Save into a new file; preserve the old project profile. Repair editor round-trip preservation of `TestCategory`, `EngineeringMin` and `EngineeringMax`.
+- Guard retained original HEX, GI/SBO evidence, IEC-103/104 and live serial/transport paths. No unilateral active profile migration on startup.
+
+### Verification and release boundary
+- Source PR #239–#241 and exact-merge `master` Windows CI/CodeQL/hygiene passed before this candidate; v3.6.14 still requires **its own exact-commit** CI, native installed-updater FAT, release executable WPF acceptance, signed-off artifact checksums/SBOM/provenance and public publication workflow.
+- The I/O PDF does not state gateway signed-TI11-to-MVar resolution; theoretical CT/PT nominal 1732.05 MVA is **not** an approved RTU calibration. No claims of field-measured 1730 MVar conversion, IEC conformance, or 1200-bps 2,000-event external SOE completeness.
+
 ## [3.6.13] - Published 2026-11-17 (source prepared 2026-11-16)
 
 ### Source-qualified IEC-101 Master reliability (post-v3.6.12)

@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.13</Version>
-    <AssemblyVersion>3.6.13.0</AssemblyVersion>
-    <FileVersion>3.6.13.0</FileVersion>
-    <InformationalVersion>3.6.13+iec101-reliability-iec104-gi-evidence</InformationalVersion>
+    <Version>3.6.14</Version>
+    <AssemblyVersion>3.6.14.0</AssemblyVersion>
+    <FileVersion>3.6.14.0</FileVersion>
+    <InformationalVersion>3.6.14+iec10x-engineering-scaling-scada-io-mapping</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Evidence Analyzer</Product>
