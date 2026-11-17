@@ -57,8 +57,12 @@ public sealed class SignalListEditorMetadataRoundTripTests
     {
         var row = new SignalListEditorRow(new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 790447, TypeId = 11, Name = "FEEDER TM Q",
-            TestCategory = "TM", Unit = "counts"
+            Ca = 105,
+            Ioa = 790447,
+            TypeId = 11,
+            Name = "FEEDER TM Q",
+            TestCategory = "TM",
+            Unit = "counts"
         });
         Assert.Empty(row.EngineeringMin);
         Assert.Empty(row.EngineeringMax);
