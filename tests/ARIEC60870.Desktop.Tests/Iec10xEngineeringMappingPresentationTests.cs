@@ -192,7 +192,10 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     {
         var point = new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q",
+            Ca = 105,
+            Ioa = 4015,
+            TypeId = 11,
+            Name = "Q",
             Scale = 0.1,
             Offset = -2,
             RatioPrimary = 100,
