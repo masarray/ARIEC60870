@@ -19,8 +19,13 @@ public sealed class Iec10xEngineeringScalingTests
 
     private static Iec10xPointMappingEntry Point(int type, double scale = 1) => new()
     {
-        Ca = 105, Ioa = 4015, TypeId = type, Name = "FEEDER REACTIVE POWER (Q)",
-        Unit = "MVar", Scale = scale, CommandPolicy = "MonitorOnly"
+        Ca = 105,
+        Ioa = 4015,
+        TypeId = type,
+        Name = "FEEDER REACTIVE POWER (Q)",
+        Unit = "MVar",
+        Scale = scale,
+        CommandPolicy = "MonitorOnly"
     };
 
     [Fact]
