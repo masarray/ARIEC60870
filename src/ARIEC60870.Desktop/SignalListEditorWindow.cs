@@ -1562,6 +1562,14 @@ public sealed partial class SignalListEditorWindow : Window
         if (view is null) return;
         var terms = (_searchBox.Text ?? string.Empty).Split(' ',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // Exact numeric point lookup takes priority over incidental references
+        // in Feedback IOA or description. A query such as 790449 must locate
+        // the mapped TI9 IOA, not also an unrelated TI48 command referring to
+        // that IOA as feedback. Other searches still cover all metadata.
+        var exactIoa = terms.Length == 1 &&
+            terms[0].Length > 0 && terms[0].All(char.IsDigit) &&
+            _rows.Any(row => string.Equals(row.Ioa?.Trim(), terms[0], StringComparison.Ordinal))
+                ? terms[0] : null;
         var bay = _bayFilter.SelectedItem as string ?? AllBays;
         var kind = _kindFilter.SelectedItem as string ?? AllKinds;
         view.Filter = item =>
@@ -1574,6 +1582,8 @@ public sealed partial class SignalListEditorWindow : Window
             if (kind == "Commands" && !command) return false;
             if (kind == "Measured analog" && (command || !IsMeasuredAnalog(row))) return false;
             if (kind == "Digital status" && (command || IsMeasuredAnalog(row))) return false;
+            if (exactIoa is not null)
+                return string.Equals(row.Ioa?.Trim(), exactIoa, StringComparison.Ordinal);
             return terms.All(term =>
                 Contains(row.Ca, term) || Contains(row.Ioa, term) || Contains(row.TypeId, term) ||
                 Contains(row.Name, term) || Contains(row.Group, term) || Contains(row.SignalType, term) ||
