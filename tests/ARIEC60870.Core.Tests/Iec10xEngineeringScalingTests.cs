@@ -231,8 +231,7 @@ public sealed class Iec10xEngineeringScalingTests
     [Fact]
     public void LegacyFactorProfileDoesNotEnableTwoPointUnlessExplicitlySelected()
     {
-        var json = "{\\\"points\\\":[{\\\"ca\\\":105,\\\"ioa\\\":4015,\\\"typeId\\\":11," +
-            "\\\"name\\\":\\\"Q\\\",\\\"unit\\\":\\\"MVar\\\",\\\"scale\\\":0.1}]}";
+        var json = """{"points":[{"ca":105,"ioa":4015,"typeId":11,"name":"Q","unit":"MVar","scale":0.1}]}""";
         var profile = JsonSerializer.Deserialize<Iec10xPointMappingProfile>(json,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         profile.Validate();
