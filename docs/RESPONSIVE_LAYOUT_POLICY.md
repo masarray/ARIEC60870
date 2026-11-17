@@ -180,3 +180,28 @@ The existing SP/DP status cells extend into one shared typed visual vocabulary a
 One compact reusable type-template gives digital blue/violet, measurement calm teal, counters amber, commands purple and services slate. Zero per-row WPF converter/parser state; immutable lookup, bounded virtualization, no additional toolbar or card. Full underlying values remain the clipboard/export source. Trace badge comes from decoded ASDU, not optional capture JSON display metadata. Unknown and malformed frames keep raw evidence, no fabricated chip.
 
 Acceptance: deterministic Type ID matrices including timed variants, unknown and IEC103 negatives; actual WPF Values/Events live SP/DP/FLT/BCR assertions, and Windows screenshot of 1366-class constrained workspace. No physical-DPI or equipment interoperability claim from CI.
+
+## Signal List calibration editor — two-point mode (2026-11-17)
+
+The existing IEC-101/104 Signal List editor remains a single WPF window
+(`SignalListEditorWindow`), not a modal workflow or new Setup pane.
+The selected-signal detail region is independently scrollable so all
+CA/IOA/Type, command policy and mapping fields remain accessible without
+resizing the main raw-evidence cockpit. No main workspace rows/toolbar or
+navigation surfaces are changed by this feature.
+
+An explicit `Factor | TwoPoint` selector controls mutually exclusive
+calibration controls. Factor retains the existing vertically stacked
+Scale, Offset, Ratio and Normalized Full-Scale fields; TwoPoint shows
+two short, two-column input/output pairs (X0/X100 and Y0/Y100) within
+the same detail scroll area. The mode selector is fixed-choice; row
+binding canonicalizes casing so the visible controls always match the
+active calibration engine. Long captions/hints wrap in the detail area;
+no oversized cards or secondary window are introduced.
+
+**Evidence boundary:** Desktop unit tests verify numeric field editing,
+mode persistence and Event/Values/History projection, but do **not** prove
+pixel-level visibility on 1120-DIP minimum window, DPI 125/150% or
+Windows font rendering. A real Windows WPF screenshot at narrow editor
+width and keyboard navigation/scroll check remains human QA before
+labeling this new editor visually complete. Raw IEC/Trace layout is unchanged.
