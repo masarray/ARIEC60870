@@ -144,6 +144,20 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Name suggestion must be explicit, require three labels, preserve optional # and not dirty navigation.");
 
+            // The field worksheet is an explicit export, never part of
+            // navigation, live polling or a default GUI side effect.
+            var moreMenu = editor.BuildMoreActionsMenu();
+            if (!moreMenu.Items.OfType<MenuItem>().Any(x =>
+                    string.Equals(x.Header as string,
+                        "Export blank Field FAT worksheet...", StringComparison.Ordinal)))
+                throw new InvalidOperationException(
+                    "Operator cannot find the blank FAT export in the Signal Map More menu.");
+            var worksheet = Iec10xFieldFatWorksheet.ExportCsv(editor.BuildProfileFromRows());
+            if (worksheet.Split("\"NOT TESTED\"", StringSplitOptions.None).Length - 1 != 31 ||
+                editor._dirty)
+                throw new InvalidOperationException(
+                    "Real WPF FAT worksheet must have 31 untouched observations with no fabricated PASS.");
+
             editor.Width = 1140;
             editor.SetCurrentCell(normalized);
             editor.UpdateDetailSelection();
