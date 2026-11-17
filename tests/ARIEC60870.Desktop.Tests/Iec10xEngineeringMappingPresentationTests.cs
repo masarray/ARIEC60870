@@ -105,6 +105,26 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     }
 
     [Fact]
+    public void DuplicateWithUnfinishedInvalidEngineeringEntryPreservesDraftAndDoesNotThrow()
+    {
+        var row = new SignalListEditorRow(new Iec10xPointMappingEntry
+        {
+            Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q"
+        });
+        row.Scale = "unfinished";
+        row.RatioSecondary = "";
+        row.Offset = "abc";
+        var copied = row.Clone();
+        Assert.NotSame(row, copied);
+        Assert.Equal("unfinished", copied.Scale);
+        Assert.Equal("", copied.RatioSecondary);
+        Assert.Equal("abc", copied.Offset);
+        Assert.Throws<InvalidOperationException>(() => copied.ToPoint());
+        row.Scale = "0.1";
+        Assert.Equal("unfinished", copied.Scale);
+    }
+
+    [Fact]
     public void EditorRoundTripDoesNotLoseRatioOffsetOrNormalizedFullScale()
     {
         var point = new Iec10xPointMappingEntry
