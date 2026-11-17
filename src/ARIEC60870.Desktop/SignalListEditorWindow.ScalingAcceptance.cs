@@ -4,7 +4,9 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 
@@ -57,6 +59,7 @@ public sealed partial class SignalListEditorWindow
                 "Y0 · output low", "Y100 · output high"
             })
                 AssertInputAboveFold(editor._scalingScroll, label);
+            CaptureUiReviewImage(editor, "01-analog-scaling-1360x820");
 
             var q = editor._rows.Single(r => r.Ca == "105" &&
                 r.Ioa == "790447" && r.TypeId == "11");
@@ -76,6 +79,8 @@ public sealed partial class SignalListEditorWindow
                 editor._scalingTabButton.IsEnabled)
                 throw new InvalidOperationException(
                     "Digital/command signals must default to Mapping & Commands.");
+            editor.UpdateLayout();
+            CaptureUiReviewImage(editor, "02-digital-mapping-1360x820");
 
             // Changing the selected row must not mutate field calibration.
             if (normalized.X0 != "0" || normalized.X100 != "1" ||
@@ -83,11 +88,100 @@ public sealed partial class SignalListEditorWindow
                 q.Unit != "counts" || editor._dirty)
                 throw new InvalidOperationException(
                     "Inspector navigation changed source-defined scaling or dirtied the profile.");
+
+            // New daily mapping workspace: full engineering details are retained
+            // but the normal 1360px grid does not require horizontal scavenging.
+            if (editor._grid.Columns.Count != 18 ||
+                editor._grid.Columns.Count(col => col.Visibility == Visibility.Visible) != 8 ||
+                editor._advancedColumns.Count != 10 ||
+                !editor._grid.Columns[3].Width.IsStar)
+                throw new InvalidOperationException(
+                    "Essential Signal Map grid must present eight identity columns and retain all advanced fields.");
+            editor.ToggleExtraColumns();
+            if (editor._grid.Columns.Any(col => col.Visibility != Visibility.Visible))
+                throw new InvalidOperationException("Advanced Signal Map columns did not become visible.");
+            editor.ToggleExtraColumns();
+
+            var view = CollectionViewSource.GetDefaultView(editor._rows) ??
+                throw new InvalidOperationException("Signal Map collection view was not constructed.");
+            editor._searchBox.Text = "790449";
+            var quickMatches = view.Cast<SignalListEditorRow>().ToArray();
+            if (quickMatches.Length != 1 || !ReferenceEquals(quickMatches[0], normalized))
+                throw new InvalidOperationException(
+                    $"IOA quick search: expected 790449 TI9 only; got {quickMatches.Length}. " +
+                    $"Bay filter='{editor._bayFilter.SelectedItem}', kind='{editor._kindFilter.SelectedItem}', " +
+                    $"query='{editor._searchBox.Text}', visible IOAs=[{string.Join(", ", quickMatches.Select(x => x.Ioa + "/" + x.TypeId))}].");
+            editor.SetCurrentCell(normalized);
+            editor.UpdateLayout();
+            CaptureUiReviewImage(editor, "03-ioa-find-1360x820");
+            editor._searchBox.Text = "TRAFO SOGI POAQ";
+            if (!view.Cast<SignalListEditorRow>().Contains(normalized))
+                throw new InvalidOperationException("Multi-term signal search did not match bay and mnemonic.");
+            editor._searchBox.Clear();
+            editor._bayFilter.SelectedItem = "FEEDER";
+            if (!view.Cast<SignalListEditorRow>().Any() ||
+                view.Cast<SignalListEditorRow>().Any(row =>
+                    !string.Equals(row.BayType, "FEEDER", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Bay filter leaked signals from other bays.");
+            editor._kindFilter.SelectedItem = "Measured analog";
+            if (!view.Cast<SignalListEditorRow>().Any() ||
+                view.Cast<SignalListEditorRow>().Any(row => !IsMeasuredAnalog(row)))
+                throw new InvalidOperationException("Measured signal filter returned non-measurement rows.");
+            editor.ClearFilters();
+            if (view.Cast<SignalListEditorRow>().Count() != editor._rows.Count)
+                throw new InvalidOperationException("Clear filters failed to restore the full signal list.");
+
+            var name = ComposeSignalName(new SignalListEditorRow
+            {
+                BayType = "TRAFO SOGI",
+                TestCategory = "TM",
+                Mnemonic = "POAQ",
+                Name = "Legacy point 2"
+            });
+            if (name != "TRAFO SOGI TM POAQ 2" ||
+                ComposeSignalName(new SignalListEditorRow { BayType = "TRAFO SOGI" }) is not null ||
+                editor._dirty)
+                throw new InvalidOperationException(
+                    "Name suggestion must be explicit, require three labels, preserve optional # and not dirty navigation.");
+
+            editor.Width = 1140;
+            editor.SetCurrentCell(normalized);
+            editor.UpdateDetailSelection();
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            editor.UpdateLayout();
+            foreach (var label in new[]
+            {
+                "X0 · source low", "X100 · source high",
+                "Y0 · output low", "Y100 · output high"
+            })
+                AssertInputAboveFold(editor._scalingScroll, label);
+            CaptureUiReviewImage(editor, "04-analog-scaling-1140x820");
         }
         finally
         {
             editor.Close();
         }
+    }
+
+    private static void CaptureUiReviewImage(Window editor, string filename)
+    {
+        var directory = Environment.GetEnvironmentVariable("SIGNAL_MAP_SMOKE_SCREENSHOT_DIR");
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        Directory.CreateDirectory(directory);
+        editor.UpdateLayout();
+        var width = (int)Math.Ceiling(editor.ActualWidth);
+        var height = (int)Math.Ceiling(editor.ActualHeight);
+        if (width < 600 || height < 500)
+            throw new InvalidOperationException("Signal Map review screenshot has invalid WPF viewport dimensions.");
+
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(editor);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(directory, filename + ".png"));
+        png.Save(stream);
     }
 
     private static void AssertInputAboveFold(ScrollViewer viewer, string label)

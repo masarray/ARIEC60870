@@ -360,6 +360,32 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Regression suite $project failed with exit code $LASTEXITCODE." }
           }
 
+      # Keep this focused UI gate on exact-head PRs that changed the Signal Map.
+      # The regular PR matrix deliberately skips release packaging, so without
+      # this step the source-only WPF viewport test is never executed.
+      - name: Signal Map actual WPF smoke and viewport screenshots
+        if: github.event_name == 'pull_request' && needs.classify.outputs.run_windows == 'true' && contains(needs.classify.outputs.format_files_json, 'SignalListEditorWindow')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'src/ARIEC60870.Desktop/bin/Release/net8.0-windows/ARIEC60870.Desktop.exe'
+          if (!(Test-Path $exe)) { throw 'Compiled Signal Map WPF executable is missing.' }
+          $env:SIGNAL_MAP_SMOKE_SCREENSHOT_DIR = Join-Path $env:GITHUB_WORKSPACE 'artifacts/signal-map-wpf'
+          New-Item -ItemType Directory -Force -Path $env:SIGNAL_MAP_SMOKE_SCREENSHOT_DIR | Out-Null
+          $smoke = Start-Process -FilePath (Resolve-Path $exe).Path -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
+          if ($smoke.ExitCode -ne 0) { throw "Signal Map real WPF smoke failed: $($smoke.ExitCode)." }
+          $screenshots = @(Get-ChildItem -Path $env:SIGNAL_MAP_SMOKE_SCREENSHOT_DIR -Filter '*.png')
+          if ($screenshots.Count -lt 4) { throw "Expected four actual WPF Signal Map screenshots, found $($screenshots.Count)." }
+
+      - name: Upload Signal Map Windows WPF screenshots
+        if: always() && github.event_name == 'pull_request' && needs.classify.outputs.run_windows == 'true' && contains(needs.classify.outputs.format_files_json, 'SignalListEditorWindow')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIEC60870-Signal-Map-WPF
+          path: artifacts/signal-map-wpf/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload test and coverage artifacts
         if: always() && needs.classify.outputs.run_windows == 'true'
         uses: actions/upload-artifact@v4
