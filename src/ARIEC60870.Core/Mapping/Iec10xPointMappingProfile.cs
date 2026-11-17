@@ -287,7 +287,7 @@ public sealed class Iec10xPointMappingEntry
     public double RatioPrimary { get; set; } = 1.0;
     public double RatioSecondary { get; set; } = 1.0;
     public double NormalizedFullScale { get; set; } = 1.0;
-    // WinCC/SCP-style two-point linear calibration; null endpoints are
+    // Two-point source-to-engineering linear calibration; null endpoints are
     // intentionally unconfigured. Older saved profiles default to Factor.
     // X values mean *decoded source values*: signed SVA, IEC NVA fraction
     // [-1,1), or IEEE float, depending on the exact configured Type ID.
