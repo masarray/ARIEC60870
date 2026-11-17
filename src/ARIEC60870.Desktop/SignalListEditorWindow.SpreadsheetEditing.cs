@@ -142,19 +142,21 @@ internal static class SignalGridEditModel
 
         var changes = new List<SignalGridCellChange>();
         for (var rowIndex = 0; rowIndex < values.Count; rowIndex++)
-        for (var colIndex = 0; colIndex < values[rowIndex].Count; colIndex++)
         {
-            var item = visibleRows[startRow + rowIndex];
-            var field = visibleFields[startColumn + colIndex];
-            var before = Read(item, field);
-            var after = values[rowIndex][colIndex];
-            // WPF row setter canonicalizes the scaling-mode token.
-            if (field == nameof(SignalListEditorRow.ScalingMode))
-                after = string.Equals(after, "TwoPoint", StringComparison.OrdinalIgnoreCase)
-                    ? "TwoPoint" : string.Equals(after, "Factor", StringComparison.OrdinalIgnoreCase)
-                        ? "Factor" : after;
-            if (before != after)
-                changes.Add(new SignalGridCellChange(item, field, before, after));
+            for (var colIndex = 0; colIndex < values[rowIndex].Count; colIndex++)
+            {
+                var item = visibleRows[startRow + rowIndex];
+                var field = visibleFields[startColumn + colIndex];
+                var before = Read(item, field);
+                var after = values[rowIndex][colIndex];
+                // WPF row setter canonicalizes the scaling-mode token.
+                if (field == nameof(SignalListEditorRow.ScalingMode))
+                    after = string.Equals(after, "TwoPoint", StringComparison.OrdinalIgnoreCase)
+                        ? "TwoPoint" : string.Equals(after, "Factor", StringComparison.OrdinalIgnoreCase)
+                            ? "Factor" : after;
+                if (before != after)
+                    changes.Add(new SignalGridCellChange(item, field, before, after));
+            }
         }
         return changes;
     }
@@ -208,8 +210,13 @@ public sealed partial class SignalListEditorWindow
         _grid.SelectionMode = DataGridSelectionMode.Extended;
         _grid.ClipboardCopyMode = DataGridClipboardCopyMode.ExcludeHeader;
         var menu = new ContextMenu();
-        var copy = new MenuItem { Header = "Copy selected cells", InputGestureText = "Ctrl+C",
-            Command = ApplicationCommands.Copy, CommandTarget = _grid };
+        var copy = new MenuItem
+        {
+            Header = "Copy selected cells",
+            InputGestureText = "Ctrl+C",
+            Command = ApplicationCommands.Copy,
+            CommandTarget = _grid
+        };
         menu.Items.Add(copy);
         menu.Items.Add(GridMenuItem("Paste from Excel / TSV", "Ctrl+V", (_, _) => PasteGridClipboard()));
         menu.Items.Add(GridMenuItem("Fill down selection", "Ctrl+D", (_, _) => FillDownGridSelection()));
