@@ -137,7 +137,8 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     public void TwoPointCalibratesEventHistoryAndValuesButNotRawEvidence()
     {
         var profile = LinearIndex();
-        var row = Row(eventNumber: 42);
+        // Journal source ordinals start at one and must remain contiguous.
+        var row = Row(eventNumber: 1);
         row.ApplyDisplayNames(profile);
         Assert.Equal("2728.2 MVar", row.DisplayValue);
         Assert.Equal("Scaled=13641", row.SourceEntry.NewValue);
