@@ -35,7 +35,8 @@ public sealed class Iec10xEngineeringMappingPresentationTests
             ]
         });
 
-    private static RelayEventRow Row(int ca = 105, string observedValue = "Scaled=13641")
+    private static RelayEventRow Row(int ca = 105, string observedValue = "Scaled=13641",
+        long eventNumber = 0)
     {
         var asdu = ScaledAsdu();
         var source = new Iec103MasterEvidenceEvent
@@ -57,7 +58,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
             SignalType = "M_ME_NB_1",
             SignalName = "IOA 4015",
             NewValue = observedValue
-        }, source);
+        }, source, eventNumber: eventNumber);
     }
 
     [Fact]
@@ -88,8 +89,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     public void HistoricalSearchUsesSameCalibrationAsPageAndDoesNotReDecodeEveryFrame()
     {
         using var journal = new EventHistoryJournal();
-        var original = Row(observedValue: "1364.1 MVar");
-        original.EventNumber = 1;
+        var original = Row(observedValue: "1364.1 MVar", eventNumber: 1);
         journal.Append(original);
 
         var entry = Assert.Single(journal.ReadAfter(0, 1));
