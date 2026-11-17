@@ -89,7 +89,8 @@ public sealed partial class SignalListEditorWindow
             // but the normal 1360px grid does not require horizontal scavenging.
             if (editor._grid.Columns.Count != 18 ||
                 editor._grid.Columns.Count(col => col.Visibility == Visibility.Visible) != 8 ||
-                editor._advancedColumns.Count != 10)
+                editor._advancedColumns.Count != 10 ||
+                !editor._grid.Columns[3].Width.IsStar)
                 throw new InvalidOperationException(
                     "Essential Signal Map grid must present eight identity columns and retain all advanced fields.");
             editor.ToggleExtraColumns();
