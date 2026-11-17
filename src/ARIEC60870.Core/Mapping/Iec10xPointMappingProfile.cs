@@ -92,6 +92,33 @@ public sealed class Iec10xPointMappingProfile
                     $"Point '{point.Name}' has invalid engineering scaling. " +
                     "Scale/Offset must be finite; ratios and Normalized Full Scale must be positive.");
 
+            // Two-point range scaling is an alternative to Factor/Ratio/Offset:
+            // never blend two calibration methods or infer a missing endpoint.
+            var twoPoint = string.Equals(point.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase);
+            var factor = string.IsNullOrWhiteSpace(point.ScalingMode) ||
+                string.Equals(point.ScalingMode, "Factor", StringComparison.OrdinalIgnoreCase);
+            if (!factor && !twoPoint)
+                throw new InvalidOperationException($"Point '{point.Name}' has unsupported scaling mode '{point.ScalingMode}'.");
+            if (new[] { point.X0, point.X100, point.Y0, point.Y100 }
+                .Any(v => v.HasValue && !double.IsFinite(v.Value)))
+                throw new InvalidOperationException($"Point '{point.Name}' has non-finite two-point endpoints.");
+            if (twoPoint)
+            {
+                if (point.TypeId is not int measuredType ||
+                    !Iec10xEngineeringValue.IsMeasurementType(measuredType) ||
+                    !string.Equals(point.CommandPolicy, "MonitorOnly", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Point '{point.Name}': two-point scaling requires an explicit measured IEC Type ID and MonitorOnly policy.");
+                if (!point.X0.HasValue || !point.X100.HasValue ||
+                    !point.Y0.HasValue || !point.Y100.HasValue ||
+                    point.X0.Value == point.X100.Value ||
+                    !double.IsFinite(point.X100.Value - point.X0.Value) ||
+                    !double.IsFinite(point.Y100.Value - point.Y0.Value) ||
+                    !double.IsFinite((point.Y100.Value - point.Y0.Value) /
+                        (point.X100.Value - point.X0.Value)))
+                    throw new InvalidOperationException(
+                        $"Point '{point.Name}': set finite X0/X100/Y0/Y100 with X0 != X100 and a finite slope.");
+            }
+
             var key = point.BuildKey();
             if (!duplicate.Add(key))
             {
@@ -260,6 +287,15 @@ public sealed class Iec10xPointMappingEntry
     public double RatioPrimary { get; set; } = 1.0;
     public double RatioSecondary { get; set; } = 1.0;
     public double NormalizedFullScale { get; set; } = 1.0;
+    // WinCC/SCP-style two-point linear calibration; null endpoints are
+    // intentionally unconfigured. Older saved profiles default to Factor.
+    // X values mean *decoded source values*: signed SVA, IEC NVA fraction
+    // [-1,1), or IEEE float, depending on the exact configured Type ID.
+    public string ScalingMode { get; set; } = "Factor";
+    public double? X0 { get; set; }
+    public double? X100 { get; set; }
+    public double? Y0 { get; set; }
+    public double? Y100 { get; set; }
     public string CommandPolicy { get; set; } = "MonitorOnly";
     public string Description { get; set; } = string.Empty;
     public string Mnemonic { get; set; } = string.Empty;
