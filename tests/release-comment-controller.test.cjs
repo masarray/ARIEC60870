@@ -75,7 +75,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
       return result.data.jobs || result.data;
     }
   };
-  const context = {repo:{owner:'masarray',repo:'ARIEC60870'},eventName:commentEvent?'issue_comment':'workflow_run',
+  const context = {repo:{owner:'masarray',repo:'ARIEC60870'},sha:SHA,eventName:commentEvent?'issue_comment':'workflow_run',
     payload:commentEvent?{comment:command,issue:{number:250,pull_request:{url:'pr'}}}:
       {workflow_run:{name:'CI',head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
   const core={notice:()=>{},info:()=>{},setOutput:(key,value)=>calls.push({type:'output',key,value})};
@@ -190,5 +190,14 @@ test('cancelled or timed-out exact-source updater CI is blocked, not awaited for
     const m=mock({fat:false,markers:[stage('updater')],ciConclusion:conclusion});
     await assert.rejects(()=>run(m),/Release blocked/);
     assert.equal(m.calls.filter(x=>x.key==='stage').length,0,conclusion);
+  }
+});
+
+test('queued controller running at old workflow head cannot reserve new master release',async()=>{
+  for (const commentEvent of [true,false]) {
+    const m=mock({commentEvent});
+    m.context.sha='b'.repeat(40);
+    await run(m);
+    assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
   }
 });
