@@ -92,9 +92,15 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     {
         var point = new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 4015, TypeId = 11, Name = "Q",
-            ScalingMode = "TwoPoint", X0 = -32768, X100 = 32767,
-            Y0 = -2000, Y100 = 2000
+            Ca = 105,
+            Ioa = 4015,
+            TypeId = 11,
+            Name = "Q",
+            ScalingMode = "TwoPoint",
+            X0 = -32768,
+            X100 = 32767,
+            Y0 = -2000,
+            Y100 = 2000
         };
         var draft = new SignalListEditorRow(point);
         Assert.Equal("TwoPoint", draft.ScalingMode);
