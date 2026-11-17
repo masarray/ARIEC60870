@@ -107,6 +107,17 @@ public sealed class Iec10xEngineeringScalingTests
     }
 
     [Fact]
+    public void TinyFloatRetainsNonzeroEngineeringPrecision()
+    {
+        var data = BitConverter.GetBytes(0.0000001f).Append((byte)0).ToArray();
+        var asdu = Decode(13, data);
+        Assert.True(Iec10xEngineeringValue.TryFormat(Point(13), asdu,
+            Assert.Single(asdu.Objects), out var result));
+        Assert.NotEqual("0 MVar", result);
+        Assert.Contains("E-", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void V1ProfilesRemainCompatibleAndRejectDangerousScaleSettings()
     {
         var old = JsonSerializer.Deserialize<Iec10xPointMappingEntry>(
