@@ -501,7 +501,8 @@ public partial class MainWindow
             ioaPoint is not null && item.CommonAddressNumber.HasValue &&
                 (ioaPoint.Ca ?? _ioaProfile.CommonAddress) is int profileCa &&
                 profileCa != item.CommonAddressNumber.Value,
-            ioaPoint?.TypeId)
+            ioaPoint?.TypeId,
+            item.AsduDetails, item.InformationObjectDetails)
             {
                 IsRecentlyChanged = hasMeaningfulChange || keepValueHighlight
             };
