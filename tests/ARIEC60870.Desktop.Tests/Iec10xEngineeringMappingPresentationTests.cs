@@ -98,6 +98,13 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         };
         var draft = new SignalListEditorRow(point);
         Assert.Equal("TwoPoint", draft.ScalingMode);
+        // Legacy/imported casing and hand-edited grid text must not select
+        // the Factor editor while applying a TwoPoint calibration.
+        draft.ScalingMode = "twopoint";
+        Assert.Equal("TwoPoint", draft.ScalingMode);
+        draft.ScalingMode = "factor";
+        Assert.Equal("Factor", draft.ScalingMode);
+        draft.ScalingMode = "TwoPoint";
         Assert.Equal("-32768", draft.X0);
         Assert.Equal("32767", draft.X100);
         var copy = draft.Clone();
