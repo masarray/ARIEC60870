@@ -27,7 +27,7 @@ const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
    recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],
-    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false,
+    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactEvent='issue_comment',artifactOverflow=false,
     ciConclusion='success',handoffCi=false}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
@@ -70,7 +70,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
           artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
         getWorkflowRun:async()=>({data:{
           path:artifactFromPr?'.github/workflows/ci.yml':'.github/workflows/release-comment.yml',
-          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:'issue_comment',
+          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:artifactEvent,
           status:artifactStatus,conclusion:artifactStatus==='completed'?'success':null,
           repository:{full_name:'masarray/ARIEC60870'}
         }})
@@ -252,4 +252,24 @@ test('explicit verified FAT handoff requires pinned current master and stored ma
   noIntent.context.payload={inputs:{release_expected_sha:SHA}};
   await run(noIntent);
   assert.equal(noIntent.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('trusted workflow_dispatch Package reservation is a durable dispatch receipt',async()=>{
+  const m=mock({markers:[stage('package')],artifactEvent:'workflow_dispatch'});
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+  const retry=mock({markers:[stage('package')],artifactEvent:'workflow_dispatch',commentEvent:false});
+  retry.context.payload.workflow_run={name:'Package',head_sha:SHA,
+    head_branch:'master',event:'workflow_dispatch',conclusion:'failure'};
+  await run(retry);
+  assert.equal(retry.calls.filter(x=>x.key==='stage').length,0,
+    'failed Package completion must not re-dispatch from same comment');
+});
+
+test('new dispatch origin does not waive master/source/provenance requirement',async()=>{
+  for(const artifactEvent of ['pull_request','repository_dispatch']) {
+    const m=mock({markers:[stage('package')],artifactEvent});
+    await run(m);
+    assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package',artifactEvent);
+  }
 });
