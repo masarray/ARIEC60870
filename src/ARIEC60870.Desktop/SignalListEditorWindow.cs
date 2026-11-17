@@ -312,6 +312,7 @@ public sealed partial class SignalListEditorWindow : Window
         Item("Load profile...", LoadList_Click);
         Item("Save As new profile...", SaveAs_Click);
         Item("Validate entire list", Validate_Click);
+        Item("Export blank Field FAT worksheet...", ExportFieldFatWorksheet_Click);
         Item("Sync 31 I/O reference...", SyncScadaIoList_Click);
         if (_observedCommonAddress.HasValue)
             Item($"Align profile to CA {_observedCommonAddress.Value}...", AlignToObservedCa_Click);
@@ -1355,6 +1356,40 @@ public sealed partial class SignalListEditorWindow : Window
     private void SaveList_Click(object sender, RoutedEventArgs e) => SaveCurrent(closeAfter: false, forceSaveAs: false);
     private void SaveAs_Click(object sender, RoutedEventArgs e) => SaveCurrent(closeAfter: false, forceSaveAs: true);
     private void SaveApply_Click(object sender, RoutedEventArgs e) => SaveCurrent(closeAfter: true, forceSaveAs: false);
+
+    private void ExportFieldFatWorksheet_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Export current in-memory edits, not the last saved file. This
+            // does not Save & Apply, modify point mapping or send IEC traffic.
+            _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+            _grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var profile = BuildProfileFromRows();
+            var csv = Iec10xFieldFatWorksheet.ExportCsv(profile);
+            var dialog = new SaveFileDialog
+            {
+                Title = "Export blank IEC-101/104 Field FAT worksheet",
+                Filter = "CSV worksheet (*.csv)|*.csv",
+                DefaultExt = ".csv",
+                AddExtension = true,
+                OverwritePrompt = true,
+                FileName = MakeSafeFileName(profile.ProfileName) + "-Field-FAT-NOT-TESTED.csv"
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            File.WriteAllText(dialog.FileName, csv,
+                new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            UpdateStatus($"Exported {profile.Points.Count} worksheet rows to {Path.GetFileName(dialog.FileName)}. " +
+                "Every result is NOT TESTED; verify values and original frames on the physical RTU. " +
+                "Current unsaved edits were included but the JSON profile was not saved.", success: true);
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.Show(this, ex.Message, "Export Field FAT worksheet",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            UpdateStatus("Field FAT worksheet not exported. Correct invalid profile fields or select a valid path.", danger: true);
+        }
+    }
 
     private void Validate_Click(object sender, RoutedEventArgs e)
     {
