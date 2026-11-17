@@ -98,8 +98,8 @@ public static class Iec10xFieldFatWorksheet
         // Prefix a leading Excel formula marker (including after whitespace)
         // with an apostrophe. Numeric fields below are typed separately.
         var trimmed = value.TrimStart(' ', '\t', '\r', '\n');
-        if (trimmed.Length > 0 && "=+-@".Contains(trimmed[0], StringComparison.Ordinal) ||
-            value.Length > 0 && value[0] is '\t' or '\r' or '\n')
+        if ((trimmed.Length > 0 && trimmed[0] is '=' or '+' or '-' or '@') ||
+            (value.Length > 0 && value[0] is '\t' or '\r' or '\n'))
             value = "'" + value;
         return value;
     }
