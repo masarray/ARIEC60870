@@ -867,10 +867,10 @@ public sealed class SignalListEditorWindow : Window
         };
         combo.SetBinding(allowCustom ? ComboBox.TextProperty : Selector.SelectedItemProperty,
             new Binding(path)
-        {
-            Mode = BindingMode.TwoWay,
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-        });
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
         container.Children.Add(combo);
         parent.Children.Add(container);
     }
