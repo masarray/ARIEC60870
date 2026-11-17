@@ -17,11 +17,12 @@ public static class Iec10xScadaIoListProfileSync
         int MatchedPoints,
         int RenamedPoints,
         int UpdatedBusinessMetadata,
-        int ResetUnverifiedReactiveUnits)
+        int ResetUnverifiedReactiveUnits,
+        int AppliedDocumentedNormalizedRanges)
     {
         public bool HasChanges =>
             RenamedPoints > 0 || UpdatedBusinessMetadata > 0 ||
-            ResetUnverifiedReactiveUnits > 0;
+            ResetUnverifiedReactiveUnits > 0 || AppliedDocumentedNormalizedRanges > 0;
     }
 
     public static Preview PrepareCopy(
@@ -51,6 +52,7 @@ public static class Iec10xScadaIoListProfileSync
         var renamed = 0;
         var metadata = 0;
         var rawUnit = 0;
+        var normalized = 0;
         foreach (var target in copy.Points)
         {
             // Match the *actual* station and *exact* IEC Type ID. In
@@ -87,10 +89,31 @@ public static class Iec10xScadaIoListProfileSync
                 target.Unit = "counts";
                 rawUnit++;
             }
+
+            // The document explicitly describes POAQ at IOA 790449 as a
+            // 0..1000 normalized observation. Upgrade *only* a legacy
+            // identity NVA->MW presentation with no stored endpoints. Never
+            // override a custom project full-scale or two-point calibration.
+            if (target.Ioa == 790449 && typeId == 9 &&
+                string.Equals(source.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase) &&
+                source.X0 == 0d && source.X100 == 1d &&
+                source.Y0 == 0d && source.Y100 == 1000d &&
+                string.Equals(target.Unit, "MW", StringComparison.OrdinalIgnoreCase) &&
+                IsUncalibratedIdentity(target) &&
+                target.X0 is null && target.X100 is null &&
+                target.Y0 is null && target.Y100 is null)
+            {
+                target.ScalingMode = "TwoPoint";
+                target.X0 = source.X0;
+                target.X100 = source.X100;
+                target.Y0 = source.Y0;
+                target.Y100 = source.Y100;
+                normalized++;
+            }
         }
 
         copy.Validate();
-        return new Preview(copy, matched, renamed, metadata, rawUnit);
+        return new Preview(copy, matched, renamed, metadata, rawUnit, normalized);
     }
 
     private static bool IsUncalibratedIdentity(Iec10xPointMappingEntry point) =>
