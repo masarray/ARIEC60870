@@ -1050,7 +1050,7 @@ public sealed class SignalListEditorWindow : Window
                     MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
 
-            _protectedSyncSourcePath = SavedProfilePath;
+            _protectedSyncSourcePath ??= SavedProfilePath;
             _template = preview.UpdatedProfile;
             _profileNameBox.Text = preview.UpdatedProfile.ProfileName;
             LoadRowsFromProfile(preview.UpdatedProfile);
