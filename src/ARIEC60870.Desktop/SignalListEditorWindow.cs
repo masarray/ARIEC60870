@@ -252,7 +252,6 @@ public sealed class SignalListEditorWindow : Window
         _grid.CanUserDeleteRows = false;
         _grid.CanUserResizeRows = false;
         _grid.CanUserReorderColumns = true;
-        _grid.FrozenColumnCount = 4; // CA / IOA / Type / Name stay visible during horizontal scrolling.
         _grid.CanUserResizeColumns = true;
         _grid.SelectionMode = DataGridSelectionMode.Single;
         _grid.SelectionUnit = DataGridSelectionUnit.CellOrRowHeader;
@@ -300,6 +299,7 @@ public sealed class SignalListEditorWindow : Window
         AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 104);
         AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 128);
         AddTextColumn("Description", nameof(SignalListEditorRow.Description), 260, minWidth: 180);
+        _grid.FrozenColumnCount = 4; // Keep CA, IOA, Type and Name visible while reviewing any column.
     }
 
     private void Grid_BeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
