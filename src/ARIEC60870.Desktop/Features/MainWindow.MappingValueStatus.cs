@@ -710,7 +710,7 @@ public partial class MainWindow
             return false;
         }
 
-        return item.TypeId.Value is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37;
+        return item.TypeId.Value is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 21 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37;
     }
 
     private static bool IsIec10xDigitalEdgeEvent(Iec103MasterEvidenceEvent item)
