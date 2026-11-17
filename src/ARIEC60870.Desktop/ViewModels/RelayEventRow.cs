@@ -9,6 +9,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 
 public sealed class RelayEventRow
 {
+    private readonly Iec10xEngineeringSample? _engineeringSample;
     /// <summary>Exact typed original frame for the lifetime of this bounded Event row.
     /// Keeps Event -> Frame navigation valid after the 1200-row Trace preview rolls over.
     /// Never matched by address alone and never reinterpreted from display text.</summary>
@@ -20,9 +21,15 @@ public sealed class RelayEventRow
 
     public RelayEventRow(Iec103RelayEventLogEntry item,
         Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0,
-        Iec103MasterEvidenceEvent? observedRequestFrame = null)
+        Iec103MasterEvidenceEvent? observedRequestFrame = null,
+        Iec10xEngineeringSample? engineeringSample = null)
     {
         OriginalFrameEvidence = originalFrameEvidence;
+        // Historic search uses this bounded numeric snapshot rather than
+        // decoding the same physical frame for each of 50k+ candidates.
+        _engineeringSample = engineeringSample ??
+            Iec10xEngineeringValue.Capture(originalFrameEvidence?.AsduDetails,
+                originalFrameEvidence?.InformationObjectDetails);
         ObservedRequestFrame = observedRequestFrame;
         SourceEntry = item;
         EventNumber = eventNumber;
@@ -140,17 +147,27 @@ public sealed class RelayEventRow
     public void ApplyDisplayNames(Iec10xPointDisplayIndex? names)
     {
         if (names is null || Protocol is not ("101" or "104")) return;
+
+        // The source event may already contain a calibrated display from
+        // the profile active during RX. A subsequent profile change must
+        // never inherit that old calibration when the signal is now missing
+        // or matches only as a CA name alias.
+        if (_engineeringSample is { } measurement)
+        {
+            DisplayValue = measurement.OriginalValue;
+            CompactDisplayValue = ShortEventValue(SourceEntry,
+                IecOperatorValueFormatter.ForGrid(Protocol, TypeId, DisplayValue));
+        }
+
         var match = names.Resolve(SourceEntry.CommonAddress,
             SourceEntry.InformationObjectAddress, SourceEntry.TypeId,
             allowNameOnly: SourceEntry.TransactionKind is not ("GI" or "Command"));
         if (match.Point is null) return;
         Signal = match.Point.Name;
         Mapped = match.NameOnly ? "Name only" : "Yes";
-        // Re-project only from original verified wire bytes, outside the RX
-        // hot path. A name-only CA alias never borrows calibration.
-        if (!match.NameOnly && OriginalFrameEvidence is { } source &&
-            Iec10xEngineeringValue.TryFormat(match.Point,
-                source.AsduDetails, source.InformationObjectDetails, out var engineering))
+        if (!match.NameOnly &&
+            Iec10xEngineeringValue.TryFormat(match.Point, _engineeringSample,
+                out var engineering))
         {
             DisplayValue = engineering;
             CompactDisplayValue = ShortEventValue(SourceEntry,
