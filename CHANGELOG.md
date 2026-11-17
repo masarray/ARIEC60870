@@ -1,3 +1,16 @@
+## [3.6.15] - Release candidate, not yet published (2026-11-17)
+
+### Signal List Editor: engineering scaling visible by default
+- Fix the operator-reported IEC-101/104 Signal List UX regression where X0/X100/Y0/Y100 were buried below CA/IOA/name/metadata in a long scrolling inspector, often showing only Bay/Description when a TI9 analog was selected (#245).
+- Add an immediately visible **Engineering Scaling** page for measured IEC analog types (TI9/10/11/12/13/14/21/34/35/36), with **Unit / Factor or TwoPoint / X0 / X100 / Y0 / Y100** directly editable; ordinary digital/control signals open Mapping & Commands instead.
+- Compact header, actions and two-column range fields so all four TwoPoint endpoint inputs fit above the fold in the default 1360×820 WPF editor. Keep CA/IOA/TI/Name frozen while horizontally scrolling the signal database; retain existing row editing, user-owned profile Save & Apply and data virtualization.
+- Type-specific hints distinguish normalized per-unit TI9, signed TI11 raw counts (not guessed MVar), and TI13 IEEE float already in engineering units. Engineering reference min/max remains metadata, not an implicit calibration.
+
+### Validation and release boundary
+- Source PR #245 includes a **real Windows WPF executable acceptance test** that opens the actual editor, verifies all four TwoPoint inputs are within the visible viewport, checks TI11 warning and digital Mapping default, and proves no navigation-time calibration/profile mutation. Previous initial layout candidate **failed** this test, and was corrected rather than loosening acceptance.
+- No IEC decoding, original HEX/quality, GI, remote controls, gateway calibration, RTU measurement unit or private project settings are modified.
+- Stable v3.6.15 requires its own exact-commit Windows CI, CodeQL, native previous-installation updater FAT, release GUI acceptance, Setup/ZIP/SHA-256/SBOM/provenance and public GitHub publication. **No release claimed while this candidate PR is open.** Field calibration of Q counts to MVar is separately tracked by #243.
+
 ## [3.6.14] - Published 2026-11-17
 
 ### IEC-101/104 measurement scaling from trusted wire values
