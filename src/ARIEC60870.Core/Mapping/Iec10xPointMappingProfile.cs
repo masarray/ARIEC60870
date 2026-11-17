@@ -110,7 +110,7 @@ public sealed class Iec10xPointMappingProfile
                     throw new InvalidOperationException($"Point '{point.Name}': two-point scaling requires an explicit measured IEC Type ID and MonitorOnly policy.");
                 if (!point.X0.HasValue || !point.X100.HasValue ||
                     !point.Y0.HasValue || !point.Y100.HasValue ||
-                    point.X0.Value == point.X100.Value ||
+                    Math.Abs(point.X100.Value - point.X0.Value) <= double.Epsilon ||
                     !double.IsFinite(point.X100.Value - point.X0.Value) ||
                     !double.IsFinite(point.Y100.Value - point.Y0.Value) ||
                     !double.IsFinite((point.Y100.Value - point.Y0.Value) /
