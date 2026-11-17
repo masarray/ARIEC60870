@@ -391,6 +391,7 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.PreparingCellForEdit += Grid_PreparingCellForEdit;
         _grid.CellEditEnding += Grid_CellEditEnding;
         _grid.BeginningEdit += Grid_BeginningEdit;
+        _grid.PreviewMouseRightButtonDown += Grid_PreviewMouseRightButtonDown;
         InitializeSpreadsheetGrid();
 
         // Daily mapping columns fit the default window. Protocol detail remains
@@ -414,6 +415,18 @@ public sealed partial class SignalListEditorWindow : Window
         AddTextColumn("State map", nameof(SignalListEditorRow.StateMap), 160, advanced: true);
         AddTextColumn("Description", nameof(SignalListEditorRow.Description), 220, advanced: true);
         _grid.FrozenColumnCount = 4; // Keep CA, IOA, Type and Name visible while reviewing any column.
+    }
+
+    private void Grid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Right-click on a different cell should target that cell. Keep an
+        // existing multi-cell selection if the click lies inside it.
+        var visual = e.OriginalSource as DependencyObject;
+        while (visual is not null && visual is not DataGridCell)
+            visual = VisualTreeHelper.GetParent(visual);
+        if (visual is DataGridCell cell && !cell.IsSelected &&
+            cell.DataContext is SignalListEditorRow row)
+            SetCurrentCell(row, _grid.Columns.IndexOf(cell.Column));
     }
 
     private void Grid_BeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
@@ -1177,7 +1190,10 @@ public sealed partial class SignalListEditorWindow : Window
         if (!_isCellEditing) _redoGrid.Clear();
         if (e.PropertyName == nameof(SignalListEditorRow.BayType))
             RefreshBayChoices();
-        if (_searchBox.Text.Length > 0 || _bayFilter.SelectedIndex > 0 || _kindFilter.SelectedIndex > 0)
+        // Do not remove the active row from a filtered grid while its text
+        // editor is still typing. Refilter once the cell edit has committed.
+        if (!_isCellEditing && (_searchBox.Text.Length > 0 ||
+            _bayFilter.SelectedIndex > 0 || _kindFilter.SelectedIndex > 0))
             RefreshFilter();
         UpdateDetailSelection();
         MarkDirty();
