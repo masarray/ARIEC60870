@@ -27,7 +27,8 @@ const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
    recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],
-    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false}={}) {
+    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false,
+    ciConclusion='success'}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
   const content = path => {
@@ -35,7 +36,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
     return {data:{type:'file',encoding:'base64',content:Buffer.from(txt).toString('base64')}};
   };
   const workflowRuns = id => {
-    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:ci];
+    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:{...ci,conclusion:ciConclusion}];
     if(id==='release-package.yml') return runningPackage ?
       [{id:10,status:'in_progress'}] : [];
     if(id==='codeql.yml') return codeql?[green]:[];
@@ -182,4 +183,12 @@ test('artifact name flooding fails closed rather than dispatching twice',async()
   const m=mock({markers:[stage('package')],artifactOverflow:true});
   await assert.rejects(()=>run(m),/Too many artifacts/);
   assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('cancelled or timed-out exact-source updater CI is blocked, not awaited forever',async()=>{
+  for(const conclusion of ['cancelled','timed_out','action_required','startup_failure']) {
+    const m=mock({fat:false,markers:[stage('updater')],ciConclusion:conclusion});
+    await assert.rejects(()=>run(m),/Release blocked/);
+    assert.equal(m.calls.filter(x=>x.key==='stage').length,0,conclusion);
+  }
 });
