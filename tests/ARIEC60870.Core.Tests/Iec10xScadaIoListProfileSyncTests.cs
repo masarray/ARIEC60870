@@ -72,6 +72,10 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         factor.Unit = "MVar";
         factor.Scale = 0.125;
 
+        // Make the remaining local identity TI11 Q a *legacy* MVar label.
+        // The bundled modern source itself already uses counts.
+        Assert.Single(working.Points, p => p.Ioa == 790443).Unit = "MVar";
+
         var other = Copy(reference).Points.Single(p => p.Ioa == 790443);
         other.Ca = 106;
         other.Name = "OTHER STATION REACTIVE POWER";
