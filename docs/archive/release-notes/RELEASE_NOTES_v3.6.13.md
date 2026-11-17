@@ -1,6 +1,6 @@
 # ArSee v3.6.13 — Reliable IEC-101 Master and verifiable IEC-104 GI (Windows x64)
 
-This document describes the **v3.6.13 release candidate source contents**, prepared 16 November 2026. It does not assert that v3.6.13 is already published or that any later binary passes acceptance. The latest published stable remains v3.6.12 until a successful tagged release completes.
+This document describes v3.6.13 source prepared 16 November 2026 and **published 17 November 2026** at immutable commit `289caefe877f58e9f84397112065cae5a0bfa563`. The official [v3.6.13 stable](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) has Setup/ZIP/SBOM/SHA-256, passing [Package](https://github.com/masarray/ARIEC60870/actions/runs/44001183168) and [exact-source updater FAT](https://github.com/masarray/ARIEC60870/actions/runs/43997921951). Physical IEC/SCADA FAT remains unqualified.
 
 ## IEC-101 single-link and redundant A/B Master
 
@@ -20,10 +20,10 @@ Accepted IEC-101 spontaneous digital **objects** have their own cumulative count
 
 ## Software acceptance and release delivery
 
-**Before publication**, confirm the **actual v3.6.13 tag/commit** passes Windows Release (warnings-as-errors), all six xUnit suites and 19 protocol smoke tests, native real-WPF OBS-C 1,400-frame acceptance, CodeQL, repository hygiene, release-package executable check, official Windows installer/portable ZIP structure, SHA-256 checksums, SPDX SBOM and build provenance. A green PR is not a green release artifact.
+**Published-source acceptance (completed 17 November 2026):** the **actual v3.6.13 tag/commit** passed Windows Release (warnings-as-errors), all six xUnit suites and 19 protocol smoke tests, native real-WPF OBS-C 1,400-frame acceptance, CodeQL, repository hygiene, release-package executable check, official Windows installer/portable ZIP structure, SHA-256 checksums, SPDX SBOM and build provenance. A green PR is not a green release artifact.
 
-**The stable v3.6.13 Package workflow will refuse publication without a successful exact-commit native Windows independent updater FAT** including genuine installed-old-release update-worker acceptance. This safeguard must not be bypassed. The real installed updater requires operator approval; the portable ZIP does not update itself. Windows builds remain unsigned.
+**The stable v3.6.13 Package workflow verified the required successful exact-commit native Windows independent updater FAT** including genuine installed-old-release update-worker acceptance. This safeguard must not be bypassed. The real installed updater requires operator approval; the portable ZIP does not update itself. Windows builds remain unsigned.
 
 **FIELD FAT PENDING:** No claim of complete 60/500/2,000 IEC-101 SOE acquisition at 1200 bps from an actual RTU/gateway until a separately implemented reference master confirms event-count parity on the same cable/adapter, using original RX/TX frames and independently generated RTU event totals; device FIFO overflow, physical USB COM recovery, A/B failover, real command feedback, multiple IEC-103 devices and multi-vendor IEC-104 TCP peers remain independently unqualified. The application is an engineering tester/analyzer, not a certified production SCADA master or IEC conformance test suite.
 
-The website/README links deliberately continue to point at published **v3.6.12** until v3.6.13 is actually published, then the public landing, download guide and checksums must be synchronized to the immutable new release assets.
+README/website/download and checksum links are synchronized separately after publication. The immutable tagged commit remains the authoritative binary provenance; physical RTU FAT is still pending.
