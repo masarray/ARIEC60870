@@ -40,6 +40,22 @@ function hasNativeUpdaterProof(jobs) {
     (fat.steps || []).some(s =>
       s.name === 'Verify independent update worker from genuine installed previous release' && s.conclusion === 'success');
 }
+// The native FAT has finished, but the same CI run can still have its tiny
+// continuation job in progress. Never mistake that controller handoff for
+// incomplete source verification, and never waive a real active test job.
+function qualifiedActiveUpdaterHandoff(run, jobs) {
+  if (run.event !== 'workflow_dispatch' || !ACTIVE.has(run.status)) return false;
+  const required = ['Select required CI work', 'build-test',
+    'Bounded previous-release upgrade and running-Master shutdown',
+    'Native Windows independent updater FAT'];
+  const handoffName = 'Resume verified release after updater FAT';
+  const handoff = jobs.find(j => j.name === handoffName);
+  return !!handoff && (ACTIVE.has(handoff.status) || handoff.conclusion === 'success') &&
+    required.every(name => jobs.some(j => j.name === name && j.conclusion === 'success')) &&
+    jobs.every(j => j.name === handoffName ||
+      ['success', 'skipped', 'neutral'].includes(j.conclusion));
+}
+
 function recentCommand(comment, now = Date.now()) {
   return comment?.body?.trim() === COMMAND &&
     Number.isFinite(Date.parse(comment.created_at)) &&
@@ -157,6 +173,14 @@ async function run({github, context, core}) {
     core.notice(`Stale release-controller event ${context.sha} vs master ${sha}; no stage reserved or dispatched. A fresh release command on the latest merged PR is required.`);
     return;
   }
+  // A verified updater CI may explicitly resume this trusted workflow using
+  // workflow_dispatch (GitHub may suppress a workflow_run cascade from
+  // GITHUB_TOKEN). Never accept an unpinned or non-master handoff.
+  if (context.eventName === 'workflow_dispatch' &&
+      (context.ref !== 'refs/heads/master' ||
+       context.payload.inputs?.release_expected_sha !== sha))
+    throw new Error('Release resume dispatch must be bound to exact master SHA.');
+
   // Completion of an older Package run frees the global lock, but it is
   // NEVER test or source evidence for the current master SHA.
   if (context.eventName === 'workflow_run' &&
@@ -207,15 +231,26 @@ async function run({github, context, core}) {
     listRuns(github,owner,repo,'repository-hygiene.yml')
   ]);
   const ciRuns = allCi.filter(r => acceptedCiRun(r,sha));
-  const runningCi = ciRuns.some(r => ACTIVE.has(r.status));
-  const succeeded = ciRuns.filter(r => r.conclusion === 'success' &&
+  const proofCandidates = ciRuns.filter(r =>
+    (r.conclusion === 'success' ||
+     (r.event === 'workflow_dispatch' && ACTIVE.has(r.status))) &&
     Date.now() - Date.parse(r.created_at) < 30*24*3600*1000);
   let qualified = false;
-  for(const candidate of succeeded.slice(0,4)) {
+  let qualifiedHandoffRunId = null;
+  for (const candidate of proofCandidates.slice(0,4)) {
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
       {owner,repo,run_id:candidate.id,per_page:100});
-    if (hasNativeUpdaterProof(jobs)) { qualified = true; break; }
+    if (hasNativeUpdaterProof(jobs)) {
+      qualified = true;
+      if (qualifiedActiveUpdaterHandoff(candidate, jobs))
+        qualifiedHandoffRunId = candidate.id;
+      break;
+    }
   }
+  // Only the already-proven CI's final handoff can be discounted here.
+  // Any other active master CI still blocks package dispatch.
+  const runningCi = ciRuns.some(r => ACTIVE.has(r.status) &&
+    r.id !== qualifiedHandoffRunId);
   const isActive = r => ACTIVE.has(r.status);
   const exactCheck = runs => runs.filter(r => r.head_sha === sha &&
     (r.event === 'push' || r.event === 'workflow_dispatch'));
@@ -271,4 +306,5 @@ async function run({github, context, core}) {
     : `Exact-SHA v${version} FAT/security passed: reserve one Package run.`);
 }
 module.exports = {COMMAND, MARKER, parseVersion, compareVersion, parseSourceVersion,
-  acceptedCiRun, hasNativeUpdaterProof, recentCommand, stageMarker, chooseAction, run};
+  acceptedCiRun, hasNativeUpdaterProof, qualifiedActiveUpdaterHandoff,
+  recentCommand, stageMarker, chooseAction, run};
