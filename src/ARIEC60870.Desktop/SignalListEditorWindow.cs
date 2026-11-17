@@ -281,6 +281,7 @@ public sealed class SignalListEditorWindow : Window
         AddTextColumn("Group", nameof(SignalListEditorRow.Group), 136, minWidth: 110);
         AddTextColumn("Type / Role", nameof(SignalListEditorRow.SignalType), 190, minWidth: 150);
         AddTextColumn("Unit", nameof(SignalListEditorRow.Unit), 72);
+        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 96);
         AddTextColumn("Scale", nameof(SignalListEditorRow.Scale), 76);
         AddTextColumn("Class", nameof(SignalListEditorRow.ExpectedClass), 70);
         AddTextColumn("COT", nameof(SignalListEditorRow.ExpectedCot), 70);
@@ -478,16 +479,57 @@ public sealed class SignalListEditorWindow : Window
         AddEditorField(panel, "Group", nameof(SignalListEditorRow.Group));
         AddEditorField(panel, "Type / Role", nameof(SignalListEditorRow.SignalType));
         AddEditorField(panel, "Unit", nameof(SignalListEditorRow.Unit), compact: true);
-        AddEditorField(panel, "Scale", nameof(SignalListEditorRow.Scale),
+        AddEditorCombo(panel, "Engineering scaling mode", nameof(SignalListEditorRow.ScalingMode),
+            new[] { "Factor", "TwoPoint" }, allowCustom: false);
+
+        // The modes are intentionally exclusive. Editing a linear range
+        // must not also apply a hidden legacy CT/VT ratio or offset.
+        var linearPanel = new StackPanel();
+        var linearStyle = new Style(typeof(StackPanel));
+        linearStyle.Setters.Add(new Setter(VisibilityProperty, Visibility.Collapsed));
+        var showLinear = new DataTrigger
+        {
+            Binding = new Binding(nameof(SignalListEditorRow.ScalingMode)),
+            Value = "TwoPoint"
+        };
+        showLinear.Setters.Add(new Setter(VisibilityProperty, Visibility.Visible));
+        linearStyle.Triggers.Add(showLinear);
+        linearPanel.Style = linearStyle;
+        linearPanel.Children.Add(new TextBlock
+        {
+            Text = "Two-point linear: X = decoded IEC source, Y = engineering unit. No additional factor/ratio. Out-of-range readings are not clamped.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 10.8,
+            Foreground = TextMutedBrush,
+            Margin = new Thickness(0, 0, 0, 9)
+        });
+        AddTwoPointPair(linearPanel, "X0 · input low", nameof(SignalListEditorRow.X0),
+            "X100 · input high", nameof(SignalListEditorRow.X100));
+        AddTwoPointPair(linearPanel, "Y0 · output low", nameof(SignalListEditorRow.Y0),
+            "Y100 · output high", nameof(SignalListEditorRow.Y100));
+        panel.Children.Add(linearPanel);
+
+        var factorPanel = new StackPanel();
+        var factorStyle = new Style(typeof(StackPanel));
+        var hideFactor = new DataTrigger
+        {
+            Binding = new Binding(nameof(SignalListEditorRow.ScalingMode)),
+            Value = "TwoPoint"
+        };
+        hideFactor.Setters.Add(new Setter(VisibilityProperty, Visibility.Collapsed));
+        factorStyle.Triggers.Add(hideFactor);
+        factorPanel.Style = factorStyle;
+        AddEditorField(factorPanel, "Scale", nameof(SignalListEditorRow.Scale),
             "IEC scaled integer resolution or short-float multiplier; default 1.", compact: true);
-        AddEditorField(panel, "Offset", nameof(SignalListEditorRow.Offset),
+        AddEditorField(factorPanel, "Offset", nameof(SignalListEditorRow.Offset),
             "Engineering zero offset, applied after scaling.", compact: true);
-        AddEditorField(panel, "Ratio primary", nameof(SignalListEditorRow.RatioPrimary),
+        AddEditorField(factorPanel, "Ratio primary", nameof(SignalListEditorRow.RatioPrimary),
             "Optional approved CT/VT or gateway ratio numerator; default 1.", compact: true);
-        AddEditorField(panel, "Ratio secondary", nameof(SignalListEditorRow.RatioSecondary),
+        AddEditorField(factorPanel, "Ratio secondary", nameof(SignalListEditorRow.RatioSecondary),
             "Ratio denominator > 0; default 1. Never duplicate an RTU-applied ratio.", compact: true);
-        AddEditorField(panel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
+        AddEditorField(factorPanel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
             "For IEC TI9/10/21/34 only: NVA [-1,1) multiplied by engineering full-scale.", compact: true);
+        panel.Children.Add(factorPanel);
         AddEditorField(panel, "Class", nameof(SignalListEditorRow.ExpectedClass), "Expected IEC-101 class", compact: true);
         AddEditorField(panel, "COT", nameof(SignalListEditorRow.ExpectedCot), "Expected cause of transmission", compact: true);
         AddEditorCombo(panel, "Command policy", nameof(SignalListEditorRow.CommandPolicy), new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
@@ -783,7 +825,25 @@ public sealed class SignalListEditorWindow : Window
         parent.Children.Add(container);
     }
 
-    private void AddEditorCombo(Panel parent, string label, string path, IEnumerable<string> values)
+    private void AddTwoPointPair(Panel parent, string leftLabel, string leftPath,
+        string rightLabel, string rightPath)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var left = new StackPanel { Margin = new Thickness(0, 0, 5, 0) };
+        var right = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+        AddEditorField(left, leftLabel, leftPath, compact: true);
+        AddEditorField(right, rightLabel, rightPath, compact: true);
+        Grid.SetColumn(left, 0);
+        Grid.SetColumn(right, 1);
+        grid.Children.Add(left);
+        grid.Children.Add(right);
+        parent.Children.Add(grid);
+    }
+
+    private void AddEditorCombo(Panel parent, string label, string path,
+        IEnumerable<string> values, bool allowCustom = true)
     {
         var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 9) };
         container.Children.Add(new TextBlock
@@ -797,7 +857,7 @@ public sealed class SignalListEditorWindow : Window
         var combo = new ComboBox
         {
             ItemsSource = values,
-            IsEditable = true,
+            IsEditable = allowCustom,
             MinHeight = 34,
             Padding = new Thickness(8, 5, 8, 5),
             FontSize = 12.5,
@@ -805,11 +865,12 @@ public sealed class SignalListEditorWindow : Window
             BorderBrush = BorderBrushSoft,
             Foreground = TextMainBrush
         };
-        combo.SetBinding(ComboBox.TextProperty, new Binding(path)
-        {
-            Mode = BindingMode.TwoWay,
-            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-        });
+        combo.SetBinding(allowCustom ? ComboBox.TextProperty : Selector.SelectedItemProperty,
+            new Binding(path)
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+            });
         container.Children.Add(combo);
         parent.Children.Add(container);
     }
@@ -1011,6 +1072,22 @@ public sealed class SignalListEditorWindow : Window
             if (!double.TryParse(entered, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ||
                 !double.IsFinite(v) || requirePositive && v <= 0)
                 errors.Add($"{label} must be a finite number" + (requirePositive ? " greater than zero." : "."));
+        }
+
+        if (!string.Equals(row.ScalingMode, "Factor", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase))
+            errors.Add("Scaling mode must be Factor or TwoPoint.");
+        if (string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var point = row.ToPoint();
+                new Iec10xPointMappingProfile { Points = [point] }.Validate();
+            }
+            catch (InvalidOperationException ex)
+            {
+                errors.Add(ex.Message);
+            }
         }
 
         if (errors.Count == 0)
@@ -1216,6 +1293,9 @@ public sealed class SignalListEditorWindow : Window
         return value;
     }
 
+    internal static double? ParseOptionalEngineeringDouble(string? text, string label) =>
+        string.IsNullOrWhiteSpace(text) ? null : ParseEngineeringDouble(text, label);
+
     private static Brush BrushFromRgb(byte r, byte g, byte b)
     {
         var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
@@ -1238,6 +1318,11 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     private string _ratioPrimary = "1";
     private string _ratioSecondary = "1";
     private string _normalizedFullScale = "1";
+    private string _scalingMode = "Factor";
+    private string _x0 = string.Empty;
+    private string _x100 = string.Empty;
+    private string _y0 = string.Empty;
+    private string _y100 = string.Empty;
     private string _expectedClass = string.Empty;
     private string _expectedCot = string.Empty;
     private string _commandPolicy = string.Empty;
@@ -1263,6 +1348,11 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         RatioPrimary = point.RatioPrimary.ToString(CultureInfo.InvariantCulture);
         RatioSecondary = point.RatioSecondary.ToString(CultureInfo.InvariantCulture);
         NormalizedFullScale = point.NormalizedFullScale.ToString(CultureInfo.InvariantCulture);
+        ScalingMode = point.ScalingMode;
+        X0 = point.X0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        X100 = point.X100?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        Y0 = point.Y0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        Y100 = point.Y100?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         ExpectedClass = point.ExpectedClass?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         ExpectedCot = point.ExpectedCot?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         CommandPolicy = point.CommandPolicy;
@@ -1285,6 +1375,18 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string RatioPrimary { get => _ratioPrimary; set => SetField(ref _ratioPrimary, value); }
     public string RatioSecondary { get => _ratioSecondary; set => SetField(ref _ratioSecondary, value); }
     public string NormalizedFullScale { get => _normalizedFullScale; set => SetField(ref _normalizedFullScale, value); }
+    public string ScalingMode
+    {
+        get => _scalingMode;
+        set => SetField(ref _scalingMode,
+            string.Equals(value, "TwoPoint", StringComparison.OrdinalIgnoreCase) ? "TwoPoint" :
+            string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, "Factor", StringComparison.OrdinalIgnoreCase) ? "Factor" : value?.Trim());
+    }
+    public string X0 { get => _x0; set => SetField(ref _x0, value); }
+    public string X100 { get => _x100; set => SetField(ref _x100, value); }
+    public string Y0 { get => _y0; set => SetField(ref _y0, value); }
+    public string Y100 { get => _y100; set => SetField(ref _y100, value); }
     public string ExpectedClass { get => _expectedClass; set => SetField(ref _expectedClass, value); }
     public string ExpectedCot { get => _expectedCot; set => SetField(ref _expectedCot, value); }
     public string CommandPolicy { get => _commandPolicy; set => SetField(ref _commandPolicy, value); }
@@ -1312,6 +1414,11 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         RatioPrimary = RatioPrimary,
         RatioSecondary = RatioSecondary,
         NormalizedFullScale = NormalizedFullScale,
+        ScalingMode = ScalingMode,
+        X0 = X0,
+        X100 = X100,
+        Y0 = Y0,
+        Y100 = Y100,
         ExpectedClass = ExpectedClass,
         ExpectedCot = ExpectedCot,
         CommandPolicy = CommandPolicy,
@@ -1336,6 +1443,11 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         RatioPrimary = SignalListEditorWindow.ParseEngineeringDouble(RatioPrimary, "Ratio primary"),
         RatioSecondary = SignalListEditorWindow.ParseEngineeringDouble(RatioSecondary, "Ratio secondary"),
         NormalizedFullScale = SignalListEditorWindow.ParseEngineeringDouble(NormalizedFullScale, "Normalized full-scale"),
+        ScalingMode = ScalingMode?.Trim() ?? string.Empty,
+        X0 = SignalListEditorWindow.ParseOptionalEngineeringDouble(X0, "X0"),
+        X100 = SignalListEditorWindow.ParseOptionalEngineeringDouble(X100, "X100"),
+        Y0 = SignalListEditorWindow.ParseOptionalEngineeringDouble(Y0, "Y0"),
+        Y100 = SignalListEditorWindow.ParseOptionalEngineeringDouble(Y100, "Y100"),
         ExpectedClass = SignalListEditorWindow.ParseInt(ExpectedClass),
         ExpectedCot = SignalListEditorWindow.ParseInt(ExpectedCot),
         CommandPolicy = string.IsNullOrWhiteSpace(CommandPolicy) ? "MonitorOnly" : CommandPolicy.Trim(),
