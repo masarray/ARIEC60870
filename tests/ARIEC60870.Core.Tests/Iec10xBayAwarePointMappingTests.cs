@@ -216,12 +216,14 @@ public sealed class Iec10xBayAwarePointMappingTests
     public void UnverifiedCtptNominalCandidateIsOptInAndDoesNotScaleFloatAgain()
     {
         var root = RepositoryRoot();
-        var path = Path.Combine(root, "profiles", "PROVISIONAL_io_list_scada_101_ctpt_nominal.json");
+        // Installer/portable scripts copy profiles/*; the unverified
+        // nominal-range hypothesis must remain downloadable docs-only.
+        var name = "PROVISIONAL_io_list_scada_101_ctpt_nominal.json";
+        Assert.False(File.Exists(Path.Combine(root, "profiles", name)));
+        var path = Path.Combine(root, "docs", "profiles", name);
         var profile = Iec10xPointMappingProfile.LoadFromFile(path);
         Assert.Equal(31, profile.Points.Count);
         Assert.Contains("PROVISIONAL", profile.ProfileName);
-        Assert.Equal(File.ReadAllText(path), File.ReadAllText(Path.Combine(root,
-            "docs", "profiles", "PROVISIONAL_io_list_scada_101_ctpt_nominal.json")));
         var nominal = Math.Sqrt(3) * 500 * 2000 / 1000;
         foreach (var ioa in new[] { 790447, 790439, 790443 })
         {
