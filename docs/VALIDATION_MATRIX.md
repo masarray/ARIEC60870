@@ -66,3 +66,17 @@ A stable release is expected to have:
 | IEC-101/103/104 active device FAT | **Not yet proven by field toolkit** | Separate active bench setup with authorized transmission, link verification, GI and Class1/2/commands tested on isolated equipment |
 
 The headless capture package is complementary to the main WPF GUI. Its `field-summary.json` is advisory; source-specific raw journals, manifest and the independent verifier are authoritative for **application journal consistency only**. Do not conflate that with completeness of bytes delivered by an RS232/RS485 converter.
+
+## Decoder truth matrix — reserved/unsupported IEC-101/104 Type IDs (2026-11-17)
+
+This is **source-level synthetic regression coverage**, not a device or interoperability FAT. The Core decoder must never invent information-object boundaries when an IEC-101/104 Type ID has no supported, fixed information-element length. A valid ASDU header remains available, and the full original ASDU including opaque payload remains `RawBytes`; objects, inferred SQ=1 IOAs, quality and values stay empty/untrusted. This is distinct from standard supported types and from vendor-private Type IDs 128–255.
+
+| Fixture | Type / profile | Required result | Gate |
+| --- | --- | --- | --- |
+| Reserved type, SQ=0 and SQ=1 | TI17, COT1, CA1, IOA widths 1/2/3 | Exact original bytes, verified header/COT/CA, zero fabricated objects or IOAs, explicit unsupported issue | Master xUnit `UnsupportedTypeRetainsExactWireBytesWithoutGuessingObjectLayout` |
+| Vendor-private opaque payload | TI200, COT1, CA1, IOA3 | Exact original bytes and no fabricated object or false corruption warning | Master xUnit `VendorPrivateTypeRemainsOpaqueWithoutSpuriousCorruption` |
+| Valid SQ1 boundary | TI1, IOA widths 1/2/3 | Two correctly derived addresses with second wire offset absent | Master xUnit `KnownSq1SequenceDecodesOnlyWithinConfiguredIoaWidth` |
+| SQ1 address overflow | TI1, IOA widths 1/2/3 | First valid object retained, overflowed object not promoted, explicit decode issue, original bytes unchanged | Same xUnit |
+| Standard normalized without quality | TI21, COT1, CA1, IOA3 | Typed normalized value; no invented QDS, original bytes unchanged | Master xUnit `NormalizedWithoutQdsHasNoInventedQualityOrTrailingObject` |
+
+This matrix does **not** cover every IEC-10x Type ID or certify interpretation of IEC-103 relay/private payloads. Existing GUI Trace/HEX/replay/export/report parity and high-rate/1200-baud physical tests remain separate acceptance items under issue #120. Do not update a public release's advertised decoder coverage before exact-head CI and trace-surface inspection pass.
