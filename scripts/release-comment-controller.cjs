@@ -149,6 +149,14 @@ async function run({github, context, core}) {
   }
   const branch = (await github.rest.repos.getBranch({owner,repo,branch:'master'})).data;
   const sha = branch.commit.sha;
+  // GitHub stamps a controller run with the default-branch SHA at admission.
+  // A queued/stale runner must not take over a newer master's release intent:
+  // its artifacts would otherwise be attributed to the old head and ignored
+  // during later reconciliation, allowing a second Package dispatch.
+  if (context.sha !== sha) {
+    core.notice(`Stale release-controller event ${context.sha} vs master ${sha}; no stage reserved or dispatched. A fresh release command on the latest merged PR is required.`);
+    return;
+  }
   // Completion of an older Package run frees the global lock, but it is
   // NEVER test or source evidence for the current master SHA.
   if (context.eventName === 'workflow_run' &&

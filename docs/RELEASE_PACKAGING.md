@@ -83,9 +83,26 @@ The preferred maintainer flow runs from the latest merged PR on `master`:
    README/website download links **only after publication succeeds**.
 
 Duplicate requests and concurrent active Package or CI jobs are reused
-instead of enqueueing redundant expensive Windows runners. Incomplete,
-failed, stale or conflicting evidence **blocks** rather than bypasses
-release checks. Actual hardware interoperability is a separate test.
+instead of enqueueing redundant expensive Windows runners. The controller
+binds each admission run's own GitHub default-branch event SHA to the exact
+current `master` source: if `master` moves while a controller is queued, it
+cannot dispatch or reserve any release stage for the new SHA. Use a **fresh**
+`/release stable` comment on the new latest merged PR, after checking its
+source version and release notes.
+
+Stage reservations are short-lived Actions artifacts bound to an authorized
+comment ID, source SHA and stage. They are trusted only from the official
+`master` controller workflow. Uploading a reservation is **not** dispatch
+proof: the owning controller must finish its `Dispatch one pinned next stage`
+step successfully. A running owner keeps the lease; failed/cancelled owner
+blocks instead of being treated as dispatched. Inspect the failed run and
+use a fresh authorized comment after repairing the cause; do not blindly
+rerun Package or reuse the old comment. Controller and Package remain
+repository-wide one-flight, with exact-SHA updater/Package leases and no
+unbounded retry loop.
+
+Incomplete, failed, stale or conflicting evidence **blocks** rather than
+bypasses release checks. Actual hardware interoperability is a separate test.
 
 ## GitHub Actions package flow
 
