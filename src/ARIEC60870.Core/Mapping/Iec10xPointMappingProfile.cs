@@ -81,6 +81,16 @@ public sealed class Iec10xPointMappingProfile
             {
                 throw new InvalidOperationException($"Point CA={point.Ca}, IOA={point.Ioa} has empty signal name.");
             }
+            // Never silently serialize NaN/Infinity or a zero ratio divisor.
+            // Do not derive a calibration from "Unit" or engineering limits:
+            // the operator must enter project-approved conversion settings.
+            if (!double.IsFinite(point.Scale) || !double.IsFinite(point.Offset) ||
+                !double.IsFinite(point.RatioPrimary) || point.RatioPrimary <= 0 ||
+                !double.IsFinite(point.RatioSecondary) || point.RatioSecondary <= 0 ||
+                !double.IsFinite(point.NormalizedFullScale) || point.NormalizedFullScale <= 0)
+                throw new InvalidOperationException(
+                    $"Point '{point.Name}' has invalid engineering scaling. " +
+                    "Scale/Offset must be finite; ratios and Normalized Full Scale must be positive.");
 
             var key = point.BuildKey();
             if (!duplicate.Add(key))
@@ -242,8 +252,14 @@ public sealed class Iec10xPointMappingEntry
     public string Group { get; set; } = "Unassigned";
     public string SignalType { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
+    // Engineering = measured * Scale * (RatioPrimary / RatioSecondary) + Offset.
+    // For normalized IEC TI9/10/21/34, measured = NVA * NormalizedFullScale.
+    // All defaults preserve legacy v1 signal lists; these are display-only.
     public double Scale { get; set; } = 1.0;
     public double Offset { get; set; }
+    public double RatioPrimary { get; set; } = 1.0;
+    public double RatioSecondary { get; set; } = 1.0;
+    public double NormalizedFullScale { get; set; } = 1.0;
     public string CommandPolicy { get; set; } = "MonitorOnly";
     public string Description { get; set; } = string.Empty;
     public string Mnemonic { get; set; } = string.Empty;
