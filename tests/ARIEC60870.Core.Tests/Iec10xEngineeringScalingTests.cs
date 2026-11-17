@@ -83,6 +83,12 @@ public sealed class Iec10xEngineeringScalingTests
         var raw = Decode(11, 0x49, 0x35, 0x00);
         Assert.False(Iec10xEngineeringValue.TryFormat(Point(9), raw,
             Assert.Single(raw.Objects), out _));
+        var wrongCa = Point(11); wrongCa.Ca = 106;
+        Assert.False(Iec10xEngineeringValue.TryFormat(wrongCa, raw,
+            Assert.Single(raw.Objects), out _));
+        var wrongIoa = Point(11); wrongIoa.Ioa = 4016;
+        Assert.False(Iec10xEngineeringValue.TryFormat(wrongIoa, raw,
+            Assert.Single(raw.Objects), out _));
         var invalid = Decode(11, 0x49);
         Assert.NotEmpty(invalid.Issues);
         Assert.False(Iec10xEngineeringValue.TryFormat(Point(11), invalid,
