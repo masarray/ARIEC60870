@@ -59,6 +59,7 @@ public sealed class SignalListEditorWindow : Window
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
     private bool _saved;
+    private string? _protectedSyncSourcePath;
     private bool _loadingRows;
     private bool _isCellEditing;
     private string? _pendingCellEditText;
@@ -204,6 +205,7 @@ public sealed class SignalListEditorWindow : Window
         AddToolbarButton(toolbar, "Duplicate", DuplicateRow_Click);
         AddToolbarButton(toolbar, "Delete", DeleteRow_Click, danger: true);
         AddToolbarButton(toolbar, "Load", LoadList_Click);
+        AddToolbarButton(toolbar, "Sync 31 I/O", SyncScadaIoList_Click);
         AddToolbarButton(toolbar, "Save", SaveList_Click);
         AddToolbarButton(toolbar, "Save As", SaveAs_Click);
         AddToolbarButton(toolbar, "Validate", Validate_Click);
@@ -1004,6 +1006,68 @@ public sealed class SignalListEditorWindow : Window
         }
     }
 
+    private void SyncScadaIoList_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+            _grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var current = BuildProfileFromRows();
+            var packaged = Path.Combine(AppContext.BaseDirectory, "profiles",
+                "utility_fat_iec10x_default_profile.json");
+            var checkout = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                "..", "..", "..", "..", "profiles",
+                "utility_fat_iec10x_default_profile.json"));
+            var referencePath = new[] { packaged, checkout }.FirstOrDefault(File.Exists);
+            if (referencePath is null)
+                throw new FileNotFoundException(
+                    "The bundled 31-point SCADA 101 reference was not installed. Nothing was changed.");
+
+            var reference = Iec10xPointMappingProfile.LoadFromFile(referencePath);
+            var preview = Iec10xScadaIoListProfileSync.PrepareCopy(current, reference);
+            if (preview.MatchedPoints == 0)
+            {
+                UpdateStatus("No exact CA=105 / IOA / Type ID matches. Other stations were left untouched.", danger: true);
+                return;
+            }
+            if (!preview.HasChanges)
+            {
+                UpdateStatus($"All {preview.MatchedPoints} matching signals already agree with the bundled I/O labels and safe raw units.", success: true);
+                return;
+            }
+
+            var prompt =
+                $"Compare the current Signal List with the bundled SCADA 101 I/O list?\\n\\n" +
+                $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\\n" +
+                $"Signal names to update: {preview.RenamedPoints}\\n" +
+                $"Business labels to update: {preview.UpdatedBusinessMetadata}\\n" +
+                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\\n\\n" +
+                "All configured factors, X0/X100/Y0/Y100, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
+                "Only the labels and explicitly uncalibrated legacy Q units above are reconciled. " +
+                "The existing profile file remains untouched; you must Save & Apply a new copy.\\n\\n" +
+                "Prepare the updated copy?";
+            if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            _protectedSyncSourcePath = SavedProfilePath;
+            _template = preview.UpdatedProfile;
+            _profileNameBox.Text = preview.UpdatedProfile.ProfileName;
+            LoadRowsFromProfile(preview.UpdatedProfile);
+            SavedProfilePath = string.Empty;
+            _pathBox.Text = "New copy required — choose Save As";
+            _saved = false;
+            MarkDirty();
+            UpdateStatus($"Prepared {preview.MatchedPoints} matching points. Save & Apply to a NEW profile file; original preserved.", success: true);
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.Show(this, ex.Message, "SCADA I/O list sync",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            UpdateStatus("SCADA I/O list sync refused. The active profile was not changed.", danger: true);
+        }
+    }
+
     private void LoadList_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "IOA profile JSON (*.json)|*.json|All files (*.*)|*.*" };
@@ -1014,6 +1078,7 @@ public sealed class SignalListEditorWindow : Window
             _template = CloneProfile(profile);
             Profile = CloneProfile(profile);
             SavedProfilePath = dialog.FileName;
+            _protectedSyncSourcePath = null;
             _pathBox.Text = SavedProfilePath;
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
@@ -1119,6 +1184,15 @@ public sealed class SignalListEditorWindow : Window
                 };
                 if (dialog.ShowDialog(this) != true) return false;
                 target = dialog.FileName;
+            }
+            if (!string.IsNullOrWhiteSpace(_protectedSyncSourcePath) &&
+                string.Equals(Path.GetFullPath(target), Path.GetFullPath(_protectedSyncSourcePath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                ModernMessageBox.Show(this,
+                    "Choose a different file name. Sync must not overwrite the original Signal List.",
+                    "Preserve original profile", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
             }
             profile.SaveToFile(target);
             SavedProfilePath = target;
