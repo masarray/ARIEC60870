@@ -448,9 +448,9 @@ public sealed partial class SignalListEditorWindow
     {
         _dirty = _rows.Count != _cleanGridRows.Count ||
             _cleanGridProfileName != _profileNameBox.Text ||
-            _rows.Where((row, index) => index < _cleanGridRows.Count).Any((row, index) =>
+            Enumerable.Range(0, Math.Min(_rows.Count, _cleanGridRows.Count)).Any(index =>
                 SignalGridEditModel.Fields.Any(field =>
-                    SignalGridEditModel.Read(row, field) !=
+                    SignalGridEditModel.Read(_rows[index], field) !=
                     SignalGridEditModel.Read(_cleanGridRows[index], field)));
         UpdateCounters();
     }
