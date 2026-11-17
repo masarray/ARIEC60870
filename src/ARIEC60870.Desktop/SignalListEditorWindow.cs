@@ -478,7 +478,16 @@ public sealed class SignalListEditorWindow : Window
         AddEditorField(panel, "Group", nameof(SignalListEditorRow.Group));
         AddEditorField(panel, "Type / Role", nameof(SignalListEditorRow.SignalType));
         AddEditorField(panel, "Unit", nameof(SignalListEditorRow.Unit), compact: true);
-        AddEditorField(panel, "Scale", nameof(SignalListEditorRow.Scale), compact: true);
+        AddEditorField(panel, "Scale", nameof(SignalListEditorRow.Scale),
+            "IEC scaled integer resolution or short-float multiplier; default 1.", compact: true);
+        AddEditorField(panel, "Offset", nameof(SignalListEditorRow.Offset),
+            "Engineering zero offset, applied after scaling.", compact: true);
+        AddEditorField(panel, "Ratio primary", nameof(SignalListEditorRow.RatioPrimary),
+            "Optional approved CT/VT or gateway ratio numerator; default 1.", compact: true);
+        AddEditorField(panel, "Ratio secondary", nameof(SignalListEditorRow.RatioSecondary),
+            "Ratio denominator > 0; default 1. Never duplicate an RTU-applied ratio.", compact: true);
+        AddEditorField(panel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
+            "For IEC TI9/10/21/34 only: NVA [-1,1) multiplied by engineering full-scale.", compact: true);
         AddEditorField(panel, "Class", nameof(SignalListEditorRow.ExpectedClass), "Expected IEC-101 class", compact: true);
         AddEditorField(panel, "COT", nameof(SignalListEditorRow.ExpectedCot), "Expected cause of transmission", compact: true);
         AddEditorCombo(panel, "Command policy", nameof(SignalListEditorRow.CommandPolicy), new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
@@ -858,6 +867,10 @@ public sealed class SignalListEditorWindow : Window
             SignalType = "M_SP_TB_1",
             Unit = string.Empty,
             Scale = "1",
+            Offset = "0",
+            RatioPrimary = "1",
+            RatioSecondary = "1",
+            NormalizedFullScale = "1",
             ExpectedClass = "1",
             ExpectedCot = "3",
             CommandPolicy = "MonitorOnly",
@@ -988,6 +1001,17 @@ public sealed class SignalListEditorWindow : Window
         if (string.IsNullOrWhiteSpace(row.Name)) errors.Add("Name should not be empty.");
         if (!string.IsNullOrWhiteSpace(row.FeedbackIoa) && ParseInt(row.FeedbackIoa) is null) errors.Add("Feedback IOA must be a number.");
         if (!string.IsNullOrWhiteSpace(row.StateMap) && !row.StateMap.Contains('=')) errors.Add("State map should use key=value format, for example 0=Off; 1=On.");
+        foreach (var (label, entered, requirePositive) in new[]
+        {
+            ("Scale", row.Scale, false), ("Offset", row.Offset, false),
+            ("Ratio primary", row.RatioPrimary, true), ("Ratio secondary", row.RatioSecondary, true),
+            ("Normalized full-scale", row.NormalizedFullScale, true)
+        })
+        {
+            if (!double.TryParse(entered, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ||
+                !double.IsFinite(v) || requirePositive && v <= 0)
+                errors.Add($"{label} must be a finite number" + (requirePositive ? " greater than zero." : "."));
+        }
 
         if (errors.Count == 0)
         {
@@ -1183,9 +1207,13 @@ public sealed class SignalListEditorWindow : Window
         return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
     }
 
-    internal static double ParseDouble(string? text, double defaultValue)
+    internal static double ParseEngineeringDouble(string? text, string label)
     {
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : defaultValue;
+        // Never silently convert an invalid operator-entered ratio/scale to 1.
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ||
+            !double.IsFinite(value))
+            throw new InvalidOperationException($"{label} must be a finite numeric value (use dot decimal).");
+        return value;
     }
 
     private static Brush BrushFromRgb(byte r, byte g, byte b)
@@ -1206,6 +1234,10 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     private string _signalType = string.Empty;
     private string _unit = string.Empty;
     private string _scale = "1";
+    private string _offset = "0";
+    private string _ratioPrimary = "1";
+    private string _ratioSecondary = "1";
+    private string _normalizedFullScale = "1";
     private string _expectedClass = string.Empty;
     private string _expectedCot = string.Empty;
     private string _commandPolicy = string.Empty;
@@ -1227,6 +1259,10 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         SignalType = point.SignalType;
         Unit = point.Unit;
         Scale = point.Scale.ToString(CultureInfo.InvariantCulture);
+        Offset = point.Offset.ToString(CultureInfo.InvariantCulture);
+        RatioPrimary = point.RatioPrimary.ToString(CultureInfo.InvariantCulture);
+        RatioSecondary = point.RatioSecondary.ToString(CultureInfo.InvariantCulture);
+        NormalizedFullScale = point.NormalizedFullScale.ToString(CultureInfo.InvariantCulture);
         ExpectedClass = point.ExpectedClass?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         ExpectedCot = point.ExpectedCot?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         CommandPolicy = point.CommandPolicy;
@@ -1245,6 +1281,10 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string SignalType { get => _signalType; set => SetField(ref _signalType, value); }
     public string Unit { get => _unit; set => SetField(ref _unit, value); }
     public string Scale { get => _scale; set => SetField(ref _scale, value); }
+    public string Offset { get => _offset; set => SetField(ref _offset, value); }
+    public string RatioPrimary { get => _ratioPrimary; set => SetField(ref _ratioPrimary, value); }
+    public string RatioSecondary { get => _ratioSecondary; set => SetField(ref _ratioSecondary, value); }
+    public string NormalizedFullScale { get => _normalizedFullScale; set => SetField(ref _normalizedFullScale, value); }
     public string ExpectedClass { get => _expectedClass; set => SetField(ref _expectedClass, value); }
     public string ExpectedCot { get => _expectedCot; set => SetField(ref _expectedCot, value); }
     public string CommandPolicy { get => _commandPolicy; set => SetField(ref _commandPolicy, value); }
@@ -1265,7 +1305,11 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         Group = string.IsNullOrWhiteSpace(Group) ? "Unassigned" : Group.Trim(),
         SignalType = SignalType?.Trim() ?? string.Empty,
         Unit = Unit?.Trim() ?? string.Empty,
-        Scale = SignalListEditorWindow.ParseDouble(Scale, 1.0),
+        Scale = SignalListEditorWindow.ParseEngineeringDouble(Scale, "Scale"),
+        Offset = SignalListEditorWindow.ParseEngineeringDouble(Offset, "Offset"),
+        RatioPrimary = SignalListEditorWindow.ParseEngineeringDouble(RatioPrimary, "Ratio primary"),
+        RatioSecondary = SignalListEditorWindow.ParseEngineeringDouble(RatioSecondary, "Ratio secondary"),
+        NormalizedFullScale = SignalListEditorWindow.ParseEngineeringDouble(NormalizedFullScale, "Normalized full-scale"),
         ExpectedClass = SignalListEditorWindow.ParseInt(ExpectedClass),
         ExpectedCot = SignalListEditorWindow.ParseInt(ExpectedCot),
         CommandPolicy = string.IsNullOrWhiteSpace(CommandPolicy) ? "MonitorOnly" : CommandPolicy.Trim(),
