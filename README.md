@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
 
@@ -52,7 +52,7 @@ IEC-101/104 measurements may be transmitted as **normalized TI9/10/21/34**, **si
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-## What's improved in stable v3.6.13
+## Reliability and forensic foundations inherited from v3.6.13
 
 - **IEC-101 single/A/B link reliability:** one bounded physical COM transaction/FCB authority, delayed-response quarantine and independent reconnect/backoff without blind command replay (#219–#225).
 - **Truthful GI/SBO/IEC-104:** command epoch/feedback correlation, source-bound GI ACTCON/ACTTERM, and IEC-104 TCP association validation (#226–#230).
@@ -73,7 +73,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. [Download the v3.6.13 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.14 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
