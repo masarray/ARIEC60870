@@ -99,7 +99,7 @@ public sealed partial class SignalListEditorWindow : Window
 
         Content = BuildLayout();
         LoadRowsFromProfile(_template);
-        UpdateStatus("Ready. Arrow keys move between cells. Type to replace the selected cell, F2/Enter edits, Tab commits, Esc cancels.", success: true);
+        UpdateStatus("Grid: type to replace, F2 edits, Tab/Enter commits, Esc cancels. Ctrl+C/V copy/paste, Ctrl+D fill down, Ctrl+Z/Y undo/redo.", success: true);
     }
 
     public Iec10xPointMappingProfile Profile { get; private set; }
@@ -276,7 +276,12 @@ public sealed partial class SignalListEditorWindow : Window
 
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                SaveCurrent(closeAfter: false, forceSaveAs: false);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 _searchBox.Focus();
                 _searchBox.SelectAll();
@@ -358,7 +363,7 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.CanUserResizeRows = false;
         _grid.CanUserReorderColumns = true;
         _grid.CanUserResizeColumns = true;
-        _grid.SelectionMode = DataGridSelectionMode.Single;
+        _grid.SelectionMode = DataGridSelectionMode.Extended;
         _grid.SelectionUnit = DataGridSelectionUnit.CellOrRowHeader;
         _grid.EnableRowVirtualization = true;
         _grid.EnableColumnVirtualization = true;
@@ -386,6 +391,7 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.PreparingCellForEdit += Grid_PreparingCellForEdit;
         _grid.CellEditEnding += Grid_CellEditEnding;
         _grid.BeginningEdit += Grid_BeginningEdit;
+        InitializeSpreadsheetGrid();
 
         // Daily mapping columns fit the default window. Protocol detail remains
         // editable in the inspector; advanced table columns are opt-in.
@@ -413,13 +419,14 @@ public sealed partial class SignalListEditorWindow : Window
     private void Grid_BeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
     {
         _isCellEditing = true;
+        OnGridEditStarted(e);
         UpdateStatus("Fast edit mode. Enter/Tab commits, Esc cancels. Arrow keys move between cells after the edit is committed.");
     }
 
     private void Grid_CellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
         _isCellEditing = false;
-        MarkDirty();
+        OnGridEditEnded(e);
         Dispatcher.BeginInvoke(new Action(UpdateDetailSelection), DispatcherPriority.Background);
     }
 
@@ -465,6 +472,7 @@ public sealed partial class SignalListEditorWindow : Window
     private void Grid_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (_isCellEditing) return;
+        if (HandleSpreadsheetKey(e)) return;
         if (HasCommandModifier()) return;
 
         if (e.Key is Key.F2 or Key.Enter)
@@ -1146,6 +1154,7 @@ public sealed partial class SignalListEditorWindow : Window
                 SetCurrentCell(_rows[0]);
             }
             UpdateDetailSelection();
+            ResetGridCheckpoint();
         }
         finally
         {
@@ -1164,7 +1173,8 @@ public sealed partial class SignalListEditorWindow : Window
 
     private void Row_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_loadingRows) return;
+        if (_loadingRows || _applyingGridTransaction) return;
+        if (!_isCellEditing) _redoGrid.Clear();
         if (e.PropertyName == nameof(SignalListEditorRow.BayType))
             RefreshBayChoices();
         if (_searchBox.Text.Length > 0 || _bayFilter.SelectedIndex > 0 || _kindFilter.SelectedIndex > 0)
@@ -1507,6 +1517,7 @@ public sealed partial class SignalListEditorWindow : Window
             Profile = profile;
             _saved = true;
             _dirty = false;
+            ResetGridCheckpoint();
             UpdateCounters();
             UpdateStatus($"Saved {profile.Points.Count} point(s) to {Path.GetFileName(target)}.", success: true);
             if (closeAfter)
@@ -1747,7 +1758,7 @@ public sealed partial class SignalListEditorWindow : Window
     }
 }
 
-public sealed class SignalListEditorRow : INotifyPropertyChanged
+public sealed class SignalListEditorRow : INotifyPropertyChanged, IEditableObject
 {
     private string _ca = string.Empty;
     private string _ioa = string.Empty;
@@ -1930,6 +1941,24 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         }
         return map;
     }
+
+    // WPF DataGrid edits use an actual rollback contract. Without this,
+    // UpdateSourceTrigger=PropertyChanged can leak typed text into the row
+    // even when the engineer presses Escape to cancel a cell edit.
+    private SignalListEditorRow? _editingBackup;
+
+    public void BeginEdit() => _editingBackup ??= Clone();
+
+    public void CancelEdit()
+    {
+        var original = _editingBackup;
+        if (original is null) return;
+        _editingBackup = null;
+        foreach (var field in SignalGridEditModel.Fields)
+            SignalGridEditModel.Write(this, field, SignalGridEditModel.Read(original, field));
+    }
+
+    public void EndEdit() => _editingBackup = null;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
