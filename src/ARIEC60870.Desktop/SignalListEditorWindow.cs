@@ -100,7 +100,7 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(14) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -126,7 +126,7 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildHero()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 14), new Thickness(18, 16, 18, 16));
+        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(16, 11, 16, 11));
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -136,7 +136,7 @@ public sealed partial class SignalListEditorWindow : Window
         left.Children.Add(new TextBlock
         {
             Text = "Signal List Editor",
-            FontSize = 24,
+            FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMainBrush,
             Margin = new Thickness(0, 0, 0, 3)
@@ -164,7 +164,7 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildToolbarCard()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 14), new Thickness(14, 12, 14, 12));
+        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(12, 9, 12, 9));
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -441,15 +441,7 @@ public sealed partial class SignalListEditorWindow : Window
         card.Child = root;
 
         // Keep signal identity and edit actions visible while switching pages.
-        var header = new StackPanel { Margin = new Thickness(0, 0, 0, 9) };
-        header.Children.Add(new TextBlock
-        {
-            Text = "Selected signal",
-            FontSize = 15,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = TextMainBrush,
-            Margin = new Thickness(0, 0, 0, 6)
-        });
+        var header = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
         _selectionTitle.Text = "No row selected";
         _selectionTitle.FontSize = 13.2;
         _selectionTitle.FontWeight = FontWeights.SemiBold;
@@ -466,7 +458,7 @@ public sealed partial class SignalListEditorWindow : Window
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
-        var tabs = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        var tabs = new Grid { Margin = new Thickness(0, 0, 0, 6) };
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         ConfigureInspectorTabButton(_scalingTabButton, "Engineering Scaling", scaling: true);
@@ -477,15 +469,8 @@ public sealed partial class SignalListEditorWindow : Window
         DockPanel.SetDock(tabs, Dock.Top);
         root.Children.Add(tabs);
 
-        var footer = new StackPanel { Margin = new Thickness(0, 9, 0, 0) };
-        var validateButton = CreateToolbarButton("Validate row", ValidateSelectedRow_Click, false, false);
-        validateButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-        validateButton.Margin = new Thickness(0, 0, 0, 7);
-        footer.Children.Add(validateButton);
-        // Duplicate is already available on the main toolbar. Avoid hiding
-        // the TwoPoint endpoint inputs behind duplicated footer controls.
-        DockPanel.SetDock(footer, Dock.Bottom);
-        root.Children.Add(footer);
+        // The toolbar already exposes Validate and Duplicate. Reserve the
+        // vertical workspace for engineering input instead of redundant buttons.
 
         // Scaling is now a first-class page, instead of being buried after
         // seven unrelated fields inside a long inspector.
