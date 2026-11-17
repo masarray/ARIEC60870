@@ -1300,13 +1300,25 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     // unsaved Signal List changes.
     public SignalListEditorRow Clone() => new()
     {
-        Ca = Ca, Ioa = Ioa, TypeId = TypeId, Name = Name, Group = Group,
-        SignalType = SignalType, Unit = Unit, Scale = Scale, Offset = Offset,
-        RatioPrimary = RatioPrimary, RatioSecondary = RatioSecondary,
+        Ca = Ca,
+        Ioa = Ioa,
+        TypeId = TypeId,
+        Name = Name,
+        Group = Group,
+        SignalType = SignalType,
+        Unit = Unit,
+        Scale = Scale,
+        Offset = Offset,
+        RatioPrimary = RatioPrimary,
+        RatioSecondary = RatioSecondary,
         NormalizedFullScale = NormalizedFullScale,
-        ExpectedClass = ExpectedClass, ExpectedCot = ExpectedCot,
-        CommandPolicy = CommandPolicy, FeedbackIoa = FeedbackIoa,
-        StateMap = StateMap, Mnemonic = Mnemonic, BayType = BayType,
+        ExpectedClass = ExpectedClass,
+        ExpectedCot = ExpectedCot,
+        CommandPolicy = CommandPolicy,
+        FeedbackIoa = FeedbackIoa,
+        StateMap = StateMap,
+        Mnemonic = Mnemonic,
+        BayType = BayType,
         Description = Description
     };
 
