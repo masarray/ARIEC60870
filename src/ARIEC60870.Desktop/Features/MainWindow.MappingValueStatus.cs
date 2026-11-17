@@ -383,6 +383,12 @@ public partial class MainWindow
             (!_passiveLedgerFactProjection || _passiveLedgerSnapshotProjection);
         var shouldShowEdgeEvent = item.IsRelayEdgeEvent || IsIec10xDigitalEdgeEvent(item);
         var ioaPoint = ResolveIoaPoint(item);
+        // A CA-reconciled/name-only alias may supply an operator label, not
+        // the numeric engineering calibration of another station. Scaling
+        // requires an exact, unambiguous CA/IOA/TI-family Signal List match.
+        var engineeringPoint = _displayPointIndex.Resolve(
+            item.CommonAddressNumber, item.InformationObjectAddress,
+            item.TypeId).Point;
         var profileTiMismatch = ioaPoint?.TypeId is int declaredTi &&
             item.TypeId is int receivedTi &&
             !Iec10xPointTypeFamily.SameObservationFamily(declaredTi, receivedTi);
@@ -423,8 +429,17 @@ public partial class MainWindow
             : !string.IsNullOrWhiteSpace(item.ObjectSummary)
                 ? item.ObjectSummary
                 : item.SignalRawValue;
-        if (ioaPoint is not null && !profileTiMismatch)
+        if (engineeringPoint is not null &&
+            Iec10xEngineeringValue.TryFormat(engineeringPoint,
+                item.AsduDetails, item.InformationObjectDetails, out var engineeringValue))
         {
+            displayValue = engineeringValue;
+        }
+        else if (ioaPoint is not null && !profileTiMismatch &&
+                 !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1))
+        {
+            // Digital StateMap remains display-only; numeric measurements
+            // must come from verified IEC wire bytes, not formatted text.
             displayValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(displayValue));
         }
 
@@ -433,8 +448,13 @@ public partial class MainWindow
         {
             previousValue = item.PreviousSignalValue;
         }
-        if (ioaPoint is not null && !profileTiMismatch && !string.IsNullOrWhiteSpace(previousValue))
+        if (ioaPoint is not null && !profileTiMismatch &&
+            !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1) &&
+            string.IsNullOrWhiteSpace(previousValueBeforeUpdate) &&
+            !string.IsNullOrWhiteSpace(previousValue))
         {
+            // Previous values already stored in _lastDisplayedValueByKey
+            // are engineering values: never scale them a second time.
             previousValue = ioaPoint.ResolveDisplayValue(ExtractSimpleStateToken(previousValue));
         }
 
