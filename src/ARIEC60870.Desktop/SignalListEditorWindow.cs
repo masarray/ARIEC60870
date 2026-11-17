@@ -1294,7 +1294,21 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string BayType { get => _bayType; set => SetField(ref _bayType, value); }
     public string Description { get => _description; set => SetField(ref _description, value); }
 
-    public SignalListEditorRow Clone() => new(ToPoint());
+    // Duplicate is an editor operation, NOT a save/validation boundary.
+    // Preserve in-progress strings verbatim, even when a Scale or ratio cell
+    // is empty/invalid, so a normal Duplicate click cannot throw and discard
+    // unsaved Signal List changes.
+    public SignalListEditorRow Clone() => new()
+    {
+        Ca = Ca, Ioa = Ioa, TypeId = TypeId, Name = Name, Group = Group,
+        SignalType = SignalType, Unit = Unit, Scale = Scale, Offset = Offset,
+        RatioPrimary = RatioPrimary, RatioSecondary = RatioSecondary,
+        NormalizedFullScale = NormalizedFullScale,
+        ExpectedClass = ExpectedClass, ExpectedCot = ExpectedCot,
+        CommandPolicy = CommandPolicy, FeedbackIoa = FeedbackIoa,
+        StateMap = StateMap, Mnemonic = Mnemonic, BayType = BayType,
+        Description = Description
+    };
 
     public Iec10xPointMappingEntry ToPoint() => new()
     {
