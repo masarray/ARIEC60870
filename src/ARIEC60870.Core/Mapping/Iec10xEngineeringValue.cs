@@ -88,10 +88,37 @@ public static class Iec10xEngineeringValue
             point.NormalizedFullScale <= 0)
             return false;
 
-        var fullScale = sample.TypeId is 9 or 10 or 21 or 34
-            ? point.NormalizedFullScale : 1d;
-        var engineering = sample.SourceNumber * fullScale *
-            point.Scale * (point.RatioPrimary / point.RatioSecondary) + point.Offset;
+        double engineering;
+        if (string.Equals(point.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase))
+        {
+            // Do not mix normalized full-scale, CT/VT ratio, multiplier or
+            // offset with an explicitly calibrated two-point map.
+            // Endpoint X values refer to the actual decoded source domain:
+            // IEC NVA [-1,1), SVA signed I16, or IEEE float.
+            if (point.TypeId is not int configuredType ||
+                !IsMeasurementType(configuredType) ||
+                point.X0 is not double x0 || point.X100 is not double x100 ||
+                point.Y0 is not double y0 || point.Y100 is not double y100 ||
+                !double.IsFinite(x0) || !double.IsFinite(x100) ||
+                !double.IsFinite(y0) || !double.IsFinite(y100) ||
+                x0 == x100 || !double.IsFinite(x100 - x0) ||
+                !double.IsFinite(y100 - y0))
+                return false;
+            var slope = (y100 - y0) / (x100 - x0);
+            if (!double.IsFinite(slope)) return false;
+            // Intentionally extrapolate beyond the source range, consistent
+            // with SCADA two-point scaling; never silently clamp or change QDS.
+            engineering = y0 + (sample.SourceNumber - x0) * slope;
+        }
+        else if (string.IsNullOrWhiteSpace(point.ScalingMode) ||
+            string.Equals(point.ScalingMode, "Factor", StringComparison.OrdinalIgnoreCase))
+        {
+            var fullScale = sample.TypeId is 9 or 10 or 21 or 34
+                ? point.NormalizedFullScale : 1d;
+            engineering = sample.SourceNumber * fullScale *
+                point.Scale * (point.RatioPrimary / point.RatioSecondary) + point.Offset;
+        }
+        else return false;
         if (!double.IsFinite(engineering)) return false;
 
         // Fixed six decimals silently rounded e.g. 1E-7 to zero; use
