@@ -116,10 +116,16 @@ public sealed class Iec10xBayAwarePointMappingTests
         var profile = Load();
         var labNumbers = new Dictionary<int, string>
         {
-            [790438] = "1", [790439] = "1", [790442] = "2", [790443] = "2",
-            [68539] = "1", [68550] = "2",
-            [16712686] = "1", [16712704] = "2",
-            [8388716] = "1", [8388717] = "2"
+            [790438] = "1",
+            [790439] = "1",
+            [790442] = "2",
+            [790443] = "2",
+            [68539] = "1",
+            [68550] = "2",
+            [16712686] = "1",
+            [16712704] = "2",
+            [8388716] = "1",
+            [8388717] = "2",
         };
         Assert.Equal(31, profile.Points.Count);
         foreach (var point in profile.Points)
