@@ -59,6 +59,7 @@ public sealed class SignalListEditorWindow : Window
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
     private bool _saved;
+    private string? _protectedSyncSourcePath;
     private bool _loadingRows;
     private bool _isCellEditing;
     private string? _pendingCellEditText;
@@ -204,6 +205,7 @@ public sealed class SignalListEditorWindow : Window
         AddToolbarButton(toolbar, "Duplicate", DuplicateRow_Click);
         AddToolbarButton(toolbar, "Delete", DeleteRow_Click, danger: true);
         AddToolbarButton(toolbar, "Load", LoadList_Click);
+        AddToolbarButton(toolbar, "Sync 31 I/O", SyncScadaIoList_Click);
         AddToolbarButton(toolbar, "Save", SaveList_Click);
         AddToolbarButton(toolbar, "Save As", SaveAs_Click);
         AddToolbarButton(toolbar, "Validate", Validate_Click);
@@ -530,12 +532,23 @@ public sealed class SignalListEditorWindow : Window
         AddEditorField(factorPanel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
             "For IEC TI9/10/21/34 only: NVA [-1,1) multiplied by engineering full-scale.", compact: true);
         panel.Children.Add(factorPanel);
+        AddTwoPointPair(panel, "Engineering min · metadata", nameof(SignalListEditorRow.EngineeringMin),
+            "Engineering max · metadata", nameof(SignalListEditorRow.EngineeringMax));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Reference limits only, not calibration endpoints or clamping.",
+            FontSize = 10.5,
+            Foreground = TextMutedBrush,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 7)
+        });
         AddEditorField(panel, "Class", nameof(SignalListEditorRow.ExpectedClass), "Expected IEC-101 class", compact: true);
         AddEditorField(panel, "COT", nameof(SignalListEditorRow.ExpectedCot), "Expected cause of transmission", compact: true);
         AddEditorCombo(panel, "Command policy", nameof(SignalListEditorRow.CommandPolicy), new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
         AddEditorField(panel, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
         AddEditorField(panel, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
         AddEditorField(panel, "Mnemonic", nameof(SignalListEditorRow.Mnemonic));
+        AddEditorField(panel, "Business type (TM / TSD / TSS / RCD...)", nameof(SignalListEditorRow.TestCategory), compact: true);
         AddEditorField(panel, "Bay", nameof(SignalListEditorRow.BayType));
         AddEditorField(panel, "Description", nameof(SignalListEditorRow.Description), multiline: true);
 
@@ -1004,6 +1017,69 @@ public sealed class SignalListEditorWindow : Window
         }
     }
 
+    private void SyncScadaIoList_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+            _grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var current = BuildProfileFromRows();
+            var packaged = Path.Combine(AppContext.BaseDirectory, "profiles",
+                "utility_fat_iec10x_default_profile.json");
+            var checkout = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                "..", "..", "..", "..", "profiles",
+                "utility_fat_iec10x_default_profile.json"));
+            var referencePath = new[] { packaged, checkout }.FirstOrDefault(File.Exists);
+            if (referencePath is null)
+                throw new FileNotFoundException(
+                    "The bundled 31-point SCADA 101 reference was not installed. Nothing was changed.");
+
+            var reference = Iec10xPointMappingProfile.LoadFromFile(referencePath);
+            var preview = Iec10xScadaIoListProfileSync.PrepareCopy(current, reference);
+            if (preview.MatchedPoints == 0)
+            {
+                UpdateStatus("No exact CA=105 / IOA / Type ID matches. Other stations were left untouched.", danger: true);
+                return;
+            }
+            if (!preview.HasChanges)
+            {
+                UpdateStatus($"All {preview.MatchedPoints} matching signals already agree with the bundled I/O labels and safe raw units.", success: true);
+                return;
+            }
+
+            var prompt =
+                $"Compare the current Signal List with the bundled SCADA 101 I/O list?\n\n" +
+                $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\n" +
+                $"Signal names to update: {preview.RenamedPoints}\n" +
+                $"Business labels to update: {preview.UpdatedBusinessMetadata}\n" +
+                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n" +
+                $"Uncalibrated TI9 range updated to document 0..1000: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
+                "Approved Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
+                "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the documented 0..1000 range are reconciled. " +
+                "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
+                "Prepare the updated copy?";
+            if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            _protectedSyncSourcePath ??= SavedProfilePath;
+            _template = preview.UpdatedProfile;
+            _profileNameBox.Text = preview.UpdatedProfile.ProfileName;
+            LoadRowsFromProfile(preview.UpdatedProfile);
+            SavedProfilePath = string.Empty;
+            _pathBox.Text = "New copy required — choose Save As";
+            _saved = false;
+            MarkDirty();
+            UpdateStatus($"Prepared {preview.MatchedPoints} matching points. Save & Apply to a NEW profile file; original preserved.", success: true);
+        }
+        catch (Exception ex)
+        {
+            ModernMessageBox.Show(this, ex.Message, "SCADA I/O list sync",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            UpdateStatus("SCADA I/O list sync refused. The active profile was not changed.", danger: true);
+        }
+    }
+
     private void LoadList_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "IOA profile JSON (*.json)|*.json|All files (*.*)|*.*" };
@@ -1014,6 +1090,7 @@ public sealed class SignalListEditorWindow : Window
             _template = CloneProfile(profile);
             Profile = CloneProfile(profile);
             SavedProfilePath = dialog.FileName;
+            _protectedSyncSourcePath = null;
             _pathBox.Text = SavedProfilePath;
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
@@ -1074,6 +1151,18 @@ public sealed class SignalListEditorWindow : Window
                 errors.Add($"{label} must be a finite number" + (requirePositive ? " greater than zero." : "."));
         }
 
+        foreach (var (label, text) in new[]
+        {
+            ("Engineering minimum", row.EngineeringMin),
+            ("Engineering maximum", row.EngineeringMax)
+        })
+        {
+            if (!string.IsNullOrWhiteSpace(text) &&
+                (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ||
+                 !double.IsFinite(v)))
+                errors.Add($"{label} must be a finite number or empty.");
+        }
+
         if (!string.Equals(row.ScalingMode, "Factor", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase))
             errors.Add("Scaling mode must be Factor or TwoPoint.");
@@ -1119,6 +1208,15 @@ public sealed class SignalListEditorWindow : Window
                 };
                 if (dialog.ShowDialog(this) != true) return false;
                 target = dialog.FileName;
+            }
+            if (!string.IsNullOrWhiteSpace(_protectedSyncSourcePath) &&
+                string.Equals(Path.GetFullPath(target), Path.GetFullPath(_protectedSyncSourcePath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                ModernMessageBox.Show(this,
+                    "Choose a different file name. Sync must not overwrite the original Signal List.",
+                    "Preserve original profile", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
             }
             profile.SaveToFile(target);
             SavedProfilePath = target;
@@ -1204,7 +1302,8 @@ public sealed class SignalListEditorWindow : Window
             return Contains(row.Ca, query) || Contains(row.Ioa, query) || Contains(row.TypeId, query) ||
                    Contains(row.Name, query) || Contains(row.Group, query) || Contains(row.SignalType, query) ||
                    Contains(row.CommandPolicy, query) || Contains(row.FeedbackIoa, query) || Contains(row.StateMap, query) ||
-                   Contains(row.Mnemonic, query) || Contains(row.BayType, query) || Contains(row.Description, query);
+                   Contains(row.Mnemonic, query) || Contains(row.BayType, query) ||
+                   Contains(row.TestCategory, query) || Contains(row.Description, query);
         };
         view.Refresh();
         UpdateCounters();
@@ -1330,6 +1429,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     private string _stateMap = string.Empty;
     private string _mnemonic = string.Empty;
     private string _bayType = string.Empty;
+    private string _testCategory = string.Empty;
+    private string _engineeringMin = string.Empty;
+    private string _engineeringMax = string.Empty;
     private string _description = string.Empty;
 
     public SignalListEditorRow() { }
@@ -1360,6 +1462,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         StateMap = point.StateMap.Count == 0 ? string.Empty : string.Join("; ", point.StateMap.Select(x => x.Key + "=" + x.Value));
         Mnemonic = point.Mnemonic;
         BayType = point.BayType;
+        TestCategory = point.TestCategory;
+        EngineeringMin = point.EngineeringMin?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        EngineeringMax = point.EngineeringMax?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         Description = point.Description;
     }
 
@@ -1394,6 +1499,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string StateMap { get => _stateMap; set => SetField(ref _stateMap, value); }
     public string Mnemonic { get => _mnemonic; set => SetField(ref _mnemonic, value); }
     public string BayType { get => _bayType; set => SetField(ref _bayType, value); }
+    public string TestCategory { get => _testCategory; set => SetField(ref _testCategory, value); }
+    public string EngineeringMin { get => _engineeringMin; set => SetField(ref _engineeringMin, value); }
+    public string EngineeringMax { get => _engineeringMax; set => SetField(ref _engineeringMax, value); }
     public string Description { get => _description; set => SetField(ref _description, value); }
 
     // Duplicate is an editor operation, NOT a save/validation boundary.
@@ -1426,6 +1534,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         StateMap = StateMap,
         Mnemonic = Mnemonic,
         BayType = BayType,
+        TestCategory = TestCategory,
+        EngineeringMin = EngineeringMin,
+        EngineeringMax = EngineeringMax,
         Description = Description
     };
 
@@ -1454,6 +1565,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         FeedbackIoa = SignalListEditorWindow.ParseInt(FeedbackIoa),
         Mnemonic = Mnemonic?.Trim() ?? string.Empty,
         BayType = BayType?.Trim() ?? string.Empty,
+        TestCategory = TestCategory?.Trim() ?? string.Empty,
+        EngineeringMin = SignalListEditorWindow.ParseOptionalEngineeringDouble(EngineeringMin, "Engineering minimum"),
+        EngineeringMax = SignalListEditorWindow.ParseOptionalEngineeringDouble(EngineeringMax, "Engineering maximum"),
         Description = Description?.Trim() ?? string.Empty,
         StateMap = ParseStateMap(StateMap)
     };

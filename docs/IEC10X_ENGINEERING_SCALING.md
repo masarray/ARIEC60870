@@ -82,6 +82,43 @@ In Signal List, select the measured CA/IOA/Type ID row, choose
 without these fields still load in `Factor` mode; these changes ship only
 when a later qualified public binary is released (not in immutable v3.6.13).
 
+## Safely reconcile an existing locally saved 31-point profile
+
+A newer installer does **not** replace a locally saved Signal List. Existing
+profiles may still contain the old long names and unverified `13641 MVar`
+label even after the bundled sample is updated. Replacing the whole file
+would risk losing calibrated scale/offset, station-specific CA, commands, and
+operator feedback settings.
+
+From **Signal List → Sync 31 I/O**, the operator can preview and confirm a
+non-destructive merge of the bundled 31-point I/O list into a **new copy**.
+The action:
+
+- Matches only **exact CA=105 + IOA + IEC Type ID**, never a guessed CA
+  alias or command/feedback observation family. Other stations, unknown
+  points, and unmatched types are untouched.
+- Updates only the source-derived signal name, BAY TYPE, MNEMO, and
+  business TYPE/TEST category. Other project settings are preserved.
+- For source-listed TI11 Q points only, if the previous configuration still
+  has **Factor identity** (scale=1, offset=0, ratio=1/1 and full-scale=1),
+  converts a misleading `MVar` unit suffix into `counts` after explicit
+  operator consent. **Custom Factor and TwoPoint calibrated MVar remain
+  unchanged.** This never fabricates the missing gateway coefficient.
+- For the documented TI9 POAQ (IOA 790449) only, a legacy **identity**
+  normalized reading with MW unit and no configured endpoints is upgraded to
+  the documented X0=0, X100=1, Y0=0, Y100=1000 mapping. Existing custom
+  full-scale or TwoPoint settings are never overwritten.
+- Does **not** change any previously configured calibration, raw decoded
+  bytes, CA/link configuration, commands, feedback, control policies,
+  timestamps, or quality.
+- Requires **Save & Apply to a new JSON file**, and refuses overwriting
+  the original source profile path. Review the resulting file and physical
+  values before using it as an approved station mapping.
+
+For actual MVar display, determine the source-approved TI11 factor or
+X0/X100/Y0/Y100 endpoints, edit the selected Q point, validate, and
+save the project profile. Synchronizing names is not engineering calibration.
+
 ## Project configuration in Signal List
 
 Select the correct station CA, IOA and actual IEC Type ID. In the compact
