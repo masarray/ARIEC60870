@@ -294,8 +294,8 @@ public sealed class Iec10xAsduDecoder
                 51 or 64 => data.Length >= 4 ? $"Bitstring command=0x{BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(0, 4)):X8}" : string.Empty,
                 100 => data.Length >= 1 ? $"Interrogation qualifier QOI={data[0]}" : string.Empty,
                 101 => data.Length >= 1 ? $"Counter interrogation qualifier QCC=0x{data[0]:X2}" : string.Empty,
-                 70 => data.Length >= 1 ? $"Initialization COI={data[0] & 0x7F}, LPC={((data[0] & 0x80) != 0 ? 1 : 0)}" : string.Empty,
-                 106 => data.Length >= 2 ? $"Delay acquisition={BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2))} ms (CP16Time2a)" : string.Empty,
+                70 => data.Length >= 1 ? $"Initialization COI={data[0] & 0x7F}, LPC={((data[0] & 0x80) != 0 ? 1 : 0)}" : string.Empty,
+                106 => data.Length >= 2 ? $"Delay acquisition={BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2))} ms (CP16Time2a)" : string.Empty,
                 102 => "Read command",
                 103 => data.Length >= 7 ? "Clock sync" : string.Empty,
                 _ => data.Length > 0 ? $"Payload={ToHex(data)}" : string.Empty
