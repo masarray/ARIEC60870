@@ -144,6 +144,85 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Name suggestion must be explicit, require three labels, preserve optional # and not dirty navigation.");
 
+            // Actual Windows WPF grid contract plus deterministic clipboard
+            // planning. This never touches the engineer's system clipboard or
+            // brings up a modal confirmation during GUI smoke.
+            if (editor._grid.SelectionMode != DataGridSelectionMode.Extended ||
+                editor._grid.ClipboardCopyMode != DataGridClipboardCopyMode.ExcludeHeader ||
+                editor._grid.ContextMenu is null)
+                throw new InvalidOperationException(
+                    "Signal Map must expose native multi-cell selection and clipboard actions.");
+
+            var quoted = SignalGridEditModel.ParseTsv("A\t\"B\tC\"\r\nD\t\"line1\nline2\"\r\n");
+            if (quoted.Count != 2 || quoted[0].Count != 2 ||
+                quoted[0][1] != "B\tC" || quoted[1][1] != "line1\nline2")
+                throw new InvalidOperationException("Excel quoted TSV parsing is lossy.");
+
+            var expectedCount = editor._rows.Count;
+            var originalName = normalized.Name;
+            var originalQName = q.Name;
+            var combined = SignalGridEditModel.PlanPaste(
+                [normalized, q], [nameof(SignalListEditorRow.Name)],
+                0, 0, "New name 1\r\nNew name 2\r\n");
+            if (combined.Count != 2 || normalized.Name != originalName || q.Name != originalQName)
+                throw new InvalidOperationException("Clipboard planning mutated live values.");
+            editor.ApplyNewGridTransaction(combined, "WPF test paste", warnOnBulk: false);
+            if (normalized.Name != "New name 1" || q.Name != "New name 2" ||
+                editor._rows.Count != expectedCount || !editor._dirty)
+                throw new InvalidOperationException("Atomic 2-row edit failed or did not set Unsaved.");
+            editor.UndoGridAction();
+            if (normalized.Name != originalName || q.Name != originalQName || editor._dirty)
+                throw new InvalidOperationException("Undo must restore both names and original Clean state.");
+            editor.RedoGridAction();
+            if (normalized.Name != "New name 1" || q.Name != "New name 2" || !editor._dirty)
+                throw new InvalidOperationException("Redo did not restore both fields.");
+            editor.UndoGridAction();
+
+            var down = SignalGridEditModel.PlanFillDown(
+                [normalized, q], [nameof(SignalListEditorRow.Name)],
+                new (int Row, int Column)[] { (0, 0), (1, 0) });
+            if (down.Count != 1 || down[0].After != normalized.Name ||
+                q.Name != originalQName)
+                throw new InvalidOperationException("Fill Down must stage the top-cell value, not mutate it.");
+            var nonRectangularRejected = false;
+            try
+            {
+                SignalGridEditModel.PlanFillDown([normalized, q],
+                    [nameof(SignalListEditorRow.Name), nameof(SignalListEditorRow.Ioa)],
+                    new (int Row, int Column)[] { (0, 0), (1, 1) });
+            }
+            catch (InvalidOperationException) { nonRectangularRejected = true; }
+            if (!nonRectangularRejected)
+                throw new InvalidOperationException("Sparse Fill Down selection was not rejected.");
+
+            var badIoa = SignalGridEditModel.PlanPaste(
+                [normalized], [nameof(SignalListEditorRow.Ioa)],
+                0, 0, "invalid-ioa");
+            var badRejected = false;
+            try { editor.ValidateGridTransaction(badIoa); }
+            catch (InvalidOperationException) { badRejected = true; }
+            if (!badRejected || normalized.Ioa != "790449" || editor._dirty)
+                throw new InvalidOperationException("Invalid IOA staging must reject without partial writes.");
+
+            var clippedRejected = false;
+            try
+            {
+                SignalGridEditModel.PlanPaste([normalized],
+                    [nameof(SignalListEditorRow.Name)], 0, 0, "First\nSecond");
+            }
+            catch (InvalidOperationException) { clippedRejected = true; }
+            if (!clippedRejected || editor._rows.Count != expectedCount || editor._dirty)
+                throw new InvalidOperationException("Out-of-bounds clipboard paste must be atomic.");
+
+            var savedName = normalized.Name;
+            normalized.BeginEdit();
+            normalized.Name = "typing that will be cancelled";
+            normalized.CancelEdit();
+            editor.RecalculateGridDirty();
+            if (normalized.Name != savedName || editor._dirty)
+                throw new InvalidOperationException(
+                    "Esc/IEditableObject must roll back a live binding and restore Clean state.");
+
             // The field worksheet is an explicit export, never part of
             // navigation, live polling or a default GUI side effect.
             var moreMenu = editor.BuildMoreActionsMenu();
