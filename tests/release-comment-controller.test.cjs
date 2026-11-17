@@ -26,16 +26,17 @@ const ci = {id:4,head_sha:SHA,head_branch:'master',event:'push',
 const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'};
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
-   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[]}={}) {
+   recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],
+    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false,
+    ciConclusion='success'}={}) {
   const calls=[];
-  let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'},
-    ...markers.map(m => ({id:100+m.length,body:m,user:{login:'github-actions[bot]'},created_at:now})),...extraComments];
+  let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
   const content = path => {
     const txt = path === 'Directory.Build.props' ? `<Project><Version>${version}</Version></Project>` : '# release notes';
     return {data:{type:'file',encoding:'base64',content:Buffer.from(txt).toString('base64')}};
   };
   const workflowRuns = id => {
-    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:ci];
+    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:{...ci,conclusion:ciConclusion}];
     if(id==='release-package.yml') return runningPackage ?
       [{id:10,status:'in_progress'}] : [];
     if(id==='codeql.yml') return codeql?[green]:[];
@@ -52,15 +53,21 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
         getReleaseByTag:async()=>{throw {status:404};}
       },
       pulls:{list:async()=>({data:[pr]})},
-      issues:{listComments:async()=>({data:comments}),createComment:async({body})=>{
-        calls.push({type:'comment',body});comments.push({id:500,body,user:{login:'github-actions[bot]'}});
-        return {data:{id:500}};
-      }},
+      issues:{listComments:async()=>({data:comments})},
       git:{getRef:async()=>{throw {status:404};}},
       actions:{
         listWorkflowRuns:async({workflow_id})=>({data:{workflow_runs:workflowRuns(workflow_id)}}),
-        listJobsForWorkflowRun:async()=>({data:{jobs:fat?qualifiedJobs:qualifiedJobs.slice(0,1)}}),
-        createWorkflowDispatch:async(args)=>{calls.push({type:'dispatch',args});return {status:204};}
+        listJobsForWorkflowRun:async({run_id})=>({data:{jobs:run_id===789 ? [{name:'release-admission',steps:[
+          {name:'Dispatch one pinned next stage',conclusion:artifactDispatch}]}] :
+          (fat?qualifiedJobs:qualifiedJobs.slice(0,1))}}),
+        listArtifactsForRepo:async({name})=>({data:{total_count:artifactOverflow?101:markers.includes(name)?1:0,
+          artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
+        getWorkflowRun:async()=>({data:{
+          path:artifactFromPr?'.github/workflows/ci.yml':'.github/workflows/release-comment.yml',
+          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:'issue_comment',
+          status:artifactStatus,conclusion:artifactStatus==='completed'?'success':null,
+          repository:{full_name:'masarray/ARIEC60870'}
+        }})
       }
     },
     paginate:async(fn,args)=>{
@@ -71,7 +78,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
   const context = {repo:{owner:'masarray',repo:'ARIEC60870'},eventName:commentEvent?'issue_comment':'workflow_run',
     payload:commentEvent?{comment:command,issue:{number:250,pull_request:{url:'pr'}}}:
       {workflow_run:{name:'CI',head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
-  const core={notice:()=>{},info:()=>{}};
+  const core={notice:()=>{},info:()=>{},setOutput:(key,value)=>calls.push({type:'output',key,value})};
   return {github,context,core,calls};
 }
 
@@ -111,24 +118,19 @@ test('pure decision engine waits/blocks/reuses instead of piling up packages',()
 });
 test('valid current merged PR triggers one Package dispatch pinned to master SHA',async()=>{
   const m=mock();await run(m);
-  const dispatch=m.calls.filter(x=>x.type==='dispatch');
-  assert.equal(dispatch.length,1);
-  assert.equal(dispatch[0].args.workflow_id,'release-package.yml');
-  assert.equal(dispatch[0].args.inputs.expected_sha,SHA);
-  assert.equal(dispatch[0].args.inputs.version,'3.6.13');
-  assert.equal(dispatch[0].args.inputs.prerelease,'false');
-  assert.equal(m.calls.filter(x=>x.type==='comment').length,1);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
+  assert.equal(m.calls.find(x=>x.key==='sha')?.value,SHA);
+  assert.equal(m.calls.find(x=>x.key==='version')?.value,'3.6.13');
 });
 test('unqualified master dispatches only one updater CI; never Package',async()=>{
   const m=mock({fat:false});await run(m);
-  assert.deepEqual(m.calls.filter(x=>x.type==='dispatch').map(x=>x.args.workflow_id),['ci.yml']);
-  assert.equal(m.calls[1].args.inputs.profile,'updater');
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'updater');
 });
 test('duplicate, active CI or package suppresses additional expensive dispatch',async()=>{
   for(const cfg of [{markers:[stage('package')]},{markers:[stage('updater')],fat:false},
     {runningCi:true},{runningPackage:true}]) {
     const m=mock(cfg);await run(m);
-    assert.equal(m.calls.filter(x=>x.type==='dispatch').length,0,JSON.stringify(cfg));
+    assert.equal(m.calls.filter(x=>x.key==='stage').length,0,JSON.stringify(cfg));
   }
 });
 test('stale release comment and unrelated PR cannot publish',async()=>{
@@ -139,20 +141,54 @@ test('stale release comment and unrelated PR cannot publish',async()=>{
 });
 test('a matching completed workflow_run can resume the stored source-bound request',async()=>{
   const m=mock({commentEvent:false,fat:true});await run(m);
-  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
 });
 
 test('untrusted recent comment cannot suppress a previous valid release intent',async()=>{
   const m=mock({commentEvent:false,extraComments:[{id:66,body:'/release stable',
     created_at:now,user:{login:'untrusted-reader'}}]});
   await run(m);
-  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
 });
 test('completion of older Package run wakes current intent without borrowing its SHA',async()=>{
   const m=mock({commentEvent:false});
   m.context.payload.workflow_run={name:'Package',head_sha:'b'.repeat(40),
     head_branch:'release/rc-3.6.13-rc.1',event:'push',conclusion:'failure'};
   await run(m);
-  assert.equal(m.calls.filter(x=>x.type==='dispatch').length,1);
-  assert.equal(m.calls.filter(x=>x.type==='dispatch')[0].args.inputs.expected_sha,SHA);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
+  assert.equal(m.calls.find(x=>x.key==='sha')?.value,SHA);
+});
+
+test('a forged PR-workflow artifact cannot reserve the release stage',async()=>{
+  const m=mock({markers:[stage('package')],artifactFromPr:true});
+  await run(m);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
+});
+
+test('a reservation is only complete after its controller dispatch step succeeded',async()=>{
+  const failed=mock({markers:[stage('package')],artifactDispatch:'failure'});
+  await assert.rejects(()=>run(failed),/dispatch was not proven successful/);
+  assert.equal(failed.calls.filter(x=>x.key==='stage').length,0);
+  const cancelled=mock({markers:[stage('updater')],fat:false,artifactDispatch:'cancelled'});
+  await assert.rejects(()=>run(cancelled),/dispatch was not proven successful/);
+});
+
+test('an in-progress trusted controller lease prevents concurrent dispatch',async()=>{
+  const m=mock({markers:[stage('package')],artifactStatus:'in_progress',artifactDispatch:null});
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('artifact name flooding fails closed rather than dispatching twice',async()=>{
+  const m=mock({markers:[stage('package')],artifactOverflow:true});
+  await assert.rejects(()=>run(m),/Too many artifacts/);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('cancelled or timed-out exact-source updater CI is blocked, not awaited forever',async()=>{
+  for(const conclusion of ['cancelled','timed_out','action_required','startup_failure']) {
+    const m=mock({fat:false,markers:[stage('updater')],ciConclusion:conclusion});
+    await assert.rejects(()=>run(m),/Release blocked/);
+    assert.equal(m.calls.filter(x=>x.key==='stage').length,0,conclusion);
+  }
 });

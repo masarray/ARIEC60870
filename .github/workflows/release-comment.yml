@@ -33,16 +33,61 @@ jobs:
     permissions:
       actions: write
       contents: read
-      issues: write
       pull-requests: read
     steps:
       - name: Checkout trusted master control-plane code
         uses: actions/checkout@v4
       - name: Deterministic release decision tests (no Windows build)
         run: node --test tests/release-comment-controller.test.cjs
-      - name: Validate source, CI/FAT evidence and dispatch at most one next stage
+      - name: Decide next stage from current source and existing proof
+        id: decide
         uses: actions/github-script@v7
         with:
           script: |
             const controller = require('./scripts/release-comment-controller.cjs');
             await controller.run({ github, context, core });
+      - name: Make durable local stage reservation
+        if: steps.decide.outputs.stage == 'updater' || steps.decide.outputs.stage == 'package'
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.decide.outputs.sha }}
+          REQUEST_ID: ${{ steps.decide.outputs.request_id }}
+          STAGE: ${{ steps.decide.outputs.stage }}
+        run: |
+          set -euo pipefail
+          printf 'request=%s\nsha=%s\nstage=%s\n' "$REQUEST_ID" "$SOURCE_SHA" "$STAGE" > release-stage.txt
+      - name: Persist single-flight reservation before dispatch
+        if: steps.decide.outputs.stage == 'updater' || steps.decide.outputs.stage == 'package'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-stage-v1-${{ steps.decide.outputs.request_id }}-${{ steps.decide.outputs.sha_short }}-${{ steps.decide.outputs.stage }}
+          path: release-stage.txt
+          if-no-files-found: error
+          retention-days: 3
+      - name: Dispatch one pinned next stage
+        if: steps.decide.outputs.stage == 'updater' || steps.decide.outputs.stage == 'package'
+        uses: actions/github-script@v7
+        env:
+          STAGE: ${{ steps.decide.outputs.stage }}
+          VERSION: ${{ steps.decide.outputs.version }}
+          SOURCE_SHA: ${{ steps.decide.outputs.sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = process.env.SOURCE_SHA;
+            const version = process.env.VERSION;
+            const stage = process.env.STAGE;
+            const { data: branch } = await github.rest.repos.getBranch({owner,repo,branch:'master'});
+            if (branch.commit.sha !== sha) throw Error('Master moved before dispatch; stale source refused.');
+            if (stage === 'updater') {
+              await github.rest.actions.createWorkflowDispatch({owner,repo,
+                workflow_id:'ci.yml',ref:'master',
+                inputs:{profile:'updater',installer_runner:'hosted',release_expected_sha:sha}});
+              core.notice('One exact-SHA updater FAT requested; release resumes from successful CI completion.');
+            } else if (stage === 'package') {
+              await github.rest.actions.createWorkflowDispatch({owner,repo,
+                workflow_id:'release-package.yml',ref:'master',
+                inputs:{version,publish_release:'true',prerelease:'false',draft:'false',
+                  expected_sha:sha,release_notes_file:`docs/archive/release-notes/RELEASE_NOTES_v${version}.md`}});
+              core.notice('One immutable public Package requested; all publication safety gates remain active.');
+            } else throw Error('Unexpected release stage.');

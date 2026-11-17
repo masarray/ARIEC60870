@@ -5,7 +5,7 @@
 // Trusted default-branch release control plane. No checkout of PR source with a write token.
 // The issue comment is the durable release intent; stage markers make retries idempotent.
 const COMMAND = '/release stable';
-const MARKER = '<!-- arsee-release-control:v1';
+const MARKER = 'release-stage-v1';
 const ACTIVE = new Set(['queued', 'in_progress', 'waiting', 'pending', 'requested']);
 const MAX_INTENT_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -47,7 +47,7 @@ function recentCommand(comment, now = Date.now()) {
     now - Date.parse(comment.created_at) < MAX_INTENT_AGE_MS;
 }
 function stageMarker(requestId, sha, stage) {
-  return `${MARKER} request=${requestId} sha=${sha} stage=${stage} -->`;
+  return `${MARKER}-${requestId}-${sha.slice(0,12)}-${stage}`;
 }
 function chooseAction({ published, packageReserved, updaterReserved, activePackage,
   activeCi, completedCiError, qualified, pendingChecks, failedChecks }) {
@@ -104,11 +104,36 @@ async function findIntent(github, context, sha, pr, owner, repo) {
   }
   return {request, comments};
 }
-async function notify(github, core, owner, repo, number, message, marker = '') {
-  core.notice(message);
-  if (!marker) return;
-  await github.rest.issues.createComment({owner, repo, issue_number:number,
-    body:`${marker}\n${message}`});
+// A reservation is *not* proof of dispatch: upload-artifact precedes dispatch.
+// Trust only the default-branch controller's own artifact AND completed dispatch step.
+// A failed/cancelled controller cannot silently turn a reservation into "done".
+// Failed dispatch is fail-closed; a fresh authorized comment creates a new request ID.
+async function reserved(github, owner, repo, name, sha) {
+  const {data} = await github.rest.actions.listArtifactsForRepo({owner,repo,name,per_page:100});
+  // Never lose a valid marker among attacker-supplied, same-name artifacts.
+  // Bounded search; overflow blocks release rather than risking duplicate dispatch.
+  if (data.total_count > 100)
+    throw new Error(`Too many artifacts named ${name}; release admission needs investigation.`);
+  for (const artifact of (data.artifacts || []).filter(a =>
+    !a.expired && a.name === name && a.workflow_run?.id)) {
+    const runId = artifact.workflow_run.id;
+    const {data: run} = await github.rest.actions.getWorkflowRun({owner,repo,run_id:runId});
+    const path = String(run.path || '').split('@')[0];
+    if (path !== '.github/workflows/release-comment.yml' ||
+        run.repository?.full_name !== `${owner}/${repo}` ||
+        run.head_branch !== 'master' || run.head_sha !== sha ||
+        !['issue_comment','workflow_run'].includes(run.event)) continue;
+    // A concurrent controller that has uploaded the lease is still the owner.
+    if (run.status !== 'completed') return true;
+    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
+      {owner,repo,run_id:runId,per_page:100});
+    const dispatchOk = jobs.some(j => j.name === 'release-admission' &&
+      (j.steps || []).some(s => s.name === 'Dispatch one pinned next stage' &&
+        s.conclusion === 'success'));
+    if (run.conclusion === 'success' && dispatchOk) return true;
+    throw new Error(`Release reservation ${name} belongs to controller run #${runId} but its dispatch was not proven successful. No automatic retry or duplicate package; inspect the failed run and create a fresh authorized /release stable comment after repair.`);
+  }
+  return false;
 }
 
 async function run({github, context, core}) {
@@ -143,8 +168,6 @@ async function run({github, context, core}) {
   const version = parseSourceVersion(await getContent(github, owner, repo, 'Directory.Build.props', sha));
   await getContent(github,owner,repo,`docs/archive/release-notes/RELEASE_NOTES_v${version}.md`,sha);
   const tag = `v${version}`;
-  const existingMarker = stage => comments.some(c => c.user?.login === 'github-actions[bot]' &&
-    (c.body || '').includes(stageMarker(request.id,sha,stage)));
   let published = false;
   try {
     const { data: release } = await github.rest.repos.getReleaseByTag({owner, repo, tag});
@@ -205,10 +228,16 @@ async function run({github, context, core}) {
   const hygienePassed = sec[1].some(r => r.conclusion === 'success');
   if (!hygienePassed && !sec[1].some(isActive))
     throw new Error(`No successful master repository hygiene check at ${sha}.`);
-  const completedCiError = !qualified && ciRuns[0]?.conclusion === 'failure';
+  // A cancelled/timed-out updater FAT is not "still awaiting" forever.
+  // Never retry an ambiguous or failed installed-updater test automatically.
+  const latestCi = ciRuns[0];
+  const completedCiError = !qualified && latestCi?.status === 'completed' &&
+    !['success', 'skipped', 'neutral'].includes(latestCi.conclusion);
   const activePackage = packages.some(isActive);
-  const packageReserved = existingMarker('package');
-  const updaterReserved = existingMarker('updater');
+  const [packageReserved, updaterReserved] = await Promise.all([
+    reserved(github,owner,repo,stageMarker(request.id,sha,'package'),sha),
+    reserved(github,owner,repo,stageMarker(request.id,sha,'updater'),sha)
+  ]);
   const next = chooseAction({published, packageReserved, updaterReserved,
     activePackage, activeCi:runningCi, completedCiError, qualified,
     pendingChecks, failedChecks});
@@ -222,19 +251,16 @@ async function run({github, context, core}) {
   // Cheap final TOCTOU guard immediately before any costly workflow dispatch.
   const latestSha = (await github.rest.repos.getBranch({owner,repo,branch:'master'})).data.commit.sha;
   if (latestSha !== sha) throw new Error('Master moved during release admission; refused stale dispatch.');
-  const marker = stageMarker(request.id,sha,next);
-  if (next === 'updater') {
-    await notify(github,core,owner,repo,pr.number,
-      `Release ${tag} at ${sha.slice(0,12)}: no exact-SHA native updater FAT yet. One isolated CI updater qualification requested; publication will resume automatically on a verified successful CI completion.`,marker);
-    await github.rest.actions.createWorkflowDispatch({owner,repo,workflow_id:'ci.yml',ref:'master',
-      inputs:{profile:'updater',installer_runner:'hosted'}});
-    return;
-  }
-  await notify(github,core,owner,repo,pr.number,
-    `Release ${tag} at ${sha.slice(0,12)}: exact-SHA native FAT, WPF acceptance and repository checks accepted. Dispatching one immutable Package workflow; further identical comments are no-ops.`,marker);
-  await github.rest.actions.createWorkflowDispatch({owner,repo,workflow_id:'release-package.yml',ref:'master',
-    inputs:{version,publish_release:'true',prerelease:'false',draft:'false',
-      expected_sha:sha,release_notes_file:`docs/archive/release-notes/RELEASE_NOTES_v${version}.md`}});
+  // Actions uploads the durable stage reservation first; a later workflow
+  // step dispatches the chosen stage only after the reservation is visible.
+  core.setOutput('stage',next);
+  core.setOutput('request_id',String(request.id));
+  core.setOutput('sha',sha);
+  core.setOutput('sha_short',sha.slice(0,12));
+  core.setOutput('version',version);
+  core.notice(next === 'updater'
+    ? `Exact-SHA v${version} updater FAT missing: reserve one targeted CI run.`
+    : `Exact-SHA v${version} FAT/security passed: reserve one Package run.`);
 }
 module.exports = {COMMAND, MARKER, parseVersion, compareVersion, parseSourceVersion,
   acceptedCiRun, hasNativeUpdaterProof, recentCommand, stageMarker, chooseAction, run};
