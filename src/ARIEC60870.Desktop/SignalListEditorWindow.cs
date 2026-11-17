@@ -1151,6 +1151,18 @@ public sealed class SignalListEditorWindow : Window
                 errors.Add($"{label} must be a finite number" + (requirePositive ? " greater than zero." : "."));
         }
 
+        foreach (var (label, text) in new[]
+        {
+            ("Engineering minimum", row.EngineeringMin),
+            ("Engineering maximum", row.EngineeringMax)
+        })
+        {
+            if (!string.IsNullOrWhiteSpace(text) &&
+                (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ||
+                 !double.IsFinite(v)))
+                errors.Add($"{label} must be a finite number or empty.");
+        }
+
         if (!string.Equals(row.ScalingMode, "Factor", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase))
             errors.Add("Scaling mode must be Factor or TwoPoint.");
@@ -1290,7 +1302,8 @@ public sealed class SignalListEditorWindow : Window
             return Contains(row.Ca, query) || Contains(row.Ioa, query) || Contains(row.TypeId, query) ||
                    Contains(row.Name, query) || Contains(row.Group, query) || Contains(row.SignalType, query) ||
                    Contains(row.CommandPolicy, query) || Contains(row.FeedbackIoa, query) || Contains(row.StateMap, query) ||
-                   Contains(row.Mnemonic, query) || Contains(row.BayType, query) || Contains(row.Description, query);
+                   Contains(row.Mnemonic, query) || Contains(row.BayType, query) ||
+                   Contains(row.TestCategory, query) || Contains(row.Description, query);
         };
         view.Refresh();
         UpdateCounters();
