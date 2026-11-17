@@ -22,7 +22,7 @@ public sealed class Iec10xEngineeringScalingTests
         Ca = 105,
         Ioa = 4015,
         TypeId = type,
-        Name = "FEEDER REACTIVE POWER (Q)",
+        Name = "FEEDER TM Q",
         Unit = "MVar",
         Scale = scale,
         CommandPolicy = "MonitorOnly"

@@ -169,7 +169,7 @@ This example is **not** a validated real-feeder calibration:
   "points": [
     {
       "ca": 105, "ioa": 790447, "typeId": 11,
-      "name": "FEEDER REACTIVE POWER (Q)", "unit": "MVar",
+      "name": "FEEDER TM Q", "unit": "MVar",
       "commandPolicy": "MonitorOnly",
       "scalingMode": "TwoPoint",
       "x0": 0, "x100": 20000, "y0": 0, "y100": 1000
@@ -178,7 +178,35 @@ This example is **not** a validated real-feeder calibration:
 }
 ```
 
-For raw TI11 source value 13641, this test mapping gives 682.05 MVar.
-The bundled user example intentionally does **not** automatically enable
-TwoPoint or invent CT/VT coefficients. The published v3.6.13 binaries
-predate this source feature; a later Windows release is required for users.
+For raw TI11 source value 13641, this **illustrative** test mapping gives
+682.05 MVar. It is not derived from any real utility RTU resolution.
+
+### Operator I/O List: BAY TYPE + TYPE + MNEMO + optional LAB
+
+The 31 user-supplied SCADA I/O points use a concise name assembled from
+the exact document columns, e.g. `FEEDER TM Q`, `KOPEL TM Q 1`,
+`TRAFO TSD CB 2`, `TRAFO SOGI TM POAQ`, `GATEWAY TSS MPU 1`.
+Here `TYPE` refers to the project category (`TM/TSD/RCD/...`), not IEC
+`TI` numeric Type ID; the trailing number comes only from nonempty LAB.
+Source type and original IOA remain authoritative.
+
+The bundled `utility_fat_iec10x_default_profile.json` is a **safe
+unverified** signal-name example: TI11 reactive-power points use raw
+`counts`, no guessed MVar calibration. The TI9 measured `POAQ`
+0–1000 range explicitly present in the PDF uses `TwoPoint`
+`X0=0, X100=1, Y0=0, Y100=1000` in **decoded per-unit NVA**.
+IEEE TI13 floating-point P is left at identity (Scale=1, Ratio=1/1,
+Offset=0) unless project data proves a different unit.
+
+A separate documentation-only `docs/profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json`
+contains **unverified** signed TI11 `X0=-32767, X100=32767`,
+`Y0=-1732.0508075688772, Y100=+1732.0508075688772` MVar, derived
+only as a theoretical balanced three-phase **nominal apparent-power
+envelope** from CT 2000/1 A and PT 500/0.1 kV. It is **not** an RTU
+calibration and is **not bundled in the Windows installer/portable package**;
+manual import and field approval are mandatory.
+See [source analysis and 31-row mapping table](
+SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md).
+
+The immutable public v3.6.13 binaries predate this new mapping source;
+a later qualified Windows release is required.

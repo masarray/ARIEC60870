@@ -4,11 +4,14 @@
 
 IEC-101/104 sends a Type ID and measurement encoding, **not** a guaranteed
 project-specific MVar/CT/VT conversion coefficient. The Signal List's `Unit`
-is a label, not an instruction to divide the measured number. The bundled
-sanitized example profile declares FEEDER REACTIVE POWER (Q) at CA=105,
-IOA=790447, TI=11 (M_ME_NB_1), Unit=MVar and an engineering min/max for
-test acceptance, but **no approved scaling factor**. Thus a wire SVA of
-13641 with the default scale 1 remains 13641, not automatically 1730 MVar.
+is a label, not an instruction to divide the measured number. The
+operator-supplied 31-point PDF identifies `FEEDER TM Q` at CA=105,
+IOA=790447, TI=11 (M_ME_NB_1) and gives CT/PT ratios, but **does not give
+the gateway's signed I16-to-MVar scale**. The source-backed bundled example
+now deliberately labels this uncalibrated observation `counts`: a received
+SVA 13641 remains `13641 counts`, not an invented 13641 or 1730 MVar.
+A separate, explicitly **PROVISIONAL** opt-in profile demonstrates a nominal
+CT/PT hypothesis and requires field verification.
 
 The installed application version in the operator's 17 November screenshot
 was 3.6.12. These improvements are code **after** the immutable v3.6.13 tag
@@ -39,6 +42,14 @@ Engineering Y = Y0 + (X - X0) * (Y100 - Y0) / (X100 - X0)
 Thus the example above converts **13641 to 682.05 MVar**. It is not an
 approved feeder calibration. Enter the actual approved RTU/gateway/SCADA
 endpoints; **do not infer 1730 MVar from one reference sample**.
+
+The input and engineering spans must come from authoritative RTU
+configuration, not inferred from a single observation. The full source-file
+derivation and **all 31 BAY TYPE + TYPE + MNEMO + LAB labels** are recorded
+in [SCADA I/O List mapping analysis](SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md).
+The documented normalized TI9 `TRAFO SOGI TM POAQ` 0/1000 is the one
+source-backed example: X0=0, X100=1 per-unit, Y0=0, Y100=1000. IEEE TI13
+active-power points use identity scaling (if upstream float units are MW).
 
 This is the conventional **two-range analog engineering calibration**:
 two project-defined source endpoints map linearly to two engineering endpoints,
