@@ -532,12 +532,23 @@ public sealed class SignalListEditorWindow : Window
         AddEditorField(factorPanel, "Normalized full-scale", nameof(SignalListEditorRow.NormalizedFullScale),
             "For IEC TI9/10/21/34 only: NVA [-1,1) multiplied by engineering full-scale.", compact: true);
         panel.Children.Add(factorPanel);
+        AddTwoPointPair(panel, "Engineering min · metadata", nameof(SignalListEditorRow.EngineeringMin),
+            "Engineering max · metadata", nameof(SignalListEditorRow.EngineeringMax));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Reference limits only, not calibration endpoints or clamping.",
+            FontSize = 10.5,
+            Foreground = TextMutedBrush,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 7)
+        });
         AddEditorField(panel, "Class", nameof(SignalListEditorRow.ExpectedClass), "Expected IEC-101 class", compact: true);
         AddEditorField(panel, "COT", nameof(SignalListEditorRow.ExpectedCot), "Expected cause of transmission", compact: true);
         AddEditorCombo(panel, "Command policy", nameof(SignalListEditorRow.CommandPolicy), new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
         AddEditorField(panel, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
         AddEditorField(panel, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
         AddEditorField(panel, "Mnemonic", nameof(SignalListEditorRow.Mnemonic));
+        AddEditorField(panel, "Business type (TM / TSD / TSS / RCD...)", nameof(SignalListEditorRow.TestCategory), compact: true);
         AddEditorField(panel, "Bay", nameof(SignalListEditorRow.BayType));
         AddEditorField(panel, "Description", nameof(SignalListEditorRow.Description), multiline: true);
 
@@ -1405,6 +1416,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     private string _stateMap = string.Empty;
     private string _mnemonic = string.Empty;
     private string _bayType = string.Empty;
+    private string _testCategory = string.Empty;
+    private string _engineeringMin = string.Empty;
+    private string _engineeringMax = string.Empty;
     private string _description = string.Empty;
 
     public SignalListEditorRow() { }
@@ -1435,6 +1449,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         StateMap = point.StateMap.Count == 0 ? string.Empty : string.Join("; ", point.StateMap.Select(x => x.Key + "=" + x.Value));
         Mnemonic = point.Mnemonic;
         BayType = point.BayType;
+        TestCategory = point.TestCategory;
+        EngineeringMin = point.EngineeringMin?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        EngineeringMax = point.EngineeringMax?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         Description = point.Description;
     }
 
@@ -1469,6 +1486,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
     public string StateMap { get => _stateMap; set => SetField(ref _stateMap, value); }
     public string Mnemonic { get => _mnemonic; set => SetField(ref _mnemonic, value); }
     public string BayType { get => _bayType; set => SetField(ref _bayType, value); }
+    public string TestCategory { get => _testCategory; set => SetField(ref _testCategory, value); }
+    public string EngineeringMin { get => _engineeringMin; set => SetField(ref _engineeringMin, value); }
+    public string EngineeringMax { get => _engineeringMax; set => SetField(ref _engineeringMax, value); }
     public string Description { get => _description; set => SetField(ref _description, value); }
 
     // Duplicate is an editor operation, NOT a save/validation boundary.
@@ -1501,6 +1521,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         StateMap = StateMap,
         Mnemonic = Mnemonic,
         BayType = BayType,
+        TestCategory = TestCategory,
+        EngineeringMin = EngineeringMin,
+        EngineeringMax = EngineeringMax,
         Description = Description
     };
 
@@ -1529,6 +1552,9 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         FeedbackIoa = SignalListEditorWindow.ParseInt(FeedbackIoa),
         Mnemonic = Mnemonic?.Trim() ?? string.Empty,
         BayType = BayType?.Trim() ?? string.Empty,
+        TestCategory = TestCategory?.Trim() ?? string.Empty,
+        EngineeringMin = SignalListEditorWindow.ParseOptionalEngineeringDouble(EngineeringMin, "Engineering minimum"),
+        EngineeringMax = SignalListEditorWindow.ParseOptionalEngineeringDouble(EngineeringMax, "Engineering maximum"),
         Description = Description?.Trim() ?? string.Empty,
         StateMap = ParseStateMap(StateMap)
     };
