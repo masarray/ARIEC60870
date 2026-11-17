@@ -55,9 +55,11 @@ six xUnit suites, real-WPF acceptance and actual native Windows installed-update
 FAT. A PR-bound manual CI workflow that checked out different bytes is **never**
 accepted as master FAT. Failed gates block; pending CI/CodeQL/hygiene/Package runs
 are awaited rather than duplicated. If exact-source native FAT is absent, it
-dispatches **one** `CI profile=updater`; the CI completion webhook automatically
-resumes the existing intent and, if successful, dispatches **one** Package run,
-without a second user comment.
+dispatches **one** `CI profile=updater`; after source-build, installer,
+and native updater FAT jobs succeed, a tiny exact-SHA `release-resume`
+handoff explicitly dispatches the trusted controller. The CI-completion webhook
+remains an additional idempotent path, not the sole continuation mechanism.
+The controller then dispatches **one** Package run, without another user comment.
 
 Durable short-lived **Actions artifact reservations**, uploaded before dispatch,
 bind comment ID, commit SHA and release stage. This avoids relying on
