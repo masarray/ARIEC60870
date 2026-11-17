@@ -461,7 +461,8 @@ public sealed class SignalListEditorWindow : Window
         _selectionSubtitle.Foreground = TextMutedBrush;
         header.Children.Add(_selectionTitle);
         header.Children.Add(_selectionSubtitle);
-        header.Children.Add(_selectionBadge);
+        // Keep the identity line compact; the full policy remains editable on
+        // Mapping & Commands without consuming another row of the viewport.
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
@@ -481,34 +482,34 @@ public sealed class SignalListEditorWindow : Window
         validateButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         validateButton.Margin = new Thickness(0, 0, 0, 7);
         footer.Children.Add(validateButton);
-        var duplicateButton = CreateToolbarButton("Duplicate selected", DuplicateRow_Click, false, false);
-        duplicateButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-        duplicateButton.Margin = new Thickness(0);
-        footer.Children.Add(duplicateButton);
+        // Duplicate is already available on the main toolbar. Avoid hiding
+        // the TwoPoint endpoint inputs behind duplicated footer controls.
         DockPanel.SetDock(footer, Dock.Bottom);
         root.Children.Add(footer);
 
         // Scaling is now a first-class page, instead of being buried after
         // seven unrelated fields inside a long inspector.
         var scaling = new StackPanel();
-        scaling.Children.Add(new TextBlock
-        {
-            Text = "Engineering scaling",
-            FontSize = 13,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = TextMainBrush,
-            Margin = new Thickness(0, 0, 0, 3)
-        });
         _scalingSourceNote.TextWrapping = TextWrapping.Wrap;
-        _scalingSourceNote.FontSize = 11;
+        _scalingSourceNote.FontSize = 10.8;
         _scalingSourceNote.Foreground = TextMutedBrush;
-        _scalingSourceNote.Margin = new Thickness(0, 0, 0, 10);
+        _scalingSourceNote.Margin = new Thickness(0, 0, 0, 6);
         scaling.Children.Add(_scalingSourceNote);
 
-        AddEditorField(scaling, "Engineering unit", nameof(SignalListEditorRow.Unit),
-            "For uncalibrated TI11 reactive-power values, use counts.");
-        AddEditorCombo(scaling, "Mode", nameof(SignalListEditorRow.ScalingMode),
+        // Put mode and unit on one line: both TwoPoint endpoint rows should
+        // be available above the fold in the normal 820px editor window.
+        var scalingSelectors = new Grid();
+        scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var unitColumn = new StackPanel { Margin = new Thickness(0, 0, 5, 0) };
+        AddEditorField(unitColumn, "Unit", nameof(SignalListEditorRow.Unit));
+        var modeColumn = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+        AddEditorCombo(modeColumn, "Scaling mode", nameof(SignalListEditorRow.ScalingMode),
             new[] { "Factor", "TwoPoint" }, allowCustom: false);
+        scalingSelectors.Children.Add(unitColumn);
+        Grid.SetColumn(modeColumn, 1);
+        scalingSelectors.Children.Add(modeColumn);
+        scaling.Children.Add(scalingSelectors);
 
         // Factor and TwoPoint never compound. Display only the active mode.
         var linearPanel = new StackPanel();
@@ -524,7 +525,7 @@ public sealed class SignalListEditorWindow : Window
         linearPanel.Style = linearStyle;
         linearPanel.Children.Add(new TextBlock
         {
-            Text = "X = decoded IEC source, Y = engineering value. TwoPoint ignores the Factor / CT-PT settings; no clamping.",
+            Text = "TwoPoint: X = decoded IEC input; Y = engineering output. Factor/ratio is not applied again.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 10.8,
             Foreground = TextMutedBrush,
@@ -1401,7 +1402,7 @@ public sealed class SignalListEditorWindow : Window
         _detailScroll.DataContext = row;
         _scalingScroll.DataContext = row;
         _selectionTitle.Text = string.IsNullOrWhiteSpace(row.Name) ? $"IOA {row.Ioa}" : row.Name;
-        _selectionSubtitle.Text = $"CA {Safe(row.Ca)} · IOA {Safe(row.Ioa)} · Type {Safe(row.TypeId)}";
+        _selectionSubtitle.Text = $"CA {Safe(row.Ca)} · IOA {Safe(row.Ioa)} · TI {Safe(row.TypeId)}";
         var policy = string.IsNullOrWhiteSpace(row.CommandPolicy) ? "MonitorOnly" : row.CommandPolicy;
         var isCommand = !policy.Equals("MonitorOnly", StringComparison.OrdinalIgnoreCase);
         SetPillText(_selectionBadge, isCommand ? "Command capable" : "Monitor only", isCommand ? AccentBrush : SuccessBrush, isCommand ? AccentSoftBrush : SuccessSoftBrush);
