@@ -31,7 +31,8 @@ public static class Iec10xEngineeringValue
             asdu.ObjectCount != asdu.Objects.Count ||
             obj is not { Issues.Count: 0 } ||
             !IsMeasurementType(asdu.TypeId) ||
-            !asdu.Objects.Any(x => ReferenceEquals(x, obj)))
+            obj.Index < 1 || obj.Index > asdu.Objects.Count ||
+            !ReferenceEquals(asdu.Objects[obj.Index - 1], obj))
             return null;
 
         var bytes = obj.RawBytes;
