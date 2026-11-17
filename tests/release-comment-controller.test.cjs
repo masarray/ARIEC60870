@@ -5,7 +5,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {
   parseVersion, compareVersion, parseSourceVersion, acceptedCiRun, hasNativeUpdaterProof,
-  recentCommand, stageMarker, chooseAction, run
+  qualifiedActiveUpdaterHandoff, recentCommand, stageMarker, chooseAction, run
 } = require('../scripts/release-comment-controller.cjs');
 
 const SHA = 'a'.repeat(40);
@@ -27,8 +27,8 @@ const green = {head_sha:SHA,event:'push',status:'completed',conclusion:'success'
 
 function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=true,hygiene=true,
    recent=true, latestTag='v3.6.12',version='3.6.13',commentEvent=true,extraComments=[],
-    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactOverflow=false,
-    ciConclusion='success'}={}) {
+    artifactFromPr=false,artifactStatus='completed',artifactDispatch='success',artifactEvent='issue_comment',artifactOverflow=false,
+    ciConclusion='success',handoffCi=false}={}) {
   const calls=[];
   let comments = [recent ? command : {...command,created_at:'2025-11-16T00:00:00Z'}, ...extraComments];
   const content = path => {
@@ -36,7 +36,9 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
     return {data:{type:'file',encoding:'base64',content:Buffer.from(txt).toString('base64')}};
   };
   const workflowRuns = id => {
-    if(id==='ci.yml') return [runningCi?{...ci,status:'in_progress',conclusion:null}:{...ci,conclusion:ciConclusion}];
+    if(id==='ci.yml') return [handoffCi?
+      {...ci,event:'workflow_dispatch',status:'in_progress',conclusion:null}:
+      runningCi?{...ci,status:'in_progress',conclusion:null}:{...ci,conclusion:ciConclusion}];
     if(id==='release-package.yml') return runningPackage ?
       [{id:10,status:'in_progress'}] : [];
     if(id==='codeql.yml') return codeql?[green]:[];
@@ -59,12 +61,16 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
         listWorkflowRuns:async({workflow_id})=>({data:{workflow_runs:workflowRuns(workflow_id)}}),
         listJobsForWorkflowRun:async({run_id})=>({data:{jobs:run_id===789 ? [{name:'release-admission',steps:[
           {name:'Dispatch one pinned next stage',conclusion:artifactDispatch}]}] :
-          (fat?qualifiedJobs:qualifiedJobs.slice(0,1))}}),
+          (handoffCi ? [...qualifiedJobs,
+            {name:'Select required CI work',conclusion:'success'},
+            {name:'Bounded previous-release upgrade and running-Master shutdown',conclusion:'success'},
+            {name:'Resume verified release after updater FAT',status:'in_progress',conclusion:null}] :
+            (fat?qualifiedJobs:qualifiedJobs.slice(0,1)))}}),
         listArtifactsForRepo:async({name})=>({data:{total_count:artifactOverflow?101:markers.includes(name)?1:0,
           artifacts:markers.includes(name)?[{name,expired:false,workflow_run:{id:789}}]:[]}}),
         getWorkflowRun:async()=>({data:{
           path:artifactFromPr?'.github/workflows/ci.yml':'.github/workflows/release-comment.yml',
-          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:'issue_comment',
+          head_branch:artifactFromPr?'feature/evil':'master',head_sha:SHA,event:artifactEvent,
           status:artifactStatus,conclusion:artifactStatus==='completed'?'success':null,
           repository:{full_name:'masarray/ARIEC60870'}
         }})
@@ -75,7 +81,7 @@ function mock({fat=true,runningCi=false,runningPackage=false,markers=[],codeql=t
       return result.data.jobs || result.data;
     }
   };
-  const context = {repo:{owner:'masarray',repo:'ARIEC60870'},sha:SHA,eventName:commentEvent?'issue_comment':'workflow_run',
+  const context = {repo:{owner:'masarray',repo:'ARIEC60870'},sha:SHA,ref:'refs/heads/master',eventName:commentEvent?'issue_comment':'workflow_run',
     payload:commentEvent?{comment:command,issue:{number:250,pull_request:{url:'pr'}}}:
       {workflow_run:{name:'CI',head_sha:SHA,head_branch:'master',event:'push',conclusion:'success'}}};
   const core={notice:()=>{},info:()=>{},setOutput:(key,value)=>calls.push({type:'output',key,value})};
@@ -199,5 +205,71 @@ test('queued controller running at old workflow head cannot reserve new master r
     m.context.sha='b'.repeat(40);
     await run(m);
     assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+  }
+});
+
+test('a successful native FAT with only its trusted continuation job running can package',async()=>{
+  const m=mock({handoffCi:true,commentEvent:false});
+  await run(m);
+  assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package');
+  assert.equal(m.calls.find(x=>x.key==='sha')?.value,SHA);
+});
+
+test('incomplete or foreign CI cannot claim the exact-SHA FAT continuation waiver',()=>{
+  const active={event:'workflow_dispatch',status:'in_progress'};
+  const jobs=[...qualifiedJobs,
+    {name:'Select required CI work',conclusion:'success'},
+    {name:'Bounded previous-release upgrade and running-Master shutdown',conclusion:'success'},
+    {name:'Resume verified release after updater FAT',status:'in_progress',conclusion:null}];
+  assert.equal(qualifiedActiveUpdaterHandoff(active,jobs),true);
+  assert.equal(qualifiedActiveUpdaterHandoff({...active,event:'pull_request'},jobs),false);
+  assert.equal(qualifiedActiveUpdaterHandoff(active,jobs.filter(j=>j.name!=='build-test')),false);
+  assert.equal(qualifiedActiveUpdaterHandoff(active,jobs.map(j=>j.name==='Native Windows independent updater FAT'?{...j,conclusion:'failure'}:j)),false);
+  assert.equal(qualifiedActiveUpdaterHandoff(active,[...jobs,{name:'unrelated-test',status:'in_progress',conclusion:null}]),false);
+  assert.equal(qualifiedActiveUpdaterHandoff({...active,status:'completed'},jobs),false);
+});
+
+test('explicit verified FAT handoff requires pinned current master and stored maintainer intent',async()=>{
+  const valid=mock();
+  valid.context.eventName='workflow_dispatch';
+  valid.context.payload={inputs:{release_expected_sha:SHA}};
+  await run(valid);
+  assert.equal(valid.calls.find(x=>x.key==='stage')?.value,'package');
+  for(const inputs of [{release_expected_sha:'b'.repeat(40)},{}]) {
+    const invalid=mock();
+    invalid.context.eventName='workflow_dispatch';
+    invalid.context.payload={inputs};
+    await assert.rejects(()=>run(invalid),/exact master SHA/);
+    assert.equal(invalid.calls.filter(x=>x.key==='stage').length,0);
+  }
+  const invalidRef=mock();
+  invalidRef.context.eventName='workflow_dispatch';
+  invalidRef.context.ref='refs/heads/feature';
+  invalidRef.context.payload={inputs:{release_expected_sha:SHA}};
+  await assert.rejects(()=>run(invalidRef),/exact master SHA/);
+  const noIntent=mock({recent:false});
+  noIntent.context.eventName='workflow_dispatch';
+  noIntent.context.payload={inputs:{release_expected_sha:SHA}};
+  await run(noIntent);
+  assert.equal(noIntent.calls.filter(x=>x.key==='stage').length,0);
+});
+
+test('trusted workflow_dispatch Package reservation is a durable dispatch receipt',async()=>{
+  const m=mock({markers:[stage('package')],artifactEvent:'workflow_dispatch'});
+  await run(m);
+  assert.equal(m.calls.filter(x=>x.key==='stage').length,0);
+  const retry=mock({markers:[stage('package')],artifactEvent:'workflow_dispatch',commentEvent:false});
+  retry.context.payload.workflow_run={name:'Package',head_sha:SHA,
+    head_branch:'master',event:'workflow_dispatch',conclusion:'failure'};
+  await run(retry);
+  assert.equal(retry.calls.filter(x=>x.key==='stage').length,0,
+    'failed Package completion must not re-dispatch from same comment');
+});
+
+test('new dispatch origin does not waive master/source/provenance requirement',async()=>{
+  for(const artifactEvent of ['pull_request','repository_dispatch']) {
+    const m=mock({markers:[stage('package')],artifactEvent});
+    await run(m);
+    assert.equal(m.calls.find(x=>x.key==='stage')?.value,'package',artifactEvent);
   }
 });

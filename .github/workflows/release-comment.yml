@@ -5,6 +5,14 @@ name: Release comment controller
 on:
   issue_comment:
     types: [created]
+  # GITHUB_TOKEN can dispatch this trusted workflow even if the updater CI
+  # completion's workflow_run webhook is suppressed in a workflow chain.
+  workflow_dispatch:
+    inputs:
+      release_expected_sha:
+        description: Exact master SHA whose native Windows FAT has completed
+        required: true
+        type: string
   workflow_run:
     workflows: [CI, CodeQL, Repository hygiene, Package]
     types: [completed]
@@ -24,6 +32,9 @@ jobs:
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
        github.event.comment.body == '/release stable') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/master' &&
+       inputs.release_expected_sha == github.sha) ||
       (github.event_name == 'workflow_run' &&
        (github.event.workflow_run.name == 'Package' ||
         (github.event.workflow_run.head_branch == 'master' &&

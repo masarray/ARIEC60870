@@ -787,3 +787,48 @@ jobs:
             artifacts/installer/UPDATER-FAT-CANARY-DIRECT-INNO.log
           if-no-files-found: ignore
           retention-days: 14
+
+  # Permissionless GITHUB_TOKEN workflow_run cascades are not a reliable
+  # continuation primitive after an Actions-dispatched updater FAT.
+  # Trigger the same trusted master controller explicitly, only after the
+  # exact-source build, installer preparation and genuine native FAT pass.
+  release-resume:
+    name: Resume verified release after updater FAT
+    needs: [classify, build-test, installer-upgrade, updater-worker-fat]
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.profile == 'updater' &&
+      inputs.release_expected_sha != '' &&
+      github.ref == 'refs/heads/master' &&
+      needs.classify.result == 'success' &&
+      needs.build-test.result == 'success' &&
+      needs.installer-upgrade.result == 'success' &&
+      needs.updater-worker-fat.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Hand off exact native FAT source to trusted release controller
+        uses: actions/github-script@v7
+        env:
+          RELEASE_EXPECTED_SHA: ${{ inputs.release_expected_sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const expected = process.env.RELEASE_EXPECTED_SHA;
+            if (context.ref !== 'refs/heads/master' || !expected ||
+                expected !== context.sha)
+              throw Error('Refuse stale or non-master release FAT handoff.');
+            const {data: master} = await github.rest.repos.getBranch({
+              owner, repo, branch: 'master'
+            });
+            if (master.commit.sha !== expected)
+              throw Error('Master advanced during native FAT; no stale release continuation.');
+            await github.rest.actions.createWorkflowDispatch({
+              owner, repo, workflow_id: 'release-comment.yml', ref: 'master',
+              inputs: {release_expected_sha: expected}
+            });
+            core.notice('Verified native updater FAT passed; resume immutable source-bound release intent.');

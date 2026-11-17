@@ -74,8 +74,13 @@ The preferred maintainer flow runs from the latest merged PR on `master`:
    bytes, and master CI/WPF/native Windows updater FAT is proven for
    **the exact same commit**.
 4. If native updater FAT has not run on that exact source, **one**
-   `CI profile=updater` is dispatched and completion of the verified
-   CI automatically resumes the release request. No repeated comment.
+   `CI profile=updater` is dispatched. The final Linux handoff job runs
+   **only** after source validation, Windows build, previous-release installer
+   preparation, and genuine native FAT all succeed. It explicitly dispatches
+   the trusted release controller using `workflow_dispatch` with the exact
+   `release_expected_sha` (rather than depending exclusively on a
+   `workflow_run` completion callback, which can be suppressed in
+   `GITHUB_TOKEN` workflow chains). No repeated release comment.
 5. The existing Package workflow is dispatched once with
    `expected_sha` and a global one-flight lock across all ref types,
    then builds/validates/attests/publishes the release artifacts.
@@ -89,6 +94,15 @@ current `master` source: if `master` moves while a controller is queued, it
 cannot dispatch or reserve any release stage for the new SHA. Use a **fresh**
 `/release stable` comment on the new latest merged PR, after checking its
 source version and release notes.
+
+The continuation controller compares its own `GITHUB_SHA` and
+`release_expected_sha` to current `master`, then independently locates
+the latest merged PR's still-valid write-access release authorization.
+While CI's tiny handoff job remains in progress, it may accept the
+**already-successful source-build, installer and native FAT jobs only**;
+any other running/failed CI work and pending security checks still block.
+The workflow-run completion event remains an additional idempotent signal.
+No new permission to publish is granted to an arbitrary workflow dispatch.
 
 Stage reservations are short-lived Actions artifacts bound to an authorized
 comment ID, source SHA and stage. They are trusted only from the official
