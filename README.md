@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/ARIEC60870/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
 
@@ -17,16 +17,16 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public stable** | **v3.6.13** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-win-x64.zip) | IEC-101 per-COM transaction/FCB and A/B recovery, GI/SBO correlation, IEC-104 GI, bounded SOE |
-| **Previous stable** | **v3.6.12** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.12) | Mapped signal naming, IEC-101 service-correlation and 1200-bps receive |
+| **Latest public stable** | **v3.6.14** | **[Windows installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-win-x64.zip) | IEC-101/104 engineering scaling, 31-point I/O names, safe profile sync |
+| **Previous stable** | **v3.6.13** | [Stable release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) | IEC-101 transaction/FCB, A/B recovery, GI/SBO, IEC-104 GI |
 
-**ArSee** is the application branding; compatibility installer/ZIP filenames retain ARIEC60870.
+**ArSee** is the public product name; compatibility installer/ZIP filenames retain ARIEC60870.
 
-**Published stable v3.6.13 (17 November 2026):** Reviewed IEC-101 single/A/B transaction, serial recovery, GI/SBO, SOE/Signal List and IEC-104 GI hardening from PRs #219–#230 is included. The [source-qualified Package](https://github.com/masarray/ARIEC60870/actions/runs/44001183168) published immutable Windows ZIP/Setup, SBOM and checksums at [v3.6.13](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13). Broad draft #145 was **not bulk merged**; physical SICAM and multi-vendor FAT remain separate.
+**Published stable v3.6.14 (17 November 2026):** [#239](https://github.com/masarray/ARIEC60870/pull/239)–[#241](https://github.com/masarray/ARIEC60870/pull/241) add verified-source engineering scaling for normalized, scaled and floating IEC-101/104 measurement types; a 31-point SCADA I/O sample with document-backed naming; and **opt-in** Safe Sync 31 I/O for existing project profiles. [Exact-source Package](https://github.com/masarray/ARIEC60870/actions/runs/44049527667) produced the immutable installer/ZIP, SHA-256, SPDX SBOM and provenance after [native Windows updater FAT](https://github.com/masarray/ARIEC60870/actions/runs/44048682483). Existing field calibration is not invented or overwritten.
 
-**v3.6.13 is the latest stable software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/SHA256SUMS.txt) before running currently unsigned binaries. The [release page](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) includes SPDX SBOM; [exact-source Windows package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/44001183168) records full tests, WPF acceptance and provenance.
+**v3.6.14 is a software release, not physical IEC/SCADA conformance certification.** Verify the [SHA-256 checksum](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/SHA256SUMS.txt) before running the currently unsigned binaries. [Release notes](docs/archive/release-notes/RELEASE_NOTES_v3.6.14.md) distinguish approved TI11 Q calibration from raw counts. Physical SICAM and multi-vendor field FAT remain separate.
 
-> GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. The version-pinned links above point to the complete public assets. Draft engine PR #145 is not included.
+> GitHub's [`/releases/latest`](https://github.com/masarray/ARIEC60870/releases/latest) resolves to the newest non-prerelease publication. These version-pinned links require verified public assets.
 
 <p align="center">
   <a href="https://masarray.github.io/ARIEC60870/">
@@ -34,20 +34,11 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.13 package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/44001183168) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
+*Illustrative product media. The [v3.6.14 package workflow history](https://github.com/masarray/ARIEC60870/actions/runs/44049527667) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Engineering-unit scaling in Signal List
 
-IEC-101/104 measurements may be transmitted as **normalized (TI9/10/21/34)**,
-**scaled signed integer (TI11/12/35)**, or **short float (TI13/14/36)**.
-A Signal List's unit label (such as MVar) does not automatically convert a
-raw IEC integer. The operator must configure the **approved RTU scale,
-offset, optional primary/secondary ratio, and normalized full-scale** on
-the selected signal; the original HEX/IOA/quality remain unchanged.
-See the [engineering scaling guide](docs/IEC10X_ENGINEERING_SCALING.md)
-for formulas, Signal List steps, and field-verification boundaries.
-This functionality is post-v3.6.13 source work until a separately
-qualified release publishes it.
+IEC-101/104 measurements may be transmitted as **normalized TI9/10/21/34**, **signed scaled TI11/12/35**, or **IEEE float TI13/14/36**. Enter authorized RTU engineering scaling using **Factor** or **TwoPoint X0/X100/Y0/Y100** on the selected signal. The display projection does not rewrite original HEX, IOA, timestamps or quality; TI13 identity is appropriate if the gateway already sends MW. Uncalibrated TI11 Q remains `counts` until an approved gateway conversion is supplied. Existing user Signal Lists are kept; use **Signal List → Sync 31 I/O → Save As** for optional names/metadata reconciliation. See the [scaling guide](docs/IEC10X_ENGINEERING_SCALING.md).
 
 ## Supported engineering workflows
 
@@ -61,7 +52,7 @@ qualified release publishes it.
 | **Engineer workstation** | Raw Frames, Values, Events, GI/Controls where available, selected-frame inspector and contextual Smart Findings |
 | **Reporting** | Native PDF evidence export with source frame references |
 
-## What's improved in stable v3.6.13
+## Reliability and forensic foundations inherited from v3.6.13
 
 - **IEC-101 single/A/B link reliability:** one bounded physical COM transaction/FCB authority, delayed-response quarantine and independent reconnect/backoff without blind command replay (#219–#225).
 - **Truthful GI/SBO/IEC-104:** command epoch/feedback correlation, source-bound GI ACTCON/ACTTERM, and IEC-104 TCP association validation (#226–#230).
@@ -82,7 +73,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. [Download the v3.6.13 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/ARIEC60870-v3.6.13-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.13/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.14 installer](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/ARIEC60870-v3.6.14-win-x64.zip) and verify [checksums](https://github.com/masarray/ARIEC60870/releases/download/v3.6.14/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.

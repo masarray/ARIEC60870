@@ -2,7 +2,8 @@
 
 **Source inspected:** operator-supplied one-page `IO List SCADA 101.pdf`, heading **I/O LIST PENGUJIAN SCADA**, page 1, rows 1–31 and parameter section B (17 November 2026). This project source is the authority for identifiers, type labels, LAB numbers, nominal CT/PT and the explicitly listed 0/1000 setting. It is **not** an RTU analog scaling/configuration database.
 
-**Status:** implementation source *after* immutable public v3.6.13. Source/tests must pass CI; physical RTU scaling remains **UNVERIFIED**. The generic bundled example contains only document-backed mapping; a separate clearly labeled docs-only opt-in **PROVISIONAL** JSON example illustrates one plausible, but unconfirmed, nominal CT/PT conversion. Neither profile modifies original ASDU bytes, IEC QDS, timestamps or a control-command write path.
+**Status:** engineering source shipped in public stable v3.6.14 after software CI,
+real-WPF and independent Windows updater FAT. Physical RTU Q scaling remains **UNVERIFIED**. The generic bundled example contains only document-backed mapping; a separate clearly labeled docs-only opt-in **PROVISIONAL** JSON example illustrates one plausible, but unconfirmed, nominal CT/PT conversion. Neither profile modifies original ASDU bytes, IEC QDS, timestamps or a control-command write path.
 
 ## 1. Facts supplied by the PDF (page 1)
 

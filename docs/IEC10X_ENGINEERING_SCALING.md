@@ -14,9 +14,9 @@ A separate, explicitly **PROVISIONAL** opt-in profile demonstrates a nominal
 CT/PT hypothesis and requires field verification.
 
 The installed application version in the operator's 17 November screenshot
-was 3.6.12. These improvements are code **after** the immutable v3.6.13 tag
-and must pass PR CI and a future separately published release before appearing
-in a public binary.
+was 3.6.12. These improvements first shipped in public **v3.6.14**, after source-bound CI,
+real-WPF acceptance and native Windows updater FAT. Project-specific TI11
+counts-to-MVar conversion still requires field-approved gateway calibration.
 
 ## Two-point linear calibration — standard SCADA engineering ranges
 
@@ -79,8 +79,8 @@ signal name or bundled example.
 In Signal List, select the measured CA/IOA/Type ID row, choose
 `Engineering scaling mode: TwoPoint`, enter the four endpoints, then
 **Validate row → Validate profile → Save & Apply**. Existing JSON v1 profiles
-without these fields still load in `Factor` mode; these changes ship only
-when a later qualified public binary is released (not in immutable v3.6.13).
+without these fields still load in `Factor` mode; these settings are available in qualified public v3.6.14 and later; the
+existing v3.6.13 release is immutable.
 
 ## Safely reconcile an existing locally saved 31-point profile
 
