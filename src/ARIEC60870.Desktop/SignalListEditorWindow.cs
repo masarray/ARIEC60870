@@ -480,7 +480,7 @@ public sealed class SignalListEditorWindow : Window
         AddEditorField(panel, "Type / Role", nameof(SignalListEditorRow.SignalType));
         AddEditorField(panel, "Unit", nameof(SignalListEditorRow.Unit), compact: true);
         AddEditorCombo(panel, "Engineering scaling mode", nameof(SignalListEditorRow.ScalingMode),
-            new[] { "Factor", "TwoPoint" });
+            new[] { "Factor", "TwoPoint" }, allowCustom: false);
 
         // The modes are intentionally exclusive. Editing a linear range
         // must not also apply a hidden legacy CT/VT ratio or offset.
@@ -842,7 +842,8 @@ public sealed class SignalListEditorWindow : Window
         parent.Children.Add(grid);
     }
 
-    private void AddEditorCombo(Panel parent, string label, string path, IEnumerable<string> values)
+    private void AddEditorCombo(Panel parent, string label, string path,
+        IEnumerable<string> values, bool allowCustom = true)
     {
         var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 9) };
         container.Children.Add(new TextBlock
@@ -856,7 +857,7 @@ public sealed class SignalListEditorWindow : Window
         var combo = new ComboBox
         {
             ItemsSource = values,
-            IsEditable = true,
+            IsEditable = allowCustom,
             MinHeight = 34,
             Padding = new Thickness(8, 5, 8, 5),
             FontSize = 12.5,
@@ -864,7 +865,8 @@ public sealed class SignalListEditorWindow : Window
             BorderBrush = BorderBrushSoft,
             Foreground = TextMainBrush
         };
-        combo.SetBinding(ComboBox.TextProperty, new Binding(path)
+        combo.SetBinding(allowCustom ? ComboBox.TextProperty : Selector.SelectedItemProperty,
+            new Binding(path)
         {
             Mode = BindingMode.TwoWay,
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
@@ -1346,7 +1348,8 @@ public sealed class SignalListEditorRow : INotifyPropertyChanged
         RatioPrimary = point.RatioPrimary.ToString(CultureInfo.InvariantCulture);
         RatioSecondary = point.RatioSecondary.ToString(CultureInfo.InvariantCulture);
         NormalizedFullScale = point.NormalizedFullScale.ToString(CultureInfo.InvariantCulture);
-        ScalingMode = point.ScalingMode;
+        ScalingMode = string.Equals(point.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase)
+            ? "TwoPoint" : point.ScalingMode;
         X0 = point.X0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         X100 = point.X100?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         Y0 = point.Y0?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
