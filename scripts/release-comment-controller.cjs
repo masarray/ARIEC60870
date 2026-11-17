@@ -138,7 +138,7 @@ async function reserved(github, owner, repo, name, sha) {
     if (path !== '.github/workflows/release-comment.yml' ||
         run.repository?.full_name !== `${owner}/${repo}` ||
         run.head_branch !== 'master' || run.head_sha !== sha ||
-        !['issue_comment','workflow_run'].includes(run.event)) continue;
+        !['issue_comment','workflow_run','workflow_dispatch'].includes(run.event)) continue;
     // A concurrent controller that has uploaded the lease is still the owner.
     if (run.status !== 'completed') return true;
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
