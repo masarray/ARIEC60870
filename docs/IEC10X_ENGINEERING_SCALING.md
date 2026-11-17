@@ -40,11 +40,11 @@ Thus the example above converts **13641 to 682.05 MVar**. It is not an
 approved feeder calibration. Enter the actual approved RTU/gateway/SCADA
 endpoints; **do not infer 1730 MVar from one reference sample**.
 
-This is the same *two numeric ranges* idea as Siemens WinCC Linear Scaling
-(PLC process value range → HMI engineering value range) and Rockwell SCP
-(Input Min/Max → Scaled Min/Max). See:
-- https://docs.tia.siemens.cloud/r/en-us/v21/working-with-tags-basic-panels-panels-comfort-panels-rt-advanced-rt-professional/working-with-tags-basic-panels-panels-comfort-panels-rt-advanced-rt-professional/configuring-tags-basic-panels-panels-comfort-panels-rt-advanced-rt-professional/tag-configuration-basics-basic-panels-panels-comfort-panels-rt-advanced-rt-professional/linear-scaling-of-a-tag-basic-panels-panels-comfort-panels-rt-advanced-rt-professional
-- https://support.rockwellautomation.com/ci/okcsFattach/get/59191_4
+This is the conventional **two-range analog engineering calibration**:
+two project-defined source endpoints map linearly to two engineering endpoints,
+without modifying original protocol evidence. This is independent of any
+specific automation vendor.
+
 
 **X is the *decoded* IEC source value**, not an arbitrary raw 16-bit unsigned
 word. For TI11/12/35, X is signed SVA I16 (-32768..32767). For TI9/10/21/34,
