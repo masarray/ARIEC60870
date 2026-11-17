@@ -128,6 +128,87 @@ internal static class SignalGridEditModel
         return rows;
     }
 
+    internal static void ValidateEntry(string field, string value)
+    {
+        if (value.Length > 4096)
+            throw new InvalidOperationException($"{field} exceeds 4,096 characters.");
+
+        static int Integer(string text, string label, int min, int max)
+        {
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
+                || n < min || n > max)
+                throw new InvalidOperationException($"{label} must be an integer between {min} and {max}.");
+            return n;
+        }
+
+        static void Number(string text, string label, bool optional = false, bool positive = false)
+        {
+            if (optional && string.IsNullOrWhiteSpace(text)) return;
+            if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
+                || !double.IsFinite(n) || (positive && n <= 0))
+                throw new InvalidOperationException(
+                    $"{label} must be a finite number" + (positive ? " greater than zero." : "."));
+        }
+
+        switch (field)
+        {
+            case nameof(SignalListEditorRow.Ca):
+                if (!string.IsNullOrWhiteSpace(value)) Integer(value, "Common address", 0, 65535);
+                break;
+            case nameof(SignalListEditorRow.Ioa):
+                Integer(value, "IOA", 1, 0xFFFFFF);
+                break;
+            case nameof(SignalListEditorRow.TypeId):
+                if (!string.IsNullOrWhiteSpace(value)) Integer(value, "IEC Type ID", 0, 255);
+                break;
+            case nameof(SignalListEditorRow.FeedbackIoa):
+                if (!string.IsNullOrWhiteSpace(value)) Integer(value, "Feedback IOA", 1, 0xFFFFFF);
+                break;
+            case nameof(SignalListEditorRow.ExpectedClass):
+                if (!string.IsNullOrWhiteSpace(value)) Integer(value, "Class", 0, 255);
+                break;
+            case nameof(SignalListEditorRow.ExpectedCot):
+                if (!string.IsNullOrWhiteSpace(value)) Integer(value, "COT", 0, 63);
+                break;
+            case nameof(SignalListEditorRow.Name):
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new InvalidOperationException("Signal name may not be blank.");
+                break;
+            case nameof(SignalListEditorRow.ScalingMode):
+                if (value is not ("TwoPoint" or "Factor"))
+                    throw new InvalidOperationException("Scaling mode must be Factor or TwoPoint.");
+                break;
+            case nameof(SignalListEditorRow.Scale):
+            case nameof(SignalListEditorRow.Offset):
+                Number(value, field);
+                break;
+            case nameof(SignalListEditorRow.RatioPrimary):
+            case nameof(SignalListEditorRow.RatioSecondary):
+            case nameof(SignalListEditorRow.NormalizedFullScale):
+                Number(value, field, positive: true);
+                break;
+            case nameof(SignalListEditorRow.X0):
+            case nameof(SignalListEditorRow.X100):
+            case nameof(SignalListEditorRow.Y0):
+            case nameof(SignalListEditorRow.Y100):
+            case nameof(SignalListEditorRow.EngineeringMin):
+            case nameof(SignalListEditorRow.EngineeringMax):
+                Number(value, field, optional: true);
+                break;
+            case nameof(SignalListEditorRow.StateMap):
+                foreach (var pair in value.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var equal = pair.IndexOf('=');
+                    if (equal <= 0 || equal >= pair.Length - 1 ||
+                        string.IsNullOrWhiteSpace(pair[..equal]) ||
+                        string.IsNullOrWhiteSpace(pair[(equal + 1)..]))
+                        throw new InvalidOperationException(
+                            "State map must contain complete key=value pairs separated by semicolons.");
+                }
+                break;
+        }
+    }
+
     internal static IReadOnlyList<SignalGridCellChange> PlanPaste(
         IReadOnlyList<SignalListEditorRow> visibleRows,
         IReadOnlyList<string> visibleFields,
@@ -345,6 +426,7 @@ public sealed partial class SignalListEditorWindow
         {
             if (!_rows.Contains(change.Row))
                 throw new InvalidOperationException("A target signal was removed from the mapping.");
+            SignalGridEditModel.ValidateEntry(change.Field, change.After);
             SignalGridEditModel.Write(staged[change.Row], change.Field, change.After);
         }
         var trial = CloneProfile(_template);
