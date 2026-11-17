@@ -198,12 +198,13 @@ unverified** signal-name example: TI11 reactive-power points use raw
 IEEE TI13 floating-point P is left at identity (Scale=1, Ratio=1/1,
 Offset=0) unless project data proves a different unit.
 
-A separate `profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json`
+A separate documentation-only `docs/profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json`
 contains **unverified** signed TI11 `X0=-32767, X100=32767`,
 `Y0=-1732.0508075688772, Y100=+1732.0508075688772` MVar, derived
 only as a theoretical balanced three-phase **nominal apparent-power
 envelope** from CT 2000/1 A and PT 500/0.1 kV. It is **not** an RTU
-calibration and is not loaded automatically; field approval is mandatory.
+calibration and is **not bundled in the Windows installer/portable package**;
+manual import and field approval are mandatory.
 See [source analysis and 31-row mapping table](
 SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md).
 
