@@ -101,6 +101,42 @@ public sealed class Iec10xScadaIoListProfileSyncTests
     }
 
     [Fact]
+    public void ExplicitlyUpgradesOnlySourceDocumentedLegacyNormalizedIdentity()
+    {
+        var reference = Reference();
+        var old = Copy(reference);
+        var poaq = Assert.Single(old.Points, p => p.Ioa == 790449);
+        poaq.ScalingMode = "Factor";
+        poaq.X0 = null;
+        poaq.X100 = null;
+        poaq.Y0 = null;
+        poaq.Y100 = null;
+        poaq.NormalizedFullScale = 1;
+        Assert.Equal("MW", poaq.Unit);
+        var result = Iec10xScadaIoListProfileSync.PrepareCopy(old, reference);
+        Assert.Equal(1, result.AppliedDocumentedNormalizedRanges);
+        var updated = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790449);
+        Assert.Equal("TwoPoint", updated.ScalingMode);
+        Assert.Equal(0, updated.X0);
+        Assert.Equal(1, updated.X100);
+        Assert.Equal(0, updated.Y0);
+        Assert.Equal(1000, updated.Y100);
+        Assert.True(Iec10xEngineeringValue.TryFormat(updated,
+            new Iec10xEngineeringSample(9, 105, 790449, 0.5, "Normalized=0.5"),
+            out var reading));
+        Assert.Equal("500 MW", reading);
+        Assert.Equal("Factor", poaq.ScalingMode); // Source not mutated.
+
+        // Custom/full-scale configurations must not be accidentally replaced.
+        poaq.NormalizedFullScale = 750;
+        var calibrated = Iec10xScadaIoListProfileSync.PrepareCopy(old, reference);
+        Assert.Equal(0, calibrated.AppliedDocumentedNormalizedRanges);
+        var kept = Assert.Single(calibrated.UpdatedProfile.Points, p => p.Ioa == 790449);
+        Assert.Equal("Factor", kept.ScalingMode);
+        Assert.Equal(750, kept.NormalizedFullScale);
+    }
+
+    [Fact]
     public void DifferentCaOrTypeNeverInheritsOtherStationEngineeringOrNames()
     {
         var reference = Reference();
