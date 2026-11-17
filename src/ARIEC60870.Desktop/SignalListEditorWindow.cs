@@ -90,7 +90,7 @@ public sealed partial class SignalListEditorWindow : Window
         Title = "Signal Map - IEC-101/104 IOA Mapping";
         Width = 1360;
         Height = 820;
-        MinWidth = 1120;
+        MinWidth = 1140;
         MinHeight = 680;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = AppBackgroundBrush;
