@@ -27,7 +27,7 @@ namespace ARIEC60870.Desktop;
 /// The editor stays inside the same desktop app so field engineers can correct
 /// a project database during FAT/SAT without touching JSON manually.
 /// </summary>
-public sealed class SignalListEditorWindow : Window
+public sealed partial class SignalListEditorWindow : Window
 {
     private static readonly Brush AppBackgroundBrush = BrushFromRgb(0xF5, 0xF7, 0xFB);
     private static readonly Brush CardBrush = Brushes.White;
