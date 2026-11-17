@@ -651,32 +651,40 @@ public sealed partial class SignalListEditorWindow : Window
         _scalingScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
 
         var details = new StackPanel();
-        AddTwoPointPair(details, "CA", nameof(SignalListEditorRow.Ca),
-            "IOA", nameof(SignalListEditorRow.Ioa));
-        AddEditorField(details, "IEC Type ID", nameof(SignalListEditorRow.TypeId), compact: true);
-        AddEditorField(details, "Name", nameof(SignalListEditorRow.Name));
-        AddEditorField(details, "Group", nameof(SignalListEditorRow.Group));
-        AddEditorField(details, "Type / Role", nameof(SignalListEditorRow.SignalType));
-        AddTwoPointPair(details, "Engineering min · metadata", nameof(SignalListEditorRow.EngineeringMin),
-            "Engineering max · metadata", nameof(SignalListEditorRow.EngineeringMax));
-        details.Children.Add(new TextBlock
-        {
-            Text = "Reference limits only — not calibration or clamping.",
-            FontSize = 10.5,
-            Foreground = TextMutedBrush,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 8)
-        });
+        AddSectionHeading(details, "Identity & naming", "Use the IOA / IEC Type from the RTU configuration.");
+        AddTwoPointPair(details, "Common address (CA)", nameof(SignalListEditorRow.Ca),
+            "Information object (IOA)", nameof(SignalListEditorRow.Ioa));
+        AddEditorField(details, "IEC Type ID (TI)", nameof(SignalListEditorRow.TypeId), compact: true);
+        AddEditorField(details, "Signal name", nameof(SignalListEditorRow.Name));
+        AddTwoPointPair(details, "Bay type", nameof(SignalListEditorRow.BayType),
+            "TYPE (TM / TSD...)", nameof(SignalListEditorRow.TestCategory));
+        AddTwoPointPair(details, "Mnemonic", nameof(SignalListEditorRow.Mnemonic),
+            "Group", nameof(SignalListEditorRow.Group));
+
+        var composeName = CreateToolbarButton("Generate name · Bay + TYPE + Mnemonic", ComposeSignalName_Click, false, false);
+        composeName.HorizontalAlignment = HorizontalAlignment.Stretch;
+        composeName.Margin = new Thickness(0, 0, 0, 13);
+        composeName.ToolTip = "Explicit action only. Keeps an existing trailing numeric suffix; never rewrites names automatically.";
+        details.Children.Add(composeName);
+
+        AddSectionHeading(details, "Protocol & commands", "Advanced settings remain editable here.");
+        AddEditorField(details, "IEC Type / role", nameof(SignalListEditorRow.SignalType));
         AddTwoPointPair(details, "Class", nameof(SignalListEditorRow.ExpectedClass),
             "COT", nameof(SignalListEditorRow.ExpectedCot));
         AddEditorCombo(details, "Command policy", nameof(SignalListEditorRow.CommandPolicy),
             new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
         AddEditorField(details, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
         AddEditorField(details, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
-        AddEditorField(details, "Mnemonic", nameof(SignalListEditorRow.Mnemonic));
-        AddEditorField(details, "Business type (TM / TSD / TSS / RCD...)", nameof(SignalListEditorRow.TestCategory));
-        AddEditorField(details, "Bay", nameof(SignalListEditorRow.BayType));
+
+        AddSectionHeading(details, "Engineering metadata & notes", "Reference limits do not scale or clamp decoded IEC values.");
+        AddEditorField(details, "Engineering unit", nameof(SignalListEditorRow.Unit));
+        AddTwoPointPair(details, "Reference min", nameof(SignalListEditorRow.EngineeringMin),
+            "Reference max", nameof(SignalListEditorRow.EngineeringMax));
         AddEditorField(details, "Description", nameof(SignalListEditorRow.Description), multiline: true);
+        var validateRow = CreateToolbarButton("Validate selected signal", ValidateSelectedRow_Click, false, false);
+        validateRow.HorizontalAlignment = HorizontalAlignment.Stretch;
+        validateRow.Margin = new Thickness(0, 0, 0, 7);
+        details.Children.Add(validateRow);
         _detailScroll.Content = details;
         _detailScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _detailScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
@@ -687,6 +695,58 @@ public sealed partial class SignalListEditorWindow : Window
         root.Children.Add(tabContent);
         ShowInspectorTab(scaling: true);
         return card;
+    }
+
+    private static void AddSectionHeading(Panel parent, string title, string hint)
+    {
+        parent.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 12.3,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = AccentDarkBrush,
+            Margin = new Thickness(0, 6, 0, 2)
+        });
+        parent.Children.Add(new TextBlock
+        {
+            Text = hint,
+            FontSize = 10.7,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = TextMutedBrush,
+            Margin = new Thickness(0, 0, 0, 10)
+        });
+    }
+
+    private static string? ComposeSignalName(SignalListEditorRow row)
+    {
+        var parts = new[] { row.BayType, row.TestCategory, row.Mnemonic }
+            .Select(x => string.Join(" ", (x ?? string.Empty).Split(' ',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+            .ToArray();
+        if (parts.Any(string.IsNullOrWhiteSpace))
+            return null;
+
+        // Preserve optional LAB signal number, when the existing name has one.
+        var lastToken = (row.Name ?? string.Empty).Trim().Split(' ',
+            StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
+        var suffix = lastToken.All(char.IsDigit) && lastToken.Length > 0
+            ? " " + lastToken : string.Empty;
+        return string.Join(" ", parts) + suffix;
+    }
+
+    private void ComposeSignalName_Click(object sender, RoutedEventArgs e)
+    {
+        var row = GetCurrentRow();
+        if (row is null) return;
+        var name = ComposeSignalName(row);
+        if (name is null)
+        {
+            UpdateStatus("Complete Bay type, business TYPE and Mnemonic before generating a name.", danger: true);
+            ShowInspectorTab(scaling: false);
+            return;
+        }
+        row.Name = name; // Explicit click only; normal editing never auto-renames a signal.
+        UpdateStatus($"Generated signal name: {name}. Review and save when ready.", success: true);
     }
 
     private void ConfigureInspectorTabButton(Button button, string text, bool scaling)
@@ -1005,6 +1065,7 @@ public sealed partial class SignalListEditorWindow : Window
             container.Children.Add(new TextBlock
             {
                 Text = hint,
+                TextWrapping = TextWrapping.Wrap,
                 FontSize = 10.8,
                 Foreground = TextMutedBrush,
                 Margin = new Thickness(1, 3, 0, 0)
@@ -1094,9 +1155,9 @@ public sealed partial class SignalListEditorWindow : Window
     {
         row.PropertyChanged += Row_PropertyChanged;
         _rows.Add(row);
-        RefreshBayChoices();
+        if (!_loadingRows) RefreshBayChoices();
         if (markDirty) MarkDirty();
-        UpdateCounters();
+        if (!_loadingRows) UpdateCounters();
     }
 
     private void Row_PropertyChanged(object? sender, PropertyChangedEventArgs e)
