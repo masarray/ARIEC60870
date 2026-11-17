@@ -1037,14 +1037,14 @@ public sealed class SignalListEditorWindow : Window
             }
 
             var prompt =
-                $"Compare the current Signal List with the bundled SCADA 101 I/O list?\\n\\n" +
-                $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\\n" +
-                $"Signal names to update: {preview.RenamedPoints}\\n" +
-                $"Business labels to update: {preview.UpdatedBusinessMetadata}\\n" +
-                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\\n\\n" +
+                $"Compare the current Signal List with the bundled SCADA 101 I/O list?\n\n" +
+                $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\n" +
+                $"Signal names to update: {preview.RenamedPoints}\n" +
+                $"Business labels to update: {preview.UpdatedBusinessMetadata}\n" +
+                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n\n" +
                 "All configured factors, X0/X100/Y0/Y100, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
                 "Only the labels and explicitly uncalibrated legacy Q units above are reconciled. " +
-                "The existing profile file remains untouched; you must Save & Apply a new copy.\\n\\n" +
+                "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
                 "Prepare the updated copy?";
             if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",
                     MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
