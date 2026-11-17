@@ -28,7 +28,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
                     Ca = ca,
                     Ioa = 4015,
                     TypeId = 11,
-                    Name = "FEEDER REACTIVE POWER (Q)",
+                    Name = "FEEDER TM Q",
                     Unit = "MVar",
                     Scale = scale
                 }
@@ -72,7 +72,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
                     Ca = ca,
                     Ioa = 4015,
                     TypeId = 11,
-                    Name = "FEEDER REACTIVE POWER (Q)",
+                    Name = "FEEDER TM Q",
                     Unit = "MVar",
                     ScalingMode = "TwoPoint",
                     X0 = 0,
@@ -188,7 +188,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     {
         var row = Row();
         row.ApplyDisplayNames(Index(105, 0.1));
-        Assert.Equal("FEEDER REACTIVE POWER (Q)", row.Signal);
+        Assert.Equal("FEEDER TM Q", row.Signal);
         Assert.Equal("1364.1 MVar", row.DisplayValue);
         Assert.Equal("1364.1 MVar", row.CompactDisplayValue);
         Assert.Equal("Scaled=13641", row.SourceEntry.NewValue);
@@ -201,7 +201,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     {
         var row = Row(ca: 1);
         row.ApplyDisplayNames(Index(105, 0.1));
-        Assert.Equal("FEEDER REACTIVE POWER (Q)", row.Signal);
+        Assert.Equal("FEEDER TM Q", row.Signal);
         Assert.Equal("Name only", row.Mapped);
         Assert.Equal("Scaled=13641", row.DisplayValue);
         Assert.Equal(1, row.SourceEntry.CommonAddress);
