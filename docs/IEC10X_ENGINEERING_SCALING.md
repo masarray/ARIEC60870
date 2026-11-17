@@ -104,7 +104,11 @@ The action:
   converts a misleading `MVar` unit suffix into `counts` after explicit
   operator consent. **Custom Factor and TwoPoint calibrated MVar remain
   unchanged.** This never fabricates the missing gateway coefficient.
-- Does **not** change any calibrated endpoints, TI9 scaling, raw decoded
+- For the documented TI9 POAQ (IOA 790449) only, a legacy **identity**
+  normalized reading with MW unit and no configured endpoints is upgraded to
+  the documented X0=0, X100=1, Y0=0, Y100=1000 mapping. Existing custom
+  full-scale or TwoPoint settings are never overwritten.
+- Does **not** change any previously configured calibration, raw decoded
   bytes, CA/link configuration, commands, feedback, control policies,
   timestamps, or quality.
 - Requires **Save & Apply to a new JSON file**, and refuses overwriting
