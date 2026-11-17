@@ -261,12 +261,13 @@ public sealed partial class SignalListEditorWindow : Window
         AddToolbarButton(toolbar, "Save", SaveList_Click);
 
         var more = CreateToolbarButton("More ▾", (_, _) => { }, false, false);
-        more.ContextMenu = BuildMoreActionsMenu();
+        var moreMenu = BuildMoreActionsMenu();
+        more.ContextMenu = moreMenu;
         more.Click += (_, _) =>
         {
-            more.ContextMenu.PlacementTarget = more;
-            more.ContextMenu.Placement = PlacementMode.Bottom;
-            more.ContextMenu.IsOpen = true;
+            moreMenu.PlacementTarget = more;
+            moreMenu.Placement = PlacementMode.Bottom;
+            moreMenu.IsOpen = true;
         };
         toolbar.Children.Add(more);
         AddToolbarButton(toolbar, "Save & Apply", SaveApply_Click, isPrimary: true);
