@@ -104,22 +104,34 @@ async function findIntent(github, context, sha, pr, owner, repo) {
   }
   return {request, comments};
 }
-// Stage reservations are tiny Actions artifacts uploaded before dispatch.
-// No write token for Issues/PRs and no duplicate expensive runner launches.
+// A reservation is *not* proof of dispatch: upload-artifact precedes dispatch.
+// Trust only the default-branch controller's own artifact AND completed dispatch step.
+// A failed/cancelled controller cannot silently turn a reservation into "done".
+// Failed dispatch is fail-closed; a fresh authorized comment creates a new request ID.
 async function reserved(github, owner, repo, name, sha) {
-  const {data} = await github.rest.actions.listArtifactsForRepo({owner,repo,name,per_page:20});
-  // Artifact name alone is untrusted: PR CI can upload arbitrary names.
-  // Only a matching artifact produced by the trusted master control plane counts.
+  const {data} = await github.rest.actions.listArtifactsForRepo({owner,repo,name,per_page:100});
+  // Never lose a valid marker among attacker-supplied, same-name artifacts.
+  // Bounded search; overflow blocks release rather than risking duplicate dispatch.
+  if (data.total_count > 100)
+    throw new Error(`Too many artifacts named ${name}; release admission needs investigation.`);
   for (const artifact of (data.artifacts || []).filter(a =>
-    !a.expired && a.name === name && a.workflow_run?.id).slice(0,5)) {
-    const {data: run} = await github.rest.actions.getWorkflowRun({owner,repo,
-      run_id:artifact.workflow_run.id});
+    !a.expired && a.name === name && a.workflow_run?.id)) {
+    const runId = artifact.workflow_run.id;
+    const {data: run} = await github.rest.actions.getWorkflowRun({owner,repo,run_id:runId});
     const path = String(run.path || '').split('@')[0];
-    if ((path === '.github/workflows/release-comment.yml' ||
-         path.endsWith('/.github/workflows/release-comment.yml')) &&
-        run.repository?.full_name === `${owner}/${repo}` &&
-        run.head_branch === 'master' && run.head_sha === sha &&
-        ['issue_comment','workflow_run'].includes(run.event)) return true;
+    if (path !== '.github/workflows/release-comment.yml' ||
+        run.repository?.full_name !== `${owner}/${repo}` ||
+        run.head_branch !== 'master' || run.head_sha !== sha ||
+        !['issue_comment','workflow_run'].includes(run.event)) continue;
+    // A concurrent controller that has uploaded the lease is still the owner.
+    if (run.status !== 'completed') return true;
+    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
+      {owner,repo,run_id:runId,per_page:100});
+    const dispatchOk = jobs.some(j => j.name === 'release-admission' &&
+      (j.steps || []).some(s => s.name === 'Dispatch one pinned next stage' &&
+        s.conclusion === 'success'));
+    if (run.conclusion === 'success' && dispatchOk) return true;
+    throw new Error(`Release reservation ${name} belongs to controller run #${runId} but its dispatch was not proven successful. No automatic retry or duplicate package; inspect the failed run and create a fresh authorized /release stable comment after repair.`);
   }
   return false;
 }
