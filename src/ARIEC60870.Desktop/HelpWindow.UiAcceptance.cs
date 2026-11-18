@@ -38,6 +38,18 @@ public partial class HelpWindow
         await CaptureAsync("id-iec101-780x540.png", "learn-iec101", 780, 540);
         if (TopicTitleText.Text != "IEC 60870-5-101")
             throw new InvalidOperationException("Indonesian Help Center translation did not render.");
+        var nestedIec101 = TopicListBox.Items.OfType<HelpTopicListItem>()
+            .Where(item => item.Kind == "section" && item.Key == "learn-iec101").ToArray();
+        if (nestedIec101.Length < 4 ||
+            !TopicListBox.Items.OfType<HelpTopicListItem>().Any(item => item.Badge == "IEC103") ||
+            !TopicListBox.Items.OfType<HelpTopicListItem>().Any(item => item.Badge == "IEC104"))
+            throw new InvalidOperationException("Book chapter hierarchy or IEC protocol badges are missing.");
+        TopicListBox.SelectedItem = nestedIec101[^1];
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        UpdateLayout();
+        if (TopicScrollViewer.VerticalOffset < 20)
+            throw new InvalidOperationException("Clicking a nested IEC101 subchapter did not scroll the article.");
+        SaveRenderedViewport(outputDirectory, "id-iec101-nested-subchapter-780x540.png");
 
         LanguageComboBox.SelectedIndex = 0;
         await CaptureAsync("en-class1-780x540.png", "class-polling", 780, 540);
@@ -79,11 +91,11 @@ public partial class HelpWindow
                 result = "passed",
                 renderer = "native WPF RenderTargetBitmap",
                 dpiQualification = "logical DIP viewports only; operator must review Windows 125% and 150% DPI",
-                screenshots = 6,
+                screenshots = 7,
                 requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
                 note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
-                cases = new[] { "offline bilingual engineering handbook", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
+                cases = new[] { "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
             }, new JsonSerializerOptions { WriteIndented = true }));
 
