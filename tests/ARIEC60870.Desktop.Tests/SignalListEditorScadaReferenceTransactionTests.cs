@@ -87,8 +87,9 @@ public sealed class SignalListEditorScadaReferenceTransactionTests
 
         // Reusing the same reference must not create a phantom edit.
         Assert.Empty(Proposed(row, range!));
-        foreach (var change in changes.Reverse())
-            typeof(SignalListEditorRow).GetProperty(change.Field)!.SetValue(row, change.Before);
+        for (var i = changes.Length - 1; i >= 0; i--)
+            typeof(SignalListEditorRow).GetProperty(changes[i].Field)!
+                .SetValue(row, changes[i].Before);
         var restored = row.ToPoint();
         Assert.Equal(before.ToPoint().ScalingMode, restored.ScalingMode);
         Assert.Equal(before.ToPoint().Unit, restored.Unit);
