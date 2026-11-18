@@ -1703,6 +1703,18 @@
                                     
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
+                                    <!-- IEC-101 FC10/11 is the request link function, not
+                                         a permanent IOA Class 1/2 declaration. -->
+                                    <DataGridTextColumn Header="FC" Binding="{Binding RequestFcCode}" Width="65" MinWidth="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCellNoWrapText}">
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="ToolTip" Value="{Binding RequestFcTooltip}"/>
+                                                <Setter Property="ToolTipService.IsEnabled" Value="True"/>
+                                                <Setter Property="ToolTipService.InitialShowDelay" Value="450"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTemplateColumn Header="Source / IOA" Width="1.2*" MinWidth="116" ClipboardContentBinding="{Binding Address}">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
