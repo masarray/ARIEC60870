@@ -121,9 +121,34 @@ public partial class HelpWindow
         if (ActualWidth >= 950 && HelpArticlePanel.ActualWidth < 2.9 * HelpTopicsPanel.ActualWidth)
             throw new InvalidOperationException("The article is no longer the dominant Help Center panel.");
 
-        if (TopicHeroIconPath.Data is null ||
+        if (SearchGlyphPath.Data is null ||
             TopicListBox.Items.OfType<HelpTopicListItem>().Any(item => item.IconGeometry is null))
-            throw new InvalidOperationException("Material topic icon geometry is missing.");
+            throw new InvalidOperationException("Outlined Material icon geometry is missing.");
+
+        // Measure actual WPF control coordinates, not XAML intent. In the same
+        // 36-DIP SearchChrome row, icon, editable text and watermark centers
+        // must agree even at minimum logical window size.
+        var iconCenter = SearchGlyphPath.TranslatePoint(
+            new Point(SearchGlyphPath.ActualWidth / 2, SearchGlyphPath.ActualHeight / 2),
+            SearchChrome).Y;
+        var inputCenter = SearchBox.TranslatePoint(
+            new Point(SearchBox.ActualWidth / 2, SearchBox.ActualHeight / 2),
+            SearchChrome).Y;
+        if (Math.Abs(iconCenter - inputCenter) > 1.5)
+            throw new InvalidOperationException(
+                $"Search icon/input center mismatch: {iconCenter:F1} vs {inputCenter:F1} DIP.");
+        if (SearchWatermarkText.IsVisible)
+        {
+            var watermarkCenter = SearchWatermarkText.TranslatePoint(
+                new Point(SearchWatermarkText.ActualWidth / 2,
+                          SearchWatermarkText.ActualHeight / 2), SearchChrome).Y;
+            if (Math.Abs(iconCenter - watermarkCenter) > 1.5)
+                throw new InvalidOperationException(
+                    $"Search icon/placeholder center mismatch: {iconCenter:F1} vs {watermarkCenter:F1} DIP.");
+        }
+
+        if (SearchChrome.ActualHeight < 35)
+            throw new InvalidOperationException("Search field was rendered below its 36-DIP rhythm.");
 
         if (TopicListBox.Items.Count == 0 || TopicContentPanel.Children.Count < 2)
             throw new InvalidOperationException("Selected article did not render section content.");
