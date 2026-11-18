@@ -10,7 +10,8 @@
         Background="{StaticResource SurfaceBrush}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
-        FontFamily="{StaticResource AppFont}">
+        FontFamily="{StaticResource AppFont}"
+        PreviewKeyDown="HelpWindow_PreviewKeyDown">
     <Window.Resources>
         <!-- Help navigation changes density, not the application's color system. -->
         <Style x:Key="HelpTopicListBox" TargetType="{x:Type ListBox}">
@@ -137,7 +138,8 @@
                                 <TextBlock Text="Open Field Wiki" />
                             </StackPanel>
                         </Button>
-                        <Button Style="{StaticResource ArSeeToolbarActionButtonStyle}"
+                        <Button x:Name="CloseHelpButton"
+                                Style="{StaticResource ArSeeToolbarActionButtonStyle}"
                                 Click="CloseButton_Click" Content="Close"
                                 AutomationProperties.Name="Close help center" />
                     </StackPanel>
@@ -159,9 +161,7 @@
                                     <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Text.Length, ElementName=SearchBox}" Value="0">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
+
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
