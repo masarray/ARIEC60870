@@ -1,5 +1,8 @@
 # Physical IEC-101/104 FAT — v3.6.16-rc.1 execution sheet
 
+> **Historical RC1 worksheet:** The published **v3.6.17-rc.2** release includes a later POOP/POAQ correction, per-signal Q candidate review, original-profile Save As protection, and Event Log request-FC evidence. For the newer binary, use the [version-matched v3.6.17-rc.2 FAT execution sheet](FIELD_FAT_RC_3_6_17_RC2.md) and [publication provenance](archive/release-notes/RELEASE_VALIDATION_v3.6.17-rc.2.md) instead. The below 3.6.16-rc.1 matrix is retained verbatim for its original candidate; no previous FAT result is retroactively upgraded.
+
+
 **Release candidate only; field verdict UNKNOWN until real RTU evidence exists.** Target reference: SICAM A8000 / Siemens RTU family where explicitly configured, but the actual device variant, serial card, firmware, local IOA map and cable wiring must be documented. Prior site behavior was not laboratory proof for this new build.
 
 ## 0. Safe, bounded preflight
