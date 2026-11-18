@@ -17,22 +17,6 @@ public partial class HelpWindow : Window
     public HelpWindow(string? topicKey = null)
     {
         InitializeComponent();
-        SearchBox.Text = "Search ACD, Class 1, command timeout...";
-        SearchBox.GotKeyboardFocus += (_, _) =>
-        {
-            if (SearchBox.Text == "Search ACD, Class 1, command timeout..." || SearchBox.Text == "Cari ACD, Class 1, command timeout...")
-            {
-                SearchBox.Text = string.Empty;
-            }
-        };
-        SearchBox.LostKeyboardFocus += (_, _) =>
-        {
-            if (string.IsNullOrWhiteSpace(SearchBox.Text))
-            {
-                SearchBox.Text = _language == "id" ? "Cari ACD, Class 1, command timeout..." : "Search ACD, Class 1, command timeout...";
-            }
-        };
-
         _topics = CreateTopics();
         _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "overview" : topicKey!;
         RefreshLanguageText();
@@ -105,6 +89,12 @@ public partial class HelpWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
+    private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        SearchBox.Clear();
+        SearchBox.Focus();
+    }
+
     private void OpenOnlineButton_Click(object sender, RoutedEventArgs e)
     {
         var path = _language == "id" ? "id/wiki.html" : "wiki.html";
@@ -121,21 +111,19 @@ public partial class HelpWindow : Window
 
     private void RefreshLanguageText()
     {
-        HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ARIEC60870" : "ARIEC60870 Help Center";
+        HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ArSee" : "ArSee Help Center";
         HelpSubtitleText.Text = _language == "id"
-            ? "Panduan cepat untuk IEC 101, IEC 103, IEC 104, frame trace, findings, dan report."
-            : "Quick field guidance for IEC 101, IEC 103, IEC 104, frame traces, findings, and reports.";
+            ? "Panduan IEC 101, IEC 103, IEC 104, trace, dan laporan."
+            : "Field guidance for IEC 101, IEC 103, IEC 104, trace and reports.";
         TopicListTitleText.Text = _language == "id" ? "Topik lapangan" : "Field topics";
         TopicListHintText.Text = _language == "id"
             ? "Tekan F1 dari workspace apa pun untuk membuka topik yang paling relevan."
             : "Press F1 from any workspace to open the most relevant topic.";
         OpenOnlineButton.Content = BuildOnlineButtonContent(_language == "id" ? "Buka Field Wiki" : "Open Field Wiki");
-        if (string.IsNullOrWhiteSpace(SearchBox.Text)
-            || SearchBox.Text == "Search ACD, Class 1, command timeout..."
-            || SearchBox.Text == "Cari ACD, Class 1, command timeout...")
-        {
-            SearchBox.Text = _language == "id" ? "Cari ACD, Class 1, command timeout..." : "Search ACD, Class 1, command timeout...";
-        }
+        SearchWatermarkText.Text = _language == "id"
+            ? "Cari topik, ACD, Class 1, command timeout..."
+            : "Search topics, ACD, Class 1, command timeout...";
+        NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
     private object BuildOnlineButtonContent(string label)
@@ -165,10 +153,6 @@ public partial class HelpWindow : Window
     private void RefreshTopicList()
     {
         var rawSearch = SearchBox.Text ?? string.Empty;
-        if (rawSearch == "Search ACD, Class 1, command timeout..." || rawSearch == "Cari ACD, Class 1, command timeout...")
-        {
-            rawSearch = string.Empty;
-        }
 
         var terms = rawSearch.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var items = _topics
@@ -182,6 +166,7 @@ public partial class HelpWindow : Window
             .ToList();
 
         TopicListBox.ItemsSource = items;
+        NoTopicsText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (items.Count > 0 && !items.Any(item => string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
         {
             _selectedTopicKey = items[0].Key;
@@ -212,18 +197,24 @@ public partial class HelpWindow : Window
         {
             TopicContentPanel.Children.Add(BuildSectionCard(section));
         }
+
+        // Switching topics should begin at the article heading, not the old scroll offset.
+        TopicScrollViewer.ScrollToTop();
     }
 
     private Border BuildSectionCard(HelpSection section)
     {
+        // Each article is measured against the available reading width. A horizontal
+        // StackPanel with a fixed-width text child clips at narrow windows / high DPI.
         var body = new StackPanel();
         body.Children.Add(new TextBlock
         {
             Text = Pick(section.HeadingEn, section.HeadingId),
-            FontSize = 14.8,
+            FontSize = 13.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("Ink900Brush"),
-            TextWrapping = TextWrapping.Wrap
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
         });
 
         foreach (var paragraph in PickList(section.ParagraphsEn, section.ParagraphsId))
@@ -231,45 +222,55 @@ public partial class HelpWindow : Window
             body.Children.Add(new TextBlock
             {
                 Text = paragraph,
-                FontSize = 12.4,
+                FontSize = 12.2,
                 Foreground = (Brush)FindResource("Ink600Brush"),
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 7, 0, 0),
                 LineHeight = 19
             });
         }
 
-        var bullets = PickList(section.BulletsEn, section.BulletsId).ToArray();
-        if (bullets.Length > 0)
+        var bullets = PickList(section.BulletsEn, section.BulletsId);
+        if (bullets.Count > 0)
         {
             var bulletPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             foreach (var bullet in bullets)
             {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 7) };
-                row.Children.Add(new Border
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(17) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var dot = new Border
                 {
-                    Width = 8,
-                    Height = 8,
-                    CornerRadius = new CornerRadius(4),
+                    Width = 6,
+                    Height = 6,
+                    CornerRadius = new CornerRadius(3),
                     Background = (Brush)FindResource("AccentBrush"),
-                    Margin = new Thickness(0, 5, 9, 0)
-                });
-                row.Children.Add(new TextBlock
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(1, 7, 0, 0)
+                };
+                Grid.SetColumn(dot, 0);
+                row.Children.Add(dot);
+
+                var text = new TextBlock
                 {
                     Text = bullet,
                     FontSize = 12.2,
                     Foreground = (Brush)FindResource("Ink700Brush"),
                     TextWrapping = TextWrapping.Wrap,
-                    LineHeight = 18,
-                    MaxWidth = 660
-                });
+                    LineHeight = 19
+                };
+                Grid.SetColumn(text, 1);
+                row.Children.Add(text);
                 bulletPanel.Children.Add(row);
             }
             body.Children.Add(bulletPanel);
         }
 
-        var frames = PickList(section.FrameLinesEn ?? Array.Empty<string>(), section.FrameLinesId ?? Array.Empty<string>()).ToArray();
-        if (frames.Length > 0)
+        var frames = PickList(section.FrameLinesEn ?? Array.Empty<string>(),
+                              section.FrameLinesId ?? Array.Empty<string>());
+        if (frames.Count > 0)
         {
             var code = new StackPanel();
             foreach (var line in frames)
@@ -278,32 +279,33 @@ public partial class HelpWindow : Window
                 {
                     Text = line,
                     FontFamily = (FontFamily)FindResource("TraceMonoFont"),
-                    FontSize = 12,
+                    FontSize = 11.5,
                     Foreground = (Brush)FindResource("Ink800Brush"),
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 2, 0, 2)
+                    Margin = new Thickness(0, 2, 0, 2),
+                    LineHeight = 17
                 });
             }
             body.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(246, 250, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 234, 254)),
+                Background = (Brush)FindResource("Panel75Brush"),
+                BorderBrush = (Brush)FindResource("LineBrush"),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(13),
-                Padding = new Thickness(12, 10, 12, 10),
-                Margin = new Thickness(0, 11, 0, 0),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(11, 9, 11, 9),
+                Margin = new Thickness(0, 8, 0, 0),
                 Child = code
             });
         }
 
         return new Border
         {
-            Background = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(230, 239, 251)),
+            Background = (Brush)FindResource("ArSeeContentWhiteBrush"),
+            BorderBrush = (Brush)FindResource("LineBrush"),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(15),
-            Margin = new Thickness(0, 0, 0, 13),
+            CornerRadius = new CornerRadius(11),
+            Padding = new Thickness(14, 13, 14, 13),
+            Margin = new Thickness(0, 0, 0, 10),
             Child = body
         };
     }
