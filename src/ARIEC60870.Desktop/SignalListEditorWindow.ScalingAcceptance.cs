@@ -50,6 +50,48 @@ public sealed partial class SignalListEditorWindow
                 editor._layoutRoot.RowDefinitions[3].ActualHeight > 32)
                 throw new InvalidOperationException(
                     "Signal Map must open as a grid-first compact workspace with inspector hidden.");
+            // Top toolbar must reuse the exact Main Window pill/circle/token
+            // objects. A merely similar custom template is a design regression.
+            var workspaceStyle = (Style)Application.Current.FindResource("ArSeeWorkspaceActionButtonStyle");
+            var primaryStyle = (Style)Application.Current.FindResource("ArSeeWorkspacePrimaryActionButtonStyle");
+            var circleStyle = (Style)Application.Current.FindResource("EventJournalCircleNavigationStyle");
+            var clearStyle = (Style)Application.Current.FindResource("ArSeeToolbarSearchClearStyle");
+            var materialPathStyle = (Style)Application.Current.FindResource("MaterialToolbarIconPath");
+            var addAction = FindButtonByName(editor._layoutRoot, "SignalMapAddButton");
+            var saveAction = FindButtonByName(editor._layoutRoot, "SignalMapSaveButton");
+            var applyAction = FindButtonByName(editor._layoutRoot, "SignalMapSaveApplyButton");
+            var moreAction = FindButtonByName(editor._layoutRoot, "SignalMapMoreButton");
+            if (addAction is null || saveAction is null || applyAction is null || moreAction is null ||
+                !ReferenceEquals(addAction.Style, workspaceStyle) ||
+                !ReferenceEquals(saveAction.Style, workspaceStyle) ||
+                !ReferenceEquals(applyAction.Style, primaryStyle) ||
+                !ReferenceEquals(editor._detailsButton.Style, workspaceStyle) ||
+                !ReferenceEquals(moreAction.Style, circleStyle) ||
+                !ReferenceEquals(editor._resetFiltersButton.Style, clearStyle) ||
+                editor._resetFiltersButton.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException(
+                    "Signal Map top actions must use the Main Window shared button tokens.");
+            AssertMaterialIconText(addAction, "MaterialAdd", materialPathStyle);
+            AssertMaterialIconText(saveAction, "MaterialSave", materialPathStyle);
+            AssertMaterialIconText(applyAction, "MaterialCheckCircle", materialPathStyle);
+            AssertMaterialIconText(editor._detailsButton, "MaterialViewSidebar", materialPathStyle);
+            AssertMaterialIconOnly(moreAction, "MaterialMoreVert", materialPathStyle);
+            AssertMaterialIconOnly(editor._resetFiltersButton, "MaterialClose", materialPathStyle);
+            if (System.Windows.Automation.AutomationProperties.GetName(moreAction) != "More actions" ||
+                System.Windows.Automation.AutomationProperties.GetName(editor._resetFiltersButton) !=
+                "Clear search and filters" || moreAction.ContextMenu is null)
+                throw new InvalidOperationException(
+                    "Icon-only toolbar actions need accessible names and a working More menu.");
+
+            // Exercise actual button Click, not only the internal show/hide method.
+            editor._detailsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if (!editor._inspectorOpen ||
+                !ReferenceEquals(editor._detailsButton.Style, primaryStyle))
+                throw new InvalidOperationException("Details icon/text click did not open the inspector.");
+            editor._detailsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if (editor._inspectorOpen ||
+                !ReferenceEquals(editor._detailsButton.Style, workspaceStyle))
+                throw new InvalidOperationException("Details icon/text click did not restore grid-first mode.");
             CaptureUiReviewImage(editor, "00-grid-first-1360x820");
             editor.SetInspectorVisible(true);
             await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -130,6 +172,9 @@ public sealed partial class SignalListEditorWindow
             var view = CollectionViewSource.GetDefaultView(editor._rows) ??
                 throw new InvalidOperationException("Signal Map collection view was not constructed.");
             editor._searchBox.Text = "790449";
+            if (editor._resetFiltersButton.Visibility != Visibility.Visible)
+                throw new InvalidOperationException(
+                    "Material clear-filter button should appear only for active search/filter state.");
             var quickMatches = view.Cast<SignalListEditorRow>().ToArray();
             if (quickMatches.Length != 1 || !ReferenceEquals(quickMatches[0], normalized))
                 throw new InvalidOperationException(
@@ -153,6 +198,8 @@ public sealed partial class SignalListEditorWindow
                 view.Cast<SignalListEditorRow>().Any(row => !IsMeasuredAnalog(row)))
                 throw new InvalidOperationException("Measured signal filter returned non-measurement rows.");
             editor.ClearFilters();
+            if (editor._resetFiltersButton.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException("Clear-filter icon did not disappear after reset.");
             if (view.Cast<SignalListEditorRow>().Count() != editor._rows.Count)
                 throw new InvalidOperationException("Clear filters failed to restore the full signal list.");
 
@@ -374,6 +421,39 @@ public sealed partial class SignalListEditorWindow
             throw new InvalidOperationException(
                 $"{label} is below the fold: y={bounds.Top:0.#}..{bounds.Bottom:0.#}, " +
                 $"viewport={viewer.ViewportHeight:0.#}. Scaling endpoints must be visible without scrolling.");
+    }
+
+    private static Button? FindButtonByName(DependencyObject root, string name)
+    {
+        if (root is Button button && button.Name == name) return button;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var found = FindButtonByName(VisualTreeHelper.GetChild(root, i), name);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private static void AssertMaterialIconText(Button button, string geometry, Style iconStyle)
+    {
+        if (button.Content is not StackPanel row || row.Children.Count != 2 ||
+            row.Children[0] is not System.Windows.Shapes.Path icon ||
+            row.Children[1] is not TextBlock label ||
+            string.IsNullOrWhiteSpace(label.Text) ||
+            !ReferenceEquals(icon.Style, iconStyle) ||
+            !ReferenceEquals(icon.Data, Application.Current.FindResource(geometry)) ||
+            button.ActualHeight < 30)
+            throw new InvalidOperationException(
+                $"Material icon-text button '{geometry}' is not using a real shared WPF vector/token.");
+    }
+
+    private static void AssertMaterialIconOnly(Button button, string geometry, Style iconStyle)
+    {
+        if (button.Content is not System.Windows.Shapes.Path icon ||
+            !ReferenceEquals(icon.Style, iconStyle) ||
+            !ReferenceEquals(icon.Data, Application.Current.FindResource(geometry)))
+            throw new InvalidOperationException(
+                $"Material icon-only button '{geometry}' lost its shared vector/icon style.");
     }
 
     private static TextBlock? FindLabel(DependencyObject root, string label)
