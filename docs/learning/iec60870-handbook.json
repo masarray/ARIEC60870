@@ -38,7 +38,9 @@
             "Pisahkan ketentuan normatif IEC, opsi companion standard, konvensi deployment, dan kebijakan engineering lokal."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec-family-s1",
+          "number": "1.1"
         },
         {
           "headingEn": "Read the layers in order",
@@ -62,7 +64,9 @@
             "Catat edisi IEC, opsi companion, dan versi profil sebelum FAT/SAT."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec-family-s2",
+          "number": "1.2"
         },
         {
           "headingEn": "Master, outstation and time",
@@ -86,7 +90,57 @@
             "Simpan byte sumber saat hasil decode diperdebatkan."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec-family-s3",
+          "number": "1.3"
+        },
+        {
+          "headingEn": "Interoperability is a contract, not a checkbox",
+          "headingId": "Interoperabilitas adalah kontrak, bukan checkbox",
+          "paragraphsEn": [
+            "Two products can both support IEC 60870-5-101 yet disagree on address field widths, balance mode, Type IDs, COT, quality semantics, timers and control qualifiers. The agreed interoperability list describes which standard options a particular pair of systems actually use. Document this before investigating a silent link.",
+            "During FAT, verify at least one positive and one negative case for each supported service. Unsupported Type ID or negative activation confirmation is meaningful evidence; treating it as successful data is a decoding error."
+          ],
+          "paragraphsId": [
+            "Dua perangkat sama-sama mendukung IEC 60870-5-101 tetapi masih bisa berbeda pada panjang address, balanced mode, Type ID, COT, quality, timer dan qualifier kontrol. Interoperability list yang disepakati menunjukkan opsi standar yang benar-benar digunakan oleh sistem tersebut. Catat sebelum menelusuri link yang diam.",
+            "Saat FAT, verifikasi setidaknya satu kasus positif dan negatif setiap layanan yang didukung. Type ID yang tidak didukung atau negative activation confirmation adalah evidence penting; memperlakukannya sebagai data sukses merupakan kesalahan decoding."
+          ],
+          "bulletsEn": [
+            "Freeze protocol edition, companion profile, address lengths and station mapping in the evidence header.",
+            "Keep transport validity, protocol validity and business/process validity as separate verdicts."
+          ],
+          "bulletsId": [
+            "Bekukan edisi protokol, companion profile, panjang address serta mapping stasiun di header evidence.",
+            "Pisahkan verdict validitas transport, validitas protokol dan validitas proses."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-iec-family-s4",
+          "number": "1.4"
+        },
+        {
+          "headingEn": "A beginner's five questions for every frame",
+          "headingId": "Lima pertanyaan pemula untuk setiap frame",
+          "paragraphsEn": [
+            "A good analyzer should answer: who sent this, which link/session carried it, what layer accepted it, why was the ASDU sent, and what point or command transaction does it affect? Read a frame in that order to avoid confusing a correct link acknowledgment with a successful breaker operation."
+          ],
+          "paragraphsId": [
+            "Analyzer yang baik menjawab: siapa pengirimnya, link/session apa yang membawanya, layer apa yang menerimanya, mengapa ASDU dikirim, serta point atau transaksi command mana yang terdampak? Baca frame dengan urutan tersebut agar ACK link tidak disamakan dengan keberhasilan operasi breaker."
+          ],
+          "bulletsEn": [
+            "Identify TX/RX from the actual capture point, not assumed device role.",
+            "Validate framing/checksum or APCI before ASDU interpretation.",
+            "Check mapping/quality/time before making an operational conclusion."
+          ],
+          "bulletsId": [
+            "Tentukan TX/RX dari titik capture sebenarnya, bukan asumsi peran perangkat.",
+            "Validasi framing/checksum atau APCI sebelum menafsirkan ASDU.",
+            "Cek mapping/quality/waktu sebelum menyimpulkan operasi proses."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-iec-family-s5",
+          "number": "1.5"
         }
       ],
       "sources": [
@@ -94,7 +148,100 @@
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
-      ]
+      ],
+      "number": "01"
+    },
+    {
+      "key": "learn-framing",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Frames, bytes and diagnostics",
+      "titleId": "Frame, byte dan diagnostik",
+      "summaryEn": "Learn to move from a serial/TCP capture to trusted decoded protocol evidence.",
+      "summaryId": "Belajar mengubah capture serial/TCP menjadi evidence protokol yang tepercaya.",
+      "searchText": "ft1.2 checksum tcp stream frame gap direction trace bytes",
+      "sources": [
+        "https://webstore.iec.ch/en/publication/23822",
+        "https://webstore.iec.ch/en/publication/3745",
+        "https://webstore.iec.ch/en/publication/25035"
+      ],
+      "sections": [
+        {
+          "headingEn": "Capture viewpoint and direction",
+          "headingId": "Titik capture dan arah komunikasi",
+          "paragraphsEn": [
+            "TX and RX labels are relative to the equipment performing the capture. On a passive tap, identify which physical conductor or logical TCP endpoint each direction represents before naming the sender as master or outstation.",
+            "For serial links, parity/framing faults and RS-485 turnaround timing can corrupt an otherwise correct application request. For IEC 104, TCP segmentation and retransmission are not equivalent to protocol APDU boundaries."
+          ],
+          "paragraphsId": [
+            "Label TX dan RX bergantung perangkat pencatat. Pada tap pasif, identifikasi penghantar fisik atau endpoint TCP setiap arah sebelum menyebut pengirim sebagai master atau outstation.",
+            "Pada link serial, kesalahan parity/framing dan waktu turnaround RS-485 dapat merusak request aplikasi yang benar. Pada IEC 104, TCP segmentation dan retransmission bukan batas APDU protokol."
+          ],
+          "bulletsEn": [
+            "Preserve port, direction, wall-clock time and capture uncertainty.",
+            "Separate checksum/framing failure from semantically unsupported ASDU.",
+            "Never invent unobserved reverse-direction bytes."
+          ],
+          "bulletsId": [
+            "Simpan port, arah, waktu capture dan ketidakpastiannya.",
+            "Pisahkan kegagalan checksum/framing dari ASDU yang tidak didukung secara semantik.",
+            "Jangan mengarang byte arah sebaliknya yang tidak terlihat."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-framing-s1",
+          "number": "2.1"
+        },
+        {
+          "headingEn": "Trust ladder: byte to application conclusion",
+          "headingId": "Tangga kepercayaan: byte hingga kesimpulan aplikasi",
+          "paragraphsEn": [
+            "Step 1 proves byte capture completeness; step 2 proves transport/link validity; step 3 proves ASDU decode under selected profile; step 4 correlates an object to a configured point; step 5 correlates a command to confirmed field feedback. A failure at an earlier step prevents claiming later certainty.",
+            "This order prevents a misleading 'connected' banner from becoming a false FAT PASS when the observed Common Address, relay FUN/INF or process quality is wrong."
+          ],
+          "paragraphsId": [
+            "Langkah 1 membuktikan kelengkapan capture; langkah 2 membuktikan validitas transport/link; langkah 3 membuktikan decode ASDU sesuai profil; langkah 4 menghubungkan objek ke point konfigurasi; langkah 5 mencocokkan command dengan feedback lapangan. Kegagalan langkah awal tidak membenarkan kepastian langkah akhir.",
+            "Urutan ini mencegah banner 'connected' berubah menjadi FAT PASS yang salah ketika Common Address, FUN/INF relay atau quality proses ternyata keliru."
+          ],
+          "bulletsEn": [
+            "Use labels Observed, Correlated, Inferred and Not observed.",
+            "A valid byte stream is not automatically a valid control result."
+          ],
+          "bulletsId": [
+            "Gunakan label Observed, Correlated, Inferred dan Not observed.",
+            "Aliran byte valid belum otomatis berarti hasil kontrol valid."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-framing-s2",
+          "number": "2.2"
+        },
+        {
+          "headingEn": "Two conceptual capture patterns",
+          "headingId": "Dua pola capture konseptual",
+          "paragraphsEn": [
+            "Do not treat the following examples as real complete transmittable frames; they describe layers and expected events, not exact checksum bytes. Match them to real captures when learning.",
+            "Pattern A: master sends serial Class 2 request, RTU replies with no-data. Pattern B: client establishes IEC 104 TCP, completes STARTDT, sends GI I-frame, and receives ACTCON plus process ASDUs. In either case the ASDU must still be checked against the negotiated station map."
+          ],
+          "paragraphsId": [
+            "Jangan memperlakukan contoh berikut sebagai frame lengkap yang siap dikirim; contoh ini menjelaskan layer dan kejadian yang diharapkan, bukan byte checksum yang tepat. Cocokkan dengan capture nyata saat belajar.",
+            "Pola A: master mengirim request Class 2 serial, RTU membalas no-data. Pola B: client membuka TCP IEC 104, menyelesaikan STARTDT, mengirim I-frame GI, lalu menerima ACTCON dan ASDU proses. Pada keduanya ASDU tetap perlu dibandingkan dengan station map yang disepakati."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [
+            "A / SERIAL: TX Class 2 -> RX no-data -> healthy idle scan",
+            "B / TCP: connect -> STARTDT act/con -> GI act -> ACTCON -> data -> completion"
+          ],
+          "framesId": [
+            "A / SERIAL: TX Class 2 -> RX no-data -> scan idle sehat",
+            "B / TCP: connect -> STARTDT act/con -> GI act -> ACTCON -> data -> selesai"
+          ],
+          "id": "learn-framing-s3",
+          "number": "2.3"
+        }
+      ],
+      "number": "02"
     },
     {
       "key": "learn-iec101",
@@ -134,7 +281,9 @@
           "framesId": [
             "Pertukaran link konseptual: TX request primary → RX response secondary.",
             "Link ACK bukan ACTCON; catat kedua lapisan terpisah."
-          ]
+          ],
+          "id": "learn-iec101-s1",
+          "number": "3.1"
         },
         {
           "headingEn": "Healthy unbalanced Class 2 / Class 1 polling",
@@ -170,7 +319,9 @@
             "RX  Data (ACD=0) / no-data",
             "RX  Data (ACD=1) → TX Request Class 1",
             "RX  Event, lalu Class 1 habis → lanjut Class 2"
-          ]
+          ],
+          "id": "learn-iec101-s2",
+          "number": "3.2"
         },
         {
           "headingEn": "Startup, GI and command evidence",
@@ -194,13 +345,80 @@
             "Simpan sumber/CA/IOA, fase command, dan feedback baru dalam laporan."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec101-s3",
+          "number": "3.3"
+        },
+        {
+          "headingEn": "Fixed and variable FT1.2 frames",
+          "headingId": "Frame FT1.2 fixed dan variable",
+          "paragraphsEn": [
+            "A fixed-length FT1.2 frame carries link-control information without an application ASDU; a variable-length frame may carry an ASDU. The short positive acknowledgment 0xE5 is valid only where that response is permitted by the link procedure and profile. A repeated start/length check and checksum can reject broken framing before any Type ID is decoded.",
+            "Treat all example bytes in this handbook as schematic unless a complete checked frame with checksum is shown. Do not paste a schematic sequence into a serial test tool as though it were a transmit-ready APDU."
+          ],
+          "paragraphsId": [
+            "Frame FT1.2 fixed-length membawa informasi kontrol link tanpa ASDU aplikasi; frame variable-length dapat membawa ASDU. ACK positif singkat 0xE5 hanya valid jika prosedur link dan profil mengizinkannya. Pemeriksaan start/length berulang dan checksum menolak frame rusak sebelum Type ID di-decode.",
+            "Semua contoh byte dalam handbook ini bersifat skematis kecuali ditampilkan frame lengkap beserta checksum terverifikasi. Jangan mengirim urutan skematis melalui test tool seolah-olah merupakan APDU siap TX."
+          ],
+          "bulletsEn": [
+            "0x10: investigate fixed-length link request/response; 0x68: investigate variable-length frame and ASDU.",
+            "0xE5 is a context-dependent short acknowledgement, not an application ACTCON.",
+            "Reject a length/checksum mismatch without inventing missing ASDU values."
+          ],
+          "bulletsId": [
+            "0x10: cek request/response link fixed-length; 0x68: cek frame variable-length beserta ASDU.",
+            "0xE5 merupakan ACK pendek sesuai konteks, bukan ACTCON aplikasi.",
+            "Tolak length/checksum mismatch tanpa mengarang ASDU yang hilang."
+          ],
+          "framesEn": [
+            "Schematic: [START][LENGTH][CONTROL][LINK ADDRESS][ASDU?][CHECKSUM][END]"
+          ],
+          "framesId": [
+            "Skematis: [START][LENGTH][CONTROL][LINK ADDRESS][ASDU?][CHECKSUM][END]"
+          ],
+          "id": "learn-iec101-s4",
+          "number": "3.4"
+        },
+        {
+          "headingEn": "How the RTU must react to an empty event queue",
+          "headingId": "Bagaimana RTU merespons antrian event kosong",
+          "paragraphsEn": [
+            "After a valid Class 1 request on an empty queue, the RTU should return the permitted no-data response in the selected procedure, not manufacture a stale event or silently hold the serial line. A good master recognizes no-data and stops the Class 1 drain within a configured bound.",
+            "If Class 1 never empties, test event-classification pressure, accidental cyclic high-priority generation and buffer behavior before increasing polling speed. ACD=1 is a hint of priority data pending, not proof that the next frame contains a usable event."
+          ],
+          "paragraphsId": [
+            "Sesudah request Class 1 yang valid saat antrian kosong, RTU seharusnya mengirim respons no-data yang diperbolehkan prosedur terpilih, bukan membuat event lama atau menahan jalur serial tanpa respons. Master yang baik mengenali no-data dan menghentikan drain Class 1 dalam batas terkonfigurasi.",
+            "Jika Class 1 tidak pernah habis, uji beban klasifikasi event, data periodik yang salah diberi prioritas tinggi dan perilaku buffer sebelum menaikkan kecepatan polling. ACD=1 adalah indikasi data prioritas menunggu, bukan jaminan frame berikut berisi event yang dapat dipakai."
+          ],
+          "bulletsEn": [
+            "Capture the request FC, secondary response FC, ACD, DFC and raw frame integrity.",
+            "No-data on a healthy empty queue is not a communications failure.",
+            "Do not starve Class 2/background scans when Class 1 keeps reasserting ACD."
+          ],
+          "bulletsId": [
+            "Capture request FC, response FC, ACD, DFC dan integritas frame mentah.",
+            "No-data saat antrian sehat kosong bukan kegagalan komunikasi.",
+            "Jangan membuat Class 2/background scan kelaparan ketika Class 1 terus menunjukkan ACD."
+          ],
+          "framesEn": [
+            "TX master  Class 1 request",
+            "RX RTU     No data (queue empty)",
+            "TX master  Return to normal Class 2 scan"
+          ],
+          "framesId": [
+            "TX master  Request Class 1",
+            "RX RTU     No data (antrian kosong)",
+            "TX master  Kembali ke Class 2 normal"
+          ],
+          "id": "learn-iec101-s5",
+          "number": "3.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/3743"
-      ]
+      ],
+      "number": "03"
     },
     {
       "key": "learn-iec103",
@@ -234,7 +452,9 @@
             "Jangan menebak nama sinyal relay tanpa mapping vendor yang terverifikasi."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec103-s1",
+          "number": "4.1"
         },
         {
           "headingEn": "How a relay should answer a serial master",
@@ -258,7 +478,9 @@
             "Bandingkan timestamp relay dengan waktu kedatangan komputer tanpa menggantikan salah satunya."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec103-s2",
+          "number": "4.2"
         },
         {
           "headingEn": "Relaying event evidence into SCADA",
@@ -282,12 +504,67 @@
             "Perlakukan command proteksi sebagai fitur spesifik perangkat/proyek sampai kompatibilitas dipastikan."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec103-s3",
+          "number": "4.3"
+        },
+        {
+          "headingEn": "Relay events are not ordinary RTU points",
+          "headingId": "Event relay bukan point RTU biasa",
+          "paragraphsEn": [
+            "A protection relay may publish start, pickup, trip and reset events carrying function/information identifiers and relay time. Do not turn those into generic breaker ON/OFF states without a verified mapping. A trip initiation event can be distinct from the actual breaker auxiliary contact feedback.",
+            "When relaying IEC 103 to an IEC 104 gateway, preserve the observed relay FUN/INF and time, then separately verify gateway Common Address, outgoing IOA and quality conversion. A gateway read that updates a value does not by itself prove spontaneous reporting."
+          ],
+          "paragraphsId": [
+            "Relay proteksi dapat mengirim event start, pickup, trip dan reset dengan identitas fungsi/informasi serta waktu relay. Jangan menerjemahkannya menjadi status ON/OFF breaker umum tanpa mapping terverifikasi. Event inisiasi trip dapat berbeda dari feedback kontak bantu breaker sebenarnya.",
+            "Saat meneruskan IEC 103 ke gateway IEC 104, pertahankan FUN/INF dan waktu relay yang teramati; lalu verifikasi terpisah Common Address gateway, IOA keluar, serta konversi quality. Read gateway yang mengubah value belum otomatis membuktikan spontaneous reporting."
+          ],
+          "bulletsEn": [
+            "Correlate relay signal meaning to manufacturer-approved function/information tables.",
+            "Check timestamp quality and clock synchronization before comparing sequence of protection events.",
+            "Use a decoded relay event plus subsequent gateway TX trace as conversion evidence."
+          ],
+          "bulletsId": [
+            "Korelasikan arti sinyal relay dengan tabel function/information yang disetujui produsen.",
+            "Cek kualitas timestamp dan sinkronisasi jam sebelum membandingkan urutan event proteksi.",
+            "Gunakan event relay yang di-decode dan trace TX gateway berikutnya sebagai bukti konversi."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-iec103-s4",
+          "number": "4.4"
+        },
+        {
+          "headingEn": "No event while relay values can be read",
+          "headingId": "Nilai relay terbaca tetapi tidak ada event",
+          "paragraphsEn": [
+            "A master may successfully poll background/measurand information but never retrieve an event because pending priority data was not drained, the event was not mapped, or the event occurred outside the capture window. Compare ACD/no-data responses and the relay event queue while keeping timestamp/clock caveats visible.",
+            "Before calling it a relay failure, prove which request was sent, which link address responded and whether a valid relevant ASDU appeared. A lost event should never be inferred solely from an empty Events view."
+          ],
+          "paragraphsId": [
+            "Master dapat sukses polling data latar belakang/measurand tetapi tidak menerima event karena data prioritas belum di-drain, event tidak dimapping, atau kejadian di luar waktu capture. Bandingkan ACD/no-data dan antrian event relay sambil menampilkan batasan timestamp/jam.",
+            "Sebelum menyebut relay gagal, buktikan request apa yang dikirim, link address yang merespons, serta apakah ASDU relevan dan valid muncul. Event hilang tidak boleh disimpulkan hanya dari tampilan Events yang kosong."
+          ],
+          "bulletsEn": [
+            "If raw relay frames exist but names are missing, check FUN/INF decoding/profile first.",
+            "If no RX occurs, check serial physical/link parameters before application mapping.",
+            "If valid event ASDUs exist, verify downstream gateway point mapping independently."
+          ],
+          "bulletsId": [
+            "Jika frame relay mentah ada tapi nama hilang, cek decoding FUN/INF/profil dahulu.",
+            "Jika RX tidak ada, cek fisik/parameter link serial sebelum mapping aplikasi.",
+            "Jika ASDU event valid ada, verifikasi mapping point gateway hilir secara independen."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-iec103-s5",
+          "number": "4.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/3745"
-      ]
+      ],
+      "number": "04"
     },
     {
       "key": "learn-iec104",
@@ -329,7 +606,9 @@
             "TCP connected → STARTDT act → STARTDT con → I-frame ASDU",
             "I-frame RX/TX ↔ pengakuan N(S)/N(R) (I/S frame)",
             "Idle → TESTFR act / TESTFR con (sesuai konfigurasi)"
-          ]
+          ],
+          "id": "learn-iec104-s1",
+          "number": "5.1"
         },
         {
           "headingEn": "How a server should send data",
@@ -353,7 +632,9 @@
             "Jangan memasukkan dua channel logis aktif ke satu image point tanpa kebijakan ownership/duplikasi."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec104-s2",
+          "number": "5.2"
         },
         {
           "headingEn": "Commands, timeouts and reconnect",
@@ -377,224 +658,169 @@
             "Capture evidence session TCP sekaligus aplikasi selama commissioning."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-iec104-s3",
+          "number": "5.3"
+        },
+        {
+          "headingEn": "Sequence counters and acknowledgements",
+          "headingId": "Counter sequence dan acknowledgement",
+          "paragraphsEn": [
+            "Each IEC 104 TCP association has its own APCI N(S)/N(R) state. I-frames advance the sending sequence; peer acknowledgment state is carried by I/S frames. Missing or implausible advancement requires examination of captured boundaries, connection resets, duplicates and window configuration before declaring a protocol fault.",
+            "A raw TCP packet is not necessarily one complete IEC 104 APDU: TCP is a byte stream. Assemble full APDUs using their start and length fields before validating the APCI control words."
+          ],
+          "paragraphsId": [
+            "Setiap asosiasi TCP IEC 104 memiliki state APCI N(S)/N(R) sendiri. I-frame memajukan sequence pengiriman; status ACK peer dibawa I/S-frame. Kemajuan sequence yang hilang atau tidak masuk akal harus dibandingkan dengan batas capture, reset koneksi, duplikasi dan konfigurasi window sebelum disebut fault protokol.",
+            "Paket TCP mentah tidak selalu sama dengan satu APDU IEC 104 lengkap: TCP adalah byte stream. Susun APDU lengkap menggunakan start dan length sebelum memvalidasi control word APCI."
+          ],
+          "bulletsEn": [
+            "Treat TCP segments and IEC 104 APDUs as separate boundaries.",
+            "Inspect I/S/U before interpreting Type/COT in ASDUs.",
+            "Never carry sequence state across different TCP connections."
+          ],
+          "bulletsId": [
+            "Pisahkan batas TCP segment dari batas APDU IEC 104.",
+            "Periksa I/S/U sebelum menafsirkan Type/COT pada ASDU.",
+            "Jangan membawa sequence state lintas koneksi TCP yang berbeda."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-iec104-s4",
+          "number": "5.4"
+        },
+        {
+          "headingEn": "Spontaneous reporting and GI coexist",
+          "headingId": "Spontaneous reporting dan GI dapat berjalan bersama",
+          "paragraphsEn": [
+            "After STARTDT confirmation, a server with pending process changes can send applicable spontaneous ASDUs through the active data-transfer association. A General Interrogation asks for an application snapshot; it does not replace spontaneous event processing. Use the COT and timing to distinguish a GI response from a new process event.",
+            "A server that sends healthy TESTFR confirmations but no process ASDUs is only proving its transport-session liveness. If a known point changes while the connection is active, trace the source update, event generation, application queue, ASDU COT and actual TCP send."
+          ],
+          "paragraphsId": [
+            "Sesudah STARTDT confirmation, server dengan perubahan proses yang menunggu dapat mengirim ASDU spontan melalui asosiasi transfer data aktif. General Interrogation meminta snapshot aplikasi; GI bukan pengganti pemrosesan event spontan. Gunakan COT dan waktu untuk membedakan respons GI dari event proses baru.",
+            "Server yang menjawab TESTFR tetapi tidak pernah mengirim ASDU proses baru membuktikan liveness session transport saja. Jika point yang diketahui berubah saat koneksi aktif, telusuri update sumber, pembentukan event, antrian aplikasi, COT ASDU serta TX TCP sebenarnya."
+          ],
+          "bulletsEn": [
+            "STARTDT confirmation is a prerequisite to asserting active process transfer.",
+            "GI completion and spontaneous event delivery are different application facts.",
+            "If standby sockets are present, apply the selected frontend ownership policy before expecting their process data."
+          ],
+          "bulletsId": [
+            "STARTDT confirmation merupakan prasyarat untuk menyatakan transfer proses aktif.",
+            "GI selesai dan pengiriman event spontan adalah fakta aplikasi yang berbeda.",
+            "Jika ada socket standby, terapkan kebijakan ownership frontend sebelum mengharapkan data proses di sana."
+          ],
+          "framesEn": [
+            "TCP connect → STARTDT act/con → active data-transfer state",
+            "GI act → ACTCON → snapshot ASDUs → ACTTERM (as supported)",
+            "Independent process change → spontaneous ASDU with matching COT"
+          ],
+          "framesId": [
+            "TCP connect → STARTDT act/con → state transfer aktif",
+            "GI act → ACTCON → ASDU snapshot → ACTTERM (sesuai dukungan)",
+            "Perubahan proses independen → ASDU spontan dengan COT sesuai"
+          ],
+          "id": "learn-iec104-s5",
+          "number": "5.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/25035",
         "https://webstore.iec.ch/en/publication/87194"
-      ]
+      ],
+      "number": "05"
     },
     {
-      "key": "learn-nuc",
+      "key": "learn-lifecycle",
       "categoryEn": "Engineering handbook",
       "categoryId": "Buku belajar engineer",
-      "titleEn": "Norwegian User Conventions (NUC)",
-      "titleId": "Norwegian User Conventions (NUC)",
-      "summaryEn": "An opt-in interoperability convention—not a universal IEC requirement.",
-      "summaryId": "Konvensi interoperabilitas yang dipilih khusus—bukan kewajiban universal IEC.",
-      "searchText": "norwegian user convention nuc 101 104 redundancy primary standby switch serial",
-      "sections": [
-        {
-          "headingEn": "What NUC is—and is not",
-          "headingId": "Apa itu NUC dan batasannya",
-          "paragraphsEn": [
-            "NUC means Norwegian User Conventions: project/industry interoperability conventions layered on selected IEC 60870-5 companion-standard options. Historical references include IEC 101 rev 2.0 (24 March 2000) and IEC 104 rev 1.2 (4 February 2000). A device may be IEC 101 compliant without implementing the selected NUC revision.",
-            "Only an approved controlled NUC document plus the project's interoperability list can establish required field lengths, class mapping, supported Type IDs and optional behavior. A third-party transcription is not a safe source for certification claims."
-          ],
-          "paragraphsId": [
-            "NUC adalah Norwegian User Conventions: konvensi interoperabilitas proyek/industri di atas opsi companion standard IEC 60870-5. Rujukan historis antara lain NUC 101 revisi 2.0 (24 Maret 2000) dan NUC 104 revisi 1.2 (4 Februari 2000). Perangkat dapat memenuhi IEC 101 tanpa menerapkan revisi NUC tertentu.",
-            "Hanya dokumen NUC terkendali yang disetujui serta interoperability list proyek yang dapat menetapkan panjang field, class mapping, Type ID dan perilaku opsional. Transkripsi pihak ketiga tidak cukup untuk klaim sertifikasi."
-          ],
-          "bulletsEn": [
-            "Treat NUC as an explicit versioned profile; do not silently enable it for every RTU.",
-            "Keep project deviations and overrides in a signed compatibility list.",
-            "Do not confuse a NUC deployment prescription with mandatory IEC behavior."
-          ],
-          "bulletsId": [
-            "Jadikan NUC sebagai profil eksplisit dan berversi; jangan mengaktifkannya untuk semua RTU tanpa pilihan.",
-            "Catat deviasi dan override proyek dalam daftar kompatibilitas yang disetujui.",
-            "Jangan menyamakan ketentuan deployment NUC dengan aturan IEC yang wajib untuk semua perangkat."
-          ],
-          "framesEn": [],
-          "framesId": []
-        },
-        {
-          "headingEn": "NUC 101 polling, buffering and serial switch",
-          "headingId": "NUC 101: polling, buffer dan pergantian link",
-          "paragraphsEn": [
-            "NUC-style unbalanced redundant serial operation can supervise both links while performing application traffic on the selected primary. The standby is not an independent Class 1/Class 2 event drain under that selected policy; moving application ownership requires link state initialization and careful FCB/acknowledgment continuity.",
-            "The historical NUC101 reference does not universally require a full GI immediately after serial switchover. The controlling station may elect a GI as a project-specific freshness policy. An event queue overflow indication, if mapped, must not be confused with measurement QDS OV, BCR carry, DFC or local capture overrun."
-          ],
-          "paragraphsId": [
-            "Operasi redundant serial unbalanced bergaya NUC dapat mengawasi kedua link sambil menjalankan traffic aplikasi hanya pada primary terpilih. Standby bukan drain event Class 1/Class 2 independen dalam kebijakan itu; perpindahan ownership memerlukan inisialisasi state link serta kesinambungan FCB/ACK yang hati-hati.",
-            "Referensi historis NUC101 tidak mewajibkan GI penuh secara universal segera setelah serial switchover. Controlling station boleh memilih GI sebagai kebijakan freshness khusus proyek. Indikasi overflow antrian event, bila dimapping, tidak sama dengan QDS OV, BCR carry, DFC atau overrun capture lokal."
-          ],
-          "bulletsEn": [
-            "Standby status/link-health probes must not be mistaken for application ownership.",
-            "Record the exact last confirmed event before and after switching.",
-            "Make the post-switch GI policy explicit: required by project, optional, or disabled with stale-image warning."
-          ],
-          "bulletsId": [
-            "Probe status/kesehatan link standby tidak boleh dianggap sebagai ownership aplikasi.",
-            "Catat event terakhir yang terkonfirmasi sebelum dan sesudah switch.",
-            "Nyatakan kebijakan GI pasca-switch: wajib proyek, opsional, atau nonaktif dengan peringatan image stale."
-          ],
-          "framesEn": [],
-          "framesId": []
-        },
-        {
-          "headingEn": "NUC 104 is a different topology",
-          "headingId": "NUC 104 adalah topologi berbeda",
-          "paragraphsEn": [
-            "Some Norwegian 104 deployment specifications define multiple possible frontends but only one active logical connection at a time; the new active frontend initiates STARTDT while the passive channels remain supervised. This must not be projected onto every IEC 104 server.",
-            "A railway-specific Norwegian procurement specification describes frontend-change GI behavior for its system. It does not establish a universal IEC 101 serial line switchover rule."
-          ],
-          "paragraphsId": [
-            "Beberapa spesifikasi deployment 104 di Norwegia menjelaskan beberapa frontend yang mungkin terhubung tetapi hanya satu koneksi logis aktif. Frontend baru menginisiasi STARTDT sementara channel pasif diawasi. Pola ini tidak boleh digeneralisasikan untuk setiap server IEC 104.",
-            "Spesifikasi pengadaan kereta Norwegia mengatur GI setelah frontend berubah untuk sistemnya. Hal tersebut bukan aturan universal pergantian saluran serial IEC 101."
-          ],
-          "bulletsEn": [
-            "Compare the adopted NUC revision, specific RTU profile and owner-of-control rule.",
-            "Treat IEC 101 redundancy and IEC 104 frontend takeovers as separate state machines."
-          ],
-          "bulletsId": [
-            "Bandingkan revisi NUC, profil RTU spesifik dan aturan pemilik kontrol.",
-            "Perlakukan redundansi IEC 101 dan takeover frontend IEC 104 sebagai state machine terpisah."
-          ],
-          "framesEn": [],
-          "framesId": []
-        }
-      ],
-      "sources": [
-        "https://tekniskregelverk.banenor.no/tekniske-spesifikasjoner/kontaktledning/remote-terminal-unit/",
-        "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
-      ]
-    },
-    {
-      "key": "learn-redundancy",
-      "categoryEn": "Engineering handbook",
-      "categoryId": "Buku belajar engineer",
-      "titleEn": "Redundancy and switchover",
-      "titleId": "Redundansi dan switchover",
-      "summaryEn": "Link A/B, active/standby, role ownership, failover evidence and recovery safeguards.",
-      "summaryId": "Link A/B, aktif/standby, ownership, evidence failover dan pengaman pemulihan.",
-      "searchText": "redundancy dual link failover takeover fcb active standby gi a b failback replay",
-      "sections": [
-        {
-          "headingEn": "Redundancy is not simply two cables",
-          "headingId": "Redundansi bukan hanya dua kabel",
-          "paragraphsEn": [
-            "Redundancy provides alternative communication routes to keep station information and control available after one route fails. The design must state who owns application polls, event acknowledgments, GI and controls; a physically connected standby link need not carry normal process traffic.",
-            "The two links can have independent physical state, link-layer counters, fault timers and recovery history. Mirroring one live FCB/sequence state into two independently established channels risks duplicates, loss and incorrect acknowledgments."
-          ],
-          "paragraphsId": [
-            "Redundansi menyediakan jalur komunikasi alternatif agar informasi dan kontrol stasiun tetap tersedia saat satu jalur gagal. Desain harus menyatakan siapa pemilik polling aplikasi, ACK event, GI dan kontrol; link standby yang terhubung secara fisik tidak harus membawa traffic proses normal.",
-            "Kedua link dapat memiliki state fisik, counter link, timer fault serta riwayat pemulihan masing-masing. Menyalin satu state FCB/sequence ke dua channel independen berisiko duplikat, kehilangan data dan ACK keliru."
-          ],
-          "bulletsEn": [
-            "Active/hot: carries approved process traffic and owns command/event transactions.",
-            "Standby/healthy: supervised using protocol-appropriate status/liveness, not automatically the same application scan.",
-            "Failover: detect, verify viable standby, demote old owner, initialize promoted link/session, restore process image as policy specifies."
-          ],
-          "bulletsId": [
-            "Active/hot: membawa traffic proses yang disetujui dan memiliki transaksi command/event.",
-            "Standby/sehat: diawasi melalui status/liveness sesuai protokol, bukan otomatis scan aplikasi yang sama.",
-            "Failover: deteksi, validasi standby layak, turunkan owner lama, inisialisasi link/session baru, perbarui process image sesuai kebijakan."
-          ],
-          "framesEn": [],
-          "framesId": []
-        },
-        {
-          "headingEn": "Healthy IEC 101 A/B switchover example",
-          "headingId": "Contoh switchover IEC 101 A/B sehat",
-          "paragraphsEn": [
-            "Example only for the selected unbalanced active/standby profile: master initially polls Class 2 and drains Class 1 on A; B receives bounded link-status supervision. After A fails and B is proven healthy, master stops sending controls on A, initializes the B link state, and begins polling B. It decides whether to perform post-switch GI based on the approved interoperability profile.",
-            "A well-behaved RTU should avoid claiming independent completion for the same ambiguous control on both links. Event buffering, retransmission and duplicate handling need source-scoped confirmation. If the RTU supports a shared event queue, verify its exact acknowledgment behavior rather than assuming perfect cross-link continuity."
-          ],
-          "paragraphsId": [
-            "Contoh hanya untuk profil unbalanced active/standby terpilih: master awalnya polling Class 2 dan drain Class 1 pada A; B menerima supervisi status link terbatas. Setelah A gagal dan B terbukti sehat, master berhenti mengirim kontrol di A, menginisialisasi state link B, lalu mulai polling di B. GI pasca-switch dipilih berdasarkan profil interoperabilitas yang disetujui.",
-            "RTU yang dirancang baik tidak boleh mengklaim dua penyelesaian independen untuk kontrol ambigu yang sama di dua link. Buffer event, retransmit dan duplikasi memerlukan konfirmasi sesuai sumber. Bila RTU mempunyai antrian event bersama, uji perilaku ACK-nya; jangan menganggap kontinuitas lintas link pasti sempurna."
-          ],
-          "bulletsEn": [
-            "A active: Class 2 / bounded Class 1 / GI / command; B standby: link-status only (if profile allows).",
-            "Failure A: stop ownership of A; do not auto-repeat uncertain commands.",
-            "Promote B: initialize/reset link as selected; verify fresh responses and optional policy GI.",
-            "Recover A: hold as standby until sustained good health; avoid immediate failback ping-pong."
-          ],
-          "bulletsId": [
-            "A aktif: Class 2 / Class 1 terbatas / GI / command; B standby: status link saja (jika profil mengizinkan).",
-            "A gagal: hentikan ownership A; jangan otomatis mengulang command ambigu.",
-            "Promosi B: inisialisasi/reset link sesuai profil; pastikan respons baru dan GI menurut kebijakan.",
-            "A pulih: tahan sebagai standby sampai kesehatan stabil; hindari ping-pong failback."
-          ],
-          "framesEn": [
-            "A: TX Class 2 ← RX status/data; B: TX status ← RX link health",
-            "A times out → B validation → B init → B starts Class 2",
-            "Switch proof: owner A→B, first valid RX on B, last confirmed event"
-          ],
-          "framesId": [
-            "A: TX Class 2 ← RX status/data; B: TX status ← RX kesehatan link",
-            "A timeout → B tervalidasi → B init → B mulai Class 2",
-            "Bukti switch: owner A→B, RX valid pertama B, event terakhir terkonfirmasi"
-          ]
-        },
-        {
-          "headingEn": "IEC 104 active frontend takeover",
-          "headingId": "Takeover frontend IEC 104",
-          "paragraphsEn": [
-            "In IEC 104 redundancy, keep TCP socket state, APCI N(S)/N(R), STARTDT authority and received application identity separate for every frontend connection. A new socket may be connected but should not be declared application-active until its permitted STARTDT handshake completes.",
-            "Where a deployment enforces single-active semantics, terminate or stop old application ownership before promoting the new channel. TESTFR/keepalive on a standby socket tests liveness, not permission to send duplicate process data. Some other interoperable profiles support different multi-connection behavior; use the system-specific agreement."
-          ],
-          "paragraphsId": [
-            "Untuk redundansi IEC 104, pisahkan state socket TCP, APCI N(S)/N(R), kewenangan STARTDT dan identitas aplikasi untuk tiap frontend. Socket baru mungkin sudah connected tetapi belum aktif untuk aplikasi sebelum handshake STARTDT yang diizinkan selesai.",
-            "Jika deployment mewajibkan satu channel aktif, hentikan ownership aplikasi lama sebelum mempromosikan channel baru. TESTFR/keepalive pada standby hanya menguji liveness, bukan izin mengirim data proses duplikat. Profil lain dapat mempunyai perilaku multi-connection berbeda; ikuti agreement sistem."
-          ],
-          "bulletsEn": [
-            "New TCP session has its own APCI sequence context; do not copy N(S)/N(R) from the old link.",
-            "Promoted frontend STARTDT and image refresh are distinct confirmations.",
-            "Reconcile stale snapshot vs missed event history in the report; neither is automatically a physical process change."
-          ],
-          "bulletsId": [
-            "Session TCP baru punya konteks sequence APCI sendiri; jangan menyalin N(S)/N(R) dari link lama.",
-            "STARTDT frontend yang dipromosikan dan refresh image adalah konfirmasi berbeda.",
-            "Rekonsiliasi snapshot stale dengan event history yang terlewat dalam laporan; keduanya bukan otomatis perubahan fisik proses."
-          ],
-          "framesEn": [],
-          "framesId": []
-        },
-        {
-          "headingEn": "Commissioning failover acceptance",
-          "headingId": "Acceptance failover commissioning",
-          "paragraphsEn": [
-            "Test controlled A→B and B→A transitions, loss of active only, loss of standby only, intermittent recovery, power restart and ambiguous command in flight. Evidence must show why the controller promoted a link and when the new application image became trustworthy.",
-            "Safety-conscious failback is often manual or guarded by a stability interval to prevent oscillation. Failover success cannot be concluded solely from a green connection badge; verify the first application response, spontaneous event continuity and permitted commands."
-          ],
-          "paragraphsId": [
-            "Uji transisi A→B dan B→A, hilangnya active saja, hilangnya standby saja, pemulihan intermiten, restart daya serta command ambigu saat proses switch. Evidence harus menunjukkan alasan promosi link dan kapan application image kembali dipercaya.",
-            "Failback yang aman sering manual atau dikawal interval stabilitas agar tidak berosilasi. Sukses failover tidak cukup disimpulkan dari badge koneksi hijau; verifikasi respons aplikasi pertama, kontinuitas event spontan dan command yang diizinkan."
-          ],
-          "bulletsEn": [
-            "Record active owner, trigger, threshold, last confirmed frame and first new link frame.",
-            "Simulate a queued event at switch boundary; prove no silent loss or duplicate accepted as new fact.",
-            "Simulate an in-flight control; prove no duplicate actuation on either link.",
-            "Test frozen/stale Values until fresh GI/verified data and explicit recovery/failback rules."
-          ],
-          "bulletsId": [
-            "Catat owner aktif, pemicu, threshold, frame terakhir terkonfirmasi dan frame pertama pada link baru.",
-            "Simulasikan event saat pergantian; buktikan tidak ada kehilangan diam-diam atau duplikat dianggap event baru.",
-            "Simulasikan kontrol saat in-flight; buktikan tidak terjadi aktuasi ganda di kedua link.",
-            "Uji Values stale/frozen sampai GI/data valid baru dan aturan recovery/failback eksplisit."
-          ],
-          "framesEn": [],
-          "framesId": []
-        }
-      ],
+      "titleEn": "GI and control transactions",
+      "titleId": "Transaksi GI dan kontrol",
+      "summaryEn": "Trace the full start-to-finish meaning of GI and commands across protocol layers.",
+      "summaryId": "Lacak makna GI dan command dari awal sampai selesai melewati semua layer.",
+      "searchText": "gi interrogation actcon actterm cot command select execute timeout control",
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
-        "https://webstore.iec.ch/en/publication/25035",
-        "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
-      ]
+        "https://webstore.iec.ch/en/publication/25035"
+      ],
+      "sections": [
+        {
+          "headingEn": "GI is a process image snapshot",
+          "headingId": "GI adalah snapshot process image",
+          "paragraphsEn": [
+            "General Interrogation asks the remote application to report the current state of an agreed group or station image. The master must distinguish request transmission, application activation acceptance, returned information ASDUs and applicable completion evidence.",
+            "GI is not guaranteed to contain an arbitrary fixed number of points. Compare it with project mapping and permitted object types. A missing termination marker may mean a partial or unknown transaction, not always a silent RTU."
+          ],
+          "paragraphsId": [
+            "General Interrogation meminta aplikasi remote melaporkan keadaan kini grup atau image stasiun yang disepakati. Master harus membedakan pengiriman request, penerimaan aktivasi aplikasi, ASDU informasi yang kembali dan evidence penyelesaian sesuai layanan.",
+            "GI tidak menjamin jumlah point yang tetap sembarang. Bandingkan dengan mapping proyek dan tipe objek yang diizinkan. Tidak adanya marker terminasi bisa berarti transaksi partial atau unknown, bukan selalu RTU diam."
+          ],
+          "bulletsEn": [
+            "Collect all ASDUs with matching source, station and GI group.",
+            "Do not conflate a positive ACTCON with a complete station image.",
+            "Keep stale image warnings when GI remains incomplete."
+          ],
+          "bulletsId": [
+            "Kumpulkan ASDU dengan sumber, stasiun dan grup GI yang cocok.",
+            "Jangan samakan ACTCON positif dengan image stasiun lengkap.",
+            "Pertahankan peringatan image stale saat GI belum selesai."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-lifecycle-s1",
+          "number": "6.1"
+        },
+        {
+          "headingEn": "SBO and direct-operate are different contracts",
+          "headingId": "SBO dan direct-operate adalah kontrak berbeda",
+          "paragraphsEn": [
+            "Select-before-operate (SBO) typically has separate select and execute phases; direct operate uses a different procedure chosen by the device profile. Correct Type ID and command qualifiers do not prove operator authorization, interlock release or physical actuation.",
+            "At every step record intended point, requested state, source, transaction phase, acknowledgement and fresh field feedback. A transport or link acknowledgment is not sufficient evidence of a breaker movement."
+          ],
+          "paragraphsId": [
+            "Select-before-operate (SBO) umumnya mempunyai tahap select dan execute terpisah; direct operate memakai prosedur berbeda yang dipilih profil perangkat. Type ID dan qualifier command yang benar tidak membuktikan izin operator, interlock bebas atau aksi fisik.",
+            "Setiap tahap harus mencatat point tujuan, state yang diminta, sumber, fase transaksi, acknowledgement dan feedback lapangan terbaru. ACK transport atau link tidak cukup menjadi bukti breaker bergerak."
+          ],
+          "bulletsEn": [
+            "Mark requests in flight during failover as ambiguous until readback proves the process state.",
+            "Avoid automatic physical-command retransmission on a timeout alone."
+          ],
+          "bulletsId": [
+            "Tandai request saat failover sebagai ambigu sampai readback membuktikan status proses.",
+            "Hindari retransmit otomatis kontrol fisik hanya karena timeout."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-lifecycle-s2",
+          "number": "6.2"
+        },
+        {
+          "headingEn": "Synthetic command evidence timeline",
+          "headingId": "Timeline evidence command sintetis",
+          "paragraphsEn": [
+            "The schematic timeline teaches what to look for, not exact wire bytes. A well-supported completion verdict requires separately correlated application confirmation and field feedback; response ordering can differ under selected profiles.",
+            "A timeout verdict requires knowing which receive directions and intervals were observed. An absent frame in a partial capture is 'not observed', not necessarily 'never sent'."
+          ],
+          "paragraphsId": [
+            "Timeline skematis ini menjelaskan hal yang harus dicari, bukan byte wire yang pasti. Verdict selesai yang kuat memerlukan konfirmasi aplikasi dan feedback lapangan yang berkorelasi secara terpisah; urutan response dapat berbeda sesuai profil.",
+            "Verdict timeout membutuhkan pengetahuan arah dan interval RX yang diamati. Frame absen pada capture sebagian berarti 'not observed', bukan pasti 'never sent'."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [
+            "TX command request -> RX application ACTCON (+ or -)",
+            "Optional ACTTERM / asynchronous process feedback",
+            "Readback confirms actual state -> mark verified outcome"
+          ],
+          "framesId": [
+            "TX request command -> RX ACTCON aplikasi (+ atau -)",
+            "ACTTERM opsional / feedback proses asinkron",
+            "Readback memastikan status aktual -> hasil terverifikasi"
+          ],
+          "id": "learn-lifecycle-s3",
+          "number": "6.3"
+        }
+      ],
+      "number": "06"
     },
     {
       "key": "learn-semantics",
@@ -628,7 +854,9 @@
             "Simpan representasi raw signed, scaled, normalized atau floating sebelum konversi range engineering."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-semantics-s1",
+          "number": "7.1"
         },
         {
           "headingEn": "Quality and overflow are separate dimensions",
@@ -652,7 +880,9 @@
             "Jika quality tidak dapat di-decode, tampilkan Unknown beserta byte asli."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-semantics-s2",
+          "number": "7.2"
         },
         {
           "headingEn": "Four different command outcomes",
@@ -676,13 +906,529 @@
             "Hanya feedback mapped yang baru dapat mendukung kesimpulan operasi lapangan."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-semantics-s3",
+          "number": "7.3"
+        },
+        {
+          "headingEn": "ASDU reading exercise: stop at the right layer",
+          "headingId": "Latihan membaca ASDU: berhenti pada layer yang tepat",
+          "paragraphsEn": [
+            "Given a valid IEC 104 I-frame containing a measured value, read transport/APCI state first, then Type ID, VSQ, COT, Common Address and each object's IOA, encoded value and quality. Apply project scaling only after validating the encoding. If the target CA differs from the configured station, preserve the observed value but do not silently attach it to another point.",
+            "A negative activation confirmation answers a command-lifecycle question, not a measurement-quality question. A QDS overflow flag belongs to its information object, not the event queue or TCP state."
+          ],
+          "paragraphsId": [
+            "Pada I-frame IEC 104 valid yang membawa analog, baca dulu status transport/APCI, lalu Type ID, VSQ, COT, Common Address dan IOA tiap objek, nilai encoded serta quality. Terapkan scaling proyek sesudah validasi encoding. Bila CA berbeda dari stasiun yang dikonfigurasi, simpan nilai teramati tetapi jangan diam-diam memindahkannya ke point lain.",
+            "Negative activation confirmation menjawab pertanyaan siklus command, bukan kualitas pengukuran. Flag QDS overflow milik objek informasinya, bukan antrian event atau status TCP."
+          ],
+          "bulletsEn": [
+            "Differentiate Type ID identification from project point naming.",
+            "Retain raw numeric representation, engineering range and quality independently.",
+            "Report each unsupported field as unknown with trace proof, not as an invented zero."
+          ],
+          "bulletsId": [
+            "Bedakan identitas Type ID dari nama point proyek.",
+            "Pertahankan representasi angka mentah, range engineering dan quality secara independen.",
+            "Laporkan field tidak didukung sebagai unknown dengan bukti trace, bukan nol yang dikarang."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-semantics-s4",
+          "number": "7.4"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/25035"
-      ]
+      ],
+      "number": "07"
+    },
+    {
+      "key": "learn-gateways",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "RTU, gateway and point mapping",
+      "titleId": "RTU, gateway dan point mapping",
+      "summaryEn": "Understand conversion boundaries, CA/IOA mapping and source timestamps.",
+      "summaryId": "Pahami batas konversi, mapping CA/IOA dan timestamp sumber.",
+      "searchText": "gateway rtu mapping ca ioa fun inf plc quality timestamp data source",
+      "sources": [
+        "https://webstore.iec.ch/en/publication/23822",
+        "https://webstore.iec.ch/en/publication/3745",
+        "https://webstore.iec.ch/en/publication/25035"
+      ],
+      "sections": [
+        {
+          "headingEn": "The RTU can be a translator",
+          "headingId": "RTU dapat menjadi penerjemah",
+          "paragraphsEn": [
+            "An IEC gateway can collect IEC 103 relay events, IEC 61850 data, Modbus register values or hardwired I/O and expose them as IEC 101/104 information objects. The gateway owns the outward-point representation and may generate new quality and time semantics.",
+            "Prove two separate edges: source acquisition and IEC outward transmission. A changing source does not prove that an outgoing spontaneous ASDU was sent, and a successful GI after manual refresh does not prove that event reporting works continuously."
+          ],
+          "paragraphsId": [
+            "Gateway IEC dapat mengumpulkan event relay IEC 103, data IEC 61850, register Modbus atau hardwired I/O dan mengeksposnya sebagai objek IEC 101/104. Gateway memiliki representasi point keluar dan dapat menghasilkan quality serta waktu baru.",
+            "Buktikan dua sisi terpisah: akuisisi sumber dan pengiriman IEC keluar. Sumber yang berubah belum membuktikan ASDU spontan telah dikirim, dan GI sukses sesudah refresh manual tidak membuktikan event reporting selalu bekerja."
+          ],
+          "bulletsEn": [
+            "Record source signal, gateway conversion and target CA/IOA independently.",
+            "Do not infer source quality from a synthetic gateway Good flag.",
+            "Keep gateway buffering and event suppression policy visible."
+          ],
+          "bulletsId": [
+            "Catat sinyal sumber, konversi gateway dan CA/IOA tujuan secara independen.",
+            "Jangan menyimpulkan quality sumber dari Good yang dibentuk gateway.",
+            "Tampilkan kebijakan buffer dan suppression event gateway."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-gateways-s1",
+          "number": "8.1"
+        },
+        {
+          "headingEn": "Scaling and sign boundaries",
+          "headingId": "Scaling dan batas tanda",
+          "paragraphsEn": [
+            "Raw scaled values, normalized values and IEEE floating-point values represent measurements differently. The SCADA point list defines engineering ranges and units. Decode signedness and raw representation before applying user scaling; a wrapped or saturated value is not proof of one particular vendor defect.",
+            "Retain quality-overflow flags independently of the numeric reading. Measurement OV, BCR carry, queue overflow and link DFC describe different layers."
+          ],
+          "paragraphsId": [
+            "Raw scaled, normalized dan IEEE floating-point mewakili analog secara berbeda. Point list SCADA menentukan range engineering dan unit. Decode signedness serta representasi raw sebelum menerapkan scaling; nilai yang wrap atau saturasi bukan bukti satu bug vendor tertentu.",
+            "Simpan flag overflow quality terpisah dari angka bacaan. Measurement OV, BCR carry, queue overflow dan DFC link menjelaskan layer berbeda."
+          ],
+          "bulletsEn": [
+            "Check type-specific representation before reporting numerical anomalies.",
+            "A point name cannot be guessed from its IOA without the project mapping sheet."
+          ],
+          "bulletsId": [
+            "Periksa representasi sesuai tipe sebelum melaporkan anomali angka.",
+            "Nama point tidak boleh ditebak dari IOA tanpa mapping proyek."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-gateways-s2",
+          "number": "8.2"
+        },
+        {
+          "headingEn": "Diagnose a silent reporting chain",
+          "headingId": "Diagnosa rantai reporting diam",
+          "paragraphsEn": [
+            "Capture the actual field change and source event, then the gateway ingestion, mapping to an outgoing point, event queue, selected COT, transmission and master receipt. Missing any one step prevents claiming the downstream SCADA should already have updated.",
+            "A manual read or GI can fill a value without exercising the spontaneous event path. Test deliberate safe state changes in a simulator or an approved non-operational test point; do not drive live breaker controls merely to generate documentation evidence."
+          ],
+          "paragraphsId": [
+            "Capture perubahan lapangan dan event sumber, lalu ingestion gateway, mapping ke point keluar, antrian event, COT terpilih, TX dan penerimaan master. Langkah yang belum terbukti membuat kesimpulan SCADA hilir seharusnya sudah update tidak cukup kuat.",
+            "Read manual atau GI dapat mengisi value tanpa melewati jalur event spontan. Uji perubahan aman pada simulator atau test point non-operasional yang disetujui; jangan mengoperasikan breaker hidup hanya untuk membuat evidence dokumentasi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [
+            "SOURCE -> gateway input -> mapping -> queue/COT -> IEC ASDU TX -> master RX"
+          ],
+          "framesId": [
+            "SUMBER -> input gateway -> mapping -> antrian/COT -> TX ASDU IEC -> RX master"
+          ],
+          "id": "learn-gateways-s3",
+          "number": "8.3"
+        }
+      ],
+      "number": "08"
+    },
+    {
+      "key": "learn-nuc",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Norwegian User Conventions (NUC)",
+      "titleId": "Norwegian User Conventions (NUC)",
+      "summaryEn": "An opt-in interoperability convention—not a universal IEC requirement.",
+      "summaryId": "Konvensi interoperabilitas yang dipilih khusus—bukan kewajiban universal IEC.",
+      "searchText": "norwegian user convention nuc 101 104 redundancy primary standby switch serial",
+      "sections": [
+        {
+          "headingEn": "What NUC is—and is not",
+          "headingId": "Apa itu NUC dan batasannya",
+          "paragraphsEn": [
+            "NUC means Norwegian User Conventions: project/industry interoperability conventions layered on selected IEC 60870-5 companion-standard options. Historical references include IEC 101 rev 2.0 (24 March 2000) and IEC 104 rev 1.2 (4 February 2000). A device may be IEC 101 compliant without implementing the selected NUC revision.",
+            "Only an approved controlled NUC document plus the project's interoperability list can establish required field lengths, class mapping, supported Type IDs and optional behavior. A third-party transcription is not a safe source for certification claims."
+          ],
+          "paragraphsId": [
+            "NUC adalah Norwegian User Conventions: konvensi interoperabilitas proyek/industri di atas opsi companion standard IEC 60870-5. Rujukan historis antara lain NUC 101 revisi 2.0 (24 Maret 2000) dan NUC 104 revisi 1.2 (4 Februari 2000). Perangkat dapat memenuhi IEC 101 tanpa menerapkan revisi NUC tertentu.",
+            "Hanya dokumen NUC terkendali yang disetujui serta interoperability list proyek yang dapat menetapkan panjang field, class mapping, Type ID dan perilaku opsional. Transkripsi pihak ketiga tidak cukup untuk klaim sertifikasi."
+          ],
+          "bulletsEn": [
+            "Treat NUC as an explicit versioned profile; do not silently enable it for every RTU.",
+            "Keep project deviations and overrides in a signed compatibility list.",
+            "Do not confuse a NUC deployment prescription with mandatory IEC behavior."
+          ],
+          "bulletsId": [
+            "Jadikan NUC sebagai profil eksplisit dan berversi; jangan mengaktifkannya untuk semua RTU tanpa pilihan.",
+            "Catat deviasi dan override proyek dalam daftar kompatibilitas yang disetujui.",
+            "Jangan menyamakan ketentuan deployment NUC dengan aturan IEC yang wajib untuk semua perangkat."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-nuc-s1",
+          "number": "9.1"
+        },
+        {
+          "headingEn": "NUC 101 polling, buffering and serial switch",
+          "headingId": "NUC 101: polling, buffer dan pergantian link",
+          "paragraphsEn": [
+            "NUC-style unbalanced redundant serial operation can supervise both links while performing application traffic on the selected primary. The standby is not an independent Class 1/Class 2 event drain under that selected policy; moving application ownership requires link state initialization and careful FCB/acknowledgment continuity.",
+            "The historical NUC101 reference does not universally require a full GI immediately after serial switchover. The controlling station may elect a GI as a project-specific freshness policy. An event queue overflow indication, if mapped, must not be confused with measurement QDS OV, BCR carry, DFC or local capture overrun."
+          ],
+          "paragraphsId": [
+            "Operasi redundant serial unbalanced bergaya NUC dapat mengawasi kedua link sambil menjalankan traffic aplikasi hanya pada primary terpilih. Standby bukan drain event Class 1/Class 2 independen dalam kebijakan itu; perpindahan ownership memerlukan inisialisasi state link serta kesinambungan FCB/ACK yang hati-hati.",
+            "Referensi historis NUC101 tidak mewajibkan GI penuh secara universal segera setelah serial switchover. Controlling station boleh memilih GI sebagai kebijakan freshness khusus proyek. Indikasi overflow antrian event, bila dimapping, tidak sama dengan QDS OV, BCR carry, DFC atau overrun capture lokal."
+          ],
+          "bulletsEn": [
+            "Standby status/link-health probes must not be mistaken for application ownership.",
+            "Record the exact last confirmed event before and after switching.",
+            "Make the post-switch GI policy explicit: required by project, optional, or disabled with stale-image warning."
+          ],
+          "bulletsId": [
+            "Probe status/kesehatan link standby tidak boleh dianggap sebagai ownership aplikasi.",
+            "Catat event terakhir yang terkonfirmasi sebelum dan sesudah switch.",
+            "Nyatakan kebijakan GI pasca-switch: wajib proyek, opsional, atau nonaktif dengan peringatan image stale."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-nuc-s2",
+          "number": "9.2"
+        },
+        {
+          "headingEn": "NUC 104 is a different topology",
+          "headingId": "NUC 104 adalah topologi berbeda",
+          "paragraphsEn": [
+            "Some Norwegian 104 deployment specifications define multiple possible frontends but only one active logical connection at a time; the new active frontend initiates STARTDT while the passive channels remain supervised. This must not be projected onto every IEC 104 server.",
+            "A railway-specific Norwegian procurement specification describes frontend-change GI behavior for its system. It does not establish a universal IEC 101 serial line switchover rule."
+          ],
+          "paragraphsId": [
+            "Beberapa spesifikasi deployment 104 di Norwegia menjelaskan beberapa frontend yang mungkin terhubung tetapi hanya satu koneksi logis aktif. Frontend baru menginisiasi STARTDT sementara channel pasif diawasi. Pola ini tidak boleh digeneralisasikan untuk setiap server IEC 104.",
+            "Spesifikasi pengadaan kereta Norwegia mengatur GI setelah frontend berubah untuk sistemnya. Hal tersebut bukan aturan universal pergantian saluran serial IEC 101."
+          ],
+          "bulletsEn": [
+            "Compare the adopted NUC revision, specific RTU profile and owner-of-control rule.",
+            "Treat IEC 101 redundancy and IEC 104 frontend takeovers as separate state machines."
+          ],
+          "bulletsId": [
+            "Bandingkan revisi NUC, profil RTU spesifik dan aturan pemilik kontrol.",
+            "Perlakukan redundansi IEC 101 dan takeover frontend IEC 104 sebagai state machine terpisah."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-nuc-s3",
+          "number": "9.3"
+        },
+        {
+          "headingEn": "NUC interoperability checklist before commissioning",
+          "headingId": "Checklist interoperability NUC sebelum commissioning",
+          "paragraphsEn": [
+            "Record the exact revision of the Norwegian convention, the IEC companion standard edition and the negotiated deviations. Never assume that a configuration called 'NUC' automatically defines every transmission field length or supported command. The approved project interoperability list is the binding selection of permitted options.",
+            "For NUC-style serial A/B redundancy, verify whether standby is status-supervised and whether a full GI after switching is an explicit project choice. For IEC 104 multiconnection behavior, verify how frontend authorization and STARTDT are controlled. These are separate system contracts."
+          ],
+          "paragraphsId": [
+            "Catat revisi konvensi Norwegia, edisi companion standard IEC dan deviasi yang disepakati. Jangan mengasumsikan nama konfigurasi 'NUC' otomatis menentukan semua panjang field atau command. Interoperability list proyek yang disetujui merupakan pilihan opsi yang mengikat.",
+            "Untuk redundansi serial A/B bergaya NUC, verifikasi apakah standby diawasi melalui status serta apakah GI penuh setelah switch merupakan keputusan proyek. Untuk IEC 104 multikoneksi, verifikasi bagaimana kewenangan frontend dan STARTDT dikontrol. Keduanya kontrak sistem yang berbeda."
+          ],
+          "bulletsEn": [
+            "Agree companion edition + convention revision + vendor interoperability options.",
+            "For each physical channel, record link address, FCB and acknowledgment evidence.",
+            "For controls, define retry and failover handling of ambiguous execution."
+          ],
+          "bulletsId": [
+            "Sepakati edisi companion + revisi konvensi + opsi interoperabilitas vendor.",
+            "Untuk tiap kanal fisik, catat link address, FCB dan evidence ACK.",
+            "Untuk kontrol, tetapkan retry dan penanganan eksekusi ambigu saat failover."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-nuc-s4",
+          "number": "9.4"
+        }
+      ],
+      "sources": [
+        "https://tekniskregelverk.banenor.no/tekniske-spesifikasjoner/kontaktledning/remote-terminal-unit/",
+        "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
+      ],
+      "number": "09"
+    },
+    {
+      "key": "learn-redundancy",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Redundancy and switchover",
+      "titleId": "Redundansi dan switchover",
+      "summaryEn": "Link A/B, active/standby, role ownership, failover evidence and recovery safeguards.",
+      "summaryId": "Link A/B, aktif/standby, ownership, evidence failover dan pengaman pemulihan.",
+      "searchText": "redundancy dual link failover takeover fcb active standby gi a b failback replay",
+      "sections": [
+        {
+          "headingEn": "Redundancy is not simply two cables",
+          "headingId": "Redundansi bukan hanya dua kabel",
+          "paragraphsEn": [
+            "Redundancy provides alternative communication routes to keep station information and control available after one route fails. The design must state who owns application polls, event acknowledgments, GI and controls; a physically connected standby link need not carry normal process traffic.",
+            "The two links can have independent physical state, link-layer counters, fault timers and recovery history. Mirroring one live FCB/sequence state into two independently established channels risks duplicates, loss and incorrect acknowledgments."
+          ],
+          "paragraphsId": [
+            "Redundansi menyediakan jalur komunikasi alternatif agar informasi dan kontrol stasiun tetap tersedia saat satu jalur gagal. Desain harus menyatakan siapa pemilik polling aplikasi, ACK event, GI dan kontrol; link standby yang terhubung secara fisik tidak harus membawa traffic proses normal.",
+            "Kedua link dapat memiliki state fisik, counter link, timer fault serta riwayat pemulihan masing-masing. Menyalin satu state FCB/sequence ke dua channel independen berisiko duplikat, kehilangan data dan ACK keliru."
+          ],
+          "bulletsEn": [
+            "Active/hot: carries approved process traffic and owns command/event transactions.",
+            "Standby/healthy: supervised using protocol-appropriate status/liveness, not automatically the same application scan.",
+            "Failover: detect, verify viable standby, demote old owner, initialize promoted link/session, restore process image as policy specifies."
+          ],
+          "bulletsId": [
+            "Active/hot: membawa traffic proses yang disetujui dan memiliki transaksi command/event.",
+            "Standby/sehat: diawasi melalui status/liveness sesuai protokol, bukan otomatis scan aplikasi yang sama.",
+            "Failover: deteksi, validasi standby layak, turunkan owner lama, inisialisasi link/session baru, perbarui process image sesuai kebijakan."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-redundancy-s1",
+          "number": "10.1"
+        },
+        {
+          "headingEn": "Healthy IEC 101 A/B switchover example",
+          "headingId": "Contoh switchover IEC 101 A/B sehat",
+          "paragraphsEn": [
+            "Example only for the selected unbalanced active/standby profile: master initially polls Class 2 and drains Class 1 on A; B receives bounded link-status supervision. After A fails and B is proven healthy, master stops sending controls on A, initializes the B link state, and begins polling B. It decides whether to perform post-switch GI based on the approved interoperability profile.",
+            "A well-behaved RTU should avoid claiming independent completion for the same ambiguous control on both links. Event buffering, retransmission and duplicate handling need source-scoped confirmation. If the RTU supports a shared event queue, verify its exact acknowledgment behavior rather than assuming perfect cross-link continuity."
+          ],
+          "paragraphsId": [
+            "Contoh hanya untuk profil unbalanced active/standby terpilih: master awalnya polling Class 2 dan drain Class 1 pada A; B menerima supervisi status link terbatas. Setelah A gagal dan B terbukti sehat, master berhenti mengirim kontrol di A, menginisialisasi state link B, lalu mulai polling di B. GI pasca-switch dipilih berdasarkan profil interoperabilitas yang disetujui.",
+            "RTU yang dirancang baik tidak boleh mengklaim dua penyelesaian independen untuk kontrol ambigu yang sama di dua link. Buffer event, retransmit dan duplikasi memerlukan konfirmasi sesuai sumber. Bila RTU mempunyai antrian event bersama, uji perilaku ACK-nya; jangan menganggap kontinuitas lintas link pasti sempurna."
+          ],
+          "bulletsEn": [
+            "A active: Class 2 / bounded Class 1 / GI / command; B standby: link-status only (if profile allows).",
+            "Failure A: stop ownership of A; do not auto-repeat uncertain commands.",
+            "Promote B: initialize/reset link as selected; verify fresh responses and optional policy GI.",
+            "Recover A: hold as standby until sustained good health; avoid immediate failback ping-pong."
+          ],
+          "bulletsId": [
+            "A aktif: Class 2 / Class 1 terbatas / GI / command; B standby: status link saja (jika profil mengizinkan).",
+            "A gagal: hentikan ownership A; jangan otomatis mengulang command ambigu.",
+            "Promosi B: inisialisasi/reset link sesuai profil; pastikan respons baru dan GI menurut kebijakan.",
+            "A pulih: tahan sebagai standby sampai kesehatan stabil; hindari ping-pong failback."
+          ],
+          "framesEn": [
+            "A: TX Class 2 ← RX status/data; B: TX status ← RX link health",
+            "A times out → B validation → B init → B starts Class 2",
+            "Switch proof: owner A→B, first valid RX on B, last confirmed event"
+          ],
+          "framesId": [
+            "A: TX Class 2 ← RX status/data; B: TX status ← RX kesehatan link",
+            "A timeout → B tervalidasi → B init → B mulai Class 2",
+            "Bukti switch: owner A→B, RX valid pertama B, event terakhir terkonfirmasi"
+          ],
+          "id": "learn-redundancy-s2",
+          "number": "10.2"
+        },
+        {
+          "headingEn": "IEC 104 active frontend takeover",
+          "headingId": "Takeover frontend IEC 104",
+          "paragraphsEn": [
+            "In IEC 104 redundancy, keep TCP socket state, APCI N(S)/N(R), STARTDT authority and received application identity separate for every frontend connection. A new socket may be connected but should not be declared application-active until its permitted STARTDT handshake completes.",
+            "Where a deployment enforces single-active semantics, terminate or stop old application ownership before promoting the new channel. TESTFR/keepalive on a standby socket tests liveness, not permission to send duplicate process data. Some other interoperable profiles support different multi-connection behavior; use the system-specific agreement."
+          ],
+          "paragraphsId": [
+            "Untuk redundansi IEC 104, pisahkan state socket TCP, APCI N(S)/N(R), kewenangan STARTDT dan identitas aplikasi untuk tiap frontend. Socket baru mungkin sudah connected tetapi belum aktif untuk aplikasi sebelum handshake STARTDT yang diizinkan selesai.",
+            "Jika deployment mewajibkan satu channel aktif, hentikan ownership aplikasi lama sebelum mempromosikan channel baru. TESTFR/keepalive pada standby hanya menguji liveness, bukan izin mengirim data proses duplikat. Profil lain dapat mempunyai perilaku multi-connection berbeda; ikuti agreement sistem."
+          ],
+          "bulletsEn": [
+            "New TCP session has its own APCI sequence context; do not copy N(S)/N(R) from the old link.",
+            "Promoted frontend STARTDT and image refresh are distinct confirmations.",
+            "Reconcile stale snapshot vs missed event history in the report; neither is automatically a physical process change."
+          ],
+          "bulletsId": [
+            "Session TCP baru punya konteks sequence APCI sendiri; jangan menyalin N(S)/N(R) dari link lama.",
+            "STARTDT frontend yang dipromosikan dan refresh image adalah konfirmasi berbeda.",
+            "Rekonsiliasi snapshot stale dengan event history yang terlewat dalam laporan; keduanya bukan otomatis perubahan fisik proses."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-redundancy-s3",
+          "number": "10.3"
+        },
+        {
+          "headingEn": "Commissioning failover acceptance",
+          "headingId": "Acceptance failover commissioning",
+          "paragraphsEn": [
+            "Test controlled A→B and B→A transitions, loss of active only, loss of standby only, intermittent recovery, power restart and ambiguous command in flight. Evidence must show why the controller promoted a link and when the new application image became trustworthy.",
+            "Safety-conscious failback is often manual or guarded by a stability interval to prevent oscillation. Failover success cannot be concluded solely from a green connection badge; verify the first application response, spontaneous event continuity and permitted commands."
+          ],
+          "paragraphsId": [
+            "Uji transisi A→B dan B→A, hilangnya active saja, hilangnya standby saja, pemulihan intermiten, restart daya serta command ambigu saat proses switch. Evidence harus menunjukkan alasan promosi link dan kapan application image kembali dipercaya.",
+            "Failback yang aman sering manual atau dikawal interval stabilitas agar tidak berosilasi. Sukses failover tidak cukup disimpulkan dari badge koneksi hijau; verifikasi respons aplikasi pertama, kontinuitas event spontan dan command yang diizinkan."
+          ],
+          "bulletsEn": [
+            "Record active owner, trigger, threshold, last confirmed frame and first new link frame.",
+            "Simulate a queued event at switch boundary; prove no silent loss or duplicate accepted as new fact.",
+            "Simulate an in-flight control; prove no duplicate actuation on either link.",
+            "Test frozen/stale Values until fresh GI/verified data and explicit recovery/failback rules."
+          ],
+          "bulletsId": [
+            "Catat owner aktif, pemicu, threshold, frame terakhir terkonfirmasi dan frame pertama pada link baru.",
+            "Simulasikan event saat pergantian; buktikan tidak ada kehilangan diam-diam atau duplikat dianggap event baru.",
+            "Simulasikan kontrol saat in-flight; buktikan tidak terjadi aktuasi ganda di kedua link.",
+            "Uji Values stale/frozen sampai GI/data valid baru dan aturan recovery/failback eksplisit."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-redundancy-s4",
+          "number": "10.4"
+        },
+        {
+          "headingEn": "Do not split-brain the masters",
+          "headingId": "Hindari dua master aktif bersamaan",
+          "paragraphsEn": [
+            "Two controllers that independently believe they own an outstation may duplicate GI, event drains or process commands. A robust active/standby design establishes an explicit owner and evidence of authority transfer. A connected standby interface and a valid link response are not by themselves proof of application ownership.",
+            "For a changeover under uncertain connectivity, block ambiguous in-flight commands, fence the old owner when supported and verify one new owner by transaction trace before re-enabling controls. Exact fencing and event-queue mechanisms vary by vendor and approved protocol profile."
+          ],
+          "paragraphsId": [
+            "Dua controller yang sama-sama menganggap diri pemilik outstation dapat menggandakan GI, drain event atau command. Desain active/standby yang baik menetapkan owner eksplisit beserta evidence perpindahan kewenangan. Interface standby yang tersambung dan respons link valid belum membuktikan ownership aplikasi.",
+            "Saat pergantian dalam kondisi komunikasi tidak pasti, blokir command ambigu yang masih berjalan, batasi owner lama bila didukung dan verifikasi satu owner baru melalui trace transaksi sebelum mengizinkan kontrol lagi. Mekanisme fencing dan antrian event bergantung vendor serta profil protokol yang disetujui."
+          ],
+          "bulletsEn": [
+            "Record the controller identity and application ownership epoch in each transaction.",
+            "Prove healthy standby first, then promote; avoid declaring failover from a GUI color alone.",
+            "Confirm stale/fresh application image after takeover, separately from physical device availability."
+          ],
+          "bulletsId": [
+            "Catat identitas controller dan epoch ownership aplikasi pada setiap transaksi.",
+            "Buktikan standby sehat dahulu lalu promosikan; jangan menyimpulkan failover hanya dari warna GUI.",
+            "Pastikan application image stale/fresh setelah takeover, terpisah dari ketersediaan fisik perangkat."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-redundancy-s5",
+          "number": "10.5"
+        },
+        {
+          "headingEn": "Switch boundary: what becomes unproven?",
+          "headingId": "Batas switch: apa yang tidak lagi terbukti?",
+          "paragraphsEn": [
+            "A switchover can occur after a command was sent but before application confirmation or feedback was captured. Treat the outcome as unknown until source-side status is re-read and control authority restored. Likewise a returned event after switch may be a buffered retransmission rather than a new process transition.",
+            "Use a test matrix that forces failure at several points: before TX, after TX but before confirmation, after confirmation before feedback, and during event queue draining. The expected behavior is safe ownership and explicit uncertainty, not magic exactly-once guarantees across arbitrary vendor implementations."
+          ],
+          "paragraphsId": [
+            "Switchover bisa terjadi sesudah command dikirim tetapi sebelum konfirmasi aplikasi atau feedback tercapture. Perlakukan hasilnya sebagai unknown sampai status dari sumber dibaca ulang dan otoritas kontrol kembali terverifikasi. Event yang datang setelah switch bisa berupa retransmit buffer, bukan transisi proses baru.",
+            "Gunakan matriks tes yang memaksa gangguan pada beberapa titik: sebelum TX, sesudah TX sebelum konfirmasi, sesudah konfirmasi sebelum feedback, serta saat drain antrian event. Hasil yang diharapkan adalah ownership aman dan ketidakpastian eksplisit, bukan jaminan exactly-once otomatis semua implementasi vendor."
+          ],
+          "bulletsEn": [
+            "Keep last confirmed event and first confirmed new-link frame in failover evidence.",
+            "Correlate event deduplication by source, event identity and time only when such identity is verifiable.",
+            "Require explicit operator review for ambiguous physical control execution."
+          ],
+          "bulletsId": [
+            "Simpan event terakhir terkonfirmasi dan frame valid pertama pada link baru sebagai evidence failover.",
+            "Korelasikan duplikasi event menurut sumber, identitas dan waktu hanya jika identitas tersebut dapat diverifikasi.",
+            "Wajibkan peninjauan operator untuk hasil eksekusi kontrol fisik yang ambigu."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-redundancy-s6",
+          "number": "10.6"
+        }
+      ],
+      "sources": [
+        "https://webstore.iec.ch/en/publication/23822",
+        "https://webstore.iec.ch/en/publication/25035",
+        "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
+      ],
+      "number": "10"
+    },
+    {
+      "key": "learn-interop",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Interoperability and secure deployment",
+      "titleId": "Interoperabilitas dan deployment aman",
+      "summaryEn": "Select approved profiles, security controls and commissioning evidence without inventing IEC mandates.",
+      "summaryId": "Pilih profil, pengamanan dan bukti commissioning tanpa mengarang kewajiban IEC.",
+      "searchText": "iec62351 firewall ip access ntp cyber security interoperability conformance",
+      "sources": [
+        "https://webstore.iec.ch/en/publication/3755",
+        "https://webstore.iec.ch/en/publication/23822",
+        "https://webstore.iec.ch/en/publication/25035"
+      ],
+      "sections": [
+        {
+          "headingEn": "Profile and edition checklist",
+          "headingId": "Checklist profil dan edisi",
+          "paragraphsEn": [
+            "Read the exact IEC edition/amendment, selected companion options, Norwegian convention revision if applicable, vendor interoperability sheets and project deviations. Two devices advertising 'IEC104 supported' may still differ in Type IDs, controls, timers and multi-frontend authority.",
+            "Conformance tests should include decoded negative replies, invalid quality and boundary cases. Successful one-way data display is a useful test but not complete interoperable control proof."
+          ],
+          "paragraphsId": [
+            "Baca edisi/amendemen IEC yang tepat, opsi companion, revisi konvensi Norwegia bila berlaku, interoperability sheet vendor dan deviasi proyek. Dua perangkat yang menyatakan 'IEC104 supported' bisa berbeda pada Type ID, kontrol, timer serta kewenangan multi-frontend.",
+            "Tes conformance harus mencakup respons negatif yang di-decode, quality invalid dan kasus batas. Tampilan data searah berhasil adalah tes berguna tetapi belum membuktikan interoperabilitas kontrol menyeluruh."
+          ],
+          "bulletsEn": [
+            "Keep each product's declared supported object types and COTs.",
+            "Preserve exact negotiated lengths and sequence/timer configuration."
+          ],
+          "bulletsId": [
+            "Simpan tipe objek dan COT yang didukung setiap perangkat.",
+            "Pertahankan panjang field serta konfigurasi sequence/timer yang disepakati."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-interop-s1",
+          "number": "11.1"
+        },
+        {
+          "headingEn": "Security is a separate engineering layer",
+          "headingId": "Security adalah lapisan engineering tersendiri",
+          "paragraphsEn": [
+            "Traditional IEC 101/103 serial and IEC 104 TCP deployments need project-appropriate isolation, access controls, logging and physical safety. IEC 104 TCP connectivity alone is not authentication or encryption. The IEC 62351 family addresses security aspects of power-system communication; its specific deployment requirements depend on the chosen architecture.",
+            "Do not recommend disabling firewalls to 'make IEC104 work'. Instead identify the communicating master and server endpoints, necessary allowed routes, permitted ports, authorization and monitoring. Log denied connections and unexpected originators."
+          ],
+          "paragraphsId": [
+            "Deployment tradisional IEC 101/103 serial dan IEC 104 TCP memerlukan isolasi, kontrol akses, logging dan keselamatan fisik sesuai proyek. Koneksi TCP IEC 104 bukan autentikasi atau enkripsi dengan sendirinya. Keluarga IEC 62351 membahas aspek keamanan komunikasi sistem tenaga; syarat penerapannya bergantung arsitektur terpilih.",
+            "Jangan menyarankan mematikan firewall demi 'membuat IEC104 bekerja'. Identifikasi endpoint master/server, rute yang diizinkan, port yang diperlukan, otorisasi dan monitoring. Catat koneksi ditolak dan originator tidak dikenal."
+          ],
+          "bulletsEn": [
+            "Capture expected master-to-RTU routes and accepted listener ports.",
+            "Document time source, event logging and recovery procedures.",
+            "Treat a security exception as a controlled change requiring review."
+          ],
+          "bulletsId": [
+            "Catat rute master-ke-RTU dan listener port yang diizinkan.",
+            "Dokumentasikan sumber waktu, event logging dan prosedur pemulihan.",
+            "Perlakukan pengecualian keamanan sebagai perubahan terkendali yang harus ditinjau."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-interop-s2",
+          "number": "11.2"
+        },
+        {
+          "headingEn": "Claim only what the capture proves",
+          "headingId": "Klaim hanya yang dibuktikan capture",
+          "paragraphsEn": [
+            "Distinguish four outcomes: observed valid, observed but unverified, inferred and not observed. Missing physical tap directions or an incomplete timing window cannot support a categorical claim about all master/RTU messages.",
+            "A useful FAT result attaches raw bytes, decode settings, the intended interoperability case, actual state or lack of proof, and a recommended retest. No single vendor manual or handbook chapter replaces project-controlled acceptance criteria."
+          ],
+          "paragraphsId": [
+            "Bedakan empat hasil: observed valid, observed but unverified, inferred dan not observed. Arah tap fisik yang tidak lengkap atau interval waktu capture pendek tidak dapat mendukung klaim pasti tentang semua pesan master/RTU.",
+            "Hasil FAT yang berguna melampirkan byte mentah, pengaturan decode, kasus interoperability yang diuji, state aktual atau bukti yang belum ada, serta retest yang disarankan. Manual vendor atau bab handbook saja tidak menggantikan kriteria penerimaan terkendali proyek."
+          ],
+          "bulletsEn": [
+            "Never infer missing physical feedback from protocol acknowledgement alone.",
+            "Mark simulated tests separately from field device interoperability tests."
+          ],
+          "bulletsId": [
+            "Jangan menyimpulkan feedback fisik dari ACK protokol saja.",
+            "Pisahkan tes simulasi dari tes interoperabilitas perangkat lapangan."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-interop-s3",
+          "number": "11.3"
+        }
+      ],
+      "number": "11"
     },
     {
       "key": "learn-field-guide",
@@ -718,7 +1464,9 @@
             "NUC/redundansi: ownership active, supervisi standby, switchover dan freshness sesudah switch."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-field-guide-s1",
+          "number": "12.1"
         },
         {
           "headingEn": "A protocol FAT/SAT evidence matrix",
@@ -744,7 +1492,9 @@
             "Catat apakah verdict berupa observed, correlated, inferred atau not observed."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-field-guide-s2",
+          "number": "12.2"
         },
         {
           "headingEn": "The trace-to-diagnosis workflow",
@@ -768,7 +1518,35 @@
             "Gunakan manual/interoperability list yang disahkan site untuk keputusan conformance."
           ],
           "framesEn": [],
-          "framesId": []
+          "framesId": [],
+          "id": "learn-field-guide-s3",
+          "number": "12.3"
+        },
+        {
+          "headingEn": "Field checklist: master polls but the RTU looks silent",
+          "headingId": "Checklist lapangan: master polling tetapi RTU diam",
+          "paragraphsEn": [
+            "Observe TX frame integrity, serial direction and station link address; only then inspect RX. A pulsing TX LED does not prove the RTU decoded a valid link request. If RX exists but Values stays empty, verify ASDU Type/COT/CA/IOA or FUN/INF before changing arbitrary serial timers.",
+            "When only part of a GI arrives, do not assume a fixed point count from the protocol itself. Compare requested group, device mapping, data type, buffer limits, time budget, and termination evidence. At low baud rates, an overloaded Class 1 queue may delay background or GI progression."
+          ],
+          "paragraphsId": [
+            "Amati integritas frame TX, arah serial dan link address stasiun; baru setelah itu periksa RX. LED TX berkedip tidak membuktikan RTU berhasil mendecode request link valid. Jika RX ada tetapi Values kosong, cek Type/COT/CA/IOA atau FUN/INF sebelum mengubah timer serial sembarang.",
+            "Ketika GI hanya sebagian, jangan menganggap protokol menentukan jumlah point tetap. Bandingkan grup yang diminta, mapping perangkat, tipe data, batas buffer, waktu yang tersedia dan bukti terminasi. Pada baud rendah, antrian Class 1 yang padat dapat menunda background atau GI."
+          ],
+          "bulletsEn": [
+            "Prove TX and RX bytes with valid link checksum or APCI sequence.",
+            "Separate no-data from no-response and DFC busy.",
+            "Document unknown/partial GI status honestly in the FAT report."
+          ],
+          "bulletsId": [
+            "Buktikan byte TX dan RX dengan checksum link atau sequence APCI valid.",
+            "Pisahkan no-data dari no-response dan DFC busy.",
+            "Dokumentasikan status GI unknown/partial secara jelas dalam laporan FAT."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "id": "learn-field-guide-s4",
+          "number": "12.4"
         }
       ],
       "sources": [
@@ -776,7 +1554,9 @@
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
-      ]
+      ],
+      "number": "12"
     }
-  ]
+  ],
+  "bookEdition": "Engineering Handbook R2"
 }
