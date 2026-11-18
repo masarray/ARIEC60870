@@ -88,7 +88,9 @@ public sealed partial class SignalListEditorWindow : Window
     private bool _showScalingTab = true;
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
-    private bool _saved;
+    // Only the explicit Save & Apply route is allowed to activate the
+    // editor's document in the parent live Values window.
+    private readonly SignalMapActivationPolicy _activation = new();
     private string? _protectedSyncSourcePath;
     private bool _loadingRows;
     private bool _isCellEditing;
@@ -1399,7 +1401,6 @@ public sealed partial class SignalListEditorWindow : Window
             LoadRowsFromProfile(aligned);
             SavedProfilePath = string.Empty; // Never overwrite the shipped/profile source.
             _pathBox.Text = "New profile copy — choose Save As";
-            _saved = false;
             MarkDirty();
             UpdateStatus($"Prepared CA={_observedCommonAddress.Value} for {aligned.Points.Count} points. Save & Apply a new copy, then reconnect.");
         }
@@ -1461,7 +1462,6 @@ public sealed partial class SignalListEditorWindow : Window
             LoadRowsFromProfile(preview.UpdatedProfile);
             SavedProfilePath = string.Empty;
             _pathBox.Text = "New copy required — choose Save As";
-            _saved = false;
             MarkDirty();
             UpdateStatus($"Prepared {preview.MatchedPoints} matching points. Save & Apply to a NEW profile file; original preserved.", success: true);
         }
@@ -1491,8 +1491,9 @@ public sealed partial class SignalListEditorWindow : Window
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
             _dirty = false;
+            _activation.PreviewLoaded();
             UpdateCounters();
-            UpdateStatus($"Loaded {profile.Points.Count} point(s) from {Path.GetFileName(dialog.FileName)}.", success: true);
+            UpdateStatus($"Preview loaded: {profile.Points.Count} points from {Path.GetFileName(dialog.FileName)}. NOT active in Values. Use Save & Apply to activate.", success: true);
         }
         catch (Exception ex)
         {
@@ -1629,6 +1630,25 @@ public sealed partial class SignalListEditorWindow : Window
             var profile = BuildProfileFromRows();
             profile.Validate();
             var target = SavedProfilePath;
+            // A clean already-saved JSON can be explicitly activated without
+            // rewriting the packaged/reference file (or requiring write access).
+            if (SignalMapActivationPolicy.CanApplyExistingFileWithoutWrite(
+                    closeAfter, _dirty, forceSaveAs, _protectedSyncSourcePath, target))
+            {
+                Profile = profile;
+                _activation.Applied();
+                DialogResult = true;
+                Close();
+                return true;
+            }
+            // Never rewrite the bundled calibration reference while editing it.
+            // Preserve the original and request a different project-owned JSON.
+            if (_dirty && string.IsNullOrWhiteSpace(_protectedSyncSourcePath) &&
+                SignalMapActivationPolicy.IsBundledReferencePath(target))
+            {
+                _protectedSyncSourcePath = target;
+                target = string.Empty;
+            }
             if (forceSaveAs || string.IsNullOrWhiteSpace(target))
             {
                 var dialog = new SaveFileDialog
@@ -1655,11 +1675,15 @@ public sealed partial class SignalListEditorWindow : Window
             _profilePathLabel.ToolTip = SavedProfilePath;
             _profileNameBox.ToolTip = SavedProfilePath;
             Profile = profile;
-            _saved = true;
             _dirty = false;
+            if (closeAfter)
+                _activation.Applied();
+            else
+                _activation.SavedWithoutApply();
             ResetGridCheckpoint();
             UpdateCounters();
-            UpdateStatus($"Saved {profile.Points.Count} point(s) to {Path.GetFileName(target)}.", success: true);
+            UpdateStatus($"Saved {profile.Points.Count} point(s) to {Path.GetFileName(target)}." +
+                (closeAfter ? " Applying to live Values." : " Not active in Values until Save & Apply."), success: true);
             if (closeAfter)
             {
                 DialogResult = true;
@@ -1677,19 +1701,20 @@ public sealed partial class SignalListEditorWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (_dirty)
+        if (_activation.MustConfirmDiscard(_dirty, DialogResult == true))
         {
-            var result = ModernMessageBox.Show(this, "Signal list has unsaved changes. Close without saving?", "Signal List Editor", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result != MessageBoxResult.Yes)
+            var warning = _dirty
+                ? "Signal Map has unsaved edits. Close without saving or applying these edits to live Values?"
+                : "This Signal Map was loaded or saved in the editor but is NOT active in Values. Close without applying?";
+            if (ModernMessageBox.Show(this, warning, "Signal Map not applied",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             {
                 e.Cancel = true;
                 return;
             }
         }
-        if (_saved && DialogResult != true)
-        {
-            DialogResult = true;
-        }
+        // A normal Save or Close must never silently apply a profile to
+        // MainWindow. Only Save & Apply returns DialogResult=true.
         base.OnClosing(e);
     }
 
@@ -1723,8 +1748,12 @@ public sealed partial class SignalListEditorWindow : Window
         _rowCountText.Text = shown == _rows.Count
             ? (_rows.Count == 1 ? "1 signal" : $"{_rows.Count} signals")
             : $"{shown} / {_rows.Count} signals";
-        _dirtyText.Text = _dirty ? "Unsaved" : "Clean";
-        _dirtyText.Foreground = _dirty ? DangerBrush : SuccessBrush;
+        _dirtyText.Text = _dirty ? "Unsaved" : _activation.HasUnappliedProfile ? "Not applied" : "Clean";
+        _dirtyText.Foreground = _dirty ? DangerBrush :
+            _activation.HasUnappliedProfile ? AccentDarkBrush : SuccessBrush;
+        _dirtyText.ToolTip = _activation.HasUnappliedProfile
+            ? "The editor contains a newly loaded or saved profile. Use Save & Apply to activate it in live Values."
+            : "This status reflects editor changes, not physical RTU calibration.";
     }
 
     private void RefreshBayChoices()
