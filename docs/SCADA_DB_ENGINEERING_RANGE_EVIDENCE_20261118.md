@@ -18,7 +18,30 @@ The photographed page is headed `scada.sdb` / `Data Sets`; it includes a handwri
 
 **What the photograph does *not* establish:** IEC Type ID, CA/IOA, physical unit (MW/MVar/tap), field device, station/version, dataset-to-IOA association, the meaning of SCADA's "Raw" in relation to ASDU bytes, which Q row belongs to each bay, live wire values, approved setpoint encoder or independent FAT. The superseded ±1732 text is retained above as a historical observation, not an active suggested calibration. Do not re-label all Q signals as ±2078 merely because the mnemonic matches.
 
-## 2. Difference between SCADA database raw and decoded IEC values
+## 2. Interpretation of the 120% engineering injection point (operator clarification, 18 November 2026)
+
+The operator subsequently clarified the intended nominal base and test level: **2000 A**, **500 kV**, **120% injected/test scaling point**, giving approximately **2078**. For a balanced three-phase calculation with 500 kV **line-to-line** and 2000 A **line current**:
+
+```text
+S_nominal = sqrt(3) × U_LL × I / 1000
+          = sqrt(3) × 500 kV × 2000 A / 1000
+          = 1732.0508075688772 MVA
+
+S_120%   = 1.20 × S_nominal
+          = 2078.4609690826524 MVA
+          ≈ 2078 (SCADA handwritten rounded engineering endpoint)
+
+Equivalent current at 500 kV if applying 120% through current only:
+I_120%   = 1.20 × 2000 A = 2400 A
+```
+
+This **explains why ±1732 was apparently superseded by ±2078** on the photographed range table. The earlier ±1732 corresponds to 100% nominal three-phase apparent power; the handwritten ±2078 corresponds to approximately **120% of that base**. It does **not** prove that a real system transmitted ±2078 MW or MVar, that primary equipment is rated for 120% continuous operation, nor that a specific bay's TI11 IOA uses this table. Actual **P** and **Q** are components of apparent power (in ideal balanced conditions, S² = P² + Q²). Their display envelopes may be configured independently for test purposes, but P and Q cannot both equal S magnitude simultaneously at a fixed S.
+
+The word *injection* is treated as a reported SCADA/engineering test scaling value, **not** proof of a 500 kV physical primary injection. A simulated secondary-level test or database injection may use equivalent primary engineering values. Distinguish test range from live electrical operating limits and actual injected waveforms.
+
+The operator clarification strengthens confidence in the **origin of the 2078 range**, **not the association to a particular CA/IOA**. Status remains reference-only, not an approval to overwrite default signal profiles.
+
+## 3. Difference between SCADA database raw and decoded IEC values
 
 The existing ArSee `TwoPoint` mode uses **decoded IEC source X**:
 
@@ -37,7 +60,7 @@ The source 31-point I/O PDF identifies **three TI11 Q** objects, IOA 790447 (FEE
 
 **Practical policy:** no default, sample, operator profile, sync migration or command encoding is changed from this photograph alone. In particular preserve the default TI11 Q display as `counts` pending an authorized association and field measurement. The older *documentation-only* ±1732.0508 Q proposal is a nominal CT/PT hypothesis and **not evidence** that the ±2078 corrected SCADA row applies to that same gateway.
 
-## 3. Conditional ArSee calibration entries (NOT an automatic profile)
+## 4. Conditional ArSee calibration entries (NOT an automatic profile)
 
 These are **reference presets**, *not* a complete importable `ariec10x-ioa-profile-v1` and not approved for a specific point. Assign them only after checking CA + IOA + actual TI + exact SCADA data-item association.
 
@@ -62,7 +85,7 @@ A **zero-centered** symmetric calibration using X0=-32767 and X100=32767 gives 0
 
 No conversion should be inferred from a historical example of raw 13641 and a separate observed physical reference alone. Different Q range choices produce radically different values; this is why field-source association is a hard gate.
 
-## 4. Review and acceptance workflow for Signal Map
+## 5. Review and acceptance workflow for Signal Map
 
 1. Retain the original site-owned mapping profile and the photograph in a private FAT bundle, with configuration revision, source, SHA-256, approver and date; record any units absent from the note as **UNKNOWN**.
 2. Obtain the SCADA `scada.sdb` export or RTU data-item mapping and verify the specific *device / station / CA / IOA / Type ID* behind "Q — Diri Sendiri" and "Q — Lab". Determine whether raw is *IEC signed integer* or a separate SCADA internal representation.
@@ -71,7 +94,7 @@ No conversion should be inferred from a historical example of raw 13641 and a se
 5. Use Validate and **Save As** a separately named *site-approved* JSON profile; avoid Sync overwriting user adjustments. In Value Viewer, Events/history, Frame Trace and CSV/report confirm identical calibrated display, with original HEX and quality unmodified.
 6. Record PASS/FAIL/UNKNOWN/NOT TESTED per IOA. Synthetic unit tests, WPF screenshot tests or CI cannot satisfy the required gateway-specific FAT.
 
-## 5. Candidate future enhancement (requires separate review)
+## 6. Candidate future enhancement (requires separate review)
 
 Consider a **reference-range worksheet/import preview** showing `SCADA data item | raw min/max | eng min/max | IEC TI | CA/IOA | decoded source domain | unit | provenance | approval`. Require manual association and a dry-run diff before any profile write; show a blocking ambiguity when multiple Q candidates match; refuse TI32/TI48 analog conversion. This adds value without changing the existing one-authoritative TwoPoint engine or introducing a second scaling formula.
 
