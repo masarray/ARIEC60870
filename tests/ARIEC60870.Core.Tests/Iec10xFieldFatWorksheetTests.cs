@@ -37,7 +37,7 @@ public sealed class Iec10xFieldFatWorksheetTests
         Assert.DoesNotContain("do-not-export", sheet, StringComparison.Ordinal);
         Assert.Contains("\"790447\",\"11\",\"FEEDER TM Q\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"790449\",\"9\",\"TRAFO SOGI TM POAQ\"", sheet, StringComparison.Ordinal);
-        Assert.Contains("\"Raw signed counts - gateway unit conversion not approved\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("\"Provisional Q SCADA reference - confirm Q source item to exact IOA\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"Observe command/feedback only - NO TX\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"Independent RTU/SCADA reference\"", sheet, StringComparison.Ordinal);
         Assert.DoesNotContain("PASS", sheet, StringComparison.Ordinal); // No made-up field success.
@@ -52,6 +52,7 @@ public sealed class Iec10xFieldFatWorksheetTests
         poaq.Scale = 9999.75; // Inactive when TwoPoint is selected.
         var feeder = Assert.Single(profile.Points, p => p.Ioa == 790447);
         feeder.ScalingMode = "Factor";
+        feeder.Unit = "counts";
         feeder.Scale = 2.25;
         feeder.X0 = -123456.125; // Stored but dormant in Factor.
         feeder.X100 = 123456.125;
