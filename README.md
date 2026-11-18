@@ -5,7 +5,7 @@
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.15)
 
-**ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. A coordinated rename to `masarray/arsee` is planned; the existing Pages URL stays canonical until cutover.
+**ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. The GitHub repository has been renamed to [`masarray/arsee`](https://github.com/masarray/arsee), and the canonical Pages website is [`masarray.github.io/arsee`](https://masarray.github.io/arsee/). Older repository URLs redirect; old GitHub Pages project URLs do not.
 
 **From raw IEC 60870 traffic to inspectable engineering evidence.**
 
