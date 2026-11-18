@@ -477,10 +477,10 @@ public sealed partial class SignalListEditorWindow : Window
         AddTextColumn("IOA", nameof(SignalListEditorRow.Ioa), 90);
         AddTextColumn("TI", nameof(SignalListEditorRow.TypeId), 50);
         AddTextColumn("Signal name", nameof(SignalListEditorRow.Name), 225, minWidth: 145, fill: true);
-        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 100);
-        AddTextColumn("TYPE", nameof(SignalListEditorRow.TestCategory), 68);
-        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 87);
-        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 85);
+        AddTextColumn("Bay", nameof(SignalListEditorRow.BayType), 132);
+        AddTextColumn("TYPE", nameof(SignalListEditorRow.TestCategory), 76);
+        AddTextColumn("Mnemonic", nameof(SignalListEditorRow.Mnemonic), 98);
+        AddTextColumn("Scaling", nameof(SignalListEditorRow.ScalingMode), 94);
         AddTextColumn("Unit", nameof(SignalListEditorRow.Unit), 66, advanced: true);
         AddTextColumn("Group", nameof(SignalListEditorRow.Group), 120, advanced: true);
         AddTextColumn("IEC role", nameof(SignalListEditorRow.SignalType), 150, advanced: true);
