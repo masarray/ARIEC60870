@@ -18,7 +18,7 @@ namespace ARIEC60870.Desktop.Services;
 public static class ReleaseUpdateService
 {
     private const string ApiUrl = "https://api.github.com/repos/masarray/ARIEC60870/releases/latest";
-    private const string ReleaseOrigin = "https://github.com/masarray/ARIEC60870/releases/download/";
+    private const string ReleaseOrigin = "https://github.com/masarray/arsee/releases/download/";
     private const long MaximumInstallerBytes = 300L * 1024 * 1024;
     private static readonly HttpClient Client = CreateClient();
 
