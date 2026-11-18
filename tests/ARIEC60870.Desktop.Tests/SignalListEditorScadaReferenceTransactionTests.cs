@@ -40,20 +40,31 @@ public sealed class SignalListEditorScadaReferenceTransactionTests
         var ti = ioa == 790449 ? 9 : 11;
         var point = new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = ioa, TypeId = ti, Name = "FAT selected",
-            Unit = "counts", CommandPolicy = "MonitorOnly",
-            ExpectedClass = 2, ExpectedCot = 3,
-            ScalingMode = "Factor", Scale = 2.5,
-            RatioPrimary = 2000, RatioSecondary = 1
+            Ca = 105,
+            Ioa = ioa,
+            TypeId = ti,
+            Name = "FAT selected",
+            Unit = "counts",
+            CommandPolicy = "MonitorOnly",
+            ExpectedClass = 2,
+            ExpectedCot = 3,
+            ScalingMode = "Factor",
+            Scale = 2.5,
+            RatioPrimary = 2000,
+            RatioSecondary = 1
         };
         Assert.True(Iec10xScadaRangeReferences.TryForPoint(point, selection, out var range));
         Assert.NotNull(range);
         var row = new SignalListEditorRow(point);
         var neighbor = new SignalListEditorRow(new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 70537, TypeId = 48,
-            Name = "POOP command", Unit = "MW",
-            CommandPolicy = "SetpointNormalizedRemoteOnly", EngineeringMin = 0,
+            Ca = 105,
+            Ioa = 70537,
+            TypeId = 48,
+            Name = "POOP command",
+            Unit = "MW",
+            CommandPolicy = "SetpointNormalizedRemoteOnly",
+            EngineeringMin = 0,
             EngineeringMax = 1000
         });
         var before = row.Clone();
