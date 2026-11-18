@@ -6,7 +6,7 @@
          Lucide Icons are distributed under the ISC License; see NOTICE and THIRD_PARTY_NOTICES.md.
          Keep stroke-only rendering in the consuming Path style.
 
-         Material icon-style 24x24 filled geometries are used only by the native PDF preview toolbar.
+         Material Icons 24x24 filled geometries are shared by native PDF preview and Signal Map toolbars.
          Google Material Icons are distributed under the Apache License 2.0; see NOTICE and THIRD_PARTY_NOTICES.md. -->
     <Geometry x:Key="LucideSettings">M9.671,4.136 A2.34,2.34 0 0 1 14.33,4.136 A2.34,2.34 0 0 0 17.649,6.051 A2.34,2.34 0 0 1 19.979,10.084 A2.34,2.34 0 0 0 19.979,13.915 A2.34,2.34 0 0 1 17.649,17.948 A2.34,2.34 0 0 0 14.33,19.863 A2.34,2.34 0 0 1 9.671,19.863 A2.34,2.34 0 0 0 6.351,17.948 A2.34,2.34 0 0 1 4.021,13.915 A2.34,2.34 0 0 0 4.021,10.084 A2.34,2.34 0 0 1 6.351,6.051 A2.34,2.34 0 0 0 9.671,4.136 M12,9 A3,3 0 1 0 12,15 A3,3 0 1 0 12,9</Geometry>
     <Geometry x:Key="LucidePlug">M12,22 L12,17 M8,2 L8,7 M16,2 L16,7 M6,7 L18,7 L18,11 A6,6 0 0 1 6,11 Z</Geometry>
@@ -37,6 +37,17 @@
     <Geometry x:Key="MaterialChevronLeft">M15.41,7.41 L14,6 L8,12 L14,18 L15.41,16.59 L10.83,12 Z</Geometry>
     <Geometry x:Key="MaterialChevronRight">M8.59,16.59 L13.17,12 L8.59,7.41 L10,6 L16,12 L10,18 Z</Geometry>
     <Geometry x:Key="MaterialRefresh">M17.65,6.35 C16.2,4.9 14.21,4 12,4 C7.58,4 4.01,7.58 4.01,12 C4.01,16.42 7.58,20 12,20 C15.73,20 18.84,17.45 19.73,14 L17.65,14 C16.82,16.33 14.61,18 12,18 C8.69,18 6,15.31 6,12 C6,8.69 8.69,6 12,6 C13.66,6 15.14,6.69 16.22,7.78 L13,11 L20,11 L20,4 Z</Geometry>
+    <!-- Google Material Icons 24px filled geometries, Apache-2.0.
+         Reuse Main Window's MaterialToolbarIconPath and shared workspace button tokens.
+         Source: google/material-design-icons/src/**/materialicons/24px.svg. -->
+    <Geometry x:Key="MaterialAdd">M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z</Geometry>
+    <Geometry x:Key="MaterialSave">M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z</Geometry>
+    <Geometry x:Key="MaterialMoreVert">M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z</Geometry>
+    <Geometry x:Key="MaterialClose">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z</Geometry>
+    <Geometry x:Key="MaterialCheckCircle">M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z</Geometry>
+    <Geometry x:Key="MaterialViewSidebar">M16,20H2V4h14V20z M18,8h4V4h-4V8z M18,20h4v-4h-4V20z M18,14h4v-4h-4V14z</Geometry>
+    <Geometry x:Key="MaterialSearch">M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z</Geometry>
+
     <Geometry x:Key="MaterialFileDownload">M5,20 L19,20 L19,18 L5,18 Z M19,9 L15,9 L15,3 L9,3 L9,9 L5,9 L12,16 Z</Geometry>
 
     <Geometry x:Key="LucideSquare">M5,5 L19,5 L19,19 L5,19 Z</Geometry>

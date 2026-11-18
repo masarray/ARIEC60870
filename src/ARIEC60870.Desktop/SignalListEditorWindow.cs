@@ -11,11 +11,13 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using MaterialIconPath = System.Windows.Shapes.Path;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 using Microsoft.Win32;
@@ -69,6 +71,7 @@ public sealed partial class SignalListEditorWindow : Window
     private UIElement? _inspectorPanel;
     private GridSplitter? _inspectorSplitter;
     private readonly Button _detailsButton = new();
+    private readonly Button _resetFiltersButton = new();
     private readonly TextBlock _profilePathLabel = new();
     private bool _inspectorOpen;
     private double _inspectorWidth = 360;
@@ -198,7 +201,7 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildToolbarCard()
     {
-        var bar = new Grid { Margin = new Thickness(0, 0, 0, 6), Height = 35 };
+        var bar = new Grid { Margin = new Thickness(0, 0, 0, 6), Height = 38 };
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(138) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(144) });
@@ -206,9 +209,24 @@ public sealed partial class SignalListEditorWindow : Window
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var searchArea = new Grid { Margin = new Thickness(0, 0, 5, 0) };
+        // Use the same search-shell token as Frame Trace / Events / Values.
+        var searchShell = new Border
+        {
+            Style = (Style)Application.Current.FindResource("ArSeeToolbarSearchShellStyle"),
+            Margin = new Thickness(0, 0, 5, 0),
+            MaxWidth = double.PositiveInfinity
+        };
+        var searchArea = new Grid();
+        searchArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+        searchArea.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var searchIcon = CreateMaterialToolbarIcon("MaterialSearch", 16);
+        searchIcon.Fill = (Brush)Application.Current.FindResource("Ink500Brush");
+        searchIcon.Margin = new Thickness(8, 0, 0, 0);
+        searchArea.Children.Add(searchIcon);
         _searchBox.Style = CreateTextBoxStyle();
-        _searchBox.Padding = new Thickness(8, 5, 8, 5);
+        _searchBox.Background = Brushes.Transparent;
+        _searchBox.BorderThickness = new Thickness(0);
+        _searchBox.Padding = new Thickness(1, 5, 5, 5);
         _searchBox.FontSize = 11.8;
         _searchBox.ToolTip = "Search IOA, name, bay or mnemonic (Ctrl+F)";
         _searchBox.TextChanged += (_, _) =>
@@ -231,26 +249,33 @@ public sealed partial class SignalListEditorWindow : Window
                 e.Handled = first is not null;
             }
         };
+        Grid.SetColumn(_searchBox, 1);
         searchArea.Children.Add(_searchBox);
         _searchWatermark.Text = "Find IOA, name, bay...";
         _searchWatermark.FontSize = 11.5;
         _searchWatermark.Foreground = TextMutedBrush;
         _searchWatermark.VerticalAlignment = VerticalAlignment.Center;
-        _searchWatermark.Margin = new Thickness(9, 0, 0, 0);
+        _searchWatermark.Margin = new Thickness(2, 0, 0, 0);
         _searchWatermark.IsHitTestVisible = false;
+        Grid.SetColumn(_searchWatermark, 1);
         searchArea.Children.Add(_searchWatermark);
-        bar.Children.Add(searchArea);
+        searchShell.Child = searchArea;
+        bar.Children.Add(searchShell);
 
         ConfigureFilterCombo(_bayFilter, "Bay", bar, 1);
         ConfigureFilterCombo(_kindFilter, "Signal type", bar, 2);
         _kindFilter.ItemsSource = new[] { AllKinds, "Measured analog", "Digital status", "Commands" };
         _kindFilter.SelectedIndex = 0;
 
-        var clear = CreateCompactAction("×", (_, _) => ClearFilters());
-        clear.MinWidth = 27;
-        clear.ToolTip = "Reset filters";
-        Grid.SetColumn(clear, 3);
-        bar.Children.Add(clear);
+        _resetFiltersButton.Name = "SignalMapClearFiltersButton";
+        _resetFiltersButton.Style = (Style)Application.Current.FindResource("ArSeeToolbarSearchClearStyle");
+        _resetFiltersButton.Content = CreateMaterialToolbarIcon("MaterialClose", 15);
+        _resetFiltersButton.ToolTip = "Clear search and filters";
+        _resetFiltersButton.VerticalAlignment = VerticalAlignment.Center;
+        _resetFiltersButton.Click += (_, _) => ClearFilters();
+        AutomationProperties.SetName(_resetFiltersButton, "Clear search and filters");
+        Grid.SetColumn(_resetFiltersButton, 3);
+        bar.Children.Add(_resetFiltersButton);
 
         var actions = new StackPanel
         {
@@ -258,19 +283,27 @@ public sealed partial class SignalListEditorWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Right
         };
-        actions.Children.Add(CreateCompactAction("+ Add", AddRow_Click));
-        _detailsButton.Content = "Details";
-        _detailsButton.Click += (_, _) => SetInspectorVisible(!_inspectorOpen);
-        _detailsButton.ToolTip = "Show / hide field editor (Ctrl+I)";
-        _detailsButton.MinHeight = 30;
-        _detailsButton.Padding = new Thickness(9, 5, 9, 5);
-        _detailsButton.Margin = new Thickness(3, 0, 0, 0);
-        _detailsButton.FontSize = 11.8;
-        _detailsButton.Style = CreateRoundedButtonStyle();
-        actions.Children.Add(_detailsButton);
-        actions.Children.Add(CreateCompactAction("Save", SaveList_Click));
+        var add = CreateMaterialActionButton("Add", "MaterialAdd", AddRow_Click);
+        add.Name = "SignalMapAddButton";
+        actions.Children.Add(add);
 
-        var more = CreateCompactAction("More ▾", (_, _) => { });
+        _detailsButton.Name = "SignalMapDetailsButton";
+        _detailsButton.Style = (Style)Application.Current.FindResource("ArSeeWorkspaceActionButtonStyle");
+        _detailsButton.Height = (double)Application.Current.FindResource("ArSeeToolbarPillHeight");
+        _detailsButton.Padding = (Thickness)Application.Current.FindResource("ArSeeToolbarPillPadding");
+        _detailsButton.Margin = new Thickness(5, 0, 0, 0);
+        _detailsButton.Content = CreateMaterialActionContent("Details", "MaterialViewSidebar");
+        _detailsButton.Click += (_, _) => SetInspectorVisible(!_inspectorOpen);
+        _detailsButton.ToolTip = "Toggle field inspector (Ctrl+I)";
+        AutomationProperties.SetName(_detailsButton, "Show details");
+        actions.Children.Add(_detailsButton);
+
+        var save = CreateMaterialActionButton("Save", "MaterialSave", SaveList_Click);
+        save.Name = "SignalMapSaveButton";
+        actions.Children.Add(save);
+
+        var more = CreateMaterialIconButton("MaterialMoreVert", "More actions");
+        more.Name = "SignalMapMoreButton";
         var menu = BuildMoreActionsMenu();
         more.ContextMenu = menu;
         more.Click += (_, _) =>
@@ -280,7 +313,11 @@ public sealed partial class SignalListEditorWindow : Window
             menu.IsOpen = true;
         };
         actions.Children.Add(more);
-        actions.Children.Add(CreateCompactAction("Save & Apply", SaveApply_Click, primary: true));
+
+        var apply = CreateMaterialActionButton("Save & Apply",
+            "MaterialCheckCircle", SaveApply_Click, primary: true);
+        apply.Name = "SignalMapSaveApplyButton";
+        actions.Children.Add(apply);
         Grid.SetColumn(actions, 5);
         bar.Children.Add(actions);
 
@@ -306,21 +343,87 @@ public sealed partial class SignalListEditorWindow : Window
         return bar;
     }
 
-    private static Button CreateCompactAction(string text, RoutedEventHandler handler, bool primary = false)
+    // Top actions share the exact same WPF button tokens used by Main Window.
+    // No copied templates, ad-hoc hover opacity or standalone icon fonts.
+    private static Button CreateMaterialActionButton(string label, string icon,
+        RoutedEventHandler handler, bool primary = false)
     {
-        var button = CreateToolbarButton(text, handler, primary, false);
-        button.Padding = new Thickness(9, 5, 9, 5);
-        button.MinHeight = 30;
-        button.Margin = new Thickness(3, 0, 0, 0);
-        button.FontSize = 11.8;
+        var button = new Button
+        {
+            Content = CreateMaterialActionContent(label, icon),
+            Style = (Style)Application.Current.FindResource(primary
+                ? "ArSeeWorkspacePrimaryActionButtonStyle"
+                : "ArSeeWorkspaceActionButtonStyle"),
+            Height = (double)Application.Current.FindResource("ArSeeToolbarPillHeight"),
+            Padding = (Thickness)Application.Current.FindResource("ArSeeToolbarPillPadding"),
+            Margin = new Thickness(5, 0, 0, 0),
+            Cursor = Cursors.Hand
+        };
+        AutomationProperties.SetName(button, label);
+        button.Click += handler;
         return button;
+    }
+
+    private static Button CreateMaterialIconButton(string icon, string accessibleName)
+    {
+        var button = new Button
+        {
+            Content = CreateMaterialToolbarIcon(icon, 15),
+            Style = (Style)Application.Current.FindResource("EventJournalCircleNavigationStyle"),
+            Width = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
+            Height = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
+            Margin = new Thickness(5, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = accessibleName,
+            Cursor = Cursors.Hand
+        };
+        AutomationProperties.SetName(button, accessibleName);
+        return button;
+    }
+
+    private static StackPanel CreateMaterialActionContent(string label, string icon)
+    {
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        content.Children.Add(CreateMaterialToolbarIcon(icon, 16));
+        var caption = new TextBlock
+        {
+            Text = label,
+            FontSize = 11.3,
+            FontWeight = FontWeights.Normal,
+            Margin = new Thickness(6, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        caption.SetBinding(TextBlock.ForegroundProperty, new Binding(nameof(Button.Foreground))
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Button), 1)
+        });
+        content.Children.Add(caption);
+        return content;
+    }
+
+    private static MaterialIconPath CreateMaterialToolbarIcon(string resourceKey, double size)
+    {
+        return new MaterialIconPath
+        {
+            Style = (Style)Application.Current.FindResource("MaterialToolbarIconPath"),
+            Data = (Geometry)Application.Current.FindResource(resourceKey),
+            Width = size,
+            Height = size,
+            Stretch = Stretch.Uniform,
+            IsHitTestVisible = false
+        };
     }
 
     private void ConfigureFilterCombo(ComboBox combo, string tip, Grid parent, int column)
     {
-        combo.MinHeight = 30;
+        combo.MinHeight = 36;
         combo.FontSize = 11.5;
-        combo.Padding = new Thickness(5, 3, 5, 3);
+        combo.Padding = new Thickness(5, 5, 5, 5);
         combo.Margin = new Thickness(0, 0, 5, 0);
         combo.Background = Brushes.White;
         combo.BorderBrush = BorderBrushSoft;
@@ -424,10 +527,11 @@ public sealed partial class SignalListEditorWindow : Window
             _nameGridColumn.Width = visible
                 ? new DataGridLength(190)
                 : new DataGridLength(1, DataGridLengthUnitType.Star);
-        _detailsButton.Content = visible ? "Hide details" : "Details";
-        _detailsButton.Background = visible ? AccentSoftBrush : Brushes.White;
-        _detailsButton.Foreground = AccentDarkBrush;
-        _detailsButton.BorderBrush = BorderBrushSoft;
+        _detailsButton.Content = CreateMaterialActionContent(
+            visible ? "Hide details" : "Details", "MaterialViewSidebar");
+        _detailsButton.Style = (Style)Application.Current.FindResource(
+            visible ? "ArSeeWorkspacePrimaryActionButtonStyle" : "ArSeeWorkspaceActionButtonStyle");
+        AutomationProperties.SetName(_detailsButton, visible ? "Hide details" : "Show details");
     }
 
     private void ConfigureGrid()
@@ -1649,6 +1753,9 @@ public sealed partial class SignalListEditorWindow : Window
                 ? terms[0] : null;
         var bay = _bayFilter.SelectedItem as string ?? AllBays;
         var kind = _kindFilter.SelectedItem as string ?? AllKinds;
+        _resetFiltersButton.Visibility = terms.Length > 0 ||
+            bay != AllBays || kind != AllKinds
+                ? Visibility.Visible : Visibility.Collapsed;
         view.Filter = item =>
         {
             if (item is not SignalListEditorRow row) return false;
