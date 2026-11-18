@@ -407,6 +407,7 @@ public sealed partial class SignalListEditorWindow : Window
         if (_inspectorOpen && !visible && _inspectorColumn.ActualWidth >= 280)
             _inspectorWidth = _inspectorColumn.ActualWidth;
         _inspectorOpen = visible;
+        _inspectorColumn.MaxWidth = visible ? 600 : double.PositiveInfinity;
         _inspectorColumn.Width = visible
             ? new GridLength(Math.Clamp(_inspectorWidth, 300, 520))
             : new GridLength(0);
@@ -1092,16 +1093,7 @@ public sealed partial class SignalListEditorWindow : Window
         });
         container.Children.Add(box);
         if (!string.IsNullOrWhiteSpace(hint))
-        {
-            container.Children.Add(new TextBlock
-            {
-                Text = hint,
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 10.8,
-                Foreground = TextMutedBrush,
-                Margin = new Thickness(1, 3, 0, 0)
-            });
-        }
+            box.ToolTip = hint;
         parent.Children.Add(container);
     }
 
