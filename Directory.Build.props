@@ -19,8 +19,8 @@
     <PackageTags>iec60870;iec101;iec103;iec104;scada;substation-automation;protocol-analyzer;protection-relay;fat;sat</PackageTags>
     <Copyright>Copyright © 2026 Ari Sulistiono</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/masarray/ARIEC60870</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/masarray/ARIEC60870</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/masarray/arsee</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/masarray/arsee</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <NeutralLanguage>en</NeutralLanguage>
