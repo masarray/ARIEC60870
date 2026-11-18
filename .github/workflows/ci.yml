@@ -59,6 +59,7 @@ jobs:
       format_files_json: ${{ steps.scope.outputs.format_files_json }}
       run_packages: ${{ steps.scope.outputs.run_packages }}
       run_updater_fat: ${{ steps.scope.outputs.run_updater_fat }}
+      run_help_preview: ${{ steps.scope.outputs.run_help_preview }}
       run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
@@ -72,6 +73,7 @@ jobs:
             let formatFiles = [];
             let runPackages = true;
             let runUpdaterFat = false;
+            let runHelpPreview = false;
             let runWorkflowLint = context.eventName !== 'workflow_dispatch';
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
@@ -146,6 +148,9 @@ jobs:
               formatFiles = formattingSources(files);
               runPackages = runtimeChanged(files);
               runUpdaterFat = updaterChanged(files);
+              runHelpPreview = fullyListed(files) && files.some(file =>
+                paths(file).some(name => /^src\/ARIEC60870\.Desktop\/HelpWindow\.xaml(\.cs)?$/i.test(name) ||
+                  /^src\/ARIEC60870\.Desktop\/HelpWindow\.UiAcceptance\.cs$/i.test(name)));
               runWorkflowLint = workflowChanged(files);
             } else if (context.eventName === 'push') {
               const before = context.payload.before || '';
@@ -216,6 +221,7 @@ jobs:
             core.setOutput('run_format', String(runFormat));
             core.setOutput('run_packages', String(runPackages));
             core.setOutput('run_updater_fat', String(runUpdaterFat));
+            core.setOutput('run_help_preview', String(runHelpPreview));
             core.setOutput('run_workflow_lint', String(runWorkflowLint));
             core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
             core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
@@ -359,6 +365,68 @@ jobs:
               @coverage
             if ($LASTEXITCODE -ne 0) { throw "Regression suite $project failed with exit code $LASTEXITCODE." }
           }
+
+      # A reviewable, self-contained Windows build of the exact Help Center PR.
+      # Do not require release/installer workflows or publish an unverified GUI.
+      - name: Publish and verify native Help Center preview
+        if: github.event_name == 'pull_request' && needs.classify.outputs.run_help_preview == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publish = 'artifacts/help-center-publish'
+          $evidence = 'artifacts/help-center-wpf-evidence'
+          $delivery = 'artifacts/help-center-delivery'
+          New-Item -ItemType Directory -Force -Path $publish, $evidence, $delivery | Out-Null
+
+          dotnet publish src/ARIEC60870.Desktop/ARIEC60870.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=none -p:TreatWarningsAsErrors=true -o $publish
+          if ($LASTEXITCODE -ne 0) { throw 'Help Center preview publish failed.' }
+          $exe = Join-Path $publish 'ARIEC60870.Desktop.exe'
+          if (!(Test-Path $exe)) { throw 'Help Center executable was not produced.' }
+
+          $absoluteEvidence = (Resolve-Path $evidence).Path
+          $probe = Start-Process -FilePath (Resolve-Path $exe).Path -ArgumentList @('--help-ui-acceptance', '--help-out', $absoluteEvidence) -Wait -PassThru -NoNewWindow
+          if ($probe.ExitCode -ne 0) {
+            if (Test-Path (Join-Path $evidence 'failure.txt')) { Get-Content (Join-Path $evidence 'failure.txt') }
+            throw "Native Help Center WPF acceptance failed: $($probe.ExitCode)"
+          }
+          $pngCount = @(Get-ChildItem -Path $evidence -Filter '*.png').Count
+          if ($pngCount -ne 6 -or !(Test-Path (Join-Path $evidence 'acceptance.json'))) {
+            throw "Expected six native WPF screenshots and acceptance.json; got $pngCount screenshots."
+          }
+          Copy-Item 'LICENSE' $publish -Force
+          Copy-Item 'NOTICE' $publish -Force
+          @(
+            'ArSee / ARIEC60870 Help Center - Windows x64 review build'
+            'Preview only; not an installer or stable release.'
+            '1. Extract this ZIP to a separate folder.'
+            '2. Open ARIEC60870.Desktop.exe.'
+            '3. Press F1, select Frame Trace and try English / Indonesia.'
+            '4. Test 100%, 125% and 150% Windows display scaling.'
+            '5. Report screenshots and observations on the linked pull request.'
+            "GitHub tested source: $env:GITHUB_SHA"
+          ) | Set-Content -Path (Join-Path $publish 'README-HELP-PREVIEW.txt') -Encoding utf8
+          $zip = Join-Path $delivery 'ArSee-Help-Center-Preview-win-x64.zip'
+          Compress-Archive -Path (Join-Path $publish '*') -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path (Join-Path $delivery 'SHA256SUMS.txt') -Value "$hash  ArSee-Help-Center-Preview-win-x64.zip" -Encoding ascii
+
+      - name: Upload Help Center portable review build
+        if: github.event_name == 'pull_request' && needs.classify.outputs.run_help_preview == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSee-Help-Center-Preview-win-x64
+          path: artifacts/help-center-delivery/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload native Help Center WPF screenshots and measurements
+        if: always() && github.event_name == 'pull_request' && needs.classify.outputs.run_help_preview == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSee-Help-Center-WPF-Evidence
+          path: artifacts/help-center-wpf-evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
       # Keep this focused UI gate on exact-head PRs that changed the Signal Map.
       # The regular PR matrix deliberately skips release packaging, so without
