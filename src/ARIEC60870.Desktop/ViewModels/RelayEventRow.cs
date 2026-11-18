@@ -19,6 +19,40 @@ public sealed class RelayEventRow
     /// this RX, qualified by physical source/link, not by similar IOA/time.</summary>
     public Iec103MasterEvidenceEvent? ObservedRequestFrame { get; internal set; }
 
+    /// <summary>
+    /// Observed IEC-101 primary-link poll function, NOT the IOA's configured
+    /// Class 1/2. Only an exact validated request/reply pairing is displayed.
+    /// IEC-103 and IEC-104 do not have IEC-101 unbalanced FC10/FC11 polls.
+    /// </summary>
+    public string RequestFcCode => VerifiedRequestFunctionCode switch
+    {
+        10 => "FC10",
+        11 => "FC11",
+        _ => "—"
+    };
+
+    public string RequestFcTooltip => VerifiedRequestFunctionCode switch
+    {
+        10 => "FC10 · Request user data, Class 1 (IEC-101). " +
+            "This IOA was received in the matched response; this describes " +
+            "the observed polling path, not a permanent IOA class assignment.",
+        11 => "FC11 · Request user data, Class 2 (IEC-101). " +
+            "This IOA was received in the matched response; the RTU may " +
+            "return Class 1 data during a Class 2 poll. " +
+            "This does not prove the IOA is configured as Class 2.",
+        _ when Protocol == "101" => "No verified IEC-101 FC10/FC11 " +
+            "request–response match for this event. ACD alone is not " +
+            "evidence of the returned IOA's data class.",
+        _ => "IEC-101 Class 1/2 link-layer polling does not apply to " +
+            "IEC-103 or IEC-104 events."
+    };
+
+    private int? VerifiedRequestFunctionCode =>
+        OriginalFrameEvidence is { } response &&
+        ObservedRequestFrame is { } request &&
+        EventFrameExchange.IsObservedPollReply(request, response)
+            ? request.Frame?.LinkControl?.FunctionCode : null;
+
     public RelayEventRow(Iec103RelayEventLogEntry item,
         Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0,
         Iec103MasterEvidenceEvent? observedRequestFrame = null,
