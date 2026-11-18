@@ -1448,10 +1448,11 @@ public sealed partial class SignalListEditorWindow : Window
                 $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\n" +
                 $"Signal names to update: {preview.RenamedPoints}\n" +
                 $"Business labels to update: {preview.UpdatedBusinessMetadata}\n" +
-                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n" +
+                $"Legacy raw-Q labels reset to counts (older references only): {preview.ResetUnverifiedReactiveUnits}\n" +
+                $"Uncalibrated TI11 Q candidate ±2078 MVar (explicit, provisional): {preview.AppliedScadaReactiveRanges}\n" +
                 $"Uncalibrated TI9 POAQ feedback aligned to 0..1200: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
-                "Approved Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
-                "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the operator-corrected POAQ 0..1200 feedback range are reconciled. POOP command remains 0..1000. " +
+                "WARNING: Q Diri Sendiri and Q Lab are different SCADA items; this example assumes Q ±2078 on the selected sample bay IOAs WITHOUT documented source-item-to-IOA proof. Verify the specific point against SCADA before FAT signoff. " +
+                "Already calibrated Factor/TwoPoint Q points, commands, CT/PT, CA, feedback, and other stations remain unchanged. POOP command remains 0..1000. " +
                 "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
                 "Prepare the updated copy?";
             if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",
