@@ -296,7 +296,8 @@ public partial class HelpWindow : Window
                         var section = topic.Sections[i];
                         if (section.HeadingEn == "Sources and standards")
                             continue;
-                        var label = $"{i + 1}. {Pick(section.HeadingEn, section.HeadingId)}";
+                        var chapter = _topics.IndexOf(topic) + 1;
+                        var label = $"{chapter}.{i + 1}  {Pick(section.HeadingEn, section.HeadingId)}";
                         items.Add(MakeNavItem(topic, label, "section", i));
                     }
                 }
@@ -332,28 +333,36 @@ public partial class HelpWindow : Window
 
     private void RenderTopic(HelpTopic topic)
     {
-        TopicKickerText.Text = Pick(topic.CategoryEn, topic.CategoryId);
+        var isHandbook = topic.Key.StartsWith("learn-", StringComparison.Ordinal);
+        var chapterNumber = _topics.IndexOf(topic) + 1;
+        TopicKickerText.Text = isHandbook
+            ? $"{Pick("ENGINEER HANDBOOK", "BUKU ENGINEER")}  ·  {Pick("CHAPTER", "BAB")} {chapterNumber:00}"
+            : Pick(topic.CategoryEn, topic.CategoryId);
         TopicTitleText.Text = Pick(topic.TitleEn, topic.TitleId);
         TopicSummaryText.Text = Pick(topic.SummaryEn, topic.SummaryId);
         TopicContentPanel.Children.Clear();
 
-        foreach (var section in topic.Sections)
+        for (var index = 0; index < topic.Sections.Count; index++)
         {
-            TopicContentPanel.Children.Add(BuildSectionCard(section));
+            var number = isHandbook && topic.Sections[index].HeadingEn != "Sources and standards"
+                ? $"{chapterNumber}.{index + 1}" : null;
+            TopicContentPanel.Children.Add(BuildSectionCard(topic.Sections[index], number));
         }
 
         // Switching topics should begin at the article heading, not the old scroll offset.
         TopicScrollViewer.ScrollToTop();
     }
 
-    private Border BuildSectionCard(HelpSection section)
+    private Border BuildSectionCard(HelpSection section, string? sectionNumber)
     {
         // Each article is measured against the available reading width. A horizontal
         // StackPanel with a fixed-width text child clips at narrow windows / high DPI.
         var body = new StackPanel();
         body.Children.Add(new TextBlock
         {
-            Text = Pick(section.HeadingEn, section.HeadingId),
+            Text = sectionNumber is null
+                ? Pick(section.HeadingEn, section.HeadingId)
+                : $"{sectionNumber}  {Pick(section.HeadingEn, section.HeadingId)}",
             FontSize = 13.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("Ink900Brush"),
