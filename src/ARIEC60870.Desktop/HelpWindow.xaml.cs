@@ -69,7 +69,7 @@ public partial class HelpWindow : Window
         TopicSummaryText.Text = _language == "id"
             ? "Coba istilah protokol lain atau hapus pencarian untuk melihat semua topik."
             : "Try a different protocol term or clear the search to browse all topics.";
-        TopicHeroIconText.Text = "?";
+        TopicHeroIconPath.Data = GetTopicMaterialGeometry("troubleshooting");
         TopicContentPanel.Children.Clear();
         TopicScrollViewer.ScrollToTop();
     }
@@ -170,35 +170,44 @@ public partial class HelpWindow : Window
         TopicListHintText.Text = _language == "id"
             ? "Tekan F1 dari workspace apa pun untuk membuka topik yang paling relevan."
             : "Press F1 from any workspace to open the most relevant topic.";
-        OpenOnlineButton.Content = BuildOnlineButtonContent(_language == "id" ? "Buka Field Wiki" : "Open Field Wiki");
+        OpenOnlineLabel.Text = _language == "id" ? "Buka Field Wiki" : "Open Field Wiki";
+        CloseHelpButton.Content = _language == "id" ? "Tutup" : "Close";
         SearchWatermarkText.Text = _language == "id"
             ? "Cari topik, ACD, Class 1, command timeout..."
             : "Search topics, ACD, Class 1, command timeout...";
         NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
-    private object BuildOnlineButtonContent(string label)
+    // Reuse the Main Window's shared Material Geometry resource dictionary.
+    // A topic key always resolves to a semantic vector instead of a font glyph.
+    private Geometry GetTopicMaterialGeometry(string key)
     {
-        var path = new System.Windows.Shapes.Path
+        var resource = key switch
         {
-            Width = 16,
-            Height = 16,
-            Stretch = Stretch.Uniform,
-            StrokeThickness = 2,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round,
-            Fill = Brushes.Transparent,
-            Data = (Geometry)FindResource("LucideCircleChevronRight"),
-            Margin = new Thickness(0, 0, 7, 0)
+            "overview" => "MaterialHelpBook",
+            "setup" => "MaterialTune",
+            "frame-trace" => "MaterialHelpCode",
+            "addressing" => "MaterialHelpEthernet",
+            "acd-dfc" => "MaterialHelpTarget",
+            "class-polling" => "MaterialHelpSync",
+            "general-interrogation" => "MaterialHelpTarget",
+            "command-flow" => "MaterialHelpFlag",
+            "command-timeout" => "MaterialHelpSchedule",
+            "values" => "MaterialHelpAssessment",
+            "events" => "MaterialHelpEvent",
+            "quality-flags" => "MaterialHelpInfo",
+            "smart-findings" => "MaterialAutoFixHigh",
+            "report" => "MaterialHelpDescription",
+            "dual-link" => "MaterialHelpEthernet",
+            "iec103-relay" => "MaterialHelpTarget",
+            "iec104-session" => "MaterialHelpEthernet",
+            "troubleshooting" => "MaterialHelpBugReport",
+            "evidence-workflow" => "MaterialHelpHistory",
+            "glossary" => "MaterialHelpBook",
+            _ => "MaterialHelpOutline"
         };
-        path.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Button), 1) });
-        return new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { path, new TextBlock { Text = label } }
-        };
+
+        return (Geometry)FindResource(resource);
     }
 
     private void RefreshTopicList()
@@ -210,7 +219,7 @@ public partial class HelpWindow : Window
             .Where(topic => terms.Length == 0 || terms.All(term => Matches(topic, term)))
             .Select(topic => new HelpTopicListItem(
                 topic.Key,
-                topic.Icon,
+                GetTopicMaterialGeometry(topic.Key),
                 Pick(topic.CategoryEn, topic.CategoryId),
                 Pick(topic.TitleEn, topic.TitleId),
                 Pick(topic.SummaryEn, topic.SummaryId)))
@@ -241,7 +250,7 @@ public partial class HelpWindow : Window
         TopicKickerText.Text = Pick(topic.CategoryEn, topic.CategoryId);
         TopicTitleText.Text = Pick(topic.TitleEn, topic.TitleId);
         TopicSummaryText.Text = Pick(topic.SummaryEn, topic.SummaryId);
-        TopicHeroIconText.Text = topic.Icon;
+        TopicHeroIconPath.Data = GetTopicMaterialGeometry(topic.Key);
         TopicContentPanel.Children.Clear();
 
         foreach (var section in topic.Sections)
@@ -349,14 +358,15 @@ public partial class HelpWindow : Window
             });
         }
 
+        // Editorial section dividers keep the article as one continuous reading
+        // surface instead of stacked, nested, raised cards.
         return new Border
         {
-            Background = (Brush)FindResource("ArSeeContentWhiteBrush"),
+            Background = Brushes.Transparent,
             BorderBrush = (Brush)FindResource("LineBrush"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(11),
-            Padding = new Thickness(14, 13, 14, 13),
-            Margin = new Thickness(0, 0, 0, 10),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(0, 6, 0, 16),
+            Margin = new Thickness(0, 0, 0, 14),
             Child = body
         };
     }
@@ -1105,7 +1115,7 @@ public partial class HelpWindow : Window
         };
     }
 
-    public sealed record HelpTopicListItem(string Key, string Icon, string Category, string Title, string Summary);
+    public sealed record HelpTopicListItem(string Key, Geometry IconGeometry, string Category, string Title, string Summary);
 
     private sealed record HelpTopic(
         string Key,
