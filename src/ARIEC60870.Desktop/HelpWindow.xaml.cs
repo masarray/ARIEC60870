@@ -108,7 +108,7 @@ public partial class HelpWindow : Window
     private void OpenOnlineButton_Click(object sender, RoutedEventArgs e)
     {
         var path = _language == "id" ? "id/wiki.html" : "wiki.html";
-        var url = $"https://masarray.github.io/ARIEC60870/{path}";
+        var url = $"https://masarray.github.io/arsee/{path}";
         try
         {
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
