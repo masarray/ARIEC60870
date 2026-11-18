@@ -40,7 +40,7 @@ public partial class HelpWindow
         if (TopicListBox.Items.Count == 0 ||
             ClearSearchButton.Visibility != Visibility.Visible)
             throw new InvalidOperationException("Search results or clear affordance are missing.");
-        SaveRenderedViewport(outputDirectory, "en-search-results-1080x750.png", 1080, 750);
+        SaveRenderedViewport(outputDirectory, "en-search-results-1080x750.png");
 
         SearchBox.Text = "never-a-real-arsee-help-topic-2026";
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
@@ -50,7 +50,7 @@ public partial class HelpWindow
             TopicContentPanel.Children.Count != 0 ||
             TopicTitleText.Text != "No matching topics")
             throw new InvalidOperationException("No-results state is inconsistent with search.");
-        SaveRenderedViewport(outputDirectory, "en-empty-results-1080x750.png", 1080, 750);
+        SaveRenderedViewport(outputDirectory, "en-empty-results-1080x750.png");
 
         // Simulate contextual F1 navigation while a stale search is active.
         SelectTopic("command-flow");
@@ -92,7 +92,7 @@ public partial class HelpWindow
                 articleExtent = TopicScrollViewer.ExtentWidth,
                 topicCount = TopicListBox.Items.Count
             });
-            SaveRenderedViewport(outputDirectory, filename, width, height);
+            SaveRenderedViewport(outputDirectory, filename);
         }
     }
 
@@ -114,16 +114,20 @@ public partial class HelpWindow
             throw new InvalidOperationException("Selected article did not render section content.");
     }
 
-    private void SaveRenderedViewport(string directory, string filename, int width, int height)
+    private void SaveRenderedViewport(string directory, string filename)
     {
         UpdateLayout();
-        // Pixel dimensions are based on the measured WPF client root,
-        // never on an assumed 100% OS monitor DPI.
-        var renderWidth = Math.Max(1, (int)Math.Ceiling(ActualWidth));
-        var renderHeight = Math.Max(1, (int)Math.Ceiling(ActualHeight));
+        // Render the actual WPF client visual. Window.ActualHeight also includes
+        // non-client chrome not drawn by RenderTargetBitmap; rendering Window itself
+        // previously left a black/transparent strip at the bottom of evidence PNGs.
+        if (Content is not FrameworkElement viewport)
+            throw new InvalidOperationException("Help Center client root is missing.");
+        viewport.UpdateLayout();
+        var renderWidth = Math.Max(1, (int)Math.Ceiling(viewport.ActualWidth));
+        var renderHeight = Math.Max(1, (int)Math.Ceiling(viewport.ActualHeight));
         var bitmap = new RenderTargetBitmap(renderWidth, renderHeight,
             96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(this);
+        bitmap.Render(viewport);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(directory, filename));
