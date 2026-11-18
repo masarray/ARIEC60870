@@ -255,6 +255,49 @@ public sealed class Iec101SharedTransactionCoreTests
         Assert.False(engine.FrameCountBit); // FC9 cannot toggle FCB.
     }
 
+    [Theory]
+    [InlineData("single")]
+    [InlineData("A")]
+    [InlineData("B")]
+    public void L11QuarantineNeverAcceptsSecondFc11InSameStatusExchange(string source)
+    {
+        var engine = new Iec101PerLinkTransactionEngine();
+        engine.StartConnectionEpoch();
+        var addressedFc11 = Parser.Decode(Convert.FromHexString("100B69007416"));
+
+        // The unanswered prior status may have produced a late FC11. The
+        // second candidate may also be late; neither can prove this FC9.
+        using (var expired = engine.BeginFixed(9, false, 105, 2, source))
+        {
+            engine.MarkTransmitAttempt(expired);
+            engine.MarkAwaitingResponse(expired);
+            Assert.Equal(Iec101ExchangeVerdict.Unconfirmed, engine.Complete(expired).Verdict);
+        }
+
+        using (var quarantined = engine.BeginFixed(9, false, 105, 2, source))
+        {
+            engine.MarkTransmitAttempt(quarantined);
+            engine.MarkAwaitingResponse(quarantined);
+            var first = engine.ValidateCandidate(quarantined, addressedFc11);
+            Assert.Equal("IEC101-RX-AMBIGUOUS-LATE-FC11", first.Code);
+            Assert.False(first.IsValid);
+            var second = engine.ValidateCandidate(quarantined, addressedFc11);
+            Assert.Equal("IEC101-RX-AMBIGUOUS-LATE-FC11", second.Code);
+            Assert.False(second.IsValid);
+            Assert.Equal(2, quarantined.RejectedCandidates);
+            Assert.Equal(Iec101ExchangeVerdict.Unconfirmed, engine.Complete(quarantined).Verdict);
+        }
+
+        // The next distinct FC9 can establish status, unlike another receive
+        // within the quarantined exchange. FC9 itself never advances FCB.
+        using var fresh = engine.BeginFixed(9, false, 105, 2, source);
+        engine.MarkTransmitAttempt(fresh);
+        engine.MarkAwaitingResponse(fresh);
+        Assert.True(engine.ValidateCandidate(fresh, addressedFc11).IsValid);
+        Assert.Equal(Iec101ExchangeVerdict.ConfirmedPositive, engine.Complete(fresh).Verdict);
+        Assert.False(engine.FrameCountBit);
+    }
+
     [Fact]
     public void L11WrongAddressCannotConsumeLateStatusQuarantine()
     {
