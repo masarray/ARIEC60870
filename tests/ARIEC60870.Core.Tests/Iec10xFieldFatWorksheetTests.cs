@@ -59,7 +59,7 @@ public sealed class Iec10xFieldFatWorksheetTests
         feeder.Y100 = 112233.55;
         var csv = Iec10xFieldFatWorksheet.ExportCsv(profile);
 
-        Assert.Contains("\"TwoPoint\",\"MW\",\"0\",\"1\",\"0\",\"1000\",\"\",\"\",\"\",\"\",\"\",", csv, StringComparison.Ordinal);
+        Assert.Contains("\"TwoPoint\",\"MW\",\"0\",\"1\",\"0\",\"1200\",\"\",\"\",\"\",\"\",\"\",", csv, StringComparison.Ordinal);
         Assert.Contains("\"Factor\",\"counts\",\"\",\"\",\"\",\"\",\"2.25\",", csv, StringComparison.Ordinal);
         Assert.DoesNotContain("9999.75", csv, StringComparison.Ordinal);
         Assert.DoesNotContain("112233.55", csv, StringComparison.Ordinal);

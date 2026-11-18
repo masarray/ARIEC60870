@@ -261,7 +261,7 @@ public sealed partial class SignalListEditorWindow
 
             // Changing the selected row must not mutate field calibration.
             if (normalized.X0 != "0" || normalized.X100 != "1" ||
-                normalized.Y0 != "0" || normalized.Y100 != "1000" ||
+                normalized.Y0 != "0" || normalized.Y100 != "1200" ||
                 q.Unit != "counts" || editor._dirty)
                 throw new InvalidOperationException(
                     "Inspector navigation changed source-defined scaling or dirtied the profile.");

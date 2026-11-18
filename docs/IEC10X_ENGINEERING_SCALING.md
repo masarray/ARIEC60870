@@ -47,8 +47,7 @@ The input and engineering spans must come from authoritative RTU
 configuration, not inferred from a single observation. The full source-file
 derivation and **all 31 BAY TYPE + TYPE + MNEMO + LAB labels** are recorded
 in [SCADA I/O List mapping analysis](SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md).
-The documented normalized TI9 `TRAFO SOGI TM POAQ` 0/1000 is the one
-source-backed example: X0=0, X100=1 per-unit, Y0=0, Y100=1000. IEEE TI13
+The earlier I/O list documented normalized TI9 `TRAFO SOGI TM POAQ` as 0/1000, but the **later operator correction** specifies POAQ feedback 0..1200 (TI9 IOA790449), separate from POOP command 0..1000 (TI48 IOA70537). The current bundled *reference* POAQ TwoPoint is X0=0, X100=1 per-unit, Y0=0, Y100=1200; field validation is still required. IEEE TI13
 active-power points use identity scaling (if upstream float units are MW).
 
 This is the conventional **two-range analog engineering calibration**:
@@ -104,9 +103,9 @@ The action:
   converts a misleading `MVar` unit suffix into `counts` after explicit
   operator consent. **Custom Factor and TwoPoint calibrated MVar remain
   unchanged.** This never fabricates the missing gateway coefficient.
-- For the documented TI9 POAQ (IOA 790449) only, a legacy **identity**
+- For the operator-corrected TI9 POAQ feedback (IOA 790449) only, a legacy **identity**
   normalized reading with MW unit and no configured endpoints is upgraded to
-  the documented X0=0, X100=1, Y0=0, Y100=1000 mapping. Existing custom
+  X0=0, X100=1, Y0=0, Y100=1200, after explicit review. POOP TI48 command metadata stays 0..1000. Existing custom
   full-scale or TwoPoint settings are never overwritten.
 - Does **not** change any previously configured calibration, raw decoded
   bytes, CA/link configuration, commands, feedback, control policies,
@@ -179,3 +178,13 @@ stale cached value as fresh physical data.
 
 Synthetic tests and green Windows CI do not qualify RTU-specific
 calibration, 1,200-bps SOE completeness, or multi-vendor FAT.
+
+## Field SCADA range reference — 18 November 2026 (not an IOA calibration)
+
+A separate operator-supplied handwritten SCADA database range note clarifies why an earlier `±1732` nominal apparent-power hypothesis was revised to `±2078` for one Q data item: **500 kV line-to-line × 2000 A line current × √3 = 1732.05 MVA nominal; 120% ≈ 2078.46 MVA**. The photographed database shows `Q — Diri Sendiri` raw **-32768..32767** to eng **-2078..+2078**, and a **different** `Q — Lab` raw range **-32768..32767** to eng **-260..+260**. These are distinct database ranges; **the available evidence does not identify which, if either, applies to a specific TI11 CA/IOA.** Likewise P identity, Poaq 0..1000 and Tpi -4..14 entries do not override the source's IEC type or tap metadata.
+
+The SCADA handwritten raw column is not necessarily the same numeric domain as ArSee's **decoded IEC X**. In particular TI9 uses signed normalized per-unit X, TI11 signed I16 counts and TI13 IEEE float; TI32 tap is not a generic measured-analog TwoPoint item. See [SCADA database range evidence and acceptance workflow](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Never silently migrate the safe TI11 `counts` bundled default, change any command encoder or replace an existing site-approved range because of the 120% arithmetic alone.
+
+### Latest POAQ/POOP scaling correction (18 November 2026)
+
+The user reports **POOP setpoint command 0..1000** and **POAQ measured feedback 0..1200**; the earlier source PDFs/photo show POAQ 0..1000, so this is a **later operator-supplied correction**, not a value legible in the photograph. The reference profile reflects POAQ 1200 in display-only TwoPoint and keeps TI48 command range at 1000; source commands/encoders are never re-scaled automatically. See [chronology](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). No physical FAT verification or automatic migration of existing custom scaling is implied.

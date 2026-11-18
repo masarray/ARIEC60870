@@ -90,14 +90,15 @@ public static class Iec10xScadaIoListProfileSync
                 rawUnit++;
             }
 
-            // The document explicitly describes POAQ at IOA 790449 as a
-            // 0..1000 normalized observation. Upgrade *only* a legacy
+            // Latest operator correction identifies POAQ TI9 as 0..1200
+            // feedback, while POOP TI48 command remains 0..1000.
+            // Upgrade *only* a legacy
             // identity NVA->MW presentation with no stored endpoints. Never
             // override a custom project full-scale or two-point calibration.
             if (target.Ioa == 790449 && typeId == 9 &&
                 string.Equals(source.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase) &&
                 source.X0 == 0d && source.X100 == 1d &&
-                source.Y0 == 0d && source.Y100 == 1000d &&
+                source.Y0 == 0d && source.Y100 == 1200d &&
                 string.Equals(target.Unit, "MW", StringComparison.OrdinalIgnoreCase) &&
                 IsUncalibratedIdentity(target) &&
                 target.X0 is null && target.X100 is null &&

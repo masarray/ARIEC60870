@@ -190,11 +190,14 @@ Here `TYPE` refers to the project category (`TM/TSD/RCD/...`), not IEC
 `TI` numeric Type ID; the trailing number comes only from nonempty LAB.
 Source type and original IOA remain authoritative.
 
-The bundled `utility_fat_iec10x_default_profile.json` is a **safe
+The bundled `utility_fat_iec10x_default_profile.json` is a **reference-only,
 unverified** signal-name example: TI11 reactive-power points use raw
-`counts`, no guessed MVar calibration. The TI9 measured `POAQ`
-0–1000 range explicitly present in the PDF uses `TwoPoint`
-`X0=0, X100=1, Y0=0, Y100=1000` in **decoded per-unit NVA**.
+`counts`, no guessed MVar calibration. The original PDF supplied POAQ 0..1000,
+but the operator **later corrected** the current POAQ **feedback** display to
+0..1200. The current reference uses `TwoPoint` `X0=0, X100=1, Y0=0, Y100=1200`
+in **decoded per-unit NVA** for TI9 IOA790449; independent field validation is
+outstanding. The separate POOP TI48 outbound **command** remains 0..1000
+metadata (IOA70537), without any automatic command encoder change.
 IEEE TI13 floating-point P is left at identity (Scale=1, Ratio=1/1,
 Offset=0) unless project data proves a different unit.
 
