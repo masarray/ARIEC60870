@@ -68,8 +68,8 @@ public sealed class HelpCenterLayoutTests
     public void ReadingSurfaceBrushIsDeclaredOnceInGlobalTheme()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
-        Assert.Single(theme.Descendants().Where(x =>
-            (string?)x.Attribute(Xaml + "Key") == "ArSeeContentWhiteBrush"));
+        Assert.Single(theme.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Key") == "ArSeeContentWhiteBrush");
     }
 
     private static XElement Named(XDocument document, string name) =>
