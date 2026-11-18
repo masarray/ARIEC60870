@@ -140,7 +140,9 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("OpenOnlineLabel.Text =", code);
         Assert.DoesNotContain("BuildOnlineButtonContent", code);
         var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
-        Assert.Contains("en-trace-1180x820.png", acceptance);
+        Assert.Contains("en-trace-default-window.png", acceptance);
+        Assert.Contains("requestedWindowSizes", acceptance);
+        Assert.Contains("topicPaneWidth", acceptance);
         Assert.Contains("HelpArticlePanel.ActualWidth", acceptance);
     }
 
