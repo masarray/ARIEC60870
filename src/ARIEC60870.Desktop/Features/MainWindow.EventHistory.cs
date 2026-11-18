@@ -594,7 +594,11 @@ public partial class MainWindow
         await RefreshEventHistoryQueryAsync();
         var event621 = _historicalEventRows.FirstOrDefault(x => x.EventNumber == 621);
         if (event621?.ObservedRequestFrame is null ||
-            event621.OriginalFrameEvidence?.AsduDetails?.FirstObject is null)
+            event621.OriginalFrameEvidence?.AsduDetails?.FirstObject is null ||
+            event621.RequestFcCode != "FC10" ||
+            !event621.RequestFcTooltip.Contains("Request user data, Class 1",
+                StringComparison.Ordinal) ||
+            _historicalEventRows.First().RequestFcCode != "—")
             throw new InvalidOperationException(
                 "Event Journal lost paired TX or exact decoded RX before navigation.");
         _protocolTraceStore.Clear();
