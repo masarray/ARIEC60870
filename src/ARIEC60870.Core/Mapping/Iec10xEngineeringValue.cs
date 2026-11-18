@@ -121,9 +121,14 @@ public static class Iec10xEngineeringValue
         else return false;
         if (!double.IsFinite(engineering)) return false;
 
-        // Fixed six decimals silently rounded e.g. 1E-7 to zero; use
-        // significant digits with scientific notation as necessary.
-        var rendered = engineering.ToString("G12", CultureInfo.InvariantCulture);
+        // IEEE-754 R32 only has about 7 meaningful decimal digits.
+        // Avoid showing binary representation noise such as -1.207000017
+        // in Values. Keep G12 for signed integer and normalized analogs
+        // (Q and POAQ display regressions rely on that precision).
+        // Original frame bytes, QDS and captured source number are immutable.
+        var rendered = engineering.ToString(
+            sample.TypeId is 13 or 14 or 36 ? "G7" : "G12",
+            CultureInfo.InvariantCulture);
         text = string.IsNullOrWhiteSpace(point.Unit)
             ? rendered : rendered + " " + point.Unit.Trim();
         return true;

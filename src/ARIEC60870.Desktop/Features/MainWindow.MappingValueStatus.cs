@@ -118,8 +118,10 @@ public partial class MainWindow
             return;
         }
 
+        // The setup textbox is redacted presentation, never a source-of-truth
+        // profile path. Save & Apply must use the actual running profile path.
         var editor = new SignalListEditorWindow(_ioaProfile.HasPoints ? _ioaProfile : Iec10xPointMappingProfile.Empty,
-            SanitizeSavedMappingProfilePath(MappingProfilePathBox.Text), _firstObservedRuntimeCa)
+            _activeMappingProfileFilePath, _firstObservedRuntimeCa)
         {
             Owner = this
         };
@@ -132,9 +134,9 @@ public partial class MainWindow
             MappingProfilePathBox.Text = SanitizeSavedMappingProfilePath(editor.SavedProfilePath);
             ApplyIoaProfileDefaultsToUi(_ioaProfile, onlyWhenUiLooksDefault: false);
             var scenarioText = _ioaProfile.TestScenarios.Count > 0 ? $", {_ioaProfile.TestScenarios.Count} test scenarios" : string.Empty;
-            MappingProfileStatusText.Text = $"Loaded: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
+            MappingProfileStatusText.Text = $"Active in Values: {_ioaProfile.ProfileName} ({_ioaProfile.Points.Count} IOA points{scenarioText})";
             RefreshIoaProfileRows();
-            AppendSessionLog("IEC-101/104 IOA profile edited and applied: " + _ioaProfile.ProfileName);
+            AppendSessionLog("IEC-101/104 IOA profile explicitly Save & Applied: " + _ioaProfile.ProfileName);
             SaveSetupPreferencesFromUi(silent: true);
         }
     }
