@@ -127,6 +127,24 @@ public sealed partial class SignalListEditorWindow
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
             ApplyNewGridTransaction(changes, range.Label, warnOnBulk: false);
+
+            // The selected SCADA range is reference-only until field FAT. A
+            // new calibration must not overwrite the original station profile.
+            // Reuse the existing Sync protection gate in SaveCurrent; after the
+            // first Save As to a distinct file, further edits can use that copy.
+            if (_protectedSyncSourcePath is null &&
+                !string.IsNullOrWhiteSpace(SavedProfilePath))
+            {
+                _protectedSyncSourcePath = SavedProfilePath;
+                SavedProfilePath = string.Empty;
+                _pathBox.Text = "New copy required — choose Save As";
+                _profilePathLabel.Text = "Unsaved profile copy";
+                _profilePathLabel.ToolTip = _protectedSyncSourcePath;
+                _profileNameBox.ToolTip = "Original preserved: " + _protectedSyncSourcePath;
+                _saved = false;
+                UpdateStatus("SCADA reference staged. Save As a new profile; original is protected.", success: true);
+            }
+
             SetInspectorVisible(true);
             ShowInspectorTab(scaling: true);
         }
