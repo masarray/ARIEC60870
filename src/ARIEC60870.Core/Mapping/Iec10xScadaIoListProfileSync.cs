@@ -99,7 +99,7 @@ public static class Iec10xScadaIoListProfileSync
             // require the existing explicit Sync preview and protected Save As.
             // Only a legacy *identity* Q can be upgraded. An existing site
             // Factor or TwoPoint calibration must never be touched.
-            if (typeId == 11 && target.Ioa is 790447 or 790439 or 790443 &&
+            if (typeId == 11 && (target.Ioa is 790447 or 790439 or 790443) &&
                 string.Equals(source.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase) &&
                 source.X0 == -32768d && source.X100 == 32767d &&
                 source.Y0 == -2078d && source.Y100 == 2078d &&
