@@ -169,6 +169,45 @@ public sealed class EventHistoryJournalTests
     }
 
     [Fact]
+    public async Task EventCsvIncludesVerifiedFc10RequestFunctionBesideCOT()
+    {
+        var row = Row(42);
+        var original = row.OriginalFrameEvidence!;
+        var raw = new byte[] { 0x10, 0x5A, 0x69, 0xC3, 0x16 };
+        var frame = Ft12Parser.ForIec101(1).Decode(raw);
+        var request = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 1,
+            TimestampUtc = original.TimestampUtc.AddMilliseconds(-25),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = original.PhysicalSource,
+            Direction = FrameDirection.MasterToSlave,
+            LinkAddress = 105,
+            RawHex = frame.Hex,
+            Frame = frame
+        };
+        using var journal = new EventHistoryJournal();
+        journal.Append(new RelayEventRow(row.SourceEntry, original,
+            eventNumber: 1, observedRequestFrame: request));
+        var export = Path.Combine(Path.GetTempPath(),
+            "ArSee-fc-export-" + Guid.NewGuid().ToString("N") + ".csv");
+        try
+        {
+            var count = await EventHistoryCsvExporter.ExportAsync(
+                journal, new EventHistoryQuerySnapshot(1, null), export);
+            Assert.Equal(1, count);
+            var lines = await File.ReadAllLinesAsync(export);
+            Assert.Equal(2, lines.Length);
+            Assert.Contains("TI,COT,RequestFC,Quality", lines[0]);
+            Assert.Contains("\"FC10\"", lines[1]);
+        }
+        finally
+        {
+            if (File.Exists(export)) File.Delete(export);
+        }
+    }
+
+    [Fact]
     public void IndexedEventRestoresAllRxAsduObjectsAndQualityWithRecordedWidths()
     {
         // One IEC-101 FT1.2 FC8 response with a real M_SP_NA_1 payload.
