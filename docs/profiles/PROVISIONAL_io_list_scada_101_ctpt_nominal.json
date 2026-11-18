@@ -3,7 +3,7 @@
   "profileName": "PROVISIONAL — SCADA 101/104 CT/PT nominal-range CALIBRATION EXAMPLE",
   "region": "Generic / sanitized example",
   "projectName": "Unverified nominal CT/PT mapping from operator I/O list",
-  "source": "PROVISIONAL DO NOT USE FOR ACCEPTANCE: I/O List SCADA 101 names/identities and CT 2000/1 A, PT 500/0.1 kV, with ASSUMED IEC SVA full-scale ±32767; source PDF does not specify gateway SVA calibration.",
+  "source": "PROVISIONAL DO NOT USE FOR ACCEPTANCE: I/O List SCADA 101 names/identities and CT 2000/1 A, PT 500/0.1 kV, with ASSUMED IEC SVA full-scale ±32767; source PDF does not specify gateway SVA calibration. Superseded for Feeder/Kopel/Trafo Q by later operator-supplied bay associations; historical illustration only.",
   "commonAddress": 105,
   "defaultSettings": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
@@ -836,7 +836,7 @@
       }
     }
   ],
-  "description": "OPERATOR MUST VERIFY before live use. Candidate ±sqrt(3)*500 kV*2000 A/1000 = ±1732.05 apparent-power envelope at nominal CT/PT, not documented RTU full-scale. Floating TI13 remains identity; TI9 POAQ 0/1000 is from document. No control/command scaling. Later operator correction: POAQ feedback 0..1200; POOP command 0..1000; preserve distinct ranges. Q nominal hypothesis is still NOT approved.",
+  "description": "OPERATOR MUST VERIFY before live use. Candidate ±sqrt(3)*500 kV*2000 A/1000 = ±1732.05 apparent-power envelope at nominal CT/PT, not documented RTU full-scale. Floating TI13 remains identity; TI9 POAQ 0/1000 is from document. No control/command scaling. Later operator correction: POAQ feedback 0..1200; POOP command 0..1000; preserve distinct ranges. Q nominal hypothesis is still NOT approved. HISTORICAL/SUPERSEDED FOR THESE BAYS (2026-11-19): operator identifies FEEDER Q Diri Sendiri as ±2078 and KOPEL Lab SOGI 3 / TRAFO Lab SOGI 4 Q Lab as ±260, with signed SCADA raw -32768..32767. This older all-bay ±1732 nominal example is not suitable for current Q mapping; do not import it as station calibration.",
   "metadata": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
     "confidentiality": "Public sanitized example. Do not use as a contractual project standard.",
