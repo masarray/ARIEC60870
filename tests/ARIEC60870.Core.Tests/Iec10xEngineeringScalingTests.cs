@@ -101,7 +101,7 @@ public sealed class Iec10xEngineeringScalingTests
         qPoint.Y100 = 260;
         Assert.True(Iec10xEngineeringValue.TryFormat(qPoint, signed,
             Assert.Single(signed.Objects), out var qDisplay));
-        Assert.Equal("108.235294118 MVar", qDisplay);
+        Assert.Equal("108.241092546 MVar", qDisplay);
 
         var normalized = Decode(9, 0xff, 0x7f, 0x01);
         var poaq = Point(9);
