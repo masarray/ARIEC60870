@@ -190,16 +190,37 @@ Here `TYPE` refers to the project category (`TM/TSD/RCD/...`), not IEC
 `TI` numeric Type ID; the trailing number comes only from nonempty LAB.
 Source type and original IOA remain authoritative.
 
-The bundled `utility_fat_iec10x_default_profile.json` is a **reference-only,
-unverified** signal-name example: TI11 reactive-power points use raw
-`counts`, no guessed MVar calibration. The original PDF supplied POAQ 0..1000,
-but the operator **later corrected** the current POAQ **feedback** display to
-0..1200. The current reference uses `TwoPoint` `X0=0, X100=1, Y0=0, Y100=1200`
-in **decoded per-unit NVA** for TI9 IOA790449; independent field validation is
-outstanding. The separate POOP TI48 outbound **command** remains 0..1000
-metadata (IOA70537), without any automatic command encoder change.
-IEEE TI13 floating-point P is left at identity (Scale=1, Ratio=1/1,
-Offset=0) unless project data proves a different unit.
+The bundled `utility_fat_iec10x_default_profile.json` is a **reference-only**
+31-point profile, with the latest **19 November 2026 operator-provided bay
+association** applied to three Q TI11 measured objects. The 18 November
+handwritten SCADA page provides two ranges; the later verbal correction
+specifies which bay uses each:
+
+| Bay / SCADA data item | CA | IOA | TI | Decoded source X0..X100 | Engineering Y0..Y100 | Unit |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| FEEDER / Q Diri Sendiri | 105 | 790447 | 11 | -32768..32767 (signed SVA) | -2078..+2078 | MVar |
+| KOPEL / Q Lab SOGI 3 | 105 | 790439 | 11 | -32768..32767 (signed SVA) | -260..+260 | MVar |
+| TRAFO / Q Lab SOGI 4 | 105 | 790443 | 11 | -32768..32767 (signed SVA) | -260..+260 | MVar |
+
+Each point now has `scalingMode=TwoPoint`, its own endpoints, unit,
+and `engineeringMin/Max` **in the newly bundled reference**. This is
+**operator-specified mapping, not independent RTU measurement/FAT approval**.
+The underlying SCADA raw column must still be verified against received IEC
+signed SVA counts. Literal -32768..32767 endpoints give a small positive
+engineering output at zero; do not silently substitute -32767.
+
+The original PDF supplied POAQ 0..1000, but the operator later corrected
+**POAQ feedback** to 0..1200. Current TI9 IOA790449 still uses
+`TwoPoint X0=0, X100=1, Y0=0, Y100=1200` in **decoded per-unit NVA**.
+The separate POOP TI48 outbound **command** remains 0..1000 metadata
+(IOA70537), with no automatic command encoder change. TI13 floating-point
+P remains identity unless an independently measured source proves otherwise.
+
+An existing saved mapping is **never silently replaced** by a new installer.
+The user can preview `Sync 31 I/O`: it applies the three new Q ranges
+**only to exact-match, never-custom-calibrated legacy Factor identity points**
+and requires Save As to a distinct JSON path. All other stations, custom
+Factor/TwoPoint calibrations, commands and raw evidence remain unchanged.
 
 A separate documentation-only `docs/profiles/PROVISIONAL_io_list_scada_101_ctpt_nominal.json`
 contains **unverified** signed TI11 `X0=-32767, X100=32767`,
