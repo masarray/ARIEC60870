@@ -54,6 +54,16 @@ public sealed class SignalMapActivationPolicyTests
             Assert.False(SignalMapActivationPolicy.CanApplyExistingFileWithoutWrite(
                 explicitApply: true, dirty: false, forceSaveAs: false,
                 protectedSourcePath: file, targetPath: file));
+            // Clean Save uses the same no-write path, but does not apply.
+            Assert.True(SignalMapActivationPolicy.CanReuseExistingFileWithoutWrite(
+                dirty: false, forceSaveAs: false,
+                protectedSourcePath: null, targetPath: file));
+            Assert.False(SignalMapActivationPolicy.CanReuseExistingFileWithoutWrite(
+                dirty: true, forceSaveAs: false,
+                protectedSourcePath: null, targetPath: file));
+            Assert.False(SignalMapActivationPolicy.CanReuseExistingFileWithoutWrite(
+                dirty: false, forceSaveAs: false,
+                protectedSourcePath: file, targetPath: file));
             Assert.Equal("original bytes", File.ReadAllText(file));
         }
         finally
