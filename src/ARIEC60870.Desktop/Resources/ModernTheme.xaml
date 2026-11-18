@@ -51,6 +51,8 @@
     <SolidColorBrush x:Key="Panel75Brush" Color="{StaticResource Panel75}" />
     <SolidColorBrush x:Key="Panel100Brush" Color="{StaticResource Panel100}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource Surface}" />
+    <!-- Shared flat reading canvas for Help and other dense information surfaces. -->
+    <SolidColorBrush x:Key="ArSeeContentWhiteBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource Accent600}" />
     <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource Accent700}" />
     <SolidColorBrush x:Key="AccentSoftBrush" Color="{StaticResource AccentSoft}" />
