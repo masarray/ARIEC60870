@@ -310,6 +310,97 @@ public sealed class Iec10xEngineeringMappingPresentationTests
     }
 
     [Fact]
+    public void ScreenshotPoaQAndQMeasurementsReprojectFromWireOnReferenceApply()
+    {
+        // Regression for the RC2 screenshot: opening the reference in the editor
+        // was not enough to activate it in live Values. Once Save & Apply has
+        // activated that profile, the same cached, trusted original wire bytes
+        // must be re-projected without new RX or a second scaling pass.
+        string? referencePath = null;
+        for (DirectoryInfo? dir = new(AppContext.BaseDirectory);
+             dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, "profiles",
+                "utility_fat_iec10x_default_profile.json");
+            if (!File.Exists(candidate)) continue;
+            referencePath = candidate;
+            break;
+        }
+        Assert.NotNull(referencePath);
+        var current = Iec10xPointMappingProfile.LoadFromFile(referencePath);
+        var active = new Iec10xPointDisplayIndex(current);
+
+        static Iec10xAsduDecode DecodeMeasured(byte type, int ioa, params byte[] value)
+            => new Iec10xAsduDecoder(1, 1, 3).Decode(
+                new byte[] { type, 1, 20, 105,
+                    (byte)ioa, (byte)(ioa >> 8), (byte)(ioa >> 16) }
+                    .Concat(value).ToArray());
+
+        static ValueRow Cached(Iec10xAsduDecode asdu, string oldValue)
+        {
+            var obj = Assert.Single(asdu.Objects);
+            return new ValueRow(new Iec103ValuePoint
+            {
+                Key = $"101/LINK A/{asdu.CommonAddress}/{obj.InformationObjectAddress}",
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                PhysicalSource = "Link A",
+                EvidenceReference = "101|seq:22|object:1",
+                CommonAddress = asdu.CommonAddress,
+                InformationObjectAddress = obj.InformationObjectAddress,
+                TypeId = asdu.TypeId,
+                SignalName = $"IOA {obj.InformationObjectAddress}",
+                RawValue = obj.ShortValue,
+                DisplayValue = oldValue,
+                QualityText = obj.QualityText,
+                QualityDetails = obj.QualityDetails
+            }, sourceAsdu: asdu, sourceObject: obj);
+        }
+
+        var poaqSource = DecodeMeasured(9, 790449, 0xFF, 0x7F, 0x01);
+        Assert.Empty(poaqSource.Issues);
+        var poaq = Cached(poaqSource, "0.999969482 MW");
+        var legacy = new Iec10xPointDisplayIndex(new Iec10xPointMappingProfile
+        {
+            CommonAddress = 105,
+            Points = [new Iec10xPointMappingEntry
+            {
+                Ca = 105, Ioa = 790449, TypeId = 9,
+                Name = "Legacy POAQ", Unit = "MW", CommandPolicy = "MonitorOnly"
+            }]
+        });
+        Iec10xValueNameReconciler.Apply([poaq], legacy);
+        Assert.Equal("0.999969482 MW", poaq.Value);
+        Iec10xValueNameReconciler.Apply([poaq], active);
+        Assert.Equal("1199.96338 MW", poaq.Value);
+        Assert.Equal("TRAFO SOGI TM POAQ", poaq.Signal);
+        Assert.Equal("Normalized=0.999969482421875", poaq.RawValue);
+        Assert.Contains("OV", poaq.Quality);
+        Assert.Equal(new byte[] { 0xFF, 0x7F, 0x01 },
+            poaqSource.Objects[0].RawBytes);
+
+        var qSource = DecodeMeasured(11, 790439, 0x49, 0x35, 0x00);
+        Assert.Empty(qSource.Issues);
+        var q = Cached(qSource, "13641 counts");
+        Iec10xValueNameReconciler.Apply([q], active);
+        Assert.Equal("865.096117 MVar", q.Value);
+        Assert.Equal("KOPEL TM Q 1", q.Signal);
+        Assert.Equal("Scaled=13641", q.RawValue);
+        Assert.Equal(new byte[] { 0x49, 0x35, 0x00 },
+            qSource.Objects[0].RawBytes);
+
+        // An unseen but numerically similar physical IOA is NOT an excuse to
+        // remap the protocol address, interpret a different station, or borrow
+        // another object's calibration. The received IOA remains literal.
+        var unrelatedSource = DecodeMeasured(13, 1790446,
+            0x00, 0x00, 0x00, 0x00, 0x00);
+        var unknown = Cached(unrelatedSource, "Float=0");
+        Iec10xValueNameReconciler.Apply([unknown], active);
+        Assert.Equal("IOA 1790446", unknown.Signal);
+        Assert.Equal("1790446", unknown.IoAddress);
+        Assert.NotEqual("FEEDER TM P", unknown.Signal);
+    }
+
+    [Fact]
     public void EditorRoundTripDoesNotLoseRatioOffsetOrNormalizedFullScale()
     {
         var point = new Iec10xPointMappingEntry
