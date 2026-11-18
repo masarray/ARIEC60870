@@ -568,7 +568,7 @@ jobs:
           $version = [string]$props.Project.PropertyGroup.Version
           $oldVersion = if ([version]$version -gt [version]'3.6.8') { '3.6.8' } else { '3.6.7' }
           $output = (Resolve-Path 'artifacts/installer').Path
-          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          $baseUrl = "https://github.com/masarray/arsee/releases/download/v$oldVersion"
           $sums = Join-Path $env:RUNNER_TEMP 'ariec-prev-release-sha256.txt'
           curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sums "$baseUrl/SHA256SUMS.txt"
           if ($LASTEXITCODE -ne 0) { throw 'Official previous SHA256SUMS download failed.' }
@@ -659,7 +659,7 @@ jobs:
           $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-old-release'
           New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
           $oldZip = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous.zip'
-          $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$oldVersion"
+          $baseUrl = "https://github.com/masarray/arsee/releases/download/v$oldVersion"
           curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$oldVersion-win-x64.zip"
           if ($LASTEXITCODE -ne 0) { throw 'Could not download canonical previous release.' }
           $sumFile = Join-Path $env:RUNNER_TEMP 'ARIEC60870-previous-sums.txt'

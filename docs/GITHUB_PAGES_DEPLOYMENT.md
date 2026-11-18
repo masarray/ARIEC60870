@@ -12,7 +12,7 @@ Recommended setup:
 The workflow uploads `site/` directly as the Pages artifact, so the website root is served at:
 
 ```text
-https://masarray.github.io/ARIEC60870/
+https://masarray.github.io/arsee/
 ```
 
 ## Compatibility fallback
