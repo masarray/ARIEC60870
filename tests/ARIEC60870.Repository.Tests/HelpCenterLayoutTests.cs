@@ -94,6 +94,11 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("SearchBox.Clear();", code);
         Assert.Contains("Keyboard.Modifiers == ModifierKeys.Control", code);
         Assert.Contains("Key.Escape", code);
+        // SelectionChanged can be reentrant while a chapter expands or language switches.
+        // Explicit rendering and a guarded ItemsSource rebuild prevent stale articles.
+        Assert.Contains("RenderTopic(selectedTopic);", code);
+        Assert.Contains("_refreshingTopicList = true;", code);
+        Assert.Contains("_refreshingTopicList = false;", code);
     }
 
     [Fact]
