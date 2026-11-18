@@ -173,8 +173,8 @@ public partial class HelpWindow : Window
         OpenOnlineLabel.Text = _language == "id" ? "Buka Field Wiki" : "Open Field Wiki";
         CloseHelpButton.Content = _language == "id" ? "Tutup" : "Close";
         SearchWatermarkText.Text = _language == "id"
-            ? "Cari topik, ACD, Class 1, command timeout..."
-            : "Search topics, ACD, Class 1, command timeout...";
+            ? "Cari topik..."
+            : "Search topics...";
         NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
