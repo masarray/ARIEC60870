@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace ARIEC60870.Core.Mapping;
 
 /// <summary>
-/// Operator-initiated, name-only reconciliation against the bundled 31-point
+/// Operator-initiated, guarded reconciliation against the bundled 31-point
 /// SCADA I/O list. It never edits the live profile or rewrites IEC evidence,
 /// control policy, station identity, or approved analog calibration.
 /// </summary>
@@ -17,12 +17,12 @@ public static class Iec10xScadaIoListProfileSync
         int MatchedPoints,
         int RenamedPoints,
         int UpdatedBusinessMetadata,
-        int ResetUnverifiedReactiveUnits,
+        int AppliedOperatorReactiveRanges,
         int AppliedDocumentedNormalizedRanges)
     {
         public bool HasChanges =>
             RenamedPoints > 0 || UpdatedBusinessMetadata > 0 ||
-            ResetUnverifiedReactiveUnits > 0 || AppliedDocumentedNormalizedRanges > 0;
+            AppliedOperatorReactiveRanges > 0 || AppliedDocumentedNormalizedRanges > 0;
     }
 
     public static Preview PrepareCopy(
@@ -51,7 +51,7 @@ public static class Iec10xScadaIoListProfileSync
         var matched = 0;
         var renamed = 0;
         var metadata = 0;
-        var rawUnit = 0;
+        var reactive = 0;
         var normalized = 0;
         foreach (var target in copy.Points)
         {
@@ -78,16 +78,44 @@ public static class Iec10xScadaIoListProfileSync
                 metadata++;
             }
 
-            // The old example misleadingly assigned MVar to an uncalibrated
-            // TI11 signed integer. Change only that legacy identity setup,
-            // after an explicit operator confirmation; retain *all* custom
-            // Factor/TwoPoint engineering definitions and their units.
-            if (typeId == 11 && string.Equals(source.Unit, "counts", StringComparison.Ordinal) &&
-                string.Equals(target.Unit, "MVar", StringComparison.OrdinalIgnoreCase) &&
-                IsUncalibratedIdentity(target))
+            // The operator now explicitly resolves the two handwritten Q
+            // data items to three bay-specific source identities:
+            // FEEDER=Diri Sendiri ±2078; KOPEL SOGI3 and TRAFO SOGI4=
+            // Q Lab ±260. Explicit Sync may upgrade a *legacy identity only*.
+            // Never replace already calibrated Factor/TwoPoint (including
+            // one without a matching station), custom bounds or commands.
+            var qLimit = target.Ioa switch
             {
-                target.Unit = "counts";
-                rawUnit++;
+                790447 => 2078d,
+                790439 or 790443 => 260d,
+                _ => 0d
+            };
+            if (typeId == 11 && qLimit > 0d &&
+                string.Equals(source.CommandPolicy, "MonitorOnly",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(target.CommandPolicy, "MonitorOnly",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(source.ScalingMode, "TwoPoint",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(source.Unit, "MVar", StringComparison.OrdinalIgnoreCase) &&
+                source.X0 == -32768d && source.X100 == 32767d &&
+                source.Y0 == -qLimit && source.Y100 == qLimit &&
+                (string.Equals(target.Unit, "counts", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(target.Unit, "MVar", StringComparison.OrdinalIgnoreCase)) &&
+                IsUncalibratedIdentity(target) &&
+                target.X0 is null && target.X100 is null &&
+                target.Y0 is null && target.Y100 is null &&
+                target.EngineeringMin is null && target.EngineeringMax is null)
+            {
+                target.Unit = source.Unit;
+                target.ScalingMode = "TwoPoint";
+                target.X0 = source.X0;
+                target.X100 = source.X100;
+                target.Y0 = source.Y0;
+                target.Y100 = source.Y100;
+                target.EngineeringMin = source.Y0;
+                target.EngineeringMax = source.Y100;
+                reactive++;
             }
 
             // Latest operator correction identifies POAQ TI9 as 0..1200
@@ -114,7 +142,7 @@ public static class Iec10xScadaIoListProfileSync
         }
 
         copy.Validate();
-        return new Preview(copy, matched, renamed, metadata, rawUnit, normalized);
+        return new Preview(copy, matched, renamed, metadata, reactive, normalized);
     }
 
     private static bool IsUncalibratedIdentity(Iec10xPointMappingEntry point) =>
