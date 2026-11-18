@@ -282,6 +282,12 @@ public sealed class Iec10xBayAwarePointMappingTests
         Assert.Null(profile.Resolve(105, 68539, 31)); // Command != process indication.
         Assert.Null(profile.Resolve(105, 16712701, 46)); // LR status != control command.
         Assert.Null(profile.Resolve(105, 16712700, 31)); // Unlisted IOA.
+        // Screenshot RC2 raw identities are distinct (NOT a decoder remap).
+        Assert.Null(profile.Resolve(105, 790349, 13));
+        Assert.Null(profile.Resolve(105, 1790446, 13));
+        Assert.Null(profile.Resolve(105, 1790447, 11));
+        Assert.Equal("FEEDER TM P", profile.Resolve(105, 790446, 13)?.Name);
+        Assert.Equal("FEEDER TM Q", profile.Resolve(105, 790447, 11)?.Name);
         Assert.Null(profile.Resolve(null, 16712686, 31)); // No trusted station identity.
         Assert.Null(profile.Resolve(105, 16712686, null)); // No trusted type identity.
 
