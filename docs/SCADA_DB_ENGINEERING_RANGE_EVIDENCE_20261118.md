@@ -41,6 +41,17 @@ The word *injection* is treated as a reported SCADA/engineering test scaling val
 
 The operator clarification strengthens confidence in the **origin of the 2078 range**, **not the association to a particular CA/IOA**. Status remains reference-only, not an approval to overwrite default signal profiles.
 
+### Later operator correction: POOP 1000 versus POAQ 1200 (18 November 2026)
+
+**Chronology and source conflict:** The handwritten *photo* above visibly says POAQ engineering range **0..1000**; the earlier I/O-list PDF also labels both POOP and POAQ 0..1000. The **operator subsequently provided an explicit correction**: **POOP scaling 1000** and **POAQ scaling 1200**. Preserve the original transcription as historical evidence; the *latest supplied operator configuration* supersedes POAQ's former 1000 **for the current reference profile**, subject to actual RTU/SCADA FAT verification. The new POAQ 1200 is **not visibly present in the photo** and has no independent RTU measurement proof yet.
+
+| Signal and role | IEC identity from I/O list | Latest operator reference span | ArSee policy |
+| --- | --- | --- | --- |
+| **POOP** — outbound normalized setpoint command | TI48, CA105 IOA70537 | **0..1000** | Keep setpoint range metadata `engineeringMin=0, engineeringMax=1000`; don't run measured TwoPoint or silently change normalized command encoding |
+| **POAQ** — inbound normalized feedback measurement | TI9, CA105 IOA790449 | **0..1200** | Measured TwoPoint `X0=0, X100=1, Y0=0, Y100=1200` using decoded IEC NVA per-unit; only on exact approved identity |
+
+POOP may command up to 1000 while POAQ's **display range** extends to 1200. This difference by itself does not prove that 1200 is a physical overload threshold or that the setpoint/feedback normalized wire values share the same encoder calibration. Verify with the actual SCADA database revision and raw ASDU and preserve user-defined profiles.
+
 ## 3. Difference between SCADA database raw and decoded IEC values
 
 The existing ArSee `TwoPoint` mode uses **decoded IEC source X**:
@@ -52,7 +63,7 @@ Engineering Y = Y0 + (X - X0) * (Y100 - Y0) / (X100 - X0)
 | Actual received IEC TI | Decoded X in ArSee | How the SCADA note can inform a mapping |
 | --- | --- | --- |
 | TI11/12/35 scaled measured value (SVA) | signed I16 counts (-32768..32767) | **Only if** the photographed SCADA raw domain corresponds to the same gateway TI11 counts, enter X0=-32768, X100=32767 and the *approved matching* Y endpoints. This remains provisional pending IOA identification |
-| TI9/10/21/34 normalized measured value (NVA) | signed I16 / 32768, not the original raw count | For the documented Poaq range, the photo's raw 0..32767 corresponds to decoded 0..32767/32768; the existing ArSee profile uses conceptual 0..1 pu => 0..1000 |
+| TI9/10/21/34 normalized measured value (NVA) | signed I16 / 32768, not the original raw count | For the documented Poaq range, the photo's raw 0..32767 corresponds to decoded 0..32767/32768; the operator-corrected reference profile uses conceptual 0..1 pu => 0..1200 (the photographed historical value was 1000) |
 | TI13/14/36 measured IEEE-754 short float | original floating-point value | The P raw=engineering identity is compatible with identity Factor **if** incoming float is already in the required engineering units; never convert float using TI11 counts assumptions |
 | TI32 step position with CP56Time2a | step-position representation, not an analog NVA/SVA item | Tpi -4..14 is range metadata and **not** eligible for measured-analog TwoPoint conversion |
 
@@ -68,11 +79,12 @@ These are **reference presets**, *not* a complete importable `ariec10x-ioa-profi
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | Q — Diri Sendiri | Same-source TI11 SVA signed I16 | TwoPoint | -32768 | 32767 | -2078 | 2078 | Confirm MVar |
 | Q — Lab | Same-source TI11 SVA signed I16 | TwoPoint | -32768 | 32767 | -260 | 260 | Confirm MVar |
-| Poaq | Actual TI9 NVA + corresponding database range | TwoPoint | 0 | 1 | 0 | 1000 | Confirm MW/other unit |
+| Poaq | Actual TI9 NVA + operator-corrected reference range | TwoPoint | 0 | 1 | 0 | 1200 | Confirm MW/other unit |
+| POOP | TI48 normalized outbound command; metadata only | No measured TwoPoint | — | — | 0 (command range) | 1000 (command range) | Confirm command engineering unit |
 | P | TI13 float already in engineering units | Factor identity | — | — | — | — | Confirm MW |
 | Tpi | TI32 step-position indication | no analog TwoPoint | — | — | — | — | Confirm tap positions |
 
-For **Poaq**, the conceptual +1 NVA is not representable in signed I16: raw maximum 32767 decodes to **0.999969482421875** and the current X100=1 profile renders **999.969482421875** at that limit. An alternative, if the project explicitly requires the last representable count to display exactly 1000, is X100=32767/32768; this choice must be decided with a field comparator, not applied silently.
+For **Poaq**, the conceptual +1 NVA is not representable in signed I16: raw maximum 32767 decodes to **0.999969482421875** and the corrected X100=1 profile renders **1199.96337890625** at that limit. An alternative, if the project explicitly requires the last representable count to display exactly 1200, is X100=32767/32768; this choice must be decided with a field comparator, not applied silently.
 
 For the signed Q rows, **literal endpoint mapping** of -32768..32767 yields a tiny positive zero offset:
 
