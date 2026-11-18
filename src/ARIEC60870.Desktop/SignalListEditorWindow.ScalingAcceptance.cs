@@ -237,8 +237,8 @@ public sealed partial class SignalListEditorWindow
             if (digital.TypeId != "31" || digital.SignalType != oldRole)
                 throw new InvalidOperationException(
                     "Selecting TI 31 must write numeric 31 only, without modifying IEC role.");
-            tiCombo.Text = oldTi;
             tiCombo.SelectedIndex = -1;
+            tiCombo.Text = oldTi;
             await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
             editor.RecalculateGridDirty();
             if (digital.TypeId != oldTi || digital.SignalType != oldRole || editor._dirty)
