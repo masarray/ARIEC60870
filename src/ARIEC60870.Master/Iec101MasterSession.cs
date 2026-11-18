@@ -32,6 +32,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     private byte[] _lastTxFrame = Array.Empty<byte>();
     private Iec101TransmitHistory _transmitHistory = new();
     private bool _acd;
+    // Authoritative IEC-101 secondary DFC flow-control state for this COM epoch.
+    // Distinct from serial RTS/CTS and from addressed link/command authority.
+    private bool _remoteDfcBusy;
     private long _sequence;
     private Iec103MasterState _state = Iec103MasterState.Created;
     private DateTime _lastClass2PollUtc = DateTime.MinValue;
@@ -131,6 +134,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                     Volatile.Write(ref _controlLinkReady, false);
                     Interlocked.Increment(ref _linkGeneration);
                     _acd = false;
+                    _remoteDfcBusy = false;
                     _observedCa.Reset();
                     _sboSelection.Reset(); // A new COM epoch cannot borrow a SELECT.
                     _giRequestedThisSession = false;
@@ -187,6 +191,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             SetState(Iec103MasterState.Stopping, "Closing IEC-101 transport", "Closing serial connection.");
             Volatile.Write(ref _controlLinkReady, false);
             _linkVerified = false;
+            _remoteDfcBusy = false;
             Interlocked.Increment(ref _linkGeneration);
             var discarded = _controlCommands.Clear();
             if (discarded > 0)
@@ -239,6 +244,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         _lastTxFrame = Array.Empty<byte>();
         _transmitHistory = new Iec101TransmitHistory();
         _acd = false;
+        _remoteDfcBusy = false;
         _lastClass2PollUtc = DateTime.MinValue;
         _lastClass2ResponseUtc = DateTime.MinValue;
         _counters.ConsecutiveTimeouts = 0;
@@ -297,6 +303,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            // A validated secondary DFC=1 forbids new GI/Class/command TX.
+            // Keep one physical COM owner and supervise with addressed FC9 only.
+            if (_remoteDfcBusy)
+            {
+                await WaitForRemoteDfcClearAsync(cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
             if (!_linkVerified)
             {
                 // Never flood a silent RTU with GI or Class 1 requests.
@@ -819,8 +833,29 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         return stoppedByClass2Fairness;
     }
 
+    private async Task WaitForRemoteDfcClearAsync(CancellationToken cancellationToken)
+    {
+        // Only one outstanding exchange exists per COM. Do not retransmit any
+        // previous FC3 control/GI/clock-sync; bounded FC9 status supervision
+        // precedes the next distinct application or Class request.
+        while (_remoteDfcBusy)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Delay(Math.Clamp(_settings.BusyBackoffMs, 100, 30000),
+                cancellationToken).ConfigureAwait(false);
+            await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
+                "Remote DFC=1 busy: bounded FC9 status supervision",
+                cancellationToken).ConfigureAwait(false);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
     private async Task<Ft12FrameDecode?> SendFixedAndReceiveAsync(string summary, string dataClass, int functionCode, bool fcv, string reason, CancellationToken cancellationToken)
     {
+        // FC9 is the only outgoing service admitted while remote DFC=1.
+        // All other fixed requests must wait; do not poll Class1/2 through busy.
+        if (functionCode != 9)
+            await WaitForRemoteDfcClearAsync(cancellationToken).ConfigureAwait(false);
         // One physical transaction owns original TX bytes, reply context and FCB.
         using var exchange = _transactions.BeginFixed(functionCode, fcv, _settings.LinkAddress,
             _settings.LinkAddressSize, _settings.PortName);
@@ -834,6 +869,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
     private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
     {
+        // Every FC3 request (including GI/clock sync/controls) is new intent;
+        // neither a busy reply nor a delayed status authorizes an automatic replay.
+        await WaitForRemoteDfcClearAsync(cancellationToken).ConfigureAwait(false);
         using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
             _settings.LinkAddressSize, _settings.PortName);
         _transactions.MarkTransmitAttempt(exchange);
@@ -964,6 +1002,23 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         }
 
         var decoded = acceptedFrame;
+        // Only an accepted addressed secondary response may update remote
+        // DFC. E5 has no DFC bit and a negative FC1 is not clearance proof.
+        if (decoded.LinkControl is { Prm: false, Dfc: true })
+        {
+            if (!_remoteDfcBusy)
+                SetState(Iec103MasterState.BusyBackoff, "IEC-101 secondary DFC=1 — remote busy",
+                    "Suspend GI, Class 1/2, and new commands; use FC9 status supervision with bounded backoff.",
+                    category: "Warning", dataClass: "Link");
+            _remoteDfcBusy = true;
+        }
+        else if (_remoteDfcBusy && Iec101SecondaryResponseValidator.ProvidesAddressedLinkProof(decoded))
+        {
+            _remoteDfcBusy = false;
+            SetState(Iec103MasterState.NormalClass2Polling, "IEC-101 secondary DFC cleared",
+                "Addressed healthy secondary proof received. Resume pending workflow; no earlier FC3 request is retransmitted.",
+                dataClass: "Link");
+        }
         if (string.Equals(dataClass, "Class 2", StringComparison.OrdinalIgnoreCase))
         {
             var nowCycle = DateTime.UtcNow;
