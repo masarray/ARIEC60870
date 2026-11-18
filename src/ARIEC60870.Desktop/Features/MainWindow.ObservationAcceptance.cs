@@ -1325,7 +1325,11 @@ public partial class MainWindow
                         string.Equals(col.Header?.ToString(), "State / value",
                             StringComparison.Ordinal)) is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
-                        { Path.Path: "OperatorValue" })
+                        { Path.Path: "OperatorValue" } ||
+                    RelayEventGrid.Columns.FirstOrDefault(col =>
+                        string.Equals(col.Header?.ToString(), "FC",
+                            StringComparison.Ordinal)) is not DataGridTextColumn
+                        { Binding: System.Windows.Data.Binding { Path.Path: "RequestFcCode" } })
                     throw new InvalidOperationException(
                         "Unified Event History top toolbar or clipboard contract missing.");
 
