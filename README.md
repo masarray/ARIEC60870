@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/arsee/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/arsee/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.15)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.16)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. The GitHub repository has been renamed to [`masarray/arsee`](https://github.com/masarray/arsee), and the canonical Pages website is [`masarray.github.io/arsee`](https://masarray.github.io/arsee/). Older repository URLs redirect; old GitHub Pages project URLs do not.
 
@@ -17,14 +17,14 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public stable** | **v3.6.15** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.15/ARIEC60870-v3.6.15-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.15/ARIEC60870-v3.6.15-win-x64.zip) | Immediately visible analog Scaling tab, Factor/TwoPoint and X0/X100/Y0/Y100 |
-| **Previous stable** | **v3.6.14** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.14) | 31-point mapping, safe sync, IEC-101/104 engineering scaling |
+| **Latest public stable** | **v3.6.16** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-win-x64.zip) | Grid-first Signal Map, atomic multi-cell edit, optional inspector |
+| **Previous stable** | **v3.6.15** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.15) | First-visible analog Scaling, Factor/TwoPoint |
 
 **ArSee** is the public product name; compatibility installer/ZIP names retain ARIEC60870.
 
-**Published stable v3.6.15 (17 November 2026):** [PR #245](https://github.com/masarray/arsee/pull/245) resolves the operator-reported hidden Scaling mode in Signal List Editor. For measured IEC-101/104 analogs, the compact **Engineering Scaling** tab now opens automatically; Factor/TwoPoint and all X0/X100/Y0/Y100 endpoint fields are visible in a 1360×820 window. Commands and metadata have their own tab; CA, IOA, Type and Name remain frozen during horizontal scrolling. The [actual packaged GUI executable](https://github.com/masarray/arsee/actions/workflows/release-package.yml) is checked by real WPF viewport acceptance and [native Windows updater FAT](https://github.com/masarray/arsee/actions/workflows/ci.yml). Raw TI11 Q `counts` are not assumed to be MVar.
+**Published stable v3.6.16 (18 November 2026):** PRs [#248](https://github.com/masarray/arsee/pull/248), [#250](https://github.com/masarray/arsee/pull/250), [#251](https://github.com/masarray/arsee/pull/251), [#252](https://github.com/masarray/arsee/pull/252), and [#253](https://github.com/masarray/arsee/pull/253) deliver a grid-first Signal Map with search/filter, atomic spreadsheet-like paste, Fill Down, Undo/Redo, shared toolbar styles, and a resizable on-demand Scaling/Mapping inspector. Windows package [workflow #44230597646](https://github.com/masarray/arsee/actions/runs/44230597646) passed. This does not establish physical RTU FAT.
 
-**v3.6.15 remains an unsigned software release, not IEC/SCADA field conformance certification.** Verify [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.15/SHA256SUMS.txt), read [release notes](docs/archive/release-notes/RELEASE_NOTES_v3.6.15.md), and use the approved gateway scale before labelling TI11 Q as MVar. External RTU FAT is separate.
+**v3.6.16 is an unsigned software release, not IEC/SCADA field conformance certification.** Verify [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.16/SHA256SUMS.txt), read [release notes](docs/archive/release-notes/RELEASE_NOTES_v3.6.16.md), and validate engineering scaling on independent field references. External RTU FAT remains separate.
 
 <p align="center">
   <a href="https://masarray.github.io/arsee/">
@@ -32,7 +32,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.15 package workflow history](https://github.com/masarray/arsee/actions/runs/44049527667) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
+*Illustrative product media. The [v3.6.16 package workflow](https://github.com/masarray/arsee/actions/runs/44230597646) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Engineering-unit scaling in Signal List
 
@@ -71,7 +71,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. [Download the v3.6.15 installer](https://github.com/masarray/arsee/releases/download/v3.6.15/ARIEC60870-v3.6.15-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.15/ARIEC60870-v3.6.15-win-x64.zip) and verify [checksums](https://github.com/masarray/arsee/releases/download/v3.6.15/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
+1. [Download the v3.6.16 installer](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-win-x64.zip) and verify [checksums](https://github.com/masarray/arsee/releases/download/v3.6.16/SHA256SUMS.txt); fully extract the ZIP, then launch `ARIEC60870.exe` directly (do not run it inside the compressed archive).
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
