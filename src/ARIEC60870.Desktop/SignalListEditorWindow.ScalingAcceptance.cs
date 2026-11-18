@@ -503,12 +503,33 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Closing the inspector must return full width to the Signal Map grid.");
             CaptureUiReviewImage(editor, "05-grid-first-1140x820");
+
+            // Exercise actual WPF status labels with the same state gate
+            // used by Load, Save and Save & Apply. Never open a file dialog
+            // or write the packaged reference in this acceptance runner.
+            if (editor._activation.HasUnappliedProfile || editor._dirtyText.Text != "Clean")
+                throw new InvalidOperationException("Opening Signal Map must start from the active clean profile.");
+            editor._activation.PreviewLoaded();
+            editor.UpdateCounters();
+            if (editor._dirtyText.Text != "Not applied" ||
+                !editor._activation.MustConfirmDiscard(false, applied: false))
+                throw new InvalidOperationException("Preview must not masquerade as active Values mapping.");
+            editor._activation.SavedWithoutApply();
+            editor.UpdateCounters();
+            if (editor._dirtyText.Text != "Not applied")
+                throw new InvalidOperationException("Plain Save must not activate the preview in Values.");
+            editor._activation.Applied();
+            editor.UpdateCounters();
+            if (editor._dirtyText.Text != "Clean" ||
+                editor._activation.MustConfirmDiscard(false, applied: true))
+                throw new InvalidOperationException("Explicit Apply must restore the clean active state.");
         }
         finally
         {
-            // A failed WPF acceptance may leave the editor in a dirty state.
-            // Never block CI on its interactive Unsaved Changes dialog.
+            // Failed WPF acceptance must never leave interactive confirmation
+            // dialogs blocking CI or risk writing the bundled reference.
             editor._dirty = false;
+            editor._activation.Applied();
             editor.Close();
         }
     }
