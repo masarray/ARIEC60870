@@ -48,6 +48,7 @@ public sealed class RelayEventRow
     };
 
     private int? VerifiedRequestFunctionCode =>
+        Protocol == "101" &&
         OriginalFrameEvidence is { } response &&
         ObservedRequestFrame is { } request &&
         EventFrameExchange.IsObservedPollReply(request, response)
