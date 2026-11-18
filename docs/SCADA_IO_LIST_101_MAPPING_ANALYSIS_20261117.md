@@ -98,3 +98,15 @@ The `Name` is the operator-facing display projection, backed by the unchanged CA
 5. Replace provisional X/Y endpoints with project-approved values via **Signal List → Save As → Validate row → Validate profile → Save & Apply**. Preserve user profiles; do not apply this example to live outstations until validated.
 
 Passing synthetic tests or GitHub CI is **not** 1200-bps physical SOE, SCADA conformance, or proof of actual CT/PT calibration.
+
+## 6. Additional SCADA database range evidence (18 November 2026)
+
+The original I/O list remains authoritative for **31 CA/IOA/TI identifiers**, but an operator supplied a separate handwritten SCADA `scada.sdb` engineering-range photograph. It shows Q — Diri Sendiri **raw -32768..32767 → eng -2078..+2078** with an older ±1732 correction crossed out, Q — Lab **-32768..32767 → -260..+260**, Poaq **0..32767 → 0..1000**, P **-2078..+2078 identity**, and Tpi **-4..14 identity**. The operator clarified 2000 A and 500 kV as the nominal base, and 2078 as an approximate **120% engineering injection/range point**: `sqrt(3) × 500 kV × 2000 A / 1000 × 1.20 = 2078.46 MVA`. This explains the crossed-out 1732 nominal estimate, but is **not** a specific TI11 counts-to-MVar calibration for an identified IOA.
+
+The photo does **not** map either Q row to FEEDER/KOPEL/TRAFO, identify an IEC TI, or resolve the Tpi -4..14 vs source I/O list 1..19 discrepancy. The conditional engineering-range interpretation, IEC TI-specific decoded source domains, and field-approval gates are documented in [SCADA database engineering range evidence](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). **Do not** replace the safe bundled TI11 `counts` default or user-owned profiles from this note alone; no command encoding is authorized.
+
+## 7. Later correction to POOP versus POAQ scaling (18 November 2026)
+
+The **original** I/O-list PDF and the handwritten SCADA photograph each state POAQ 0..1000; keep those statements above as factual transcriptions of their respective sources. A **later, explicit operator clarification** supersedes the current reference configuration: **POOP (TI48 command, CA105 IOA70537) 0..1000**, versus **POAQ (TI9 measured feedback, CA105 IOA790449) 0..1200**. For ArSee's *decoded normalized* POAQ feedback, the reference TwoPoint endpoints are `X0=0, X100=1, Y0=0, Y100=1200`, where +1 is the conceptual full-scale NVA boundary. The bundled reference profile and opt-in uncalibrated-identity Sync logic are updated to 1200; existing user-saved TwoPoint/Factor calibrations are preserved. The outbound POOP encoder is **not** modified; its command range metadata remains 0..1000.
+
+**Evidence level:** newest operator statement for this project, **not** visually in either previous source document nor independently verified at RTU/SCADA FAT. See [range evidence chronology](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Do not interpret 1200 as a proved physical overload limit or as permission for command TX.

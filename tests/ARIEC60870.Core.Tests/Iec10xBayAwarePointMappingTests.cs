@@ -174,7 +174,7 @@ public sealed class Iec10xBayAwarePointMappingTests
     }
 
     [Fact]
-    public void DocumentedNormalizedPoaQUsesPositiveOnlyZeroTo1000Range()
+    public void OperatorCorrectedNormalizedPoaQUsesZeroTo1200FeedbackRange()
     {
         var profile = Load();
         var point = Assert.Single(profile.Points, p => p.Ioa == 790449);
@@ -183,10 +183,10 @@ public sealed class Iec10xBayAwarePointMappingTests
         Assert.Equal(0, point.X0);
         Assert.Equal(1, point.X100);
         Assert.Equal(0, point.Y0);
-        Assert.Equal(1000, point.Y100);
+        Assert.Equal(1200, point.Y100);
         var sample = new Iec10xEngineeringSample(9, 105, 790449, 0.5, "Normalized=0.5");
         Assert.True(Iec10xEngineeringValue.TryFormat(point, sample, out var display));
-        Assert.Equal("500 MW", display);
+        Assert.Equal("600 MW", display);
         var command = Assert.Single(profile.Points, p => p.Ioa == 70537);
         Assert.Equal(48, command.TypeId);
         Assert.NotEqual("TwoPoint", command.ScalingMode);

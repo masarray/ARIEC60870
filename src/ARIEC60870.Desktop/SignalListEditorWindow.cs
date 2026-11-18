@@ -1448,7 +1448,7 @@ public sealed partial class SignalListEditorWindow : Window
                 $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n" +
                 $"Uncalibrated TI9 range updated to document 0..1000: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
                 "Approved Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
-                "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the documented 0..1000 range are reconciled. " +
+                "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the operator-corrected POAQ 0..1200 feedback range are reconciled. POOP command remains 0..1000. " +
                 "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
                 "Prepare the updated copy?";
             if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",

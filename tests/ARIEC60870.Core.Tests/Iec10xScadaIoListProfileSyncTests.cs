@@ -124,11 +124,11 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         Assert.Equal(0, updated.X0);
         Assert.Equal(1, updated.X100);
         Assert.Equal(0, updated.Y0);
-        Assert.Equal(1000, updated.Y100);
+        Assert.Equal(1200, updated.Y100);
         Assert.True(Iec10xEngineeringValue.TryFormat(updated,
             new Iec10xEngineeringSample(9, 105, 790449, 0.5, "Normalized=0.5"),
             out var reading));
-        Assert.Equal("500 MW", reading);
+        Assert.Equal("600 MW", reading);
         Assert.Equal("Factor", poaq.ScalingMode); // Source not mutated.
 
         // Custom/full-scale configurations must not be accidentally replaced.
