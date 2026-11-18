@@ -611,19 +611,19 @@
       "signalType": "M_ME_NA_1",
       "unit": "MW",
       "commandPolicy": "MonitorOnly",
-      "description": "TI9 normalized observation; source document specifies REAL POWER SETTING (0/1000). Decode NVA per-unit then map [0,1] to [0,1000] for display. No command encoding is modified.",
+      "description": "TI9 normalized POAQ feedback. Operator correction 2026-11-18: feedback display 0..1200 (previous I/O list and handwritten SCADA note show 0..1000). Decode IEC NVA per-unit then map [0,1] to [0,1200] for display; verify SCADA database revision and gateway at FAT. TI48 POOP command remains separate 0..1000; no command encoder change.",
       "mnemonic": "POAQ",
       "bayType": "TRAFO SOGI",
       "testCategory": "TM",
       "expectedClass": 2,
       "expectedCot": 3,
       "engineeringMin": 0,
-      "engineeringMax": 1000,
+      "engineeringMax": 1200,
       "scalingMode": "TwoPoint",
       "x0": 0,
       "x100": 1,
       "y0": 0,
-      "y100": 1000
+      "y100": 1200
     },
     {
       "ca": 105,
@@ -809,11 +809,11 @@
       }
     }
   ],
-  "description": "31 document-exact station points with BAY TYPE + TYPE + MNEMO + optional LAB number naming. TI11 Q is uncalibrated counts, TI13 P float identity, TI9 POAQ [0,1] -> [0,1000] as stated in I/O list. Replace source ranges only with approved RTU settings before FAT.",
+  "description": "31-point reference mapping. TI11 Q remains uncalibrated counts; TI13 P float identity. Operator clarification 2026-11-18 specifies TI9 POAQ feedback 0..1200 (superseding earlier I/O list 0..1000), while TI48 POOP command metadata remains 0..1000. This is not field FAT approval; preserve all user-owned custom profiles.",
   "metadata": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
     "confidentiality": "Public sanitized example. Do not use as a contractual project standard.",
     "namingConvention": "BAY TYPE + TYPE + MNEMO + optional LAB #",
-    "measurementNotice": "CT/PT define nominal instrument ratings, NOT IEC TI11 full-scale or physical rated MW/MVar. Do not set Y endpoints from apparent power alone."
+    "measurementNotice": "CT/PT define nominal instrument ratings, NOT IEC TI11 full-scale or physical rated MW/MVar. Do not set Y endpoints from apparent power alone. Operator POAQ/POOP clarification is unverified at the device; never assume a 1200 feedback range changes TI48 command encoding."
   }
 }
