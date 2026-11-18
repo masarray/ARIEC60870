@@ -69,7 +69,6 @@ public partial class HelpWindow : Window
         TopicSummaryText.Text = _language == "id"
             ? "Coba istilah protokol lain atau hapus pencarian untuk melihat semua topik."
             : "Try a different protocol term or clear the search to browse all topics.";
-        TopicHeroIconPath.Data = GetTopicMaterialGeometry("troubleshooting");
         TopicContentPanel.Children.Clear();
         TopicScrollViewer.ScrollToTop();
     }
@@ -138,8 +137,6 @@ public partial class HelpWindow : Window
         }
     }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
-
     private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
     {
         SearchBox.Clear();
@@ -163,48 +160,41 @@ public partial class HelpWindow : Window
     private void RefreshLanguageText()
     {
         HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ArSee" : "ArSee Help Center";
-        HelpSubtitleText.Text = _language == "id"
-            ? "Panduan IEC 101, IEC 103, IEC 104, trace, dan laporan."
-            : "Field guidance for IEC 101, IEC 103, IEC 104, trace and reports.";
-        TopicListTitleText.Text = _language == "id" ? "Topik lapangan" : "Field topics";
-        TopicListHintText.Text = _language == "id"
-            ? "Tekan F1 dari workspace apa pun untuk membuka topik yang paling relevan."
-            : "Press F1 from any workspace to open the most relevant topic.";
+        TopicListTitleText.Text = _language == "id" ? "Topik" : "Topics";
         OpenOnlineLabel.Text = _language == "id" ? "Buka Field Wiki" : "Open Field Wiki";
-        CloseHelpButton.Content = _language == "id" ? "Tutup" : "Close";
         SearchWatermarkText.Text = _language == "id"
             ? "Cari topik..."
             : "Search topics...";
         NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
-    // Reuse the Main Window's shared Material Geometry resource dictionary.
-    // A topic key always resolves to a semantic vector instead of a font glyph.
+    // Every Help icon is the unmodified 24px Google Material Icons Outlined
+    // geometry in the shared resource dictionary. No Unicode or custom glyphs.
     private Geometry GetTopicMaterialGeometry(string key)
     {
         var resource = key switch
         {
-            "overview" => "MaterialHelpBook",
-            "setup" => "MaterialTune",
-            "frame-trace" => "MaterialHelpCode",
-            "addressing" => "MaterialHelpEthernet",
-            "acd-dfc" => "MaterialHelpTarget",
-            "class-polling" => "MaterialHelpSync",
-            "general-interrogation" => "MaterialHelpTarget",
-            "command-flow" => "MaterialHelpFlag",
-            "command-timeout" => "MaterialHelpSchedule",
-            "values" => "MaterialHelpAssessment",
-            "events" => "MaterialHelpEvent",
-            "quality-flags" => "MaterialHelpInfo",
-            "smart-findings" => "MaterialAutoFixHigh",
-            "report" => "MaterialHelpDescription",
-            "dual-link" => "MaterialHelpEthernet",
-            "iec103-relay" => "MaterialHelpTarget",
-            "iec104-session" => "MaterialHelpEthernet",
-            "troubleshooting" => "MaterialHelpBugReport",
-            "evidence-workflow" => "MaterialHelpHistory",
-            "glossary" => "MaterialHelpBook",
-            _ => "MaterialHelpOutline"
+            "overview" => "ArSeeMaterialOutlinedBook",
+            "setup" => "ArSeeMaterialOutlinedTune",
+            "frame-trace" => "ArSeeMaterialOutlinedCode",
+            "addressing" => "ArSeeMaterialOutlinedLink",
+            "acd-dfc" => "ArSeeMaterialOutlinedTarget",
+            "class-polling" => "ArSeeMaterialOutlinedSync",
+            "general-interrogation" => "ArSeeMaterialOutlinedTarget",
+            "command-flow" => "ArSeeMaterialOutlinedFlag",
+            "command-timeout" => "ArSeeMaterialOutlinedClock",
+            "values" => "ArSeeMaterialOutlinedChart",
+            "events" => "ArSeeMaterialOutlinedEvent",
+            "quality-flags" => "ArSeeMaterialOutlinedFlag",
+            "smart-findings" => "ArSeeMaterialOutlinedAutoFix",
+            "report" => "ArSeeMaterialOutlinedDescription",
+            "dual-link" => "ArSeeMaterialOutlinedLink",
+            "iec103-relay" => "ArSeeMaterialOutlinedTarget",
+            "iec104-session" => "ArSeeMaterialOutlinedLink",
+            "troubleshooting" => "ArSeeMaterialOutlinedBug",
+            "evidence-workflow" => "ArSeeMaterialOutlinedHistory",
+            "glossary" => "ArSeeMaterialOutlinedBook",
+            _ => "ArSeeMaterialOutlinedHelp"
         };
 
         return (Geometry)FindResource(resource);
@@ -250,7 +240,6 @@ public partial class HelpWindow : Window
         TopicKickerText.Text = Pick(topic.CategoryEn, topic.CategoryId);
         TopicTitleText.Text = Pick(topic.TitleEn, topic.TitleId);
         TopicSummaryText.Text = Pick(topic.SummaryEn, topic.SummaryId);
-        TopicHeroIconPath.Data = GetTopicMaterialGeometry(topic.Key);
         TopicContentPanel.Children.Clear();
 
         foreach (var section in topic.Sections)
@@ -305,7 +294,7 @@ public partial class HelpWindow : Window
                     Width = 6,
                     Height = 6,
                     CornerRadius = new CornerRadius(3),
-                    Background = (Brush)FindResource("AccentBrush"),
+                    Background = (Brush)FindResource("Ink500Brush"),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Top,
                     Margin = new Thickness(1, 7, 0, 0)
