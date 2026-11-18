@@ -21,14 +21,22 @@ public partial class HelpWindow
     internal async Task RunHelpUiAcceptanceAsync(string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
+        // The same canonical data file must be packaged and readable offline.
+        if (!_topics.Any(topic => topic.Key == "learn-iec-family") ||
+            !_topics.Any(topic => topic.Key == "learn-iec101") ||
+            !_topics.Any(topic => topic.Key == "learn-iec103") ||
+            !_topics.Any(topic => topic.Key == "learn-iec104") ||
+            !_topics.Any(topic => topic.Key == "learn-nuc") ||
+            !_topics.Any(topic => topic.Key == "learn-redundancy"))
+            throw new InvalidOperationException("The shared offline engineering handbook was not packaged.");
         var captures = new List<object>();
 
-        await CaptureAsync("en-trace-default-window.png", "frame-trace", 1180, 820);
+        await CaptureAsync("en-handbook-default-window.png", "learn-iec-family", 1180, 820);
         await CaptureAsync("en-trace-780x540.png", "frame-trace", 780, 540);
 
         LanguageComboBox.SelectedIndex = 1;
-        await CaptureAsync("id-trace-780x540.png", "frame-trace", 780, 540);
-        if (TopicTitleText.Text != "Membaca frame trace")
+        await CaptureAsync("id-iec101-780x540.png", "learn-iec101", 780, 540);
+        if (TopicTitleText.Text != "IEC 60870-5-101")
             throw new InvalidOperationException("Indonesian Help Center translation did not render.");
 
         LanguageComboBox.SelectedIndex = 0;
@@ -75,7 +83,7 @@ public partial class HelpWindow
                 requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
                 note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
-                cases = new[] { "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
+                cases = new[] { "offline bilingual engineering handbook", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
             }, new JsonSerializerOptions { WriteIndented = true }));
 
