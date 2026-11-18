@@ -289,7 +289,7 @@
                                                 <TextBlock Grid.Column="1" Text="{Binding Title}"
                                                            ToolTip="{Binding Title}"
                                                            FontSize="11.3" FontWeight="Normal"
-                                                           TextTrimming="CharacterEllipsis"
+                                                           TextWrapping="Wrap" LineHeight="16"
                                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
                                                            VerticalAlignment="Center" />
                                             </Grid>
