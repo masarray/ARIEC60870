@@ -1436,7 +1436,7 @@ public sealed partial class SignalListEditorWindow : Window
             }
             if (!preview.HasChanges)
             {
-                UpdateStatus($"All {preview.MatchedPoints} matching signals already agree with the bundled I/O labels and safe raw units.", success: true);
+                UpdateStatus($"All {preview.MatchedPoints} matching signals already agree with bundled I/O labels and reviewed engineering ranges.", success: true);
                 return;
             }
 
@@ -1445,10 +1445,10 @@ public sealed partial class SignalListEditorWindow : Window
                 $"Exact CA=105 / IOA / IEC Type matches: {preview.MatchedPoints}\n" +
                 $"Signal names to update: {preview.RenamedPoints}\n" +
                 $"Business labels to update: {preview.UpdatedBusinessMetadata}\n" +
-                $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n" +
+                $"Legacy identity TI11 Q to apply by-bay reference (Feeder ±2078, Lab SOGI 3/4 ±260): {preview.AppliedOperatorReactiveRanges}\n" +
                 $"Uncalibrated TI9 POAQ feedback aligned to 0..1200: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
-                "Approved Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
-                "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the operator-corrected POAQ 0..1200 feedback range are reconciled. POOP command remains 0..1000. " +
+                "Existing custom Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
+                "Only labels, eligible legacy identity Q points with operator-specified Feeder/Lab SOGI 3/4 ranges, and a legacy TI9 POAQ 0..1200 identity measurement are reconciled. POOP command remains 0..1000. " +
                 "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
                 "Prepare the updated copy?";
             if (ModernMessageBox.Show(this, prompt, "Sync 31-point SCADA I/O list",
