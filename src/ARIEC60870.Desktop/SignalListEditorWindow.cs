@@ -89,6 +89,9 @@ public sealed partial class SignalListEditorWindow : Window
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
     private bool _saved;
+    // Loading or writing a file in the editor is NOT an activation in live Values.
+    // Only the explicit Save & Apply route returns DialogResult=true to Main Window.
+    private bool _pendingLiveApply;
     private string? _protectedSyncSourcePath;
     private bool _loadingRows;
     private bool _isCellEditing;
@@ -1491,8 +1494,10 @@ public sealed partial class SignalListEditorWindow : Window
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
             _dirty = false;
+            _saved = false;
+            _pendingLiveApply = true;
             UpdateCounters();
-            UpdateStatus($"Loaded {profile.Points.Count} point(s) from {Path.GetFileName(dialog.FileName)}.", success: true);
+            UpdateStatus($"Preview loaded: {profile.Points.Count} points from {Path.GetFileName(dialog.FileName)}. NOT active in Values. Use Save & Apply to activate.", success: true);
         }
         catch (Exception ex)
         {
@@ -1629,6 +1634,28 @@ public sealed partial class SignalListEditorWindow : Window
             var profile = BuildProfileFromRows();
             profile.Validate();
             var target = SavedProfilePath;
+            // Loading a clean, already-existing JSON is an activation request,
+            // not a request to rewrite a potentially read-only packaged file.
+            if (closeAfter && !_dirty && !forceSaveAs &&
+                string.IsNullOrWhiteSpace(_protectedSyncSourcePath) &&
+                !string.IsNullOrWhiteSpace(target) && File.Exists(target))
+            {
+                Profile = profile;
+                _pendingLiveApply = false;
+                DialogResult = true;
+                Close();
+                return true;
+            }
+            // Never overwrite the shipped reference when a candidate is edited:
+            // preserve it and require a distinct project-owned JSON copy.
+            if (_dirty && string.IsNullOrWhiteSpace(_protectedSyncSourcePath) &&
+                string.Equals(Path.GetFileName(target),
+                    "utility_fat_iec10x_default_profile.json",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _protectedSyncSourcePath = target;
+                target = string.Empty;
+            }
             if (forceSaveAs || string.IsNullOrWhiteSpace(target))
             {
                 var dialog = new SaveFileDialog
@@ -1657,9 +1684,11 @@ public sealed partial class SignalListEditorWindow : Window
             Profile = profile;
             _saved = true;
             _dirty = false;
+            _pendingLiveApply = !closeAfter;
             ResetGridCheckpoint();
             UpdateCounters();
-            UpdateStatus($"Saved {profile.Points.Count} point(s) to {Path.GetFileName(target)}.", success: true);
+            UpdateStatus($"Saved {profile.Points.Count} point(s) to {Path.GetFileName(target)}." +
+                (closeAfter ? " Applying to live Values." : " Not active in Values until Save & Apply."), success: true);
             if (closeAfter)
             {
                 DialogResult = true;
@@ -1677,19 +1706,20 @@ public sealed partial class SignalListEditorWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (_dirty)
+        if (DialogResult != true && (_dirty || _pendingLiveApply))
         {
-            var result = ModernMessageBox.Show(this, "Signal list has unsaved changes. Close without saving?", "Signal List Editor", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result != MessageBoxResult.Yes)
+            var warning = _dirty
+                ? "Signal Map has unsaved edits. Close without saving or applying these edits to live Values?"
+                : "This Signal Map was loaded/saved in the editor but has NOT been applied to live Values. Close without applying?";
+            if (ModernMessageBox.Show(this, warning, "Signal Map not applied",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             {
                 e.Cancel = true;
                 return;
             }
         }
-        if (_saved && DialogResult != true)
-        {
-            DialogResult = true;
-        }
+        // Do not turn a plain Save, Load or editor Close into an implicit
+        // runtime activation. Only Save & Apply may return DialogResult=true.
         base.OnClosing(e);
     }
 
@@ -1723,8 +1753,11 @@ public sealed partial class SignalListEditorWindow : Window
         _rowCountText.Text = shown == _rows.Count
             ? (_rows.Count == 1 ? "1 signal" : $"{_rows.Count} signals")
             : $"{shown} / {_rows.Count} signals";
-        _dirtyText.Text = _dirty ? "Unsaved" : "Clean";
-        _dirtyText.Foreground = _dirty ? DangerBrush : SuccessBrush;
+        _dirtyText.Text = _dirty ? "Unsaved" : _pendingLiveApply ? "Not applied" : "Clean";
+        _dirtyText.Foreground = _dirty ? DangerBrush : _pendingLiveApply ? AccentDarkBrush : SuccessBrush;
+        _dirtyText.ToolTip = _pendingLiveApply
+            ? "The editor contains a different or newly saved profile. Use Save & Apply to activate it in live Values."
+            : "This label describes editor changes; it is not a physical RTU validation.";
     }
 
     private void RefreshBayChoices()
@@ -1820,7 +1853,9 @@ public sealed partial class SignalListEditorWindow : Window
         _scalingSourceNote.Text = ParseInt(row.TypeId) switch
         {
             9 or 10 or 21 or 34 => "NVA: X is the decoded normalized fraction [-1, 1), not the signed I16 bytes.",
-            11 or 12 or 35 => "SVA: X is signed I16 (-32768..32767). Raw counts are not MVar without approved RTU scaling.",
+            11 or 12 or 35 => string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase)
+                ? "SVA: X is signed I16 (-32768..32767). This reference TwoPoint is provisional; confirm Q source-item/IOA and RTU scale before field approval."
+                : "SVA: X is signed I16 (-32768..32767). Raw counts are not MVar without approved RTU scaling.",
             13 or 14 or 36 => "Float: X is the decoded IEEE-754 value. Use identity where the RTU already sends engineering units.",
             _ => "Scaling is only available for IEC measured-value types."
         };
