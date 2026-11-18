@@ -18,8 +18,8 @@ public partial class HelpWindow : Window
     public HelpWindow(string? topicKey = null)
     {
         InitializeComponent();
-        _topics = CreateTopics();
-        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "overview" : topicKey!;
+        _topics = LoadSharedHandbook().Concat(CreateTopics()).ToList();
+        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "learn-iec-family" : topicKey!;
         RefreshLanguageText();
         RefreshTopicList();
         SelectTopic(_selectedTopicKey);
@@ -174,6 +174,15 @@ public partial class HelpWindow : Window
     {
         var resource = key switch
         {
+            "learn-iec-family" => "ArSeeMaterialOutlinedBook",
+            "learn-iec101" => "ArSeeMaterialOutlinedLink",
+            "learn-iec103" => "ArSeeMaterialOutlinedTarget",
+            "learn-iec104" => "ArSeeMaterialOutlinedLink",
+            "learn-nuc" => "ArSeeMaterialOutlinedDescription",
+            "learn-redundancy" => "ArSeeMaterialOutlinedSync",
+            "learn-semantics" => "ArSeeMaterialOutlinedCode",
+            "learn-field-guide" => "ArSeeMaterialOutlinedTune",
+            "learn-unavailable" => "ArSeeMaterialOutlinedHelp",
             "overview" => "ArSeeMaterialOutlinedBook",
             "setup" => "ArSeeMaterialOutlinedTune",
             "frame-trace" => "ArSeeMaterialOutlinedCode",
@@ -1116,7 +1125,8 @@ public partial class HelpWindow : Window
         string SearchText,
         IReadOnlyList<HelpSection> Sections)
     {
-        public string CategoryEn => Key switch
+        public string CategoryEn => Key.StartsWith("learn-", StringComparison.Ordinal)
+            ? "Engineering handbook" : Key switch
         {
             "overview" => "Quick Help",
             "setup" => "Connection",
@@ -1141,7 +1151,8 @@ public partial class HelpWindow : Window
             _ => "Help"
         };
 
-        public string CategoryId => Key switch
+        public string CategoryId => Key.StartsWith("learn-", StringComparison.Ordinal)
+            ? "Buku belajar engineer" : Key switch
         {
             "overview" => "Bantuan Cepat",
             "setup" => "Koneksi",
