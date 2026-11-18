@@ -86,6 +86,8 @@ public sealed class HelpCenterLayoutTests
         var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
         var app = File.ReadAllText(Source("App.xaml.cs"));
         Assert.Contains("RenderTargetBitmap", acceptance);
+        Assert.Contains("bitmap.Render(viewport);", acceptance);
+        Assert.DoesNotContain("bitmap.Render(this);", acceptance);
         Assert.Contains("en-trace-780x540.png", acceptance);
         Assert.Contains("id-trace-780x540.png", acceptance);
         Assert.Contains("No matching topics", acceptance);
