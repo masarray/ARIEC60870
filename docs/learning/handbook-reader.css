@@ -1,0 +1,42 @@
+/* Copyright 2026 Ari Sulistiono
+   SPDX-License-Identifier: Apache-2.0
+   Canonical Help/Wiki handbook: restrained editorial layout, no dense card mosaic. */
+.engineering-handbook { scroll-margin-top: 86px; }
+.engineering-handbook .section-heading { max-width: 840px; }
+.learning-shell { display:grid; grid-template-columns: 250px minmax(0,1fr); border:1px solid var(--line, #dbe5ef); border-radius:15px; background:#fff; overflow:hidden; margin-top:18px; min-height:540px; }
+.learning-nav { min-width:0; padding:19px 13px; border-right:1px solid var(--line, #dbe5ef); background:#fbfcfe; }
+.learning-nav-title { margin:0 4px 13px; font-size:13px; color:var(--ink,#102234); font-weight:600; }
+.learning-search { display:block; width:100%; box-sizing:border-box; height:37px; padding:0 11px; margin-bottom:13px; border:1px solid #cad7e4; border-radius:8px; background:#fff; color:var(--ink,#102234); font:inherit; font-size:12px; line-height:normal; }
+.learning-search:focus-visible { outline:2px solid #277ca6; outline-offset:1px; }
+.learning-menu { display:flex; flex-direction:column; gap:2px; }
+.learning-chapter-button { display:block; width:100%; border:1px solid transparent; text-align:left; padding:10px 12px; background:transparent; border-radius:8px; font:inherit; font-size:12.5px; font-weight:500; line-height:1.45; color:#263f55; cursor:pointer; }
+.learning-chapter-button:hover { background:#eef4f8; }
+.learning-chapter-button[aria-current="page"] { color:#145f87; background:#e8f2fa; border-color:#cce0f3; font-weight:600; }
+.learning-chapter-button:focus-visible { outline:2px solid #277ca6; outline-offset:1px; }
+.learning-no-result { color:var(--muted, #64758a); font-size:12px; padding:0 10px; }
+.learning-article { min-width:0; padding:27px clamp(19px, 3.8vw, 53px) 40px; color:#33485c; }
+.learning-overline { margin:0 0 8px; font-size:10px; letter-spacing:.085em; text-transform:uppercase; font-weight:600; color:#64758a; }
+.learning-article-title { color:var(--ink,#102234); margin:0; font-size:clamp(21px,2.1vw,27px); font-weight:650; line-height:1.3; letter-spacing:-.02em; }
+.learning-article-lead { max-width:75ch; margin:8px 0 26px; font-size:14px; color:#617589; line-height:1.7; }
+.learning-chapter-section { padding:19px 0 21px; border-top:1px solid #e5ebf1; }
+.learning-chapter-section h4,.learning-references h4 { margin:0 0 9px; color:#152b42; font-weight:600; font-size:16px; line-height:1.4; }
+.learning-chapter-section p { max-width:83ch; margin:0 0 12px; font-size:13.5px; line-height:1.8; }
+.learning-bullets { padding-left:21px; margin:10px 0 0; }
+.learning-bullets li { max-width:82ch; padding-left:3px; margin:7px 0; font-size:13px; line-height:1.72; }
+.learning-bullets li::marker { color:#7b91a8; }
+.learning-frames { overflow-x:auto; white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; margin:16px 0 0; border:1px solid #e1eaf2; background:#f5f8fb; color:#31465e; border-radius:9px; font-size:12px; line-height:1.7; }
+.learning-references { border-top:1px solid #e1eaf2; margin-top:8px; padding-top:21px; }
+.learning-references ul { margin:7px 0 0; padding-left:22px; }
+.learning-references li { font-size:12px; line-height:1.6; overflow-wrap:anywhere; margin:6px 0; }
+.learning-references a { color:#166a94; text-underline-offset:3px; }
+.learning-status { margin:14px 3px 0; color:#6c7c8b; font-size:11.5px; line-height:1.6; }
+.learning-load-error { color:#945126; font-size:14px; }
+@media (max-width:740px) {
+  .learning-shell { grid-template-columns:minmax(0,1fr); min-height:0; }
+  .learning-nav { border-right:0; border-bottom:1px solid #e4ebf1; padding:15px 13px; }
+  .learning-menu { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+  .learning-chapter-button { padding:9px; font-size:11.7px; }
+  .learning-article { padding:22px 19px 30px; }
+}
+@media (max-width:380px) { .learning-menu { grid-template-columns:minmax(0,1fr); } }
+@media (prefers-reduced-motion:reduce) { .learning-shell * { scroll-behavior:auto; } }
