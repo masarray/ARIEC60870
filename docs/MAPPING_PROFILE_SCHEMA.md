@@ -191,8 +191,14 @@ Here `TYPE` refers to the project category (`TM/TSD/RCD/...`), not IEC
 Source type and original IOA remain authoritative.
 
 The bundled `utility_fat_iec10x_default_profile.json` is a **reference-only,
-unverified** signal-name example: TI11 reactive-power points use raw
-`counts`, no guessed MVar calibration. The original PDF supplied POAQ 0..1000,
+unverified** signal-name and scaling example. Versions through **v3.6.17-rc.2**
+kept TI11 Q in raw `counts`. Following the operator's 18 Nov 2026 RC2 screenshot,
+the **next source candidate** uses an explicitly provisional
+`TwoPoint X=-32768..32767, Y=-2078..2078 MVar` reference on sample CA105
+Q IOAs 790447/790439/790443. The photo does **not** identify which Q SCADA
+row applies to each IOA; Q Lab ±260 stays a separate manual choice. The candidate
+is for reference/testing only, not proof of RTU calibration, and must never
+silently replace previously saved project profiles. The original PDF supplied POAQ 0..1000,
 but the operator **later corrected** the current POAQ **feedback** display to
 0..1200. The current reference uses `TwoPoint` `X0=0, X100=1, Y0=0, Y100=1200`
 in **decoded per-unit NVA** for TI9 IOA790449; independent field validation is
@@ -213,3 +219,6 @@ SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md).
 
 The immutable public v3.6.13 binaries predate this new mapping source;
 a later qualified Windows release is required.
+
+
+**Editor file ownership:** `Load` stages a file in Signal Map; `Save` writes a file; **only `Save & Apply` activates the mapping in Main Window's live Values**. The editor indicates `Not applied` for a newly loaded/saved file, and the Values toolbar displays the active map count with a provenance tooltip. File data from `Setup` may be redacted for privacy, but the authoritative saved local path is retained internally. Edited bundled sample file requires a distinct Save As; existing private project profiles are not automatically migrated.
