@@ -45,6 +45,10 @@ public sealed partial class SignalListEditorWindow : Window
     private static readonly Brush SuccessBrush = BrushFromRgb(0x04, 0x7A, 0x48);
     private static readonly Brush SuccessSoftBrush = BrushFromRgb(0xEC, 0xFD, 0xF3);
 
+    private const double LayoutGap = 6;
+    private const double FieldGap = 8;
+    private const double InspectorInset = 10;
+
     private readonly ObservableCollection<SignalListEditorRow> _rows = new();
     private readonly int? _observedCommonAddress;
     private readonly TextBox _profileNameBox = new();
@@ -77,8 +81,8 @@ public sealed partial class SignalListEditorWindow : Window
     private double _inspectorWidth = 360;
     private readonly ScrollViewer _detailScroll = new();
     private readonly ScrollViewer _scalingScroll = new();
-    private readonly Button _scalingTabButton = new();
-    private readonly Button _mappingTabButton = new();
+    private readonly ToggleButton _scalingTabButton = new();
+    private readonly ToggleButton _mappingTabButton = new();
     private readonly TextBlock _scalingSourceNote = new();
     private SignalListEditorRow? _activeDetailRow;
     private bool _showScalingTab = true;
@@ -167,7 +171,9 @@ public sealed partial class SignalListEditorWindow : Window
         _profileNameBox.MinHeight = 30;
         _profileNameBox.Padding = new Thickness(8, 4, 8, 4);
         _profileNameBox.FontSize = 11.8;
-        _profileNameBox.Margin = new Thickness(0, 1, 8, 1);
+        _profileNameBox.Margin = new Thickness(0, 0, 8, 0);
+        _profileNameBox.VerticalAlignment = VerticalAlignment.Center;
+        _profileNameBox.VerticalContentAlignment = VerticalAlignment.Center;
         _profileNameBox.ToolTip = SavedProfilePath;
         _profileNameBox.TextChanged += (_, _) => MarkDirty();
         Grid.SetColumn(_profileNameBox, 1);
@@ -188,7 +194,7 @@ public sealed partial class SignalListEditorWindow : Window
         _rowCountText.FontSize = 11.5;
         _rowCountText.Foreground = TextMutedBrush;
         _rowCountText.VerticalAlignment = VerticalAlignment.Center;
-        _rowCountText.Margin = new Thickness(8, 0, 14, 0);
+        _rowCountText.Margin = new Thickness(8, 0, 12, 0);
         Grid.SetColumn(_rowCountText, 3);
         bar.Children.Add(_rowCountText);
 
@@ -228,6 +234,8 @@ public sealed partial class SignalListEditorWindow : Window
         _searchBox.BorderThickness = new Thickness(0);
         _searchBox.Padding = new Thickness(1, 5, 5, 5);
         _searchBox.FontSize = 11.8;
+        _searchBox.VerticalContentAlignment = VerticalAlignment.Center;
+        _searchBox.VerticalAlignment = VerticalAlignment.Center;
         _searchBox.ToolTip = "Search IOA, name, bay or mnemonic (Ctrl+F)";
         _searchBox.TextChanged += (_, _) =>
         {
@@ -389,7 +397,14 @@ public sealed partial class SignalListEditorWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        content.Children.Add(CreateMaterialToolbarIcon(icon, 16));
+        var materialIcon = CreateMaterialToolbarIcon(icon, 16);
+        materialIcon.SetBinding(System.Windows.Shapes.Shape.FillProperty,
+            new Binding(nameof(Control.Foreground))
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor,
+                    typeof(ButtonBase), 1)
+            });
+        content.Children.Add(materialIcon);
         var caption = new TextBlock
         {
             Text = label,
@@ -400,7 +415,7 @@ public sealed partial class SignalListEditorWindow : Window
         };
         caption.SetBinding(TextBlock.ForegroundProperty, new Binding(nameof(Button.Foreground))
         {
-            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Button), 1)
+            RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ButtonBase), 1)
         });
         content.Children.Add(caption);
         return content;
@@ -422,6 +437,8 @@ public sealed partial class SignalListEditorWindow : Window
     private void ConfigureFilterCombo(ComboBox combo, string tip, Grid parent, int column)
     {
         combo.MinHeight = 36;
+        combo.VerticalAlignment = VerticalAlignment.Center;
+        combo.VerticalContentAlignment = VerticalAlignment.Center;
         combo.FontSize = 11.5;
         combo.Padding = new Thickness(5, 5, 5, 5);
         combo.Margin = new Thickness(0, 0, 5, 0);
@@ -746,21 +763,26 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildDetailPanel()
     {
-        var card = CreateCard(new Thickness(0), new Thickness(10, 9, 10, 9));
+        var card = CreateCard(new Thickness(0), new Thickness(InspectorInset));
         card.CornerRadius = new CornerRadius(8);
         var root = new DockPanel { LastChildFill = true };
         card.Child = root;
 
         // Keep signal identity and edit actions visible while switching pages.
-        var header = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var header = new StackPanel { Margin = new Thickness(0, 0, 0, FieldGap) };
         _selectionTitle.Text = "No row selected";
         _selectionTitle.FontSize = 13.2;
+        _selectionTitle.Height = 20;
+        _selectionTitle.VerticalAlignment = VerticalAlignment.Center;
         _selectionTitle.FontWeight = FontWeights.SemiBold;
         _selectionTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         _selectionTitle.ToolTip = "Full signal name";
         _selectionTitle.Foreground = AccentDarkBrush;
         _selectionSubtitle.Text = "";
         _selectionSubtitle.FontSize = 11.5;
+        _selectionSubtitle.Height = 17;
+        _selectionSubtitle.Margin = new Thickness(0, 2, 0, 0);
+        _selectionSubtitle.VerticalAlignment = VerticalAlignment.Center;
         _selectionSubtitle.Foreground = TextMutedBrush;
         header.Children.Add(_selectionTitle);
         header.Children.Add(_selectionSubtitle);
@@ -769,7 +791,7 @@ public sealed partial class SignalListEditorWindow : Window
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
-        var tabs = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        var tabs = new Grid { Margin = new Thickness(0, 0, 0, FieldGap), Height = 36 };
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         ConfigureInspectorTabButton(_scalingTabButton, "Scaling", scaling: true);
@@ -798,9 +820,9 @@ public sealed partial class SignalListEditorWindow : Window
         var scalingSelectors = new Grid();
         scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         scalingSelectors.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var unitColumn = new StackPanel { Margin = new Thickness(0, 0, 5, 0) };
+        var unitColumn = new StackPanel { Margin = new Thickness(0, 0, FieldGap / 2, 0) };
         AddEditorField(unitColumn, "Unit", nameof(SignalListEditorRow.Unit));
-        var modeColumn = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+        var modeColumn = new StackPanel { Margin = new Thickness(FieldGap / 2, 0, 0, 0) };
         AddEditorCombo(modeColumn, "Scaling mode", nameof(SignalListEditorRow.ScalingMode),
             new[] { "Factor", "TwoPoint" }, allowCustom: false);
         scalingSelectors.Children.Add(unitColumn);
@@ -859,9 +881,9 @@ public sealed partial class SignalListEditorWindow : Window
         AddTwoPointPair(details, "Mnemonic", nameof(SignalListEditorRow.Mnemonic),
             "Group", nameof(SignalListEditorRow.Group));
 
-        var composeName = CreateToolbarButton("Generate name", ComposeSignalName_Click, false, false);
+        var composeName = CreateMaterialActionButton("Generate name", "MaterialAutoFixHigh", ComposeSignalName_Click);
         composeName.HorizontalAlignment = HorizontalAlignment.Stretch;
-        composeName.Margin = new Thickness(0, 0, 0, 13);
+        composeName.Margin = new Thickness(0, 0, 0, FieldGap + LayoutGap);
         composeName.ToolTip = "Explicit action only. Keeps an existing trailing numeric suffix; never rewrites names automatically.";
         details.Children.Add(composeName);
 
@@ -879,9 +901,9 @@ public sealed partial class SignalListEditorWindow : Window
         AddTwoPointPair(details, "Reference min", nameof(SignalListEditorRow.EngineeringMin),
             "Reference max", nameof(SignalListEditorRow.EngineeringMax));
         AddEditorField(details, "Description", nameof(SignalListEditorRow.Description), multiline: true);
-        var validateRow = CreateToolbarButton("Validate selected signal", ValidateSelectedRow_Click, false, false);
+        var validateRow = CreateMaterialActionButton("Validate signal", "MaterialCheckCircle", ValidateSelectedRow_Click);
         validateRow.HorizontalAlignment = HorizontalAlignment.Stretch;
-        validateRow.Margin = new Thickness(0, 0, 0, 7);
+        validateRow.Margin = new Thickness(0, 0, 0, FieldGap);
         details.Children.Add(validateRow);
         _detailScroll.Content = details;
         _detailScroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
@@ -903,7 +925,9 @@ public sealed partial class SignalListEditorWindow : Window
             FontSize = 12.3,
             FontWeight = FontWeights.SemiBold,
             Foreground = AccentDarkBrush,
-            Margin = new Thickness(0, 6, 0, 6),
+            Height = 22,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, FieldGap, 0, LayoutGap),
             ToolTip = hint
         });
 
@@ -941,16 +965,21 @@ public sealed partial class SignalListEditorWindow : Window
         UpdateStatus($"Generated signal name: {name}. Review and save when ready.", success: true);
     }
 
-    private void ConfigureInspectorTabButton(Button button, string text, bool scaling)
+    private void ConfigureInspectorTabButton(ToggleButton button, string text, bool scaling)
     {
-        button.Content = text;
         button.Name = scaling ? "EngineeringScalingTab" : "MappingCommandsTab";
-        button.FontSize = 11.3;
-        button.MinHeight = 33;
-        button.Margin = scaling ? new Thickness(0, 0, 4, 0) : new Thickness(4, 0, 0, 0);
-        button.Padding = new Thickness(5, 7, 5, 7);
-        button.Style = CreateRoundedButtonStyle();
+        button.Content = CreateMaterialActionContent(text,
+            scaling ? "MaterialTune" : "MaterialDeviceHub");
+        button.Style = (Style)Application.Current.FindResource("EventJournalActionToggleStyle");
+        button.Height = (double)Application.Current.FindResource("ArSeeToolbarPillHeight");
+        button.Padding = (Thickness)Application.Current.FindResource("ArSeeToolbarPillPadding");
+        button.Margin = scaling
+            ? new Thickness(0, 0, LayoutGap / 2, 0)
+            : new Thickness(LayoutGap / 2, 0, 0, 0);
+        button.VerticalAlignment = VerticalAlignment.Center;
+        button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.Cursor = Cursors.Hand;
+        AutomationProperties.SetName(button, scaling ? "Scaling" : "Mapping");
         button.Click += (_, _) => ShowInspectorTab(scaling);
     }
 
@@ -959,12 +988,8 @@ public sealed partial class SignalListEditorWindow : Window
         _showScalingTab = scaling;
         _scalingScroll.Visibility = scaling ? Visibility.Visible : Visibility.Collapsed;
         _detailScroll.Visibility = scaling ? Visibility.Collapsed : Visibility.Visible;
-        _scalingTabButton.Background = scaling ? AccentBrush : AccentSoftBrush;
-        _scalingTabButton.Foreground = scaling ? Brushes.White : AccentDarkBrush;
-        _scalingTabButton.BorderBrush = scaling ? AccentBrush : BorderBrushSoft;
-        _mappingTabButton.Background = scaling ? AccentSoftBrush : AccentBrush;
-        _mappingTabButton.Foreground = scaling ? AccentDarkBrush : Brushes.White;
-        _mappingTabButton.BorderBrush = scaling ? BorderBrushSoft : AccentBrush;
+        _scalingTabButton.IsChecked = scaling;
+        _mappingTabButton.IsChecked = !scaling;
         if (scaling) _scalingScroll.ScrollToTop();
         else _detailScroll.ScrollToTop();
     }
@@ -1089,7 +1114,8 @@ public sealed partial class SignalListEditorWindow : Window
         style.Setters.Add(new Setter(Control.ForegroundProperty, readOnly ? TextMutedBrush : TextMainBrush));
         style.Setters.Add(new Setter(Control.BorderBrushProperty, BorderBrushSoft));
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
-        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(11, 7, 11, 7)));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(9, 5, 9, 5)));
+        style.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
         style.Setters.Add(new Setter(Control.FontSizeProperty, 12.5));
         style.Setters.Add(new Setter(TextBoxBase.CaretBrushProperty, AccentBrush));
         return style;
@@ -1182,19 +1208,22 @@ public sealed partial class SignalListEditorWindow : Window
 
     private void AddEditorField(Panel parent, string label, string path, string? hint = null, bool compact = false, bool multiline = false)
     {
-        var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 9) };
+        var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, FieldGap) };
         container.Children.Add(new TextBlock
         {
             Text = label,
             FontSize = 11.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMutedBrush,
-            Margin = new Thickness(0, 0, 0, 3)
+            Height = 17,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 4)
         });
         var box = new TextBox
         {
             Style = CreateTextBoxStyle(),
             MinHeight = multiline ? 70 : 34,
+            VerticalContentAlignment = multiline ? VerticalAlignment.Top : VerticalAlignment.Center,
             AcceptsReturn = multiline,
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             VerticalScrollBarVisibility = multiline ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled
@@ -1213,11 +1242,11 @@ public sealed partial class SignalListEditorWindow : Window
     private void AddTwoPointPair(Panel parent, string leftLabel, string leftPath,
         string rightLabel, string rightPath)
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+        var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var left = new StackPanel { Margin = new Thickness(0, 0, 5, 0) };
-        var right = new StackPanel { Margin = new Thickness(5, 0, 0, 0) };
+        var left = new StackPanel { Margin = new Thickness(0, 0, FieldGap / 2, 0) };
+        var right = new StackPanel { Margin = new Thickness(FieldGap / 2, 0, 0, 0) };
         AddEditorField(left, leftLabel, leftPath, compact: true);
         AddEditorField(right, rightLabel, rightPath, compact: true);
         Grid.SetColumn(left, 0);
@@ -1237,13 +1266,17 @@ public sealed partial class SignalListEditorWindow : Window
             FontSize = 11.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMutedBrush,
-            Margin = new Thickness(0, 0, 0, 3)
+            Height = 17,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 4)
         });
         var combo = new ComboBox
         {
             ItemsSource = values,
             IsEditable = allowCustom,
             MinHeight = 34,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             Padding = new Thickness(8, 5, 8, 5),
             FontSize = 12.5,
             Background = Brushes.White,
