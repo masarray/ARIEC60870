@@ -1,9 +1,9 @@
 {
   "schema": "ariec10x-ioa-profile-v1",
-  "profileName": "IEC-101/104 31-point SCADA I/O List — verified identifiers, unverified Q scaling",
+  "profileName": "IEC-101/104 31-point SCADA operator reference · Q ±2078 provisional",
   "region": "Generic / sanitized example",
   "projectName": "Operator-supplied 31-point IEC-101/104 SCADA I/O List",
-  "source": "I/O LIST PENGUJIAN SCADA, page 1 (operator-supplied); CA/IOA/TI/BAY TYPE/TYPE/MNEMO/LAB are document-derived. Q integer calibration is NOT specified by the source.",
+  "source": "I/O LIST PENGUJIAN SCADA, page 1 (operator-supplied); CA/IOA/TI/BAY TYPE/TYPE/MNEMO/LAB are document-derived. Q integer calibration is NOT specified by the source. Later operator supplied SCADA database photo (2026-11-18) Q Diri Sendiri signed [-32768,32767] -> [-2078,+2078], separate Q Lab ±260; Q-to-bay association is not documented. The operator explicitly requested site-reference default Q calibration for this RC2 fix; still requires live RTU validation. POAQ feedback 1200 and POOP command 1000 remain distinct. TPI -4..14 SCADA reference conflicts with older 1..19 list.",
   "commonAddress": 105,
   "defaultSettings": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
@@ -227,12 +227,12 @@
       "signalType": "M_ST_TB_1",
       "unit": "tap",
       "commandPolicy": "MonitorOnly",
-      "description": "Step position information with CP56Time2a; used as CTC feedback.",
+      "description": "SCADA handwritten database reference Tpi -4..14, observed RC2 screenshot -4 tap on received TI5 (same step-position observation family as source-list TI32). Earlier I/O list used 1..19; these ranges conflict. Metadata only, no automatic offset or TI/command remap; verify physical tap positions and RTU type.",
       "mnemonic": "TPI",
       "bayType": "TRAFO SOGI",
       "testCategory": "TC",
-      "engineeringMin": 1,
-      "engineeringMax": 19
+      "engineeringMin": -4,
+      "engineeringMax": 14
     },
     {
       "ca": 105,
@@ -257,14 +257,21 @@
       "name": "FEEDER TM Q",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Measured value scaled value. Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "OPERATOR SCADA REFERENCE, NOT FIELD-APPROVED: 2026-11-18 photo Q Diri Sendiri signed raw -32768..32767 -> ±2078 MVar engineering range (rounded 120% of 500 kV x 2000 A nominal apparent power). Candidate applied to CA105 TI11 IOA790447 for ArSee reference demonstration on operator request; the handwritten note does NOT identify the Q row-to-IOA association. Q Lab alternative ±260 is deliberately NOT auto-selected. Confirm this IOA with actual eTerra database item and independent RTU evidence before production FAT. Raw HEX, SVA, quality unaffected.",
       "mnemonic": "Q",
       "bayType": "FEEDER",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -2078,
+      "y100": 2078,
+      "engineeringMin": -2078,
+      "engineeringMax": 2078
     },
     {
       "ca": 105,
@@ -289,14 +296,21 @@
       "name": "KOPEL TM Q 1",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "OPERATOR SCADA REFERENCE, NOT FIELD-APPROVED: 2026-11-18 photo Q Diri Sendiri signed raw -32768..32767 -> ±2078 MVar engineering range (rounded 120% of 500 kV x 2000 A nominal apparent power). Candidate applied to CA105 TI11 IOA790439 for ArSee reference demonstration on operator request; the handwritten note does NOT identify the Q row-to-IOA association. Q Lab alternative ±260 is deliberately NOT auto-selected. Confirm this IOA with actual eTerra database item and independent RTU evidence before production FAT. Raw HEX, SVA, quality unaffected.",
       "mnemonic": "Q",
       "bayType": "KOPEL",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -2078,
+      "y100": 2078,
+      "engineeringMin": -2078,
+      "engineeringMax": 2078
     },
     {
       "ca": 105,
@@ -321,14 +335,21 @@
       "name": "TRAFO TM Q 2",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "OPERATOR SCADA REFERENCE, NOT FIELD-APPROVED: 2026-11-18 photo Q Diri Sendiri signed raw -32768..32767 -> ±2078 MVar engineering range (rounded 120% of 500 kV x 2000 A nominal apparent power). Candidate applied to CA105 TI11 IOA790443 for ArSee reference demonstration on operator request; the handwritten note does NOT identify the Q row-to-IOA association. Q Lab alternative ±260 is deliberately NOT auto-selected. Confirm this IOA with actual eTerra database item and independent RTU evidence before production FAT. Raw HEX, SVA, quality unaffected.",
       "mnemonic": "Q",
       "bayType": "TRAFO",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -2078,
+      "y100": 2078,
+      "engineeringMin": -2078,
+      "engineeringMax": 2078
     },
     {
       "ca": 105,
@@ -809,7 +830,7 @@
       }
     }
   ],
-  "description": "31-point reference mapping. TI11 Q remains uncalibrated counts; TI13 P float identity. Operator clarification 2026-11-18 specifies TI9 POAQ feedback 0..1200 (superseding earlier I/O list 0..1000), while TI48 POOP command metadata remains 0..1000. This is not field FAT approval; preserve all user-owned custom profiles.",
+  "description": "Operator-requested candidate display scaling (Q TI11 ±2078 MVar, POAQ TI9 0..1200 feedback, POOP TI48 0..1000 command). Q Diri Sendiri vs Lab per-IOA association NOT field verified. Keep original IEC evidence and custom user profiles; do not automatically replace an existing saved project mapping.",
   "metadata": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
     "confidentiality": "Public sanitized example. Do not use as a contractual project standard.",
