@@ -1632,13 +1632,25 @@ public sealed partial class SignalListEditorWindow : Window
             var target = SavedProfilePath;
             // A clean already-saved JSON can be explicitly activated without
             // rewriting the packaged/reference file (or requiring write access).
-            if (SignalMapActivationPolicy.CanApplyExistingFileWithoutWrite(
-                    closeAfter, _dirty, forceSaveAs, _protectedSyncSourcePath, target))
+            if (SignalMapActivationPolicy.CanReuseExistingFileWithoutWrite(
+                    _dirty, forceSaveAs, _protectedSyncSourcePath, target))
             {
-                Profile = profile;
-                _activation.Applied();
-                DialogResult = true;
-                Close();
+                // Both actions are no-write for a clean reference, but only
+                // the explicit Save & Apply action grants live authority.
+                if (closeAfter)
+                {
+                    Profile = profile;
+                    _activation.Applied();
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    UpdateStatus(_activation.HasUnappliedProfile
+                        ? "No file changes to save. Preview is NOT active in Values until Save & Apply."
+                        : "No file changes to save. Current live Values map is unchanged.",
+                        success: true);
+                }
                 return true;
             }
             // Never rewrite the bundled calibration reference while editing it.
@@ -1669,6 +1681,9 @@ public sealed partial class SignalListEditorWindow : Window
                 return false;
             }
             profile.SaveToFile(target);
+            // The original protected station/reference file remains untouched,
+            // but the new project-owned copy can now be applied without rewrite.
+            _protectedSyncSourcePath = null;
             SavedProfilePath = target;
             _pathBox.Text = SavedProfilePath;
             _profilePathLabel.Text = Path.GetFileName(SavedProfilePath);
