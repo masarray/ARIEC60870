@@ -29,5 +29,7 @@
 
   <ItemGroup>
     <Content Include="..\..\profiles\utility_fat_iec10x_default_profile.json" Link="profiles\utility_fat_iec10x_default_profile.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\profiles\utility_fat_iec10x_scada_120pct_q_profile.json" Link="profiles\utility_fat_iec10x_scada_120pct_q_profile.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\profiles\utility_fat_iec10x_scada_lab_q_profile.json" Link="profiles\utility_fat_iec10x_scada_lab_q_profile.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
