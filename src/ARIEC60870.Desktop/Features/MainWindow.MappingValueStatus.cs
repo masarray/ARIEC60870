@@ -35,6 +35,7 @@ public partial class MainWindow
     private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
     private Iec10xPointDisplayIndex _displayPointIndex = new(Iec10xPointMappingProfile.Empty);
     private readonly HashSet<(string Source, int Ioa, int ExpectedTi, int ActualTi)> _reportedTiMismatch = new();
+    private readonly HashSet<(string Source, int Ca, int Ioa, int Ti)> _reportedUnmappedMeasurements = new();
     private string? _sessionSubtitleBeforeCaRecovery;
 
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
@@ -145,6 +146,7 @@ public partial class MainWindow
     {
         _runtimeCaReconciler = null;
         _reportedTiMismatch.Clear();
+        _reportedUnmappedMeasurements.Clear();
         _reportedProfileCaMismatchSources.Clear();
         _displayPointIndex = new Iec10xPointDisplayIndex(_ioaProfile);
         RefreshCachedSignalNames();
@@ -313,6 +315,34 @@ public partial class MainWindow
         return int.TryParse(field.Text, out var address) ? address : null;
     }
 
+    // Bounded identity alert, independent of the frame parser and TX path.
+    // A similar decimal IOA is NOT proof of a typo; never auto-rewrite it.
+    private void ReportUnmappedMeasurement(Iec103MasterEvidenceEvent item,
+        Iec10xPointMappingEntry? strictPoint)
+    {
+        if (strictPoint is not null || !_ioaProfile.HasPoints ||
+            item.Direction != FrameDirection.SlaveToMaster ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            item.CommonAddressNumber is not int ca ||
+            item.InformationObjectAddress is not int ioa ||
+            item.TypeId is not int ti ||
+            _reportedUnmappedMeasurements.Count >= 64)
+            return;
+
+        var source = string.IsNullOrWhiteSpace(item.PhysicalSource)
+            ? "SINGLE" : item.PhysicalSource;
+        if (!_reportedUnmappedMeasurements.Add((source, ca, ioa, ti))) return;
+        AddUiDiagnostic("Warning", "Signal Map", "IEC10X-UNMAPPED-RX-IOA",
+            $"Unmapped received CA {ca} / IOA {ioa} / TI {ti}",
+            $"Verified RX on {source} carries CA={ca}, IOA={ioa}, TI={ti}, " +
+            "but the active Signal Map has no strict matching entry. The original " +
+            "wire address and raw measurement were preserved without inventing an " +
+            "engineering unit, relabeling a neighboring IOA or changing a command.",
+            "Compare this exact identity against the RTU/simulator database and " +
+            "the loaded Signal Map. A one-digit or prefix difference is NOT " +
+            "permission to auto-correct the address.");
+    }
+
     private static string ExtractSimpleStateToken(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -438,11 +468,15 @@ public partial class MainWindow
             : !string.IsNullOrWhiteSpace(item.ObjectSummary)
                 ? item.ObjectSummary
                 : item.SignalRawValue;
-        if (engineeringPoint is not null &&
-            Iec10xEngineeringValue.TryFormat(engineeringPoint,
-                item.AsduDetails, item.InformationObjectDetails, out var engineeringValue))
+        if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+            Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1))
         {
-            displayValue = engineeringValue;
+            // Always use canonical decoded IEC sample for analog display.
+            // Never silently reuse an upstream MW/MVar string when the active
+            // Signal Map cannot authorize its engineering conversion.
+            displayValue = Iec10xMeasurementProjection.Render(engineeringPoint,
+                item.AsduDetails, item.InformationObjectDetails, displayValue);
+            ReportUnmappedMeasurement(item, engineeringPoint);
         }
         else if (ioaPoint is not null && !profileTiMismatch &&
                  !Iec10xEngineeringValue.IsMeasurementType(item.TypeId ?? -1))
@@ -478,8 +512,11 @@ public partial class MainWindow
                 Key = key,
                 PhysicalSource = item.PhysicalSource,
                 EvidenceReference = item.EvidenceReference,
-                IsMapped = item.IsMappedSignal || ioaPoint is not null,
-                SignalName = ioaPoint?.Name ?? (string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
+                IsMapped = item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104
+                    ? ioaPoint is not null : item.IsMappedSignal || ioaPoint is not null,
+                SignalName = ioaPoint?.Name ?? (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
+                    _ioaProfile.HasPoints ? fallbackSignal :
+                    string.IsNullOrWhiteSpace(item.SignalName) ? fallbackSignal : item.SignalName),
                 SignalGroup = ioaPoint?.Group ?? (string.IsNullOrWhiteSpace(item.SignalGroup) ? BuildFallbackSignalGroup(item) : item.SignalGroup),
                 SignalType = !profileTiMismatch && !string.IsNullOrWhiteSpace(ioaPoint?.SignalType) ? ioaPoint!.SignalType : (!string.IsNullOrWhiteSpace(item.SignalType) ? item.SignalType : (item.AsduType ?? string.Empty)),
                 FunctionType = item.FunctionType,
