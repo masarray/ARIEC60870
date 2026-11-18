@@ -373,7 +373,7 @@ public sealed class Iec10xEngineeringMappingPresentationTests
         Iec10xValueNameReconciler.Apply([poaq], active);
         Assert.Equal("1199.96338 MW", poaq.Value);
         Assert.Equal("TRAFO SOGI TM POAQ", poaq.Signal);
-        Assert.Equal("Normalized=0.999969482421875", poaq.RawValue);
+        Assert.Equal("Normalized=0.99997", poaq.RawValue);
         Assert.Contains("OV", poaq.Quality);
         Assert.Equal(new byte[] { 0xFF, 0x7F, 0x01 },
             poaqSource.Objects[0].RawBytes);
