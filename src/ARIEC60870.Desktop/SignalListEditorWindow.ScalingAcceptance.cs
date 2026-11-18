@@ -36,6 +36,28 @@ public sealed partial class SignalListEditorWindow
         {
             editor.Show();
             await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
+            editor.UpdateLayout();
+
+            // Data-first default: no permanently pinned 405px inspector, no
+            // training subtitle, no double-card toolbar or large footer.
+            if (editor._inspectorOpen ||
+                editor._inspectorColumn.Width.Value != 0 ||
+                editor._inspectorPanel?.Visibility != Visibility.Collapsed ||
+                editor._grid.ActualWidth < editor.ActualWidth * 0.87 ||
+                editor._layoutRoot.RowDefinitions[0].ActualHeight > 48 ||
+                editor._layoutRoot.RowDefinitions[1].ActualHeight > 55 ||
+                editor._layoutRoot.RowDefinitions[3].ActualHeight > 32)
+                throw new InvalidOperationException(
+                    "Signal Map must open as a grid-first compact workspace with inspector hidden.");
+            CaptureUiReviewImage(editor, "00-grid-first-1360x820");
+            editor.SetInspectorVisible(true);
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            editor.UpdateLayout();
+            if (!editor._inspectorOpen ||
+                editor._inspectorColumn.ActualWidth < 280 ||
+                editor._inspectorSplitter?.Visibility != Visibility.Visible)
+                throw new InvalidOperationException(
+                    "Engineering inspector did not open as a resizable side panel.");
 
             var normalized = editor._rows.Single(r => r.Ca == "105" &&
                 r.Ioa == "790449" && r.TypeId == "9");
@@ -297,6 +319,14 @@ public sealed partial class SignalListEditorWindow
             })
                 AssertInputAboveFold(editor._scalingScroll, label);
             CaptureUiReviewImage(editor, "04-analog-scaling-1140x820");
+            editor.SetInspectorVisible(false);
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            editor.UpdateLayout();
+            if (editor._inspectorOpen ||
+                editor._grid.ActualWidth < editor.ActualWidth * 0.87)
+                throw new InvalidOperationException(
+                    "Closing the inspector must return full width to the Signal Map grid.");
+            CaptureUiReviewImage(editor, "05-grid-first-1140x820");
         }
         finally
         {
