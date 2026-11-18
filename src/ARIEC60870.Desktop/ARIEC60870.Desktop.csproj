@@ -29,5 +29,7 @@
 
   <ItemGroup>
     <Content Include="..\..\profiles\utility_fat_iec10x_default_profile.json" Link="profiles\utility_fat_iec10x_default_profile.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Same canonical bilingual corpus fetched by site/wiki.html and site/id/wiki.html. -->
+    <Content Include="..\..\site\learning\iec60870-handbook.json" Link="Learning\iec60870-handbook.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
