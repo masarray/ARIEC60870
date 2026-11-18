@@ -55,7 +55,7 @@ public sealed class Iec10xScadaRangeReferenceTests
     [InlineData(790447)]
     [InlineData(790439)]
     [InlineData(790443)]
-    public void BothQReferencesAreAvailableForOneQButNeverAutoSelected(int ioa)
+    public void BothQReferencesRemainAvailableForExplicitPerPointReview(int ioa)
     {
         var point = Point(ioa, 11);
         var own = Choice(point, Iec10xScadaRangeId.ReactiveDiriSendiri);
@@ -77,6 +77,29 @@ public sealed class Iec10xScadaRangeReferenceTests
         // value at zero. Never silently use symmetric ±32767 instead.
         Assert.InRange(Display(Point(ioa, 11), own, 0), 0.0317, 0.03172);
         Assert.InRange(Display(Point(ioa, 11), lab, 0), 0.00396, 0.00398);
+    }
+
+    [Theory]
+    [InlineData(790447, Iec10xScadaRangeId.ReactiveDiriSendiri, 2078d)]
+    [InlineData(790439, Iec10xScadaRangeId.ReactiveLab, 260d)]
+    [InlineData(790443, Iec10xScadaRangeId.ReactiveLab, 260d)]
+    public void OperatorBayAssociationIsExplicitAndNeverExtendsToDifferentStation(
+        int ioa, Iec10xScadaRangeId expectedId, double rangeLimit)
+    {
+        var point = Point(ioa, 11);
+        Assert.True(Iec10xScadaRangeReferences.TryOperatorMappedForPoint(point, out var selected));
+        Assert.Equal(expectedId, selected!.Id);
+        Assert.Equal(-rangeLimit, selected.Y0);
+        Assert.Equal(rangeLimit, selected.Y100);
+
+        point.Ca = 106;
+        Assert.False(Iec10xScadaRangeReferences.TryOperatorMappedForPoint(point, out _));
+        point.Ca = 105;
+        point.TypeId = 13;
+        Assert.False(Iec10xScadaRangeReferences.TryOperatorMappedForPoint(point, out _));
+        point.TypeId = 11;
+        point.CommandPolicy = "DoubleCommand";
+        Assert.False(Iec10xScadaRangeReferences.TryOperatorMappedForPoint(point, out _));
     }
 
     [Fact]
