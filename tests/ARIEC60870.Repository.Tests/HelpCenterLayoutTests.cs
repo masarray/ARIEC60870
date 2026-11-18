@@ -65,6 +65,34 @@ public sealed class HelpCenterLayoutTests
     }
 
     [Fact]
+    public void HelpSearchPreservesContextRoutingAndSupportsEmptyResults()
+    {
+        var xaml = XDocument.Load(Source("HelpWindow.xaml"));
+        Assert.Equal("HelpWindow_PreviewKeyDown",
+            (string?)xaml.Root?.Attribute("PreviewKeyDown"));
+        Assert.Equal("ClearSearchButton_Click",
+            (string?)Named(xaml, "ClearSearchButton").Attribute("Click"));
+        var code = File.ReadAllText(Source("HelpWindow.xaml.cs"));
+        Assert.Contains("private void RenderNoResults()", code);
+        Assert.Contains("TopicContentPanel.Children.Clear();", code);
+        Assert.Contains("SearchBox.Clear();", code);
+        Assert.Contains("Keyboard.Modifiers == ModifierKeys.Control", code);
+        Assert.Contains("Key.Escape", code);
+    }
+
+    [Fact]
+    public void PreviewIsRealWpfAndArtifactsRequirePassedSmoke()
+    {
+        var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
+        var app = File.ReadAllText(Source("App.xaml.cs"));
+        Assert.Contains("RenderTargetBitmap", acceptance);
+        Assert.Contains("en-trace-780x540.png", acceptance);
+        Assert.Contains("id-trace-780x540.png", acceptance);
+        Assert.Contains("No matching topics", acceptance);
+        Assert.Contains("--help-ui-acceptance", app);
+    }
+
+    [Fact]
     public void ReadingSurfaceBrushIsDeclaredOnceInGlobalTheme()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
