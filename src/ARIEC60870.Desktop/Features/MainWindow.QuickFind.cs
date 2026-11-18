@@ -31,14 +31,14 @@ public partial class MainWindow
         _quickFindDebounce.Tick += (_, _) => { _quickFindDebounce.Stop(); ApplyQuickFind(); };
         _traceQuickScope = (TraceQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All frames";
         CollectionViewSource.GetDefaultView(FrameTraceRows).Filter =
-            o => o is EvidenceRow row && QuickFindMatcher.MatchesTrace(row,_traceQuickQuery,_traceQuickScope);
+            o => o is EvidenceRow row && QuickFindMatcher.MatchesTrace(row, _traceQuickQuery, _traceQuickScope);
         _valuesQuickScope = (ValueQuickScopeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All points";
         CollectionViewSource.GetDefaultView(ValueRows).Filter =
             o => o is ValueRow row && QuickFindMatcher.MatchesValue(row, _valuesQuickQuery, _valuesQuickScope);
         CollectionViewSource.GetDefaultView(ControlCaseRows).Filter =
-            o => o is Iec10xCommandCasebook.CommandCase row && QuickFindMatcher.MatchesControl(row,_controlsQuickQuery);
+            o => o is Iec10xCommandCasebook.CommandCase row && QuickFindMatcher.MatchesControl(row, _controlsQuickQuery);
         CollectionViewSource.GetDefaultView(GiCaseRows).Filter =
-            o => o is Iec10xGiCasebook.GiCase row && QuickFindMatcher.MatchesGi(row,_giQuickQuery);
+            o => o is Iec10xGiCasebook.GiCase row && QuickFindMatcher.MatchesGi(row, _giQuickQuery);
         RelayEventRows.CollectionChanged += (_, e) =>
         {
             if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset &&
