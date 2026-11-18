@@ -84,22 +84,19 @@ public static class Iec10xScadaIoListProfileSync
             // Q Lab ±260. Explicit Sync may upgrade a *legacy identity only*.
             // Never replace already calibrated Factor/TwoPoint (including
             // one without a matching station), custom bounds or commands.
-            var qLimit = target.Ioa switch
-            {
-                790447 => 2078d,
-                790439 or 790443 => 260d,
-                _ => 0d
-            };
-            if (typeId == 11 && qLimit > 0d &&
+            if (typeId == 11 &&
+                Iec10xScadaRangeReferences.TryOperatorMappedForPoint(source,
+                    out var approvedRange) && approvedRange is not null &&
                 string.Equals(source.CommandPolicy, "MonitorOnly",
                     StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(target.CommandPolicy, "MonitorOnly",
                     StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(source.ScalingMode, "TwoPoint",
                     StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(source.Unit, "MVar", StringComparison.OrdinalIgnoreCase) &&
-                source.X0 == -32768d && source.X100 == 32767d &&
-                source.Y0 == -qLimit && source.Y100 == qLimit &&
+                string.Equals(source.Unit, approvedRange.Unit,
+                    StringComparison.OrdinalIgnoreCase) &&
+                source.X0 == approvedRange.X0 && source.X100 == approvedRange.X100 &&
+                source.Y0 == approvedRange.Y0 && source.Y100 == approvedRange.Y100 &&
                 (string.Equals(target.Unit, "counts", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(target.Unit, "MVar", StringComparison.OrdinalIgnoreCase)) &&
                 IsUncalibratedIdentity(target) &&
