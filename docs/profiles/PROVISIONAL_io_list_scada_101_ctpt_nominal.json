@@ -638,19 +638,19 @@
       "signalType": "M_ME_NA_1",
       "unit": "MW",
       "commandPolicy": "MonitorOnly",
-      "description": "TI9 normalized observation; source document specifies REAL POWER SETTING (0/1000). Decode NVA per-unit then map [0,1] to [0,1000] for display. No command encoding is modified.",
+      "description": "PROVISIONAL example: later operator correction 2026-11-18 says POAQ TI9 feedback [0,1] NVA per-unit -> 0..1200 MW display, superseding earlier source photo/PDF 0..1000; independent device FAT needed. POOP TI48 command stays separately at 0..1000; do not change outbound normalized setpoint encoding.",
       "mnemonic": "POAQ",
       "bayType": "TRAFO SOGI",
       "testCategory": "TM",
       "expectedClass": 2,
       "expectedCot": 3,
       "engineeringMin": 0,
-      "engineeringMax": 1000,
+      "engineeringMax": 1200,
       "scalingMode": "TwoPoint",
       "x0": 0,
       "x100": 1,
       "y0": 0,
-      "y100": 1000
+      "y100": 1200
     },
     {
       "ca": 105,
@@ -836,7 +836,7 @@
       }
     }
   ],
-  "description": "OPERATOR MUST VERIFY before live use. Candidate ±sqrt(3)*500 kV*2000 A/1000 = ±1732.05 apparent-power envelope at nominal CT/PT, not documented RTU full-scale. Floating TI13 remains identity; TI9 POAQ 0/1000 is from document. No control/command scaling.",
+  "description": "OPERATOR MUST VERIFY before live use. Candidate ±sqrt(3)*500 kV*2000 A/1000 = ±1732.05 apparent-power envelope at nominal CT/PT, not documented RTU full-scale. Floating TI13 remains identity; TI9 POAQ 0/1000 is from document. No control/command scaling. Later operator correction: POAQ feedback 0..1200; POOP command 0..1000; preserve distinct ranges. Q nominal hypothesis is still NOT approved.",
   "metadata": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
     "confidentiality": "Public sanitized example. Do not use as a contractual project standard.",
