@@ -467,6 +467,7 @@ public sealed partial class SignalListEditorWindow : Window
         Item("Validate entire list", Validate_Click);
         Item("Export blank Field FAT worksheet...", ExportFieldFatWorksheet_Click);
         Item("Sync 31 I/O reference...", SyncScadaIoList_Click);
+        menu.Items.Add(CreateScadaReferenceRangesMenu());
         if (_observedCommonAddress.HasValue)
             Item($"Align profile to CA {_observedCommonAddress.Value}...", AlignToObservedCa_Click);
         menu.Items.Add(new Separator());
