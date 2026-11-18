@@ -74,7 +74,7 @@ public sealed class RepositoryHygieneTests
         using var manifest = JsonDocument.Parse(File.ReadAllText(root.File("site/seo-manifest.json")));
         var version = manifest.RootElement.GetProperty("version").GetString();
         Assert.False(string.IsNullOrWhiteSpace(version));
-        var releaseUrl = $"https://github.com/masarray/ARIEC60870/releases/tag/v{version}";
+        var releaseUrl = $"https://github.com/masarray/arsee/releases/tag/v{version}";
 
         var readme = File.ReadAllText(root.File("README.md"));
         var home = File.ReadAllText(root.File("site/index.html"));
@@ -91,7 +91,7 @@ public sealed class RepositoryHygieneTests
 
         // Initial HTML must already download the published package, even before
         // JavaScript executes or when the GitHub API is rate-limited.
-        var downloadPrefix = $"https://github.com/masarray/ARIEC60870/releases/download/v{version}/";
+        var downloadPrefix = $"https://github.com/masarray/arsee/releases/download/v{version}/";
         foreach (var page in new[] { home, indonesian, download })
         {
             Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-setup-win-x64.exe", page);
@@ -265,7 +265,7 @@ public sealed class RepositoryHygieneTests
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
         Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", siteIndex);
         Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsIndex);
-        Assert.Contains("https://masarray.github.io/ARIEC60870/", docsIndex);
+        Assert.Contains("https://masarray.github.io/arsee/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
     }
 
@@ -278,7 +278,7 @@ public sealed class RepositoryHygieneTests
         var sitemap = File.ReadAllText(root.File("site/sitemap.xml"));
 
         Assert.Equal("site/", manifest.GetProperty("sourceOfTruth").GetString());
-        Assert.Equal("https://masarray.github.io/ARIEC60870/", manifest.GetProperty("canonicalBaseUrl").GetString());
+        Assert.Equal("https://masarray.github.io/arsee/", manifest.GetProperty("canonicalBaseUrl").GetString());
 
         foreach (var page in manifest.GetProperty("pages").EnumerateArray())
         {
