@@ -27,13 +27,19 @@ public sealed class SignalMapActivationPolicy
     /// (important for read-only bundled references). Pending changes still
     /// require a new file, and explicit Save As is never skipped.
     /// </summary>
-    public static bool CanApplyExistingFileWithoutWrite(
-        bool explicitApply, bool dirty, bool forceSaveAs,
+    public static bool CanReuseExistingFileWithoutWrite(
+        bool dirty, bool forceSaveAs,
         string? protectedSourcePath, string? targetPath)
-        => explicitApply && !dirty && !forceSaveAs &&
+        => !dirty && !forceSaveAs &&
             string.IsNullOrWhiteSpace(protectedSourcePath) &&
             !string.IsNullOrWhiteSpace(targetPath) &&
             File.Exists(targetPath);
+
+    public static bool CanApplyExistingFileWithoutWrite(
+        bool explicitApply, bool dirty, bool forceSaveAs,
+        string? protectedSourcePath, string? targetPath)
+        => explicitApply && CanReuseExistingFileWithoutWrite(
+            dirty, forceSaveAs, protectedSourcePath, targetPath);
 
     public static bool IsBundledReferencePath(string? targetPath)
         => !string.IsNullOrWhiteSpace(targetPath) &&
