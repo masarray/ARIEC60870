@@ -185,7 +185,7 @@ public sealed partial class SignalListEditorWindow
                 !editor._scalingSourceNote.Text.Contains("signed I16", StringComparison.Ordinal) ||
                 !editor._scalingSourceNote.Text.Contains("MVar", StringComparison.Ordinal))
                 throw new InvalidOperationException(
-                    "TI11 reactive power must expose scaling and warn against guessed MVar.");
+                    "TI11 reactive power must expose source-aware TwoPoint scaling and actual RTU FAT caveat.");
 
             var digital = editor._rows.First(r => r.TypeId == "30");
             editor.SetCurrentCell(digital);
@@ -262,9 +262,24 @@ public sealed partial class SignalListEditorWindow
             // Changing the selected row must not mutate field calibration.
             if (normalized.X0 != "0" || normalized.X100 != "1" ||
                 normalized.Y0 != "0" || normalized.Y100 != "1200" ||
-                q.Unit != "counts" || editor._dirty)
+                q.Unit != "MVar" || q.ScalingMode != "TwoPoint" ||
+                q.X0 != "-32768" || q.X100 != "32767" ||
+                q.Y0 != "-2078" || q.Y100 != "2078" || editor._dirty)
                 throw new InvalidOperationException(
-                    "Inspector navigation changed source-defined scaling or dirtied the profile.");
+                    "Inspector navigation changed operator-mapped source scaling or dirtied the profile.");
+
+            // Check both distinct Lab SOGI bays in the actual packaged WPF
+            // Signal Map, not only the core JSON serializer.
+            foreach (var ioa in new[] { "790439", "790443" })
+            {
+                var labQ = editor._rows.Single(r => r.Ca == "105" &&
+                    r.Ioa == ioa && r.TypeId == "11");
+                if (labQ.Unit != "MVar" || labQ.ScalingMode != "TwoPoint" ||
+                    labQ.X0 != "-32768" || labQ.X100 != "32767" ||
+                    labQ.Y0 != "-260" || labQ.Y100 != "260")
+                    throw new InvalidOperationException(
+                        "Operator Lab SOGI 3/4 Q reference missing for IOA " + ioa);
+            }
 
             // New daily mapping workspace: full engineering details are retained
             // but the normal 1360px grid does not require horizontal scavenging.
