@@ -98,6 +98,53 @@ public sealed class HelpCenterLayoutTests
     }
 
     [Fact]
+    public void EnlargedHelpCenterMakesArticleDominantAndUsesSharedMaterialIcons()
+    {
+        var document = XDocument.Load(Source("HelpWindow.xaml"));
+        Assert.Equal("1180", (string?)document.Root?.Attribute("Width"));
+        Assert.Equal("820", (string?)document.Root?.Attribute("Height"));
+        Assert.Equal("780", (string?)document.Root?.Attribute("MinWidth"));
+
+        var topics = Named(document, "HelpTopicsPanel");
+        var article = Named(document, "HelpArticlePanel");
+        Assert.Same(topics.Parent, article.Parent);
+        var columns = topics.Parent!.Elements()
+            .Single(x => x.Name.LocalName == "Grid.ColumnDefinitions")
+            .Elements().ToArray();
+        Assert.Equal("246", (string?)columns[0].Attribute("Width"));
+        Assert.Equal("*", (string?)columns[2].Attribute("Width"));
+        var search = Named(document, "SearchBox");
+        Assert.Same(topics, search.Ancestors().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "HelpTopicsPanel"));
+
+        var icon = Named(document, "TopicHeroIconPath");
+        Assert.Equal("Path", icon.Name.LocalName);
+        Assert.Equal("{StaticResource MaterialHelpDescription}", (string?)icon.Attribute("Data"));
+        var itemIcon = document.Descendants().Single(x =>
+            (string?)x.Attribute("Data") == "{Binding IconGeometry}");
+        Assert.Equal("Path", itemIcon.Name.LocalName);
+        Assert.DoesNotContain("{Binding Icon}", File.ReadAllText(Source("HelpWindow.xaml")));
+
+        var shared = XDocument.Load(Source("Resources/LucideIcons.xaml"));
+        foreach (var key in new[] {
+            "MaterialHelpBook", "MaterialHelpCode", "MaterialHelpEthernet",
+            "MaterialHelpTarget", "MaterialHelpSchedule", "MaterialHelpDescription",
+            "MaterialHelpOpenInNew", "MaterialHelpAssessment", "MaterialHelpBugReport" })
+        {
+            Assert.Single(shared.Descendants(), x =>
+                (string?)x.Attribute(Xaml + "Key") == key);
+        }
+
+        var code = File.ReadAllText(Source("HelpWindow.xaml.cs"));
+        Assert.Contains("GetTopicMaterialGeometry(topic.Key)", code);
+        Assert.Contains("OpenOnlineLabel.Text =", code);
+        Assert.DoesNotContain("BuildOnlineButtonContent", code);
+        var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
+        Assert.Contains("en-trace-1180x820.png", acceptance);
+        Assert.Contains("HelpArticlePanel.ActualWidth", acceptance);
+    }
+
+    [Fact]
     public void ReadingSurfaceBrushIsDeclaredOnceInGlobalTheme()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
