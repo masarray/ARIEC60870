@@ -99,7 +99,7 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("bitmap.Render(viewport);", acceptance);
         Assert.DoesNotContain("bitmap.Render(this);", acceptance);
         Assert.Contains("en-trace-780x540.png", acceptance);
-        Assert.Contains("id-trace-780x540.png", acceptance);
+        Assert.Contains("id-iec101-780x540.png", acceptance);
         Assert.Contains("No matching topics", acceptance);
         Assert.Contains("--help-ui-acceptance", app);
     }
