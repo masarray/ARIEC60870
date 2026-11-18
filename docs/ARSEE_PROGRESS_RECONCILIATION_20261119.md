@@ -79,21 +79,21 @@ Require full Windows Release build, tests, packaged WPF and negative regression.
 
 ## 7. Phase-2 follow-up — 19 November 2026 WIB (newer than the preserved snapshot above)
 
-This is an **append-only superseding status**, not a rewrite of the time-bounded audit snapshot. Exact baseline: canonical \`masarray/arsee\`, \`master@292ccb4f11a8d21a5086277b1e6ea48d8953fd0d\`. After [#267](https://github.com/masarray/arsee/pull/267) merged, the independent fixes [#268](https://github.com/masarray/arsee/pull/268) and [#269](https://github.com/masarray/arsee/pull/269) **also merged**. Do not execute the outdated items in section 6 as if they were still missing.
+This is an **append-only superseding status**, not a rewrite of the time-bounded audit snapshot. Exact baseline: canonical `masarray/arsee`, `master@292ccb4f11a8d21a5086277b1e6ea48d8953fd0d`. After [#267](https://github.com/masarray/arsee/pull/267) merged, the independent fixes [#268](https://github.com/masarray/arsee/pull/268) and [#269](https://github.com/masarray/arsee/pull/269) **also merged**. Do not execute the outdated items in section 6 as if they were still missing.
 
 | Scope | Verified result and decision | Status |
 | --- | --- | --- |
 | Signal Map ownership / IEEE R32 | [#268](https://github.com/masarray/arsee/pull/268): only explicit Save & Apply activates the live map; clean Apply does not rewrite JSON; real source path replaces redacted display; R32 TI13/14/36 uses G7 while TI11 signed Q and TI9 normalized POAQ keep G12 | **Merged source**, not an installed-release claim |
-| Operator Q reference and unmapped RX | [#263](https://github.com/masarray/arsee/pull/263) preserves Feeder ±2078, Kopel ±260, Trafo ±260; [#262](https://github.com/masarray/arsee/pull/262) already emits bounded trusted \`IEC10X-UNMAPPED-RX-IOA\` warnings with exact decoded CA/IOA/TI, preserving raw Frame Trace | **Merged source; physical FAT #243 still open** |
+| Operator Q reference and unmapped RX | [#263](https://github.com/masarray/arsee/pull/263) preserves Feeder ±2078, Kopel ±260, Trafo ±260; [#262](https://github.com/masarray/arsee/pull/262) already emits bounded trusted `IEC10X-UNMAPPED-RX-IOA` warnings with exact decoded CA/IOA/TI, preserving raw Frame Trace | **Merged source; physical FAT #243 still open** |
 | Stale Signal Map branch | [#261](https://github.com/masarray/arsee/pull/261) was independently diffed after #268; residual old blanket Q policy is wrong for Kopel and Trafo. The duplicate diagnostics are unnecessary; reconstructing supposedly original IOA bytes from a *decoded* logical IOA is not safe for SQ=1 addressing | **Closed unmerged as superseded**; historical branch intact |
 | Public distribution mirror | [#269](https://github.com/masarray/arsee/pull/269) reconciles site/docs stable fallback and source package metadata to verified stable v3.6.16; master Pages checks succeed | **Merged source / Pages CI passed**; does not alter immutable RC.4 binary |
-| Help Center | [#265](https://github.com/masarray/arsee/pull/265) still owns WPF/layout/Material Icon changes; its Help URL must retain canonical \`masarray.github.io/arsee\` from #266. Do not duplicate its implementation or merge without DPI/visual and exact-head checks | **Open draft, separate owner** |
+| Help Center | [#265](https://github.com/masarray/arsee/pull/265) still owns WPF/layout/Material Icon changes; its Help URL must retain canonical `masarray.github.io/arsee` from #266. Do not duplicate its implementation or merge without DPI/visual and exact-head checks | **Open draft, separate owner** |
 | IEC-101 engine | [#145](https://github.com/masarray/arsee/pull/145) still contains historical software work and overlaps a greatly advanced current master. Current shared per-link transaction source exists in master; full independent physical multi-vendor, 1200-bps SOE, failover/COM and control lifecycle proof is **not** established by this snapshot | **Open draft, no wholesale merge** |
-| Repository policy | [#159](https://github.com/masarray/arsee/issues/159): branch protection/ruleset policy still open. The latest branch API reported \`master.protected=false\` | **Open gate** |
+| Repository policy | [#159](https://github.com/masarray/arsee/issues/159): branch protection/ruleset policy still open. The latest branch API reported `master.protected=false` | **Open gate** |
 
 ### Exact-source automated evidence
 
-- [Master Windows CI #44406279152](https://github.com/masarray/arsee/actions/runs/44406279152): **SUCCESS** at \`292ccb4f\`.
+- [Master Windows CI #44406279152](https://github.com/masarray/arsee/actions/runs/44406279152): **SUCCESS** at `292ccb4f`.
 - [Master CodeQL #44406279137](https://github.com/masarray/arsee/actions/runs/44406279137): **SUCCESS** at same SHA.
 - [Master hygiene #44406279140](https://github.com/masarray/arsee/actions/runs/44406279140): **SUCCESS** at same SHA.
 - [Pages #44406279219](https://github.com/masarray/arsee/actions/runs/44406279219): **SUCCESS** at same SHA.
