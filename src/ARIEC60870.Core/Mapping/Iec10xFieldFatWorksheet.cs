@@ -50,6 +50,11 @@ public static class Iec10xFieldFatWorksheet
                 : point.TypeId is 11 or 12 or 35 &&
                   string.Equals(point.Unit, "counts", StringComparison.OrdinalIgnoreCase)
                     ? "Raw signed counts - gateway unit conversion not approved"
+                    : twoPoint && point.Ca == 105 &&
+                      point.TypeId == 11 && point.Ioa is 790447 or 790439 or 790443 &&
+                      point.X0 == -32768 && point.X100 == 32767 &&
+                      point.Y0 == -2078 && point.Y100 == 2078
+                        ? "Provisional Q SCADA reference - confirm Q source item to exact IOA"
                     : twoPoint
                         ? "TwoPoint configured - verify independent source approval"
                         : "Factor configured - verify independent source approval";
