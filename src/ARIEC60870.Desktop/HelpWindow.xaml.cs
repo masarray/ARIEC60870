@@ -14,6 +14,7 @@ public partial class HelpWindow : Window
     private readonly List<HelpTopic> _topics;
     private string _language = "en";
     private string _selectedTopicKey;
+    private string _expandedChapterKey = "learn-iec-family";
 
     public HelpWindow(string? topicKey = null)
     {
@@ -111,6 +112,14 @@ public partial class HelpWindow : Window
     {
         if (TopicListBox.SelectedItem is not HelpTopicListItem item || item.Kind == "group")
             return;
+
+        if (item.Kind == "chapter" && _expandedChapterKey != item.Key)
+        {
+            _expandedChapterKey = item.Key;
+            RefreshTopicList();
+            SelectTopic(item.Key);
+            return;
+        }
 
         _selectedTopicKey = item.Key;
         var topic = _topics.FirstOrDefault(t => string.Equals(t.Key, item.Key, StringComparison.OrdinalIgnoreCase));
@@ -277,7 +286,7 @@ public partial class HelpWindow : Window
                 {
                     items.Add(MakeNavItem(topic, Pick(topic.TitleEn, topic.TitleId),
                         group ? "chapter" : "topic"));
-                    if (!group)
+                    if (!group || (terms.Length == 0 && topic.Key != _expandedChapterKey))
                         continue;
 
                     for (var i = 0; i < topic.Sections.Count; i++)
