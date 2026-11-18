@@ -210,9 +210,9 @@ public partial class MainWindow
         if (ValuesQuickCountText.Text != values) ValuesQuickCountText.Text = values;
         ValuesQuickCountText.ToolTip = _ioaProfile.HasPoints
             ? "Live Values uses: " + _ioaProfile.ProfileName +
-              "\\nProfile source: " + (string.IsNullOrWhiteSpace(_activeMappingProfileFilePath)
+              "\nProfile source: " + (string.IsNullOrWhiteSpace(_activeMappingProfileFilePath)
                   ? "in-memory" : System.IO.Path.GetFileName(_activeMappingProfileFilePath)) +
-              "\\nLoading another JSON in the Signal Map editor is preview-only until Save & Apply."
+              "\nLoading another JSON in the Signal Map editor is preview-only until Save & Apply."
             : "No active signal mapping. Wire IOAs are displayed without guessed names or engineering units.";
         if (ControlsQuickCountText.Text != controls) ControlsQuickCountText.Text = controls;
         if (GiQuickCountText.Text != gi) GiQuickCountText.Text = gi;
