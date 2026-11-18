@@ -34,6 +34,11 @@ public partial class HelpWindow
         LanguageComboBox.SelectedIndex = 0;
         await CaptureAsync("en-class1-780x540.png", "class-polling", 780, 540);
 
+        // Search-state screenshots are labeled for the full viewport,
+        // not the compact width left from the preceding IEC-101 capture.
+        Width = 1080;
+        Height = 750;
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         SearchBox.Text = "Class 1";
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         UpdateLayout();
