@@ -26,7 +26,10 @@ public sealed class HelpCenterLayoutTests
                 .Attribute("Background"));
 
         var search = Named(document, "SearchBox");
-        Assert.Equal("2", (string?)search.Parent?.Attribute("Grid.Row"));
+        Assert.Equal("1", (string?)search.Parent?.Attribute("Grid.Column"));
+        Assert.Equal("2", (string?)Named(document, "SearchChrome").Attribute("Grid.Row"));
+        Assert.Equal("Center", (string?)search.Attribute("VerticalAlignment"));
+        Assert.Equal("{StaticResource HelpSearchInput}", (string?)search.Attribute("Style"));
         Assert.Equal("SearchBox_TextChanged", (string?)search.Attribute("TextChanged"));
         Assert.Null(search.Attribute("Text")); // Never insert placeholder into the query.
         Assert.Equal("Search help topics", (string?)search.Attribute("AutomationProperties.Name"));
@@ -36,6 +39,8 @@ public sealed class HelpCenterLayoutTests
             (string?)x.Attribute("Style") == "{StaticResource ArSeeToolbarActionButtonStyle}");
         Assert.Contains(actions, x => (string?)x.Attribute(Xaml + "Name") == "ClearSearchButton" &&
             (string?)x.Attribute("Click") == "ClearSearchButton_Click");
+        Assert.DoesNotContain(actions, x => (string?)x.Attribute(Xaml + "Name") == "CloseHelpButton");
+        Assert.DoesNotContain(actions, x => (string?)x.Attribute("Click") == "CloseButton_Click");
         Assert.Contains(document.Descendants(), x => x.Name.LocalName == "ColumnDefinition" &&
             (string?)x.Attribute("Width") == "*");
         Assert.Contains(document.Descendants(), x => x.Name.LocalName == "Border" &&
@@ -55,10 +60,12 @@ public sealed class HelpCenterLayoutTests
 
         var topicList = Named(document, "TopicListBox");
         Assert.Equal("{StaticResource HelpTopicListItem}", (string?)topicList.Attribute("ItemContainerStyle"));
-        var summary = topicList.Descendants().Single(x => x.Name.LocalName == "TextBlock" &&
-            (string?)x.Attribute("Text") == "{Binding Summary}");
-        Assert.Null(summary.Attribute("MaxHeight"));
-        Assert.Equal("Wrap", (string?)summary.Attribute("TextWrapping"));
+        var title = topicList.Descendants().Single(x => x.Name.LocalName == "TextBlock" &&
+            (string?)x.Attribute("Text") == "{Binding Title}");
+        Assert.Equal("Wrap", (string?)title.Attribute("TextWrapping"));
+        Assert.DoesNotContain(topicList.Descendants(), x =>
+            (string?)x.Attribute("Text") == "{Binding Summary}" ||
+            (string?)x.Attribute("Text") == "{Binding Category}");
 
         var source = File.ReadAllText(Source("HelpWindow.xaml.cs"));
         Assert.Contains("row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });", source);
@@ -117,9 +124,12 @@ public sealed class HelpCenterLayoutTests
         Assert.Same(topics, search.Ancestors().Single(x =>
             (string?)x.Attribute(Xaml + "Name") == "HelpTopicsPanel"));
 
-        var icon = Named(document, "TopicHeroIconPath");
+        var icon = Named(document, "SearchGlyphPath");
         Assert.Equal("Path", icon.Name.LocalName);
-        Assert.Equal("{StaticResource MaterialHelpDescription}", (string?)icon.Attribute("Data"));
+        Assert.Equal("{StaticResource ArSeeMaterialOutlinedSearch}", (string?)icon.Attribute("Data"));
+        Assert.Equal("Center", (string?)icon.Attribute("VerticalAlignment"));
+        Assert.Null(document.Descendants().FirstOrDefault(x =>
+            (string?)x.Attribute(Xaml + "Name") == "TopicHeroIconPath"));
         var itemIcon = document.Descendants().Single(x =>
             (string?)x.Attribute("Data") == "{Binding IconGeometry}");
         Assert.Equal("Path", itemIcon.Name.LocalName);
@@ -127,9 +137,11 @@ public sealed class HelpCenterLayoutTests
 
         var shared = XDocument.Load(Source("Resources/LucideIcons.xaml"));
         foreach (var key in new[] {
-            "MaterialHelpBook", "MaterialHelpCode", "MaterialHelpEthernet",
-            "MaterialHelpTarget", "MaterialHelpSchedule", "MaterialHelpDescription",
-            "MaterialHelpOpenInNew", "MaterialHelpAssessment", "MaterialHelpBugReport" })
+            "ArSeeMaterialOutlinedBook", "ArSeeMaterialOutlinedCode", "ArSeeMaterialOutlinedLink",
+            "ArSeeMaterialOutlinedTarget", "ArSeeMaterialOutlinedClock",
+            "ArSeeMaterialOutlinedDescription", "ArSeeMaterialOutlinedOpenExternal",
+            "ArSeeMaterialOutlinedChart", "ArSeeMaterialOutlinedBug",
+            "ArSeeMaterialOutlinedSearch", "ArSeeMaterialOutlinedClear" })
         {
             Assert.Single(shared.Descendants(), x =>
                 (string?)x.Attribute(Xaml + "Key") == key);
@@ -139,6 +151,9 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("GetTopicMaterialGeometry(topic.Key)", code);
         Assert.Contains("OpenOnlineLabel.Text =", code);
         Assert.DoesNotContain("BuildOnlineButtonContent", code);
+        Assert.DoesNotContain("CloseHelpButton", code);
+        Assert.DoesNotContain("HelpSubtitleText", code);
+        Assert.Contains("SearchGlyphPath.TranslatePoint(", acceptance);
         var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
         Assert.Contains("en-trace-default-window.png", acceptance);
         Assert.Contains("requestedWindowSizes", acceptance);
