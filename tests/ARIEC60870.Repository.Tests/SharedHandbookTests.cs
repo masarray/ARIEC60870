@@ -18,12 +18,16 @@ public sealed class SharedHandbookTests
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Contains("IEC", root.GetProperty("noticeEn").GetString());
         var chapters = root.GetProperty("chapters").EnumerateArray().ToArray();
-        Assert.True(chapters.Length >= 8, "Cover the family, 101, 103, 104, NUC, redundancy, semantics and field FAT.");
+        Assert.True(chapters.Length >= 12, "Engineer book must cover 12 complete learning chapters.");
+        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 50,
+            "Book-depth learning needs at least 50 bilingual sections.");
+        Assert.Equal("Engineering Handbook R2", root.GetProperty("bookEdition").GetString());
         Assert.Equal(chapters.Length, chapters.Select(c => c.GetProperty("key").GetString()).Distinct().Count());
         var expected = new[]
         {
             "learn-iec-family", "learn-iec101", "learn-iec103", "learn-iec104",
-            "learn-nuc", "learn-redundancy", "learn-semantics", "learn-field-guide"
+            "learn-nuc", "learn-redundancy", "learn-semantics", "learn-field-guide",
+            "learn-framing", "learn-lifecycle", "learn-gateways", "learn-interop"
         };
         foreach (var key in expected)
         {
@@ -44,6 +48,13 @@ public sealed class SharedHandbookTests
                     section.GetProperty("paragraphsId").GetArrayLength());
             }
             Assert.NotEmpty(chapter.GetProperty("sources").EnumerateArray());
+            var chapterNumber = Array.IndexOf(chapters, chapter) + 1;
+            Assert.Equal(chapterNumber.ToString("00"), chapter.GetProperty("number").GetString());
+            for (var i = 0; i < sections.Length; i++)
+            {
+                Assert.Equal($"{chapterNumber}.{i + 1}", sections[i].GetProperty("number").GetString());
+                Assert.Equal($"{key}-s{i + 1}", sections[i].GetProperty("id").GetString());
+            }
         }
     }
 
@@ -82,6 +93,10 @@ public sealed class SharedHandbookTests
         Assert.DoesNotContain("innerHTML", js);
         Assert.Contains("response.json()", js);
         Assert.Contains("aria-current", js);
+        Assert.Contains("aria-expanded", js);
+        Assert.Contains("learning-section-button", js);
+        Assert.Contains("learning-protocol-badge", js);
+        Assert.Contains("scrollIntoView", js);
 
         var corpus = File.ReadAllText(Source("site/learning/iec60870-handbook.json"));
         Assert.Contains("not a universal IEC requirement", corpus);
