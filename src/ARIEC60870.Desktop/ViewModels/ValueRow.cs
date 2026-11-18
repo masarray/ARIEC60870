@@ -144,10 +144,9 @@ public sealed class ValueRow : INotifyPropertyChanged
         if (_sourceMeasurementAsdu is not { IsHeaderValid: true, Issues.Count: 0 } ||
             _sourceMeasurementObject is not { Issues.Count: 0 })
             return;
-        var display = strictPoint is not null &&
-            Iec10xEngineeringValue.TryFormat(strictPoint, _sourceMeasurementAsdu,
-                _sourceMeasurementObject, out var result)
-            ? result : _sourceMeasurementObject.ShortValue;
+        var display = Iec10xMeasurementProjection.Render(strictPoint,
+            _sourceMeasurementAsdu, _sourceMeasurementObject,
+            _sourceMeasurementObject.ShortValue);
         if (Value == display) return;
         Value = display;
         OnPropertyChanged(nameof(Value));
