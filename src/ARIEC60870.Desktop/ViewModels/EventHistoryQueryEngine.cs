@@ -204,7 +204,7 @@ public static class EventHistoryCsvExporter
             await using (var csv = new StreamWriter(file, new UTF8Encoding(true), 65536))
             {
                 await csv.WriteLineAsync(
-                    "EventNumber,HostArrivalUtc,RelayTimestamp,Protocol,Source,Signal,PreviousValue,Value,CA,IOA,TI,COT,Quality,QualityInvalid,FrameReference,RawHex");
+                    "EventNumber,HostArrivalUtc,RelayTimestamp,Protocol,Source,Signal,PreviousValue,Value,CA,IOA,TI,COT,RequestFC,Quality,QualityInvalid,FrameReference,RawHex");
                 for (long start = 0; start < snapshot.Count; start += 200)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -224,7 +224,7 @@ public static class EventHistoryCsvExporter
                             entry.Source.RelayTimeText,
                             row.Protocol, row.PhysicalSource, row.Signal, row.Previous,
                             row.DisplayValue, row.CommonAddress, row.IoAddress,
-                            row.TypeId, row.Cot, row.Quality,
+                            row.TypeId, row.Cot, row.RequestFcCode, row.Quality,
                             row.IsQualityInvalid ? "true" : "false",
                             original?.EvidenceReference ?? row.EvidenceReference,
                             original?.RawHex ?? row.RawHex
