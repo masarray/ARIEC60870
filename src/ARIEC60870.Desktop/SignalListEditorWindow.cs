@@ -1855,7 +1855,7 @@ public sealed partial class SignalListEditorWindow : Window
         {
             9 or 10 or 21 or 34 => "NVA: X is the decoded normalized fraction [-1, 1), not the signed I16 bytes.",
             11 or 12 or 35 => string.Equals(row.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase)
-                ? "SVA: X is signed I16 (-32768..32767). This reference TwoPoint is provisional; confirm Q source-item/IOA and RTU scale before field approval."
+                ? "SVA: X is signed I16 (-32768..32767). This Q MVar reference TwoPoint is provisional; confirm source-item/IOA and RTU scale before field approval."
                 : "SVA: X is signed I16 (-32768..32767). Raw counts are not MVar without approved RTU scaling.",
             13 or 14 or 36 => "Float: X is the decoded IEEE-754 value. Use identity where the RTU already sends engineering units.",
             _ => "Scaling is only available for IEC measured-value types."
