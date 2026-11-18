@@ -363,21 +363,62 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildWorkspace()
     {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(405) });
+        var workspace = new Grid();
+        workspace.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 400 });
+        workspace.ColumnDefinitions.Add(_splitterColumn);
+        workspace.ColumnDefinitions.Add(_inspectorColumn);
 
-        var tableCard = CreateCard(new Thickness(0), new Thickness(0));
-        tableCard.Child = _grid;
+        var tableBorder = new Border
+        {
+            Background = CardBrush,
+            BorderBrush = BorderBrushSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            SnapsToDevicePixels = true,
+            Child = _grid
+        };
         ConfigureGrid();
-        grid.Children.Add(tableCard);
+        workspace.Children.Add(tableBorder);
 
-        var detail = BuildDetailPanel();
-        Grid.SetColumn(detail, 2);
-        grid.Children.Add(detail);
+        _inspectorSplitter = new GridSplitter
+        {
+            Width = 5,
+            Background = BorderBrushSoft,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            ResizeDirection = GridResizeDirection.Columns,
+            ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+            ShowsPreview = true,
+            Cursor = Cursors.SizeWE
+        };
+        Grid.SetColumn(_inspectorSplitter, 1);
+        workspace.Children.Add(_inspectorSplitter);
 
-        return grid;
+        _inspectorPanel = BuildDetailPanel();
+        Grid.SetColumn(_inspectorPanel, 2);
+        workspace.Children.Add(_inspectorPanel);
+
+        SetInspectorVisible(false);
+        return workspace;
+    }
+
+    private void SetInspectorVisible(bool visible)
+    {
+        if (_inspectorOpen && !visible && _inspectorColumn.ActualWidth >= 280)
+            _inspectorWidth = _inspectorColumn.ActualWidth;
+        _inspectorOpen = visible;
+        _inspectorColumn.Width = visible
+            ? new GridLength(Math.Clamp(_inspectorWidth, 300, 520))
+            : new GridLength(0);
+        _splitterColumn.Width = visible ? new GridLength(5) : new GridLength(0);
+        if (_inspectorPanel is not null)
+            _inspectorPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (_inspectorSplitter is not null)
+            _inspectorSplitter.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        _detailsButton.Content = visible ? "Hide details" : "Details";
+        _detailsButton.Background = visible ? AccentSoftBrush : Brushes.White;
+        _detailsButton.Foreground = AccentDarkBrush;
+        _detailsButton.BorderBrush = BorderBrushSoft;
     }
 
     private void ConfigureGrid()
@@ -396,7 +437,7 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.EnableColumnVirtualization = true;
         _grid.HeadersVisibility = DataGridHeadersVisibility.Column;
         _grid.GridLinesVisibility = DataGridGridLinesVisibility.Horizontal;
-        _grid.RowHeight = 36;
+        _grid.RowHeight = 31;
         _grid.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _grid.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         _grid.Background = Brushes.Transparent;
@@ -406,7 +447,7 @@ public sealed partial class SignalListEditorWindow : Window
         _grid.HorizontalGridLinesBrush = BrushFromRgb(0xEA, 0xF0, 0xF8);
         _grid.VerticalGridLinesBrush = Brushes.Transparent;
         _grid.FontSize = 12.5;
-        _grid.ColumnHeaderHeight = 38;
+        _grid.ColumnHeaderHeight = 34;
         _grid.ColumnHeaderStyle = CreateColumnHeaderStyle();
         _grid.CellStyle = CreateCellStyle();
         _grid.RowStyle = CreateRowStyle();
@@ -592,7 +633,8 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildDetailPanel()
     {
-        var card = CreateCard(new Thickness(0), new Thickness(14, 12, 14, 12));
+        var card = CreateCard(new Thickness(0), new Thickness(10, 9, 10, 9));
+        card.CornerRadius = new CornerRadius(8);
         var root = new DockPanel { LastChildFill = true };
         card.Child = root;
 
@@ -604,7 +646,7 @@ public sealed partial class SignalListEditorWindow : Window
         _selectionTitle.TextTrimming = TextTrimming.CharacterEllipsis;
         _selectionTitle.ToolTip = "Full signal name";
         _selectionTitle.Foreground = AccentDarkBrush;
-        _selectionSubtitle.Text = "Select a signal from the table.";
+        _selectionSubtitle.Text = "";
         _selectionSubtitle.FontSize = 11.5;
         _selectionSubtitle.Foreground = TextMutedBrush;
         header.Children.Add(_selectionTitle);
@@ -617,8 +659,8 @@ public sealed partial class SignalListEditorWindow : Window
         var tabs = new Grid { Margin = new Thickness(0, 0, 0, 6) };
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         tabs.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ConfigureInspectorTabButton(_scalingTabButton, "Engineering Scaling", scaling: true);
-        ConfigureInspectorTabButton(_mappingTabButton, "Mapping & Commands", scaling: false);
+        ConfigureInspectorTabButton(_scalingTabButton, "Scaling", scaling: true);
+        ConfigureInspectorTabButton(_mappingTabButton, "Mapping", scaling: false);
         tabs.Children.Add(_scalingTabButton);
         Grid.SetColumn(_mappingTabButton, 1);
         tabs.Children.Add(_mappingTabButton);
@@ -634,7 +676,8 @@ public sealed partial class SignalListEditorWindow : Window
         _scalingSourceNote.TextWrapping = TextWrapping.Wrap;
         _scalingSourceNote.FontSize = 10.8;
         _scalingSourceNote.Foreground = TextMutedBrush;
-        _scalingSourceNote.Margin = new Thickness(0, 0, 0, 6);
+        _scalingSourceNote.Margin = new Thickness(0);
+        _scalingSourceNote.Visibility = Visibility.Collapsed;
         scaling.Children.Add(_scalingSourceNote);
 
         // Put mode and unit on one line: both TwoPoint endpoint rows should
@@ -664,14 +707,6 @@ public sealed partial class SignalListEditorWindow : Window
         showLinear.Setters.Add(new Setter(VisibilityProperty, Visibility.Visible));
         linearStyle.Triggers.Add(showLinear);
         linearPanel.Style = linearStyle;
-        linearPanel.Children.Add(new TextBlock
-        {
-            Text = "TwoPoint: X = decoded IEC input; Y = engineering output. Factor/ratio is not applied again.",
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 10.8,
-            Foreground = TextMutedBrush,
-            Margin = new Thickness(0, 0, 0, 8)
-        });
         AddTwoPointPair(linearPanel, "X0 · source low", nameof(SignalListEditorRow.X0),
             "X100 · source high", nameof(SignalListEditorRow.X100));
         AddTwoPointPair(linearPanel, "Y0 · output low", nameof(SignalListEditorRow.Y0),
@@ -711,7 +746,7 @@ public sealed partial class SignalListEditorWindow : Window
         AddTwoPointPair(details, "Mnemonic", nameof(SignalListEditorRow.Mnemonic),
             "Group", nameof(SignalListEditorRow.Group));
 
-        var composeName = CreateToolbarButton("Generate name · Bay + TYPE + Mnemonic", ComposeSignalName_Click, false, false);
+        var composeName = CreateToolbarButton("Generate name", ComposeSignalName_Click, false, false);
         composeName.HorizontalAlignment = HorizontalAlignment.Stretch;
         composeName.Margin = new Thickness(0, 0, 0, 13);
         composeName.ToolTip = "Explicit action only. Keeps an existing trailing numeric suffix; never rewrites names automatically.";
@@ -755,16 +790,10 @@ public sealed partial class SignalListEditorWindow : Window
             FontSize = 12.3,
             FontWeight = FontWeights.SemiBold,
             Foreground = AccentDarkBrush,
-            Margin = new Thickness(0, 6, 0, 2)
+            Margin = new Thickness(0, 6, 0, 6),
+            ToolTip = hint
         });
-        parent.Children.Add(new TextBlock
-        {
-            Text = hint,
-            FontSize = 10.7,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = TextMutedBrush,
-            Margin = new Thickness(0, 0, 0, 10)
-        });
+
     }
 
     private static string? ComposeSignalName(SignalListEditorRow row)
@@ -832,30 +861,15 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildFooter()
     {
-        var footer = new Grid { Margin = new Thickness(0, 12, 0, 0) };
-        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        var statusCard = new Border
-        {
-            Background = CardBrush,
-            BorderBrush = BorderBrushSoft,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(13, 9, 13, 9)
-        };
-        _statusText.TextWrapping = TextWrapping.Wrap;
-        _statusText.FontSize = 12.5;
+        // The native titlebar provides Close. This is unobtrusive operation
+        // feedback, not an onboarding banner occupying the data viewport.
+        var footer = new Border { Margin = new Thickness(2, 4, 2, 0), Height = 19 };
+        _statusText.FontSize = 10.7;
+        _statusText.TextWrapping = TextWrapping.NoWrap;
+        _statusText.TextTrimming = TextTrimming.CharacterEllipsis;
+        _statusText.VerticalAlignment = VerticalAlignment.Center;
         _statusText.Foreground = TextMutedBrush;
-        statusCard.Child = _statusText;
-        footer.Children.Add(statusCard);
-
-        var closeButton = CreateToolbarButton("Close", (_, _) => Close(), false, false);
-        closeButton.Margin = new Thickness(10, 0, 0, 0);
-        closeButton.MinWidth = 86;
-        Grid.SetColumn(closeButton, 1);
-        footer.Children.Add(closeButton);
-
+        footer.Child = _statusText;
         return footer;
     }
 
@@ -869,39 +883,6 @@ public sealed partial class SignalListEditorWindow : Window
         Margin = margin,
         SnapsToDevicePixels = true
     };
-
-    private static StackPanel CreateMetricChip(string label, TextBlock valueBlock, Brush accent, Brush background)
-    {
-        var chip = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            Margin = new Thickness(10, 0, 0, 0),
-            MinWidth = 108
-        };
-        var border = new Border
-        {
-            Background = background,
-            BorderBrush = BorderBrushSoft,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(12, 8, 12, 8)
-        };
-        var content = new StackPanel { Orientation = Orientation.Vertical };
-        content.Children.Add(new TextBlock
-        {
-            Text = label,
-            FontSize = 10.5,
-            Foreground = TextMutedBrush,
-            FontWeight = FontWeights.SemiBold
-        });
-        valueBlock.FontSize = 13;
-        valueBlock.FontWeight = FontWeights.SemiBold;
-        valueBlock.Foreground = accent;
-        content.Children.Add(valueBlock);
-        border.Child = content;
-        chip.Children.Add(border);
-        return chip;
-    }
 
     private static Border CreatePill(string text, Brush foreground, Brush background, Brush borderBrush)
     {
@@ -1394,6 +1375,9 @@ public sealed partial class SignalListEditorWindow : Window
             SavedProfilePath = dialog.FileName;
             _protectedSyncSourcePath = null;
             _pathBox.Text = SavedProfilePath;
+            _profilePathLabel.Text = Path.GetFileName(SavedProfilePath);
+            _profilePathLabel.ToolTip = SavedProfilePath;
+            _profileNameBox.ToolTip = SavedProfilePath;
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
             _dirty = false;
@@ -1557,6 +1541,9 @@ public sealed partial class SignalListEditorWindow : Window
             profile.SaveToFile(target);
             SavedProfilePath = target;
             _pathBox.Text = SavedProfilePath;
+            _profilePathLabel.Text = Path.GetFileName(SavedProfilePath);
+            _profilePathLabel.ToolTip = SavedProfilePath;
+            _profileNameBox.ToolTip = SavedProfilePath;
             Profile = profile;
             _saved = true;
             _dirty = false;
@@ -1610,12 +1597,13 @@ public sealed partial class SignalListEditorWindow : Window
         if (_loadingRows) return;
         _dirty = true;
         UpdateCounters();
-        UpdateStatus($"Unsaved changes. Rows={_rows.Count}.");
+        UpdateStatus("Edited");
     }
 
     private void UpdateStatus(string text, bool success = false, bool danger = false)
     {
         _statusText.Text = text;
+        _statusText.ToolTip = text;
         _statusText.Foreground = danger ? DangerBrush : success ? SuccessBrush : TextMutedBrush;
     }
 
@@ -1627,7 +1615,6 @@ public sealed partial class SignalListEditorWindow : Window
             : $"{shown} / {_rows.Count} signals";
         _dirtyText.Text = _dirty ? "Unsaved" : "Clean";
         _dirtyText.Foreground = _dirty ? DangerBrush : SuccessBrush;
-        if (_dirtyText.Parent is StackPanel) { }
     }
 
     private void RefreshBayChoices()
