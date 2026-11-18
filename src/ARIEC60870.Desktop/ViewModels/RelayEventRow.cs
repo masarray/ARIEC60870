@@ -43,8 +43,9 @@ public sealed class RelayEventRow
         _ when Protocol == "101" => "No verified IEC-101 FC10/FC11 " +
             "request–response match for this event. ACD alone is not " +
             "evidence of the returned IOA's data class.",
-        _ => "IEC-101 Class 1/2 link-layer polling does not apply to " +
-            "IEC-103 or IEC-104 events."
+        _ when Protocol == "103" => "IEC-103 has its own Class 1/2 " +
+            "link services; only verified IEC-101 polls are displayed here.",
+        _ => "IEC-104 does not use IEC-101 Class 1/2 link-layer polling."
     };
 
     private int? VerifiedRequestFunctionCode =>
