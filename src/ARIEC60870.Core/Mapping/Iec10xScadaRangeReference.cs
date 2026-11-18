@@ -28,12 +28,34 @@ public static class Iec10xScadaRangeReferences
 {
     /// <summary>
     /// For the specific 31-point CA105 reference only. The handwritten
-    /// "Q Diri Sendiri" and "Q Lab" rows are NOT mapped to a particular
-    /// FEEDER/KOPEL/TRAFO IOA by the supplied document.
+    /// "Q Diri Sendiri" and "Q Lab" came from the handwritten note.
+    /// The operator subsequently identified FEEDER=own-Q, KOPEL=Lab
+    /// SOGI 3, TRAFO=Lab SOGI 4 (2026-11-19). Alternative ranges
+    /// remain selectable only through explicit per-signal user confirmation.
     /// The corrected POAQ feedback 0..1200 is a later operator statement;
     /// it is not printed in the earlier handwritten 0..1000 note.
     /// X100=1 matches the reviewed conceptual NVA mapping (not raw 32767).
     /// </summary>
+    /// <summary>
+    /// Latest operator-supplied SCADA data-item-to-IOA association for
+    /// the bundled 31-point CA105 reference, not independent field FAT.
+    /// This helper supplies a suggested range; no decoder or TX path
+    /// must call it to auto-calibrate a saved project profile.
+    /// </summary>
+    public static bool TryOperatorMappedForPoint(Iec10xPointMappingEntry point,
+        out Iec10xScadaRangeReference? range)
+    {
+        range = null;
+        if (point is null) return false;
+        var id = point.Ioa switch
+        {
+            790447 => Iec10xScadaRangeId.ReactiveDiriSendiri,
+            790439 or 790443 => Iec10xScadaRangeId.ReactiveLab,
+            _ => (Iec10xScadaRangeId?)null
+        };
+        return id.HasValue && TryForPoint(point, id.Value, out range);
+    }
+
     public static bool TryForPoint(Iec10xPointMappingEntry point,
         Iec10xScadaRangeId reference, out Iec10xScadaRangeReference? range)
     {
