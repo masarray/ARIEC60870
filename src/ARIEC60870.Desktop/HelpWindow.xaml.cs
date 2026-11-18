@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace ARIEC60870.Desktop;
 
@@ -21,6 +22,7 @@ public partial class HelpWindow : Window
     {
         InitializeComponent();
         _topics = LoadSharedHandbook().Concat(CreateTopics()).ToList();
+        TopicListBox.Loaded += (_, _) => QueueInitialNavigationScrollReset();
         _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "learn-iec-family" : topicKey!;
         RefreshLanguageText();
         RefreshTopicList();
@@ -62,6 +64,7 @@ public partial class HelpWindow : Window
                 string.Equals(topic.Key, item.Key, StringComparison.OrdinalIgnoreCase));
             if (selectedTopic is not null)
                 RenderTopic(selectedTopic);
+            QueueInitialNavigationScrollReset();
             return;
         }
 
@@ -74,6 +77,36 @@ public partial class HelpWindow : Window
         var topic = _topics.FirstOrDefault(t =>
             string.Equals(t.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)) ?? _topics[0];
         RenderTopic(topic);
+    }
+
+    private void QueueInitialNavigationScrollReset()
+    {
+        if (_selectedTopicKey != "learn-iec-family" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+            return;
+
+        // A virtualized ListBox can retain a mid-list estimate when the window
+        // first measures at a smaller DPI/runner viewport. Restore the book cover
+        // and its first chapter only after the navigation template has loaded.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (_selectedTopicKey != "learn-iec-family" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+                return;
+            FindNavigationScrollViewer(TopicListBox)?.ScrollToTop();
+        }), DispatcherPriority.ApplicationIdle);
+    }
+
+    private static ScrollViewer? FindNavigationScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer scrollViewer)
+            return scrollViewer;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            var match = FindNavigationScrollViewer(child);
+            if (match is not null)
+                return match;
+        }
+        return null;
     }
 
     private void RenderNoResults()
