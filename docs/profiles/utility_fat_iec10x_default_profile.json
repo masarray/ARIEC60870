@@ -1,6 +1,6 @@
 {
   "schema": "ariec10x-ioa-profile-v1",
-  "profileName": "IEC-101/104 31-point SCADA I/O List — verified identifiers, unverified Q scaling",
+  "profileName": "IEC-101/104 31-point SCADA I/O List — operator-mapped Q ranges; FAT pending",
   "region": "Generic / sanitized example",
   "projectName": "Operator-supplied 31-point IEC-101/104 SCADA I/O List",
   "source": "I/O LIST PENGUJIAN SCADA, page 1 (operator-supplied); CA/IOA/TI/BAY TYPE/TYPE/MNEMO/LAB are document-derived. Q integer calibration is NOT specified by the source.",
@@ -257,14 +257,21 @@
       "name": "FEEDER TM Q",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Measured value scaled value. Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "Operator mapping 2026-11-19: Feeder — Q Diri Sendiri. Handwritten scada.sdb Q source raw -32768..32767 -> engineering -2078..2078 MVar. TwoPoint applies only to received CA105 IOA790447 TI11 signed SVA decoded counts, assuming SCADA raw domain matches IEC SVA. Reference for desktop FAT; verify original RTU RX vs independent SCADA reading before site approval. Does not change original HEX/QDS, P TI13 or commands.",
       "mnemonic": "Q",
       "bayType": "FEEDER",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -2078,
+      "y100": 2078,
+      "engineeringMin": -2078,
+      "engineeringMax": 2078
     },
     {
       "ca": 105,
@@ -289,14 +296,21 @@
       "name": "KOPEL TM Q 1",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "Operator mapping 2026-11-19: Kopel — Lab SOGI 3, Q Lab. Handwritten scada.sdb Q source raw -32768..32767 -> engineering -260..260 MVar. TwoPoint applies only to received CA105 IOA790439 TI11 signed SVA decoded counts, assuming SCADA raw domain matches IEC SVA. Reference for desktop FAT; verify original RTU RX vs independent SCADA reading before site approval. Does not change original HEX/QDS, P TI13 or commands.",
       "mnemonic": "Q",
       "bayType": "KOPEL",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -260,
+      "y100": 260,
+      "engineeringMin": -260,
+      "engineeringMax": 260
     },
     {
       "ca": 105,
@@ -321,14 +335,21 @@
       "name": "TRAFO TM Q 2",
       "group": "Telemetering",
       "signalType": "M_ME_NB_1",
-      "unit": "counts",
+      "unit": "MVar",
       "commandPolicy": "MonitorOnly",
-      "description": "Uncalibrated signed TI11 SVA; CT=2000/1 A and PT=500/0.1 kV alone do not define the IEC integer-to-MVar factor. Configure source-approved endpoints before displaying MVar.",
+      "description": "Operator mapping 2026-11-19: Trafo — Lab SOGI 4, Q Lab. Handwritten scada.sdb Q source raw -32768..32767 -> engineering -260..260 MVar. TwoPoint applies only to received CA105 IOA790443 TI11 signed SVA decoded counts, assuming SCADA raw domain matches IEC SVA. Reference for desktop FAT; verify original RTU RX vs independent SCADA reading before site approval. Does not change original HEX/QDS, P TI13 or commands.",
       "mnemonic": "Q",
       "bayType": "TRAFO",
       "testCategory": "TM",
       "expectedClass": 2,
-      "expectedCot": 3
+      "expectedCot": 3,
+      "scalingMode": "TwoPoint",
+      "x0": -32768,
+      "x100": 32767,
+      "y0": -260,
+      "y100": 260,
+      "engineeringMin": -260,
+      "engineeringMax": 260
     },
     {
       "ca": 105,
@@ -809,7 +830,7 @@
       }
     }
   ],
-  "description": "31-point reference mapping. TI11 Q remains uncalibrated counts; TI13 P float identity. Operator clarification 2026-11-18 specifies TI9 POAQ feedback 0..1200 (superseding earlier I/O list 0..1000), while TI48 POOP command metadata remains 0..1000. This is not field FAT approval; preserve all user-owned custom profiles.",
+  "description": "31-point reference mapping. Operator 2026-11-19 identifies FEEDER as Q Diri Sendiri (-2078..2078 MVar), KOPEL as Lab SOGI 3 Q Lab (-260..260 MVar), and TRAFO as Lab SOGI 4 Q Lab (-260..260 MVar). IEC TI11 signed SVA decoded counts -32768..32767 map by TwoPoint to these display ranges. Association is operator-supplied, not independently confirmed against actual RTU/SCADA or exact SCADA raw domain. TI13 P remains float identity. TI9 POAQ feedback 0..1200 and TI48 POOP command metadata 0..1000 unchanged. No existing operator-saved profile is automatically overwritten.",
   "metadata": {
     "profileIntent": "Generic IEC-101/104 interoperability and FAT evidence workflow example",
     "confidentiality": "Public sanitized example. Do not use as a contractual project standard.",
