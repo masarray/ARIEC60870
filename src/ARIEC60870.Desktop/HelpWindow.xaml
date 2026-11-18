@@ -43,6 +43,10 @@
                                               VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Shell" Property="Background" Value="Transparent" />
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="Transparent" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Shell" Property="Background" Value="{StaticResource Panel75Brush}" />
                             </Trigger>
@@ -57,6 +61,15 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="group">
+                    <Setter Property="IsEnabled" Value="False" />
+                    <Setter Property="Margin" Value="0,6,0,0" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="section">
+                    <Setter Property="Margin" Value="0,0,0,0" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- The TextBox and icon share a single 36-DIP row and vertical center.
@@ -230,24 +243,72 @@
                                      Style="{StaticResource HelpTopicListBox}"
                                      ItemContainerStyle="{StaticResource HelpTopicListItem}"
                                      SelectionChanged="TopicListBox_SelectionChanged"
-                                     AutomationProperties.Name="Help topics">
+                                     AutomationProperties.Name="Help chapters and subchapters">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="30" />
-                                                <ColumnDefinition Width="*" MinWidth="0" />
-                                            </Grid.ColumnDefinitions>
-                                            <Path Data="{Binding IconGeometry}" Width="18" Height="18"
-                                                  Stretch="Uniform"
-                                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
-                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                                       FontSize="11.8" FontWeight="Medium"
-                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
-                                                       VerticalAlignment="Center"
-                                                       TextWrapping="Wrap" />
+                                            <TextBlock x:Name="GroupHeading" Text="{Binding Title}"
+                                                       Visibility="Collapsed" Margin="2,9,0,5"
+                                                       FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Ink500Brush}"
+                                                       CharacterCasing="Upper"
+                                                       VerticalAlignment="Center" />
+                                            <Grid x:Name="ChapterRow" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="54" />
+                                                    <ColumnDefinition Width="*" MinWidth="0" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="ProtocolBadge" Width="49" Height="22"
+                                                        CornerRadius="6" BorderThickness="0"
+                                                        Background="{Binding BadgeBackground}"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Badge}" FontSize="9"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{Binding BadgeForeground}"
+                                                                   TextAlignment="Center" VerticalAlignment="Center" />
+                                                        <Ellipse x:Name="NeutralTopicDot" Width="6" Height="6"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Fill="{Binding BadgeForeground}" Visibility="Collapsed" />
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                           FontSize="11.8" FontWeight="Medium"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                           VerticalAlignment="Center" TextWrapping="Wrap"
+                                                           LineHeight="16" />
+                                            </Grid>
+                                            <Grid x:Name="SectionRow" Visibility="Collapsed"
+                                                  Margin="13,0,0,0" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="19" />
+                                                    <ColumnDefinition Width="*" MinWidth="0" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Width="5" Height="5" HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         Fill="{Binding BadgeForeground}" Opacity="0.82" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                           ToolTip="{Binding Title}"
+                                                           FontSize="11.3" FontWeight="Normal"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
                                         </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Kind}" Value="group">
+                                                <Setter TargetName="GroupHeading" Property="Visibility" Value="Visible" />
+                                                <Setter TargetName="ChapterRow" Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}" Value="section">
+                                                <Setter TargetName="ChapterRow" Property="Visibility" Value="Collapsed" />
+                                                <Setter TargetName="SectionRow" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Badge}" Value="">
+                                                <Setter TargetName="ProtocolBadge" Property="Background" Value="Transparent" />
+                                                <Setter TargetName="NeutralTopicDot" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
