@@ -60,9 +60,15 @@ public sealed class HelpCenterLayoutTests
 
         var topicList = Named(document, "TopicListBox");
         Assert.Equal("{StaticResource HelpTopicListItem}", (string?)topicList.Attribute("ItemContainerStyle"));
-        var title = topicList.Descendants().Single(x => x.Name.LocalName == "TextBlock" &&
+        var chapterRow = Named(document, "ChapterRow");
+        var title = chapterRow.Descendants().Single(x => x.Name.LocalName == "TextBlock" &&
             (string?)x.Attribute("Text") == "{Binding Title}");
         Assert.Equal("Wrap", (string?)title.Attribute("TextWrapping"));
+        Assert.Equal("{Binding BadgeBackground}",
+            (string?)Named(document, "ProtocolBadge").Attribute("Background"));
+        Assert.Equal("Collapsed", (string?)Named(document, "SectionRow").Attribute("Visibility"));
+        Assert.Contains(document.Descendants(), x => x.Name.LocalName == "DataTrigger" &&
+            (string?)x.Attribute("Value") == "section");
         Assert.DoesNotContain(topicList.Descendants(), x =>
             (string?)x.Attribute("Text") == "{Binding Summary}" ||
             (string?)x.Attribute("Text") == "{Binding Category}");
@@ -130,9 +136,10 @@ public sealed class HelpCenterLayoutTests
         Assert.Equal("Center", (string?)icon.Attribute("VerticalAlignment"));
         Assert.Null(document.Descendants().FirstOrDefault(x =>
             (string?)x.Attribute(Xaml + "Name") == "TopicHeroIconPath"));
-        var itemIcon = document.Descendants().Single(x =>
-            (string?)x.Attribute("Data") == "{Binding IconGeometry}");
-        Assert.Equal("Path", itemIcon.Name.LocalName);
+        Assert.Null(document.Descendants().FirstOrDefault(x =>
+            (string?)x.Attribute("Data") == "{Binding IconGeometry}"));
+        Assert.Equal("{Binding Badge}", (string?)Named(document, "ProtocolBadge")
+            .Descendants().Single(x => x.Name.LocalName == "TextBlock").Attribute("Text"));
         Assert.DoesNotContain("{Binding Icon}", File.ReadAllText(Source("HelpWindow.xaml")));
 
         var shared = XDocument.Load(Source("Resources/LucideIcons.xaml"));
@@ -149,6 +156,13 @@ public sealed class HelpCenterLayoutTests
 
         var code = File.ReadAllText(Source("HelpWindow.xaml.cs"));
         Assert.Contains("GetTopicMaterialGeometry(topic.Key)", code);
+        Assert.Contains("GetTopicBadge(topic.Key)", code);
+        Assert.Contains("GetTopicBadge(string key)", code);
+        Assert.Contains("item.Kind == \"section\"", code);
+        Assert.Contains("target.BringIntoView();", code);
+        Assert.Contains("\"IEC101\"", code);
+        Assert.Contains("\"IEC103\"", code);
+        Assert.Contains("\"IEC104\"", code);
         Assert.Contains("OpenOnlineLabel.Text =", code);
         Assert.DoesNotContain("BuildOnlineButtonContent", code);
         Assert.DoesNotContain("CloseHelpButton", code);
