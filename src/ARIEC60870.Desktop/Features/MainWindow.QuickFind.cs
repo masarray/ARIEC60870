@@ -198,6 +198,8 @@ public partial class MainWindow
                 : "");
         var values = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
             (_passiveLatestPointCount > 0 ? $" · {_passiveLatestPointCount:N0} RX points" : "") +
+            (_ioaProfile.HasPoints ? $" · active map {_ioaProfile.Points.Count} references" :
+                " · no active Signal Map") +
             (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
         var controls = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
         var requests = GiCaseRows.Count(x => x.Stages.Count > 0 && x.Stages[0].Phase == "GI request");
