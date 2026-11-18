@@ -1125,9 +1125,9 @@ public partial class HelpWindow : Window
         string SearchText,
         IReadOnlyList<HelpSection> Sections)
     {
-        public string CategoryEn => Key.StartsWith("learn-", StringComparison.Ordinal)
-            ? "Engineering handbook" : Key switch
+        public string CategoryEn => Key switch
         {
+            var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Engineering handbook",
             "overview" => "Quick Help",
             "setup" => "Connection",
             "frame-trace" => "Trace",
@@ -1151,9 +1151,9 @@ public partial class HelpWindow : Window
             _ => "Help"
         };
 
-        public string CategoryId => Key.StartsWith("learn-", StringComparison.Ordinal)
-            ? "Buku belajar engineer" : Key switch
+        public string CategoryId => Key switch
         {
+            var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Buku belajar engineer",
             "overview" => "Bantuan Cepat",
             "setup" => "Koneksi",
             "frame-trace" => "Trace",
