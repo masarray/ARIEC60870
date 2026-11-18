@@ -376,10 +376,12 @@ public sealed partial class SignalListEditorWindow : Window
     {
         var button = new Button
         {
-            Content = CreateMaterialToolbarIcon(icon, 15),
+            Content = CreateMaterialToolbarIcon(icon, 16),
             Style = (Style)Application.Current.FindResource("EventJournalCircleNavigationStyle"),
-            Width = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
-            Height = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
+            // Match the 36-DIP action pills without changing the shared
+            // 28-DIP navigation circles used elsewhere in Main Window.
+            Width = (double)Application.Current.FindResource("ArSeeToolbarPillHeight"),
+            Height = (double)Application.Current.FindResource("ArSeeToolbarPillHeight"),
             Margin = new Thickness(5, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             ToolTip = accessibleName,
