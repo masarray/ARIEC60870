@@ -7,11 +7,16 @@ project-specific MVar/CT/VT conversion coefficient. The Signal List's `Unit`
 is a label, not an instruction to divide the measured number. The
 operator-supplied 31-point PDF identifies `FEEDER TM Q` at CA=105,
 IOA=790447, TI=11 (M_ME_NB_1) and gives CT/PT ratios, but **does not give
-the gateway's signed I16-to-MVar scale**. The source-backed bundled example
-now deliberately labels this uncalibrated observation `counts`: a received
-SVA 13641 remains `13641 counts`, not an invented 13641 or 1730 MVar.
-A separate, explicitly **PROVISIONAL** opt-in profile demonstrates a nominal
-CT/PT hypothesis and requires field verification.
+the gateway's signed I16-to-MVar scale**. The **v3.6.14–v3.6.17-rc.2**
+bundled example therefore deliberately displayed `counts`, never simply
+assigned MVar because the mnemonic was Q. **After the operator's RC2
+screenshot correction (18 Nov 2026)**, the *next candidate source* changes the
+bundled **reference** TI11 Q endpoints at CA105 IOAs 790447/790439/790443 to
+`TwoPoint X0=-32768 X100=32767 Y0=-2078 Y100=+2078 MVar` based on the
+photographed **Q Diri Sendiri** row, **provisional per-IOA association**. This
+is operator-directed testing configuration, **not** RTU field calibration.
+Different **Q Lab ±260** remains an explicit choice; no saved project profile is
+overwritten and original IEC raw/QDS/quality are unchanged.
 
 The installed application version in the operator's 17 November screenshot
 was 3.6.12. These improvements first shipped in public **v3.6.14**, after source-bound CI,
@@ -72,8 +77,11 @@ span, nonfinite slope, missing/command Type ID, or non-MonitorOnly policy
 fail profile validation. Source values outside the calibrated range are
 **extrapolated, not silently clamped**, and original IEC quality flags are
 not changed. Unknown/wrong-CA/wrong-type or corrupt wire evidence cannot
-gain trusted scaled values. No scaling is automatically applied from a
-signal name or bundled example.
+gain trusted scaled values. No scaling is automatically applied to a **previously saved site profile**
+from a signal name or a new bundled reference. A fresh install may load the
+provisional default example, and an older project may explicitly choose
+`Sync 31 I/O` and approve updating *only legacy identity Q* before Save As.
+The engineer must verify the Q data-item-to-IOA association.
 
 In Signal List, select the measured CA/IOA/Type ID row, choose
 `Engineering scaling mode: TwoPoint`, enter the four endpoints, then
@@ -188,3 +196,11 @@ The SCADA handwritten raw column is not necessarily the same numeric domain as A
 ### Latest POAQ/POOP scaling correction (18 November 2026)
 
 The user reports **POOP setpoint command 0..1000** and **POAQ measured feedback 0..1200**; the earlier source PDFs/photo show POAQ 0..1000, so this is a **later operator-supplied correction**, not a value legible in the photograph. The reference profile reflects POAQ 1200 in display-only TwoPoint and keeps TI48 command range at 1000; source commands/encoders are never re-scaled automatically. See [chronology](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). No physical FAT verification or automatic migration of existing custom scaling is implied.
+
+## RC2 screenshot corrective change — new candidate source only (18 November 2026)
+
+The RC2 Values screenshot showed `POAQ=0.999969482422 MW` while a separately opened editor showed the corrected 31-point profile, and Q `0 MVar` while that editor showed `counts/Factor`. These are **different profile states**: importing a JSON into the editor is only a preview, not active in MainWindow. The editor now marks **Not applied**, only **Save & Apply** activates, and the active profile identity appears above Values on hover. If no uncommitted edits exist, Save & Apply can activate the loaded JSON **without rewriting a read-only installed bundle**. Plain Save/Close never silently activates. The app retains prior local profile preferences; updating the bundled example does **not** overwrite existing site mappings.
+
+The new candidate Q `±2078` mapping has `X=0 → 0.03170825 MVar` from the literal asymmetric raw endpoints; `X=13641 → 865.09612 MVar`. Confirm the SCADA's **Q Diri Sendiri versus Q Lab** item association before signing FAT. For POAQ TI9 `32767/32768`, correct `Y ≈ 1199.96338` engineering units **and original OV quality stays OV**. Do not change TI48 POOP command 0..1000.
+
+Physical IOAs `790349`, `1790446`, `1790447` are not mapped to the 31-source IOAs. No automatic truncation or decimal-offset remap is permitted; review original HEX/VSQ/SQ/IOA width. See [RC2 screenshot regression](SCADA_RC2_VALUES_SCREENSHOT_REGRESSION_20261118.md). Immutable v3.6.17-rc.2 artifacts predate these corrections.
