@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Collections;
-using System.Globalization;
 using System.Reflection;
 using ARIEC60870.Core.Mapping;
 using ARIEC60870.Desktop;
