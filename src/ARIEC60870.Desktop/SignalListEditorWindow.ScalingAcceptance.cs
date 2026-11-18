@@ -490,6 +490,22 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Closing the inspector must return full width to the Signal Map grid.");
             CaptureUiReviewImage(editor, "05-grid-first-1140x820");
+
+            // Regression: a clean JSON loaded into the editor is NOT an
+            // activated MainWindow profile. UI must never confuse Clean with
+            // Applied, and resetting that flag must not mutate any point.
+            var beforePreview = editor.BuildProfileFromRows();
+            editor._pendingLiveApply = true;
+            editor.UpdateCounters();
+            if (editor._dirtyText.Text != "Not applied" || editor._dirty)
+                throw new InvalidOperationException(
+                    "A newly loaded profile must visibly say Not applied, not Clean.");
+            editor._pendingLiveApply = false;
+            editor.UpdateCounters();
+            if (editor._dirtyText.Text != "Clean" ||
+                editor.BuildProfileFromRows().Points.Count != beforePreview.Points.Count)
+                throw new InvalidOperationException(
+                    "Pending Apply status must not rewrite the mapping or mark it dirty.");
         }
         finally
         {
