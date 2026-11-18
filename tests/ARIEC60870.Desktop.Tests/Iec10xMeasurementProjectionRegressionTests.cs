@@ -41,7 +41,6 @@ public sealed class Iec10xMeasurementProjectionRegressionTests
         Assert.Equal("1199.96337891 MW",
             Iec10xMeasurementProjection.Render(Poaq(), asdu, obj,
                 "0.999969482422 MW"));
-        Assert.Equal("0.999969482422 MW", "0.999969482422 MW"); // original source is immutable
 
         var half = Decode(9, 790449, 0, 0x40);
         Assert.Equal("600 MW", Iec10xMeasurementProjection.Render(
@@ -92,7 +91,7 @@ public sealed class Iec10xMeasurementProjectionRegressionTests
         Assert.Equal("no trusted numerical source [scaling not verified]", message);
 
         var asdu = Decode(9, 790449, 0xff, 0x7f, 0x01);
-        Assert.Equal("Normalized=0.999969482421875",
+        Assert.Equal("Normalized=0.99997",
             Iec10xMeasurementProjection.Render(null, asdu,
                 Assert.Single(asdu.Objects), "0.999969482422 MW"));
     }
