@@ -71,6 +71,52 @@ public sealed class Iec10xEngineeringScalingTests
         Assert.Equal("1750 MVar", display);
     }
 
+    [Theory]
+    [InlineData(-1.207f, "-1.207 MVar")]
+    [InlineData(0.0000001f, "1E-07 MVar")]
+    [InlineData(-125000f, "-125000 MVar")]
+    public void Ti13FloatDisplayUsesSourcePrecisionWithoutChangingWireEvidence(
+        float wireNumber, string expected)
+    {
+        var element = BitConverter.GetBytes(wireNumber).Append((byte)0x01).ToArray();
+        var asdu = Decode(13, element);
+        var point = Point(13);
+        Assert.Empty(asdu.Issues);
+        var obj = Assert.Single(asdu.Objects);
+        Assert.True(Iec10xEngineeringValue.TryFormat(point, asdu, obj, out var display));
+        Assert.Equal(expected, display);
+        Assert.Equal(element, obj.RawBytes);
+        Assert.True(obj.QualityDetails?.Overflow);
+    }
+
+    [Fact]
+    public void SignedAndNormalizedEngineeringPrecisionRemainsUnchangedByFloatFormatting()
+    {
+        var signed = Decode(11, 0x49, 0x35, 0x00);
+        var qPoint = Point(11);
+        qPoint.ScalingMode = "TwoPoint";
+        qPoint.X0 = -32768;
+        qPoint.X100 = 32767;
+        qPoint.Y0 = -260;
+        qPoint.Y100 = 260;
+        Assert.True(Iec10xEngineeringValue.TryFormat(qPoint, signed,
+            Assert.Single(signed.Objects), out var qDisplay));
+        Assert.Equal("108.235294118 MVar", qDisplay);
+
+        var normalized = Decode(9, 0xff, 0x7f, 0x01);
+        var poaq = Point(9);
+        poaq.ScalingMode = "TwoPoint";
+        poaq.X0 = 0;
+        poaq.X100 = 1;
+        poaq.Y0 = 0;
+        poaq.Y100 = 1200;
+        poaq.Unit = "MW";
+        Assert.True(Iec10xEngineeringValue.TryFormat(poaq, normalized,
+            Assert.Single(normalized.Objects), out var poaqDisplay));
+        Assert.Equal("1199.96337891 MW", poaqDisplay);
+        Assert.Contains("Overflow", normalized.QualityText);
+    }
+
     [Fact]
     public void NegativeSvaUsesSignedLittleEndianAndNeverChangesQuality()
     {
