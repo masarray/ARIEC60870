@@ -15,6 +15,7 @@ public partial class HelpWindow : Window
     private string _language = "en";
     private string _selectedTopicKey;
     private string _expandedChapterKey = "learn-iec-family";
+    private bool _refreshingTopicList;
 
     public HelpWindow(string? topicKey = null)
     {
@@ -32,6 +33,13 @@ public partial class HelpWindow : Window
             _topics.Any(topic => string.Equals(topic.Key, topicKey, StringComparison.OrdinalIgnoreCase)))
         {
             _selectedTopicKey = topicKey!;
+            if (_selectedTopicKey.StartsWith("learn-", StringComparison.Ordinal) &&
+                _expandedChapterKey != _selectedTopicKey)
+            {
+                _expandedChapterKey = _selectedTopicKey;
+                RefreshTopicList();
+            }
+
             // F1/context navigation has priority over a stale search filter.
             if (!TopicListBox.Items.OfType<HelpTopicListItem>().Any(item =>
                     string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
@@ -48,6 +56,12 @@ public partial class HelpWindow : Window
 
             TopicListBox.SelectedItem = item;
             TopicListBox.ScrollIntoView(item);
+            // SelectionChanged may be suppressed when rebuilding the hierarchical
+            // ItemsSource; the article must follow the requested key deterministically.
+            var selectedTopic = _topics.FirstOrDefault(topic =>
+                string.Equals(topic.Key, item.Key, StringComparison.OrdinalIgnoreCase));
+            if (selectedTopic is not null)
+                RenderTopic(selectedTopic);
             return;
         }
 
@@ -110,7 +124,8 @@ public partial class HelpWindow : Window
 
     private void TopicListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (TopicListBox.SelectedItem is not HelpTopicListItem item || item.Kind == "group")
+        if (_refreshingTopicList ||
+            TopicListBox.SelectedItem is not HelpTopicListItem item || item.Kind == "group")
             return;
 
         if (item.Kind == "chapter" && _expandedChapterKey != item.Key)
@@ -304,7 +319,15 @@ public partial class HelpWindow : Window
             }
         }
 
-        TopicListBox.ItemsSource = items;
+        _refreshingTopicList = true;
+        try
+        {
+            TopicListBox.ItemsSource = items;
+        }
+        finally
+        {
+            _refreshingTopicList = false;
+        }
         NoTopicsText.Visibility = matched.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (matched.Count > 0 &&
             !matched.Any(topic => string.Equals(topic.Key, _selectedTopicKey,
