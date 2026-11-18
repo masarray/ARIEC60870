@@ -4,6 +4,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -92,6 +93,14 @@ public sealed partial class SignalListEditorWindow
             if (editor._inspectorOpen ||
                 !ReferenceEquals(editor._detailsButton.Style, workspaceStyle))
                 throw new InvalidOperationException("Details icon/text click did not restore grid-first mode.");
+            // The two top rows use optical vertical centering instead of
+            // independent offsets for search, filters and action buttons.
+            AssertAlignedControlCenters(editor._searchBox, editor._bayFilter,
+                editor._kindFilter, editor._detailsButton);
+            if (editor._profileNameBox.VerticalContentAlignment != VerticalAlignment.Center ||
+                editor._searchBox.VerticalContentAlignment != VerticalAlignment.Center)
+                throw new InvalidOperationException(
+                    "Top metadata and search input must center their editable text.");
             CaptureUiReviewImage(editor, "00-grid-first-1360x820");
             editor.SetInspectorVisible(true);
             await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -120,6 +129,42 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "TI9 POAQ must open the scaling page with the identity columns frozen.");
 
+            // Inspector tabs must reuse the exact shared Main Window toggle
+            // pill style and locally bundled Google Material filled geometry.
+            var toggleStyle = (Style)Application.Current.FindResource("EventJournalActionToggleStyle");
+            if (!ReferenceEquals(editor._scalingTabButton.Style, toggleStyle) ||
+                !ReferenceEquals(editor._mappingTabButton.Style, toggleStyle) ||
+                editor._scalingTabButton.IsChecked != true ||
+                editor._mappingTabButton.IsChecked != false)
+                throw new InvalidOperationException(
+                    "Scaling/Mapping must be mutually exclusive shared-theme toggle pills.");
+            AssertMaterialToggle(editor._scalingTabButton, "MaterialTune", materialPathStyle);
+            AssertMaterialToggle(editor._mappingTabButton, "MaterialDeviceHub", materialPathStyle);
+            AssertAlignedControlCenters(editor._scalingTabButton, editor._mappingTabButton);
+            AssertInspectorField(editor._scalingScroll, "Unit");
+            AssertInspectorField(editor._scalingScroll, "Scaling mode");
+            AssertInspectorField(editor._scalingScroll, "X0 · source low");
+            AssertInspectorField(editor._scalingScroll, "X100 · source high");
+            AssertInspectorField(editor._scalingScroll, "Y0 · output low");
+            AssertInspectorField(editor._scalingScroll, "Y100 · output high");
+            if (editor._selectionTitle.VerticalAlignment != VerticalAlignment.Center ||
+                editor._selectionSubtitle.VerticalAlignment != VerticalAlignment.Center)
+                throw new InvalidOperationException("Inspector identity text is not vertically centered.");
+
+            // WPF Click route must switch the shared toggle states without
+            // modifying or dirtying the selected signal.
+            editor._mappingTabButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            if (editor._mappingTabButton.IsChecked != true ||
+                editor._scalingTabButton.IsChecked != false ||
+                editor._detailScroll.Visibility != Visibility.Visible || editor._dirty)
+                throw new InvalidOperationException("Mapping tab did not select cleanly on actual Click.");
+            editor._scalingTabButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            if (editor._scalingTabButton.IsChecked != true ||
+                editor._mappingTabButton.IsChecked != false ||
+                editor._scalingScroll.Visibility != Visibility.Visible || editor._dirty)
+                throw new InvalidOperationException("Scaling tab did not restore cleanly on actual Click.");
+            editor.UpdateLayout();
+
             foreach (var label in new[]
             {
                 "X0 · source low", "X100 · source high",
@@ -147,6 +192,22 @@ public sealed partial class SignalListEditorWindow
                 throw new InvalidOperationException(
                     "Digital/command signals must default to Mapping & Commands.");
             editor.UpdateLayout();
+            if (editor._mappingTabButton.IsChecked != true ||
+                editor._scalingTabButton.IsChecked != false)
+                throw new InvalidOperationException(
+                    "Selecting a digital point must select the Mapping pill.");
+            AssertInspectorField(editor._detailScroll, "Common address (CA)");
+            AssertInspectorField(editor._detailScroll, "Information object (IOA)");
+            AssertInspectorField(editor._detailScroll, "Signal name");
+            var generateName = FindButtonByName(editor._layoutRoot, "SignalMapGenerateNameButton");
+            var validateSignal = FindButtonByName(editor._layoutRoot, "SignalMapValidateSignalButton");
+            if (generateName is null || validateSignal is null ||
+                !ReferenceEquals(generateName.Style, workspaceStyle) ||
+                !ReferenceEquals(validateSignal.Style, workspaceStyle))
+                throw new InvalidOperationException(
+                    "Mapping inspector actions must use the Main Window shared button style.");
+            AssertMaterialIconText(generateName, "MaterialAutoFixHigh", materialPathStyle);
+            AssertMaterialIconText(validateSignal, "MaterialCheckCircle", materialPathStyle);
             CaptureUiReviewImage(editor, "02-digital-mapping-1360x820");
 
             // Changing the selected row must not mutate field calibration.
@@ -454,6 +515,51 @@ public sealed partial class SignalListEditorWindow
             !ReferenceEquals(icon.Data, Application.Current.FindResource(geometry)))
             throw new InvalidOperationException(
                 $"Material icon-only button '{geometry}' lost its shared vector/icon style.");
+    }
+
+    private static void AssertAlignedControlCenters(params FrameworkElement[] elements)
+    {
+        if (elements.Length < 2) return;
+        var root = Window.GetWindow(elements[0]) ??
+            throw new InvalidOperationException("Toolbar controls are not attached to a window.");
+        var ys = elements.Select(element =>
+            element.TransformToAncestor(root)
+                .Transform(new Point(0, element.ActualHeight / 2)).Y).ToArray();
+        if (ys.Max() - ys.Min() > 2.5)
+            throw new InvalidOperationException(
+                "Toolbar/control vertical-center drift: " +
+                string.Join(", ", ys.Select(x => x.ToString("0.##"))));
+    }
+
+    private static void AssertMaterialToggle(ToggleButton button, string geometry, Style pathStyle)
+    {
+        if (button.Content is not StackPanel content ||
+            content.Children.Count != 2 ||
+            content.Children[0] is not System.Windows.Shapes.Path icon ||
+            content.Children[1] is not TextBlock caption ||
+            !ReferenceEquals(icon.Style, pathStyle) ||
+            !ReferenceEquals(icon.Data, Application.Current.FindResource(geometry)) ||
+            caption.VerticalAlignment != VerticalAlignment.Center ||
+            button.ActualHeight < 34)
+            throw new InvalidOperationException(
+                "Inspector tab lost Material icon, typography centering or shared toggle style: " +
+                geometry);
+    }
+
+    private static void AssertInspectorField(ScrollViewer root, string label)
+    {
+        var caption = FindLabel(root, label) ??
+            throw new InvalidOperationException("Missing inspector field: " + label);
+        if (caption.Parent is not StackPanel container ||
+            container.Children.Count < 2 ||
+            container.Children[1] is not Control input ||
+            caption.VerticalAlignment != VerticalAlignment.Center ||
+            input.VerticalContentAlignment != VerticalAlignment.Center ||
+            caption.Margin.Bottom != 4 ||
+            Math.Abs(container.Margin.Bottom - FieldGap) > 0.1 ||
+            input.ActualHeight < 32)
+            throw new InvalidOperationException(
+                "Inconsistent field label, spacing, or vertical centering: " + label);
     }
 
     private static TextBlock? FindLabel(DependencyObject root, string label)
