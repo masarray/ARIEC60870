@@ -23,9 +23,17 @@ public sealed class Iec10xMeasurementProjectionRegressionTests
 
     private static Iec10xPointMappingEntry Poaq() => new()
     {
-        Ca = 105, Ioa = 790449, TypeId = 9, Name = "TRAFO SOGI TM POAQ",
-        CommandPolicy = "MonitorOnly", Unit = "MW",
-        ScalingMode = "TwoPoint", X0 = 0, X100 = 1, Y0 = 0, Y100 = 1200
+        Ca = 105,
+        Ioa = 790449,
+        TypeId = 9,
+        Name = "TRAFO SOGI TM POAQ",
+        CommandPolicy = "MonitorOnly",
+        Unit = "MW",
+        ScalingMode = "TwoPoint",
+        X0 = 0,
+        X100 = 1,
+        Y0 = 0,
+        Y100 = 1200
     };
 
     [Fact]
@@ -52,8 +60,12 @@ public sealed class Iec10xMeasurementProjectionRegressionTests
     {
         var point = new Iec10xPointMappingEntry
         {
-            Ca = 105, Ioa = 790439, TypeId = 11, Name = "KOPEL TM Q 1",
-            Unit = "counts", CommandPolicy = "MonitorOnly"
+            Ca = 105,
+            Ioa = 790439,
+            TypeId = 11,
+            Name = "KOPEL TM Q 1",
+            Unit = "counts",
+            CommandPolicy = "MonitorOnly"
         };
         var asdu = Decode(11, 790439, 0x49, 0x35);
         var obj = Assert.Single(asdu.Objects);
@@ -75,7 +87,8 @@ public sealed class Iec10xMeasurementProjectionRegressionTests
         }, sourceAsdu: asdu, sourceObject: obj);
         var names = new Iec10xPointDisplayIndex(new Iec10xPointMappingProfile
         {
-            CommonAddress = 105, Points = [point]
+            CommonAddress = 105,
+            Points = [point]
         });
         Iec10xValueNameReconciler.Apply([value], names);
         Assert.Equal("KOPEL TM Q 1", value.Signal);
