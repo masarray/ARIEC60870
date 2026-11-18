@@ -29,7 +29,7 @@
 ### Validation and release boundary
 - Source PR #245 includes a **real Windows WPF executable acceptance test** that opens the actual editor, verifies all four TwoPoint inputs are within the visible viewport, checks TI11 warning and digital Mapping default, and proves no navigation-time calibration/profile mutation. Previous initial layout candidate **failed** this test, and was corrected rather than loosening acceptance.
 - No IEC decoding, original HEX/quality, GI, remote controls, gateway calibration, RTU measurement unit or private project settings are modified.
-- **Published stable:** [v3.6.15](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.15) from versioned source PR #246 after exact-source Windows CI, CodeQL, native installed-updater FAT, WPF packaged-executable viewport acceptance and [Package build/provenance](https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml). Field calibration of Q counts to MVar is separately tracked by #243.
+- **Published stable:** [v3.6.15](https://github.com/masarray/arsee/releases/tag/v3.6.15) from versioned source PR #246 after exact-source Windows CI, CodeQL, native installed-updater FAT, WPF packaged-executable viewport acceptance and [Package build/provenance](https://github.com/masarray/arsee/actions/workflows/release-package.yml). Field calibration of Q counts to MVar is separately tracked by #243.
 
 ## [3.6.14] - Published 2026-11-17
 
@@ -44,7 +44,7 @@
 - Guard retained original HEX, GI/SBO evidence, IEC-103/104 and live serial/transport paths. No unilateral active profile migration on startup.
 
 ### Verification and release boundary
-- **Published stable:** PRs #239–#241 and release-preparation #242 passed exact-source [master CI/real-WPF/native updater FAT](https://github.com/masarray/ARIEC60870/actions/runs/44048682483), [CodeQL](https://github.com/masarray/ARIEC60870/actions/workflows/codeql.yml), repository hygiene, and [Package asset verification/provenance](https://github.com/masarray/ARIEC60870/actions/runs/44049527667) at immutable [v3.6.14](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14).
+- **Published stable:** PRs #239–#241 and release-preparation #242 passed exact-source [master CI/real-WPF/native updater FAT](https://github.com/masarray/arsee/actions/runs/44048682483), [CodeQL](https://github.com/masarray/arsee/actions/workflows/codeql.yml), repository hygiene, and [Package asset verification/provenance](https://github.com/masarray/arsee/actions/runs/44049527667) at immutable [v3.6.14](https://github.com/masarray/arsee/releases/tag/v3.6.14).
 - The I/O PDF does not state gateway signed-TI11-to-MVar resolution; theoretical CT/PT nominal 1732.05 MVA is **not** an approved RTU calibration. No claims of field-measured 1730 MVar conversion, IEC conformance, or 1200-bps 2,000-event external SOE completeness.
 
 ## [3.6.13] - Published 2026-11-17 (source prepared 2026-11-16)
@@ -63,7 +63,7 @@
 - Reject IEC-104 false GI termination/counter promotion from a stray, negative, TEST, wrong-CA/OA/QOI or pre-ACTCON TI100/COT10. Reuse the proven GI lifecycle tracker per TCP association instead of creating another state machine (#230).
 
 ### Release qualification boundary
-- **Published stable:** exact source `289caefe877f58e9f84397112065cae5a0bfa563` passed [Windows CI/native FAT](https://github.com/masarray/ARIEC60870/actions/runs/43997921951) and [Package build/provenance](https://github.com/masarray/ARIEC60870/actions/runs/44001183168), publishing [v3.6.13](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.13) with installer, ZIP, checksum and SPDX SBOM. Physical RTU FAT remains separate.
+- **Published stable:** exact source `289caefe877f58e9f84397112065cae5a0bfa563` passed [Windows CI/native FAT](https://github.com/masarray/arsee/actions/runs/43997921951) and [Package build/provenance](https://github.com/masarray/arsee/actions/runs/44001183168), publishing [v3.6.13](https://github.com/masarray/arsee/releases/tag/v3.6.13) with installer, ZIP, checksum and SPDX SBOM. Physical RTU FAT remains separate.
 - Field validation remains separate: real IEC-101 1200-bps RTU/gateway 60/500/2,000 SOE FIFO parity, COM unplug/replug and dual A/B, controls with actual feedback, independent IEC-103 and multi-vendor IEC-104. No universal conformance certification or signed binary is claimed.
 - Draft #145 remains **unmerged**; only reviewed independent hardening PRs #219–#230 landed. Existing user-owned Signal Lists are not overwritten.
 
