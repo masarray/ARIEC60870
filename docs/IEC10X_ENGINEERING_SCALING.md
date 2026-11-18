@@ -179,3 +179,9 @@ stale cached value as fresh physical data.
 
 Synthetic tests and green Windows CI do not qualify RTU-specific
 calibration, 1,200-bps SOE completeness, or multi-vendor FAT.
+
+## Field SCADA range reference — 18 November 2026 (not an IOA calibration)
+
+A separate operator-supplied handwritten SCADA database range note clarifies why an earlier `±1732` nominal apparent-power hypothesis was revised to `±2078` for one Q data item: **500 kV line-to-line × 2000 A line current × √3 = 1732.05 MVA nominal; 120% ≈ 2078.46 MVA**. The photographed database shows `Q — Diri Sendiri` raw **-32768..32767** to eng **-2078..+2078**, and a **different** `Q — Lab` raw range **-32768..32767** to eng **-260..+260**. These are distinct database ranges; **the available evidence does not identify which, if either, applies to a specific TI11 CA/IOA.** Likewise P identity, Poaq 0..1000 and Tpi -4..14 entries do not override the source's IEC type or tap metadata.
+
+The SCADA handwritten raw column is not necessarily the same numeric domain as ArSee's **decoded IEC X**. In particular TI9 uses signed normalized per-unit X, TI11 signed I16 counts and TI13 IEEE float; TI32 tap is not a generic measured-analog TwoPoint item. See [SCADA database range evidence and acceptance workflow](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Never silently migrate the safe TI11 `counts` bundled default, change any command encoder or replace an existing site-approved range because of the 120% arithmetic alone.
