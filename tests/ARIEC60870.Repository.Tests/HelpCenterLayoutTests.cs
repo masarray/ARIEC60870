@@ -21,6 +21,9 @@ public sealed class HelpCenterLayoutTests
         Assert.Equal("ArSee Help Center", (string?)window.Attribute("Title"));
         Assert.Equal("{StaticResource AppFont}", (string?)window.Attribute("FontFamily"));
         Assert.Equal("{StaticResource SurfaceBrush}", (string?)window.Attribute("Background"));
+        Assert.Equal("{StaticResource SurfaceBrush}",
+            (string?)window.Elements().Single(x => x.Name.LocalName == "Grid")
+                .Attribute("Background"));
 
         var search = Named(document, "SearchBox");
         Assert.Equal("2", (string?)search.Parent?.Attribute("Grid.Row"));
