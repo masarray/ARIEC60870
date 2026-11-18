@@ -155,7 +155,8 @@ public sealed class HelpCenterLayoutTests
         Assert.DoesNotContain("HelpSubtitleText", code);
         var acceptance = File.ReadAllText(Source("HelpWindow.UiAcceptance.cs"));
         Assert.Contains("SearchGlyphPath.TranslatePoint(", acceptance);
-        Assert.Contains("en-trace-default-window.png", acceptance);
+        Assert.Contains("en-handbook-default-window.png", acceptance);
+        Assert.Contains("id-iec101-780x540.png", acceptance);
         Assert.Contains("requestedWindowSizes", acceptance);
         Assert.Contains("topicPaneWidth", acceptance);
         Assert.Contains("HelpArticlePanel.ActualWidth", acceptance);
