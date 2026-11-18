@@ -36,14 +36,25 @@ public sealed class Iec10xScadaIoListProfileSyncTests
             point.BayType = "OLD BAY";
             point.Mnemonic = "OLD";
             point.TestCategory = "OLD";
-            if (point.TypeId == 11) point.Unit = "MVar";
+            if (point.TypeId == 11)
+            {
+                point.Unit = "MVar";
+                point.ScalingMode = "Factor";
+                point.X0 = null;
+                point.X100 = null;
+                point.Y0 = null;
+                point.Y100 = null;
+                point.EngineeringMin = null;
+                point.EngineeringMax = null;
+            }
         }
         var originalJson = JsonSerializer.Serialize(legacy);
         var result = Iec10xScadaIoListProfileSync.PrepareCopy(legacy, reference);
         Assert.Equal(31, result.MatchedPoints);
         Assert.Equal(31, result.RenamedPoints);
         Assert.Equal(31, result.UpdatedBusinessMetadata);
-        Assert.Equal(3, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(0, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(3, result.AppliedScadaReactiveRanges);
         Assert.Equal(originalJson, JsonSerializer.Serialize(legacy));
         Assert.Equal("Operator FAT working profile", result.UpdatedProfile.ProfileName);
         Assert.Equal(7, result.UpdatedProfile.DefaultSettings!.LinkAddress);
@@ -70,11 +81,22 @@ public sealed class Iec10xScadaIoListProfileSyncTests
 
         var factor = Assert.Single(working.Points, p => p.Ioa == 790439);
         factor.Unit = "MVar";
+        factor.ScalingMode = "Factor";
+        factor.X0 = null;
+        factor.X100 = null;
+        factor.Y0 = null;
+        factor.Y100 = null;
         factor.Scale = 0.125;
 
-        // Make the remaining local identity TI11 Q a *legacy* MVar label.
-        // The bundled modern source itself already uses counts.
-        Assert.Single(working.Points, p => p.Ioa == 790443).Unit = "MVar";
+        // Make remaining local Q a legacy unconfigured identity, while
+        // the operator reference supplies an opt-in TwoPoint candidate.
+        var legacyQ = Assert.Single(working.Points, p => p.Ioa == 790443);
+        legacyQ.Unit = "MVar";
+        legacyQ.ScalingMode = "Factor";
+        legacyQ.X0 = null;
+        legacyQ.X100 = null;
+        legacyQ.Y0 = null;
+        legacyQ.Y100 = null;
 
         var other = Copy(reference).Points.Single(p => p.Ioa == 790443);
         other.Ca = 106;
@@ -86,7 +108,8 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         command.FeedbackIoa = 16712704; // Field-specific command config: do not overwrite.
         var result = Iec10xScadaIoListProfileSync.PrepareCopy(working, reference);
         Assert.Equal(31, result.MatchedPoints);
-        Assert.Equal(1, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(0, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(1, result.AppliedScadaReactiveRanges);
         Assert.Equal("OTHER STATION REACTIVE POWER",
             Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790443 && p.Ca == 106).Name);
         var q = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790447);
@@ -99,6 +122,10 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         Assert.Equal("MVar", q.Unit);
         Assert.Equal(0.125, Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790439).Scale);
         Assert.Equal("MVar", Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790439).Unit);
+        var upgraded = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790443 && p.Ca == 105);
+        Assert.Equal("TwoPoint", upgraded.ScalingMode);
+        Assert.Equal(-32768, upgraded.X0);
+        Assert.Equal(2078, upgraded.Y100);
         Assert.Equal(16712704, Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 68542).FeedbackIoa);
         Assert.Equal("DoubleCommandRemoteOnly",
             Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 68542).CommandPolicy);
