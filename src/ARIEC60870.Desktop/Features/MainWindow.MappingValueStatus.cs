@@ -35,6 +35,7 @@ public partial class MainWindow
     private Iec10xRuntimeCaReconciler? _runtimeCaReconciler;
     private Iec10xPointDisplayIndex _displayPointIndex = new(Iec10xPointMappingProfile.Empty);
     private readonly HashSet<(string Source, int Ioa, int ExpectedTi, int ActualTi)> _reportedTiMismatch = new();
+    private readonly HashSet<(string Source, int Ca, int Ioa, int Ti)> _reportedUnmappedPhysicalIoa = new();
     private string? _sessionSubtitleBeforeCaRecovery;
 
     private void BrowseMapping_Click(object sender, RoutedEventArgs e)
@@ -147,6 +148,7 @@ public partial class MainWindow
     {
         _runtimeCaReconciler = null;
         _reportedTiMismatch.Clear();
+        _reportedUnmappedPhysicalIoa.Clear();
         _reportedProfileCaMismatchSources.Clear();
         _displayPointIndex = new Iec10xPointDisplayIndex(_ioaProfile);
         RefreshCachedSignalNames();
@@ -301,6 +303,38 @@ public partial class MainWindow
         AppendSessionLog("Profile CA mismatch: " + explanation);
     }
 
+    // An IOA not present in the active profile must remain a truthful
+    // physical unmapped point. Never subtract 1,000,000, truncate decimal
+    // digits, or borrow another CA/IOA's engineering scaling to make the
+    // label look familiar. Surface bounded source-backed evidence instead.
+    private void ReportUnmappedPhysicalIoa(Iec103MasterEvidenceEvent item)
+    {
+        if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) ||
+            item.Direction != FrameDirection.SlaveToMaster ||
+            !Iec10xObservationIdentity.HasTrustedDecodedPayload(item) ||
+            item.CommonAddressNumber is not int ca ||
+            item.InformationObjectAddress is not int ioa ||
+            item.TypeId is not int ti ||
+            _reportedUnmappedPhysicalIoa.Count >= 128)
+            return;
+
+        var source = string.IsNullOrWhiteSpace(item.PhysicalSource)
+            ? "SINGLE" : item.PhysicalSource.Trim();
+        if (!_reportedUnmappedPhysicalIoa.Add((source, ca, ioa, ti))) return;
+        var width = item.AsduDetails?.InformationObjectAddressWidth ?? 3;
+        var ioaBytes = string.Join(" ", Enumerable.Range(0, Math.Clamp(width, 1, 3))
+            .Select(i => ((ioa >> (8 * i)) & 0xFF).ToString("X2")));
+        var detail = $"Accepted RX from {source}: CA={ca}, IOA={ioa}, TI={ti}, " +
+            $"IOA little-endian bytes={ioaBytes}. " +
+            $"The current {(_ioaProfile.HasPoints ? _ioaProfile.Points.Count : 0)}-point Signal Map has no strict mapping. " +
+            "This does not prove the ASDU decoder is wrong. Confirm original raw HEX, SQ/VSQ, " +
+            "IOA width, and source RTU dataset. Similar-looking numeric IOAs are NOT interchangeable.";
+        AddUiDiagnostic("Warning", "Mapping", "IEC10X-UNMAPPED-RX-IOA",
+            $"Unmapped received IOA {ioa} (TI{ti})", detail,
+            "Inspect the exact ASDU bytes in Frame Trace. Add a confirmed CA/IOA/TI point to a project JSON copy, " +
+            "then Save & Apply. Never auto-retarget commands or alter physical address bytes.");
+    }
+
     private int? ConfiguredDlForSource(Iec103MasterEvidenceEvent item)
     {
         if (item.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
@@ -404,7 +438,10 @@ public partial class MainWindow
             item.TypeId is int receivedTi &&
             !Iec10xPointTypeFamily.SameObservationFamily(declaredTi, receivedTi);
         if (ioaPoint is null && shouldShowValue)
+        {
             ReportUnmatchedProfileCommonAddress(item);
+            ReportUnmappedPhysicalIoa(item);
+        }
         var key = BuildValueKey(item);
         _lastDisplayedValueByKey.TryGetValue(key, out var previousValueBeforeUpdate);
         if (shouldShowValue)
