@@ -6,7 +6,7 @@ This guide is for the first authorized IEC 60870-5-101 / 103 / 104 communication
 
 1. Open the latest release page:
 
-   <https://github.com/masarray/ARIEC60870/releases/latest>
+   <https://github.com/masarray/arsee/releases/latest>
 
 2. Download the Windows ZIP asset:
 
