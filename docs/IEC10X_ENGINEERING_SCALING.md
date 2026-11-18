@@ -1,22 +1,26 @@
 # IEC-101/104 Signal List: Engineering measurement scaling
 
-## Why a raw 13641 may display as 13641 MVar
+## Why raw SVA counts require exact SCADA engineering ranges
 
 IEC-101/104 sends a Type ID and measurement encoding, **not** a guaranteed
 project-specific MVar/CT/VT conversion coefficient. The Signal List's `Unit`
 is a label, not an instruction to divide the measured number. The
 operator-supplied 31-point PDF identifies `FEEDER TM Q` at CA=105,
 IOA=790447, TI=11 (M_ME_NB_1) and gives CT/PT ratios, but **does not give
-the gateway's signed I16-to-MVar scale**. The source-backed bundled example
-now deliberately labels this uncalibrated observation `counts`: a received
-SVA 13641 remains `13641 counts`, not an invented 13641 or 1730 MVar.
-A separate, explicitly **PROVISIONAL** opt-in profile demonstrates a nominal
-CT/PT hypothesis and requires field verification.
+the gateway's signed I16-to-MVar scale**. On 19 November 2026 the
+operator additionally mapped the handwritten SCADA data-item ranges to
+specific bays: **Feeder = Q Diri Sendiri ±2078**, **Kopel = Q Lab SOGI 3
+±260**, and **Trafo = Q Lab SOGI 4 ±260 MVar**. The latest bundled example
+therefore uses signed TI11 SVA TwoPoint with literal X0=-32768,
+X100=32767 and bay-specific Y endpoints, rather than a unit-only MVar
+label. The source raw domain still requires independent RTU/SCADA FAT.
+The older explicitly **PROVISIONAL** CT/PT nominal hypothesis is archived
+separately; it must not override this operator-supplied association.
 
-The installed application version in the operator's 17 November screenshot
-was 3.6.12. These improvements first shipped in public **v3.6.14**, after source-bound CI,
-real-WPF acceptance and native Windows updater FAT. Project-specific TI11
-counts-to-MVar conversion still requires field-approved gateway calibration.
+Earlier uncalibrated behavior was appropriate before the 19 November
+association was supplied. This new source-derived **reference** is not
+independent RTU field calibration: match actual received signed bytes and
+station SCADA readings before treating it as approved operational data.
 
 ## Two-point linear calibration — standard SCADA engineering ranges
 
@@ -98,11 +102,13 @@ The action:
   points, and unmatched types are untouched.
 - Updates only the source-derived signal name, BAY TYPE, MNEMO, and
   business TYPE/TEST category. Other project settings are preserved.
-- For source-listed TI11 Q points only, if the previous configuration still
-  has **Factor identity** (scale=1, offset=0, ratio=1/1 and full-scale=1),
-  converts a misleading `MVar` unit suffix into `counts` after explicit
-  operator consent. **Custom Factor and TwoPoint calibrated MVar remain
-  unchanged.** This never fabricates the missing gateway coefficient.
+- For only the three operator-mapped TI11 Q points, if the existing
+  calibration is still **Factor identity** (scale=1, offset=0,
+  ratio=1/1, full-scale=1, no custom endpoints or limits), apply the exact
+  source-qualified Feeder **±2078** or Lab SOGI 3/4 **±260** MVar
+  TwoPoint reference and unit after explicit operator consent. **Custom
+  Factor and TwoPoint calibrated MVar remain unchanged.** The SCADA raw
+  domain equivalence to IEC SVA is still subject to independent FAT.
 - For the operator-corrected TI9 POAQ feedback (IOA 790449) only, a legacy **identity**
   normalized reading with MW unit and no configured endpoints is upgraded to
   X0=0, X100=1, Y0=0, Y100=1200, after explicit review. POOP TI48 command metadata stays 0..1000. Existing custom
@@ -179,11 +185,21 @@ stale cached value as fresh physical data.
 Synthetic tests and green Windows CI do not qualify RTU-specific
 calibration, 1,200-bps SOE completeness, or multi-vendor FAT.
 
-## Field SCADA range reference — 18 November 2026 (not an IOA calibration)
+## Field SCADA reference chronology — 18–19 November 2026
 
-A separate operator-supplied handwritten SCADA database range note clarifies why an earlier `±1732` nominal apparent-power hypothesis was revised to `±2078` for one Q data item: **500 kV line-to-line × 2000 A line current × √3 = 1732.05 MVA nominal; 120% ≈ 2078.46 MVA**. The photographed database shows `Q — Diri Sendiri` raw **-32768..32767** to eng **-2078..+2078**, and a **different** `Q — Lab` raw range **-32768..32767** to eng **-260..+260**. These are distinct database ranges; **the available evidence does not identify which, if either, applies to a specific TI11 CA/IOA.** Likewise P identity, Poaq 0..1000 and Tpi -4..14 entries do not override the source's IEC type or tap metadata.
+A separate operator-supplied handwritten SCADA database range note clarifies why an earlier `±1732` nominal apparent-power hypothesis was revised to `±2078` for one Q data item: **500 kV line-to-line × 2000 A line current × √3 = 1732.05 MVA nominal; 120% ≈ 2078.46 MVA**. The photographed database shows `Q — Diri Sendiri` raw **-32768..32767** to eng **-2078..+2078**, and a **different** `Q — Lab` raw range **-32768..32767** to eng **-260..+260**. The original photo alone did not identify their IOAs. **Subsequently, on
+19 November the operator specified:** Feeder IOA790447 = Q Diri Sendiri,
+Kopel IOA790439 = Lab SOGI 3, Trafo IOA790443 = Lab SOGI 4. These are
+now assigned in the bundled 31-point **reference** (Y=±2078/±260/±260
+MVar respectively), not asserted as independently FAT-approved.
+P identity, original Poaq 0..1000 and Tpi -4..14 entries do not override
+the source's IEC type or tap metadata.
 
-The SCADA handwritten raw column is not necessarily the same numeric domain as ArSee's **decoded IEC X**. In particular TI9 uses signed normalized per-unit X, TI11 signed I16 counts and TI13 IEEE float; TI32 tap is not a generic measured-analog TwoPoint item. See [SCADA database range evidence and acceptance workflow](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Never silently migrate the safe TI11 `counts` bundled default, change any command encoder or replace an existing site-approved range because of the 120% arithmetic alone.
+The SCADA handwritten raw column is not necessarily the same numeric domain as ArSee's **decoded IEC X**. In particular TI9 uses signed normalized per-unit X, TI11 signed I16 counts and TI13 IEEE float; TI32 tap is not a generic measured-analog TwoPoint item. See [SCADA database range evidence and acceptance workflow](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Do not silently overwrite a site-owned profile or a custom conversion.
+Explicit Sync of the three new Q reference ranges requires an exact
+CA/IOA/TI match, an uncalibrated legacy identity row, a user-confirmed
+preview and Save As a new JSON copy. The physical source domain remains
+subject to FAT, and command encoders remain unchanged.
 
 ### Latest POAQ/POOP scaling correction (18 November 2026)
 
