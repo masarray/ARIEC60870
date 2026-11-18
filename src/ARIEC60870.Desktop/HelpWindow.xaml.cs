@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace ARIEC60870.Desktop;
@@ -26,23 +27,51 @@ public partial class HelpWindow : Window
 
     public void SelectTopic(string? topicKey)
     {
-        if (!string.IsNullOrWhiteSpace(topicKey) && _topics.Any(topic => string.Equals(topic.Key, topicKey, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(topicKey) &&
+            _topics.Any(topic => string.Equals(topic.Key, topicKey, StringComparison.OrdinalIgnoreCase)))
         {
             _selectedTopicKey = topicKey!;
+            // F1/context navigation has priority over a stale search filter.
+            if (!TopicListBox.Items.OfType<HelpTopicListItem>().Any(item =>
+                    string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                SearchBox.Clear();
+                RefreshTopicList();
+            }
         }
 
         foreach (var item in TopicListBox.Items.OfType<HelpTopicListItem>())
         {
-            if (string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase))
-            {
-                TopicListBox.SelectedItem = item;
-                TopicListBox.ScrollIntoView(item);
-                return;
-            }
+            if (!string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            TopicListBox.SelectedItem = item;
+            TopicListBox.ScrollIntoView(item);
+            return;
         }
 
-        var topic = _topics.FirstOrDefault(t => string.Equals(t.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)) ?? _topics[0];
+        if (TopicListBox.Items.Count == 0)
+        {
+            RenderNoResults();
+            return;
+        }
+
+        var topic = _topics.FirstOrDefault(t =>
+            string.Equals(t.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)) ?? _topics[0];
         RenderTopic(topic);
+    }
+
+    private void RenderNoResults()
+    {
+        TopicListBox.SelectedItem = null;
+        TopicKickerText.Text = _language == "id" ? "PENCARIAN" : "SEARCH";
+        TopicTitleText.Text = _language == "id" ? "Topik tidak ditemukan" : "No matching topics";
+        TopicSummaryText.Text = _language == "id"
+            ? "Coba istilah protokol lain atau hapus pencarian untuk melihat semua topik."
+            : "Try a different protocol term or clear the search to browse all topics.";
+        TopicHeroIconText.Text = "?";
+        TopicContentPanel.Children.Clear();
+        TopicScrollViewer.ScrollToTop();
     }
 
     private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -69,7 +98,14 @@ public partial class HelpWindow : Window
         }
 
         RefreshTopicList();
-        SelectTopic(_selectedTopicKey);
+        if (TopicListBox.Items.Count == 0)
+        {
+            RenderNoResults();
+        }
+        else
+        {
+            SelectTopic(_selectedTopicKey);
+        }
     }
 
     private void TopicListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -84,6 +120,21 @@ public partial class HelpWindow : Window
         if (topic is not null)
         {
             RenderTopic(topic);
+        }
+    }
+
+    private void HelpWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && !LanguageComboBox.IsDropDownOpen)
+        {
+            Close();
+            e.Handled = true;
         }
     }
 
