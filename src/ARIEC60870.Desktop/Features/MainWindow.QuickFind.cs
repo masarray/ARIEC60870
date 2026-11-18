@@ -198,7 +198,8 @@ public partial class MainWindow
                 : "");
         var values = $"{ValueGrid.Items.Count} / {ValueRows.Count} values" +
             (_passiveLatestPointCount > 0 ? $" · {_passiveLatestPointCount:N0} RX points" : "") +
-            (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope);
+            (_valuesQuickScope == "All points" ? "" : " · " + _valuesQuickScope) +
+            (_ioaProfile.HasPoints ? $" · Active map: {_ioaProfile.Points.Count} pts" : " · No active map");
         var controls = $"{ControlCasesGrid.Items.Count} / {ControlCaseRows.Count} cases";
         var requests = GiCaseRows.Count(x => x.Stages.Count > 0 && x.Stages[0].Phase == "GI request");
         var unmatched = GiCaseRows.Count(x => x.Status == "Unmatched response · request not observed");
@@ -207,6 +208,12 @@ public partial class MainWindow
             (unmatched > 0 ? $" · {unmatched} unmatched" : "");
         if (TraceQuickCountText.Text != trace) TraceQuickCountText.Text = trace;
         if (ValuesQuickCountText.Text != values) ValuesQuickCountText.Text = values;
+        ValuesQuickCountText.ToolTip = _ioaProfile.HasPoints
+            ? "Live Values uses: " + _ioaProfile.ProfileName +
+              "\\nProfile source: " + (string.IsNullOrWhiteSpace(_activeMappingProfileFilePath)
+                  ? "in-memory" : System.IO.Path.GetFileName(_activeMappingProfileFilePath)) +
+              "\\nLoading another JSON in the Signal Map editor is preview-only until Save & Apply."
+            : "No active signal mapping. Wire IOAs are displayed without guessed names or engineering units.";
         if (ControlsQuickCountText.Text != controls) ControlsQuickCountText.Text = controls;
         if (GiQuickCountText.Text != gi) GiQuickCountText.Text = gi;
     }
