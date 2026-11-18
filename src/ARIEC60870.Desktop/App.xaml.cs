@@ -21,6 +21,33 @@ public partial class App : Application
             Shutdown(code);
             return;
         }
+        if (e.Args.Contains("--help-ui-acceptance", StringComparer.OrdinalIgnoreCase))
+        {
+            base.OnStartup(e);
+            var outputOption = Array.FindIndex(e.Args, arg =>
+                string.Equals(arg, "--help-out", StringComparison.OrdinalIgnoreCase));
+            var output = outputOption >= 0 && outputOption + 1 < e.Args.Length
+                ? e.Args[outputOption + 1]
+                : Path.Combine(Path.GetTempPath(), "ArSee-Help-WPF-Acceptance");
+            try
+            {
+                // Isolated Help Window: real WPF rendering, no MainWindow startup,
+                // no COM/TCP access and no changes to persistent app configuration.
+                var help = new HelpWindow("frame-trace");
+                help.Show();
+                await help.RunHelpUiAcceptanceAsync(output);
+                help.Close();
+                Shutdown(0);
+            }
+            catch (Exception ex)
+            {
+                Directory.CreateDirectory(output);
+                File.WriteAllText(Path.Combine(output, "failure.txt"), ex.ToString());
+                Console.Error.WriteLine("Help Center WPF acceptance failed: " + ex);
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Contains("--observation-ui-acceptance", StringComparer.OrdinalIgnoreCase))
         {
             base.OnStartup(e);
