@@ -88,7 +88,6 @@ public sealed partial class SignalListEditorWindow : Window
     private bool _showScalingTab = true;
     private Iec10xPointMappingProfile _template;
     private bool _dirty;
-    private bool _saved;
     // Loading or writing a file in the editor is NOT an activation in live Values.
     // Only the explicit Save & Apply route returns DialogResult=true to Main Window.
     private bool _pendingLiveApply;
@@ -1402,7 +1401,6 @@ public sealed partial class SignalListEditorWindow : Window
             LoadRowsFromProfile(aligned);
             SavedProfilePath = string.Empty; // Never overwrite the shipped/profile source.
             _pathBox.Text = "New profile copy — choose Save As";
-            _saved = false;
             MarkDirty();
             UpdateStatus($"Prepared CA={_observedCommonAddress.Value} for {aligned.Points.Count} points. Save & Apply a new copy, then reconnect.");
         }
@@ -1465,7 +1463,6 @@ public sealed partial class SignalListEditorWindow : Window
             LoadRowsFromProfile(preview.UpdatedProfile);
             SavedProfilePath = string.Empty;
             _pathBox.Text = "New copy required — choose Save As";
-            _saved = false;
             MarkDirty();
             UpdateStatus($"Prepared {preview.MatchedPoints} matching points. Save & Apply to a NEW profile file; original preserved.", success: true);
         }
@@ -1495,7 +1492,6 @@ public sealed partial class SignalListEditorWindow : Window
             _profileNameBox.Text = profile.ProfileName;
             LoadRowsFromProfile(profile);
             _dirty = false;
-            _saved = false;
             _pendingLiveApply = true;
             UpdateCounters();
             UpdateStatus($"Preview loaded: {profile.Points.Count} points from {Path.GetFileName(dialog.FileName)}. NOT active in Values. Use Save & Apply to activate.", success: true);
@@ -1683,7 +1679,6 @@ public sealed partial class SignalListEditorWindow : Window
             _profilePathLabel.ToolTip = SavedProfilePath;
             _profileNameBox.ToolTip = SavedProfilePath;
             Profile = profile;
-            _saved = true;
             _dirty = false;
             _pendingLiveApply = !closeAfter;
             ResetGridCheckpoint();
