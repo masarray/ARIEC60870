@@ -112,6 +112,60 @@ public sealed class EventHistoryJournalTests
             recovered.ObservedRequestFrame!, recovered.OriginalFrameEvidence!));
     }
 
+    [Theory]
+    [InlineData((byte)0x5A, "FC10", "Request user data, Class 1")]
+    [InlineData((byte)0x5B, "FC11", "Request user data, Class 2")]
+    public void EventLogFcDisplaysOnlyVerifiedIEC101PollAndSurvivesIndexedHistory(
+        byte control, string expectedCode, string expectedTooltip)
+    {
+        var row = Row(24);
+        var rx = row.OriginalFrameEvidence!;
+        var raw = new byte[] { 0x10, control, 0x69,
+            (byte)((control + 0x69) & 0xFF), 0x16 };
+        var requestFrame = Ft12Parser.ForIec101(1).Decode(raw);
+        Assert.True(requestFrame.IsChecksumValid);
+        var poll = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 24,
+            TimestampUtc = rx.TimestampUtc.AddMilliseconds(-50),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            Direction = FrameDirection.MasterToSlave,
+            PhysicalSource = rx.PhysicalSource,
+            LinkAddress = rx.LinkAddress,
+            Frame = requestFrame,
+            RawHex = requestFrame.Hex
+        };
+        Assert.True(EventFrameExchange.IsObservedPollReply(poll, rx));
+        var verified = new RelayEventRow(row.SourceEntry, rx,
+            eventNumber: 1, observedRequestFrame: poll);
+        Assert.Equal(expectedCode, verified.RequestFcCode);
+        Assert.Contains(expectedTooltip, verified.RequestFcTooltip);
+        Assert.Contains("not", verified.RequestFcTooltip, StringComparison.OrdinalIgnoreCase);
+
+        using var journal = new EventHistoryJournal();
+        journal.Append(verified);
+        var restored = journal.ReadAfter(0, 1).Single().ToRow();
+        Assert.Equal(expectedCode, restored.RequestFcCode);
+        Assert.Contains(expectedTooltip, restored.RequestFcTooltip);
+
+        // No observed TX and unrelated physical sources must never inherit
+        // an attractive but fabricated Class 1/2 delivery label.
+        Assert.Equal("—", new RelayEventRow(row.SourceEntry, rx).RequestFcCode);
+        var differentLink = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = poll.SequenceNumber,
+            TimestampUtc = poll.TimestampUtc,
+            ProtocolMode = poll.ProtocolMode,
+            Direction = poll.Direction,
+            PhysicalSource = "Different physical source",
+            LinkAddress = poll.LinkAddress,
+            Frame = requestFrame,
+            RawHex = requestFrame.Hex
+        };
+        Assert.Equal("—", new RelayEventRow(row.SourceEntry, rx,
+            observedRequestFrame: differentLink).RequestFcCode);
+    }
+
     [Fact]
     public void IndexedEventRestoresAllRxAsduObjectsAndQualityWithRecordedWidths()
     {
