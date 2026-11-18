@@ -69,7 +69,8 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
+    <Grid Background="{StaticResource SurfaceBrush}">
+        <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="10" />
@@ -292,6 +293,7 @@
                     </ScrollViewer>
                 </Grid>
             </Border>
+        </Grid>
         </Grid>
     </Grid>
 </Window>
