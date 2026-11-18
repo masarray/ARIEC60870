@@ -108,6 +108,8 @@ public sealed class EventHistoryJournalTests
         Assert.Equal(requestHex, recovered.ObservedRequestFrame?.RawHex);
         Assert.Equal(FrameDirection.MasterToSlave, recovered.ObservedRequestFrame?.Direction);
         Assert.Equal(10, recovered.ObservedRequestFrame?.Frame?.LinkControl?.FunctionCode);
+        Assert.Equal("FC10", recovered.RequestFcCode);
+        Assert.Contains("Request user data, Class 1", recovered.RequestFcTooltip);
         Assert.True(EventFrameExchange.IsObservedPollReply(
             recovered.ObservedRequestFrame!, recovered.OriginalFrameEvidence!));
     }
