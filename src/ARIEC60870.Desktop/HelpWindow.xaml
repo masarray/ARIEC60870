@@ -207,7 +207,7 @@
                                   HorizontalAlignment="Left" VerticalAlignment="Center"
                                   Margin="11,0,0,0" IsHitTestVisible="False" />
                             <TextBlock x:Name="SearchWatermarkText"
-                                       Text="Search topics, ACD, Class 1..."
+                                       Text="Search topics..."
                                        FontSize="10.8" Margin="35,0,36,0"
                                        VerticalAlignment="Center" IsHitTestVisible="False"
                                        TextTrimming="CharacterEllipsis">
