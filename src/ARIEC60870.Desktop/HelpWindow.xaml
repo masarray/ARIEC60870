@@ -251,7 +251,6 @@
                                                        Visibility="Collapsed" Margin="2,9,0,5"
                                                        FontSize="10" FontWeight="SemiBold"
                                                        Foreground="{StaticResource Ink500Brush}"
-                                                       CharacterCasing="Upper"
                                                        VerticalAlignment="Center" />
                                             <Grid x:Name="ChapterRow" VerticalAlignment="Center">
                                                 <Grid.ColumnDefinitions>
