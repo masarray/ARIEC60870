@@ -17,7 +17,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
+using MaterialIconPath = System.Windows.Shapes.Path;
 using System.Windows.Threading;
 using ARIEC60870.Core.Mapping;
 using Microsoft.Win32;
@@ -406,9 +406,9 @@ public sealed partial class SignalListEditorWindow : Window
         return content;
     }
 
-    private static Path CreateMaterialToolbarIcon(string resourceKey, double size)
+    private static MaterialIconPath CreateMaterialToolbarIcon(string resourceKey, double size)
     {
-        return new Path
+        return new MaterialIconPath
         {
             Style = (Style)Application.Current.FindResource("MaterialToolbarIconPath"),
             Data = (Geometry)Application.Current.FindResource(resourceKey),
