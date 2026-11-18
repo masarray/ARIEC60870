@@ -109,16 +109,21 @@ public partial class HelpWindow : Window
 
     private void TopicListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (TopicListBox.SelectedItem is not HelpTopicListItem item)
-        {
+        if (TopicListBox.SelectedItem is not HelpTopicListItem item || item.Kind == "group")
             return;
-        }
 
         _selectedTopicKey = item.Key;
         var topic = _topics.FirstOrDefault(t => string.Equals(t.Key, item.Key, StringComparison.OrdinalIgnoreCase));
-        if (topic is not null)
+        if (topic is null)
+            return;
+
+        RenderTopic(topic);
+        if (item.Kind == "section" && item.SectionIndex >= 0 &&
+            item.SectionIndex < TopicContentPanel.Children.Count &&
+            TopicContentPanel.Children[item.SectionIndex] is FrameworkElement target)
         {
-            RenderTopic(topic);
+            TopicScrollViewer.UpdateLayout();
+            target.BringIntoView();
         }
     }
 
@@ -209,27 +214,92 @@ public partial class HelpWindow : Window
         return (Geometry)FindResource(resource);
     }
 
+    private static readonly Brush HelpBadgeNeutralBackground = CreateBadgeBrush(237, 242, 247);
+    private static readonly Brush HelpBadgeNeutralForeground = CreateBadgeBrush(92, 109, 128);
+    private static readonly Brush HelpBadge101Background = CreateBadgeBrush(226, 244, 240);
+    private static readonly Brush HelpBadge101Foreground = CreateBadgeBrush(34, 113, 103);
+    private static readonly Brush HelpBadge103Background = CreateBadgeBrush(242, 233, 246);
+    private static readonly Brush HelpBadge103Foreground = CreateBadgeBrush(111, 77, 137);
+    private static readonly Brush HelpBadge104Background = CreateBadgeBrush(230, 239, 252);
+    private static readonly Brush HelpBadge104Foreground = CreateBadgeBrush(50, 91, 158);
+
+    private static Brush CreateBadgeBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static (string Badge, Brush Background, Brush Foreground) GetTopicBadge(string key)
+    {
+        if (key.Contains("iec101", StringComparison.OrdinalIgnoreCase) ||
+            key is "addressing" or "acd-dfc" or "class-polling" or "general-interrogation" or "dual-link")
+            return ("IEC101", HelpBadge101Background, HelpBadge101Foreground);
+        if (key.Contains("iec103", StringComparison.OrdinalIgnoreCase))
+            return ("IEC103", HelpBadge103Background, HelpBadge103Foreground);
+        if (key.Contains("iec104", StringComparison.OrdinalIgnoreCase))
+            return ("IEC104", HelpBadge104Background, HelpBadge104Foreground);
+        return ("", HelpBadgeNeutralBackground, HelpBadgeNeutralForeground);
+    }
+
+    private HelpTopicListItem MakeNavItem(HelpTopic topic, string title, string kind, int sectionIndex = -1)
+    {
+        var badge = GetTopicBadge(topic.Key);
+        return new HelpTopicListItem(topic.Key, GetTopicMaterialGeometry(topic.Key),
+            Pick(topic.CategoryEn, topic.CategoryId),
+            title, Pick(topic.SummaryEn, topic.SummaryId), kind, sectionIndex,
+            badge.Badge, badge.Background, badge.Foreground);
+    }
+
     private void RefreshTopicList()
     {
-        var rawSearch = SearchBox.Text ?? string.Empty;
+        var terms = (SearchBox.Text ?? string.Empty).Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var items = new List<HelpTopicListItem>();
+        var matched = _topics.Where(topic => terms.Length == 0 ||
+            terms.All(term => Matches(topic, term))).ToList();
 
-        var terms = rawSearch.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var items = _topics
-            .Where(topic => terms.Length == 0 || terms.All(term => Matches(topic, term)))
-            .Select(topic => new HelpTopicListItem(
-                topic.Key,
-                GetTopicMaterialGeometry(topic.Key),
-                Pick(topic.CategoryEn, topic.CategoryId),
-                Pick(topic.TitleEn, topic.TitleId),
-                Pick(topic.SummaryEn, topic.SummaryId)))
-            .ToList();
+        if (matched.Count > 0)
+        {
+            foreach (var group in new[] { true, false })
+            {
+                var inGroup = matched.Where(topic =>
+                    topic.Key.StartsWith("learn-", StringComparison.Ordinal) == group).ToList();
+                if (inGroup.Count == 0)
+                    continue;
+
+                items.Add(new HelpTopicListItem("", GetTopicMaterialGeometry("overview"), "",
+                    group ? (_language == "id" ? "BUKU ENGINEER" : "ENGINEER HANDBOOK")
+                          : (_language == "id" ? "PANDUAN APLIKASI" : "APP REFERENCE"),
+                    "", "group", -1, "", HelpBadgeNeutralBackground, HelpBadgeNeutralForeground));
+
+                foreach (var topic in inGroup)
+                {
+                    items.Add(MakeNavItem(topic, Pick(topic.TitleEn, topic.TitleId),
+                        group ? "chapter" : "topic"));
+                    if (!group)
+                        continue;
+
+                    for (var i = 0; i < topic.Sections.Count; i++)
+                    {
+                        // Sources are appended to chapter content for offline traceability,
+                        // but are not a separate lesson in the navigation tree.
+                        var section = topic.Sections[i];
+                        if (section.HeadingEn == "Sources and standards")
+                            continue;
+                        var label = $"{i + 1}. {Pick(section.HeadingEn, section.HeadingId)}";
+                        items.Add(MakeNavItem(topic, label, "section", i));
+                    }
+                }
+            }
+        }
 
         TopicListBox.ItemsSource = items;
-        NoTopicsText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (items.Count > 0 && !items.Any(item => string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
-        {
-            _selectedTopicKey = items[0].Key;
-        }
+        NoTopicsText.Visibility = matched.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (matched.Count > 0 &&
+            !matched.Any(topic => string.Equals(topic.Key, _selectedTopicKey,
+                StringComparison.OrdinalIgnoreCase)))
+            _selectedTopicKey = matched[0].Key;
     }
 
     private bool Matches(HelpTopic topic, string term)
@@ -241,7 +311,14 @@ public partial class HelpWindow : Window
             || topic.TitleId.Contains(term, StringComparison.OrdinalIgnoreCase)
             || topic.SummaryEn.Contains(term, StringComparison.OrdinalIgnoreCase)
             || topic.SummaryId.Contains(term, StringComparison.OrdinalIgnoreCase)
-            || topic.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase);
+            || topic.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || topic.Sections.Any(section =>
+                section.HeadingEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || section.HeadingId.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || section.ParagraphsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.ParagraphsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.BulletsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.BulletsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase)));
     }
 
     private void RenderTopic(HelpTopic topic)
@@ -1113,7 +1190,9 @@ public partial class HelpWindow : Window
         };
     }
 
-    public sealed record HelpTopicListItem(string Key, Geometry IconGeometry, string Category, string Title, string Summary);
+    public sealed record HelpTopicListItem(
+        string Key, Geometry IconGeometry, string Category, string Title, string Summary,
+        string Kind, int SectionIndex, string Badge, Brush BadgeBackground, Brush BadgeForeground);
 
     private sealed record HelpTopic(
         string Key,
