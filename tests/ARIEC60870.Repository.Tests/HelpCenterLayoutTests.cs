@@ -67,6 +67,11 @@ public sealed class HelpCenterLayoutTests
         Assert.Equal("{Binding BadgeBackground}",
             (string?)Named(document, "ProtocolBadge").Attribute("Background"));
         Assert.Equal("Collapsed", (string?)Named(document, "SectionRow").Attribute("Visibility"));
+        var subchapterTitle = Named(document, "SectionRow").Descendants()
+            .Single(x => x.Name.LocalName == "TextBlock" &&
+                (string?)x.Attribute("Text") == "{Binding Title}");
+        Assert.Equal("Wrap", (string?)subchapterTitle.Attribute("TextWrapping"));
+        Assert.Null(subchapterTitle.Attribute("TextTrimming"));
         Assert.Contains(document.Descendants(), x => x.Name.LocalName == "DataTrigger" &&
             (string?)x.Attribute("Value") == "section");
         Assert.DoesNotContain(topicList.Descendants(), x =>
@@ -99,6 +104,7 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("RenderTopic(selectedTopic);", code);
         Assert.Contains("_refreshingTopicList = true;", code);
         Assert.Contains("_refreshingTopicList = false;", code);
+        Assert.Contains("FindNavigationScrollViewer(TopicListBox)?.ScrollToTop();", code);
     }
 
     [Fact]
