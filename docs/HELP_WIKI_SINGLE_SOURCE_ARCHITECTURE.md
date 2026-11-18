@@ -18,17 +18,19 @@ schemaVersion: 1
 id, updated, license, noticeEn, noticeId
 chapters[]:
   key: unique, begins learn-
+  number: unique two-digit chapter index
   categoryEn, categoryId, titleEn, titleId, summaryEn, summaryId
   searchText
   sources[]: public HTTPS catalogue / interoperability references
   sections[]:
+    id, number: unique chapter-scoped subchapter anchors
     headingEn, headingId
     paragraphsEn[], paragraphsId[]
     bulletsEn[], bulletsId[]
     framesEn[], framesId[]
 ```
 
-Both readers use the same ordering and section structure. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
+Both readers use the same ordering and section structure. The R2 handbook contains **12 bilingual chapters and 50 numbered educational sections**. New `number`, `id`, and `bookEdition` fields provide canonical section labels and stable deep-link anchors in the public Wiki. The WPF chapter tree derives numbering from the same ordered chapters, offers a compact IEC101/IEC103/IEC104 badge, and expands only the active chapter. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
 
 ## Scope and correctness checks
 
