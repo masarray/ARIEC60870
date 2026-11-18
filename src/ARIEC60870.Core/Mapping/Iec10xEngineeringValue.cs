@@ -121,9 +121,15 @@ public static class Iec10xEngineeringValue
         else return false;
         if (!double.IsFinite(engineering)) return false;
 
-        // Fixed six decimals silently rounded e.g. 1E-7 to zero; use
-        // significant digits with scientific notation as necessary.
-        var rendered = engineering.ToString("G12", CultureInfo.InvariantCulture);
+        // Values are a human-readable projection, never the original wire
+        // evidence. IEEE R32 carries about 7 significant decimal digits;
+        // rendering its binary roundoff at G12 turns -1.207f into
+        // -1.207000017 in the live Values grid. Retain full original bytes,
+        // decimal source and QDS in the evidence model, but use appropriate
+        // significant digits here (still scientific for small nonzero values).
+        var rendered = engineering.ToString(
+            sample.TypeId is 13 or 14 or 36 ? "G7" : "G9",
+            CultureInfo.InvariantCulture);
         text = string.IsNullOrWhiteSpace(point.Unit)
             ? rendered : rendered + " " + point.Unit.Trim();
         return true;
