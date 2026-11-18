@@ -194,22 +194,44 @@ public sealed class Iec10xBayAwarePointMappingTests
     }
 
     [Fact]
-    public void UnverifiedTi11HasNoGuessedMvarOrEngineeringRangeInDefaultProfile()
+    public void OperatorRequestedDefaultQHasExplicitProvisionalReferenceRange()
     {
         var profile = Load();
         foreach (var ioa in new[] { 790447, 790439, 790443 })
         {
             var point = Assert.Single(profile.Points, p => p.Ioa == ioa);
             Assert.Equal(11, point.TypeId);
-            Assert.Equal("counts", point.Unit);
-            Assert.Equal("Factor", point.ScalingMode);
-            Assert.Null(point.EngineeringMin);
-            Assert.Null(point.EngineeringMax);
+            Assert.Equal("MVar", point.Unit);
+            Assert.Equal("TwoPoint", point.ScalingMode);
+            Assert.Equal(-32768, point.X0);
+            Assert.Equal(32767, point.X100);
+            Assert.Equal(-2078, point.Y0);
+            Assert.Equal(2078, point.Y100);
+            Assert.Equal(-2078, point.EngineeringMin);
+            Assert.Equal(2078, point.EngineeringMax);
+            Assert.Contains("NOT FIELD-APPROVED", point.Description);
             var raw = new Iec10xEngineeringSample(11, 105, ioa, 13641, "Scaled=13641");
             Assert.True(Iec10xEngineeringValue.TryFormat(point, raw, out var display));
-            Assert.Equal("13641 counts", display);
+            Assert.Equal("865.096117 MVar", display);
             Assert.Equal("Scaled=13641", raw.OriginalValue);
         }
+        // The lab ±260 reference is still a distinct explicit alternative.
+        var lab = Iec10xScadaRangeReferences.TryForPoint(
+            profile.Points.Single(p => p.Ioa == 790447),
+            Iec10xScadaRangeId.ReactiveLab, out var candidate);
+        Assert.True(lab);
+        Assert.Equal(260, candidate?.Y100);
+    }
+
+    [Fact]
+    public void TapRangeReflectsLatestHandwrittenScadaButDoesNotConvertTi()
+    {
+        var point = Assert.Single(Load().Points, p => p.Ioa == 790448);
+        Assert.Equal(32, point.TypeId);
+        Assert.Equal(-4, point.EngineeringMin);
+        Assert.Equal(14, point.EngineeringMax);
+        Assert.Contains("Earlier I/O list used 1..19", point.Description);
+        Assert.True(Iec10xPointTypeFamily.SameObservationFamily(32, 5));
     }
 
     [Fact]
