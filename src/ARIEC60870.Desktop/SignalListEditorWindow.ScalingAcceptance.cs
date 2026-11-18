@@ -491,6 +491,9 @@ public sealed partial class SignalListEditorWindow
         }
         finally
         {
+            // A failed WPF acceptance may leave the editor in a dirty state.
+            // Never block CI on its interactive Unsaved Changes dialog.
+            editor._dirty = false;
             editor.Close();
         }
     }
