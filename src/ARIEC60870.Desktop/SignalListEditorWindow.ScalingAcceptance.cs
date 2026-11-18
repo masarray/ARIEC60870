@@ -43,6 +43,7 @@ public sealed partial class SignalListEditorWindow
             if (editor._inspectorOpen ||
                 editor._inspectorColumn.Width.Value != 0 ||
                 editor._inspectorPanel?.Visibility != Visibility.Collapsed ||
+                !editor._grid.Columns[3].Width.IsStar ||
                 editor._grid.ActualWidth < editor.ActualWidth * 0.87 ||
                 editor._layoutRoot.RowDefinitions[0].ActualHeight > 48 ||
                 editor._layoutRoot.RowDefinitions[1].ActualHeight > 55 ||
@@ -55,7 +56,9 @@ public sealed partial class SignalListEditorWindow
             editor.UpdateLayout();
             if (!editor._inspectorOpen ||
                 editor._inspectorColumn.ActualWidth < 280 ||
-                editor._inspectorSplitter?.Visibility != Visibility.Visible)
+                editor._inspectorSplitter?.Visibility != Visibility.Visible ||
+                editor._grid.Columns[3].Width.IsStar ||
+                editor._grid.Columns[3].ActualWidth > 210)
                 throw new InvalidOperationException(
                     "Engineering inspector did not open as a resizable side panel.");
 
@@ -116,7 +119,7 @@ public sealed partial class SignalListEditorWindow
             if (editor._grid.Columns.Count != 18 ||
                 editor._grid.Columns.Count(col => col.Visibility == Visibility.Visible) != 8 ||
                 editor._advancedColumns.Count != 10 ||
-                !editor._grid.Columns[3].Width.IsStar)
+                editor._grid.Columns[3].Width.IsStar)
                 throw new InvalidOperationException(
                     "Essential Signal Map grid must present eight identity columns and retain all advanced fields.");
             editor.ToggleExtraColumns();
@@ -323,7 +326,8 @@ public sealed partial class SignalListEditorWindow
             await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
             editor.UpdateLayout();
             if (editor._inspectorOpen ||
-                editor._grid.ActualWidth < editor.ActualWidth * 0.87)
+                editor._grid.ActualWidth < editor.ActualWidth * 0.87 ||
+                !editor._grid.Columns[3].Width.IsStar)
                 throw new InvalidOperationException(
                     "Closing the inspector must return full width to the Signal Map grid.");
             CaptureUiReviewImage(editor, "05-grid-first-1140x820");
