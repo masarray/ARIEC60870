@@ -23,7 +23,7 @@ public partial class HelpWindow
         Directory.CreateDirectory(outputDirectory);
         var captures = new List<object>();
 
-        await CaptureAsync("en-trace-1180x820.png", "frame-trace", 1180, 820);
+        await CaptureAsync("en-trace-default-window.png", "frame-trace", 1180, 820);
         await CaptureAsync("en-trace-780x540.png", "frame-trace", 780, 540);
 
         LanguageComboBox.SelectedIndex = 1;
@@ -72,7 +72,8 @@ public partial class HelpWindow
                 renderer = "native WPF RenderTargetBitmap",
                 dpiQualification = "logical DIP viewports only; operator must review Windows 125% and 150% DPI",
                 screenshots = 6,
-                viewports = new[] { "1180x820", "1080x750", "780x540" },
+                requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
+                note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
                 cases = new[] { "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
@@ -95,7 +96,9 @@ public partial class HelpWindow
                 logicalViewportHeight = ActualHeight,
                 articleViewport = TopicScrollViewer.ViewportWidth,
                 articleExtent = TopicScrollViewer.ExtentWidth,
-                topicCount = TopicListBox.Items.Count
+                topicCount = TopicListBox.Items.Count,
+                topicPaneWidth = HelpTopicsPanel.ActualWidth,
+                articlePaneWidth = HelpArticlePanel.ActualWidth
             });
             SaveRenderedViewport(outputDirectory, filename);
         }
@@ -115,7 +118,7 @@ public partial class HelpWindow
             throw new InvalidOperationException(
                 $"Header title overlaps actions: title right {titleRight}, actions left {actionsLeft}.");
 
-        if (ActualWidth >= 1100 && HelpArticlePanel.ActualWidth < 3.3 * HelpTopicsPanel.ActualWidth)
+        if (ActualWidth >= 950 && HelpArticlePanel.ActualWidth < 2.9 * HelpTopicsPanel.ActualWidth)
             throw new InvalidOperationException("The article is no longer the dominant Help Center panel.");
 
         if (TopicHeroIconPath.Data is null ||
