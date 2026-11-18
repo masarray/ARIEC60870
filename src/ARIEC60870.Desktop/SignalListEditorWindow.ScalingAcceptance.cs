@@ -520,8 +520,8 @@ public sealed partial class SignalListEditorWindow
     private static void AssertAlignedControlCenters(params FrameworkElement[] elements)
     {
         if (elements.Length < 2) return;
-        var root = elements[0].FindCommonVisualAncestor(elements[^1]) ??
-            throw new InvalidOperationException("Toolbar controls do not share a visual root.");
+        var root = Window.GetWindow(elements[0]) ??
+            throw new InvalidOperationException("Toolbar controls are not attached to a window.");
         var ys = elements.Select(element =>
             element.TransformToAncestor(root)
                 .Transform(new Point(0, element.ActualHeight / 2)).Y).ToArray();
