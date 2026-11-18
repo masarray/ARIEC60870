@@ -110,3 +110,29 @@ The photo does **not** map either Q row to FEEDER/KOPEL/TRAFO, identify an IEC T
 The **original** I/O-list PDF and the handwritten SCADA photograph each state POAQ 0..1000; keep those statements above as factual transcriptions of their respective sources. A **later, explicit operator clarification** supersedes the current reference configuration: **POOP (TI48 command, CA105 IOA70537) 0..1000**, versus **POAQ (TI9 measured feedback, CA105 IOA790449) 0..1200**. For ArSee's *decoded normalized* POAQ feedback, the reference TwoPoint endpoints are `X0=0, X100=1, Y0=0, Y100=1200`, where +1 is the conceptual full-scale NVA boundary. The bundled reference profile and opt-in uncalibrated-identity Sync logic are updated to 1200; existing user-saved TwoPoint/Factor calibrations are preserved. The outbound POOP encoder is **not** modified; its command range metadata remains 0..1000.
 
 **Evidence level:** newest operator statement for this project, **not** visually in either previous source document nor independently verified at RTU/SCADA FAT. See [range evidence chronology](SCADA_DB_ENGINEERING_RANGE_EVIDENCE_20261118.md). Do not interpret 1200 as a proved physical overload limit or as permission for command TX.
+
+## 7. Later operator resolution — 19 November 2026
+
+**Chronology:** the original I/O PDF identified 31 CA/IOA/TI points and
+the handwritten SCADA data-item page added two distinct Q ranges but did
+not show a data-item-to-IOA link. The operator has since directly identified
+the bay association:
+
+| Bay described by operator | SCADA item | TI11 CA105 IOA | TwoPoint decoded SVA input | Engineering MVar output |
+| --- | --- | --- | --- | --- |
+| Feeder (Diri Sendiri) | Q Diri Sendiri | 790447 | -32768..32767 | -2078..2078 |
+| Kopel (Lab SOGI 3) | Q Lab | 790439 | -32768..32767 | -260..260 |
+| Trafo (Lab SOGI 4) | Q Lab | 790443 | -32768..32767 | -260..260 |
+
+The bundled **reference** now includes these operator-supplied
+bay-specific Q display endpoints. The mapping is *no longer ambiguous*
+for the operator's current sample, but RTU signed-SVA-to-SCADA-raw
+equivalence and actual calibration remain **NOT FAT TESTED**.
+Only an exact, unconfigured legacy Factor identity may receive this
+range through an explicit Sync preview followed by Save As. Existing
+approved Factor/TwoPoint and command policies are never overwritten.
+
+The earlier sections above record what was known before this correction,
+including the superseded all-Q ±1732 *nominal CT/PT hypothesis*; that
+separate docs-only profile is retained for history, not recommended
+for this now-identified Feeder/Kopel/Trafo configuration.

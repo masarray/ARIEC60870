@@ -13,20 +13,21 @@ namespace ARIEC60870.Desktop;
 
 public sealed partial class SignalListEditorWindow
 {
-    // An optional explicit action under More. The two Q tables do not identify
-    // their CA/IOA association; do not pick one on the operator's behalf.
+    // Explicit per-signal override under More. The latest operator has
+    // identified bay associations for the bundled profile; alternative
+    // presets still require independent operator confirmation.
     private MenuItem CreateScadaReferenceRangesMenu()
     {
         var root = new MenuItem
         {
             Header = "SCADA reference range for selected signal...",
             FontSize = 12,
-            ToolTip = "Preview one unverified SCADA range. Nothing is applied automatically."
+            ToolTip = "Preview one operator-supplied SCADA range. Nothing is applied automatically."
         };
         foreach (var (id, caption) in new[]
         {
-            (Iec10xScadaRangeId.ReactiveDiriSendiri, "Q Diri Sendiri · ±2078"),
-            (Iec10xScadaRangeId.ReactiveLab, "Q Lab · ±260"),
+            (Iec10xScadaRangeId.ReactiveDiriSendiri, "Q Diri Sendiri · Feeder ±2078"),
+            (Iec10xScadaRangeId.ReactiveLab, "Q Lab · SOGI 3/4 ±260"),
             (Iec10xScadaRangeId.PoaqFeedback, "POAQ feedback · 0–1200")
         })
         {
@@ -102,14 +103,20 @@ public sealed partial class SignalListEditorWindow
                 return;
             }
 
+            var matchesOperatorAssociation =
+                Iec10xScadaRangeReferences.TryOperatorMappedForPoint(original,
+                    out var associated) && associated?.Id == referenceId;
             var note = referenceId == Iec10xScadaRangeId.PoaqFeedback
                 ? "POAQ is incoming TI9 feedback, 0–1200 by later operator correction. " +
                   "Outgoing TI48 POOP command remains 0–1000. " +
                   "X100=1 is the conceptual IEC normalized boundary."
-                : "The SCADA note lists Q Diri Sendiri and Q Lab separately, " +
-                  "but does NOT identify which one belongs to this IOA. " +
-                  "The MVar label and decoded SVA-to-SCADA raw equivalence " +
-                  "must be verified on the actual RTU.";
+                : matchesOperatorAssociation
+                    ? "Latest operator association matches this bay: Feeder = Q Diri Sendiri; " +
+                      "Kopel = Lab SOGI 3; Trafo = Lab SOGI 4. " +
+                      "SCADA SVA source domain and engineering unit still need real RTU FAT."
+                    : "This Q range differs from the latest operator-supplied association " +
+                      "for this bay. Apply only with independent corrected SCADA configuration. " +
+                      "Original source identity and quality are never modified.";
 
             var prompt =
                 $"Selected: {selected.Name}\nCA {selected.Ca} · IOA {selected.Ioa} · TI {selected.TypeId}\n" +

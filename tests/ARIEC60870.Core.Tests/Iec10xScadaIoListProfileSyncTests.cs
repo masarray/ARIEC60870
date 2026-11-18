@@ -24,7 +24,7 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         JsonSerializer.Deserialize<Iec10xPointMappingProfile>(JsonSerializer.Serialize(p))!;
 
     [Fact]
-    public void ExplicitSyncReconcilesAll31NamesAndLegacyRawQWithoutMutatingSource()
+    public void ExplicitSyncAppliesOperatorQBayRangesOnlyToLegacyIdentityWithoutMutatingSource()
     {
         var reference = Reference();
         var legacy = Copy(reference);
@@ -36,14 +36,36 @@ public sealed class Iec10xScadaIoListProfileSyncTests
             point.BayType = "OLD BAY";
             point.Mnemonic = "OLD";
             point.TestCategory = "OLD";
-            if (point.TypeId == 11) point.Unit = "MVar";
+            if (point.TypeId == 11)
+            {
+                point.ScalingMode = "Factor";
+                point.X0 = null;
+                point.X100 = null;
+                point.Y0 = null;
+                point.Y100 = null;
+                point.EngineeringMin = null;
+                point.EngineeringMax = null;
+                point.Unit = "counts";
+            }
         }
         var originalJson = JsonSerializer.Serialize(legacy);
         var result = Iec10xScadaIoListProfileSync.PrepareCopy(legacy, reference);
         Assert.Equal(31, result.MatchedPoints);
         Assert.Equal(31, result.RenamedPoints);
         Assert.Equal(31, result.UpdatedBusinessMetadata);
-        Assert.Equal(3, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(3, result.AppliedOperatorReactiveRanges);
+        foreach (var (ioa, limit) in new[] { (790447, 2078d), (790439, 260d), (790443, 260d) })
+        {
+            var updated = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == ioa);
+            Assert.Equal("TwoPoint", updated.ScalingMode);
+            Assert.Equal("MVar", updated.Unit);
+            Assert.Equal(-32768d, updated.X0);
+            Assert.Equal(32767d, updated.X100);
+            Assert.Equal(-limit, updated.Y0);
+            Assert.Equal(limit, updated.Y100);
+            Assert.Equal(-limit, updated.EngineeringMin);
+            Assert.Equal(limit, updated.EngineeringMax);
+        }
         Assert.Equal(originalJson, JsonSerializer.Serialize(legacy));
         Assert.Equal("Operator FAT working profile", result.UpdatedProfile.ProfileName);
         Assert.Equal(7, result.UpdatedProfile.DefaultSettings!.LinkAddress);
@@ -70,11 +92,23 @@ public sealed class Iec10xScadaIoListProfileSyncTests
 
         var factor = Assert.Single(working.Points, p => p.Ioa == 790439);
         factor.Unit = "MVar";
+        factor.ScalingMode = "Factor";
+        factor.X0 = null;
+        factor.X100 = null;
+        factor.Y0 = null;
+        factor.Y100 = null;
         factor.Scale = 0.125;
 
-        // Make the remaining local identity TI11 Q a *legacy* MVar label.
-        // The bundled modern source itself already uses counts.
-        Assert.Single(working.Points, p => p.Ioa == 790443).Unit = "MVar";
+        // The remaining Q is an eligible legacy uncalibrated identity.
+        var legacyQ = Assert.Single(working.Points, p => p.Ioa == 790443);
+        legacyQ.Unit = "counts";
+        legacyQ.ScalingMode = "Factor";
+        legacyQ.X0 = null;
+        legacyQ.X100 = null;
+        legacyQ.Y0 = null;
+        legacyQ.Y100 = null;
+        legacyQ.EngineeringMin = null;
+        legacyQ.EngineeringMax = null;
 
         var other = Copy(reference).Points.Single(p => p.Ioa == 790443);
         other.Ca = 106;
@@ -86,7 +120,11 @@ public sealed class Iec10xScadaIoListProfileSyncTests
         command.FeedbackIoa = 16712704; // Field-specific command config: do not overwrite.
         var result = Iec10xScadaIoListProfileSync.PrepareCopy(working, reference);
         Assert.Equal(31, result.MatchedPoints);
-        Assert.Equal(1, result.ResetUnverifiedReactiveUnits);
+        Assert.Equal(1, result.AppliedOperatorReactiveRanges);
+        var lab = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790443 && p.Ca == 105);
+        Assert.Equal("TwoPoint", lab.ScalingMode);
+        Assert.Equal(-260d, lab.Y0);
+        Assert.Equal(260d, lab.Y100);
         Assert.Equal("OTHER STATION REACTIVE POWER",
             Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790443 && p.Ca == 106).Name);
         var q = Assert.Single(result.UpdatedProfile.Points, p => p.Ioa == 790447);

@@ -2,6 +2,15 @@
 
 **Status: REFERENCE ONLY — UNVERIFIED FOR ANY ARIEC60870 IOA.** This is a transcription and engineering interpretation of one operator-supplied handwritten SCADA database-range photograph, not a gateway export, authenticated device calibration, IEC telegram, or field FAT. The original image stays with the operator; **do not commit the photograph, letterhead, company details or station credentials to this public repository**.
 
+> **19 November follow-up (operator-provided, not in the photograph):** the
+> handwritten **Q Diri Sendiri ±2078** is **Feeder CA105 TI11 IOA790447**;
+> **Q Lab ±260** is used by **Kopel — Lab SOGI 3, IOA790439**, and
+> **Trafo — Lab SOGI 4, IOA790443**. The bundled 31-point example now
+> stores these exact per-IOA TwoPoint display ranges. The photographed
+> page itself still does not establish that SCADA raw is identical to
+> decoded IEC TI11 SVA counts or independently validate any RTU data.
+> This note retains the earlier 18 November investigation chronologically.
+
 Related sources: [31-point IEC-101 I/O list analysis](SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md), [engineering scaling contract](IEC10X_ENGINEERING_SCALING.md), [profile schema](MAPPING_PROFILE_SCHEMA.md), [field FAT issue #243](https://github.com/masarray/ARIEC60870/issues/243).
 
 ## 1. Faithful transcription of the visible range table
@@ -111,3 +120,35 @@ No conversion should be inferred from a historical example of raw 13641 and a se
 Consider a **reference-range worksheet/import preview** showing `SCADA data item | raw min/max | eng min/max | IEC TI | CA/IOA | decoded source domain | unit | provenance | approval`. Require manual association and a dry-run diff before any profile write; show a blocking ambiguity when multiple Q candidates match; refuse TI32/TI48 analog conversion. This adds value without changing the existing one-authoritative TwoPoint engine or introducing a second scaling formula.
 
 **Release boundary:** This note documents new field evidence; it does not attest any approved range, deploy a new default, qualify IEC-101/104 interoperability or authorize RTU control.
+
+## 7. Later operator-provided source association — 19 November 2026
+
+After the historical photograph and the 18 November uncertainty above were
+documented, the operator explicitly clarified the mapping:
+
+| SCADA handwritten dataset | Field bay | IEC CA | TI | IOA | Decoded SVA X0/X100 | Engineering Y0/Y100 | Unit |
+| --- | --- | ---: | ---: | ---: | --- | --- | --- |
+| Q Diri Sendiri | Feeder | 105 | 11 | 790447 | -32768 / 32767 | -2078 / 2078 | MVar |
+| Q Lab | Kopel — Lab SOGI 3 | 105 | 11 | 790439 | -32768 / 32767 | -260 / 260 | MVar |
+| Q Lab | Trafo — Lab SOGI 4 | 105 | 11 | 790443 | -32768 / 32767 | -260 / 260 | MVar |
+
+**Source distinction:** the range endpoints come from the 18 November
+handwritten page, while **the data-item-to-bay/IOA association comes from
+the direct operator clarification on 19 November**. This new information
+resolves *which bay* uses each Q range in the sample profile; it does not
+supply a new IEC raw-frame capture, gateway coefficient, SCADA database
+revision, or independent primary/secondary test result.
+
+**Implementation boundary:** only the bundled reference's three TI11 Q
+display calibrations and a strictly opt-in Sync 31 I/O migration for
+uncalibrated identity rows change. An existing user profile with custom
+Factor/TwoPoint, engineering range, CA, commands or feedback is never
+overwritten. POAQ TI9 0..1200 and POOP TI48 command 0..1000 stay separate.
+The historic 18 November sections above remain an accurate record of what
+was known *before* this explicit source association.
+
+**FAT gate remains open:** compare exact CA/IOA/TI with signed RX bytes,
+two independent engineering reference readings per bay, QDS and current
+station configuration. The two signed endpoints are asymmetric; at raw
+0 the calculated Feeder output is about +0.0317 MVar and each Lab bay
++0.00397 MVar. Do not silently clamp to zero or call that a decoder fault.

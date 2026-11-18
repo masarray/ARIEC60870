@@ -193,23 +193,46 @@ public sealed class Iec10xBayAwarePointMappingTests
         Assert.Equal(1000, command.EngineeringMax);
     }
 
-    [Fact]
-    public void UnverifiedTi11HasNoGuessedMvarOrEngineeringRangeInDefaultProfile()
+    [Theory]
+    [InlineData(790447, 2078d, Iec10xScadaRangeId.ReactiveDiriSendiri)]
+    [InlineData(790439, 260d, Iec10xScadaRangeId.ReactiveLab)]
+    [InlineData(790443, 260d, Iec10xScadaRangeId.ReactiveLab)]
+    public void OperatorMappedQDefaultsUseExactScadaSourceEndpointsAndCorrectBay(
+        int ioa, double limit, Iec10xScadaRangeId expectedSource)
     {
         var profile = Load();
-        foreach (var ioa in new[] { 790447, 790439, 790443 })
+        var point = Assert.Single(profile.Points, p => p.Ioa == ioa);
+        Assert.Equal(105, point.Ca);
+        Assert.Equal(11, point.TypeId);
+        Assert.Equal("MonitorOnly", point.CommandPolicy);
+        Assert.Equal("MVar", point.Unit);
+        Assert.Equal("TwoPoint", point.ScalingMode);
+        Assert.Equal(-32768d, point.X0);
+        Assert.Equal(32767d, point.X100);
+        Assert.Equal(-limit, point.Y0);
+        Assert.Equal(limit, point.Y100);
+        Assert.Equal(-limit, point.EngineeringMin);
+        Assert.Equal(limit, point.EngineeringMax);
+        Assert.True(Iec10xScadaRangeReferences.TryOperatorMappedForPoint(point, out var recommended));
+        Assert.Equal(expectedSource, recommended!.Id);
+
+        static double ScaledValue(Iec10xPointMappingEntry point, double raw)
         {
-            var point = Assert.Single(profile.Points, p => p.Ioa == ioa);
-            Assert.Equal(11, point.TypeId);
-            Assert.Equal("counts", point.Unit);
-            Assert.Equal("Factor", point.ScalingMode);
-            Assert.Null(point.EngineeringMin);
-            Assert.Null(point.EngineeringMax);
-            var raw = new Iec10xEngineeringSample(11, 105, ioa, 13641, "Scaled=13641");
-            Assert.True(Iec10xEngineeringValue.TryFormat(point, raw, out var display));
-            Assert.Equal("13641 counts", display);
-            Assert.Equal("Scaled=13641", raw.OriginalValue);
+            Assert.True(Iec10xEngineeringValue.TryFormat(point,
+                new Iec10xEngineeringSample(11, 105, point.Ioa,
+                    raw, $"Scaled={raw}"), out var display));
+            Assert.EndsWith(" MVar", display, StringComparison.Ordinal);
+            return double.Parse(display[..^" MVar".Length],
+                System.Globalization.CultureInfo.InvariantCulture);
         }
+
+        Assert.Equal(-limit, ScaledValue(point, -32768), 8);
+        Assert.Equal(limit, ScaledValue(point, 32767), 8);
+        // The handwritten asymmetric signed endpoints carry a tiny positive
+        // reading at raw zero: do not silently change -32768 to -32767.
+        Assert.Equal(limit / 65535d, ScaledValue(point, 0), 8);
+        Assert.Equal(-limit + (13641d + 32768d) * (2d * limit / 65535d),
+            ScaledValue(point, 13641), 7);
     }
 
     [Fact]

@@ -37,7 +37,9 @@ public sealed class Iec10xFieldFatWorksheetTests
         Assert.DoesNotContain("do-not-export", sheet, StringComparison.Ordinal);
         Assert.Contains("\"790447\",\"11\",\"FEEDER TM Q\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"790449\",\"9\",\"TRAFO SOGI TM POAQ\"", sheet, StringComparison.Ordinal);
-        Assert.Contains("\"Raw signed counts - gateway unit conversion not approved\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("\"TwoPoint configured - verify independent source approval\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("\"TwoPoint\",\"MVar\",\"-32768\",\"32767\",\"-2078\",\"2078\"", sheet, StringComparison.Ordinal);
+        Assert.Contains("\"TwoPoint\",\"MVar\",\"-32768\",\"32767\",\"-260\",\"260\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"Observe command/feedback only - NO TX\"", sheet, StringComparison.Ordinal);
         Assert.Contains("\"Independent RTU/SCADA reference\"", sheet, StringComparison.Ordinal);
         Assert.DoesNotContain("PASS", sheet, StringComparison.Ordinal); // No made-up field success.
@@ -60,7 +62,7 @@ public sealed class Iec10xFieldFatWorksheetTests
         var csv = Iec10xFieldFatWorksheet.ExportCsv(profile);
 
         Assert.Contains("\"TwoPoint\",\"MW\",\"0\",\"1\",\"0\",\"1200\",\"\",\"\",\"\",\"\",\"\",", csv, StringComparison.Ordinal);
-        Assert.Contains("\"Factor\",\"counts\",\"\",\"\",\"\",\"\",\"2.25\",", csv, StringComparison.Ordinal);
+        Assert.Contains("\"Factor\",\"MVar\",\"\",\"\",\"\",\"\",\"2.25\",", csv, StringComparison.Ordinal);
         Assert.DoesNotContain("9999.75", csv, StringComparison.Ordinal);
         Assert.DoesNotContain("112233.55", csv, StringComparison.Ordinal);
         Assert.DoesNotContain("-123456.125", csv, StringComparison.Ordinal);

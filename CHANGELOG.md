@@ -1,3 +1,10 @@
+## [Unreleased] - Operator Q bay mapping (2026-11-19)
+
+### IEC-101/104 Signal Map reference ranges
+- Operator clarifies **Feeder = Q Diri Sendiri ±2078 MVar** (CA105 TI11 IOA790447), **Kopel = Lab SOGI 3 Q Lab ±260 MVar** (IOA790439), and **Trafo = Lab SOGI 4 Q Lab ±260 MVar** (IOA790443). The bundled 31-point reference now uses signed TI11 TwoPoint decoded X=-32768..32767 for each distinct bay, with operator-provided endpoints, units and engineering bounds. Independent gateway/SCADA FAT still required.
+- Explicit **Sync 31 I/O** can migrate only eligible uncalibrated legacy Factor identity rows to these exact by-bay ranges after preview and Save As; custom Factor/TwoPoint, another CA/TI, commands and source bytes remain untouched. The Signal Map WPF acceptance and CSV FAT worksheet regression verify all three ranges.
+- Preserve POAQ TI9 feedback 0..1200 and POOP TI48 command 0..1000. Retain prior generic all-Q ±1732 nominal CT/PT example as clearly superseded docs-only history, not a site calibration.
+
 ## [3.6.16-rc.1] - Candidate for isolated IEC-101/104 physical FAT (2026-11-17)
 
 ### Signal Map and physical evidence workflow
