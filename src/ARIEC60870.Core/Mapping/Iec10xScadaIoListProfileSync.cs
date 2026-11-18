@@ -18,11 +18,13 @@ public static class Iec10xScadaIoListProfileSync
         int RenamedPoints,
         int UpdatedBusinessMetadata,
         int ResetUnverifiedReactiveUnits,
-        int AppliedDocumentedNormalizedRanges)
+        int AppliedDocumentedNormalizedRanges,
+        int AppliedScadaReactiveRanges = 0)
     {
         public bool HasChanges =>
             RenamedPoints > 0 || UpdatedBusinessMetadata > 0 ||
-            ResetUnverifiedReactiveUnits > 0 || AppliedDocumentedNormalizedRanges > 0;
+            ResetUnverifiedReactiveUnits > 0 || AppliedDocumentedNormalizedRanges > 0 ||
+            AppliedScadaReactiveRanges > 0;
     }
 
     public static Preview PrepareCopy(
@@ -53,6 +55,7 @@ public static class Iec10xScadaIoListProfileSync
         var metadata = 0;
         var rawUnit = 0;
         var normalized = 0;
+        var reactive = 0;
         foreach (var target in copy.Points)
         {
             // Match the *actual* station and *exact* IEC Type ID. In
@@ -90,6 +93,34 @@ public static class Iec10xScadaIoListProfileSync
                 rawUnit++;
             }
 
+            // The bundled operator SCADA reference now carries an explicit,
+            // still-provisional Q Diri Sendiri range for all three sample bays.
+            // The real SCADA Q data item -> IOA association is not verified:
+            // require the existing explicit Sync preview and protected Save As.
+            // Only a legacy *identity* Q can be upgraded. An existing site
+            // Factor or TwoPoint calibration must never be touched.
+            if (typeId == 11 && target.Ioa is 790447 or 790439 or 790443 &&
+                string.Equals(source.ScalingMode, "TwoPoint", StringComparison.OrdinalIgnoreCase) &&
+                source.X0 == -32768d && source.X100 == 32767d &&
+                source.Y0 == -2078d && source.Y100 == 2078d &&
+                string.Equals(source.Unit, "MVar", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(target.Unit, "counts", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(target.Unit, "MVar", StringComparison.OrdinalIgnoreCase)) &&
+                IsUncalibratedIdentity(target) &&
+                target.X0 is null && target.X100 is null &&
+                target.Y0 is null && target.Y100 is null)
+            {
+                target.ScalingMode = "TwoPoint";
+                target.X0 = source.X0;
+                target.X100 = source.X100;
+                target.Y0 = source.Y0;
+                target.Y100 = source.Y100;
+                target.Unit = source.Unit;
+                target.EngineeringMin = source.EngineeringMin;
+                target.EngineeringMax = source.EngineeringMax;
+                reactive++;
+            }
+
             // Latest operator correction identifies POAQ TI9 as 0..1200
             // feedback, while POOP TI48 command remains 0..1000.
             // Upgrade *only* a legacy
@@ -114,7 +145,7 @@ public static class Iec10xScadaIoListProfileSync
         }
 
         copy.Validate();
-        return new Preview(copy, matched, renamed, metadata, rawUnit, normalized);
+        return new Preview(copy, matched, renamed, metadata, rawUnit, normalized, reactive);
     }
 
     private static bool IsUncalibratedIdentity(Iec10xPointMappingEntry point) =>
