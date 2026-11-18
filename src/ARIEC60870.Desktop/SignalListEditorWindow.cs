@@ -882,6 +882,7 @@ public sealed partial class SignalListEditorWindow : Window
             "Group", nameof(SignalListEditorRow.Group));
 
         var composeName = CreateMaterialActionButton("Generate name", "MaterialAutoFixHigh", ComposeSignalName_Click);
+        composeName.Name = "SignalMapGenerateNameButton";
         composeName.HorizontalAlignment = HorizontalAlignment.Stretch;
         composeName.Margin = new Thickness(0, 0, 0, FieldGap + LayoutGap);
         composeName.ToolTip = "Explicit action only. Keeps an existing trailing numeric suffix; never rewrites names automatically.";
@@ -902,6 +903,7 @@ public sealed partial class SignalListEditorWindow : Window
             "Reference max", nameof(SignalListEditorRow.EngineeringMax));
         AddEditorField(details, "Description", nameof(SignalListEditorRow.Description), multiline: true);
         var validateRow = CreateMaterialActionButton("Validate signal", "MaterialCheckCircle", ValidateSelectedRow_Click);
+        validateRow.Name = "SignalMapValidateSignalButton";
         validateRow.HorizontalAlignment = HorizontalAlignment.Stretch;
         validateRow.Margin = new Thickness(0, 0, 0, FieldGap);
         details.Children.Add(validateRow);
@@ -1259,7 +1261,7 @@ public sealed partial class SignalListEditorWindow : Window
     private void AddEditorCombo(Panel parent, string label, string path,
         IEnumerable<string> values, bool allowCustom = true)
     {
-        var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 9) };
+        var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, FieldGap) };
         container.Children.Add(new TextBlock
         {
             Text = label,
