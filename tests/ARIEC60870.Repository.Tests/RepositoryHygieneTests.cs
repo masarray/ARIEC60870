@@ -68,6 +68,42 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void CanonicalRepositoryRenameIsPropagatedToActiveDistributionSurfaces()
+    {
+        var root = FindRepositoryRoot();
+        const string repository = "https://github.com/masarray/arsee";
+        const string pages = "https://masarray.github.io/arsee/";
+        const string legacyRepository = "https://github.com/masarray/ARIEC60870";
+        const string legacyPages = "https://masarray.github.io/ARIEC60870/";
+
+        var installer = File.ReadAllText(root.File("installer/ARIEC60870.iss"));
+        Assert.Contains("AppPublisherURL=" + repository, installer);
+        Assert.Contains("AppSupportURL=" + repository + "/issues", installer);
+        Assert.Contains("AppUpdatesURL=" + repository + "/releases", installer);
+
+        var sbom = File.ReadAllText(root.File("scripts/generate-sbom-lite.ps1"));
+        Assert.Contains(repository + "/releases", sbom);
+        Assert.Contains(repository + "/sbom/$Version/", sbom);
+
+        var help = File.ReadAllText(root.File("src/ARIEC60870.Desktop/HelpWindow.xaml.cs"));
+        Assert.Contains(pages + "{path}", help);
+
+        var readme = File.ReadAllText(root.File("README.md"));
+        Assert.Contains(repository, readme);
+        Assert.Contains(pages, readme);
+        Assert.DoesNotContain("rename to `masarray/arsee` is planned", readme);
+
+        var legacyIndex = File.ReadAllText(root.File("index.html"));
+        Assert.Contains("href=\"" + pages + "\"", legacyIndex);
+
+        foreach (var content in new[] { installer, sbom, help, legacyIndex })
+        {
+            Assert.DoesNotContain(legacyRepository, content, StringComparison.Ordinal);
+            Assert.DoesNotContain(legacyPages, content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void PublicReleaseChannelsAndPagesFallbackMirrorAgree()
     {
         var root = FindRepositoryRoot();
