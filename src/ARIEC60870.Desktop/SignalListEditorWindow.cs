@@ -62,6 +62,15 @@ public sealed partial class SignalListEditorWindow : Window
     private readonly TextBlock _selectionSubtitle = new();
     private readonly Border _selectionBadge = CreatePill("No selection", TextMutedBrush, BrushFromRgb(0xF1, 0xF5, 0xF9), BorderBrushSoft);
     private readonly DataGrid _grid = new();
+    private readonly Grid _layoutRoot = new();
+    private readonly ColumnDefinition _inspectorColumn = new();
+    private readonly ColumnDefinition _splitterColumn = new();
+    private UIElement? _inspectorPanel;
+    private GridSplitter? _inspectorSplitter;
+    private readonly Button _detailsButton = new();
+    private readonly TextBlock _profilePathLabel = new();
+    private bool _inspectorOpen;
+    private double _inspectorWidth = 360;
     private readonly ScrollViewer _detailScroll = new();
     private readonly ScrollViewer _scalingScroll = new();
     private readonly Button _scalingTabButton = new();
@@ -99,7 +108,7 @@ public sealed partial class SignalListEditorWindow : Window
 
         Content = BuildLayout();
         LoadRowsFromProfile(_template);
-        UpdateStatus("Grid: type to replace, F2 edits, Tab/Enter commits, Esc cancels. Ctrl+C/V copy/paste, Ctrl+D fill down, Ctrl+Z/Y undo/redo.", success: true);
+        UpdateStatus("Ready", success: true);
     }
 
     public Iec10xPointMappingProfile Profile { get; private set; }
@@ -107,18 +116,17 @@ public sealed partial class SignalListEditorWindow : Window
 
     private UIElement BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(14) };
+        var root = _layoutRoot;
+        root.Margin = new Thickness(9, 7, 9, 5);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var hero = BuildHero();
-        root.Children.Add(hero);
-
-        var toolbarCard = BuildToolbarCard();
-        Grid.SetRow(toolbarCard, 1);
-        root.Children.Add(toolbarCard);
+        root.Children.Add(BuildHero());
+        var actions = BuildToolbarCard();
+        Grid.SetRow(actions, 1);
+        root.Children.Add(actions);
 
         var workspace = BuildWorkspace();
         Grid.SetRow(workspace, 2);
@@ -127,89 +135,85 @@ public sealed partial class SignalListEditorWindow : Window
         var footer = BuildFooter();
         Grid.SetRow(footer, 3);
         root.Children.Add(footer);
-
         return root;
     }
 
     private UIElement BuildHero()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 11), new Thickness(16, 11, 16, 11));
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        card.Child = grid;
+        // One metadata strip; the editable grid must dominate the window.
+        var bar = new Grid { Margin = new Thickness(2, 0, 2, 5), Height = 34 };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(226) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var left = new StackPanel { Orientation = Orientation.Vertical };
-        left.Children.Add(new TextBlock
+        bar.Children.Add(new TextBlock
         {
             Text = "Signal Map",
-            FontSize = 18,
+            FontSize = 14,
             FontWeight = FontWeights.SemiBold,
             Foreground = TextMainBrush,
-            Margin = new Thickness(0, 0, 0, 3)
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 16, 0)
         });
-        left.Children.Add(new TextBlock
-        {
-            Text = "Find an IOA or bay, edit the selected signal, then validate and apply. All IEC settings remain available in Details.",
-            FontSize = 12.5,
-            Foreground = TextMutedBrush,
-            TextWrapping = TextWrapping.Wrap,
-            MaxWidth = 900
-        });
-        grid.Children.Add(left);
 
-        var metrics = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        _rowCountText.Text = "0 signals";
-        _dirtyText.Text = "Clean";
-        metrics.Children.Add(CreateMetricChip("Database", _rowCountText, AccentBrush, AccentSoftBrush));
-        metrics.Children.Add(CreateMetricChip("State", _dirtyText, SuccessBrush, SuccessSoftBrush));
-        Grid.SetColumn(metrics, 1);
-        grid.Children.Add(metrics);
+        _profileNameBox.Text = _template.ProfileName;
+        _profileNameBox.Style = CreateTextBoxStyle();
+        _profileNameBox.MinHeight = 30;
+        _profileNameBox.Padding = new Thickness(8, 4, 8, 4);
+        _profileNameBox.FontSize = 11.8;
+        _profileNameBox.Margin = new Thickness(0, 1, 8, 1);
+        _profileNameBox.ToolTip = SavedProfilePath;
+        _profileNameBox.TextChanged += (_, _) => MarkDirty();
+        Grid.SetColumn(_profileNameBox, 1);
+        bar.Children.Add(_profileNameBox);
 
-        return card;
+        // Full path remains inspectable on hover, not a permanent line of
+        // non-actionable text above the actual signal database.
+        _profilePathLabel.Text = Path.GetFileName(SavedProfilePath);
+        _profilePathLabel.ToolTip = SavedProfilePath;
+        _profilePathLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        _profilePathLabel.Foreground = TextMutedBrush;
+        _profilePathLabel.FontSize = 10.8;
+        _profilePathLabel.VerticalAlignment = VerticalAlignment.Center;
+        _profilePathLabel.Margin = new Thickness(2, 0, 10, 0);
+        Grid.SetColumn(_profilePathLabel, 2);
+        bar.Children.Add(_profilePathLabel);
+
+        _rowCountText.FontSize = 11.5;
+        _rowCountText.Foreground = TextMutedBrush;
+        _rowCountText.VerticalAlignment = VerticalAlignment.Center;
+        _rowCountText.Margin = new Thickness(8, 0, 14, 0);
+        Grid.SetColumn(_rowCountText, 3);
+        bar.Children.Add(_rowCountText);
+
+        _dirtyText.FontSize = 11.5;
+        _dirtyText.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_dirtyText, 4);
+        bar.Children.Add(_dirtyText);
+        return bar;
     }
 
     private UIElement BuildToolbarCard()
     {
-        var card = CreateCard(new Thickness(0, 0, 0, 10), new Thickness(12, 8, 12, 8));
-        var root = new Grid();
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        card.Child = root;
+        var bar = new Grid { Margin = new Thickness(0, 0, 0, 6), Height = 35 };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(138) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(144) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        _profileNameBox.Text = _template.ProfileName;
-        _profileNameBox.Style = CreateTextBoxStyle();
-        _profileNameBox.Margin = new Thickness(0, 0, 8, 0);
-        _profileNameBox.ToolTip = "Editable profile name";
-        _profileNameBox.TextChanged += (_, _) => MarkDirty();
-        root.Children.Add(_profileNameBox);
-
-        _pathBox.Text = SavedProfilePath;
-        _pathBox.IsReadOnly = true;
-        _pathBox.Style = CreateTextBoxStyle(readOnly: true);
-        _pathBox.ToolTip = "Current JSON file. Use More > Save As to create a copy.";
-        Grid.SetColumn(_pathBox, 1);
-        root.Children.Add(_pathBox);
-
-        var actions = new Grid { Margin = new Thickness(0, 7, 0, 0) };
-        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
-        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(139) });
-        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
-        actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetRow(actions, 1);
-        Grid.SetColumnSpan(actions, 2);
-        root.Children.Add(actions);
-
-        var searchArea = new Grid { Margin = new Thickness(0, 0, 7, 0) };
+        var searchArea = new Grid { Margin = new Thickness(0, 0, 5, 0) };
         _searchBox.Style = CreateTextBoxStyle();
-        _searchBox.ToolTip = "Search all fields: name, CA, IOA, Type ID, bay, mnemonic, TYPE, group, unit or description (Ctrl+F)";
+        _searchBox.Padding = new Thickness(8, 5, 8, 5);
+        _searchBox.FontSize = 11.8;
+        _searchBox.ToolTip = "Search IOA, name, bay or mnemonic (Ctrl+F)";
         _searchBox.TextChanged += (_, _) =>
         {
-            _searchWatermark.Visibility = string.IsNullOrEmpty(_searchBox.Text) ?
-                Visibility.Visible : Visibility.Collapsed;
+            _searchWatermark.Visibility = string.IsNullOrEmpty(_searchBox.Text)
+                ? Visibility.Visible : Visibility.Collapsed;
             RefreshFilter();
         };
         _searchBox.KeyDown += (_, e) =>
@@ -227,56 +231,66 @@ public sealed partial class SignalListEditorWindow : Window
             }
         };
         searchArea.Children.Add(_searchBox);
-        _searchWatermark.Text = "Search IOA, name, bay...  Ctrl+F";
-        _searchWatermark.Foreground = TextMutedBrush;
+        _searchWatermark.Text = "Find IOA, name, bay...";
         _searchWatermark.FontSize = 11.5;
-        _searchWatermark.Margin = new Thickness(10, 0, 0, 0);
+        _searchWatermark.Foreground = TextMutedBrush;
         _searchWatermark.VerticalAlignment = VerticalAlignment.Center;
+        _searchWatermark.Margin = new Thickness(9, 0, 0, 0);
         _searchWatermark.IsHitTestVisible = false;
         searchArea.Children.Add(_searchWatermark);
-        actions.Children.Add(searchArea);
+        bar.Children.Add(searchArea);
 
-        ConfigureFilterCombo(_bayFilter, "Filter by bay", actions, 1);
-        ConfigureFilterCombo(_kindFilter, "Filter by signal kind", actions, 2);
+        ConfigureFilterCombo(_bayFilter, "Bay", bar, 1);
+        ConfigureFilterCombo(_kindFilter, "Signal type", bar, 2);
         _kindFilter.ItemsSource = new[] { AllKinds, "Measured analog", "Digital status", "Commands" };
         _kindFilter.SelectedIndex = 0;
 
-        var clear = CreateToolbarButton("×", (_, _) => ClearFilters(), false, false);
-        clear.Margin = new Thickness(0, 0, 4, 0);
-        clear.MinWidth = 29;
-        clear.Padding = new Thickness(5, 5, 5, 5);
-        clear.ToolTip = "Clear search and both filters";
+        var clear = CreateCompactAction("×", (_, _) => ClearFilters());
+        clear.MinWidth = 27;
+        clear.ToolTip = "Reset filters";
         Grid.SetColumn(clear, 3);
-        actions.Children.Add(clear);
+        bar.Children.Add(clear);
 
-        var toolbar = new StackPanel
+        var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right
         };
-        AddToolbarButton(toolbar, "+ Add", AddRow_Click);
-        AddToolbarButton(toolbar, "Duplicate", DuplicateRow_Click);
-        AddToolbarButton(toolbar, "Delete", DeleteRow_Click, danger: true);
-        AddToolbarButton(toolbar, "Save", SaveList_Click);
+        actions.Children.Add(CreateCompactAction("+ Add", AddRow_Click));
+        _detailsButton.Content = "Details";
+        _detailsButton.Click += (_, _) => SetInspectorVisible(!_inspectorOpen);
+        _detailsButton.ToolTip = "Show / hide field editor (Ctrl+I)";
+        _detailsButton.MinHeight = 30;
+        _detailsButton.Padding = new Thickness(9, 5, 9, 5);
+        _detailsButton.Margin = new Thickness(3, 0, 0, 0);
+        _detailsButton.FontSize = 11.8;
+        _detailsButton.Style = CreateRoundedButtonStyle();
+        actions.Children.Add(_detailsButton);
+        actions.Children.Add(CreateCompactAction("Save", SaveList_Click));
 
-        var more = CreateToolbarButton("More ▾", (_, _) => { }, false, false);
-        var moreMenu = BuildMoreActionsMenu();
-        more.ContextMenu = moreMenu;
+        var more = CreateCompactAction("More ▾", (_, _) => { });
+        var menu = BuildMoreActionsMenu();
+        more.ContextMenu = menu;
         more.Click += (_, _) =>
         {
-            moreMenu.PlacementTarget = more;
-            moreMenu.Placement = PlacementMode.Bottom;
-            moreMenu.IsOpen = true;
+            menu.PlacementTarget = more;
+            menu.Placement = PlacementMode.Bottom;
+            menu.IsOpen = true;
         };
-        toolbar.Children.Add(more);
-        AddToolbarButton(toolbar, "Save & Apply", SaveApply_Click, isPrimary: true);
-        Grid.SetColumn(toolbar, 4);
-        actions.Children.Add(toolbar);
+        actions.Children.Add(more);
+        actions.Children.Add(CreateCompactAction("Save & Apply", SaveApply_Click, primary: true));
+        Grid.SetColumn(actions, 5);
+        bar.Children.Add(actions);
 
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                SetInspectorVisible(!_inspectorOpen);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 SaveCurrent(closeAfter: false, forceSaveAs: false);
                 e.Handled = true;
@@ -288,15 +302,25 @@ public sealed partial class SignalListEditorWindow : Window
                 e.Handled = true;
             }
         };
-        return card;
+        return bar;
+    }
+
+    private static Button CreateCompactAction(string text, RoutedEventHandler handler, bool primary = false)
+    {
+        var button = CreateToolbarButton(text, handler, primary, false);
+        button.Padding = new Thickness(9, 5, 9, 5);
+        button.MinHeight = 30;
+        button.Margin = new Thickness(3, 0, 0, 0);
+        button.FontSize = 11.8;
+        return button;
     }
 
     private void ConfigureFilterCombo(ComboBox combo, string tip, Grid parent, int column)
     {
-        combo.MinHeight = 33;
+        combo.MinHeight = 30;
         combo.FontSize = 11.5;
-        combo.Padding = new Thickness(6, 5, 6, 5);
-        combo.Margin = new Thickness(0, 0, 7, 0);
+        combo.Padding = new Thickness(5, 3, 5, 3);
+        combo.Margin = new Thickness(0, 0, 5, 0);
         combo.Background = Brushes.White;
         combo.BorderBrush = BorderBrushSoft;
         combo.ToolTip = tip;
@@ -314,6 +338,9 @@ public sealed partial class SignalListEditorWindow : Window
             item.Click += action;
             menu.Items.Add(item);
         }
+        Item("Duplicate signal", DuplicateRow_Click);
+        Item("Delete signal...", DeleteRow_Click);
+        menu.Items.Add(new Separator());
         Item("Load profile...", LoadList_Click);
         Item("Save As new profile...", SaveAs_Click);
         Item("Validate entire list", Validate_Click);
