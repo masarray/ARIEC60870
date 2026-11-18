@@ -141,6 +141,13 @@ public partial class HelpWindow
         if (ActualWidth >= 950 && HelpArticlePanel.ActualWidth < 2.9 * HelpTopicsPanel.ActualWidth)
             throw new InvalidOperationException("The article is no longer the dominant Help Center panel.");
 
+        if (_selectedTopicKey == "learn-iec-family" &&
+            string.IsNullOrWhiteSpace(SearchBox.Text) &&
+            FindNavigationScrollViewer(TopicListBox) is ScrollViewer navigation &&
+            navigation.VerticalOffset > 2)
+            throw new InvalidOperationException(
+                $"The handbook index did not open at chapter one: offset {navigation.VerticalOffset:F1}.");
+
         if (SearchGlyphPath.Data is null ||
             TopicListBox.Items.OfType<HelpTopicListItem>().Any(item => item.IconGeometry is null))
             throw new InvalidOperationException("Outlined Material icon geometry is missing.");
