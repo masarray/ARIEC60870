@@ -148,7 +148,6 @@ public sealed partial class SignalListEditorWindow
                 _profilePathLabel.Text = "Unsaved profile copy";
                 _profilePathLabel.ToolTip = _protectedSyncSourcePath;
                 _profileNameBox.ToolTip = "Original preserved: " + _protectedSyncSourcePath;
-                _saved = false;
                 UpdateStatus("SCADA reference staged. Save As a new profile; original is protected.", success: true);
             }
 
