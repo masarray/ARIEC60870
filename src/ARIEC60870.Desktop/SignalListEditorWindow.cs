@@ -377,9 +377,9 @@ public sealed partial class SignalListEditorWindow : Window
         var button = new Button
         {
             Content = CreateMaterialToolbarIcon(icon, 15),
-            Style = (Style)Application.Current.FindResource("EventJournalCircleNavigationStyle"),
-            Width = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
-            Height = (double)Application.Current.FindResource("ArSeeToolbarCircleDiameter"),
+            Style = (Style)Application.Current.FindResource("ArSeeToolbarFullHeightCircleStyle"),
+            Width = (double)Application.Current.FindResource("ArSeeToolbarPillHeight"),
+            Height = (double)Application.Current.FindResource("ArSeeToolbarPillHeight"),
             Margin = new Thickness(5, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             ToolTip = accessibleName,
@@ -823,8 +823,7 @@ public sealed partial class SignalListEditorWindow : Window
         var unitColumn = new StackPanel { Margin = new Thickness(0, 0, FieldGap / 2, 0) };
         AddEditorField(unitColumn, "Unit", nameof(SignalListEditorRow.Unit));
         var modeColumn = new StackPanel { Margin = new Thickness(FieldGap / 2, 0, 0, 0) };
-        AddEditorCombo(modeColumn, "Scaling mode", nameof(SignalListEditorRow.ScalingMode),
-            new[] { "Factor", "TwoPoint" }, allowCustom: false);
+        AddEditorField(modeColumn, "Scaling mode", nameof(SignalListEditorRow.ScalingMode));
         scalingSelectors.Children.Add(unitColumn);
         Grid.SetColumn(modeColumn, 1);
         scalingSelectors.Children.Add(modeColumn);
@@ -892,8 +891,7 @@ public sealed partial class SignalListEditorWindow : Window
         AddEditorField(details, "IEC Type / role", nameof(SignalListEditorRow.SignalType));
         AddTwoPointPair(details, "Class", nameof(SignalListEditorRow.ExpectedClass),
             "COT", nameof(SignalListEditorRow.ExpectedCot));
-        AddEditorCombo(details, "Command policy", nameof(SignalListEditorRow.CommandPolicy),
-            new[] { "MonitorOnly", "DoubleCommand", "SingleCommand", "SetpointNormalized", "RegulatingStep" });
+        AddEditorField(details, "Command policy", nameof(SignalListEditorRow.CommandPolicy));
         AddEditorField(details, "Feedback IOA", nameof(SignalListEditorRow.FeedbackIoa));
         AddEditorField(details, "State map", nameof(SignalListEditorRow.StateMap), "Example: 0=Off; 1=On");
 
@@ -1221,6 +1219,14 @@ public sealed partial class SignalListEditorWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 4)
         });
+        if (TryGetFieldChoices(path, out var choices))
+        {
+            var choice = CreateSignalChoiceCombo(path, choices);
+            if (!string.IsNullOrWhiteSpace(hint)) choice.ToolTip = hint;
+            container.Children.Add(choice);
+            parent.Children.Add(container);
+            return;
+        }
         var box = new TextBox
         {
             Style = CreateTextBoxStyle(),
@@ -1256,43 +1262,6 @@ public sealed partial class SignalListEditorWindow : Window
         grid.Children.Add(left);
         grid.Children.Add(right);
         parent.Children.Add(grid);
-    }
-
-    private void AddEditorCombo(Panel parent, string label, string path,
-        IEnumerable<string> values, bool allowCustom = true)
-    {
-        var container = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, FieldGap) };
-        container.Children.Add(new TextBlock
-        {
-            Text = label,
-            FontSize = 11.5,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = TextMutedBrush,
-            Height = 17,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 4)
-        });
-        var combo = new ComboBox
-        {
-            ItemsSource = values,
-            IsEditable = allowCustom,
-            MinHeight = 34,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Padding = new Thickness(8, 5, 8, 5),
-            FontSize = 12.5,
-            Background = Brushes.White,
-            BorderBrush = BorderBrushSoft,
-            Foreground = TextMainBrush
-        };
-        combo.SetBinding(allowCustom ? ComboBox.TextProperty : Selector.SelectedItemProperty,
-            new Binding(path)
-            {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            });
-        container.Children.Add(combo);
-        parent.Children.Add(container);
     }
 
     private void LoadRowsFromProfile(Iec10xPointMappingProfile profile)
