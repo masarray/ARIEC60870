@@ -55,7 +55,7 @@ public sealed partial class SignalListEditorWindow
             // objects. A merely similar custom template is a design regression.
             var workspaceStyle = (Style)Application.Current.FindResource("ArSeeWorkspaceActionButtonStyle");
             var primaryStyle = (Style)Application.Current.FindResource("ArSeeWorkspacePrimaryActionButtonStyle");
-            var circleStyle = (Style)Application.Current.FindResource("EventJournalCircleNavigationStyle");
+            var circleStyle = (Style)Application.Current.FindResource("ArSeeToolbarFullHeightCircleStyle");
             var clearStyle = (Style)Application.Current.FindResource("ArSeeToolbarSearchClearStyle");
             var materialPathStyle = (Style)Application.Current.FindResource("MaterialToolbarIconPath");
             var addAction = FindButtonByName(editor._layoutRoot, "SignalMapAddButton");
@@ -69,9 +69,13 @@ public sealed partial class SignalListEditorWindow
                 !ReferenceEquals(editor._detailsButton.Style, workspaceStyle) ||
                 !ReferenceEquals(moreAction.Style, circleStyle) ||
                 !ReferenceEquals(editor._resetFiltersButton.Style, clearStyle) ||
-                editor._resetFiltersButton.Visibility != Visibility.Collapsed)
+                editor._resetFiltersButton.Visibility != Visibility.Collapsed ||
+                moreAction.Width != (double)Application.Current.FindResource("ArSeeToolbarPillHeight") ||
+                moreAction.Height != addAction.Height ||
+                moreAction.Height != saveAction.Height ||
+                moreAction.Height != applyAction.Height)
                 throw new InvalidOperationException(
-                    "Signal Map top actions must use the Main Window shared button tokens.");
+                    "Signal Map More circle must match the pill height and use the shared theme token.");
             AssertMaterialIconText(addAction, "MaterialAdd", materialPathStyle);
             AssertMaterialIconText(saveAction, "MaterialSave", materialPathStyle);
             AssertMaterialIconText(applyAction, "MaterialCheckCircle", materialPathStyle);
@@ -96,7 +100,7 @@ public sealed partial class SignalListEditorWindow
             // The two top rows use optical vertical centering instead of
             // independent offsets for search, filters and action buttons.
             AssertAlignedControlCenters(editor._searchBox, editor._bayFilter,
-                editor._kindFilter, editor._detailsButton);
+                editor._kindFilter, editor._detailsButton, moreAction, addAction, saveAction, applyAction);
             if (editor._profileNameBox.VerticalContentAlignment != VerticalAlignment.Center ||
                 editor._searchBox.VerticalContentAlignment != VerticalAlignment.Center)
                 throw new InvalidOperationException(
@@ -208,7 +212,52 @@ public sealed partial class SignalListEditorWindow
                     "Mapping inspector actions must use the Main Window shared button style.");
             AssertMaterialIconText(generateName, "MaterialAutoFixHigh", materialPathStyle);
             AssertMaterialIconText(validateSignal, "MaterialCheckCircle", materialPathStyle);
+            // Dropdown descriptions must not become actual profile values or
+            // silently rewrite a paired TI/role when another choice is selected.
+            var tiCombo = AssertChoiceField(editor._detailScroll,
+                "IEC Type ID (TI)", "30", "31");
+            var roleCombo = AssertChoiceField(editor._detailScroll,
+                "IEC Type / role", digital.SignalType, "M_DP_TB_1");
+            AssertChoiceField(editor._detailScroll, "Class", digital.ExpectedClass, "1");
+            AssertChoiceField(editor._detailScroll, "COT", digital.ExpectedCot, "3");
+            AssertChoiceField(editor._detailScroll, "Command policy", digital.CommandPolicy, "MonitorOnly");
+            AssertChoiceField(editor._detailScroll, "TYPE (TM / TSD...)", digital.TestCategory, "TSD");
+            if (tiCombo.Text != digital.TypeId || roleCombo.Text != digital.SignalType ||
+                !tiCombo.IsEditable || !roleCombo.IsEditable || editor._dirty)
+                throw new InvalidOperationException(
+                    "Choice fields must show exact raw codes and remain losslessly editable.");
             CaptureUiReviewImage(editor, "02-digital-mapping-1360x820");
+
+            var oldTi = digital.TypeId;
+            var oldRole = digital.SignalType;
+            var differentTi = tiCombo.Items.OfType<ComboBoxItem>()
+                .First(x => TextSearch.GetText(x) == "31");
+            tiCombo.SelectedItem = differentTi;
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            if (digital.TypeId != "31" || digital.SignalType != oldRole)
+                throw new InvalidOperationException(
+                    "Selecting TI 31 must write numeric 31 only, without modifying IEC role.");
+            tiCombo.SelectedIndex = -1;
+            tiCombo.Text = oldTi;
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            editor.RecalculateGridDirty();
+            if (digital.TypeId != oldTi || digital.SignalType != oldRole || editor._dirty)
+                throw new InvalidOperationException(
+                    "Reverting IEC TI choice must restore the original clean profile.");
+
+            // Unknown project/vendor value must survive row navigation unchanged.
+            var customRole = "M_CUSTOM_PROJECT";
+            roleCombo.Text = customRole;
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            if (digital.SignalType != customRole)
+                throw new InvalidOperationException(
+                    "Editable choice dropdown failed to preserve custom IEC role.");
+            roleCombo.Text = oldRole;
+            await editor.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+            editor.RecalculateGridDirty();
+            if (digital.SignalType != oldRole || editor._dirty)
+                throw new InvalidOperationException(
+                    "Restoring original role must leave mapping clean.");
 
             // Changing the selected row must not mutate field calibration.
             if (normalized.X0 != "0" || normalized.X100 != "1" ||
@@ -442,6 +491,9 @@ public sealed partial class SignalListEditorWindow
         }
         finally
         {
+            // A failed WPF acceptance may leave the editor in a dirty state.
+            // Never block CI on its interactive Unsaved Changes dialog.
+            editor._dirty = false;
             editor.Close();
         }
     }
@@ -560,6 +612,28 @@ public sealed partial class SignalListEditorWindow
             input.ActualHeight < 32)
             throw new InvalidOperationException(
                 "Inconsistent field label, spacing, or vertical centering: " + label);
+    }
+
+    private static ComboBox AssertChoiceField(ScrollViewer viewer, string label,
+        string originalValue, string requiredChoice)
+    {
+        var caption = FindLabel(viewer, label) ??
+            throw new InvalidOperationException("Missing choice label: " + label);
+        if (caption.Parent is not StackPanel container ||
+            container.Children.Count < 2 ||
+            container.Children[1] is not ComboBox combo ||
+            combo.Text != originalValue ||
+            !combo.IsEditable ||
+            combo.Items.Count == 0 ||
+            !combo.Items.OfType<ComboBoxItem>().Any(item =>
+                TextSearch.GetText(item) == requiredChoice &&
+                item.Content is StackPanel panel && panel.Children.Count == 2 &&
+                panel.Children[0] is TextBlock heading && heading.Text.Length > 0 &&
+                panel.Children[1] is TextBlock detail && detail.Text.Length > 0))
+            throw new InvalidOperationException(
+                "Descriptive but lossless IEC dropdown is missing: " + label);
+        AssertInspectorField(viewer, label);
+        return combo;
     }
 
     private static TextBlock? FindLabel(DependencyObject root, string label)

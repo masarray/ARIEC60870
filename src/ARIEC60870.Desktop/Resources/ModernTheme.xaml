@@ -201,6 +201,13 @@
             <Setter Property="BorderBrush" Value="#95B4D5"/>
             <Setter Property="Template" Value="{StaticResource EventJournalPremiumCircleTemplate}"/>
         </Style>
+        <!-- Full-size circle variant for icon-only actions among 36-DIP pills.
+             Exactly the same circular hover/pressed/focus chrome as Main Window. -->
+        <Style x:Key="ArSeeToolbarFullHeightCircleStyle" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource EventJournalCircleNavigationStyle}">
+            <Setter Property="Width" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+            <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
+        </Style>
         <Style x:Key="EventJournalActionToggleStyle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Height" Value="{StaticResource ArSeeToolbarPillHeight}"/>
             <Setter Property="Padding" Value="{StaticResource ArSeeToolbarPillPadding}"/>
