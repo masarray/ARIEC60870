@@ -13,7 +13,7 @@ Free Apache-2.0 Windows IEC 60870-5-101 / 103 / 104 protocol evidence analyzer f
 Recommended website URL:
 
 ```text
-https://masarray.github.io/ARIEC60870/
+https://masarray.github.io/arsee/
 ```
 
 ## Recommended GitHub topics

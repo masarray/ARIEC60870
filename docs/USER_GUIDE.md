@@ -19,7 +19,7 @@ ARIEC60870 is not a SCADA server, not a production redundant master station, and
 
 ## Download the application
 
-1. Open the latest release page: <https://github.com/masarray/ARIEC60870/releases/latest>
+1. Open the latest release page: <https://github.com/masarray/arsee/releases/latest>
 2. Download the Windows ZIP asset named like this:
 
    ```text
