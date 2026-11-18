@@ -245,6 +245,22 @@ public sealed class Iec10xEngineeringScalingTests
     }
 
     [Fact]
+    public void IeeeR32UiPrecisionDoesNotExposeBinaryNoiseFromReportedPower()
+    {
+        // The user's RC2 screenshot showed -1.207000017 MW on TI13.
+        // Decoder-owned R32 bytes remain unmodified; UI keeps R32 precision.
+        var raw = BitConverter.GetBytes(-1.207f).Append((byte)0).ToArray();
+        var asdu = Decode(13, raw);
+        Assert.Empty(asdu.Issues);
+        var point = Point(13);
+        point.Unit = "MW";
+        Assert.True(Iec10xEngineeringValue.TryFormat(point, asdu,
+            Assert.Single(asdu.Objects), out var display));
+        Assert.Equal("-1.207 MW", display);
+        Assert.Equal(raw, asdu.Objects[0].RawBytes);
+    }
+
+    [Fact]
     public void TinyFloatRetainsNonzeroEngineeringPrecision()
     {
         var data = BitConverter.GetBytes(0.0000001f).Append((byte)0).ToArray();
