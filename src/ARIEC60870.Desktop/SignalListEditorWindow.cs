@@ -1446,7 +1446,7 @@ public sealed partial class SignalListEditorWindow : Window
                 $"Signal names to update: {preview.RenamedPoints}\n" +
                 $"Business labels to update: {preview.UpdatedBusinessMetadata}\n" +
                 $"Uncalibrated TI11 MVar labels to change to raw counts: {preview.ResetUnverifiedReactiveUnits}\n" +
-                $"Uncalibrated TI9 range updated to document 0..1000: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
+                $"Uncalibrated TI9 POAQ feedback aligned to 0..1200: {preview.AppliedDocumentedNormalizedRanges}\n\n" +
                 "Approved Factor/TwoPoint calibration, CT/PT ratios, CA, commands, feedback, and other stations stay unchanged. " +
                 "Only labels, uncalibrated legacy Q units, and a legacy TI9 identity reading for the operator-corrected POAQ 0..1200 feedback range are reconciled. POOP command remains 0..1000. " +
                 "The existing profile file remains untouched; you must Save & Apply a new copy.\n\n" +
@@ -1644,7 +1644,7 @@ public sealed partial class SignalListEditorWindow : Window
                     StringComparison.OrdinalIgnoreCase))
             {
                 ModernMessageBox.Show(this,
-                    "Choose a different file name. Sync must not overwrite the original Signal List.",
+                    "Choose another file name. A synced or SCADA-calibrated reference must not overwrite the original Signal Map profile.",
                     "Preserve original profile", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
