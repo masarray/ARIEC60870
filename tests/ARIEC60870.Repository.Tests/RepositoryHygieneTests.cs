@@ -136,9 +136,20 @@ public sealed class RepositoryHygieneTests
         }
         Assert.Contains(downloadPrefix + "SHA256SUMS.txt", download);
         Assert.Contains($"\"downloadUrl\":\"{downloadPrefix}ARIEC60870-v{version}-win-x64.zip\"", home);
-        Assert.Equal(File.ReadAllText(root.File("site/release-download.js")),
-            File.ReadAllText(root.File("docs/release-download.js")));
+        var releaseScript = File.ReadAllText(root.File("site/release-download.js"));
+        Assert.Equal(releaseScript, File.ReadAllText(root.File("docs/release-download.js")));
+        Assert.Contains($"const fallbackTag = \"v{version}\"", releaseScript);
 
+        // The no-network fallback, user-facing README and package provenance
+        // must be version-consistent with the verified stable site manifest.
+        // Historical prior-release links are allowed elsewhere.
+        Assert.Contains($"| **Latest public stable** | **v{version}**", readme);
+        Assert.Contains($"[v{version}]({releaseUrl})",
+            File.ReadAllText(root.File("site/README.md")));
+        var props = File.ReadAllText(root.File("Directory.Build.props"));
+        Assert.Contains("<PackageProjectUrl>https://github.com/masarray/arsee</PackageProjectUrl>", props);
+        Assert.Contains("<RepositoryUrl>https://github.com/masarray/arsee</RepositoryUrl>", props);
+        Assert.DoesNotContain("https://github.com/masarray/ARIEC60870", props);
 
         foreach (var page in new[]
         {
