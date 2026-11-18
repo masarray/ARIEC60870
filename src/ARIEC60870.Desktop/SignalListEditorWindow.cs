@@ -62,6 +62,7 @@ public sealed partial class SignalListEditorWindow : Window
     private readonly TextBlock _selectionSubtitle = new();
     private readonly Border _selectionBadge = CreatePill("No selection", TextMutedBrush, BrushFromRgb(0xF1, 0xF5, 0xF9), BorderBrushSoft);
     private readonly DataGrid _grid = new();
+    private DataGridColumn? _nameGridColumn;
     private readonly Grid _layoutRoot = new();
     private readonly ColumnDefinition _inspectorColumn = new();
     private readonly ColumnDefinition _splitterColumn = new();
@@ -416,6 +417,13 @@ public sealed partial class SignalListEditorWindow : Window
             _inspectorPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         if (_inspectorSplitter is not null)
             _inspectorSplitter.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        // A star-sized frozen Name column can consume the entire reduced grid
+        // when Details opens. Switch to a compact fixed width so Bay/TYPE
+        // remain discoverable and horizontal scrolling still reaches others.
+        if (_nameGridColumn is not null)
+            _nameGridColumn.Width = visible
+                ? new DataGridLength(190)
+                : new DataGridLength(1, DataGridLengthUnitType.Star);
         _detailsButton.Content = visible ? "Hide details" : "Details";
         _detailsButton.Background = visible ? AccentSoftBrush : Brushes.White;
         _detailsButton.Foreground = AccentDarkBrush;
@@ -1050,6 +1058,7 @@ public sealed partial class SignalListEditorWindow : Window
             IsReadOnly = false
         };
         _grid.Columns.Add(column);
+        if (path == nameof(SignalListEditorRow.Name)) _nameGridColumn = column;
         if (advanced)
         {
             column.Visibility = Visibility.Collapsed;
