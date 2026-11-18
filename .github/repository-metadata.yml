@@ -1,7 +1,7 @@
 # This file documents the recommended public GitHub repository metadata.
 # GitHub topics/description are configured in the repository settings, not by this file.
 description: "ArSee — free, open-source Windows IEC 60870-5-101/103/104 tester & analyzer with raw frames, events, and PDF evidence for FAT/SAT."
-homepage: "https://masarray.github.io/ARIEC60870/"
+homepage: "https://masarray.github.io/arsee/"
 topics:
   - iec60870
   - iec60870-5-101
