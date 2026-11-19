@@ -162,7 +162,9 @@ public sealed class RepositoryHygieneTests
             foreach (var page in new[] { home, indonesian, download })
             {
                 Assert.Contains($"/releases/tag/v{stable}", page);
-                Assert.Contains("prerelease", page, StringComparison.OrdinalIgnoreCase);
+                Assert.True(page.Contains("prerelease", StringComparison.OrdinalIgnoreCase) ||
+                    page.Contains("prarilis", StringComparison.OrdinalIgnoreCase),
+                    "Public RC must be labeled as prerelease / prarilis.");
             }
         }
         Assert.Contains($"[v{version}]({releaseUrl})",
