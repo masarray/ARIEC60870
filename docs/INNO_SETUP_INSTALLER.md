@@ -3,13 +3,13 @@
 The installer is compiled from the **same self-contained Windows x64 WPF
 publish** used by the successful CI GUI smoke. Its stable AppId reuses the
 existing per-user installation directory for in-place upgrades and registers
-one uninstall entry. Normal installation offers an optional shortcut and
+one uninstall entry. The single Start Menu entry and installed executable are named **ArSee**; upgrades remove only known old ARIEC60870 executable/shortcut filenames. New installs use `%LOCALAPPDATA%\\Programs\\ArSee`; a supported in-place upgrade deliberately retains a previous custom/legacy install directory to avoid breaking its uninstall and rollback metadata. Normal installation offers an optional shortcut and
 offers to launch the application after success.
 
 ## Build
 
 Run the Windows CI job from the PR. The Inno output is
-`ARIEC60870-vX.Y.Z-setup-win-x64.exe` plus `SHA256SUMS.txt`.
+`ArSee-vX.Y.Z-setup-win-x64.exe` plus `SHA256SUMS.txt`.
 The CI gate installs silently, smoke-tests the installed WPF executable,
 reinstalls it, checks a user-data sentinel, checks the uninstall entry and
 uninstalls while retaining %LOCALAPPDATA%\\ARIEC60870.
