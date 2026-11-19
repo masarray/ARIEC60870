@@ -7,7 +7,8 @@ Canonical English/Indonesian site: https://masarray.github.io/arsee/
 - `index.html`, `id/index.html`: bilingual product landing with concise hero copy.
 - `demo.html`, `id/demo.html`: localized product demo, screenshots, and video.
 - `download.html`, `id/download.html`: localized Windows package and safety guide.
-- Shared `script.js` progressively enhances compact mobile navigation; without JavaScript, existing navigation remains visible.
+- Shared `script.js` progressively enhances compact mobile navigation; without JavaScript, navigation, screenshots, and FAQ content remain visible.
+- P3 keeps a single self-hosted CSS bundle with shared layout/focus tokens. Static content is visible before script load; costly card tilt/ripple/reveal listeners are intentionally omitted. Mobile screenshot zoom hints remain visible on touch devices.
 - `download.html`, `quick-start.html`: Windows installer/portable paths and integrity.
 - `wiki.html`, `id/wiki.html`: field-oriented reference content.
 - `faq.html`, `id/faq.html`: honest scope and limitations.
