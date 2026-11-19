@@ -38,7 +38,7 @@
     document.documentElement.classList.add("nav-enhanced");
   }
 
-  // P3: Keep content visible with or without JavaScript. Avoid per-card pointermove,
+  // P3: Keep content visible with or without JavaScript. Avoid per-card motion tracking,
   // ripple nodes and entry animations; navigation, FAQ and gallery remain enhanced.
 
   // Accordion enhancement with deep links; static HTML remains readable without JavaScript.
