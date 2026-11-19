@@ -73,7 +73,15 @@ jobs:
             # master still carries the latest stable source version. Require
             # complete versioned provenance; never promote an unreleased stable.
             $releaseMeta = Get-Content site/seo-manifest.json -Raw | ConvertFrom-Json
-            $validSha = $releaseMeta.releaseSourceCommit -match '^[0-9a-f]{40}
+            $validSha = $releaseMeta.releaseSourceCommit -match '\A[0-9a-f]{40}\z'
+            if (!$public.Groups['rc'].Success -or $source.Groups['rc'].Success -or
+                $releaseMeta.latestStableVersion -ne $version -or
+                $releaseMeta.releaseTag -ne "v$published" -or
+                !$validSha -or
+                [long]$releaseMeta.releaseWorkflowId -le 0) {
+              throw "Unverified public version $published newer than stable source $version."
+            }
+          }
           if (!$site.Contains('name="application-version" content="' + $published + '"') -or
               !$site.Contains('"softwareVersion":"' + $published + '"')) {
             throw "site/index.html and site/seo-manifest.json disagree on published version $published."
