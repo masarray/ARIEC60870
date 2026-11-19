@@ -34,6 +34,19 @@ The mirror is not a second hand-edited website. Refresh it after changing `site/
 
 Repository hygiene tests verify that important runtime files in `docs/` stay identical to `site/`.
 
+### Public prerelease versus stable metadata
+
+Public prereleases (e.g. **v3.6.17-rc.7**) are produced from immutable `release/rc-*` branches and may be newer than the `Directory.Build.props` source version on `master` (stable **3.6.16**). **Do not bump master application version merely to make the website appear current.**
+
+After the GitHub Release is actually published with the installer, ZIP, SHA256SUMS and SBOM:
+1. Pin `site/seo-manifest.json` to the **published** prerelease: `version`, `releaseTag`, 40-character `releaseSourceCommit`, numeric `releaseWorkflowId` and the separate `latestStableVersion`.
+2. Set **static HTML and structured SEO metadata** to that published RC, with direct working installer/ZIP/checksum links. The JavaScript fallback version must agree, so visitors without JavaScript or GitHub API access do not get a stale download.
+3. Show the stable channel separately; **do not label the RC as stable**. Preserve honest RTU/SCADA FAT and DPI limitations.
+4. Refresh the matching `docs/` mirror, update `README.md` and public release notes, and run repo hygiene, xUnit, Pages deployment, link/asset checks.
+5. Verify the real published Pages URL after a successful workflow. Do not create another binary release or overwrite a tag to fix website text.
+
+Version guards permit a website RC newer than the `master` source version **only** with complete pinned public-release provenance; they do not permit unverified stable-site version promotion.
+
 ## If the site shows 404
 
 Check these items in order:
