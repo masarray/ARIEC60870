@@ -15,7 +15,7 @@ public partial class HelpWindow : Window
     private readonly List<HelpTopic> _topics;
     private string _language = "en";
     private string _selectedTopicKey;
-    private string _expandedChapterKey = "learn-iec-family";
+    private string _expandedChapterKey = "learn-use-start";
     private bool _refreshingTopicList;
 
     public HelpWindow(string? topicKey = null)
@@ -23,7 +23,7 @@ public partial class HelpWindow : Window
         InitializeComponent();
         _topics = LoadSharedHandbook().Concat(CreateTopics()).ToList();
         TopicListBox.Loaded += (_, _) => QueueInitialNavigationScrollReset();
-        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "learn-iec-family" : topicKey!;
+        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "learn-use-start" : topicKey!;
         RefreshLanguageText();
         RefreshTopicList();
         SelectTopic(_selectedTopicKey);
@@ -81,7 +81,7 @@ public partial class HelpWindow : Window
 
     private void QueueInitialNavigationScrollReset()
     {
-        if (_selectedTopicKey != "learn-iec-family" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+        if (_selectedTopicKey != "learn-use-start" || !string.IsNullOrWhiteSpace(SearchBox.Text))
             return;
 
         // A virtualized ListBox can retain a mid-list estimate when the window
@@ -89,7 +89,7 @@ public partial class HelpWindow : Window
         // and its first chapter only after the navigation template has loaded.
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            if (_selectedTopicKey != "learn-iec-family" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+            if (_selectedTopicKey != "learn-use-start" || !string.IsNullOrWhiteSpace(SearchBox.Text))
                 return;
             FindNavigationScrollViewer(TopicListBox)?.ScrollToTop();
         }), DispatcherPriority.ApplicationIdle);
@@ -309,6 +309,10 @@ public partial class HelpWindow : Window
             badge.Badge, badge.Background, badge.Foreground);
     }
 
+    private static string GetHelpNavigationGroup(string key) =>
+        key.StartsWith("learn-use-", StringComparison.Ordinal) ? "guide" :
+        key.StartsWith("learn-", StringComparison.Ordinal) ? "book" : "reference";
+
     private void RefreshTopicList()
     {
         var terms = (SearchBox.Text ?? string.Empty).Trim()
@@ -319,31 +323,34 @@ public partial class HelpWindow : Window
 
         if (matched.Count > 0)
         {
-            foreach (var group in new[] { true, false })
+            foreach (var group in new[] { "guide", "book", "reference" })
             {
-                var inGroup = matched.Where(topic =>
-                    topic.Key.StartsWith("learn-", StringComparison.Ordinal) == group).ToList();
+                var inGroup = matched.Where(topic => GetHelpNavigationGroup(topic.Key) == group).ToList();
                 if (inGroup.Count == 0)
                     continue;
 
+                var groupHeading = group switch
+                {
+                    "guide" => Pick("ARSEE USER GUIDE", "PANDUAN PENGGUNA ARSEE"),
+                    "book" => Pick("ENGINEER HANDBOOK", "BUKU ENGINEER"),
+                    _ => Pick("APP REFERENCE", "REFERENSI APLIKASI")
+                };
                 items.Add(new HelpTopicListItem("", GetTopicMaterialGeometry("overview"), "",
-                    group ? (_language == "id" ? "BUKU ENGINEER" : "ENGINEER HANDBOOK")
-                          : (_language == "id" ? "PANDUAN APLIKASI" : "APP REFERENCE"),
-                    "", "group", -1, "", HelpBadgeNeutralBackground, HelpBadgeNeutralForeground));
+                    groupHeading, "", "group", -1, "",
+                    HelpBadgeNeutralBackground, HelpBadgeNeutralForeground));
 
                 foreach (var topic in inGroup)
                 {
+                    var isChapter = group != "reference";
                     items.Add(MakeNavItem(topic, Pick(topic.TitleEn, topic.TitleId),
-                        group ? "chapter" : "topic"));
-                    if (!group || (terms.Length == 0 && topic.Key != _expandedChapterKey))
+                        isChapter ? "chapter" : "topic"));
+                    if (!isChapter || (terms.Length == 0 && topic.Key != _expandedChapterKey))
                         continue;
 
                     for (var i = 0; i < topic.Sections.Count; i++)
                     {
-                        // Sources are appended to chapter content for offline traceability,
-                        // but are not a separate lesson in the navigation tree.
                         var section = topic.Sections[i];
-                        if (section.HeadingEn == "Sources and standards")
+                        if (section.HeadingEn is "Sources and standards" or "Further documentation")
                             continue;
                         var chapter = _topics.IndexOf(topic) + 1;
                         var label = $"{chapter}.{i + 1}  {Pick(section.HeadingEn, section.HeadingId)}";
@@ -385,7 +392,14 @@ public partial class HelpWindow : Window
                 || section.ParagraphsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
                 || section.ParagraphsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
                 || section.BulletsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
-                || section.BulletsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase)));
+                || section.BulletsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || (section.Workflow is { } flow && (
+                    flow.StepsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || flow.StepsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || flow.ExpectedEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.ExpectedId.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.TroubleshootingEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.TroubleshootingId.Contains(term, StringComparison.OrdinalIgnoreCase))));
     }
 
     private void RenderTopic(HelpTopic topic)
@@ -393,7 +407,9 @@ public partial class HelpWindow : Window
         var isHandbook = topic.Key.StartsWith("learn-", StringComparison.Ordinal);
         var chapterNumber = _topics.IndexOf(topic) + 1;
         TopicKickerText.Text = isHandbook
-            ? $"{Pick("ENGINEER HANDBOOK", "BUKU ENGINEER")}  ·  {Pick("CHAPTER", "BAB")} {chapterNumber:00}"
+            ? $"{(topic.Key.StartsWith("learn-use-", StringComparison.Ordinal)
+                ? Pick("ARSEE USER GUIDE", "PANDUAN PENGGUNA ARSEE")
+                : Pick("ENGINEER HANDBOOK", "BUKU ENGINEER"))}  ·  {Pick("CHAPTER", "BAB")} {chapterNumber:00}"
             : Pick(topic.CategoryEn, topic.CategoryId);
         TopicTitleText.Text = Pick(topic.TitleEn, topic.TitleId);
         TopicSummaryText.Text = Pick(topic.SummaryEn, topic.SummaryId);
