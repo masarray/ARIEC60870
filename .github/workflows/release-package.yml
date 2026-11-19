@@ -213,7 +213,7 @@ jobs:
             echo "| Publish release | $publish_release |"
             echo "| Pre-release | $prerelease |"
             echo "| Draft | $draft |"
-            echo "| User asset | ARIEC60870-v$version-win-x64.zip |"
+            echo "| User asset | ArSee-v$version-win-x64.zip |"
             echo "| Release notes | $notes_file |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -374,7 +374,7 @@ jobs:
 
       - name: Verify package structure
         shell: pwsh
-        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip"
+        run: ./scripts/verify-release-package.ps1 -PackagePath "artifacts/release/ArSee-v${{ needs.resolve.outputs.version }}-win-x64.zip"
 
       # The exact self-contained executable that enters the public ZIP must
       # pass a real Windows WPF probe. In particular, HOLD cannot mutate the
@@ -417,7 +417,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-wpf-evidence
+          name: ArSee-v${{ needs.resolve.outputs.version }}-wpf-evidence
           path: artifacts/release-wpf-evidence/
           if-no-files-found: warn
           retention-days: 30
@@ -439,12 +439,12 @@ jobs:
           $version = '${{ needs.resolve.outputs.version }}'
           & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
-          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          $setup = Join-Path $output "ArSee-v$version-setup-win-x64.exe"
           if (!(Test-Path $setup)) { throw 'Expected matching release setup executable missing.' }
 
       - name: Generate SPDX dependency SBOM
         shell: pwsh
-        run: ./scripts/generate-sbom-lite.ps1 -Version '${{ needs.resolve.outputs.version }}' -OutputPath "artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json"
+        run: ./scripts/generate-sbom-lite.ps1 -Version '${{ needs.resolve.outputs.version }}' -OutputPath "artifacts/release/ArSee-v${{ needs.resolve.outputs.version }}-sbom.spdx.json"
 
       - name: Refresh release checksums
         shell: pwsh
@@ -475,8 +475,8 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip
-            artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
+            artifacts/release/ArSee-v${{ needs.resolve.outputs.version }}-win-x64.zip
+            artifacts/release/ArSee-v${{ needs.resolve.outputs.version }}-sbom.spdx.json
             artifacts/release/SHA256SUMS.txt
 
       # The original multi-subject attestation intentionally covers portable
@@ -486,20 +486,20 @@ jobs:
         if: needs.resolve.outputs.publish_release == 'true'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: artifacts/release/ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe
+          subject-path: artifacts/release/ArSee-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe
 
       - name: Upload release test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-release-test-results
+          name: ArSee-v${{ needs.resolve.outputs.version }}-release-test-results
           path: artifacts/test-results/**/*
           if-no-files-found: warn
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-release
+          name: ArSee-v${{ needs.resolve.outputs.version }}-windows-release
           path: artifacts/release/*
           if-no-files-found: error
 
@@ -545,7 +545,7 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ARIEC60870-v${{ needs.resolve.outputs.version }}-windows-release
+          name: ArSee-v${{ needs.resolve.outputs.version }}-windows-release
           path: artifacts/release
 
       - name: Create or update GitHub Release
