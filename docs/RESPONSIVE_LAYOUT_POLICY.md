@@ -84,6 +84,16 @@ Layout and rendering must not become the bottleneck during polling:
 - Wide protocol columns, horizontal scroll, ellipsis, and tooltip are preferred over visually clipped text.
 - Serial close/dispose driver exceptions must be converted into Diagnostics evidence, not allowed to interrupt Stop/Close workflow.
 
+## 2026-11-19 — UX-TOOLTIP-01 operator-first microcopy
+
+Tooltips are **brief action labels**, not tutorials or documentation paragraphs. Use **2–8 everyday words** for normal controls; literal tooltips in MainWindow XAML must be at most **72 characters**. Say the immediate meaning or action once. Avoid repetitive protocol narration, multiple clauses, and long cautionary boilerplate. Full instructions belong in Help, Field Wiki, selected frame inspector, or evidence exports—not as popup overlays across a busy DataGrid.
+
+The Events FC10/FC11 hover should say **"Class 1 Data Polling"** / **"Class 2 Data Polling"**, and only for a source-verified request/reply pair. This is the observed polling path, **not a declaration of the IOA's configured data class**. The proof is retained in original TX/RX frames and exported RequestFC; avoid simplifying the underlying IEC truth.
+
+**Protected exceptions:** preserve deliberately optimized source-backed tooltips such as IOA 123/CA/IOA provenance, exact raw frame fields, quality bits, error flags, selected inspector fields, full profile paths, and measured capture/transport counters. These may need longer structured details; never globally truncate their data or move the meaning into a guessed short label. Do not create general per-cell tooltip factories or alter IEC protocol engines, scaling, activation, acquisition, or retention.
+
+The repository test now rejects long literal MainWindow action tooltips while explicitly checking that FC and IOA data-bound tooltips survive; desktop tests require exact short FC strings and verified poll semantics. Native Windows hover readability at real 100/125/150% OS DPI still needs operator review.
+
 ## v1.2.27 icon and logo regression guardrail
 
 - Keep command rail icons on the Lucide-style monoline resource set unless a replacement is reviewed at actual 18–22 px rail size.

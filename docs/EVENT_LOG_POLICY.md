@@ -99,6 +99,10 @@ The indicator is derived from the existing Event History follow policy, current 
 
 
 
+## 2026-11-19 — readable FC10/FC11 polling hover
+
+The **FC** cell shows only confirmed IEC-101 request functions from an exact primary TX and secondary RX match. The tooltip is deliberately short: `FC10 → Class 1 Data Polling` and `FC11 → Class 2 Data Polling`. Without a verified match, FC stays `—`, never an invented Class. It describes **which poll returned the event**, not how the RTU permanently configured that IOA; Class 1 data can arrive during a Class 2 poll. Detailed proof remains in the original frames, exported `RequestFC`, and this policy document, rather than multi-sentence hover text. Do not modify link correlation, source identity or journal serialization merely to change wording.
+
 ## 2026-10-30 R3-B/C GI/Command observation policy
 - Header **EVENT** increments only when one factual row is appended to the bounded Event Log (digital edge, spontaneous change, command stage, or GI milestone), not on every measurement or poll.
 - GI is a first-class filtered event group. One GI request, ACTCON and ACTTERM each create a concise event milestone; interrogated COT20..36 data accumulate typed frame/object counts without producing repetitive SOE. A reported ACTTERM explicitly states *coverage unknown* unless a project-approved expected mapping proves it.
