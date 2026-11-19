@@ -608,11 +608,11 @@ public partial class MainWindow
             "   |   " + (string.IsNullOrWhiteSpace(slavePort) ? "select COM" : slavePort) +
             " ↔ pair ↔ Slave app. Transparent forwarding in both directions; peer apps open the opposite endpoints.";
         PortComboBox.ToolTip = virtualMode
-            ? "Relay COM to virtual Master"
-            : "Receive SCADA TX only";
+            ? "Relay-owned COM connected to the Master application's virtual pair."
+            : "Receive-only input on the SCADA transmit direction.";
         PassiveRtuPortComboBox.ToolTip = virtualMode
-            ? "Relay COM to virtual Slave"
-            : "Receive RTU TX only";
+            ? "Relay-owned COM connected to the Slave application's virtual pair."
+            : "Receive-only input on the RTU transmit direction.";
         if (SetupSubtitleText is not null && IsIec101PassiveMonitorSelected())
             SetupSubtitleText.Text = virtualMode
                 ? "Transparent IEC-101 forwarding and observation across two selected COM ports."
