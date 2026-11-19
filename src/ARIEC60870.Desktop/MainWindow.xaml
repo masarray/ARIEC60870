@@ -1646,7 +1646,7 @@
                                 <Button x:Name="EventHistoryFirstButton" Style="{StaticResource EventJournalActionButtonStyle}"
                                         Content="First Event" Click="EventHistoryFirst_Click" Margin="7,0,0,0"
                                         AutomationProperties.Name="First matching event"/>
-                                <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalActionButtonStyle}"
+                                <Button x:Name="EventHistoryLatestButton" Style="{StaticResource EventJournalLatestFollowButtonStyle}"
                                         Content="Latest Event" Click="EventHistoryLatest_Click" Margin="7,0,0,0"
                                         ToolTip="Jump to the most recent matching events"/>
                                 <Button x:Name="EventHistoryExportButton" Style="{StaticResource EventJournalActionButtonStyle}"
@@ -1664,7 +1664,7 @@
                             </StackPanel>
                                 </ScrollViewer>
                             </Grid>
-                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" PreviewMouseWheel="EventsScroll_PreviewMouseWheel"
+                            <DataGrid PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" x:Name="RelayEventGrid" ToolTipService.IsEnabled="False" Grid.Row="2" SelectionChanged="EventHistoryGrid_SelectionChanged" PreviewMouseWheel="EventsScroll_PreviewMouseWheel"
                                       PreviewMouseLeftButtonDown="EventHistoryGrid_PreviewMouseLeftButtonDown"
                                       PreviewMouseLeftButtonUp="EventHistoryGrid_PreviewMouseLeftButtonUp"
                                       PreviewKeyDown="EventHistoryGrid_PreviewKeyDown"

@@ -84,6 +84,11 @@
             <GradientStop Color="#F5F9FF" Offset="0"/>
             <GradientStop Color="#DCEBFF" Offset="1"/>
         </LinearGradientBrush>
+        <!-- Dedicated Latest Event active mode: distinct from a normal pill. -->
+        <LinearGradientBrush x:Key="EventJournalFollowActiveBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#E8F2FF" Offset="0"/>
+            <GradientStop Color="#C7DEFD" Offset="1"/>
+        </LinearGradientBrush>
         <LinearGradientBrush x:Key="EventJournalCircleIdleBrush" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#FFFFFF" Offset="0"/>
             <GradientStop Color="#E7F1FC" Offset="1"/>
@@ -132,6 +137,16 @@
                             Value="{StaticResource EventJournalPillPressedBrush}"/>
                     <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#6F9CCF"/>
                 </Trigger>
+                <!-- Override generic hover and press ONLY while auto-follow is active. -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="Tag" Value="Following"/>
+                        <Condition Property="IsEnabled" Value="True"/>
+                    </MultiTrigger.Conditions>
+                    <Setter TargetName="EventJournalPillSurface" Property="Background"
+                            Value="{StaticResource EventJournalFollowActiveBrush}"/>
+                    <Setter TargetName="EventJournalPillSurface" Property="BorderBrush" Value="#5F94D1"/>
+                </MultiTrigger>
                 <Trigger Property="IsKeyboardFocusWithin" Value="True">
                     <Setter TargetName="EventJournalPillFocusRing" Property="Visibility" Value="Visible"/>
                 </Trigger>
@@ -193,6 +208,17 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template" Value="{StaticResource EventJournalPremiumPillTemplate}"/>
+        </Style>
+        <Style x:Key="EventJournalLatestFollowButtonStyle" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource EventJournalActionButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="Tag" Value="Following">
+                    <Setter Property="Background" Value="{StaticResource EventJournalFollowActiveBrush}"/>
+                    <Setter Property="BorderBrush" Value="#5F94D1"/>
+                    <Setter Property="Foreground" Value="#174574"/>
+                    <Setter Property="FontWeight" Value="Medium"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="EventJournalCircleNavigationStyle" TargetType="{x:Type Button}"
                BasedOn="{StaticResource EventJournalActionButtonStyle}">
