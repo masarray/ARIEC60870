@@ -275,7 +275,7 @@ public sealed class SharedHandbookTests
     {
         for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
-            var candidate = Path.Combine(dir.FullName, relative.Replace('/', Path.DirectorySeparatorChar));
+            var candidate = Path.Join(dir.FullName, relative.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(candidate)) return candidate;
         }
         throw new FileNotFoundException("Cannot locate repository file: " + relative);

@@ -101,7 +101,7 @@ public partial class HelpWindow
             TopicTitleText.Text != "Command flow")
             throw new InvalidOperationException("Contextual Help did not restore navigation.");
 
-        File.WriteAllText(Path.Combine(outputDirectory, "acceptance.json"),
+        File.WriteAllText(Path.Join(outputDirectory, "acceptance.json"),
             JsonSerializer.Serialize(new
             {
                 result = "passed",
@@ -266,7 +266,7 @@ public partial class HelpWindow
         bitmap.Render(viewport);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(Path.Combine(directory, filename));
+        using var stream = File.Create(Path.Join(directory, filename));
         encoder.Save(stream);
     }
 }

@@ -20,7 +20,7 @@ public partial class HelpWindow
 
     private static IReadOnlyList<HelpTopic> LoadSharedHandbook()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Learning", "iec60870-handbook.json");
+        var path = Path.Join(AppContext.BaseDirectory, "Learning", "iec60870-handbook.json");
         if (!File.Exists(path))
         {
             return new[]

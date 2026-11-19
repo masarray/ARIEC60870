@@ -28,7 +28,7 @@ public partial class App : Application
                 string.Equals(arg, "--help-out", StringComparison.OrdinalIgnoreCase));
             var output = outputOption >= 0 && outputOption + 1 < e.Args.Length
                 ? e.Args[outputOption + 1]
-                : Path.Combine(Path.GetTempPath(), "ArSee-Help-WPF-Acceptance");
+                : Path.Join(Path.GetTempPath(), "ArSee-Help-WPF-Acceptance");
             try
             {
                 // Isolated Help Window: real WPF rendering, no MainWindow startup,
@@ -39,10 +39,13 @@ public partial class App : Application
                 help.Close();
                 Shutdown(0);
             }
+            // Deliberately catch all non-fatal exceptions at this isolated WPF
+            // executable acceptance boundary: unexpected rendering errors must
+            // produce failure evidence and an unsuccessful process exit.
             catch (Exception ex)
             {
                 Directory.CreateDirectory(output);
-                File.WriteAllText(Path.Combine(output, "failure.txt"), ex.ToString());
+                File.WriteAllText(Path.Join(output, "failure.txt"), ex.ToString());
                 Console.Error.WriteLine("Help Center WPF acceptance failed: " + ex);
                 Shutdown(1);
             }

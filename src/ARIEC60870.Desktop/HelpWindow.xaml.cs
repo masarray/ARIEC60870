@@ -51,11 +51,10 @@ public partial class HelpWindow : Window
             }
         }
 
-        foreach (var item in TopicListBox.Items.OfType<HelpTopicListItem>())
+        var item = TopicListBox.Items.OfType<HelpTopicListItem>().FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase));
+        if (item is not null)
         {
-            if (!string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase))
-                continue;
-
             TopicListBox.SelectedItem = item;
             TopicListBox.ScrollIntoView(item);
             // SelectionChanged may be suppressed when rebuilding the hierarchical

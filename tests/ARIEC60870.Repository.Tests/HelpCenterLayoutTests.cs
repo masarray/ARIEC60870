@@ -213,7 +213,7 @@ public sealed class HelpCenterLayoutTests
         for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir is not null;
              dir = dir.Parent)
         {
-            var full = Path.Combine(dir.FullName, "src", "ARIEC60870.Desktop",
+            var full = Path.Join(dir.FullName, "src", "ARIEC60870.Desktop",
                 relative.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(full)) return full;
         }
