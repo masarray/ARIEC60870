@@ -38,75 +38,8 @@
     document.documentElement.classList.add("nav-enhanced");
   }
 
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const kineticItems = document.querySelectorAll(".interactive-surface, .screen-frame, .button, .trust-strip span, .ticker-track span, .notice a");
-  const revealItems = document.querySelectorAll(".reveal");
-
-  if (reduceMotion || !("IntersectionObserver" in window)) {
-    revealItems.forEach((item) => item.classList.add("is-visible"));
-  } else {
-    const revealObserver = new IntersectionObserver(
-      (entries, observer) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
-
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        });
-      },
-      {
-        root: null,
-        rootMargin: "0px 0px -12% 0px",
-        threshold: 0.12,
-      },
-    );
-
-    revealItems.forEach((item) => revealObserver.observe(item));
-  }
-
-  if (!reduceMotion) {
-    kineticItems.forEach((item) => {
-      item.classList.add("kinetic-ready");
-
-      item.addEventListener("pointermove", (event) => {
-        const rect = item.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        const px = x / rect.width;
-        const py = y / rect.height;
-        const tilt = item.classList.contains("screen-frame") ? 2.4 : 1.4;
-
-        item.style.setProperty("--mx", `${px * 100}%`);
-        item.style.setProperty("--my", `${py * 100}%`);
-        item.style.setProperty("--rx", `${(0.5 - py) * tilt}deg`);
-        item.style.setProperty("--ry", `${(px - 0.5) * tilt}deg`);
-      });
-
-      item.addEventListener("pointerleave", () => {
-        item.style.removeProperty("--rx");
-        item.style.removeProperty("--ry");
-        item.style.removeProperty("--tx");
-        item.style.removeProperty("--ty");
-      });
-
-      item.addEventListener("pointerdown", (event) => {
-        item.classList.add("is-pressed");
-        const rect = item.getBoundingClientRect();
-        const ripple = document.createElement("span");
-        ripple.className = "click-ripple";
-        ripple.style.left = `${event.clientX - rect.left}px`;
-        ripple.style.top = `${event.clientY - rect.top}px`;
-        item.appendChild(ripple);
-        ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
-      });
-
-      item.addEventListener("pointerup", () => item.classList.remove("is-pressed"));
-      item.addEventListener("pointercancel", () => item.classList.remove("is-pressed"));
-    });
-  }
-
+  // P3: Keep content visible with or without JavaScript. Avoid per-card motion tracking,
+  // ripple nodes and entry animations; navigation, FAQ and gallery remain enhanced.
 
   // Accordion enhancement with deep links; static HTML remains readable without JavaScript.
   const faqCards = Array.from(document.querySelectorAll(".faq-accordion-card"));
