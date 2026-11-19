@@ -43,7 +43,7 @@ chapters[]:
       questionEn, questionId, answerEn, answerId
 ```
 
-Both readers use the same ordering and section structure. The R4 catalogue contains **27 bilingual chapters and 115 sections**, including **11 ArSee operating-manual chapters / 45 practical workflows** alongside the earlier 16 IEC learning chapters / 20 guided trace labs. The practical chapters are grouped first in desktop and Wiki navigation; article keys and section anchors remain stable. New `number`, `id`, and `bookEdition` fields provide canonical section labels and stable deep-link anchors in the public Wiki. The WPF chapter tree derives numbering from the same ordered chapters, offers a compact IEC101/IEC103/IEC104 badge, and expands only the active chapter. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
+Both readers use the same ordering and section structure. The R4.1 catalogue contains **28 bilingual chapters and 128 sections**, including **12 ArSee operating-manual chapters / 58 practical workflows** alongside 16 IEC learning chapters / 20 verified trace labs. The practical chapters are grouped first in desktop and Wiki navigation; article keys and section anchors remain stable. New `number`, `id`, and `bookEdition` fields provide canonical section labels and stable deep-link anchors in the public Wiki. The WPF chapter tree derives numbering from the same ordered chapters, offers a compact IEC101/IEC103/IEC104 badge, and expands only the active chapter. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
 
 ## Scope and correctness checks
 
@@ -54,6 +54,12 @@ A useful learning chapter answers **what**, **why**, **normal request/response**
 **Commands:** distinguish link/TCP/APCI ACK from ACTCON/ACTTERM and the actual process-state feedback. Do not claim physical action on positive protocol confirmation alone.
 
 **License:** IEC 60870 publications are copyrighted and may be used for authorized clause-level conformance review. The free handbook is an independently written engineering explanation: no complete reproduction of the IEC book, normative tables, figures, test case annexes or vendor manuals.
+
+## R4.1 Signal Map operating manual
+
+The dedicated `learn-use-signal-map` chapter includes 13 bilingual step-by-step procedures, checked against the real `SignalListEditorWindow.cs`, `SignalListEditorWindow.FieldChoices.cs`, `Iec10xPointMappingProfile.cs`, `Iec103SignalMappingProfile.cs`, the approved schema reference and the Main Window Signals/Browse handlers. The same material is available offline in WPF and online in the Wiki with anchor `#learn-use-signal-map`.
+
+The IEC 101/104 Signal Map dialog now routes **F1** and **More actions → Signal Map guide (F1)** to that chapter in an owned Help Center, reusing an already-open instance. No extra permanent toolbar button was added. The guide explains default/advanced column meanings, cell editing and search, explicit Generate name, state keys, Factor vs TwoPoint data domains, separate command/feedback IOAs, Save vs Save & Apply, special 31-I/O sync, Field FAT worksheet and the independent IEC103 FUN/INF JSON path. All test CA/IOA/TI values and scaling examples are illustrative rather than source-observed site truth. The guide explicitly does not grant permission to issue physical commands.
 
 ## R4 ArSee operating-guide contract
 
