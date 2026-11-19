@@ -119,6 +119,8 @@ public sealed class HelpCenterLayoutTests
         Assert.Contains("id-iec101-780x540.png", acceptance);
         Assert.Contains("en-user-guide-default-window.png", acceptance);
         Assert.Contains("id-user-guide-setup-780x540.png", acceptance);
+        Assert.Contains("en-signal-map-guide-1180x820.png", acceptance);
+        Assert.Contains("id-signal-map-guide-780x540.png", acceptance);
         Assert.Contains("VerifyOperatingGuideStructure();", acceptance);
         Assert.Contains("en-iec104-trace-lab-default.png", acceptance);
         Assert.Contains("id-iec101-trace-lab-780x540.png", acceptance);
