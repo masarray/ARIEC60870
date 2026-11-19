@@ -603,22 +603,30 @@ public partial class MainWindow
         var current = DateTime.UtcNow;
         ObserveEventHistoryExchange(new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 621, TimestampUtc = current,
+            SequenceNumber = 621,
+            TimestampUtc = current,
             Direction = FrameDirection.MasterToSlave,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            PhysicalSource = "SINGLE", LinkAddress = 105,
-            Frame = txWire, RawHex = txWire.Hex
+            PhysicalSource = "SINGLE",
+            LinkAddress = 105,
+            Frame = txWire,
+            RawHex = txWire.Hex
         });
         var originalRx = new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 622, TimestampUtc = current.AddMilliseconds(75),
+            SequenceNumber = 622,
+            TimestampUtc = current.AddMilliseconds(75),
             Direction = FrameDirection.SlaveToMaster,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            PhysicalSource = "SINGLE", LinkAddress = 105,
-            Frame = decodedRx.SerialFrame, AsduDetails = decodedRx.Asdu,
+            PhysicalSource = "SINGLE",
+            LinkAddress = 105,
+            Frame = decodedRx.SerialFrame,
+            AsduDetails = decodedRx.Asdu,
             InformationObjectDetails = decodedRx.Asdu?.FirstObject,
-            CommonAddressNumber = 105, InformationObjectAddress = 7,
-            TypeId = 30, RawHex = Convert.ToHexString(replyWire)
+            CommonAddressNumber = 105,
+            InformationObjectAddress = 7,
+            TypeId = 30,
+            RawHex = Convert.ToHexString(replyWire)
         };
         AppendProtocolEvent(new Iec103RelayEventLogEntry
         {
@@ -627,8 +635,11 @@ public partial class MainWindow
             EvidenceReference = originalRx.EvidenceReference,
             ProtocolMode = originalRx.ProtocolMode,
             SignalName = "Synthetic original RX",
-            TypeId = 30, CommonAddress = 105, InformationObjectAddress = 7,
-            RawHex = originalRx.RawHex, NewValue = "ON"
+            TypeId = 30,
+            CommonAddress = 105,
+            InformationObjectAddress = 7,
+            RawHex = originalRx.RawHex,
+            NewValue = "ON"
         }, originalRx);
         await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
         await RefreshEventHistoryQueryAsync();
