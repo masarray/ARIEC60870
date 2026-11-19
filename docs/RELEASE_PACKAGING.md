@@ -7,13 +7,13 @@ This document explains the user-facing release package and the automation used b
 A professional public release should keep the download choice simple. The primary Windows asset is:
 
 ```text
-ARIEC60870-vX.Y.Z-win-x64.zip
+ArSee-vX.Y.Z-win-x64.zip
 ```
 
 The ZIP is intended for normal users and contains one self-contained desktop executable:
 
 ```text
-ARIEC60870.exe
+ArSee.exe
 ```
 
 No start batch file is required. Users extract the ZIP and double-click the EXE.
@@ -23,7 +23,7 @@ No start batch file is required. Users extract the ZIP and double-click the EXE.
 Release automation also publishes:
 
 ```text
-ARIEC60870-vX.Y.Z-sbom.spdx.json
+ArSee-vX.Y.Z-sbom.spdx.json
 SHA256SUMS.txt
 ```
 
@@ -31,9 +31,9 @@ The workflow also requests build provenance attestation for the ZIP, checksum, a
 
 ## How users run the app
 
-1. Download `ARIEC60870-vX.Y.Z-win-x64.zip` from GitHub Releases.
+1. Download `ArSee-vX.Y.Z-win-x64.zip` from GitHub Releases.
 2. Extract the ZIP to a local folder.
-3. Run `ARIEC60870.exe`.
+3. Run `ArSee.exe`.
 4. Open **Setup**.
 5. Select IEC-101 serial, IEC-103 serial, or IEC-104 TCP/IP.
 6. Configure the approved COM/TCP endpoint, addressing profile, timeout, GI, and optional mapping profile.
@@ -51,14 +51,14 @@ pwsh ./scripts/publish-windows-portable.ps1 -Version 3.6.5
 Expected output:
 
 ```text
-artifacts/release/ARIEC60870-v3.6.5-win-x64.zip
+artifacts/release/ArSee-v3.6.5-win-x64.zip
 artifacts/release/SHA256SUMS.txt
 ```
 
 Verify package structure:
 
 ```powershell
-pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ARIEC60870-v3.6.5-win-x64.zip
+pwsh ./scripts/verify-release-package.ps1 -PackagePath artifacts/release/ArSee-v3.6.5-win-x64.zip
 ```
 
 ## Autonomous, comment-controlled stable release
@@ -149,7 +149,7 @@ On tag push, the workflow infers the version from the tag, builds the single-fil
 
 A complete user package includes:
 
-- `ARIEC60870.exe` at package root;
+- `ArSee.exe` at package root;
 - `README_RELEASE.txt`;
 - quick-start, user guide, troubleshooting, validation, and packaging documents;
 - neutral sample mapping/profile files;
@@ -160,7 +160,7 @@ A complete user package must not include batch launchers or multiple executable 
 ## Local SBOM generation
 
 ```powershell
-pwsh ./scripts/generate-sbom-lite.ps1 -Version 3.6.5 -OutputPath artifacts/release/ARIEC60870-v3.6.5-sbom.spdx.json
+pwsh ./scripts/generate-sbom-lite.ps1 -Version 3.6.5 -OutputPath artifacts/release/ArSee-v3.6.5-sbom.spdx.json
 ```
 
 ## Embedded Inter font acquisition
@@ -173,7 +173,7 @@ Windows builds run `pwsh ./scripts/prepare-inter-font.ps1` **before restore/buil
 The installable EXE is generated separately by Windows CI using
 `installer/ARIEC60870.iss` from the same self-contained published WPF
 binary. It supports per-user in-place upgrades, a Start Menu shortcut and
-preserves `%LOCALAPPDATA%\\ARIEC60870`. CI verifies a genuine published
+preserves `%LOCALAPPDATA%\\ARIEC60870` (legacy user-owned workspace; deliberately not renamed or deleted). CI verifies a genuine published
 v3.6.7 binary upgrade, a running simulated Master close, one uninstall
 registration and user-data preservation. The public release workflow publishes the installer alongside the portable
 ZIP and SHA256SUMS.txt. The updater PR provides explicit, operator-approved
