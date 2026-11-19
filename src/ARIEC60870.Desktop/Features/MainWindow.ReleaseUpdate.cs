@@ -77,7 +77,7 @@ public partial class MainWindow
         UpdateAvailableButton.Content = $"Update available · {latest.Tag}";
         UpdateAvailableButton.Visibility = Visibility.Visible;
         UpdateAvailableButton.ToolTip =
-            $"ArSee {latest.Tag} is available. Installed: {GetCurrentProductVersionText()}. Click to update.";
+            $"ArSee {latest.Tag} available (installed {GetCurrentProductVersionText()})";
 
         AppendSessionLog($"Update available: {latest.Tag}; current version {GetCurrentProductVersionText()}.");
 
@@ -161,7 +161,7 @@ public partial class MainWindow
                 // A verified download never interrupts an ongoing IEC session.
                 UpdateAvailableButton.Content = "Ready · install on exit";
                 UpdateAvailableButton.ToolTip =
-                    "Installer verified. Close ArSee normally after the IEC session ends to apply the update.";
+                    "Installer verified. Update after safely closing ArSee.";
             }
             else
             {

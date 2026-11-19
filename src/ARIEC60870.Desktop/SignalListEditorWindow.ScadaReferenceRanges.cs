@@ -22,7 +22,7 @@ public sealed partial class SignalListEditorWindow
         {
             Header = "SCADA reference range for selected signal...",
             FontSize = 12,
-            ToolTip = "Preview one operator-supplied SCADA range. Nothing is applied automatically."
+            ToolTip = "Preview SCADA range (not applied)"
         };
         foreach (var (id, caption) in new[]
         {

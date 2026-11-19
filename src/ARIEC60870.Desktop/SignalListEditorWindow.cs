@@ -912,7 +912,7 @@ public sealed partial class SignalListEditorWindow : Window
         composeName.Name = "SignalMapGenerateNameButton";
         composeName.HorizontalAlignment = HorizontalAlignment.Stretch;
         composeName.Margin = new Thickness(0, 0, 0, FieldGap + LayoutGap);
-        composeName.ToolTip = "Explicit action only. Keeps an existing trailing numeric suffix; never rewrites names automatically.";
+        composeName.ToolTip = "Compose name; keep numeric suffix";
         details.Children.Add(composeName);
 
         AddSectionHeading(details, "Protocol & commands", "Advanced settings remain editable here.");
@@ -1792,8 +1792,8 @@ public sealed partial class SignalListEditorWindow : Window
         _dirtyText.Foreground = _dirty ? DangerBrush :
             _activation.HasUnappliedProfile ? AccentDarkBrush : SuccessBrush;
         _dirtyText.ToolTip = _activation.HasUnappliedProfile
-            ? "The editor contains a newly loaded or saved profile. Use Save & Apply to activate it in live Values."
-            : "This status reflects editor changes, not physical RTU calibration.";
+            ? "Profile not active. Use Save & Apply."
+            : "Editor status only; not RTU calibration.";
     }
 
     private void RefreshBayChoices()

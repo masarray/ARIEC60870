@@ -109,14 +109,14 @@ public sealed class EventHistoryJournalTests
         Assert.Equal(FrameDirection.MasterToSlave, recovered.ObservedRequestFrame?.Direction);
         Assert.Equal(10, recovered.ObservedRequestFrame?.Frame?.LinkControl?.FunctionCode);
         Assert.Equal("FC10", recovered.RequestFcCode);
-        Assert.Contains("Request user data, Class 1", recovered.RequestFcTooltip);
+        Assert.Equal("Class 1 Data Polling", recovered.RequestFcTooltip);
         Assert.True(EventFrameExchange.IsObservedPollReply(
             recovered.ObservedRequestFrame!, recovered.OriginalFrameEvidence!));
     }
 
     [Theory]
-    [InlineData((byte)0x5A, "FC10", "Request user data, Class 1")]
-    [InlineData((byte)0x5B, "FC11", "Request user data, Class 2")]
+    [InlineData((byte)0x5A, "FC10", "Class 1 Data Polling")]
+    [InlineData((byte)0x5B, "FC11", "Class 2 Data Polling")]
     public void EventLogFcDisplaysOnlyVerifiedIEC101PollAndSurvivesIndexedHistory(
         byte control, string expectedCode, string expectedTooltip)
     {
@@ -141,18 +141,20 @@ public sealed class EventHistoryJournalTests
         var verified = new RelayEventRow(row.SourceEntry, rx,
             eventNumber: 1, observedRequestFrame: poll);
         Assert.Equal(expectedCode, verified.RequestFcCode);
-        Assert.Contains(expectedTooltip, verified.RequestFcTooltip);
-        Assert.Contains("not", verified.RequestFcTooltip, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(expectedTooltip, verified.RequestFcTooltip);
+        Assert.True(verified.RequestFcTooltip.Length <= 30);
 
         using var journal = new EventHistoryJournal();
         journal.Append(verified);
         var restored = journal.ReadAfter(0, 1).Single().ToRow();
         Assert.Equal(expectedCode, restored.RequestFcCode);
-        Assert.Contains(expectedTooltip, restored.RequestFcTooltip);
+        Assert.Equal(expectedTooltip, restored.RequestFcTooltip);
 
         // No observed TX and unrelated physical sources must never inherit
         // an attractive but fabricated Class 1/2 delivery label.
         Assert.Equal("—", new RelayEventRow(row.SourceEntry, rx).RequestFcCode);
+        Assert.Equal("No matched Class 1/2 poll",
+            new RelayEventRow(row.SourceEntry, rx).RequestFcTooltip);
         var differentLink = new Iec103MasterEvidenceEvent
         {
             SequenceNumber = poll.SequenceNumber,

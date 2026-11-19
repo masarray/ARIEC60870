@@ -90,10 +90,10 @@ public partial class MainWindow
         StartButton.Foreground = (Brush)FindResource(isRunning ? "BadBrush" : "GoodBrush");
         StartButton.ToolTip = IsIec101PassiveMonitorSelected()
             ? (IsVirtualInlineSelected()
-                ? (isRunning ? "Stop active virtual relay and Monitor" :
-                    "Start transparent two-COM inline forwarding and IEC-101 monitoring")
-                : (isRunning ? "Stop receive-only monitoring (finalize optional full journal)" :
-                    "Start IEC-101 receive-only monitoring; recording is OFF unless enabled in Setup"))
+                ? (isRunning ? "Stop virtual relay and monitor" :
+                    "Start virtual inline relay (two COM ports)")
+                : (isRunning ? "Stop monitor (finalize optional recording)" :
+                    "Start receive-only monitor (recording off by default)"))
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
     }
 
@@ -939,14 +939,14 @@ public partial class MainWindow
         ClearButton.Visibility = Visibility.Visible;
         SignalListButton.Visibility = Visibility.Visible;
         OpenCaptureButton.ToolTip = isPassive101
-            ? "Open a selected-frame .ariec file for offline review, or a full raw journal manifest.json."
+            ? "Open captured frames or raw journal"
             : "Open .ariec capture for offline review";
         SaveCaptureRailButton.ToolTip = isPassive101
-            ? "Save selected decoded Trace rows as .ariec. Live-only monitoring does not record automatically; full journaling is optional in Setup."
+            ? "Save selected frames (full recording set in Setup)"
             : "Save selected Trace rows as .ariec capture";
         SaveCaptureRailCaption.Text = isPassive101 ? "Save Frames" : "Save Cap";
         ClearButton.ToolTip = isPassive101
-            ? "Clear visible decoded rows only; does not save or delete any optional raw journal"
+            ? "Clear visible rows (recordings kept)"
             : "Clear visible session rows";
         HeaderIndicatorChip.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
 

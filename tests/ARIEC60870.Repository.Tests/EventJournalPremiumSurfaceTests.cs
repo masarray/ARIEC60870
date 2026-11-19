@@ -243,6 +243,29 @@ public sealed class EventJournalPremiumSurfaceTests
     }
 
     [Fact]
+    public void OperatorTooltipsStayShortWithoutLosingStructuredEvidence()
+    {
+        var window = XDocument.Load(FindMainWindowXaml());
+        var staticHints = window.Descendants()
+            .SelectMany(element => element.Attributes())
+            .Where(attribute => attribute.Name.LocalName == "ToolTip" &&
+                !attribute.Value.StartsWith("{Binding", StringComparison.Ordinal) &&
+                !attribute.Value.StartsWith("{StaticResource", StringComparison.Ordinal));
+        foreach (var hint in staticHints)
+            Assert.True(hint.Value.Length <= 72,
+                $"Overlong operator tooltip ({hint.Value.Length} chars): {hint.Value}");
+
+        // Preserve exact IOA and other source-backed evidence instead of
+        // globally shortening every live value tooltip.
+        var grid = Named(window.Root!, "DataGrid", "RelayEventGrid");
+        Assert.Contains(grid.Descendants(), element =>
+            element.Name.LocalName == "Setter" &&
+            (string?)element.Attribute("Value") == "{Binding RequestFcTooltip}");
+        Assert.Contains(grid.Descendants(), element =>
+            (string?)element.Attribute("ToolTip") == "{Binding IoaTooltip}");
+    }
+
+    [Fact]
     public void DisabledControlsRetainTheirCircleOrPillElevation()
     {
         var doc = XDocument.Load(FindThemeXaml());

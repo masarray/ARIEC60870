@@ -218,7 +218,7 @@ public sealed partial class SignalListEditorWindow
             Background = Brushes.White,
             BorderBrush = BorderBrushSoft,
             Foreground = TextMainBrush,
-            ToolTip = "Choose a known value, or type a project-specific code."
+            ToolTip = "Choose a value or type a custom code"
         };
         TextSearch.SetTextPath(combo, nameof(SignalFieldChoice.Value));
         foreach (var choice in choices)
