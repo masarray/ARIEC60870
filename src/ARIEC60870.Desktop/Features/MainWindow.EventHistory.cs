@@ -158,8 +158,8 @@ public partial class MainWindow
         if (!Equals(EventHistoryLatestButton.Tag, tag))
             EventHistoryLatestButton.Tag = tag;
         var hint = following
-            ? "Auto-follow ON: following newest indexed events. Scroll upward to inspect history."
-            : "Auto-follow OFF: jump to newest matching events and resume following.";
+            ? "Following latest events"
+            : "Jump to latest events · resume follow";
         if (!Equals(EventHistoryLatestButton.ToolTip, hint))
             EventHistoryLatestButton.ToolTip = hint;
         System.Windows.Automation.AutomationProperties.SetItemStatus(

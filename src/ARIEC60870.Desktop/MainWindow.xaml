@@ -296,7 +296,7 @@
                         <TextBlock x:Name="SaveCaptureRailCaption" Text="Save Cap" Style="{StaticResource RailButtonCaption}" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected Trace rows as tab-separated .txt. If no rows are selected, exports all visible trace rows.">
+                <Button x:Name="ExportTraceRailButton" Style="{StaticResource RailIconButton}" Click="ExportSelectedTrace_Click" ToolTip="Export selected frames as TXT (or all visible)">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Style="{StaticResource RailIconPath}" Data="{StaticResource LucideFileTypeCorner}" />
                         <TextBlock Text="Trace TXT" Style="{StaticResource RailButtonCaption}" />
@@ -461,7 +461,7 @@
                                     Margin="10,0,0,0"
                                     Visibility="Collapsed"
                                     Click="UpdateAvailable_Click"
-                                    ToolTip="A newer ARIEC60870 release is available. Click to open the release page." />
+                                    ToolTip="New ArSee version available" />
                             <Border Visibility="Collapsed">
                                 <StackPanel>
                                     <TextBlock x:Name="StateText" Text="Idle" />
@@ -540,7 +540,7 @@
                                     <ContextMenu>
                                         <MenuItem Header="Save Selected Frames (.ariec)..." Click="SaveSelectedCapture_Click" />
                                             <MenuItem Header="Copy Selected Frame" Click="CopySelectedCaptureForAi_Click"
-                                                      ToolTip="Copy this frame, or all Ctrl/Shift-selected frames, as plain text to the clipboard." />
+                                                      ToolTip="Copy selected frames as text" />
                                         <MenuItem Header="Export Selected Evidence Text..." Click="ExportSelectedTrace_Click" />
                                         <Separator />
                                         <MenuItem Header="Select All Visible Evidence Rows" Click="SelectAllEvidenceSummaryRows_Click" />
@@ -1759,14 +1759,14 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Smart findings and solution" Style="{StaticResource SubtleText}" FontSize="11.8" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="Cause, proof, frame snippet, and field action built from protocol evidence." />
+                                <TextBlock Text="Smart findings and solution" Style="{StaticResource SubtleText}" FontSize="11.8" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="Evidence-based finding and suggested action" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Auto fix config"
                                             Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                             MinWidth="126"
                                             Margin="0,0,8,0"
                                             Click="AutoFixConfigFromFindings_Click"
-                                            ToolTip="Infer the most likely IEC setup from the current evidence and highlight corrected fields." />
+                                            ToolTip="Suggest IEC setup corrections from evidence" />
                                     <Button Style="{StaticResource ReportChromeIconButton}"
                                             Click="RefreshFindingsWorkspace_Click"
                                             ToolTip="Refresh findings">
@@ -1896,7 +1896,7 @@
                                 <RowDefinition Height="150" />
                             </Grid.RowDefinitions>
                             <DockPanel>
-                                <TextBlock Text="Runtime diagnostics" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Captures transport exceptions, timeouts, mapping/load issues, warnings, and findings without crashing the operator workflow." />
+                                <TextBlock Text="Runtime diagnostics" Style="{StaticResource SubtleText}" TextWrapping="Wrap" DockPanel.Dock="Left" ToolTip="Runtime errors, warnings and findings" />
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="12,0,0,0">
                                     <Button Content="Copy Row" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="92" Click="CopySelectedDiagnostic_Click" />
                                     <Button Content="Copy Detail" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Width="106" Margin="8,0,0,0" Click="CopyDiagnosticDetail_Click" />
@@ -2054,7 +2054,7 @@
                             <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="16" Padding="14">
                                 <StackPanel>
                                     <TextBlock Text="Tester strategy" FontWeight="Medium" FontSize="16" />
-                                    <TextBlock Text="IEC-101 / IEC-103 / IEC-104 workspace" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" ToolTip="Runs IEC-103 serial master, IEC-101 serial master, or IEC-104 TCP client. Demo mode uses simulated outstation/server flows." />
+                                    <TextBlock Text="IEC-101 / IEC-103 / IEC-104 workspace" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,6,0,0" ToolTip="IEC-101/103 serial, IEC-104 TCP; demo is simulated" />
                                 </StackPanel>
                             </Border>
                             <TextBox x:Name="SessionLogBox" Grid.Row="2" Height="Auto" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="12" />
@@ -2246,7 +2246,7 @@
                                                 Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="0,0,6,0"
                                                 Click="DualLinkManualFailover_Click"
-                                                ToolTip="Request a controlled active/standby switchover. The controller still verifies standby health before promotion." />
+                                                ToolTip="Switch to standby link after health check" />
                                         <Button Content="Open Report"
                                                 Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Click="RefreshReportPreview_Click"
@@ -2368,18 +2368,18 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                 <DockPanel Margin="3,0,3,7">
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Only pauses this table; raw bytes continue recording to disk." />
+                                        <CheckBox x:Name="PassiveFreezeCheckBox" Content="Freeze view" Margin="0,4,12,0" ToolTip="Pause table view; keep recording" />
                                         <Button x:Name="PassiveVerifyButton" Content="Verify" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" IsEnabled="False" Click="PassiveVerify_Click"/>
                                         <Button x:Name="PassiveFindAnomaliesButton" Content="Anomalies" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" Click="PassiveFindAnomalies_Click"
-                                                ToolTip="Browse verified capture anomalies in indexed pages; no extra monitoring COM or TX."/>
+                                                ToolTip="Browse recorded anomalies (read-only)"/>
                                         <ComboBox x:Name="PassiveAnomalyPicker" Width="355" Margin="6,0,0,0"
                                                   DisplayMemberPath="Label" VerticalContentAlignment="Center"
                                                   SelectionChanged="PassiveAnomalyPicker_SelectionChanged"
-                                                  ToolTip="Choose a five-second anomaly to inspect exact verified raw source bytes."/>
+                                                  ToolTip="Inspect verified raw bytes for this interval"/>
                                         <Button x:Name="PassiveOlderAnomaliesButton" Content="Older" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}"
                                                 Margin="6,0,0,0" IsEnabled="False" Click="PassiveOlderAnomalies_Click"
-                                                ToolTip="Load the previous page without keeping all timeline rows in the GUI."/>
+                                                ToolTip="Show earlier anomaly page"/>
                                     </StackPanel>
                                     <StackPanel>
                                         <TextBlock Text="RAW TRAFFIC" Style="{StaticResource EyebrowText}"/>
@@ -2999,10 +2999,10 @@
                             </ComboBox>
 
                             <TextBlock Text="INTEROPERABILITY CONVENTION" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"
-                                       ToolTip="An explicit interpretation edition; historical conventions are references, not universal IEC requirements or certification claims." />
+                                       ToolTip="Select IEC interpretation convention" />
                             <ComboBox x:Name="InteroperabilityConventionComboBox" SelectedIndex="0" Margin="0,0,0,6"
                                       SelectionChanged="InteroperabilityConventionComboBox_SelectionChanged"
-                                      ToolTip="Imported profiles do not modify field widths or enable transmission automatically.">
+                                      ToolTip="Import does not change widths or start TX">
                                 <ComboBoxItem Content="Generic IEC · project field widths" />
                                 <ComboBoxItem Content="Historical NUC reference · optional" />
                                 <ComboBoxItem Content="Project custom · imported JSON" />
@@ -3018,7 +3018,7 @@
                             <Border x:Name="ProtocolSetupDescriptionCard" Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,14">
                                 <StackPanel>
                                     <TextBlock x:Name="ProtocolSetupBadgeText" Text="IEC-103 · FT1.2 serial protection" Style="{StaticResource EyebrowText}" />
-                                    <TextBlock x:Name="ProtocolSetupDescriptionText" Text="Protection relay profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,5,0,0" ToolTip="IEC-103 uses FUN/INF addressing. Class 1 carries events; Class 2 carries background data." />
+                                    <TextBlock x:Name="ProtocolSetupDescriptionText" Text="Protection relay profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,5,0,0" ToolTip="IEC-103: FUN/INF, Class 1 events, Class 2 background" />
                                 </StackPanel>
                             </Border>
 
@@ -3049,10 +3049,10 @@
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
                                     <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="PassiveRtuPortComboBox" SelectionChanged="PassiveRelayPort_SelectionChanged" ToolTip="Physical RX input or selected Slave-side Virtual Inline relay endpoint."/>
+                                    <ComboBox x:Name="PassiveRtuPortComboBox" SelectionChanged="PassiveRelayPort_SelectionChanged" ToolTip="RTU RX port or virtual Slave endpoint"/>
                                     <CheckBox x:Name="PassiveLinkBEnabledCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Also monitor redundant Link B (4 RX ports)"
                                               Margin="0,12,0,6" Checked="PassiveLinkBSelectionChanged" Unchecked="PassiveLinkBSelectionChanged"
-                                              ToolTip="Capture both independent IEC-101 full-duplex circuits at the same time. All four COM inputs must be receiver-only."/>
+                                              ToolTip="Capture Link B with two more RX-only ports"/>
                                     <StackPanel x:Name="PassiveLinkBPortsPanel" Visibility="Collapsed" Margin="0,5,0,0">
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -3071,7 +3071,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="Baudrate" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="BaudComboBox" SelectedIndex="5" IsEditable="True" ToolTip="IEC-101/103 serial bit rate. Low-rate field channels such as 1200 bps are supported; type a custom value if your RTU/relay uses a project-specific rate.">
+                                        <ComboBox x:Name="BaudComboBox" SelectedIndex="5" IsEditable="True" ToolTip="Match the IEC-101/103 baud rate to the RTU">
                                             <ComboBoxItem Content="300" />
                                             <ComboBoxItem Content="600" />
                                             <ComboBoxItem Content="1200" />
@@ -3086,7 +3086,7 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Serial" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="SerialModeComboBox" SelectedIndex="0" ToolTip="IEC-101 FT1.2 uses 8 data bits. Choose parity and stop bits as configured on the live serial link.">
+                                        <ComboBox x:Name="SerialModeComboBox" SelectedIndex="0" ToolTip="Match parity and stop bits to the serial link">
                                             <ComboBoxItem Content="8E1" />
                                             <ComboBoxItem Content="8N1" />
                                             <ComboBoxItem Content="8O1" />
@@ -3101,7 +3101,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="Flow control" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="SerialHandshakeComboBox" SelectedIndex="0" ToolTip="None for three-wire RS232; RTS/CTS only if the converter and RTU wiring support hardware flow control.">
+                                        <ComboBox x:Name="SerialHandshakeComboBox" SelectedIndex="0" ToolTip="Use RTS/CTS only when wiring supports it">
                                             <ComboBoxItem Content="None" />
                                             <ComboBoxItem Content="RTS/CTS" />
                                             <ComboBoxItem Content="XON/XOFF" />
@@ -3110,8 +3110,8 @@
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Output lines" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
                                         <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="SerialRtsCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="RTS" IsChecked="True" Margin="0,5,12,0" ToolTip="RTS forced output only when hardware RTS/CTS flow control is disabled." />
-                                            <CheckBox x:Name="SerialDtrCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="DTR" IsChecked="False" Margin="0,5,0,0" ToolTip="DTR output asserted at COM open. Only enable if the connected device/converter requires it." />
+                                            <CheckBox x:Name="SerialRtsCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="RTS" IsChecked="True" Margin="0,5,12,0" ToolTip="Force RTS only without RTS/CTS handshaking" />
+                                            <CheckBox x:Name="SerialDtrCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="DTR" IsChecked="False" Margin="0,5,0,0" ToolTip="Assert DTR on COM open only when required" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Grid>
@@ -3126,7 +3126,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Backup COM port" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                            <ComboBox x:Name="BackupPortComboBox" ToolTip="Second physical serial path for IEC-101 standby supervision and failover." />
+                                            <ComboBox x:Name="BackupPortComboBox" ToolTip="Secondary IEC-101 link for failover" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Link B addr" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
@@ -3184,18 +3184,18 @@
                             <StackPanel x:Name="PassiveSetupRightPanel" Visibility="Collapsed">
                                 <TextBlock Text="OPTIONAL FULL SESSION RECORDING" Style="{StaticResource EyebrowText}" Margin="0,0,0,8"/>
                                 <CheckBox x:Name="PassiveFullRecordingCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Record entire raw session to disk" IsChecked="False" Margin="0,0,0,8"
-                                          ToolTip="Default OFF: Start Monitor only listens and displays live frames. Enable before connecting only when a complete raw journal is required." />
+                                          ToolTip="Record all raw RX frames to disk (opt-in)" />
                                 <TextBlock Text="Normally monitor live, select frames in Trace, then save a portable .ariec file." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,9" />
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11"
                                              IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"
-                                             ToolTip="Used only when optional full-session recording is enabled before connecting."/>
+                                             ToolTip="Folder for optional full-session recording"/>
                                     <Button Grid.Column="2" Content="Browse" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="PassiveBrowseCaptureFolder_Click"
                                             IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"/>
                                 </Grid>
                                 <TextBlock Text="Live monitoring creates no files. Save selected frames from Trace; full journaling is optional." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,8,0,0"/>
-                                <Expander Header="IEC-101 decoding &amp; timing" Margin="0,14,0,0" ToolTip="Optional decode profile: field widths and frame timeout. Does not send or filter raw data.">
+                                <Expander Header="IEC-101 decoding &amp; timing" Margin="0,14,0,0" ToolTip="IEC-101 decode settings (receive-only)">
                                     <StackPanel>
                                     <Grid Margin="0,10,0,3">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -3230,7 +3230,7 @@
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Link mode" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
                                             <ComboBox x:Name="PassiveLinkModeCombo" SelectedIndex="0"
-                                                      ToolTip="Observation label only: Auto does not assume which station controls the link. No active Master commands are sent.">
+                                                      ToolTip="Observe only; no Master commands">
                                                 <ComboBoxItem Content="Auto"/>
                                                 <ComboBoxItem Content="Unbalanced"/>
                                                 <ComboBoxItem Content="Balanced"/>
@@ -3239,7 +3239,7 @@
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Frame gap (ms)" Style="{StaticResource SubtleText}" Margin="0,0,0,4"/>
                                             <TextBox x:Name="PassiveFrameGapBox" Text="900"
-                                                     ToolTip="After this much silence on one RX input, an incomplete frame is marked partial. Range 100–10000 ms; raw recording is unaffected."/>
+                                                     ToolTip="Mark partial frames after RX silence; raw data kept"/>
                                         </StackPanel>
                                     </Grid>
                                     </StackPanel>
@@ -3265,7 +3265,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel x:Name="LinkAddressSizePanel" Grid.Column="0">
                                         <TextBlock x:Name="LinkAddressSizeLabelText" Text="Link length" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" SelectionChanged="InteroperabilityWidth_SelectionChanged" ToolTip="IEC-101 FT1.2 link address size. 0 octet is supported only for profiles that explicitly use no link address; most utility/RTU links use 1 or 2.">
+                                        <ComboBox x:Name="LinkAddressSizeComboBox" SelectedIndex="1" SelectionChanged="InteroperabilityWidth_SelectionChanged" ToolTip="IEC-101 link address length (0, 1 or 2 bytes)">
                                             <ComboBoxItem Content="0" />
                                             <ComboBoxItem Content="1" />
                                             <ComboBoxItem Content="2" />
@@ -3273,7 +3273,7 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Transmission" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                        <ComboBox x:Name="TransmissionModeComboBox" SelectedIndex="0" ToolTip="Unbalanced IEC-101 master polling is implemented. Balanced is shown as roadmap only to avoid false validation claims.">
+                                        <ComboBox x:Name="TransmissionModeComboBox" SelectedIndex="0" ToolTip="IEC-101 balanced mode not implemented">
                                             <ComboBoxItem Content="Unbalanced" />
                                             <ComboBoxItem Content="Balanced (planned - not active)" IsEnabled="False" />
                                         </ComboBox>
@@ -3325,14 +3325,14 @@
                                 <TextBlock Text="IEC-104 RUNTIME CONTROL" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
                                 <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="APCI timer/window profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,0,0,10" ToolTip="STARTDT, S-frame acknowledgement, TESTFR idle supervision, and t0/t1/t2/t3/k/w should follow the server interoperability list." />
+                                        <TextBlock Text="APCI timer/window profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,0,0,10" ToolTip="IEC-104 STARTDT, TESTFR and APDU timing" />
                                         <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
                                                 <TextBlock Text="t0 connect ms" Style="{StaticResource SubtleText}" Margin="0,0,0,4" />
-                                                <TextBox x:Name="Iec104T0Box" Text="30000" ToolTip="IEC-104 connection establishment timeout from the interoperability profile." />
+                                                <TextBox x:Name="Iec104T0Box" Text="30000" ToolTip="IEC-104 connection timeout (t0)" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="Saved in profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" VerticalAlignment="Bottom" ToolTip="t0 is saved as part of the forensic profile. t1/t2/t3/k/w are used for runtime and findings." />
+                                            <TextBlock Grid.Column="2" Text="Saved in profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" VerticalAlignment="Bottom" ToolTip="t0 in profile; t1/t2/t3/k/w used at runtime" />
                                         </Grid>
                                         <Grid>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
