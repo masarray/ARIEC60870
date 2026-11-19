@@ -28,7 +28,7 @@ public static class ReleaseUpdateService
     {
         var directory = Path.GetDirectoryName(executablePath);
         return directory is not null &&
-            string.Equals(Path.GetFileName(executablePath), "ARIEC60870.exe", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(Path.GetFileName(executablePath), "ArSee.exe", StringComparison.OrdinalIgnoreCase) &&
             File.Exists(Path.Combine(directory, "unins000.exe")) &&
             File.Exists(Path.Combine(directory, "unins000.dat"));
     }
@@ -44,6 +44,7 @@ public static class ReleaseUpdateService
     public static bool IsOfficialAssetUrl(string? url, string tag, string name)
     {
         if (!TryParseStableTag(tag, out _)) return false;
+        if (name != "SHA256SUMS.txt" && name != $"ArSee-{tag}-setup-win-x64.exe") return false;
         var expected = ReleaseOrigin + tag + "/" + name;
         return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
             uri.Scheme == Uri.UriSchemeHttps &&
@@ -65,7 +66,7 @@ public static class ReleaseUpdateService
         if (!TryParseStableTag(tag, out var version) || version <= installedVersion)
             return null;
 
-        var name = $"ARIEC60870-{tag}-setup-win-x64.exe";
+        var name = $"ArSee-{tag}-setup-win-x64.exe";
         var assets = release.GetProperty("assets");
         if (assets.ValueKind != JsonValueKind.Array) return null;
         JsonElement installer = default;
