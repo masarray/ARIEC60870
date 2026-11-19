@@ -285,7 +285,7 @@ public static class ReleaseInstallWorker
             !string.Equals(Path.GetFullPath(plan.StageDirectory) + Path.DirectorySeparatorChar,
                 Path.GetDirectoryName(path) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(plan.InstallerPath,
-                Path.Combine(plan.StageDirectory, "ARIEC60870-" + plan.Tag + "-setup-win-x64.exe"),
+                Path.Combine(plan.StageDirectory, "ArSee-" + plan.Tag + "-setup-win-x64.exe"),
                 StringComparison.OrdinalIgnoreCase) ||
             !ReleaseUpdateService.HasManagedInstallation(plan.InstalledExecutable) ||
             !IsRegisteredInstallationTarget(plan.InstalledExecutable))
@@ -296,7 +296,7 @@ public static class ReleaseInstallWorker
     /// <summary>
     /// The managed target must agree with Inno's HKCU installed-app record.
     /// This permits operator-chosen installation directories but refuses
-    /// update plans aiming at a mock ARIEC60870.exe in an arbitrary folder.
+    /// update plans aiming at a mock ArSee.exe in an arbitrary folder.
     /// </summary>
     private static bool IsRegisteredInstallationTarget(string executable)
     {
