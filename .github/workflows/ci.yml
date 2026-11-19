@@ -397,8 +397,8 @@ jobs:
             throw "Native Help Center WPF acceptance failed: $($probe.ExitCode)"
           }
           $pngCount = @(Get-ChildItem -Path $evidence -Filter '*.png').Count
-          if ($pngCount -ne 9 -or !(Test-Path (Join-Path $evidence 'acceptance.json'))) {
-            throw "Expected nine native WPF screenshots and acceptance.json; got $pngCount screenshots."
+          if ($pngCount -ne 11 -or !(Test-Path (Join-Path $evidence 'acceptance.json'))) {
+            throw "Expected eleven native WPF screenshots and acceptance.json; got $pngCount screenshots."
           }
           Copy-Item 'LICENSE' $publish -Force
           Copy-Item 'NOTICE' $publish -Force
