@@ -76,9 +76,9 @@ public sealed class PublicLandingP3Tests
     private static string Read(string path)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "ARIEC60870.sln")))
+        while (directory != null && !File.Exists(Path.Join(directory.FullName, "ARIEC60870.sln")))
             directory = directory.Parent;
         if (directory == null) throw new DirectoryNotFoundException("Repository root not found.");
-        return File.ReadAllText(Path.Combine(directory.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
+        return File.ReadAllText(Path.Join(directory.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
     }
 }
