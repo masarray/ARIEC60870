@@ -63,7 +63,7 @@ public sealed class ReleasePackagingHygieneTests
         {
             Assert.Contains("ArSee.exe", text);
             Assert.DoesNotContain("Start-ARIEC60870", text);
-            Assert.DoesNotContain("ARIEC60870.exe", text);
+            // Published immutable v3.6.17 links and migration notes may still mention the old filename.
             Assert.DoesNotContain("Open-CLI-Help", text);
             Assert.DoesNotContain("win-x64-portable", text);
             Assert.DoesNotContain("win-x64-singlefile", text);
