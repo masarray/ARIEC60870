@@ -568,7 +568,7 @@ jobs:
           set -euo pipefail
           tag='${{ needs.resolve.outputs.tag }}'
           notes='${{ needs.resolve.outputs.notes_file }}'
-          title="ARIEC60870 $tag"
+          title="ArSee $tag"
 
           if [[ ! -f "$notes" ]]; then notes='CHANGELOG.md'; fi
 
