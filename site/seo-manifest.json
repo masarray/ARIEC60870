@@ -168,6 +168,21 @@
       "path": "troubleshooting.html",
       "canonical": "https://masarray.github.io/arsee/troubleshooting.html",
       "language": "en"
+    },
+    {
+      "path": "demo.html",
+      "canonical": "https://masarray.github.io/arsee/demo.html",
+      "language": "en"
+    },
+    {
+      "path": "id/demo.html",
+      "canonical": "https://masarray.github.io/arsee/id/demo.html",
+      "language": "id"
+    },
+    {
+      "path": "id/download.html",
+      "canonical": "https://masarray.github.io/arsee/id/download.html",
+      "language": "id"
     }
   ],
   "fieldWikiTopics": [

@@ -1,0 +1,82 @@
+<!-- Copyright 2026 Ari Sulistiono
+     SPDX-License-Identifier: Apache-2.0 -->
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="Ari Sulistiono" />
+    <title>Demo ArSee | Dari Frame IEC 60870 ke Laporan PDF</title>
+    <meta name="description" content="Lihat alur kerja ArSee untuk IEC 101, IEC 103, dan IEC 104: raw TX/RX, interpretasi frame, Smart Findings, dan laporan PDF." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0b6f86" />
+    <link rel="canonical" href="https://masarray.github.io/arsee/id/demo.html" />
+    <link rel="alternate" hreflang="en" href="https://masarray.github.io/arsee/demo.html" />
+    <link rel="alternate" hreflang="id" href="https://masarray.github.io/arsee/id/demo.html" />
+    <link rel="alternate" hreflang="x-default" href="https://masarray.github.io/arsee/demo.html" />
+    <link rel="icon" href="../assets/brand/favicon.ico" sizes="any" />
+    <link rel="icon" href="../assets/brand/ariec60870-icon-192.png" type="image/png" />
+    <link rel="manifest" href="../site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ArSee" />
+    <meta property="og:title" content="Demo ArSee | Dari Frame IEC 60870 ke Laporan PDF" />
+    <meta property="og:description" content="Demo workflow ArSee untuk membaca frame TX/RX dan menyiapkan bukti PDF engineering." />
+    <meta property="og:url" content="https://masarray.github.io/arsee/id/demo.html" />
+    <meta property="og:image" content="https://masarray.github.io/arsee/assets/screenshots/ariec60870-evidence-workspace.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="../styles.css" />
+    <script src="../script.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient-grid" aria-hidden="true"></div>
+    <header class="site-header"><a class="brand" href="./" aria-label="Beranda ArSee"><img src="../assets/brand/ariec60870-icon.png" width="44" height="44" alt="" /><span><strong>ArSee</strong><small>IEC 60870 protocol tester</small></span></a><nav class="nav-links" aria-label="Navigasi utama"><a href="./">Beranda</a><a href="demo.html" aria-current="page">Demo</a><a href="wiki.html">Wiki</a><a href="faq.html">FAQ</a><a href="download.html">Unduh</a><a class="lang-switch" href="../demo.html" aria-label="Switch to English"><img class="flag-icon" src="../assets/flags/gb.svg" width="24" height="24" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span class="lang-label">EN</span></a></nav></header>
+    <main class="demo-page">
+      <section class="demo-hero" aria-labelledby="demo-title">
+        <div class="demo-hero-copy reveal">
+          <p class="eyebrow">Demo aplikasi · IEC 101 / 103 / 104</p>
+          <h1 id="demo-title">Lihat raw frame menjadi bukti pengujian.</h1>
+          <p class="lead">Demo ini memperlihatkan cara ArSee membaca TX/RX, menjelaskan frame terpilih, menampilkan Smart Findings, dan menyiapkan laporan PDF. Gunakan aplikasi hanya pada endpoint yang diizinkan.</p>
+          <div class="hero-actions"><a class="button primary" href="#demo-video">Lihat demo</a><a class="button secondary" href="download.html">Unduh untuk Windows</a></div>
+        </div>
+        <aside class="demo-hero-proof reveal delay-1" aria-label="Ringkasan demo">
+          <div><span>Protokol</span><strong>IEC 101 / 103 / 104</strong></div>
+          <div><span>Bukti utama</span><strong>Frame TX/RX asli</strong></div>
+          <div><span>Hasil</span><strong>Laporan PDF</strong></div>
+        </aside>
+      </section>
+      <section class="demo-stage-section reveal" id="demo-video" aria-label="Video demo ArSee">
+        <div class="demo-stage interactive-surface">
+          <div class="demo-stage-bar"><span class="live-pill">Video WebM</span></div>
+          <div class="demo-video-frame">
+            <video controls autoplay muted loop playsinline preload="metadata" poster="../assets/screenshots/ariec60870-evidence-workspace.webp" aria-label="Demo ArSee menampilkan frame, temuan, dan laporan PDF">
+              <source src="../assets/screenshots/IEC-60870.webm" type="video/webm" />
+              <img src="../assets/screenshots/ariec60870-evidence-workspace.webp" alt="Pratinjau workspace ArSee" />
+            </video>
+          </div>
+          <div class="demo-stage-footer"><span>Video tanpa suara otomatis; gunakan kontrol untuk memutar atau menghentikan.</span><a href="../assets/screenshots/IEC-60870.webm">Buka file WebM</a></div>
+        </div>
+      </section>
+      <section class="section demo-story-section" id="flow">
+        <div class="section-heading reveal"><p class="eyebrow">Alur kerja</p><h2>Empat langkah dari koneksi hingga laporan.</h2><p>Frame asli tetap dapat diperiksa; tampilan hasil decoding tidak menggantikan bukti komunikasi.</p></div>
+        <div class="demo-story-grid">
+          <article class="demo-story-card reveal"><span class="demo-step">01</span><h3>Hubungkan endpoint yang diizinkan</h3><p>Gunakan parameter COM atau TCP yang telah disetujui proyek.</p></article>
+          <article class="demo-story-card reveal"><span class="demo-step">02</span><h3>Baca frame TX/RX</h3><p>Periksa frame asli dan arti protokol yang dikenali.</p></article>
+          <article class="demo-story-card reveal"><span class="demo-step">03</span><h3>Tinjau Smart Findings</h3><p>Cari indikasi masalah beserta bukti dan langkah pemeriksaan selanjutnya.</p></article>
+          <article class="demo-story-card reveal"><span class="demo-step">04</span><h3>Siapkan laporan PDF</h3><p>Tinjau nilai, event, trace, dan temuan sebelum ekspor.</p></article>
+        </div>
+      </section>
+      <section class="section screens demo-gallery-section">
+        <div class="section-heading reveal"><p class="eyebrow">Tampilan aplikasi</p><h2>Periksa workspace secara lebih dekat.</h2><p>Klik gambar untuk membuka versi lebih besar.</p></div>
+        <div class="screen-grid">
+          <article class="screen-card reveal interactive-surface"><button class="screen-frame zoom-trigger" type="button" data-full="../assets/screenshots/ariec60870-frame-trace.webp" data-title="Line monitor"><img src="../assets/screenshots/ariec60870-frame-trace.webp" alt="Monitor TX/RX ArSee dengan interpretasi frame" loading="lazy" /></button><h3>Line monitor</h3><p>Frame TX/RX dengan interpretasi frame terpilih.</p></article>
+          <article class="screen-card reveal interactive-surface"><button class="screen-frame zoom-trigger" type="button" data-full="../assets/screenshots/ariec60870-smart-findings.webp" data-title="Smart Findings"><img src="../assets/screenshots/ariec60870-smart-findings.webp" alt="Temuan diagnostik ArSee" loading="lazy" /></button><h3>Smart Findings</h3><p>Masalah, bukti, dan langkah berikutnya.</p></article>
+          <article class="screen-card reveal interactive-surface"><button class="screen-frame zoom-trigger" type="button" data-full="../assets/screenshots/ariec60870-event-log.webp" data-title="Event log"><img src="../assets/screenshots/ariec60870-event-log.webp" alt="Daftar event ArSee" loading="lazy" /></button><h3>Event log</h3><p>Event dengan waktu dan informasi protokol.</p></article>
+          <article class="screen-card reveal interactive-surface"><button class="screen-frame zoom-trigger" type="button" data-full="../assets/screenshots/ariec60870-report-workspace.webp" data-title="Laporan PDF"><img src="../assets/screenshots/ariec60870-report-workspace.webp" alt="Tampilan pratinjau PDF ArSee" loading="lazy" /></button><h3>Laporan PDF</h3><p>Pratinjau bukti sebelum laporan diekspor.</p></article>
+        </div>
+      </section>
+      <section class="section download-band"><div class="download-card"><div><p class="eyebrow">Coba di Windows</p><h2>Pelajari lewat demo, lalu uji pada sistem yang diizinkan.</h2><p>ArSee gratis dan open-source. Pengujian RTU fisik tetap memerlukan prosedur FAT/SAT tersendiri.</p></div><div class="download-actions"><a class="button primary" href="download.html">Unduh ArSee</a><a class="button secondary" href="wiki.html">Buka Wiki</a></div></div></section>
+    </main>
+    <dialog class="lightbox" aria-label="Pratinjau screenshot"><button class="lightbox-close" type="button" aria-label="Tutup pratinjau">Tutup</button><figure><img alt="" /><figcaption></figcaption></figure></dialog>
+    <footer class="site-footer"><span>© 2026 Ari Sulistiono · ArSee · Apache-2.0 open source</span><span class="footer-links"><a href="./">Beranda</a><a href="wiki.html">Wiki</a><a href="faq.html">FAQ</a><a href="download.html">Unduh</a></span></footer>
+  </body>
+</html>
