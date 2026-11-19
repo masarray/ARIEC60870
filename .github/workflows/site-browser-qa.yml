@@ -52,16 +52,32 @@ jobs:
           done
           cat /tmp/arsee-site-preview.log
           exit 1
-      - name: Run source-preview and deployed-live browser gates
+      - name: Gate PR preview, then deployed live only after publishing
         shell: bash
         run: |
           set +e
           SITE_ORIGIN=http://127.0.0.1:8765/ SITE_LABEL=preview node scripts/site-browser-qa.mjs
           preview_result=$?
+          if [ "$preview_result" -ne 0 ]; then exit "$preview_result"; fi
+          # A PR source is not yet deployed. Do not fail a valid PR against stale live CSS.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then exit 0; fi
+          # For push/manual runs, confirm Pages has published these exact bytes before live QA.
+          published=0
+          for _ in $(seq 1 60); do
+            if curl --fail --location --silent --show-error \
+              "https://masarray.github.io/arsee/styles.css?sha=$GITHUB_SHA" \
+              --output /tmp/arsee-live-styles.css &&
+              cmp -s site/styles.css /tmp/arsee-live-styles.css; then
+              published=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$published" -ne 1 ]; then
+            echo "::error::Live GitHub Pages stylesheet does not match exact source after publishing window."
+            exit 1
+          fi
           SITE_ORIGIN=https://masarray.github.io/arsee/ SITE_LABEL=live node scripts/site-browser-qa.mjs
-          live_result=$?
-          echo "Preview result: $preview_result; live result: $live_result"
-          if [ "$preview_result" -ne 0 ] || [ "$live_result" -ne 0 ]; then exit 1; fi
       - name: Upload viewport screenshots and result matrix
         if: always()
         uses: actions/upload-artifact@v4
