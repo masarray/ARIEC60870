@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m http.server 8765 --directory site > /tmp/arsee-site-preview.log 2>&1 &
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8765/index.html >/dev/null; then exit 0; fi
             sleep 1
           done
