@@ -17,14 +17,17 @@
 
   function inspect(release) {
     if (!release || release.draft || !validTag.test(release.tag_name)) return null;
-    const prefix = "ARIEC60870-" + release.tag_name;
-    const zip = asset(release, prefix + "-win-x64.zip");
-    const installer = asset(release, prefix + "-setup-win-x64.exe");
-    const checksums = asset(release, "SHA256SUMS.txt");
-    const sbom = asset(release, prefix + "-sbom.spdx.json");
-    return zip && checksums && sbom
-      ? { release, zip, installer, checksums, tag: release.tag_name }
-      : null;
+    // New releases use ArSee; immutable published v3.6.17 and older keep their
+    // historical ARIEC60870 asset names. Never invent a non-existent download.
+    for (const prefix of ["ArSee-", "ARIEC60870-"].map((p) => p + release.tag_name)) {
+      const zip = asset(release, prefix + "-win-x64.zip");
+      const installer = asset(release, prefix + "-setup-win-x64.exe");
+      const checksums = asset(release, "SHA256SUMS.txt");
+      const sbom = asset(release, prefix + "-sbom.spdx.json");
+      if (zip && installer && checksums && sbom)
+        return { release, zip, installer, checksums, tag: release.tag_name };
+    }
+    return null;
   }
 
   function replaceText(node, from, to) {
