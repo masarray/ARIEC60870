@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.17</Version>
-    <AssemblyVersion>3.6.17.0</AssemblyVersion>
-    <FileVersion>3.6.17.0</FileVersion>
-    <InformationalVersion>3.6.17+stable-release-gated</InformationalVersion>
+    <Version>3.6.18</Version>
+    <AssemblyVersion>3.6.18.0</AssemblyVersion>
+    <FileVersion>3.6.18.0</FileVersion>
+    <InformationalVersion>3.6.18+branding-candidate</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ArSee</Product>
