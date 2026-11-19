@@ -89,6 +89,7 @@ public sealed class PublicLandingP1Tests
         Assert.Contains(".site-header .nav-toggle { display: none; }", css);
         Assert.Contains("html.nav-enhanced .site-header .nav-links.is-open", css);
         Assert.Contains("min-height: 44px", css);
+        Assert.Contains("html.nav-enhanced .site-header .brand small { display: none; }", css);
         Assert.Contains(".landing-home .proof-card span { font-size: 15px;", css);
         Assert.Contains(".landing-home .hero-copy .lead { max-width: 62ch; font-size: 16px;", css);
         Assert.Equal(script, File.ReadAllText(Path.Combine(root.FullName, "docs/script.js")));

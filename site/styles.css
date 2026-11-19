@@ -1627,3 +1627,9 @@ body h1,
   .landing-home .section { padding-block: 54px; }
   .landing-home .hero-panel { padding: 0; }
 }
+
+@media (max-width: 420px) {
+  html.nav-enhanced .site-header .brand { gap: 8px; }
+  html.nav-enhanced .site-header .brand small { display: none; }
+  html.nav-enhanced .site-header .nav-toggle { padding-inline: 10px; }
+}
