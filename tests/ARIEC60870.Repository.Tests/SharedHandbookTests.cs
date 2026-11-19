@@ -18,17 +18,20 @@ public sealed class SharedHandbookTests
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Contains("IEC", root.GetProperty("noticeEn").GetString());
         var chapters = root.GetProperty("chapters").EnumerateArray().ToArray();
-        Assert.True(chapters.Length >= 16, "R3 handbook requires sixteen theory and trace-lab chapters.");
-        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 70,
-            "R3 handbook needs at least 70 bilingual sections.");
-        Assert.Equal("Engineering Handbook R3 — Verified Trace Labs", root.GetProperty("bookEdition").GetString());
+        Assert.True(chapters.Length >= 27, "R4 handbook requires eleven user-guide chapters plus sixteen engineering chapters.");
+        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 115,
+            "R4 handbook requires 115 bilingual theory, trace and user-guide sections.");
+        Assert.Equal("Engineering Handbook R4 — ArSee User Guide + Trace Labs", root.GetProperty("bookEdition").GetString());
         Assert.Equal(chapters.Length, chapters.Select(c => c.GetProperty("key").GetString()).Distinct().Count());
         var expected = new[]
         {
             "learn-iec-family", "learn-iec101", "learn-iec103", "learn-iec104",
             "learn-nuc", "learn-redundancy", "learn-semantics", "learn-field-guide",
             "learn-framing", "learn-lifecycle", "learn-gateways", "learn-interop",
-            "learn-lab-101", "learn-lab-103", "learn-lab-104", "learn-lab-redundancy"
+            "learn-lab-101", "learn-lab-103", "learn-lab-104", "learn-lab-redundancy",
+            "learn-use-start", "learn-use-setup", "learn-use-101", "learn-use-103",
+            "learn-use-104", "learn-use-dual", "learn-use-passive", "learn-use-views",
+            "learn-use-commands", "learn-use-evidence", "learn-use-diagnose"
         };
         foreach (var key in expected)
         {
@@ -84,6 +87,45 @@ public sealed class SharedHandbookTests
         foreach (var asset in new[] { "handbook-reader.js", "handbook-reader.css" })
             Assert.Equal(File.ReadAllText(Source("site/learning/" + asset)),
                 File.ReadAllText(Source("docs/learning/" + asset)));
+    }
+
+    [Fact]
+    public void R4ArSeeUserGuideIsGroundedAndBilingualOnBothSurfaces()
+    {
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(Source("site/learning/iec60870-handbook.json")));
+        var chapters = document.RootElement.GetProperty("chapters").EnumerateArray()
+            .Where(chapter => chapter.GetProperty("key").GetString()!.StartsWith("learn-use-", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Equal(11, chapters.Length);
+        var lessons = chapters.SelectMany(ch => ch.GetProperty("sections").EnumerateArray()).ToArray();
+        Assert.Equal(45, lessons.Length);
+        Assert.All(lessons, section =>
+        {
+            Assert.True(section.TryGetProperty("workflow", out var workflow));
+            Assert.True(workflow.GetProperty("stepsEn").GetArrayLength() >= 3);
+            Assert.Equal(workflow.GetProperty("stepsEn").GetArrayLength(),
+                workflow.GetProperty("stepsId").GetArrayLength());
+            foreach (var name in new[] { "expected", "troubleshooting" })
+            {
+                Assert.False(string.IsNullOrWhiteSpace(workflow.GetProperty(name + "En").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(workflow.GetProperty(name + "Id").GetString()));
+            }
+        });
+
+        var wpf = File.ReadAllText(Source("src/ARIEC60870.Desktop/HelpWindow.xaml.cs"));
+        var loader = File.ReadAllText(Source("src/ARIEC60870.Desktop/HelpWindow.Handbook.cs"));
+        Assert.Contains("BuildUserWorkflow(section.Workflow)", wpf);
+        Assert.Contains("GetHelpNavigationGroup", wpf);
+        Assert.Contains("learn-use-start", wpf);
+        Assert.Contains("ReadArray(workflowData, \"stepsEn\")", loader);
+        Assert.Contains("Read(workflowData, \"troubleshootingId\")", loader);
+
+        var wiki = File.ReadAllText(Source("site/learning/handbook-reader.js"));
+        Assert.Contains("workflow['steps' + suffix]", wiki);
+        Assert.Contains("lookup(workflow, 'expected')", wiki);
+        Assert.Contains("lookup(workflow, 'troubleshooting')", wiki);
+        Assert.DoesNotContain("innerHTML", wiki);
     }
 
     [Fact]
@@ -143,6 +185,8 @@ public sealed class SharedHandbookTests
         Assert.Contains("scrollIntoView", js);
         Assert.Contains("learning-trace-lab", js);
         Assert.Contains("learning-lab-reveal", js);
+        Assert.Contains("learning-user-workflow", js);
+        Assert.Contains("learning-nav-divider", js);
         Assert.Contains("aria-controls", js);
         Assert.Contains("answer.hidden = !reveal", js);
 
