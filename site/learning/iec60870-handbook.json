@@ -437,11 +437,11 @@
           "headingEn": "Primary link-status request, byte by byte",
           "headingId": "Request link-status primary, byte demi byte",
           "paragraphsEn": [
-            "The following independently constructed FT1.2 fixed frame uses a **one-octet link address of 1**. It contains no ASDU. The sender requests link status (primary function 9); it does not ask for Class 1 events or GI.",
+            "The following independently constructed FT1.2 fixed frame uses a one-octet link address of 1. It contains no ASDU. The sender requests link status (primary function 9); it does not ask for Class 1 events or GI.",
             "The additive checksum covers the control and address octets and is reduced modulo 256. The check must be performed before interpreting the service."
           ],
           "paragraphsId": [
-            "Frame fixed FT1.2 berikut disusun secara independen dengan **link address satu oktet bernilai 1**. Tidak ada ASDU. Pengirim meminta status link (primary function 9), bukan Class 1 maupun GI.",
+            "Frame fixed FT1.2 berikut disusun secara independen dengan link address satu oktet bernilai 1. Tidak ada ASDU. Pengirim meminta status link (primary function 9), bukan Class 1 maupun GI.",
             "Checksum penjumlahan mencakup oktet kontrol dan address, kemudian modulo 256. Pemeriksaan dilakukan sebelum menafsirkan layanan."
           ],
           "bulletsEn": [
@@ -585,11 +585,11 @@
           "headingId": "Byte tunggal E5 harus tetap kontekstual",
           "paragraphsEn": [
             "A lone 0xE5 carries no link address, ACD/DFC or function-code field. In IEC 101 procedures where a short response is permitted, the same raw byte can stand for a positive link acknowledgement or an empty Class 1/Class 2 response, depending on the uniquely matched outstanding request.",
-            "A link-status FC9 service expects a proper status answer and must not be certified by an uncorrelated E5. This exercise proves byte recognition, **not** the semantic role of E5 without context."
+            "A link-status FC9 service expects a proper status answer and must not be certified by an uncorrelated E5. This exercise proves byte recognition, not the semantic role of E5 without context."
           ],
           "paragraphsId": [
             "Byte tunggal 0xE5 tidak memuat link address, ACD/DFC maupun field function code. Pada prosedur IEC 101 yang mengizinkan short response, byte mentah yang sama dapat mewakili ACK link positif atau respons Class 1/Class 2 kosong, sesuai request tertunda yang unik dan cocok.",
-            "Layanan link-status FC9 mengharapkan respons status yang tepat dan tidak boleh dinyatakan berhasil dari E5 tanpa korelasi. Latihan ini membuktikan pengenalan byte, **bukan** makna E5 tanpa konteks."
+            "Layanan link-status FC9 mengharapkan respons status yang tepat dan tidak boleh dinyatakan berhasil dari E5 tanpa korelasi. Latihan ini membuktikan pengenalan byte, bukan makna E5 tanpa konteks."
           ],
           "bulletsEn": [
             "Keep the raw label E5; inferred function must be clearly marked as inferred.",
@@ -630,11 +630,11 @@
           "headingEn": "Bad checksum versus invalid one-byte A2",
           "headingId": "Checksum salah versus byte A2 yang tidak sah",
           "paragraphsEn": [
-            "This example differs from the first fixed frame by one checksum bit. The frame is structurally shaped like FT1.2 but **invalid**; do not trust any parsed function as a valid transaction response. A solitary 0xA2 must likewise not be accepted as a valid IEC 101 short NACK merely because another serial convention uses that value.",
+            "This example differs from the first fixed frame by one checksum bit. The frame is structurally shaped like FT1.2 but invalid; do not trust any parsed function as a valid transaction response. A solitary 0xA2 must likewise not be accepted as a valid IEC 101 short NACK merely because another serial convention uses that value.",
             "The useful question is which layer failed: byte integrity, application support, or missing capture context."
           ],
           "paragraphsId": [
-            "Contoh ini berbeda dari frame fixed pertama hanya pada satu bit checksum. Bentuknya menyerupai FT1.2 namun **tidak valid**; jangan mempercayai function hasil decode sebagai transaksi valid. Byte tunggal 0xA2 juga tidak boleh dianggap short NACK IEC 101 yang sah hanya karena konvensi serial lain memakai nilainya.",
+            "Contoh ini berbeda dari frame fixed pertama hanya pada satu bit checksum. Bentuknya menyerupai FT1.2 namun tidak valid; jangan mempercayai function hasil decode sebagai transaksi valid. Byte tunggal 0xA2 juga tidak boleh dianggap short NACK IEC 101 yang sah hanya karena konvensi serial lain memakai nilainya.",
             "Pertanyaan utama adalah layer apa yang gagal: integritas byte, dukungan aplikasi, atau konteks capture yang belum lengkap."
           ],
           "bulletsEn": [
@@ -2257,11 +2257,11 @@
           "headingEn": "Unknown in-flight breaker command at the switch",
           "headingId": "Command breaker in-flight saat switch berstatus unknown",
           "paragraphsEn": [
-            "A command may reach the field device just before the active link drops, while ACTCON or fresh breaker feedback is lost. The correct outcome is **unknown**, not automatically success or failure.",
+            "A command may reach the field device just before the active link drops, while ACTCON or fresh breaker feedback is lost. The correct outcome is unknown, not automatically success or failure.",
             "After failover, the promoted owner must verify command authority and fresh independent feedback before allowing an operator to act. Automatic retransmission of a physical control solely because confirmation was not captured is unsafe."
           ],
           "paragraphsId": [
-            "Command dapat mencapai perangkat lapangan tepat sebelum link aktif jatuh, sementara ACTCON atau feedback breaker baru hilang. Hasil yang benar adalah **unknown**, bukan otomatis sukses atau gagal.",
+            "Command dapat mencapai perangkat lapangan tepat sebelum link aktif jatuh, sementara ACTCON atau feedback breaker baru hilang. Hasil yang benar adalah unknown, bukan otomatis sukses atau gagal.",
             "Sesudah failover, owner baru perlu memverifikasi otoritas command serta feedback independen terbaru sebelum operator dapat bertindak. Retransmit otomatis kontrol fisik hanya karena konfirmasi tidak tercapture merupakan tindakan tidak aman."
           ],
           "bulletsEn": [
