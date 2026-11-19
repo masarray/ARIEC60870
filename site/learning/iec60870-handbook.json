@@ -413,6 +413,514 @@
       "number": "02"
     },
     {
+      "key": "learn-use-signal-map",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan pengguna ArSee",
+      "titleEn": "Signal Map — complete field-by-field guide",
+      "titleId": "Signal Map — panduan pengisian lengkap",
+      "summaryEn": "Learn each IEC 101/104 mapping field, digital and analog scaling, feedback, profile saving, and separate IEC 103 FUN/INF mapping.",
+      "summaryId": "Pelajari setiap field IEC 101/104, scaling digital/analog, feedback, penyimpanan profil, dan mapping FUN/INF IEC 103 yang terpisah.",
+      "searchText": "Signal Map Signals Signal List CA IOA TI IEC Type ID Bay TYPE Mnemonic State map Scaling Factor TwoPoint X0 X100 Y0 Y100 Command policy Feedback IOA IEC103 FUN INF Save Apply",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/SIGNAL_MAP_WORKBENCH_20261117.md",
+        "https://github.com/masarray/arsee/blob/master/docs/MAPPING_PROFILE_SCHEMA.md",
+        "https://github.com/masarray/arsee/blob/master/docs/SCADA_IO_LIST_101_MAPPING_ANALYSIS_20261117.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Where to open Signal Map and which protocols it supports",
+          "headingId": "Lokasi Signal Map dan protokol yang didukung",
+          "paragraphsEn": [
+            "Signals on the Main Window left rail opens the IEC 101/104 IOA editor. IEC 103 uses a separate FUN/INF JSON imported in Setup, not this grid. Signal mapping changes names and engineering display, not original wire bytes."
+          ],
+          "paragraphsId": [
+            "Tombol Signals pada rail kiri Main Window membuka editor IOA IEC 101/104. IEC 103 memakai JSON FUN/INF terpisah yang diimpor dari Setup, bukan grid ini. Mapping mengubah nama dan tampilan engineering, bukan byte wire asli."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select IEC 101 or IEC 104 in Setup, then click Signals on the left rail.",
+              "Check the editable profile name and loaded filename at the top of Signal Map.",
+              "Use More actions → Load profile... to open an approved IEC 101/104 JSON; use Save As for a new project copy."
+            ],
+            "stepsId": [
+              "Pilih IEC 101 atau IEC 104 di Setup, lalu klik Signals pada rail kiri.",
+              "Periksa nama profil yang bisa diedit serta nama file termuat di bagian atas Signal Map.",
+              "Gunakan More actions → Load profile... untuk membuka JSON IEC 101/104 yang disetujui; gunakan Save As untuk salinan baru proyek."
+            ],
+            "expectedEn": "The correct grid appears with Add, Details, Save, More actions and Save & Apply.",
+            "expectedId": "Grid yang benar tampil dengan Add, Details, Save, More actions dan Save & Apply.",
+            "troubleshootingEn": "If IEC 103 displays a notice rather than the grid, that is expected. Do not substitute FUN/INF for IOA.",
+            "troubleshootingId": "Jika IEC 103 menampilkan pemberitahuan alih-alih grid, itu normal. Jangan mengganti IOA dengan FUN/INF.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.1",
+          "id": "learn-use-signal-map-s1"
+        },
+        {
+          "headingEn": "Eight main columns and their exact meanings",
+          "headingId": "Delapan kolom utama dan makna tepatnya",
+          "paragraphsEn": [
+            "The default columns are CA, IOA, TI, Signal name, Bay, TYPE, Mnemonic and Scaling. CA is the station ASDU common address, IOA is its object address, TI is IEC numeric Type ID; business TYPE (TM/TSD/RCD/RCA) is not an IEC TI."
+          ],
+          "paragraphsId": [
+            "Kolom default ialah CA, IOA, TI, Signal name, Bay, TYPE, Mnemonic dan Scaling. CA adalah common address ASDU stasiun, IOA adalah alamat objek, TI adalah angka Type ID IEC; TYPE bisnis (TM/TSD/RCD/RCA) bukan TI IEC."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Read CA/IOA/TI from Raw Frames and the approved RTU I/O list, not from guesses.",
+              "Use Signal name for a meaningful label; Bay for the equipment area; TYPE for business class; Mnemonic for abbreviated function.",
+              "Use Details or Ctrl+I to open advanced editing; More actions → Show / hide extra table columns reveals Unit, Group, IEC role, Class, COT, feedback and state map."
+            ],
+            "stepsId": [
+              "Baca CA/IOA/TI dari Raw Frames dan I/O list RTU yang disetujui, bukan tebakan.",
+              "Gunakan Signal name sebagai label; Bay untuk area peralatan; TYPE untuk kategori bisnis; Mnemonic untuk singkatan fungsi.",
+              "Gunakan Details atau Ctrl+I untuk edit lanjutan; More actions → Show / hide extra table columns menampilkan Unit, Group, IEC role, Class, COT, feedback dan state map."
+            ],
+            "expectedEn": "Address identity and descriptive metadata can be reviewed without scrolling through every advanced field.",
+            "expectedId": "Identitas alamat dan metadata deskriptif dapat diperiksa tanpa menggulir semua field lanjutan.",
+            "troubleshootingEn": "CA is not IEC 101 link address; TI=31 is not business TYPE=TSD; verify both separately.",
+            "troubleshootingId": "CA bukan link address IEC 101; TI=31 bukan TYPE bisnis TSD; verifikasi keduanya terpisah.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.2",
+          "id": "learn-use-signal-map-s2"
+        },
+        {
+          "headingEn": "Add and fill a new IEC point",
+          "headingId": "Add dan isi point IEC baru",
+          "paragraphsEn": [
+            "Add creates a placeholder row with generated IOA and defaults such as TI=30, not a discovered device mapping. Sample CA=1 / IOA=101 / TI=31 below is synthetic and for test practice only."
+          ],
+          "paragraphsId": [
+            "Add membuat baris placeholder dengan IOA hasil generate dan default seperti TI=30, bukan mapping perangkat yang terdeteksi. Contoh CA=1 / IOA=101 / TI=31 di bawah sintetis dan hanya untuk latihan."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Click Add, select the row, then open Details → Mapping.",
+              "Replace Common address (CA), Information object (IOA) and IEC Type ID (TI) with the real station values; for a lab use CA=1, IOA=101, TI=31 only if the demo emits this point.",
+              "Enter Signal name and IEC Type / role (TI31 = M_DP_TB_1 for timed double-point), set Command policy MonitorOnly for feedback.",
+              "Click Validate signal and compare with original Raw Frames before saving."
+            ],
+            "stepsId": [
+              "Klik Add, pilih baris, lalu buka Details → Mapping.",
+              "Ganti Common address (CA), Information object (IOA) dan IEC Type ID (TI) dengan nilai stasiun sebenarnya; untuk lab gunakan CA=1, IOA=101, TI=31 hanya jika demo mengirim point tersebut.",
+              "Isi Signal name dan IEC Type / role (TI31 = M_DP_TB_1 untuk timed double-point), set Command policy MonitorOnly untuk feedback.",
+              "Klik Validate signal lalu cocokkan dengan Raw Frames asli sebelum menyimpan."
+            ],
+            "expectedEn": "The mapped CA/IOA/TI and name describe one verified information object.",
+            "expectedId": "CA/IOA/TI dan nama mapping mendeskripsikan satu information object terverifikasi.",
+            "troubleshootingEn": "Replace all Add defaults: wrong TI, IOA or station CA can produce misleading names despite a valid connection.",
+            "troubleshootingId": "Ganti seluruh default Add: TI, IOA atau CA salah dapat menghasilkan nama menyesatkan walaupun koneksi valid.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.3",
+          "id": "learn-use-signal-map-s3"
+        },
+        {
+          "headingEn": "Name, Bay, business TYPE, Mnemonic and Generate name",
+          "headingId": "Name, Bay, TYPE bisnis, Mnemonic dan Generate name",
+          "paragraphsEn": [
+            "The naming helper composes Bay + business TYPE + Mnemonic and keeps an existing trailing numeric LAB suffix. It only changes Name after the user explicitly clicks Generate name; browsing never renames rows."
+          ],
+          "paragraphsId": [
+            "Pembantu penamaan menyusun Bay + TYPE bisnis + Mnemonic dan mempertahankan suffix angka LAB yang sudah ada. Name hanya berubah setelah pengguna klik Generate name; memilih baris tidak mengganti nama otomatis."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select a point, open Details → Mapping → Identity & naming.",
+              "For a synthetic breaker status enter Bay type=FEEDER, TYPE=TSD, Mnemonic=CB.",
+              "Press Generate name; expect FEEDER TSD CB (or FEEDER TSD CB 2 if the existing name ends with 2).",
+              "Review Group and Description and confirm the project's approved spelling."
+            ],
+            "stepsId": [
+              "Pilih point, buka Details → Mapping → Identity & naming.",
+              "Untuk status breaker sintetis isi Bay type=FEEDER, TYPE=TSD, Mnemonic=CB.",
+              "Tekan Generate name; hasilnya FEEDER TSD CB (atau FEEDER TSD CB 2 jika nama lama diakhiri 2).",
+              "Periksa Group dan Description serta pastikan ejaan sesuai proyek."
+            ],
+            "expectedEn": "The clear name is searchable and raw CA/IOA/TI remain unchanged.",
+            "expectedId": "Nama jelas dapat dicari dan CA/IOA/TI raw tidak berubah.",
+            "troubleshootingEn": "If Generate name fails, complete all three inputs. TM/TSD/RCD are business categories, never IEC numeric Type IDs.",
+            "troubleshootingId": "Jika Generate name gagal, lengkapi ketiga input. TM/TSD/RCD adalah kategori bisnis, bukan angka IEC Type ID.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.4",
+          "id": "learn-use-signal-map-s4"
+        },
+        {
+          "headingEn": "Search, edit, filter, duplicate and paste safely",
+          "headingId": "Search, edit, filter, duplicate dan paste dengan aman",
+          "paragraphsEn": [
+            "Signal Map has Ctrl+F search, Bay/Signal type filters, cell editing and advanced columns. View operations do not dirty the profile. Duplicate creates a temporary IOA+1 and copies other fields including Feedback IOA."
+          ],
+          "paragraphsId": [
+            "Signal Map menyediakan Ctrl+F search, filter Bay/Signal type, edit sel dan kolom lanjutan. Operasi tampilan tidak mengubah profil. Duplicate membuat IOA+1 sementara dan menyalin field lain termasuk Feedback IOA."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Press Ctrl+F to search IOA/name/Bay/Mnemonic; Enter focuses a match, Esc clears the query.",
+              "Filter by Bay or Measured analog / Digital status / Commands; press × to reset filters before deciding a row is missing.",
+              "Select a cell, use F2 or Enter to edit, Enter/Tab to commit, Esc to cancel; Ctrl+I toggles Details.",
+              "After spreadsheet paste or More actions → Duplicate signal, verify every CA/IOA/TI, feedback and numeric value; Validate entire list."
+            ],
+            "stepsId": [
+              "Tekan Ctrl+F untuk mencari IOA/nama/Bay/Mnemonic; Enter fokus hasil, Esc menghapus query.",
+              "Filter berdasarkan Bay atau Measured analog / Digital status / Commands; tekan × untuk reset sebelum menyimpulkan baris hilang.",
+              "Pilih sel, gunakan F2 atau Enter untuk edit, Enter/Tab untuk commit, Esc untuk batal; Ctrl+I mengatur Details.",
+              "Setelah paste spreadsheet atau More actions → Duplicate signal, periksa setiap CA/IOA/TI, feedback dan nilai numerik; Validate entire list."
+            ],
+            "expectedEn": "Edits mark Unsaved while search and filters do not; no duplicated profile key survives validation.",
+            "expectedId": "Edit menandai Unsaved sedangkan search dan filter tidak; key profil duplikat tidak lolos validasi.",
+            "troubleshootingEn": "A duplicate may carry an outdated Feedback IOA; numeric search prioritizes an exact IOA match over references to it.",
+            "troubleshootingId": "Duplikat dapat membawa Feedback IOA lama; pencarian numerik memprioritaskan kecocokan IOA langsung dibanding referensi ke sana.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.5",
+          "id": "learn-use-signal-map-s5"
+        },
+        {
+          "headingEn": "Digital State map, Class, COT and signal quality",
+          "headingId": "State map digital, Class, COT dan kualitas sinyal",
+          "paragraphsEn": [
+            "State map pairs exact decoded state keys with labels using key=value; semicolons separate pairs. Class is an IEC101 poll priority hint, COT is Cause of Transmission. Neither changes QDS, timestamps or source bytes."
+          ],
+          "paragraphsId": [
+            "State map memasangkan key state hasil decode dengan label menggunakan key=value; pasangan dipisahkan titik koma. Class adalah petunjuk prioritas polling IEC101, COT adalah Cause of Transmission. Keduanya tidak mengubah QDS, timestamp atau byte sumber."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose a digital feedback row (for example TI31), set Command policy MonitorOnly, then inspect its raw decoded state.",
+              "In Details → Mapping enter a project-confirmed State map; example only: 1=Open; 2=Closed.",
+              "Set Class=1 only when IEC101 Class1 event priority is documented; set COT=3 only if spontaneous delivery is expected, otherwise leave unspecified.",
+              "Validate signal and inspect original Event and Raw Frame quality/timestamp alongside the mapped label."
+            ],
+            "stepsId": [
+              "Pilih baris feedback digital (misalnya TI31), set Command policy MonitorOnly, lalu lihat state raw hasil decode.",
+              "Di Details → Mapping isi State map yang terkonfirmasi proyek; contoh saja: 1=Open; 2=Closed.",
+              "Set Class=1 hanya jika prioritas event Class1 IEC101 terdokumentasi; set COT=3 hanya jika pelaporan spontaneous diharapkan, jika belum pasti biarkan kosong.",
+              "Validate signal lalu periksa quality/timestamp Event dan Raw Frame asli bersama label mapping."
+            ],
+            "expectedEn": "Readable status labels match observed keys without being confused with physical breaker confirmation.",
+            "expectedId": "Label status mudah dibaca dan sesuai key teramati tanpa disamakan dengan konfirmasi breaker fisik.",
+            "troubleshootingEn": "Malformed key=value pairs fail validation; do not assume decoder keys 1/2 without checking actual data.",
+            "troubleshootingId": "Pasangan key=value cacat gagal validasi; jangan mengasumsikan key decoder 1/2 tanpa memeriksa data.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.6",
+          "id": "learn-use-signal-map-s6"
+        },
+        {
+          "headingEn": "Analog Factor: Scale, Offset, Ratio and Unit",
+          "headingId": "Factor analog: Scale, Offset, Ratio dan Unit",
+          "paragraphsEn": [
+            "Scaling tab is available for measured analog TI. Factor uses Y = Source × (NormalizedFullScale for NVA only) × Scale × RatioPrimary/RatioSecondary + Offset. Unit is a display suffix, not an automatic conversion. TI11 uses signed I16 counts, TI9 decoded normalized fraction, TI13 IEEE float."
+          ],
+          "paragraphsId": [
+            "Tab Scaling tersedia untuk TI pengukuran analog. Factor memakai Y = Source × (NormalizedFullScale hanya untuk NVA) × Scale × RatioPrimary/RatioSecondary + Offset. Unit merupakan suffix tampilan, bukan konversi otomatis. TI11 memakai signed I16 counts, TI9 pecahan normalized decoded, TI13 IEEE float."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select a measured TI, open Details → Scaling and choose Factor.",
+              "Use identity defaults Scale=1, Offset=0, Ratio primary=1, Ratio secondary=1, Normalized full-scale=1 until an approved scaling is available.",
+              "For a lab TI13 source already sending 12.5 MW, Unit=MW and Factor identity should still show 12.5 MW.",
+              "Only enter project-confirmed factors, validate and compare to independent readings; never multiply CT/PT twice."
+            ],
+            "stepsId": [
+              "Pilih TI pengukuran, buka Details → Scaling lalu pilih Factor.",
+              "Gunakan default identity Scale=1, Offset=0, Ratio primary=1, Ratio secondary=1, Normalized full-scale=1 sampai ada scaling yang disetujui.",
+              "Untuk lab TI13 yang sudah mengirim 12.5 MW, Unit=MW dan Factor identity tetap menampilkan 12.5 MW.",
+              "Masukkan faktor hanya yang terkonfirmasi proyek, validasi lalu bandingkan dengan pembacaan independen; jangan menggandakan CT/PT."
+            ],
+            "expectedEn": "Engineering display follows the explicit formula while original raw value/quality remain available.",
+            "expectedId": "Tampilan engineering mengikuti rumus eksplisit sementara nilai/quality raw tetap tersedia.",
+            "troubleshootingEn": "For TI11 do not guess MVar per count; for TI9 use decoded normalized X, not the original signed integer bytes.",
+            "troubleshootingId": "Untuk TI11 jangan menebak MVar per count; untuk TI9 gunakan X normalized hasil decode, bukan byte integer bertanda asli.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.7",
+          "id": "learn-use-signal-map-s7"
+        },
+        {
+          "headingEn": "Analog TwoPoint: X0/X100 mapped to Y0/Y100",
+          "headingId": "TwoPoint analog: X0/X100 menjadi Y0/Y100",
+          "paragraphsEn": [
+            "TwoPoint is an alternative to Factor, never a second multiplier. Y=Y0+(X−X0)×(Y100−Y0)/(X100−X0). Valid only for explicit measured TI with MonitorOnly; all four finite endpoints are required, X0 must differ from X100, and out-of-range sources extrapolate."
+          ],
+          "paragraphsId": [
+            "TwoPoint adalah alternatif Factor, bukan pengali kedua. Y=Y0+(X−X0)×(Y100−Y0)/(X100−X0). Hanya valid untuk TI measured eksplisit dengan MonitorOnly; empat endpoint harus finite, X0 berbeda dari X100, dan sumber di luar rentang diekstrapolasi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select an analog measurement and open Details → Scaling; choose Two-point.",
+              "Enter X0/X100 as documented decoded-source endpoints; do not confuse TI11 signed counts, TI9 normalized fraction and TI13 float.",
+              "Enter Y0/Y100 as corresponding engineering outputs and Unit; lab-only TI9 example X0=0, X100=1, Y0=0, Y100=100, Unit=%.",
+              "Check that synthetic input X=0.25 yields Y=25%, then Validate signal and Validate entire list."
+            ],
+            "stepsId": [
+              "Pilih pengukuran analog dan buka Details → Scaling; pilih Two-point.",
+              "Isi X0/X100 sebagai endpoint sumber decoded terdokumentasi; jangan campur TI11 signed counts, TI9 normalized fraction dan TI13 float.",
+              "Isi Y0/Y100 sebagai output engineering terkait dan Unit; contoh TI9 khusus lab X0=0, X100=1, Y0=0, Y100=100, Unit=%.",
+              "Periksa input sintetis X=0.25 menghasilkan Y=25%, lalu Validate signal dan Validate entire list."
+            ],
+            "expectedEn": "TwoPoint applies without compounding Factor; calibration must be checked with at least two approved source/output pairs.",
+            "expectedId": "TwoPoint bekerja tanpa menggabung Factor; kalibrasi harus dicek memakai minimal dua pasangan sumber/output yang disetujui.",
+            "troubleshootingEn": "TwoPoint is rejected for control TI, missing endpoints or identical X0/X100; CT/PT nominal alone does not establish full scale.",
+            "troubleshootingId": "TwoPoint ditolak untuk TI kontrol, endpoint kosong atau X0/X100 sama; nominal CT/PT saja tidak menetapkan full scale.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.8",
+          "id": "learn-use-signal-map-s8"
+        },
+        {
+          "headingEn": "Command policy and its separate Feedback IOA",
+          "headingId": "Command policy dan Feedback IOA yang terpisah",
+          "paragraphsEn": [
+            "The command object (for example TI46 Double Command) is distinct from its status feedback (for example TI31 Double-Point). Command policy and Feedback IOA describe this project relationship, not physical interlock permission."
+          ],
+          "paragraphsId": [
+            "Objek command (misalnya TI46 Double Command) berbeda dari feedback status (misalnya TI31 Double-Point). Command policy dan Feedback IOA mendeskripsikan relasi proyek ini, bukan izin operasi interlock fisik."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select a command row and enter its approved CA/IOA/TI, IEC Type/role, and Command policy in Details → Mapping.",
+              "Enter Feedback IOA only after verifying that a separate feedback point exists in the project database.",
+              "Keep the feedback indication row MonitorOnly; review the command/feedback binding before saving.",
+              "In an authorized safe test, correlate request, ACTCON/termination and independent field status in Controls/Raw Frames."
+            ],
+            "stepsId": [
+              "Pilih baris command dan isi CA/IOA/TI, IEC Type/role dan Command policy yang disetujui di Details → Mapping.",
+              "Isi Feedback IOA hanya setelah memastikan point feedback terpisah terdapat di database proyek.",
+              "Biarkan baris indikasi feedback MonitorOnly; periksa keterkaitan command/feedback sebelum menyimpan.",
+              "Dalam pengujian aman yang diizinkan, cocokkan request, ACTCON/terminasi serta status lapangan independen pada Controls/Raw Frames."
+            ],
+            "expectedEn": "Command and feedback are separately mapped and raw evidence can be inspected without confusing ACK with mechanical operation.",
+            "expectedId": "Command dan feedback terpetakan secara terpisah dan evidence raw dapat diperiksa tanpa menyamakan ACK dengan operasi mekanis.",
+            "troubleshootingEn": "Duplicate signal may copy an old Feedback IOA. Never automatically replay a command with uncertain outcome.",
+            "troubleshootingId": "Duplicate signal bisa menyalin Feedback IOA lama. Jangan mengulang command otomatis ketika hasilnya tidak pasti.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.9",
+          "id": "learn-use-signal-map-s9"
+        },
+        {
+          "headingEn": "Validate, Save, Save As and Save & Apply",
+          "headingId": "Validate, Save, Save As dan Save & Apply",
+          "paragraphsEn": [
+            "Save persists the JSON without closing; Save & Apply validates, writes and closes the dialog so Main Window adopts the profile. The IEC101/104 file schema is ariec10x-ioa-profile-v1; new profiles need a chosen file path."
+          ],
+          "paragraphsId": [
+            "Save menyimpan JSON tanpa menutup; Save & Apply memvalidasi, menulis dan menutup dialog agar Main Window memakai profil. Schema file IEC101/104 ialah ariec10x-ioa-profile-v1; profil baru membutuhkan path pilihan."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Click Validate signal per changed point, then More actions → Validate entire list to catch duplicates and invalid scaling.",
+              "Enter a descriptive profile name; use Save to keep editing, or More actions → Save As new profile... to preserve earlier versions.",
+              "After review click Save & Apply and choose a JSON file path if prompted.",
+              "Check the profile name/count in Main Window, reopen Signal Map and compare CA/IOA/TI and saved engineering settings."
+            ],
+            "stepsId": [
+              "Klik Validate signal pada tiap point berubah, lalu More actions → Validate entire list untuk duplikat dan scaling invalid.",
+              "Isi nama profil yang jelas; gunakan Save untuk terus edit, atau More actions → Save As new profile... untuk mempertahankan versi lama.",
+              "Setelah review klik Save & Apply dan pilih path file JSON bila diminta.",
+              "Periksa nama/jumlah profil di Main Window, buka ulang Signal Map dan cocokkan CA/IOA/TI serta setting engineering tersimpan."
+            ],
+            "expectedEn": "JSON is saved and the correct profile is applied to the UI; this does not independently certify the RTU list.",
+            "expectedId": "JSON disimpan dan profil benar diterapkan ke UI; ini tidak menyertifikasi I/O list RTU secara independen.",
+            "troubleshootingEn": "Blank names, duplicate identity keys, zero ratio divisor or incomplete TwoPoint are rejected; use a new filename for field revisions.",
+            "troubleshootingId": "Nama kosong, key identitas duplikat, pembagi ratio nol atau TwoPoint tak lengkap ditolak; gunakan nama file baru untuk revisi lapangan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.10",
+          "id": "learn-use-signal-map-s10"
+        },
+        {
+          "headingEn": "Optional Sync 31 I/O, observed-CA alignment and FAT CSV",
+          "headingId": "Opsional Sync 31 I/O, align CA dan CSV FAT",
+          "paragraphsEn": [
+            "More actions contains a special bundled 31-point SCADA reference, not a universal autodetector. Sync only considers exact CA=105/IOA/TI matches and requires saving a new copy. Align profile to CA is for a verified single-station case. Field FAT CSV starts NOT TESTED."
+          ],
+          "paragraphsId": [
+            "More actions memiliki referensi SCADA 31 point khusus, bukan autodetector universal. Sync hanya mempertimbangkan kecocokan CA=105/IOA/TI yang persis dan harus menyimpan salinan baru. Align profile to CA hanya untuk kasus satu stasiun terverifikasi. CSV FAT dimulai NOT TESTED."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Skip Sync 31 I/O unless the project's approved I/O list is really the exact bundled reference.",
+              "When relevant, use More actions → Sync 31 I/O reference..., review all proposed metadata/range changes and Save As a distinct JSON.",
+              "Only use Align profile to CA ... after proving the observed CA and confirming the profile is single-station; it does not change serial link address.",
+              "Choose Export blank Field FAT worksheet... for a CSV based on current edits; verify the real frame/field results before marking any pass."
+            ],
+            "stepsId": [
+              "Lewati Sync 31 I/O kecuali I/O list proyek yang disetujui memang sama persis dengan referensi bawaan.",
+              "Jika relevan, pilih More actions → Sync 31 I/O reference..., periksa semua perubahan metadata/range yang diusulkan lalu Save As JSON terpisah.",
+              "Gunakan Align profile to CA ... hanya setelah CA teramati dibuktikan dan profil satu stasiun dipastikan; ini tidak mengubah serial link address.",
+              "Pilih Export blank Field FAT worksheet... untuk CSV berdasarkan edit saat ini; verifikasi hasil frame/field asli sebelum menandai lulus."
+            ],
+            "expectedEn": "The original map remains preserved; FAT evidence is not labeled passed without testing.",
+            "expectedId": "Map asli tetap terjaga; evidence FAT tidak ditandai lulus tanpa pengujian.",
+            "troubleshootingEn": "Sync is not a calibration certificate or mapping solution for other stations; do not override customer-specific analog ranges.",
+            "troubleshootingId": "Sync bukan sertifikat kalibrasi maupun solusi mapping stasiun lain; jangan menimpa range analog khusus pelanggan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.11",
+          "id": "learn-use-signal-map-s11"
+        },
+        {
+          "headingEn": "IEC 103 uses a different FUN/INF JSON profile",
+          "headingId": "IEC 103 memakai profil JSON FUN/INF berbeda",
+          "paragraphsEn": [
+            "IEC103 uses schema ariec60870-mapping-profile-v1, with per-signal id, fun, inf, optional type and name/group. The Signal Map grid does not edit this schema. Sample FUN=192/INF=36 is an example profile, not guaranteed vendor truth."
+          ],
+          "paragraphsId": [
+            "IEC103 memakai schema ariec60870-mapping-profile-v1, dengan id, fun, inf, type opsional dan name/group per sinyal. Grid Signal Map tidak mengedit schema ini. Contoh FUN=192/INF=36 hanya contoh profil, bukan kebenaran vendor universal."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "In IEC103 Setup obtain the project's relay FUN/INF table and open samples/mapping-profiles/example-user-mapping.profile.json as a reference.",
+              "Make a user-owned copy; edit profileName/deviceName plus signals[].id, fun, inf, type, name and optional stateMap. FUN and INF must each be 0..255.",
+              "Use Setup → mapping Browse to load the IEC103 JSON, then check the displayed loaded profile/count.",
+              "Confirm FUN/INF and relay timestamp in actual Raw Frames/Events rather than assuming the sample labels match the IED."
+            ],
+            "stepsId": [
+              "Dalam Setup IEC103 ambil tabel FUN/INF relay proyek dan buka samples/mapping-profiles/example-user-mapping.profile.json sebagai referensi.",
+              "Buat salinan milik pengguna; edit profileName/deviceName serta signals[].id, fun, inf, type, name dan stateMap opsional. FUN dan INF masing-masing 0..255.",
+              "Gunakan Setup → Browse mapping untuk memuat JSON IEC103, lalu cek profil/jumlah yang tampil.",
+              "Pastikan FUN/INF dan timestamp relay pada Raw Frames/Events asli, jangan menganggap label sampel cocok dengan IED."
+            ],
+            "expectedEn": "IEC103 mapped relay names remain tied to original FUN/INF evidence.",
+            "expectedId": "Nama mapping relay IEC103 tetap terhubung ke evidence FUN/INF asli.",
+            "troubleshootingEn": "A message that Signal List Editor is only for IEC101/104 is expected; never enter FUN/INF as IOA.",
+            "troubleshootingId": "Pesan bahwa Signal List Editor hanya untuk IEC101/104 adalah normal; jangan mengisi FUN/INF sebagai IOA.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.12",
+          "id": "learn-use-signal-map-s12"
+        },
+        {
+          "headingEn": "Prove mapping with Raw Frames, Values and Events",
+          "headingId": "Buktikan mapping dengan Raw Frames, Values dan Events",
+          "paragraphsEn": [
+            "A successful Save or Validate proves internal structure, not the remote RTU or relay mapping. An FAT record must link source bytes to a mapped point, displayed state/engineering value and independent site evidence."
+          ],
+          "paragraphsId": [
+            "Save atau Validate sukses hanya membuktikan struktur internal, bukan mapping RTU atau relay remote. Catatan FAT harus menghubungkan byte sumber ke point mapping, state/nilai engineering yang tampil dan evidence site independen."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Load a trusted .ariec capture or connect to an approved endpoint, then select the source telegram in Raw Frames.",
+              "Check Type ID, COT, CA/IOA or FUN/INF, value, quality and source time against the I/O list.",
+              "Search the signal in Values and Events; inspect original source-frame navigation, label, unit and selected scaling.",
+              "Investigate missing/incorrect CA, IOA, TI, raw state keys or guessed scaling before approving FAT; export selected trace and Field FAT CSV."
+            ],
+            "stepsId": [
+              "Load capture .ariec tepercaya atau connect ke endpoint yang disetujui, lalu pilih telegram sumber pada Raw Frames.",
+              "Periksa Type ID, COT, CA/IOA atau FUN/INF, nilai, quality dan waktu sumber terhadap I/O list.",
+              "Cari sinyal pada Values dan Events; periksa navigasi frame sumber asli, label, unit dan scaling terpilih.",
+              "Selidiki CA, IOA, TI, key status raw atau scaling tebakan yang hilang/salah sebelum menyetujui FAT; ekspor trace terpilih dan CSV Field FAT."
+            ],
+            "expectedEn": "Trace source → profile identity → display name/value → independently verified field meaning forms a complete evidence chain.",
+            "expectedId": "Sumber trace → identitas profil → nama/nilai tampilan → makna lapangan terverifikasi membentuk rantai evidence lengkap.",
+            "troubleshootingEn": "A visible label, passed validator, connected session or ACTCON alone does not demonstrate actual physical state.",
+            "troubleshootingId": "Label tampil, validator lulus, sesi connected atau ACTCON saja tidak membuktikan state fisik sebenarnya.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.13",
+          "id": "learn-use-signal-map-s13"
+        }
+      ],
+      "number": "03"
+    },
+    {
       "key": "learn-use-101",
       "categoryEn": "ArSee user guide",
       "categoryId": "Panduan penggunaan ArSee",
@@ -462,7 +970,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "3.1",
+          "number": "4.1",
           "id": "learn-use-101-s1"
         },
         {
@@ -502,7 +1010,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "3.2",
+          "number": "4.2",
           "id": "learn-use-101-s2"
         },
         {
@@ -542,7 +1050,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "3.3",
+          "number": "4.3",
           "id": "learn-use-101-s3"
         },
         {
@@ -582,11 +1090,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "3.4",
+          "number": "4.4",
           "id": "learn-use-101-s4"
         }
       ],
-      "number": "03"
+      "number": "04"
     },
     {
       "key": "learn-use-103",
@@ -638,7 +1146,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "4.1",
+          "number": "5.1",
           "id": "learn-use-103-s1"
         },
         {
@@ -678,7 +1186,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "4.2",
+          "number": "5.2",
           "id": "learn-use-103-s2"
         },
         {
@@ -718,11 +1226,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "4.3",
+          "number": "5.3",
           "id": "learn-use-103-s3"
         }
       ],
-      "number": "04"
+      "number": "05"
     },
     {
       "key": "learn-use-104",
@@ -774,7 +1282,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "5.1",
+          "number": "6.1",
           "id": "learn-use-104-s1"
         },
         {
@@ -814,7 +1322,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "5.2",
+          "number": "6.2",
           "id": "learn-use-104-s2"
         },
         {
@@ -854,7 +1362,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "5.3",
+          "number": "6.3",
           "id": "learn-use-104-s3"
         },
         {
@@ -894,11 +1402,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "5.4",
+          "number": "6.4",
           "id": "learn-use-104-s4"
         }
       ],
-      "number": "05"
+      "number": "06"
     },
     {
       "key": "learn-use-dual",
@@ -950,7 +1458,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "6.1",
+          "number": "7.1",
           "id": "learn-use-dual-s1"
         },
         {
@@ -990,7 +1498,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "6.2",
+          "number": "7.2",
           "id": "learn-use-dual-s2"
         },
         {
@@ -1032,11 +1540,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "6.3",
+          "number": "7.3",
           "id": "learn-use-dual-s3"
         }
       ],
-      "number": "06"
+      "number": "07"
     },
     {
       "key": "learn-use-passive",
@@ -1089,7 +1597,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "7.1",
+          "number": "8.1",
           "id": "learn-use-passive-s1"
         },
         {
@@ -1131,7 +1639,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "7.2",
+          "number": "8.2",
           "id": "learn-use-passive-s2"
         },
         {
@@ -1173,7 +1681,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "7.3",
+          "number": "8.3",
           "id": "learn-use-passive-s3"
         },
         {
@@ -1213,11 +1721,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "7.4",
+          "number": "8.4",
           "id": "learn-use-passive-s4"
         }
       ],
-      "number": "07"
+      "number": "08"
     },
     {
       "key": "learn-use-views",
@@ -1269,7 +1777,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "8.1",
+          "number": "9.1",
           "id": "learn-use-views-s1"
         },
         {
@@ -1309,7 +1817,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "8.2",
+          "number": "9.2",
           "id": "learn-use-views-s2"
         },
         {
@@ -1349,7 +1857,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "8.3",
+          "number": "9.3",
           "id": "learn-use-views-s3"
         },
         {
@@ -1389,7 +1897,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "8.4",
+          "number": "9.4",
           "id": "learn-use-views-s4"
         },
         {
@@ -1429,11 +1937,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "8.5",
+          "number": "9.5",
           "id": "learn-use-views-s5"
         }
       ],
-      "number": "08"
+      "number": "09"
     },
     {
       "key": "learn-use-commands",
@@ -1485,7 +1993,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "9.1",
+          "number": "10.1",
           "id": "learn-use-commands-s1"
         },
         {
@@ -1525,7 +2033,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "9.2",
+          "number": "10.2",
           "id": "learn-use-commands-s2"
         },
         {
@@ -1571,7 +2079,7 @@
             "safetyEn": "Never exercise live switchgear solely to verify the Help Center instructions.",
             "safetyId": "Jangan mengoperasikan switchgear hidup hanya untuk memverifikasi instruksi Help Center."
           },
-          "number": "9.3",
+          "number": "10.3",
           "id": "learn-use-commands-s3"
         },
         {
@@ -1611,11 +2119,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "9.4",
+          "number": "10.4",
           "id": "learn-use-commands-s4"
         }
       ],
-      "number": "09"
+      "number": "10"
     },
     {
       "key": "learn-use-evidence",
@@ -1667,7 +2175,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "10.1",
+          "number": "11.1",
           "id": "learn-use-evidence-s1"
         },
         {
@@ -1707,7 +2215,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "10.2",
+          "number": "11.2",
           "id": "learn-use-evidence-s2"
         },
         {
@@ -1747,7 +2255,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "10.3",
+          "number": "11.3",
           "id": "learn-use-evidence-s3"
         },
         {
@@ -1787,7 +2295,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "10.4",
+          "number": "11.4",
           "id": "learn-use-evidence-s4"
         },
         {
@@ -1827,11 +2335,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "10.5",
+          "number": "11.5",
           "id": "learn-use-evidence-s5"
         }
       ],
-      "number": "10"
+      "number": "11"
     },
     {
       "key": "learn-use-diagnose",
@@ -1883,7 +2391,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "11.1",
+          "number": "12.1",
           "id": "learn-use-diagnose-s1"
         },
         {
@@ -1923,7 +2431,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "11.2",
+          "number": "12.2",
           "id": "learn-use-diagnose-s2"
         },
         {
@@ -1963,7 +2471,7 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "11.3",
+          "number": "12.3",
           "id": "learn-use-diagnose-s3"
         },
         {
@@ -2003,11 +2511,11 @@
             "safetyEn": "",
             "safetyId": ""
           },
-          "number": "11.4",
+          "number": "12.4",
           "id": "learn-use-diagnose-s4"
         }
       ],
-      "number": "11"
+      "number": "12"
     },
     {
       "key": "learn-iec-family",
@@ -2043,7 +2551,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s1",
-          "number": "12.1"
+          "number": "13.1"
         },
         {
           "headingEn": "Read the layers in order",
@@ -2069,7 +2577,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s2",
-          "number": "12.2"
+          "number": "13.2"
         },
         {
           "headingEn": "Master, outstation and time",
@@ -2095,7 +2603,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s3",
-          "number": "12.3"
+          "number": "13.3"
         },
         {
           "headingEn": "Interoperability is a contract, not a checkbox",
@@ -2119,7 +2627,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s4",
-          "number": "12.4"
+          "number": "13.4"
         },
         {
           "headingEn": "A beginner's five questions for every frame",
@@ -2143,7 +2651,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s5",
-          "number": "12.5"
+          "number": "13.5"
         }
       ],
       "sources": [
@@ -2152,7 +2660,7 @@
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "12"
+      "number": "13"
     },
     {
       "key": "learn-framing",
@@ -2193,7 +2701,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-framing-s1",
-          "number": "13.1"
+          "number": "14.1"
         },
         {
           "headingEn": "Trust ladder: byte to application conclusion",
@@ -2217,7 +2725,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-framing-s2",
-          "number": "13.2"
+          "number": "14.2"
         },
         {
           "headingEn": "Two conceptual capture patterns",
@@ -2241,10 +2749,10 @@
             "B / TCP: connect -> STARTDT act/con -> GI act -> ACTCON -> data -> selesai"
           ],
           "id": "learn-framing-s3",
-          "number": "13.3"
+          "number": "14.3"
         }
       ],
-      "number": "13"
+      "number": "14"
     },
     {
       "key": "learn-iec101",
@@ -2286,7 +2794,7 @@
             "Link ACK bukan ACTCON; catat kedua lapisan terpisah."
           ],
           "id": "learn-iec101-s1",
-          "number": "14.1"
+          "number": "15.1"
         },
         {
           "headingEn": "Healthy unbalanced Class 2 / Class 1 polling",
@@ -2324,7 +2832,7 @@
             "RX  Event, lalu Class 1 habis → lanjut Class 2"
           ],
           "id": "learn-iec101-s2",
-          "number": "14.2"
+          "number": "15.2"
         },
         {
           "headingEn": "Startup, GI and command evidence",
@@ -2350,7 +2858,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec101-s3",
-          "number": "14.3"
+          "number": "15.3"
         },
         {
           "headingEn": "Fixed and variable FT1.2 frames",
@@ -2380,7 +2888,7 @@
             "Skematis: [START][LENGTH][CONTROL][LINK ADDRESS][ASDU?][CHECKSUM][END]"
           ],
           "id": "learn-iec101-s4",
-          "number": "14.4"
+          "number": "15.4"
         },
         {
           "headingEn": "How the RTU must react to an empty event queue",
@@ -2414,14 +2922,14 @@
             "TX master  Kembali ke Class 2 normal"
           ],
           "id": "learn-iec101-s5",
-          "number": "14.5"
+          "number": "15.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/3743"
       ],
-      "number": "14"
+      "number": "15"
     },
     {
       "key": "learn-lab-101",
@@ -2482,7 +2990,7 @@
             "answerEn": "No. This is primary link-status FC9. Expect a permitted secondary link-status response such as FC11, subject to profile and actual link state.",
             "answerId": "Tidak. Ini link-status FC9 dari primary. Yang diharapkan respons status link secondary seperti FC11 sesuai profil dan kondisi link yang benar."
           },
-          "number": "15.1",
+          "number": "16.1",
           "id": "learn-lab-101-s1"
         },
         {
@@ -2531,7 +3039,7 @@
             "answerEn": "No. A link-status reply contains no GI Type ID, COT, point image or completion evidence.",
             "answerId": "Tidak. Respons link-status tidak berisi Type ID GI, COT, image point atau evidence penyelesaian GI."
           },
-          "number": "15.2",
+          "number": "16.2",
           "id": "learn-lab-101-s2"
         },
         {
@@ -2580,7 +3088,7 @@
             "answerEn": "No. A permitted no-data response is healthy. Investigate no response, malformed bytes, or wrongly persistent ACD independently.",
             "answerId": "Tidak. Respons no-data yang diperbolehkan menunjukkan kondisi sehat. Selidiki tidak adanya respons, byte rusak, atau ACD menetap secara terpisah."
           },
-          "number": "15.3",
+          "number": "16.3",
           "id": "learn-lab-101-s3"
         },
         {
@@ -2626,7 +3134,7 @@
             "answerEn": "No. The raw byte has no function/address/ACD fields. Correlation to an outstanding compatible poll is needed; otherwise label semantic outcome unknown.",
             "answerId": "Tidak. Byte mentah ini tidak memiliki field function/address/ACD. Dibutuhkan korelasi request poll kompatibel yang unik; tanpa itu makna semantik unknown."
           },
-          "number": "15.4",
+          "number": "16.4",
           "id": "learn-lab-101-s4"
         },
         {
@@ -2672,11 +3180,11 @@
             "answerEn": "No. It is a corrupted frame. A permissive-looking control field is not enough to claim an accepted link service.",
             "answerId": "Tidak. Frame ini rusak. Control field yang tampak wajar tidak cukup untuk mengklaim layanan link diterima."
           },
-          "number": "15.5",
+          "number": "16.5",
           "id": "learn-lab-101-s5"
         }
       ],
-      "number": "15"
+      "number": "16"
     },
     {
       "key": "learn-iec103",
@@ -2712,7 +3220,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s1",
-          "number": "16.1"
+          "number": "17.1"
         },
         {
           "headingEn": "How a relay should answer a serial master",
@@ -2738,7 +3246,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s2",
-          "number": "16.2"
+          "number": "17.2"
         },
         {
           "headingEn": "Relaying event evidence into SCADA",
@@ -2764,7 +3272,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s3",
-          "number": "16.3"
+          "number": "17.3"
         },
         {
           "headingEn": "Relay events are not ordinary RTU points",
@@ -2790,7 +3298,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s4",
-          "number": "16.4"
+          "number": "17.4"
         },
         {
           "headingEn": "No event while relay values can be read",
@@ -2816,13 +3324,13 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s5",
-          "number": "16.5"
+          "number": "17.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/3745"
       ],
-      "number": "16"
+      "number": "17"
     },
     {
       "key": "learn-lab-103",
@@ -2883,7 +3391,7 @@
             "answerEn": "No. No application ASDU exists in this fixed frame. Only link integrity and context can be inferred.",
             "answerId": "Tidak. Tidak ada ASDU aplikasi dalam frame fixed ini. Hanya integritas link dan konteks yang dapat dinilai."
           },
-          "number": "17.1",
+          "number": "18.1",
           "id": "learn-lab-103-s1"
         },
         {
@@ -2927,7 +3435,7 @@
             "answerEn": "Trip event observed; breaker operation not proven. Add independent auxiliary-contact feedback before marking a physical state change.",
             "answerId": "Event trip teramati; operasi breaker belum terbukti. Tambahkan feedback kontak bantu independen sebelum menandai perubahan status fisik."
           },
-          "number": "17.2",
+          "number": "18.2",
           "id": "learn-lab-103-s2"
         },
         {
@@ -2971,7 +3479,7 @@
             "answerEn": "No. Classify as valid transport/application envelope with unverified point semantics; obtain the approved relay profile.",
             "answerId": "Tidak. Klasifikasikan envelope transport/aplikasi valid dengan semantik point belum terverifikasi; dapatkan profil relay resmi."
           },
-          "number": "17.3",
+          "number": "18.3",
           "id": "learn-lab-103-s3"
         },
         {
@@ -3015,11 +3523,11 @@
             "answerEn": "No. GI snapshot and spontaneous events exercise different delivery paths. Mark reporting not proven.",
             "answerId": "Tidak. Snapshot GI dan event spontan melewati jalur delivery berbeda. Tandai reporting belum terbukti."
           },
-          "number": "17.4",
+          "number": "18.4",
           "id": "learn-lab-103-s4"
         }
       ],
-      "number": "17"
+      "number": "18"
     },
     {
       "key": "learn-iec104",
@@ -3063,7 +3571,7 @@
             "Idle → TESTFR act / TESTFR con (sesuai konfigurasi)"
           ],
           "id": "learn-iec104-s1",
-          "number": "18.1"
+          "number": "19.1"
         },
         {
           "headingEn": "How a server should send data",
@@ -3089,7 +3597,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s2",
-          "number": "18.2"
+          "number": "19.2"
         },
         {
           "headingEn": "Commands, timeouts and reconnect",
@@ -3115,7 +3623,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s3",
-          "number": "18.3"
+          "number": "19.3"
         },
         {
           "headingEn": "Sequence counters and acknowledgements",
@@ -3141,7 +3649,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s4",
-          "number": "18.4"
+          "number": "19.4"
         },
         {
           "headingEn": "Spontaneous reporting and GI coexist",
@@ -3175,14 +3683,14 @@
             "Perubahan proses independen → ASDU spontan dengan COT sesuai"
           ],
           "id": "learn-iec104-s5",
-          "number": "18.5"
+          "number": "19.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/25035",
         "https://webstore.iec.ch/en/publication/87194"
       ],
-      "number": "18"
+      "number": "19"
     },
     {
       "key": "learn-lab-104",
@@ -3240,7 +3748,7 @@
             "answerEn": "No. This is only an activation request. Confirm STARTDT con, then verify actual I-frame process data.",
             "answerId": "Belum. Ini hanya request aktivasi. Verifikasi STARTDT con, lalu data proses I-frame yang benar-benar dikirim."
           },
-          "number": "19.1",
+          "number": "20.1",
           "id": "learn-lab-104-s1"
         },
         {
@@ -3286,7 +3794,7 @@
             "answerEn": "No. Fresh process values require relevant ASDUs, for example an accepted GI lifecycle or new spontaneous updates.",
             "answerId": "Tidak. Values baru membutuhkan ASDU relevan, misalnya GI lifecycle yang diterima atau update spontan baru."
           },
-          "number": "19.2",
+          "number": "20.2",
           "id": "learn-lab-104-s2"
         },
         {
@@ -3337,7 +3845,7 @@
             "answerEn": "No. This is the initiating command. Analyze later server I-frames separately.",
             "answerId": "Belum. Ini perintah pemicu. Analisis I-frame server berikutnya secara terpisah."
           },
-          "number": "19.3",
+          "number": "20.3",
           "id": "learn-lab-104-s3"
         },
         {
@@ -3388,7 +3896,7 @@
             "answerEn": "No. ACTCON confirms activation only; track returned information ASDUs and final applicable termination evidence.",
             "answerId": "Tidak. ACTCON hanya mengonfirmasi aktivasi; lanjutkan pencatatan ASDU informasi dan evidence terminasi yang berlaku."
           },
-          "number": "19.4",
+          "number": "20.4",
           "id": "learn-lab-104-s4"
         },
         {
@@ -3439,7 +3947,7 @@
             "answerEn": "No. It is spontaneous event reporting. GI lifecycle must be tracked independently.",
             "answerId": "Tidak. Ini pelaporan event spontan. GI lifecycle harus dipantau secara independen."
           },
-          "number": "19.5",
+          "number": "20.5",
           "id": "learn-lab-104-s5"
         },
         {
@@ -3485,7 +3993,7 @@
             "answerEn": "No. Sequence acknowledgment cannot be promoted into physical-state evidence.",
             "answerId": "Tidak. Acknowledgement sequence tidak dapat disamakan dengan evidence kondisi fisik."
           },
-          "number": "19.6",
+          "number": "20.6",
           "id": "learn-lab-104-s6"
         },
         {
@@ -3531,11 +4039,11 @@
             "answerEn": "No. Reserved control octet invalidates the U-format APDU. Do not trust it as a STARTDT activation.",
             "answerId": "Tidak. Oktet kontrol reserved membuat U-format APDU invalid. Jangan mempercayainya sebagai aktivasi STARTDT."
           },
-          "number": "19.7",
+          "number": "20.7",
           "id": "learn-lab-104-s7"
         }
       ],
-      "number": "19"
+      "number": "20"
     },
     {
       "key": "learn-lifecycle",
@@ -3575,7 +4083,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s1",
-          "number": "20.1"
+          "number": "21.1"
         },
         {
           "headingEn": "SBO and direct-operate are different contracts",
@@ -3599,7 +4107,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s2",
-          "number": "20.2"
+          "number": "21.2"
         },
         {
           "headingEn": "Synthetic command evidence timeline",
@@ -3625,10 +4133,10 @@
             "Readback memastikan status aktual -> hasil terverifikasi"
           ],
           "id": "learn-lifecycle-s3",
-          "number": "20.3"
+          "number": "21.3"
         }
       ],
-      "number": "20"
+      "number": "21"
     },
     {
       "key": "learn-semantics",
@@ -3664,7 +4172,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s1",
-          "number": "21.1"
+          "number": "22.1"
         },
         {
           "headingEn": "Quality and overflow are separate dimensions",
@@ -3690,7 +4198,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s2",
-          "number": "21.2"
+          "number": "22.2"
         },
         {
           "headingEn": "Four different command outcomes",
@@ -3716,7 +4224,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s3",
-          "number": "21.3"
+          "number": "22.3"
         },
         {
           "headingEn": "ASDU reading exercise: stop at the right layer",
@@ -3742,14 +4250,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s4",
-          "number": "21.4"
+          "number": "22.4"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "21"
+      "number": "22"
     },
     {
       "key": "learn-gateways",
@@ -3790,7 +4298,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s1",
-          "number": "22.1"
+          "number": "23.1"
         },
         {
           "headingEn": "Scaling and sign boundaries",
@@ -3814,7 +4322,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s2",
-          "number": "22.2"
+          "number": "23.2"
         },
         {
           "headingEn": "Diagnose a silent reporting chain",
@@ -3836,10 +4344,10 @@
             "SUMBER -> input gateway -> mapping -> antrian/COT -> TX ASDU IEC -> RX master"
           ],
           "id": "learn-gateways-s3",
-          "number": "22.3"
+          "number": "23.3"
         }
       ],
-      "number": "22"
+      "number": "23"
     },
     {
       "key": "learn-nuc",
@@ -3875,7 +4383,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s1",
-          "number": "23.1"
+          "number": "24.1"
         },
         {
           "headingEn": "NUC 101 polling, buffering and serial switch",
@@ -3901,7 +4409,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s2",
-          "number": "23.2"
+          "number": "24.2"
         },
         {
           "headingEn": "NUC 104 is a different topology",
@@ -3925,7 +4433,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s3",
-          "number": "23.3"
+          "number": "24.3"
         },
         {
           "headingEn": "NUC interoperability checklist before commissioning",
@@ -3951,14 +4459,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s4",
-          "number": "23.4"
+          "number": "24.4"
         }
       ],
       "sources": [
         "https://tekniskregelverk.banenor.no/tekniske-spesifikasjoner/kontaktledning/remote-terminal-unit/",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "23"
+      "number": "24"
     },
     {
       "key": "learn-redundancy",
@@ -3994,7 +4502,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s1",
-          "number": "24.1"
+          "number": "25.1"
         },
         {
           "headingEn": "Healthy IEC 101 A/B switchover example",
@@ -4030,7 +4538,7 @@
             "Bukti switch: owner A→B, RX valid pertama B, event terakhir terkonfirmasi"
           ],
           "id": "learn-redundancy-s2",
-          "number": "24.2"
+          "number": "25.2"
         },
         {
           "headingEn": "IEC 104 active frontend takeover",
@@ -4056,7 +4564,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s3",
-          "number": "24.3"
+          "number": "25.3"
         },
         {
           "headingEn": "Commissioning failover acceptance",
@@ -4084,7 +4592,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s4",
-          "number": "24.4"
+          "number": "25.4"
         },
         {
           "headingEn": "Do not split-brain the masters",
@@ -4110,7 +4618,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s5",
-          "number": "24.5"
+          "number": "25.5"
         },
         {
           "headingEn": "Switch boundary: what becomes unproven?",
@@ -4136,7 +4644,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s6",
-          "number": "24.6"
+          "number": "25.6"
         }
       ],
       "sources": [
@@ -4144,7 +4652,7 @@
         "https://webstore.iec.ch/en/publication/25035",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "24"
+      "number": "25"
     },
     {
       "key": "learn-lab-redundancy",
@@ -4207,7 +4715,7 @@
             "answerEn": "No. In this selected active/standby profile that is normal standby behavior. Diagnose against the approved contract, not a copied active scan.",
             "answerId": "Tidak. Pada profil active/standby ini perilaku standby normal. Diagnosa berdasarkan kontrak yang disetujui, bukan salinan scan aktif."
           },
-          "number": "25.1",
+          "number": "26.1",
           "id": "learn-lab-redundancy-s1"
         },
         {
@@ -4253,7 +4761,7 @@
             "answerEn": "No. IEC104 sequence accounting is per TCP association. Use the new session's independently validated state.",
             "answerId": "Tidak. Akuntansi sequence IEC104 per asosiasi TCP. Gunakan state session baru yang tervalidasi independen."
           },
-          "number": "25.2",
+          "number": "26.2",
           "id": "learn-lab-redundancy-s2"
         },
         {
@@ -4297,7 +4805,7 @@
             "answerEn": "No. Mark execution ambiguous and require state readback, permissions and operator-controlled recovery.",
             "answerId": "Tidak. Tandai eksekusi ambigu dan wajibkan readback state, pemeriksaan izin serta recovery terkendali operator."
           },
-          "number": "25.3",
+          "number": "26.3",
           "id": "learn-lab-redundancy-s3"
         },
         {
@@ -4341,11 +4849,11 @@
             "answerEn": "No. Report potential retransmission or duplicate with stated confidence and preserve both raw captures.",
             "answerId": "Tidak. Laporkan potensi retransmit atau duplikat beserta confidence-nya dan pertahankan kedua capture mentah."
           },
-          "number": "25.4",
+          "number": "26.4",
           "id": "learn-lab-redundancy-s4"
         }
       ],
-      "number": "25"
+      "number": "26"
     },
     {
       "key": "learn-interop",
@@ -4384,7 +4892,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s1",
-          "number": "26.1"
+          "number": "27.1"
         },
         {
           "headingEn": "Security is a separate engineering layer",
@@ -4410,7 +4918,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s2",
-          "number": "26.2"
+          "number": "27.2"
         },
         {
           "headingEn": "Claim only what the capture proves",
@@ -4434,10 +4942,10 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s3",
-          "number": "26.3"
+          "number": "27.3"
         }
       ],
-      "number": "26"
+      "number": "27"
     },
     {
       "key": "learn-field-guide",
@@ -4475,7 +4983,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s1",
-          "number": "27.1"
+          "number": "28.1"
         },
         {
           "headingEn": "A protocol FAT/SAT evidence matrix",
@@ -4503,7 +5011,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s2",
-          "number": "27.2"
+          "number": "28.2"
         },
         {
           "headingEn": "The trace-to-diagnosis workflow",
@@ -4529,7 +5037,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s3",
-          "number": "27.3"
+          "number": "28.3"
         },
         {
           "headingEn": "Field checklist: master polls but the RTU looks silent",
@@ -4555,7 +5063,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s4",
-          "number": "27.4"
+          "number": "28.4"
         }
       ],
       "sources": [
@@ -4564,8 +5072,8 @@
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "27"
+      "number": "28"
     }
   ],
-  "bookEdition": "Engineering Handbook R4 — ArSee User Guide + Trace Labs"
+  "bookEdition": "Engineering Handbook R4.1 — Detailed Signal Map Guide"
 }
