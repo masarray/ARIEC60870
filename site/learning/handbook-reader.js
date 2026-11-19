@@ -221,9 +221,9 @@
           const button = add(group, 'button', 'learning-chapter-button');
           button.type = 'button';
           const badge = add(button, 'span', 'learning-protocol-badge');
-          const is101 = ch.key === 'learn-iec101' || ch.key === 'learn-lab-101';
-          const is103 = ch.key === 'learn-iec103' || ch.key === 'learn-lab-103';
-          const is104 = ch.key === 'learn-iec104' || ch.key === 'learn-lab-104';
+          const is101 = ['learn-iec101', 'learn-lab-101', 'learn-use-101'].includes(ch.key);
+          const is103 = ['learn-iec103', 'learn-lab-103', 'learn-use-103'].includes(ch.key);
+          const is104 = ['learn-iec104', 'learn-lab-104', 'learn-use-104'].includes(ch.key);
           badge.textContent = is101 ? 'IEC101' : is103 ? 'IEC103' : is104 ? 'IEC104' : '·';
           if (is101) badge.classList.add('protocol-101');
           if (is103) badge.classList.add('protocol-103');
