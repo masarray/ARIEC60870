@@ -44,7 +44,7 @@ public sealed class ReleaseUpdateServiceTests
         var correct = new string('a', 64);
         var other = new string('b', 64);
         var sums = other + "  other.exe\n" +
-                   correct + "  ARIEC60870-v3.6.9-setup-win-x64.exe\n";
+                   correct + "  ArSee-v3.6.9-setup-win-x64.exe\n";
         Assert.Equal(correct, ReleaseUpdateService.FindDigest(sums, "ArSee-v3.6.9-setup-win-x64.exe"));
         Assert.Null(ReleaseUpdateService.FindDigest(sums, "ArSee-v3.6.8-setup-win-x64.exe"));
         Assert.Null(ReleaseUpdateService.FindDigest("untrusted", "ArSee-v3.6.9-setup-win-x64.exe"));
