@@ -152,6 +152,8 @@ public sealed class SharedHandbookTests
         Assert.Contains("STARTDT", corpus);
         Assert.Contains("FUN/INF", corpus);
         Assert.Contains("post-switch GI", corpus);
+        // The native WPF reader uses plain TextBlocks, not Markdown parsing.
+        Assert.DoesNotContain("**", corpus);
     }
 
     private static string Source(string relative)
