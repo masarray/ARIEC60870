@@ -508,6 +508,9 @@ public partial class HelpWindow : Window
             });
         }
 
+        if (section.Workflow is not null)
+            body.Children.Add(BuildUserWorkflow(section.Workflow));
+
         if (section.Lab is not null)
             body.Children.Add(BuildTraceLab(section.Lab));
 
@@ -523,6 +526,88 @@ public partial class HelpWindow : Window
             Child = body
         };
     }
+
+    private Border BuildUserWorkflow(HelpWorkflow workflow)
+    {
+        // The same numbered procedure and validation criteria are used on
+        // desktop and web. Avoid nested decorative cards in the article hero.
+        var content = new StackPanel();
+        var prerequisites = PickList(workflow.PrerequisitesEn, workflow.PrerequisitesId);
+        if (prerequisites.Count > 0)
+        {
+            content.Children.Add(MakeGuideLabel(Pick("BEFORE YOU START", "SEBELUM MEMULAI")));
+            foreach (var requirement in prerequisites)
+                content.Children.Add(MakeGuideText("• " + requirement, new Thickness(0, 3, 0, 0)));
+        }
+
+        content.Children.Add(MakeGuideLabel(Pick("STEP BY STEP", "LANGKAH-LANGKAH")));
+        var steps = PickList(workflow.StepsEn, workflow.StepsId);
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 9) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var number = new TextBlock
+            {
+                Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".",
+                Foreground = (Brush)FindResource("Ink500Brush"),
+                FontSize = 11.8,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 1, 0, 0)
+            };
+            var action = MakeGuideText(steps[i], new Thickness(0));
+            Grid.SetColumn(number, 0);
+            Grid.SetColumn(action, 1);
+            row.Children.Add(number);
+            row.Children.Add(action);
+            content.Children.Add(row);
+        }
+
+        content.Children.Add(MakeGuideLabel(Pick("EXPECTED RESULT", "HASIL YANG DIHARAPKAN")));
+        content.Children.Add(MakeGuideText(Pick(workflow.ExpectedEn, workflow.ExpectedId),
+            new Thickness(0, 3, 0, 8)));
+        content.Children.Add(MakeGuideLabel(Pick("IF IT DOES NOT WORK", "JIKA BELUM BERHASIL")));
+        content.Children.Add(MakeGuideText(Pick(workflow.TroubleshootingEn, workflow.TroubleshootingId),
+            new Thickness(0, 3, 0, 0)));
+
+        var safety = Pick(workflow.SafetyEn, workflow.SafetyId);
+        if (!string.IsNullOrWhiteSpace(safety))
+        {
+            content.Children.Add(MakeGuideLabel(Pick("FIELD SAFETY", "KESELAMATAN LAPANGAN")));
+            content.Children.Add(MakeGuideText(safety, new Thickness(0, 3, 0, 0)));
+        }
+
+        return new Border
+        {
+            Tag = "ArSeeUserWorkflow",
+            Background = (Brush)FindResource("Panel75Brush"),
+            BorderBrush = (Brush)FindResource("LineBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 10, 0, 5),
+            Child = content
+        };
+    }
+
+    private TextBlock MakeGuideLabel(string label) => new()
+    {
+        Text = label,
+        FontSize = 10.1,
+        FontWeight = FontWeights.SemiBold,
+        Foreground = (Brush)FindResource("Ink500Brush"),
+        Margin = new Thickness(0, 12, 0, 4)
+    };
+
+    private TextBlock MakeGuideText(string value, Thickness margin) => new()
+    {
+        Text = value,
+        FontSize = 11.8,
+        Foreground = (Brush)FindResource("Ink700Brush"),
+        TextWrapping = TextWrapping.Wrap,
+        LineHeight = 18,
+        Margin = margin
+    };
 
     private string Pick(string en, string id) => _language == "id" ? id : en;
 
@@ -1344,5 +1429,6 @@ public partial class HelpWindow : Window
         IReadOnlyList<string> BulletsId,
         IReadOnlyList<string>? FrameLinesEn = null,
         IReadOnlyList<string>? FrameLinesId = null,
-        HelpLab? Lab = null);
+        HelpLab? Lab = null,
+        HelpWorkflow? Workflow = null);
 }
