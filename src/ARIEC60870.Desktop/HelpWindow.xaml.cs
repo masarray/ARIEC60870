@@ -222,11 +222,11 @@ public partial class HelpWindow : Window
     private void RefreshLanguageText()
     {
         HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ArSee" : "ArSee Help Center";
-        TopicListTitleText.Text = _language == "id" ? "Topik" : "Topics";
+        TopicListTitleText.Text = _language == "id" ? "Bab & topik" : "Chapters & topics";
         OpenOnlineLabel.Text = _language == "id" ? "Buka Field Wiki" : "Open Field Wiki";
         SearchWatermarkText.Text = _language == "id"
-            ? "Cari topik..."
-            : "Search topics...";
+            ? "Cari panduan dan protokol..."
+            : "Search guide and protocols...";
         NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
@@ -1385,6 +1385,7 @@ public partial class HelpWindow : Window
     {
         public string CategoryEn => Key switch
         {
+            var key when key.StartsWith("learn-use-", StringComparison.Ordinal) => "ArSee user guide",
             var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Engineering handbook",
             "overview" => "Quick Help",
             "setup" => "Connection",
@@ -1411,6 +1412,7 @@ public partial class HelpWindow : Window
 
         public string CategoryId => Key switch
         {
+            var key when key.StartsWith("learn-use-", StringComparison.Ordinal) => "Panduan pengguna ArSee",
             var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Buku belajar engineer",
             "overview" => "Bantuan Cepat",
             "setup" => "Koneksi",
