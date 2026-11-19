@@ -745,8 +745,8 @@
             ],
             "expectedEn": "TwoPoint applies without compounding Factor; calibration must be checked with at least two approved source/output pairs.",
             "expectedId": "TwoPoint bekerja tanpa menggabung Factor; kalibrasi harus dicek memakai minimal dua pasangan sumber/output yang disetujui.",
-            "troubleshootingEn": "TwoPoint is rejected for control TI, missing endpoints or identical X0/X100; CT/PT nominal alone does not establish full scale.",
-            "troubleshootingId": "TwoPoint ditolak untuk TI kontrol, endpoint kosong atau X0/X100 sama; nominal CT/PT saja tidak menetapkan full scale.",
+            "troubleshootingEn": "TwoPoint is rejected for control TI, missing endpoints or identical X0/X100; CT/PT nominal alone does not establish full scale. For TI9, X100=+1 in the synthetic example is a conceptual upper endpoint; the largest representable NVA fraction is below +1.",
+            "troubleshootingId": "TwoPoint ditolak untuk TI kontrol, endpoint kosong atau X0/X100 sama; nominal CT/PT saja tidak menetapkan full scale. Untuk TI9, X100=+1 pada contoh sintetis adalah endpoint atas konseptual; pecahan NVA terbesar yang bisa direpresentasikan kurang dari +1.",
             "safetyEn": "",
             "safetyId": ""
           },
