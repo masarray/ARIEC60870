@@ -1,8 +1,8 @@
 # ArSee v3.6.17 — Public stable Windows software release
 
-**Windows x64 · Public stable software release candidate · 19 November 2026**
+**Windows x64 · Published public stable software release · 19 November 2026**
 
-This note describes the scope intended for the **new stable v3.6.17**. A release is not public just because this file or the source version exists. Official release status requires exact-source Windows CI, independently verified installed-updater FAT, Package build, checksums, SBOM, provenance and a published immutable `v3.6.17` GitHub tag. Until those succeed, the latest stable remains [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) and [v3.6.17-rc.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) remains a public prerelease.
+**v3.6.17 is published public stable**, not a draft or prerelease: [official GitHub Release](https://github.com/masarray/arsee/releases/tag/v3.6.17), immutable source `5b1eada52cb26295dd91d73afe3b9d065e71a404`, exact-source [Windows CI and native independent installed-updater FAT #44539045530](https://github.com/masarray/arsee/actions/runs/44539045530), plus successful [Package #44540333243](https://github.com/masarray/arsee/actions/runs/44540333243) with installer, ZIP, checksums, SPDX SBOM and provenance. The previous stable [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) and the archived prerelease [v3.6.17-rc.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) remain available.
 
 ## Operator workflow improvements since v3.6.16
 
@@ -18,7 +18,7 @@ This note describes the scope intended for the **new stable v3.6.17**. A release
 
 This public **software stability** designation denotes the published reproducible Windows installer/ZIP and source-bound software tests; it is **not IEC conformance certification or physical RTU/SCADA acceptance**.
 
-The `v3.6.17` release pipeline must demonstrate:
+The published `v3.6.17` release pipeline demonstrated:
 1. Exact merged source version 3.6.17, Windows Release build, C# format gate, protocol smoke, full xUnit and GUI/WPF evidence tests.
 2. Independent genuine installed-updater/previous-release FAT on the **same exact master commit**, not an older RC or synthetic-only test.
 3. Release Package verification of the self-contained application, installer, portable ZIP, checksums, SPDX SBOM and provenance; no tag/asset overwrite.
@@ -27,9 +27,9 @@ The `v3.6.17` release pipeline must demonstrate:
 
 See [v3.6.17 RC.7 scope](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7), [field FAT worksheet](../../FIELD_FAT_RC_3_6_17_RC2.md), and [IEC field implementation draft #145](https://github.com/masarray/arsee/pull/145) (**unmerged**). Do not claim pending #145 changes are in the product.
 
-## Official distribution (after publication)
+## Official distribution
 
-The release Package must publish and verify these exact assets:
+The release Package published and verified these exact assets:
 - `ARIEC60870-v3.6.17-setup-win-x64.exe` — per-user Windows x64 Inno Setup installer.
 - `ARIEC60870-v3.6.17-win-x64.zip` — self-contained portable Windows x64.
 - `ARIEC60870-v3.6.17-sbom.spdx.json` — dependency inventory.
