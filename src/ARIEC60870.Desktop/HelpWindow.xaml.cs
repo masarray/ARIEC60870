@@ -289,12 +289,13 @@ public partial class HelpWindow : Window
 
     private static (string Badge, Brush Background, Brush Foreground) GetTopicBadge(string key)
     {
-        if (key.Contains("iec101", StringComparison.OrdinalIgnoreCase) ||
+        if (key == "learn-lab-101" ||
+            key.Contains("iec101", StringComparison.OrdinalIgnoreCase) ||
             key is "addressing" or "acd-dfc" or "class-polling" or "general-interrogation" or "dual-link")
             return ("IEC101", HelpBadge101Background, HelpBadge101Foreground);
-        if (key.Contains("iec103", StringComparison.OrdinalIgnoreCase))
+        if (key == "learn-lab-103" || key.Contains("iec103", StringComparison.OrdinalIgnoreCase))
             return ("IEC103", HelpBadge103Background, HelpBadge103Foreground);
-        if (key.Contains("iec104", StringComparison.OrdinalIgnoreCase))
+        if (key == "learn-lab-104" || key.Contains("iec104", StringComparison.OrdinalIgnoreCase))
             return ("IEC104", HelpBadge104Background, HelpBadge104Foreground);
         return ("", HelpBadgeNeutralBackground, HelpBadgeNeutralForeground);
     }
@@ -506,6 +507,9 @@ public partial class HelpWindow : Window
                 Child = code
             });
         }
+
+        if (section.Lab is not null)
+            body.Children.Add(BuildTraceLab(section.Lab));
 
         // Editorial section dividers keep the article as one continuous reading
         // surface instead of stacked, nested, raised cards.
@@ -1339,5 +1343,6 @@ public partial class HelpWindow : Window
         IReadOnlyList<string> BulletsEn,
         IReadOnlyList<string> BulletsId,
         IReadOnlyList<string>? FrameLinesEn = null,
-        IReadOnlyList<string>? FrameLinesId = null);
+        IReadOnlyList<string>? FrameLinesId = null,
+        HelpLab? Lab = null);
 }
