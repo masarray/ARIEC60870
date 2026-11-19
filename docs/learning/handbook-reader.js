@@ -95,6 +95,39 @@
           }
           if ((section['frames' + suffix] || []).length)
             add(sectionWrap, 'pre', 'learning-frames', section['frames' + suffix].join('\n'));
+          if (section.lab) {
+            const exercise = section.lab;
+            const panel = add(sectionWrap, 'div', 'learning-trace-lab');
+            add(panel, 'span', 'learning-lab-label',
+              lang === 'id' ? 'LATIHAN ANALISIS TRACE' : 'GUIDED TRACE LAB');
+            add(panel, 'p', 'learning-lab-scenario', lookup(exercise, 'scenario'));
+            if (exercise.wireHex) {
+              const raw = add(panel, 'code', 'learning-lab-bytes', exercise.wireHex);
+              raw.setAttribute('aria-label', lang === 'id' ? 'Byte frame mentah' : 'Raw frame bytes');
+            }
+            const steps = exercise['steps' + suffix] || [];
+            if (steps.length) {
+              const list = add(panel, 'ol', 'learning-lab-steps');
+              steps.forEach(step => add(list, 'li', '', step));
+            }
+            add(panel, 'p', 'learning-lab-question', lookup(exercise, 'question'));
+            const answer = add(panel, 'p', 'learning-lab-answer', lookup(exercise, 'answer'));
+            answer.id = sectionWrap.id + '-answer';
+            answer.hidden = true;
+            const button = add(panel, 'button', 'learning-lab-reveal',
+              lang === 'id' ? 'Tampilkan pembahasan' : 'Show explanation');
+            button.type = 'button';
+            button.setAttribute('aria-controls', answer.id);
+            button.setAttribute('aria-expanded', 'false');
+            button.addEventListener('click', () => {
+              const reveal = answer.hidden;
+              answer.hidden = !reveal;
+              button.setAttribute('aria-expanded', reveal ? 'true' : 'false');
+              button.textContent = reveal
+                ? (lang === 'id' ? 'Sembunyikan pembahasan' : 'Hide explanation')
+                : (lang === 'id' ? 'Tampilkan pembahasan' : 'Show explanation');
+            });
+          }
         });
         toc.appendChild(document.createTextNode(ch.sections.map((s, i) => s.number || (i + 1)).join('  ·  ')));
         if (Array.isArray(ch.sources) && ch.sources.length) {
@@ -132,7 +165,10 @@
         chapters.forEach(ch => {
           const sectionSearch = s => [s.headingEn, s.headingId,
             ...(s.paragraphsEn || []), ...(s.paragraphsId || []),
-            ...(s.bulletsEn || []), ...(s.bulletsId || [])].join(' ').toLocaleLowerCase();
+            ...(s.bulletsEn || []), ...(s.bulletsId || []),
+            s.lab?.scenarioEn || '', s.lab?.scenarioId || '',
+            s.lab?.questionEn || '', s.lab?.questionId || '',
+            ...(s.lab?.stepsEn || []), ...(s.lab?.stepsId || [])].join(' ').toLocaleLowerCase();
           const chapterSearch = [ch.titleEn, ch.titleId, ch.summaryEn, ch.summaryId,
             ch.searchText].join(' ').toLocaleLowerCase();
           const searchable = [chapterSearch, ...ch.sections.map(sectionSearch)].join(' ');
@@ -142,9 +178,9 @@
           const button = add(group, 'button', 'learning-chapter-button');
           button.type = 'button';
           const badge = add(button, 'span', 'learning-protocol-badge');
-          const is101 = ch.key === 'learn-iec101';
-          const is103 = ch.key === 'learn-iec103';
-          const is104 = ch.key === 'learn-iec104';
+          const is101 = ch.key === 'learn-iec101' || ch.key === 'learn-lab-101';
+          const is103 = ch.key === 'learn-iec103' || ch.key === 'learn-lab-103';
+          const is104 = ch.key === 'learn-iec104' || ch.key === 'learn-lab-104';
           badge.textContent = is101 ? 'IEC101' : is103 ? 'IEC103' : is104 ? 'IEC104' : '·';
           if (is101) badge.classList.add('protocol-101');
           if (is103) badge.classList.add('protocol-103');
