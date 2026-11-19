@@ -881,13 +881,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Genuine old v3.6.17 Windows installer upgraded by the exact tested
+  # ArSee setup. Covers the user-reported two shortcuts and legacy EXE.
+  branding-migration-fat:
+    name: Native Windows legacy-to-ArSee branding migration FAT
+    needs: [classify, installer-upgrade]
+    if: >-
+      needs.classify.outputs.run_updater_fat == 'true' ||
+      (github.event_name == 'workflow_dispatch' &&
+      (inputs.profile == 'installer' || inputs.profile == 'updater'))
+    runs-on: windows-2022
+    timeout-minutes: 19
+    steps:
+      - name: Checkout exact tested installer migration source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+      - name: Download exact same-run compiled ArSee installer
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-InnoSetup-win-x64
+          path: artifacts/installer-deliverable/
+      - name: Verify genuine v3.6.17 to ArSee.exe upgrade and shortcut cleanup
+        shell: pwsh
+        timeout-minutes: 16
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          ./scripts/test-branding-migration-fat.ps1 -CurrentSetup "artifacts/installer-deliverable/ArSee-v$version-setup-win-x64.exe"
+      - name: Preserve branding migration FAT phase evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSee-legacy-branding-migration-fat
+          path: artifacts/branding-migration-fat/*
+          if-no-files-found: warn
+          retention-days: 14
+
   # Permissionless GITHUB_TOKEN workflow_run cascades are not a reliable
   # continuation primitive after an Actions-dispatched updater FAT.
   # Trigger the same trusted master controller explicitly, only after the
   # exact-source build, installer preparation and genuine native FAT pass.
   release-resume:
     name: Resume verified release after updater FAT
-    needs: [classify, build-test, installer-upgrade, updater-worker-fat]
+    needs: [classify, build-test, installer-upgrade, updater-worker-fat, branding-migration-fat]
     if: >-
       always() &&
       github.event_name == 'workflow_dispatch' &&
@@ -897,7 +935,8 @@ jobs:
       needs.classify.result == 'success' &&
       needs.build-test.result == 'success' &&
       needs.installer-upgrade.result == 'success' &&
-      needs.updater-worker-fat.result == 'success'
+      needs.updater-worker-fat.result == 'success' &&
+        needs.branding-migration-fat.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
