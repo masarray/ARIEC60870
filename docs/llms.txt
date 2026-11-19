@@ -3,15 +3,24 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.16: https://github.com/masarray/arsee/releases/tag/v3.6.16
-- Windows installer: https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-win-x64.zip
+- Latest public prerelease v3.6.17-rc.7: https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7
+- RC.7 Windows installer: https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-setup-win-x64.exe
+- RC.7 Windows portable ZIP: https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-win-x64.zip
+- RC.7 SHA-256: https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/SHA256SUMS.txt
+- Latest stable v3.6.16: https://github.com/masarray/arsee/releases/tag/v3.6.16
 - Previous stable v3.6.15: https://github.com/masarray/arsee/releases/tag/v3.6.15
 - Exact-source public package and provenance: https://github.com/masarray/arsee/actions/workflows/release-package.yml
 - Native Windows updater and real-WPF acceptance evidence: https://github.com/masarray/arsee/actions/workflows/ci.yml
 - Historical broad IEC-101 draft #145 is unmerged; real RTU FAT still separate.
 
-## v3.6.16 improvements
+## RC.7 improvements (public prerelease, 19 November 2026)
+- FC10 and FC11 Events tooltips are concise: “Class 1 Data Polling” and “Class 2 Data Polling” for verified observed IEC-101 polls.
+- Latest Event auto-follow button highlights only when following, including scroll and selection changes.
+- Bilingual Help Center and IEC 60870 handbook, Signal Map grid-first editor, full Windows installer/ZIP with SPDX SBOM.
+- Source-bound RC.7 publish gate: https://github.com/masarray/arsee/actions/runs/44478198266
+- Actual RTU/SCADA field FAT and physical Windows DPI 125/150% are unverified. RC.7 is not stable production certification.
+
+## Stable v3.6.16 improvements
 - Grid-first Signal Map with CA/IOA, signal, bay, TYPE and mnemonic find/filter and an optional resizable engineering inspector.
 - Excel-like atomic multi-cell paste, Fill Down, Undo/Redo and four frozen identity columns; Factor/TwoPoint parameters remain available for measured analogs.
 - Actual WPF viewport acceptance checks every TwoPoint input, signed TI11 raw-count warnings and navigation without profile mutation.

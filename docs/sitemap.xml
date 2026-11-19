@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://masarray.github.io/arsee/</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://masarray.github.io/arsee/</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://masarray.github.io/arsee/demo.html</loc><changefreq>weekly</changefreq><priority>0.95</priority></url>
-  <url><loc>https://masarray.github.io/arsee/id/</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://masarray.github.io/arsee/id/</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://masarray.github.io/arsee/wiki.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://masarray.github.io/arsee/id/wiki.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://masarray.github.io/arsee/iec101-acd-dfc.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
@@ -26,10 +26,10 @@
   <url><loc>https://masarray.github.io/arsee/iec60870-common-address-mismatch.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://masarray.github.io/arsee/iec60870-command-actcon-missing.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://masarray.github.io/arsee/iec60870-pdf-evidence-report.html</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://masarray.github.io/arsee/faq.html</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://masarray.github.io/arsee/id/faq.html</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://masarray.github.io/arsee/download.html</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://masarray.github.io/arsee/quick-start.html</loc><lastmod>2026-11-10</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://masarray.github.io/arsee/faq.html</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://masarray.github.io/arsee/id/faq.html</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://masarray.github.io/arsee/download.html</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://masarray.github.io/arsee/quick-start.html</loc><lastmod>2026-11-19</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://masarray.github.io/arsee/protocol-coverage.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://masarray.github.io/arsee/troubleshooting.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 </urlset>

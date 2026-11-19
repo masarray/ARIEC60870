@@ -4,7 +4,7 @@
 (() => {
   "use strict";
   const repo = "https://github.com/masarray/arsee";
-  const fallbackTag = "v3.6.16";
+  const fallbackTag = "v3.6.17-rc.7";
   const api = "https://api.github.com/repos/masarray/arsee/releases?per_page=30";
   const validTag = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 
@@ -96,7 +96,7 @@
       const current = packages.find((p) => p.installer);
       if (current) update(current);
     } catch (_) {
-      // Offline/API rate-limited visitors retain verified, pre-published stable links.
+      // Offline/API rate-limited visitors retain the verified public RC.7 links. Stable links remain explicit.
     }
   }
   refresh();

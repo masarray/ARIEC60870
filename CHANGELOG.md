@@ -1,3 +1,11 @@
+## [3.6.17-rc.7] - Public prerelease · 2026-11-19
+
+- Released from dedicated RC branch at tag `v3.6.17-rc.7` (source SHA `dfbdac844e3ce5b5a82c94669a4ec0bb8d59a054`); [public installer and portable ZIP](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7), [verified Package workflow #44478198266](https://github.com/masarray/arsee/actions/runs/44478198266), SHA-256/SBOM and provenance.
+- [PR #274](https://github.com/masarray/arsee/pull/274): FC10/FC11 verified observed poll tooltips shortened to **Class 1/2 Data Polling**, and operator controls use short microcopy without truncating IOA/quality/raw evidence.
+- [PR #273](https://github.com/masarray/arsee/pull/273): Latest Event button color follows actual auto-scroll/selection state.
+- Includes preceding bilingual Help Center/IEC handbook and Signal Map grid/editor improvements; stored protocol evidence and Signal Map activation policies remain unchanged.
+- This is a **public prerelease**, not the latest stable or a field-certified IEC test suite. Stable v3.6.16 remains available. Independent physical RTU/SCADA FAT and actual Windows 125/150% DPI are not certified.
+
 ## [Unreleased] - Operator Q bay mapping (2026-11-19)
 
 ### IEC-101/104 Signal Map reference ranges

@@ -1,6 +1,10 @@
 {
   "site": "ArSee",
-  "version": "3.6.16",
+  "version": "3.6.17-rc.7",
+  "latestStableVersion": "3.6.16",
+  "releaseTag": "v3.6.17-rc.7",
+  "releaseSourceCommit": "dfbdac844e3ce5b5a82c94669a4ec0bb8d59a054",
+  "releaseWorkflowId": 44478198266,
   "sourceOfTruth": "site/",
   "canonicalBaseUrl": "https://masarray.github.io/arsee/",
   "canonical": "https://masarray.github.io/arsee/",
