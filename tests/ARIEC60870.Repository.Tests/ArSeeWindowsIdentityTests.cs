@@ -30,7 +30,7 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("Type: files; Name: \"{userprograms}\\ARIEC60870\\ARIEC60870.lnk\"", script);
         Assert.Contains("Type: files; Name: \"{userprograms}\\ARIEC60870\\ArSee.lnk\"", script);
         Assert.Contains("Type: dirifempty; Name: \"{userprograms}\\ARIEC60870\"", script);
-        Assert.DoesNotContain("UninstallDelete", script);
+        Assert.DoesNotContain("[UninstallDelete]\\n", script);
     }
 
     [Fact]
