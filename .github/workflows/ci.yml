@@ -328,6 +328,13 @@ jobs:
           dotnet format ARIEC60870.sln --verify-no-changes --verbosity minimal --include @files
           if ($LASTEXITCODE -ne 0) { throw 'Changed C# source formatting is not clean.' }
 
+      - name: Validate bilingual IEC trace-lab wire frames
+        if: needs.classify.outputs.run_windows == 'true'
+        shell: pwsh
+        run: |
+          python scripts/verify-handbook-wire-examples.py
+          if ($LASTEXITCODE -ne 0) { throw 'Shared handbook wire-frame validation failed.' }
+
       - name: Run dependency-free protocol smoke tests
         if: needs.classify.outputs.run_windows == 'true'
         shell: pwsh
