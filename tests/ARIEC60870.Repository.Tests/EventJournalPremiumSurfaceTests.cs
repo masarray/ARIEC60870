@@ -159,7 +159,24 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal("{StaticResource EventJournalActionButtonStyle}", (string?)first.Attribute("Style"));
         var latest = Named(doc.Root!, "Button", "EventHistoryLatestButton");
         Assert.Equal("Latest Event", (string?)latest.Attribute("Content"));
-        Assert.Equal("{StaticResource EventJournalActionButtonStyle}", (string?)latest.Attribute("Style"));
+        Assert.Equal("{StaticResource EventJournalLatestFollowButtonStyle}", (string?)latest.Attribute("Style"));
+        Assert.Equal("EventHistoryLatest_Click", (string?)latest.Attribute("Click"));
+        var theme = XDocument.Load(FindThemeXaml());
+        var follow = Resource(theme, "Style", "EventJournalLatestFollowButtonStyle");
+        Assert.Equal("{StaticResource EventJournalActionButtonStyle}",
+            (string?)follow.Attribute("BasedOn"));
+        Assert.Contains(follow.Descendants(), element => element.Name.LocalName == "Trigger" &&
+            (string?)element.Attribute("Property") == "Tag" &&
+            (string?)element.Attribute("Value") == "Following");
+        var template = Resource(theme, "ControlTemplate", "EventJournalPremiumPillTemplate");
+        Assert.Contains(template.Descendants(), element => element.Name.LocalName == "MultiTrigger" &&
+            element.Descendants().Any(child => child.Name.LocalName == "Condition" &&
+                (string?)child.Attribute("Property") == "Tag" &&
+                (string?)child.Attribute("Value") == "Following") &&
+            element.Descendants().Any(child => child.Name.LocalName == "Setter" &&
+                (string?)child.Attribute("Value") == "{StaticResource EventJournalFollowActiveBrush}"));
+        Assert.Equal("EventHistoryGrid_SelectionChanged",
+            (string?)Named(doc.Root!, "DataGrid", "RelayEventGrid").Attribute("SelectionChanged"));
     }
 
     [Fact]

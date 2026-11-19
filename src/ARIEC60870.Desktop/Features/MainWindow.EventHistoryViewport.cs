@@ -76,7 +76,7 @@ public partial class MainWindow
             return;
         MarkEventHistoryUserScroll();
         if (e.Key is Key.Up or Key.PageUp or Key.Home)
-            _eventHistoryFollowingLatest = false;
+            SetEventHistoryFollowingLatest(false);
         else if (IsEventHistoryViewportAtBottom())
             FollowEventHistoryTailFromViewport();
     }
@@ -86,10 +86,10 @@ public partial class MainWindow
         if (delta == 0 || !IsEventsTabActive()) return;
         MarkEventHistoryUserScroll();
         if (delta > 0)
-            _eventHistoryFollowingLatest = false;
+            SetEventHistoryFollowingLatest(false);
         else if (!EventHistoryPagination.CanResumeFromVisiblePage(
                      _eventHistoryPageStart, _eventHistoryQuery.Count))
-            _eventHistoryFollowingLatest = false;
+            SetEventHistoryFollowingLatest(false);
         else if (IsEventHistoryViewportAtBottom())
             FollowEventHistoryTailFromViewport();
         // Normal WPF scrolling happens after PreviewMouseWheel. ScrollChanged
@@ -109,7 +109,7 @@ public partial class MainWindow
                 _eventHistoryPageStart, _eventHistoryQuery.Count))
             FollowEventHistoryTailFromViewport();
         else
-            _eventHistoryFollowingLatest = false;
+            SetEventHistoryFollowingLatest(false);
     }
 
     private void FollowEventHistoryTailFromViewport()
@@ -119,7 +119,7 @@ public partial class MainWindow
         // Only the actual last page may opt back into automatic tail following.
         if (!IsEventsTabActive() || !EventHistoryPagination.CanResumeFromVisiblePage(
                 _eventHistoryPageStart, _eventHistoryQuery.Count)) return;
-        _eventHistoryFollowingLatest = true;
+        SetEventHistoryFollowingLatest(true);
         RelayEventGrid.SelectedItem = null;
         if (_eventHistoryTailResumeRunning) return;
         if (_eventHistoryPageBusy || _eventHistoryQueryBusy || _eventHistoryRefreshBusy)

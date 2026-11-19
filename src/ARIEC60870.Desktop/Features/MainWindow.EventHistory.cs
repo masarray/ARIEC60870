@@ -61,7 +61,7 @@ public partial class MainWindow
         _eventHistoryQuery = new EventHistoryQuerySnapshot(0, null);
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
-        _eventHistoryFollowingLatest = true;
+        SetEventHistoryFollowingLatest(true);
         _eventHistoryExchanges.Reset();
         _eventHistoryQueryBusy = false;
         _eventHistoryRefreshBusy = false;
@@ -134,17 +134,40 @@ public partial class MainWindow
         EventHistoryNextButton.IsEnabled =
             _eventHistoryPageStart + EventHistoryPagination.PageSize < matches;
         EventHistoryLatestButton.IsEnabled = indexed > 0;
-        var latestBrush = (System.Windows.Media.Brush)FindResource(
-            _eventHistoryFollowingLatest ? "EventJournalPillSelectedBrush" : "EventJournalPillIdleBrush");
-        if (!ReferenceEquals(EventHistoryLatestButton.Background, latestBrush))
-            EventHistoryLatestButton.Background = latestBrush;
-        var latestHint = _eventHistoryFollowingLatest
-            ? "Following newest indexed events. Scroll upward to inspect history."
-            : "Jump to the newest matching events and resume following.";
-        if (!Equals(EventHistoryLatestButton.ToolTip, latestHint))
-            EventHistoryLatestButton.ToolTip = latestHint;
+        UpdateEventHistoryLatestFollowVisual();
         EventHistoryExportButton.IsEnabled = indexed > 0 || _eventHistoryCsvRunning;
     }
+
+    // Event History follow state is the sole authority for the Latest control.
+    // Row inspection suspends visible following without stopping evidence RX.
+    private void SetEventHistoryFollowingLatest(bool following)
+    {
+        _eventHistoryFollowingLatest = following;
+        UpdateEventHistoryLatestFollowVisual();
+    }
+
+    private void UpdateEventHistoryLatestFollowVisual()
+    {
+        if (EventHistoryLatestButton is null) return;
+        var following = _eventHistoryFollowingLatest &&
+            RelayEventGrid?.SelectedItem is null &&
+            (_eventHistoryJournal?.Count ?? 0) > 0;
+        // The template owns hover and selected chrome, not direct Background.
+        // Tag is a derived presentation marker, never a second follow flag.
+        var tag = following ? "Following" : null;
+        if (!Equals(EventHistoryLatestButton.Tag, tag))
+            EventHistoryLatestButton.Tag = tag;
+        var hint = following
+            ? "Auto-follow ON: following newest indexed events. Scroll upward to inspect history."
+            : "Auto-follow OFF: jump to newest matching events and resume following.";
+        if (!Equals(EventHistoryLatestButton.ToolTip, hint))
+            EventHistoryLatestButton.ToolTip = hint;
+        System.Windows.Automation.AutomationProperties.SetItemStatus(
+            EventHistoryLatestButton, following ? "Auto-follow on" : "Auto-follow off");
+    }
+
+    private void EventHistoryGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        => UpdateEventHistoryLatestFollowVisual();
 
     private async void RefreshEventHistoryFooterWhenDue()
     {
@@ -227,7 +250,7 @@ public partial class MainWindow
             if (generation != _eventHistoryQueryGeneration ||
                 !ReferenceEquals(journal, _eventHistoryJournal)) return;
             _eventHistoryQuery = result;
-            _eventHistoryFollowingLatest = true;
+            SetEventHistoryFollowingLatest(true);
             RelayEventGrid.SelectedItem = null;
             await ShowEventHistoryPageAsync(LastHistoryPageStart());
         }
@@ -268,7 +291,7 @@ public partial class MainWindow
         // A programmatic/explicit visit to an older page is not a live-tail
         // subscription. Never let a stale follower flag steal that viewport.
         if (start < LastHistoryPageStart())
-            _eventHistoryFollowingLatest = false;
+            SetEventHistoryFollowingLatest(false);
         _eventHistoryPageStart = start;
         _eventHistoryPageBusy = true;
         RefreshEventHistoryFooter();
@@ -331,7 +354,7 @@ public partial class MainWindow
     private async void EventHistoryPrevious_Click(object sender, RoutedEventArgs e)
     {
         if (_eventHistoryPageStart == 0) return;
-        _eventHistoryFollowingLatest = false;
+        SetEventHistoryFollowingLatest(false);
         RelayEventGrid.SelectedItem = null;
         await ShowEventHistoryPageAsync(Math.Max(0,
             _eventHistoryPageStart - EventHistoryPagination.PageSize));
@@ -341,7 +364,7 @@ public partial class MainWindow
     {
         if (_eventHistoryPageStart + EventHistoryPagination.PageSize >=
             _eventHistoryQuery.Count) return;
-        _eventHistoryFollowingLatest = false;
+        SetEventHistoryFollowingLatest(false);
         RelayEventGrid.SelectedItem = null;
         await ShowEventHistoryPageAsync(_eventHistoryPageStart + EventHistoryPagination.PageSize);
     }
@@ -353,7 +376,7 @@ public partial class MainWindow
     {
         // First is the oldest match in the current indexed query, never a
         // re-sort of the live UI ring or an implicit change of Include/Exclude.
-        _eventHistoryFollowingLatest = false;
+        SetEventHistoryFollowingLatest(false);
         RelayEventGrid.SelectedItem = null;
         await ShowEventHistoryPageAsync(0);
     }
@@ -374,7 +397,7 @@ public partial class MainWindow
 
     private async Task JumpEventHistoryToLatestAsync()
     {
-        _eventHistoryFollowingLatest = true;
+        SetEventHistoryFollowingLatest(true);
         RelayEventGrid.SelectedItem = null;
         if (_eventHistoryJournal?.Count > _eventHistoryQuery.Ceiling)
         {
@@ -517,6 +540,7 @@ public partial class MainWindow
             throw new InvalidOperationException("Last Event History page lost original frame.");
         await JumpEventHistoryToFirstAsync();
         if (_eventHistoryPageStart != 0 || _eventHistoryFollowingLatest ||
+            EventHistoryLatestButton.Tag is not null ||
             _historicalEventRows.Count != 100 || _historicalEventRows[0].EventNumber != 1)
             throw new InvalidOperationException("First Event did not return to the oldest matching indexed page.");
         EventsQuickFindBox.Text = "#1";
@@ -542,8 +566,24 @@ public partial class MainWindow
         _eventsQuickQuery = "";
         await RefreshEventHistoryQueryAsync();
         await JumpEventHistoryToLatestAsync();
-        if (_historicalEventRows.Count != 20 || _historicalEventRows[^1].EventNumber != 620)
-            throw new InvalidOperationException("Latest failed to return to the latest indexed page.");
+        if (_historicalEventRows.Count != 20 || _historicalEventRows[^1].EventNumber != 620 ||
+            EventHistoryLatestButton.Tag as string != "Following")
+            throw new InvalidOperationException("Latest did not resume active auto-follow.");
+
+        // Real WPF: manual scrolling disengages, Latest resumes and inspecting
+        // a selected event suspends the visible follower until selection clears.
+        ObserveEventHistoryWheelInput(120);
+        if (_eventHistoryFollowingLatest || EventHistoryLatestButton.Tag is not null)
+            throw new InvalidOperationException("Manual Event scroll did not deactivate Latest.");
+        await JumpEventHistoryToLatestAsync();
+        if (EventHistoryLatestButton.Tag as string != "Following")
+            throw new InvalidOperationException("Latest did not reactivate after manual scroll.");
+        RelayEventGrid.SelectedItem = _historicalEventRows[0];
+        if (EventHistoryLatestButton.Tag is not null)
+            throw new InvalidOperationException("Selected row still showed active auto-follow.");
+        RelayEventGrid.SelectedItem = null;
+        if (EventHistoryLatestButton.Tag as string != "Following")
+            throw new InvalidOperationException("Releasing selected row did not restore auto-follow.");
 
         // Real WPF Event -> Original Frame regression: an old RX must reopen
         // with its observed TX Class 1 poll AND the original typed ASDU in the
@@ -563,22 +603,30 @@ public partial class MainWindow
         var current = DateTime.UtcNow;
         ObserveEventHistoryExchange(new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 621, TimestampUtc = current,
+            SequenceNumber = 621,
+            TimestampUtc = current,
             Direction = FrameDirection.MasterToSlave,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            PhysicalSource = "SINGLE", LinkAddress = 105,
-            Frame = txWire, RawHex = txWire.Hex
+            PhysicalSource = "SINGLE",
+            LinkAddress = 105,
+            Frame = txWire,
+            RawHex = txWire.Hex
         });
         var originalRx = new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 622, TimestampUtc = current.AddMilliseconds(75),
+            SequenceNumber = 622,
+            TimestampUtc = current.AddMilliseconds(75),
             Direction = FrameDirection.SlaveToMaster,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            PhysicalSource = "SINGLE", LinkAddress = 105,
-            Frame = decodedRx.SerialFrame, AsduDetails = decodedRx.Asdu,
+            PhysicalSource = "SINGLE",
+            LinkAddress = 105,
+            Frame = decodedRx.SerialFrame,
+            AsduDetails = decodedRx.Asdu,
             InformationObjectDetails = decodedRx.Asdu?.FirstObject,
-            CommonAddressNumber = 105, InformationObjectAddress = 7,
-            TypeId = 30, RawHex = Convert.ToHexString(replyWire)
+            CommonAddressNumber = 105,
+            InformationObjectAddress = 7,
+            TypeId = 30,
+            RawHex = Convert.ToHexString(replyWire)
         };
         AppendProtocolEvent(new Iec103RelayEventLogEntry
         {
@@ -587,8 +635,11 @@ public partial class MainWindow
             EvidenceReference = originalRx.EvidenceReference,
             ProtocolMode = originalRx.ProtocolMode,
             SignalName = "Synthetic original RX",
-            TypeId = 30, CommonAddress = 105, InformationObjectAddress = 7,
-            RawHex = originalRx.RawHex, NewValue = "ON"
+            TypeId = 30,
+            CommonAddress = 105,
+            InformationObjectAddress = 7,
+            RawHex = originalRx.RawHex,
+            NewValue = "ON"
         }, originalRx);
         await (_eventHistoryWriter?.DrainAsync() ?? Task.CompletedTask);
         await RefreshEventHistoryQueryAsync();
