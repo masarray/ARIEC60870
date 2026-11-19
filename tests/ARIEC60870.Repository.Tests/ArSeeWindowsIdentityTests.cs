@@ -78,9 +78,9 @@ public sealed class ArSeeWindowsIdentityTests
     private static string Read(string path)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "ARIEC60870.sln")))
+        while (root is not null && !File.Exists(Path.Join(root.FullName, "ARIEC60870.sln")))
             root = root.Parent;
         Assert.NotNull(root);
-        return File.ReadAllText(Path.Combine(root!.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
+        return File.ReadAllText(Path.Join(root!.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
     }
 }
