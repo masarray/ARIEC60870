@@ -2,7 +2,7 @@
 
 Canonical English/Indonesian site: https://masarray.github.io/arsee/
 
-**Latest public prerelease:** [v3.6.17-rc.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) · **latest stable:** [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16). [RC.7 installer](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-setup-win-x64.exe) and [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-win-x64.zip) are official public assets, not CI artifacts. Physical SICAM FAT is not certified; draft IEC-101 engine PR #145 remains unmerged.
+**Latest public stable:** [v3.6.17](https://github.com/masarray/arsee/releases/tag/v3.6.17) · **previous stable:** [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) · [RC.7 prerelease archive](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7). [Stable installer](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-setup-win-x64.exe) and [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-win-x64.zip) are official, source-bound published assets. Physical SICAM/SCADA FAT is not certified; draft IEC-101 engine PR #145 remains unmerged.
 
 - `index.html`, `id/index.html`: bilingual product landing with concise hero copy.
 - `demo.html`, `id/demo.html`: localized product demo, screenshots, and video.
