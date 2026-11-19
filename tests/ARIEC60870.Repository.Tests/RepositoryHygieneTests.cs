@@ -144,6 +144,14 @@ public sealed class RepositoryHygieneTests
             Assert.Contains("release-download.js", page);
         }
         Assert.Contains(downloadPrefix + "SHA256SUMS.txt", download);
+        var faq = File.ReadAllText(root.File("site/faq.html"));
+        var indonesianFaq = File.ReadAllText(root.File("site/id/faq.html"));
+        foreach (var page in new[] { faq, indonesianFaq })
+        {
+            Assert.Contains(releaseUrl, page);
+            Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-win-x64.zip", page);
+            Assert.DoesNotContain("/releases/tag/v3.6.8", page, StringComparison.Ordinal);
+        }
         Assert.Contains($"\"downloadUrl\":\"{downloadPrefix}ARIEC60870-v{version}-win-x64.zip\"", home);
         var releaseScript = File.ReadAllText(root.File("site/release-download.js"));
         Assert.Equal(releaseScript, File.ReadAllText(root.File("docs/release-download.js")));
