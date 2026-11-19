@@ -5,11 +5,11 @@
   Builds the user-facing Windows x64 single-file EXE release package for ARIEC60870.
 
 .DESCRIPTION
-  Creates one public Windows ZIP for normal users:
+  Creates one public ArSee Windows ZIP for normal users:
 
-    ARIEC60870-vX.Y.Z-win-x64.zip
+    ArSee-vX.Y.Z-win-x64.zip
 
-  The package contains ARIEC60870.exe at the package root, short first-run
+  The package contains ArSee.exe at the package root, short first-run
   instructions, documentation, neutral sample profiles, and license files. It
   intentionally does not create start batch files or multiple executable choices.
 
@@ -36,13 +36,13 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ArtifactRoot = Join-Path $RepoRoot "artifacts"
 $ReleaseRoot = Join-Path $ArtifactRoot "release"
 $TestResultsRoot = Join-Path $ArtifactRoot "test-results"
-$StagingRoot = Join-Path $ReleaseRoot "ARIEC60870-v$Version-$Runtime"
+$StagingRoot = Join-Path $ReleaseRoot "ArSee-v$Version-$Runtime"
 $PublishOut = Join-Path $ArtifactRoot "publish-desktop-$Runtime"
-$PackageZip = Join-Path $ReleaseRoot "ARIEC60870-v$Version-$Runtime.zip"
+$PackageZip = Join-Path $ReleaseRoot "ArSee-v$Version-$Runtime.zip"
 $ChecksumFile = Join-Path $ReleaseRoot "SHA256SUMS.txt"
 $SelfContained = if ($FrameworkDependent) { "false" } else { "true" }
 
-Write-Host "ARIEC60870 Windows single-file release packaging" -ForegroundColor Cyan
+Write-Host "ArSee Windows single-file release packaging" -ForegroundColor Cyan
 Write-Host "Repository      : $RepoRoot"
 Write-Host "Version         : $Version"
 Write-Host "Runtime         : $Runtime"
@@ -90,7 +90,7 @@ try {
         Write-Error "Published desktop executable was not found: $PublishedExe"
     }
 
-    Copy-Item $PublishedExe -Destination (Join-Path $StagingRoot "ARIEC60870.exe") -Force
+    Copy-Item $PublishedExe -Destination (Join-Path $StagingRoot "ArSee.exe") -Force
 
     $DocsOut = Join-Path $StagingRoot "docs"
     $SamplesOut = Join-Path $StagingRoot "samples"
@@ -106,10 +106,10 @@ try {
     }
 
     $ReleaseReadme = @"
-ARIEC60870 v$Version Windows x64 release
+ArSee v$Version Windows x64 release
 
 Start the application:
-  Double-click ARIEC60870.exe
+  Double-click ArSee.exe
 
 First run:
   1. Open Setup.
@@ -135,8 +135,8 @@ Before sharing exported reports:
     }
 
     $ExeFiles = Get-ChildItem $StagingRoot -Recurse -File -Filter "*.exe"
-    if ($ExeFiles.Count -ne 1 -or $ExeFiles[0].Name -ne "ARIEC60870.exe") {
-        Write-Error ("The user release package must contain exactly one executable named ARIEC60870.exe. Found:`n" + ($ExeFiles.FullName -join "`n"))
+    if ($ExeFiles.Count -ne 1 -or $ExeFiles[0].Name -ne "ArSee.exe") {
+        Write-Error ("The user release package must contain exactly one executable named ArSee.exe. Found:`n" + ($ExeFiles.FullName -join "`n"))
     }
 
     Compress-Archive -Path (Join-Path $StagingRoot "*") -DestinationPath $PackageZip -CompressionLevel Optimal
