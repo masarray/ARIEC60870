@@ -9,8 +9,8 @@
   const lang = document.documentElement.lang === 'id' ? 'id' : 'en';
   const suffix = lang === 'id' ? 'Id' : 'En';
   const labels = lang === 'id'
-    ? { search: 'Cari materi IEC, polling, redundansi...', chapters: 'Daftar bab', empty: 'Tidak ada bab yang cocok.', sources: 'Sumber dan referensi', failed: 'Katalog belum bisa dibuka. Periksa koneksi atau buka ulang halaman.', caveat: 'Panduan edukasi orisinal, bukan pengganti buku IEC resmi atau interoperability list proyek.' }
-    : { search: 'Search IEC, polling, redundancy...', chapters: 'Chapters', empty: 'No matching chapters.', sources: 'Sources and references', failed: 'The learning catalogue could not be loaded. Check connection or reload.', caveat: 'Original learning material, not a substitute for licensed IEC standards or the project interoperability list.' };
+    ? { search: 'Cari fitur ArSee, IEC, GI, capture...', chapters: 'Daftar bab', empty: 'Tidak ada bab yang cocok.', sources: 'Sumber dan referensi', failed: 'Katalog belum bisa dibuka. Periksa koneksi atau buka ulang halaman.', caveat: 'Panduan edukasi orisinal, bukan pengganti buku IEC resmi atau interoperability list proyek.' }
+    : { search: 'Search ArSee, IEC, GI, capture...', chapters: 'Chapters', empty: 'No matching chapters.', sources: 'Sources and references', failed: 'The learning catalogue could not be loaded. Check connection or reload.', caveat: 'Original learning material, not a substitute for licensed IEC standards or the project interoperability list.' };
   const lookup = (obj, key) => obj[key + suffix] || '';
   const node = (tag, className, content) => {
     const el = document.createElement(tag);
@@ -78,7 +78,12 @@
       const renderArticle = ch => {
         article.replaceChildren();
         currentElements = [];
-        add(article, 'p', 'learning-overline', (lang === 'id' ? 'BUKU ENGINEER · BAB ' : 'ENGINEER HANDBOOK · CHAPTER ') + (ch.number || ''));
+        const guideChapter = ch.key.startsWith('learn-use-');
+        add(article, 'p', 'learning-overline',
+          (guideChapter
+            ? (lang === 'id' ? 'PANDUAN PENGGUNA ARSEE · BAB ' : 'ARSEE USER GUIDE · CHAPTER ')
+            : (lang === 'id' ? 'BUKU ENGINEER · BAB ' : 'ENGINEER HANDBOOK · CHAPTER '))
+          + (ch.number || ''));
         add(article, 'h3', 'learning-article-title', lookup(ch, 'title'));
         add(article, 'p', 'learning-article-lead', lookup(ch, 'summary'));
         const toc = add(article, 'div', 'learning-article-toc');
@@ -95,6 +100,33 @@
           }
           if ((section['frames' + suffix] || []).length)
             add(sectionWrap, 'pre', 'learning-frames', section['frames' + suffix].join('\n'));
+          if (section.workflow) {
+            const workflow = section.workflow;
+            const panel = add(sectionWrap, 'div', 'learning-user-workflow');
+            const before = workflow['prerequisites' + suffix] || [];
+            if (before.length) {
+              add(panel, 'h5', 'learning-workflow-label',
+                lang === 'id' ? 'SEBELUM MEMULAI' : 'BEFORE YOU START');
+              const requirements = add(panel, 'ul', 'learning-workflow-prerequisites');
+              before.forEach(step => add(requirements, 'li', '', step));
+            }
+            add(panel, 'h5', 'learning-workflow-label',
+              lang === 'id' ? 'LANGKAH-LANGKAH' : 'STEP BY STEP');
+            const steps = add(panel, 'ol', 'learning-workflow-steps');
+            (workflow['steps' + suffix] || []).forEach(step => add(steps, 'li', '', step));
+            add(panel, 'h5', 'learning-workflow-label',
+              lang === 'id' ? 'HASIL YANG DIHARAPKAN' : 'EXPECTED RESULT');
+            add(panel, 'p', 'learning-workflow-result', lookup(workflow, 'expected'));
+            add(panel, 'h5', 'learning-workflow-label',
+              lang === 'id' ? 'JIKA BELUM BERHASIL' : 'IF IT DOES NOT WORK');
+            add(panel, 'p', 'learning-workflow-troubleshooting', lookup(workflow, 'troubleshooting'));
+            if (lookup(workflow, 'safety')) {
+              add(panel, 'h5', 'learning-workflow-label',
+                lang === 'id' ? 'KESELAMATAN LAPANGAN' : 'FIELD SAFETY');
+              add(panel, 'p', 'learning-workflow-safety', lookup(workflow, 'safety'));
+            }
+          }
+
           if (section.lab) {
             const exercise = section.lab;
             const panel = add(sectionWrap, 'div', 'learning-trace-lab');
@@ -162,18 +194,29 @@
         const terms = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
         menu.replaceChildren();
         let visible = 0;
+        let lastGroup = '';
         chapters.forEach(ch => {
           const sectionSearch = s => [s.headingEn, s.headingId,
             ...(s.paragraphsEn || []), ...(s.paragraphsId || []),
             ...(s.bulletsEn || []), ...(s.bulletsId || []),
             s.lab?.scenarioEn || '', s.lab?.scenarioId || '',
             s.lab?.questionEn || '', s.lab?.questionId || '',
-            ...(s.lab?.stepsEn || []), ...(s.lab?.stepsId || [])].join(' ').toLocaleLowerCase();
+            ...(s.lab?.stepsEn || []), ...(s.lab?.stepsId || []),
+            ...(s.workflow?.stepsEn || []), ...(s.workflow?.stepsId || []),
+            s.workflow?.expectedEn || '', s.workflow?.expectedId || '',
+            s.workflow?.troubleshootingEn || '', s.workflow?.troubleshootingId || ''].join(' ').toLocaleLowerCase();
           const chapterSearch = [ch.titleEn, ch.titleId, ch.summaryEn, ch.summaryId,
             ch.searchText].join(' ').toLocaleLowerCase();
           const searchable = [chapterSearch, ...ch.sections.map(sectionSearch)].join(' ');
           if (terms.length && !terms.every(term => searchable.includes(term))) return;
           visible += 1;
+          const category = ch.key.startsWith('learn-use-') ? 'guide' : 'book';
+          if (category !== lastGroup) {
+            add(menu, 'p', 'learning-nav-divider', category === 'guide'
+              ? (lang === 'id' ? 'PANDUAN PENGGUNA ARSEE' : 'ARSEE USER GUIDE')
+              : (lang === 'id' ? 'BUKU ENGINEER' : 'ENGINEER HANDBOOK'));
+            lastGroup = category;
+          }
           const group = add(menu, 'div', 'learning-nav-group');
           const button = add(group, 'button', 'learning-chapter-button');
           button.type = 'button';
