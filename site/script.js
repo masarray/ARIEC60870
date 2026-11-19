@@ -1,6 +1,43 @@
 // Copyright 2026 Ari Sulistiono
 // SPDX-License-Identifier: Apache-2.0
 (function () {
+  // Shared accessible mobile menu; only enhanced when JS is available.
+  const primaryNav = document.querySelector(".site-header .nav-links");
+  const primaryHeader = primaryNav?.closest(".site-header");
+  if (primaryNav && primaryHeader) {
+    const indonesian = document.documentElement.lang === "id";
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "nav-toggle";
+    toggle.textContent = "☰  Menu";
+    toggle.setAttribute("aria-label", indonesian ? "Buka menu navigasi" : "Open navigation menu");
+    toggle.setAttribute("aria-expanded", "false");
+    primaryNav.id ||= "site-primary-navigation";
+    toggle.setAttribute("aria-controls", primaryNav.id);
+    primaryHeader.insertBefore(toggle, primaryNav);
+    const close = () => {
+      primaryNav.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", indonesian ? "Buka menu navigasi" : "Open navigation menu");
+    };
+    toggle.addEventListener("click", () => {
+      const opened = primaryNav.classList.toggle("is-open");
+      toggle.setAttribute("aria-expanded", String(opened));
+      toggle.setAttribute("aria-label", indonesian ? (opened ? "Tutup menu navigasi" : "Buka menu navigasi") : (opened ? "Close navigation menu" : "Open navigation menu"));
+    });
+    primaryNav.addEventListener("click", (event) => {
+      if (event.target.closest("a")) close();
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!primaryHeader.contains(event.target)) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && primaryNav.classList.contains("is-open")) { close(); toggle.focus(); }
+    });
+    window.matchMedia("(max-width: 980px)").addEventListener?.("change", close);
+    document.documentElement.classList.add("nav-enhanced");
+  }
+
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const kineticItems = document.querySelectorAll(".interactive-surface, .screen-frame, .button, .trust-strip span, .ticker-track span, .notice a");
   const revealItems = document.querySelectorAll(".reveal");
