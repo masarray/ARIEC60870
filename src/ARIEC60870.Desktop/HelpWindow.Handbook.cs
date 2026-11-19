@@ -3,6 +3,9 @@
 
 using System.IO;
 using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace ARIEC60870.Desktop;
 
@@ -93,6 +96,116 @@ public partial class HelpWindow
         if (chapters.Count == 0)
             throw new InvalidDataException("The shared IEC 60870 handbook has no chapters.");
         return chapters;
+    }
+
+    private Border BuildTraceLab(HelpLab lab)
+    {
+        // A single quiet teaching panel shared by all protocol lessons.
+        // The answer is not revealed until an explicit keyboard/mouse action.
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock
+        {
+            Text = Pick("GUIDED TRACE LAB", "LATIHAN ANALISIS TRACE"),
+            FontSize = 10.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (Brush)FindResource("Ink500Brush"),
+            Margin = new Thickness(0, 0, 0, 8)
+        });
+        body.Children.Add(new TextBlock
+        {
+            Text = Pick(lab.ScenarioEn, lab.ScenarioId),
+            FontSize = 12.2,
+            Foreground = (Brush)FindResource("Ink700Brush"),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
+        });
+
+        if (!string.IsNullOrWhiteSpace(lab.WireHex))
+        {
+            // Native read-only TextBox lets field engineers select/copy real
+            // bytes without treating a static image or synthetic glyph as data.
+            body.Children.Add(new TextBox
+            {
+                Text = lab.WireHex,
+                IsReadOnly = true,
+                IsReadOnlyCaretVisible = false,
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = (FontFamily)FindResource("TraceMonoFont"),
+                FontSize = 11.5,
+                Foreground = (Brush)FindResource("Ink900Brush"),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 9, 0, 4)
+            });
+        }
+
+        var steps = PickList(lab.StepsEn, lab.StepsId);
+        for (var i = 0; i < steps.Count; i++)
+        {
+            body.Children.Add(new TextBlock
+            {
+                Text = $"{i + 1}. {steps[i]}",
+                FontSize = 11.6,
+                Foreground = (Brush)FindResource("Ink600Brush"),
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 18,
+                Margin = new Thickness(0, 5, 0, 0)
+            });
+        }
+
+        body.Children.Add(new TextBlock
+        {
+            Text = Pick(lab.QuestionEn, lab.QuestionId),
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (Brush)FindResource("Ink900Brush"),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19,
+            Margin = new Thickness(0, 13, 0, 7)
+        });
+
+        var answer = new TextBlock
+        {
+            Text = Pick(lab.AnswerEn, lab.AnswerId),
+            FontSize = 11.8,
+            Foreground = (Brush)FindResource("Ink700Brush"),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 18,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 9, 0, 0),
+            Tag = "HelpLabAnswer"
+        };
+        var reveal = new Button
+        {
+            Content = Pick("Show explanation", "Tampilkan pembahasan"),
+            Style = (Style)FindResource("ArSeeToolbarActionButtonStyle"),
+            Height = 30,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Tag = "HelpLabReveal",
+        };
+        reveal.Click += (_, _) =>
+        {
+            var show = answer.Visibility != Visibility.Visible;
+            answer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            reveal.Content = show
+                ? Pick("Hide explanation", "Sembunyikan pembahasan")
+                : Pick("Show explanation", "Tampilkan pembahasan");
+        };
+        body.Children.Add(reveal);
+        body.Children.Add(answer);
+
+        return new Border
+        {
+            Background = (Brush)FindResource("Panel75Brush"),
+            BorderBrush = (Brush)FindResource("LineBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12, 12, 12, 12),
+            Margin = new Thickness(0, 14, 0, 3),
+            Tag = "GuidedTraceLab",
+            Child = body
+        };
     }
 
     private sealed record HelpLab(
