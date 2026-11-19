@@ -141,7 +141,7 @@ li + li { margin-top: 5px; }
 .nav-links a:hover { background: var(--surface-soft); color: var(--ink); transform: translateY(-1px); }
 
 main,
-.site-footer { width: min(var(--content-width), calc(100vw - 2 * var(--page-gutter))); margin-inline: auto; }
+.site-footer { width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter))); margin-inline: auto; }
 .hero {
   position: relative;
   display: grid;
@@ -875,7 +875,7 @@ body h1,
 }
 
 .demo-page {
-  width: min(var(--content-width), calc(100vw - 2 * var(--page-gutter)));
+  width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter)));
   margin-inline: auto;
 }
 
@@ -1137,7 +1137,7 @@ body h1,
 
 /* IEC 60870 wiki learning hub */
 .wiki-main {
-  width: min(var(--content-width), calc(100vw - 2 * var(--page-gutter)));
+  width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter)));
 }
 
 .wiki-hero {

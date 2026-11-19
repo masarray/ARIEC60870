@@ -46,7 +46,7 @@ public sealed class PublicLandingP3Tests
         Assert.Contains("--content-width: 1180px;", css);
         Assert.Contains("--page-gutter: 24px;", css);
         Assert.Contains("--focus-outline: 2px solid var(--brand-action);", css);
-        Assert.Contains("width: min(var(--content-width), calc(100vw - 2 * var(--page-gutter)));", css);
+        Assert.Contains("width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter)));", css);
         Assert.Contains(":where(a, button, summary):focus-visible", css);
         Assert.Contains(".screen-frame.zoom-trigger:focus-visible", css);
         Assert.Contains(".reading-paths a, .faq-quicklinks a { min-height: 44px; }", css);
