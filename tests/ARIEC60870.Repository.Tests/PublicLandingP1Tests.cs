@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using Xunit;
 
 namespace ARIEC60870.Repository.Tests;
@@ -49,10 +50,14 @@ public sealed class PublicLandingP1Tests
         Assert.DoesNotContain("Protocol Tester & Analyzer", title);
         Assert.InRange(title.Length, 45, 100);
         Assert.InRange(lead.Length, 90, 310);
-        Assert.Contains("v3.6.17-rc.7", html);
+        // Public stable source of truth changes only after an actual release publishes.
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "site/seo-manifest.json")));
+        var stable = manifest.RootElement.GetProperty("latestStableVersion").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(stable));
+        Assert.Contains("v" + stable, html);
         Assert.Contains("v3.6.16", html);
-        Assert.Contains("ARIEC60870-v3.6.17-rc.7-setup-win-x64.exe", html);
-        Assert.Contains("ARIEC60870-v3.6.17-rc.7-win-x64.zip", html);
+        Assert.Contains($"ARIEC60870-v{stable}-setup-win-x64.exe", html);
+        Assert.Contains($"ARIEC60870-v{stable}-win-x64.zip", html);
     }
 
     [Theory]
