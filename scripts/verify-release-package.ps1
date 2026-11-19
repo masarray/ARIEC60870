@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 <#
 .SYNOPSIS
-  Performs a structural check on an ARIEC60870 user release ZIP.
+  Performs a structural check on an ArSee user release ZIP.
 #>
 [CmdletBinding()]
 param(
@@ -19,7 +19,7 @@ try {
     Expand-Archive -Path $ResolvedPackage -DestinationPath $TempRoot -Force
 
     $Required = @(
-        "ARIEC60870.exe",
+        "ArSee.exe",
         "README_RELEASE.txt",
         "README.md",
         "CHANGELOG.md",
@@ -54,8 +54,8 @@ try {
     }
 
     $ExeFiles = Get-ChildItem $TempRoot -Recurse -File -Filter "*.exe"
-    if ($ExeFiles.Count -ne 1 -or $ExeFiles[0].Name -ne "ARIEC60870.exe") {
-        Write-Error ("User release package must contain exactly one executable named ARIEC60870.exe. Found:`n" + ($ExeFiles.FullName -join "`n"))
+    if ($ExeFiles.Count -ne 1 -or $ExeFiles[0].Name -ne "ArSee.exe") {
+        Write-Error ("User release package must contain exactly one executable named ArSee.exe. Found:`n" + ($ExeFiles.FullName -join "`n"))
     }
 
     Write-Host "Release package structure OK:" -ForegroundColor Green

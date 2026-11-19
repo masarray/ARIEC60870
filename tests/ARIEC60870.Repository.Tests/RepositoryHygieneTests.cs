@@ -290,11 +290,11 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("Compile matching Windows Setup EXE for public releases", release);
         Assert.Contains("- 'release/stable-*'", release);
         Assert.Contains("if: needs.resolve.outputs.publish_release == 'true'", release);
-        Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe", release);
+        Assert.Contains("ArSee-v${{ needs.resolve.outputs.version }}-setup-win-x64.exe", release);
         Assert.Contains("Generate SPDX dependency SBOM", release);
         Assert.Contains("attestations: write", release);
         Assert.Contains("contents: write", release);
-        Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip", release);
+        Assert.Contains("ArSee-v${{ needs.resolve.outputs.version }}-win-x64.zip", release);
         Assert.DoesNotContain("win-x64-portable.zip", release);
         Assert.DoesNotContain("win-x64-singlefile.zip", release);
         Assert.Contains("package-ecosystem: \"github-actions\"", dependabot);

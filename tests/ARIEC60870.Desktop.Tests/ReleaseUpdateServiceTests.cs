@@ -24,17 +24,18 @@ public sealed class ReleaseUpdateServiceTests
     }
 
     [Theory]
-    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", true)]
-    [InlineData("http://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
-    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
-    [InlineData("https://evil.example/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
-    [InlineData("https://github.com/masarray/other/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe", true)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("http://github.com/masarray/arsee/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://evil.example/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://github.com/masarray/other/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe", false)]
     [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/other.exe", false)]
-    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe?mirror=1", false)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ArSee-v3.6.9-setup-win-x64.exe?mirror=1", false)]
     public void InstallerIsOnlyFetchedFromExactOfficialGithubRelease(string url, bool allowed)
     {
         Assert.Equal(allowed, ReleaseUpdateService.IsOfficialAssetUrl(url,
-            "v3.6.9", "ARIEC60870-v3.6.9-setup-win-x64.exe"));
+            "v3.6.9", "ArSee-v3.6.9-setup-win-x64.exe"));
     }
 
     [Fact]
@@ -43,10 +44,10 @@ public sealed class ReleaseUpdateServiceTests
         var correct = new string('a', 64);
         var other = new string('b', 64);
         var sums = other + "  other.exe\n" +
-                   correct + "  ARIEC60870-v3.6.9-setup-win-x64.exe\n";
-        Assert.Equal(correct, ReleaseUpdateService.FindDigest(sums, "ARIEC60870-v3.6.9-setup-win-x64.exe"));
-        Assert.Null(ReleaseUpdateService.FindDigest(sums, "ARIEC60870-v3.6.8-setup-win-x64.exe"));
-        Assert.Null(ReleaseUpdateService.FindDigest("untrusted", "ARIEC60870-v3.6.9-setup-win-x64.exe"));
+                   correct + "  ArSee-v3.6.9-setup-win-x64.exe\n";
+        Assert.Equal(correct, ReleaseUpdateService.FindDigest(sums, "ArSee-v3.6.9-setup-win-x64.exe"));
+        Assert.Null(ReleaseUpdateService.FindDigest(sums, "ArSee-v3.6.8-setup-win-x64.exe"));
+        Assert.Null(ReleaseUpdateService.FindDigest("untrusted", "ArSee-v3.6.9-setup-win-x64.exe"));
     }
 
     [Fact]
@@ -172,7 +173,7 @@ public sealed class ReleaseUpdateServiceTests
         var folder = Path.Combine(Path.GetTempPath(), "arsee-reg-rollback-" +
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
-        var exe = Path.Combine(folder, "ARIEC60870.exe");
+        var exe = Path.Join(folder, "ArSee.exe");
         try
         {
             using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(keyPath)!)
@@ -221,7 +222,7 @@ public sealed class ReleaseUpdateServiceTests
         Directory.CreateDirectory(folder);
         try
         {
-            var executable = Path.Combine(folder, "ARIEC60870.exe");
+            var executable = Path.Join(folder, "ArSee.exe");
             File.WriteAllText(executable, "fixture");
             Assert.False(ReleaseUpdateService.HasManagedInstallation(executable));
             File.WriteAllText(Path.Combine(folder, "unins000.exe"), "fixture");

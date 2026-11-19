@@ -11,14 +11,16 @@ This guide is for the first authorized IEC 60870-5-101 / 103 / 104 communication
 2. Download the Windows ZIP asset:
 
    ```text
-   ARIEC60870-vX.Y.Z-win-x64.zip
+   ArSee-vX.Y.Z-win-x64.zip
    ```
 
-3. Extract the ZIP to a local folder.
+3. For older published packages through v3.6.17, the ZIP/EXE is named `ARIEC60870-*` for historical compatibility. New ArSee-branded releases use the names shown above.
+
+4. Extract the ZIP to a local folder.
 4. Double-click:
 
    ```text
-   ARIEC60870.exe
+   ArSee.exe
    ```
 
 The release package is designed for normal users: one desktop EXE, no start batch file.

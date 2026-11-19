@@ -16,7 +16,7 @@
 [CmdletBinding()]
 param(
     [string]$Version = "3.6.5",
-    [string]$OutputPath = "artifacts/release/ARIEC60870-sbom.spdx.json"
+    [string]$OutputPath = "artifacts/release/ArSee-sbom.spdx.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,8 +59,8 @@ foreach ($project in $projectFiles) {
 }
 
 $rootPackage = [ordered]@{
-    name = 'ARIEC60870 Evidence Analyzer'
-    SPDXID = 'SPDXRef-Package-ARIEC60870'
+    name = 'ArSee'
+    SPDXID = 'SPDXRef-Package-ArSee'
     versionInfo = $Version
     downloadLocation = 'https://github.com/masarray/arsee/releases'
     filesAnalyzed = $false
@@ -72,7 +72,7 @@ $rootPackage = [ordered]@{
 $relationships = @()
 foreach ($pkg in $packageMap.Values) {
     $relationships += [ordered]@{
-        spdxElementId = 'SPDXRef-Package-ARIEC60870'
+        spdxElementId = 'SPDXRef-Package-ArSee'
         relationshipType = 'DEPENDS_ON'
         relatedSpdxElement = $pkg.SPDXID
     }
@@ -83,11 +83,11 @@ $document = [ordered]@{
     spdxVersion = 'SPDX-2.3'
     dataLicense = 'CC0-1.0'
     SPDXID = 'SPDXRef-DOCUMENT'
-    name = "ARIEC60870-$Version-dependency-sbom"
+    name = "ArSee-$Version-dependency-sbom"
     documentNamespace = "https://github.com/masarray/arsee/sbom/$Version/" + [guid]::NewGuid().ToString('N')
     creationInfo = [ordered]@{
         created = $created
-        creators = @( 'Tool: ARIEC60870 generate-sbom-lite.ps1', 'Organization: MasArray' )
+        creators = @( 'Tool: ArSee generate-sbom-lite.ps1', 'Organization: MasArray' )
     }
     packages = @($rootPackage) + @($packageMap.Values)
     relationships = $relationships

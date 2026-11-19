@@ -615,7 +615,7 @@ jobs:
           $output = (Resolve-Path artifacts/installer).Path
           & $iscc "/DAppVersion=$version" "/DSourceRoot=$source" "/DOutputRoot=$output" installer/ARIEC60870.iss
           if ($LASTEXITCODE -ne 0) { throw 'Current-version Inno compilation failed.' }
-          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          $setup = Join-Path $output "ArSee-v$version-setup-win-x64.exe"
           if (!(Test-Path $setup)) { throw 'Current installer artifact missing.' }
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content (Join-Path $output 'SHA256SUMS.txt') "$hash  $(Split-Path $setup -Leaf)" -Encoding ascii
@@ -647,45 +647,32 @@ jobs:
           $sums = Join-Path $env:RUNNER_TEMP 'ariec-prev-release-sha256.txt'
           curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 30 -o $sums "$baseUrl/SHA256SUMS.txt"
           if ($LASTEXITCODE -ne 0) { throw 'Official previous SHA256SUMS download failed.' }
-          if ($oldVersion -eq '3.6.8') {
-            # Use the actual published previous stable installer; this is
-            # stronger and faster than reconstructing it from the portable ZIP.
-            $name = "ARIEC60870-v$oldVersion-setup-win-x64.exe"
-            $oldSetup = Join-Path $output $name
-            curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldSetup "$baseUrl/$name"
-            if ($LASTEXITCODE -ne 0) { throw 'Previous stable installer download failed.' }
-            $expected = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
-            if ($expected.Count -ne 1) { throw 'Previous installer checksum is missing or ambiguous.' }
-            $digest = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
-            if (!$digest -or (Get-FileHash $oldSetup -Algorithm SHA256).Hash -ine $digest) {
-              throw 'Previous stable public installer checksum mismatch.'
-            }
-          } else {
-            # v3.6.7 shipped only a portable ZIP. Build its Inno wrapper from
-            # the exact hashed public ZIP; no synthetic substitute executable.
-            $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous'
-            New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
-            $oldZip = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous.zip'
-            $name = "ARIEC60870-v$oldVersion-win-x64.zip"
-            curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/$name"
-            if ($LASTEXITCODE -ne 0) { throw 'Previous published ZIP download failed.' }
-            $expected = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
-            if ($expected.Count -ne 1) { throw 'Previous public ZIP checksum missing or ambiguous.' }
-            $digest = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
-            if (!$digest -or (Get-FileHash $oldZip -Algorithm SHA256).Hash -ine $digest) {
-              throw 'Previous published ZIP checksum mismatch.'
-            }
-            Expand-Archive $oldZip $oldSource -Force
-            if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
-              throw 'Genuine previous release binary missing.'
-            }
-            $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
-            & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
-            if ($LASTEXITCODE -ne 0) { throw 'Previous Inno wrapper compilation failed.' }
+          # Stage genuine checksum-pinned previous public application bytes in
+          # the *current* ArSee install layout. This tests the newer update
+          # worker path. A separate brand-migration job tests genuine historical
+          # v3.6.17 Inno Setup -> new ArSee.exe without rewriting past releases.
+          $oldSource = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous'
+          New-Item -ItemType Directory -Force -Path $oldSource | Out-Null
+          $oldZip = Join-Path $env:RUNNER_TEMP 'ariec-fat-public-previous.zip'
+          $name = "ARIEC60870-v$oldVersion-win-x64.zip"
+          curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/$name"
+          if ($LASTEXITCODE -ne 0) { throw 'Previous published ZIP download failed.' }
+          $expected = @(Get-Content $sums | Where-Object { $_.EndsWith("  $name") })
+          if ($expected.Count -ne 1) { throw 'Previous public ZIP checksum missing or ambiguous.' }
+          $digest = ([regex]::Match($expected[0], '^[0-9a-fA-F]{64}')).Value
+          if (!$digest -or (Get-FileHash $oldZip -Algorithm SHA256).Hash -ine $digest) {
+            throw 'Previous published ZIP checksum mismatch.'
           }
+          Expand-Archive $oldZip $oldSource -Force
+          if (!(Test-Path (Join-Path $oldSource 'ARIEC60870.exe'))) {
+            throw 'Genuine previous release binary missing.'
+          }
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Previous Inno wrapper compilation failed.' }
           $files = @(
-            (Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"),
-            (Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe")
+            (Join-Path $output "ArSee-v$oldVersion-setup-win-x64.exe"),
+            (Join-Path $output "ArSee-v$version-setup-win-x64.exe")
           )
           foreach ($file in $files) {
             if (!(Test-Path $file)) { throw "Expected FAT setup missing: $file" }
@@ -701,7 +688,7 @@ jobs:
         with:
           name: ARIEC60870-updater-fat-installer-pair
           path: |
-            artifacts/installer/ARIEC60870-v*-setup-win-x64.exe
+            artifacts/installer/ArSee-v*-setup-win-x64.exe
             artifacts/installer/FAT-SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 3
@@ -752,13 +739,13 @@ jobs:
           }
           & $iscc "/DAppVersion=$oldVersion" "/DSourceRoot=$oldSource" "/DSourceExe=ARIEC60870.exe" "/DOutputRoot=$output" installer/ARIEC60870.iss
           if ($LASTEXITCODE -ne 0) { throw 'Previous-version installer compilation failed.' }
-          $oldSetup = Join-Path $output "ARIEC60870-v$oldVersion-setup-win-x64.exe"
-          $setup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
+          $oldSetup = Join-Path $output "ArSee-v$oldVersion-setup-win-x64.exe"
+          $setup = Join-Path $output "ArSee-v$version-setup-win-x64.exe"
           if (!(Test-Path $oldSetup) -or !(Test-Path $setup)) {
             throw 'Compiled old/current setups missing before upgrade acceptance.'
           }
-          $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
-          $exe = Join-Path $installDir 'ARIEC60870.exe'
+          $installDir = Join-Path $env:LOCALAPPDATA 'Programs/ArSee'
+          $exe = Join-Path $installDir 'ArSee.exe'
           $userData = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
           New-Item -ItemType Directory -Force -Path $userData | Out-Null
           $sentinel = Join-Path $userData 'ci-install-preservation.txt'
@@ -777,6 +764,11 @@ jobs:
           if (!$oldProcess.WaitForExit(20000)) { throw 'Inno did not close the running previous application.' }
           if (!(Test-Path $exe) -or !(Test-Path $sentinel)) { throw 'Upgrade lost installed executable or user data.' }
           if ((Get-Item $exe).VersionInfo.FileVersion -notlike "$version*") { throw 'In-place upgrade retained old executable version.' }
+          if (Test-Path (Join-Path $installDir 'ARIEC60870.exe')) { throw 'Upgrade retained legacy executable.' }
+          $startGroup = Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs/ArSee'
+          if (!(Test-Path (Join-Path $startGroup 'ArSee.lnk'))) { throw 'New ArSee shortcut missing.' }
+          $legacyGroup = Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs/ARIEC60870'
+          if (Test-Path (Join-Path $legacyGroup 'ARIEC60870.lnk')) { throw 'Old Start Menu shortcut remains.' }
           # Read the identity from the same installer definition compiled by this job.
           $displayLine = Select-String -Path installer/ARIEC60870.iss -Pattern '^UninstallDisplayName=(.+)$' | Select-Object -First 1
           if ($null -eq $displayLine) { throw 'Installer must define UninstallDisplayName.' }
@@ -889,13 +881,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Genuine old v3.6.17 Windows installer upgraded by the exact tested
+  # ArSee setup. Covers the user-reported two shortcuts and legacy EXE.
+  branding-migration-fat:
+    name: Native Windows legacy-to-ArSee branding migration FAT
+    needs: [classify, installer-upgrade]
+    if: >-
+      needs.classify.outputs.run_updater_fat == 'true' ||
+      (github.event_name == 'workflow_dispatch' &&
+      (inputs.profile == 'installer' || inputs.profile == 'updater'))
+    runs-on: windows-2022
+    timeout-minutes: 19
+    steps:
+      - name: Checkout exact tested installer migration source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.requested_pr != '' && inputs.expected_sha || github.sha }}
+      - name: Download exact same-run compiled ArSee installer
+        uses: actions/download-artifact@v4
+        with:
+          name: ARIEC60870-InnoSetup-win-x64
+          path: artifacts/installer-deliverable/
+      - name: Verify genuine v3.6.17 to ArSee.exe upgrade and shortcut cleanup
+        shell: pwsh
+        timeout-minutes: 16
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$props = Get-Content Directory.Build.props
+          $version = [string]$props.Project.PropertyGroup.Version
+          ./scripts/test-branding-migration-fat.ps1 -CurrentSetup "artifacts/installer-deliverable/ArSee-v$version-setup-win-x64.exe"
+      - name: Preserve branding migration FAT phase evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArSee-legacy-branding-migration-fat
+          path: artifacts/branding-migration-fat/*
+          if-no-files-found: warn
+          retention-days: 14
+
   # Permissionless GITHUB_TOKEN workflow_run cascades are not a reliable
   # continuation primitive after an Actions-dispatched updater FAT.
   # Trigger the same trusted master controller explicitly, only after the
   # exact-source build, installer preparation and genuine native FAT pass.
   release-resume:
     name: Resume verified release after updater FAT
-    needs: [classify, build-test, installer-upgrade, updater-worker-fat]
+    needs: [classify, build-test, installer-upgrade, updater-worker-fat, branding-migration-fat]
     if: >-
       always() &&
       github.event_name == 'workflow_dispatch' &&
@@ -905,7 +935,8 @@ jobs:
       needs.classify.result == 'success' &&
       needs.build-test.result == 'success' &&
       needs.installer-upgrade.result == 'success' &&
-      needs.updater-worker-fat.result == 'success'
+      needs.updater-worker-fat.result == 'success' &&
+        needs.branding-migration-fat.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:

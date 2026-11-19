@@ -28,7 +28,7 @@ For Bahasa Indonesia, use the same chapter hashes under [site/id/wiki.html](../s
 ## Quick safe starting sequence
 
 1. Obtain the portable Windows x64 ZIP from [ArSee Releases](https://github.com/masarray/arsee/releases/latest) and extract it to a local folder.
-2. Run `ARIEC60870.exe`, open **Setup**, and choose the correct protocol profile and explicit **TARGET MODE** (real device or built-in demo).
+2. For new ArSee-branded releases, run `ArSee.exe` (stable v3.6.17 and earlier still use `ARIEC60870.exe`), open **Setup**, and choose the correct protocol profile and explicit **TARGET MODE** (real device or built-in demo).
 3. Verify physical interface, connection parameters, and approved interoperability address widths.
 4. Use **Connect**, or **Start Monitor** for physical RX-only passive mode; inspect **Raw Frames** before interpreting **Values**, **Events**, **GI** or **Controls**.
 5. Select relevant rows and use **Save Cap** for a portable evidence subset, or open **Report** and export PDF after review.
