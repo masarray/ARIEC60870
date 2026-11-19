@@ -22,7 +22,11 @@ public partial class HelpWindow
     {
         Directory.CreateDirectory(outputDirectory);
         // The same canonical data file must be packaged and readable offline.
-        if (!_topics.Any(topic => topic.Key == "learn-iec-family") ||
+        if (!_topics.Any(topic => topic.Key == "learn-use-start") ||
+            !_topics.Any(topic => topic.Key == "learn-use-setup") ||
+            !_topics.Any(topic => topic.Key == "learn-use-passive") ||
+            !_topics.Any(topic => topic.Key == "learn-use-evidence") ||
+            !_topics.Any(topic => topic.Key == "learn-iec-family") ||
             !_topics.Any(topic => topic.Key == "learn-iec101") ||
             !_topics.Any(topic => topic.Key == "learn-iec103") ||
             !_topics.Any(topic => topic.Key == "learn-iec104") ||
@@ -31,12 +35,16 @@ public partial class HelpWindow
             throw new InvalidOperationException("The shared offline engineering handbook was not packaged.");
         var captures = new List<object>();
 
+        await CaptureAsync("en-user-guide-default-window.png", "learn-use-start", 1180, 820);
+        VerifyOperatingGuideStructure();
         await CaptureAsync("en-handbook-default-window.png", "learn-iec-family", 1180, 820);
         await CaptureAsync("en-iec104-trace-lab-default.png", "learn-lab-104", 1180, 820);
         VerifyGuidedLabInteraction();
         await CaptureAsync("en-trace-780x540.png", "frame-trace", 780, 540);
 
         LanguageComboBox.SelectedIndex = 1;
+        await CaptureAsync("id-user-guide-setup-780x540.png", "learn-use-setup", 780, 540);
+        VerifyOperatingGuideStructure();
         await CaptureAsync("id-iec101-780x540.png", "learn-iec101", 780, 540);
         if (TopicTitleText.Text != "IEC 60870-5-101")
             throw new InvalidOperationException("Indonesian Help Center translation did not render.");
@@ -94,11 +102,11 @@ public partial class HelpWindow
                 result = "passed",
                 renderer = "native WPF RenderTargetBitmap",
                 dpiQualification = "logical DIP viewports only; operator must review Windows 125% and 150% DPI",
-                screenshots = 9,
+                screenshots = 11,
                 requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
                 note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
-                cases = new[] { "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "validated IEC104 trace lab", "IEC101 compact lab", "explanation reveal", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
+                cases = new[] { "offline bilingual stepwise ArSee operating guide", "user guide chapter hierarchy", "preconditions, action steps and troubleshooting", "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "validated IEC104 trace lab", "IEC101 compact lab", "explanation reveal", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
             }, new JsonSerializerOptions { WriteIndented = true }));
 
@@ -124,6 +132,35 @@ public partial class HelpWindow
                 articlePaneWidth = HelpArticlePanel.ActualWidth
             });
             SaveRenderedViewport(outputDirectory, filename);
+        }
+    }
+
+    private void VerifyOperatingGuideStructure()
+    {
+        if (!TopicListBox.Items.OfType<HelpTopicListItem>().Any(item =>
+                item.Kind == "group" && item.Title.Contains(
+                    _language == "id" ? "PANDUAN PENGGUNA" : "USER GUIDE",
+                    StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("ArSee user manual is missing its navigation group.");
+
+        var workflows = TopicContentPanel.Children.OfType<Border>()
+            .Select(section => section.Child)
+            .OfType<StackPanel>()
+            .SelectMany(section => section.Children.OfType<Border>())
+            .Where(panel => Equals(panel.Tag, "ArSeeUserWorkflow"))
+            .ToArray();
+        if (workflows.Length < 3)
+            throw new InvalidOperationException("Expected stepwise ArSee operating procedures are not rendered.");
+        foreach (var panel in workflows)
+        {
+            if (panel.Child is not StackPanel content)
+                throw new InvalidOperationException("Operating procedure panel is empty.");
+            var labels = content.Children.OfType<TextBlock>().Select(label => label.Text).ToArray();
+            if (!labels.Any(label => label == (_language == "id" ? "LANGKAH-LANGKAH" : "STEP BY STEP")) ||
+                !labels.Any(label => label == (_language == "id" ? "HASIL YANG DIHARAPKAN" : "EXPECTED RESULT")) ||
+                !labels.Any(label => label == (_language == "id" ? "JIKA BELUM BERHASIL" : "IF IT DOES NOT WORK")) ||
+                content.Children.OfType<Grid>().Count() < 3)
+                throw new InvalidOperationException("Operating guide steps, results or diagnostics are missing.");
         }
     }
 
