@@ -1,0 +1,72 @@
+# Copyright 2026 Ari Sulistiono
+# SPDX-License-Identifier: Apache-2.0
+name: Public landing browser acceptance
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'scripts/site-browser-qa.mjs'
+      - '.github/workflows/site-browser-qa.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'scripts/site-browser-qa.mjs'
+      - '.github/workflows/site-browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-browser-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Playwright and Chromium/Firefox
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium firefox
+      - name: Start canonical site preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --directory site > /tmp/arsee-site-preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8765/index.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/arsee-site-preview.log
+          exit 1
+      - name: Run source-preview and deployed-live browser gates
+        shell: bash
+        run: |
+          set +e
+          SITE_ORIGIN=http://127.0.0.1:8765/ SITE_LABEL=preview node scripts/site-browser-qa.mjs
+          preview_result=$?
+          SITE_ORIGIN=https://masarray.github.io/arsee/ SITE_LABEL=live node scripts/site-browser-qa.mjs
+          live_result=$?
+          echo "Preview result: $preview_result; live result: $live_result"
+          if [ "$preview_result" -ne 0 ] || [ "$live_result" -ne 0 ]; then exit 1; fi
+      - name: Upload viewport screenshots and result matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-browser-acceptance
+          path: site-browser-evidence/
+          if-no-files-found: warn
+          retention-days: 14
