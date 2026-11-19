@@ -60,3 +60,18 @@
 .learning-pager-button { border:1px solid #dce7ef; border-radius:8px; background:#fff; color:#346079; padding:9px 12px; font:inherit; font-size:12px; cursor:pointer; }
 .learning-pager-button:hover { background:#f3f8fb; }
 .learning-pager-button:focus-visible { outline:2px solid #277ca6; outline-offset:2px; }
+
+/* R3 guided trace exercises: one restrained teaching surface per lesson. */
+.learning-trace-lab { margin:16px 0 3px; padding:15px 16px; background:#f6f9fc; border:1px solid #e0e8f0; border-radius:9px; }
+.learning-lab-label { display:block; font-size:10px; letter-spacing:.06em; font-weight:650; color:#657c8e; margin:0 0 9px; }
+.learning-lab-scenario { margin:0 0 10px!important; font-size:12.5px!important; color:#344b5e; line-height:1.65!important; }
+.learning-lab-bytes { display:block; padding:6px 0 10px; font:500 12px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace; color:#1d425d; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
+.learning-lab-steps { margin:0; padding-left:22px; color:#52677a; }
+.learning-lab-steps li { font-size:12px; margin:5px 0; line-height:1.68; }
+.learning-lab-question { margin:13px 0 9px!important; font-weight:600; color:#193246!important; font-size:12.6px!important; }
+.learning-lab-reveal { display:inline-flex; align-items:center; justify-content:center; min-height:31px; padding:5px 11px; border-radius:7px; border:1px solid #d4e1eb; background:#fff; color:#315b76; font:600 11.7px/1.4 inherit; cursor:pointer; }
+.learning-lab-reveal:hover { background:#eef5f9; }
+.learning-lab-reveal:focus-visible { outline:2px solid #277ca6; outline-offset:2px; }
+.learning-lab-answer { margin:11px 0 0!important; padding-top:11px; border-top:1px solid #e0e8f0; font-size:12px!important; line-height:1.72!important; color:#344c61!important; }
+.learning-lab-answer[hidden] { display:none!important; }
+@media (max-width:740px) { .learning-trace-lab { padding:12px 13px; } }
