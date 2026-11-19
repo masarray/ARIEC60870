@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.16</Version>
-    <AssemblyVersion>3.6.16.0</AssemblyVersion>
-    <FileVersion>3.6.16.0</FileVersion>
-    <InformationalVersion>3.6.16+physical-fat-worksheet-signal-workbench</InformationalVersion>
+    <Version>3.6.17</Version>
+    <AssemblyVersion>3.6.17.0</AssemblyVersion>
+    <FileVersion>3.6.17.0</FileVersion>
+    <InformationalVersion>3.6.17+stable-release-gated</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ARIEC60870 Evidence Analyzer</Product>

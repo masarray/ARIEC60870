@@ -1,3 +1,11 @@
+## [3.6.17] - Stable release candidate, publication gated (2026-11-19)
+
+- **Source version 3.6.17** prepared on master for a *new, immutable* stable GitHub Release. This changelog entry and source bump do **not** establish publication: stable is official only after exact-source master CI, independent installed-updater FAT, package build, native GUI checks, SHA-256, SPDX SBOM, attestation and GitHub Release verification.
+- Incorporates v3.6.17-rc.7 usability: short FC10/FC11 **Class 1/2 Data Polling** tooltips, shorter action hints, truthful **Latest Event** follow state; bilingual Help Center and IEC handbook; Signal Map grid and non-destructive scaling workflow. EN/ID landing pages, download/FAQ and documentation were reconciled after the RC.
+- Includes subsequent public Pages P0–P2 guided reading/demo work, with no replacement or rebranding of ARIEC60870 executable/installer filenames.
+- Preserves original IEC101/103/104 protocol evidence, source-based IOA/quality/HEX truth, station-owned Signal Map Save vs Save & Apply behavior and previously isolated pending draft #145.
+- **Not field certification:** independent RTU/SCADA FAT, real 1200-bps SOE recovery, station-specific TI11 scaling calibration and physical Windows display 125%/150% DPI remain **NOT TESTED**. Never imply these passed from software test results.
+
 ## [3.6.17-rc.7] - Public prerelease · 2026-11-19
 
 - Released from dedicated RC branch at tag `v3.6.17-rc.7` (source SHA `dfbdac844e3ce5b5a82c94669a4ec0bb8d59a054`); [public installer and portable ZIP](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7), [verified Package workflow #44478198266](https://github.com/masarray/arsee/actions/runs/44478198266), SHA-256/SBOM and provenance.
