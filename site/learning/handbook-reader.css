@@ -75,3 +75,15 @@
 .learning-lab-answer { margin:11px 0 0!important; padding-top:11px; border-top:1px solid #e0e8f0; font-size:12px!important; line-height:1.72!important; color:#344c61!important; }
 .learning-lab-answer[hidden] { display:none!important; }
 @media (max-width:740px) { .learning-trace-lab { padding:12px 13px; } }
+
+/* R4 operator manual: calm instructional hierarchy, no large decorative cards. */
+.learning-nav-divider { font-size:10px; font-weight:650; letter-spacing:.05em; color:#738598; margin:14px 8px 7px; }
+.learning-user-workflow { margin:12px 0 6px; padding:13px 15px; border:1px solid #e0e8f0; border-radius:8px; background:#f7f9fc; }
+.learning-workflow-label { font-family:inherit; font-size:10px; font-weight:650; line-height:1.5; color:#657b8e; margin:12px 0 6px; }
+.learning-workflow-label:first-child { margin-top:0; }
+.learning-workflow-steps,.learning-workflow-prerequisites { margin:5px 0 10px; padding-left:23px; color:#334d64; }
+.learning-workflow-steps li,.learning-workflow-prerequisites li { font-size:12px; line-height:1.7; padding-left:3px; margin:5px 0; }
+.learning-workflow-steps li::marker { color:#5e7d91; font-weight:600; }
+.learning-workflow-result,.learning-workflow-troubleshooting,.learning-workflow-safety { margin:0 0 6px!important; font-size:12.2px!important; line-height:1.7!important; color:#365166!important; }
+.learning-workflow-safety { color:#755a43!important; }
+@media (max-width:740px) { .learning-user-workflow { padding:11px 12px; } }
