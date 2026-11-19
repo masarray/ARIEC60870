@@ -129,6 +129,38 @@ public sealed class SharedHandbookTests
     }
 
     [Fact]
+    public void UserGuideNamesControlsThatActuallyExistInTheArSeeMainWindow()
+    {
+        var window = File.ReadAllText(Source("src/ARIEC60870.Desktop/MainWindow.xaml"));
+        // Source-backed UI contracts: if a primary control is removed/renamed,
+        // revise the user guide rather than let stale instructions ship.
+        foreach (var control in new[]
+        {
+            "SetupButton", "StartButton", "HelpButton", "OpenCaptureButton",
+            "SaveCaptureRailButton", "ExportTraceRailButton", "SignalListButton",
+            "ProtocolModeComboBox", "TransportModeComboBox", "TcpHostBox",
+            "PortComboBox", "InteroperabilityConventionComboBox", "CommandDockPanel",
+            "CommandDockGiButton", "CommandDockReadButton", "CommandDockClockSyncButton",
+            "CommandTypeComboBox", "CommandOperationModeComboBox", "PassiveSourceComboBox",
+            "PassiveFullRecordingCheckBox", "NavValueButton", "NavEventButton",
+            "NavReportButton"
+        })
+            Assert.Contains("x:Name=\"" + control + "\"", window);
+
+        foreach (var label in new[]
+        {
+            "IEC 60870-5-101 - Telecontrol serial",
+            "IEC 60870-5-103 - Protection relay serial",
+            "IEC 60870-5-104 - Telecontrol TCP/IP",
+            "IEC 60870-5-101 - Dual link redundancy",
+            "IEC 60870-5-101 - Passive Monitor",
+            "Physical RX-only", "Virtual Inline", "Built-in demo simulation",
+            "GI • TI-100", "Read IOA • TI-102", "Timesync • TI-103"
+        })
+            Assert.Contains(label, window);
+    }
+
+    [Fact]
     public void R3TraceLabsAreCompleteAndShareTheirAnswersAcrossDesktopAndWeb()
     {
         using var document = JsonDocument.Parse(
