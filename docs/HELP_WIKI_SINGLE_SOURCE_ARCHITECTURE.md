@@ -28,6 +28,12 @@ chapters[]:
     paragraphsEn[], paragraphsId[]
     bulletsEn[], bulletsId[]
     framesEn[], framesId[]
+    workflow (optional, for ArSee user-guide sections):
+      prerequisitesEn[], prerequisitesId[]
+      stepsEn[], stepsId[]: synchronized numbered operator actions
+      expectedEn, expectedId: objective pass result
+      troubleshootingEn, troubleshootingId: diagnostic response to failure
+      safetyEn, safetyId: conditional safety and authority note
     lab (optional):
       wireKind: conceptual | iec101-fixed | iec101-single | iec104-u | iec104-s | iec104-i
       wireHex: uppercase spaced bytes or null for conceptual cases
@@ -37,7 +43,7 @@ chapters[]:
       questionEn, questionId, answerEn, answerId
 ```
 
-Both readers use the same ordering and section structure. The R3 handbook contains **16 bilingual chapters, 70 numbered educational sections and 20 guided trace labs** (14 with independently checked raw bytes, including deliberate invalid cases). New `number`, `id`, and `bookEdition` fields provide canonical section labels and stable deep-link anchors in the public Wiki. The WPF chapter tree derives numbering from the same ordered chapters, offers a compact IEC101/IEC103/IEC104 badge, and expands only the active chapter. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
+Both readers use the same ordering and section structure. The R4 catalogue contains **27 bilingual chapters and 115 sections**, including **11 ArSee operating-manual chapters / 45 practical workflows** alongside the earlier 16 IEC learning chapters / 20 guided trace labs. The practical chapters are grouped first in desktop and Wiki navigation; article keys and section anchors remain stable. New `number`, `id`, and `bookEdition` fields provide canonical section labels and stable deep-link anchors in the public Wiki. The WPF chapter tree derives numbering from the same ordered chapters, offers a compact IEC101/IEC103/IEC104 badge, and expands only the active chapter. The website uses DOM `textContent` rather than injecting HTML. WPF uses typed text and packaged JSON, not a network request. Keep bilingual sections aligned: every material statement in one language must have a faithful counterpart in the other.
 
 ## Scope and correctness checks
 
@@ -48,6 +54,14 @@ A useful learning chapter answers **what**, **why**, **normal request/response**
 **Commands:** distinguish link/TCP/APCI ACK from ACTCON/ACTTERM and the actual process-state feedback. Do not claim physical action on positive protocol confirmation alone.
 
 **License:** IEC 60870 publications are copyrighted and may be used for authorized clause-level conformance review. The free handbook is an independently written engineering explanation: no complete reproduction of the IEC book, normative tables, figures, test case annexes or vendor manuals.
+
+## R4 ArSee operating-guide contract
+
+The full app manual lives in `site/learning/iec60870-handbook.json` and is consumed by both surfaces without a second authoring copy. `learn-use-*` chapters appear in a dedicated **ARSEE USER GUIDE / PANDUAN PENGGUNA ARSEE** navigation group, ahead of IEC theory and legacy contextual F1 topics. The default Help Center opens Getting started with ArSee; pressing F1 on a specific workspace still opens its existing contextual topic.
+
+Each procedure has a short explanation, prerequisites, numbered actions using labels validated against actual MainWindow XAML, a success criterion, and a failure-check section. Optional safety text distinguishes demos, passive monitoring, active command issuance and live process equipment. WPF renders a lightweight instructional panel without HTML parsing or remote dependency. Wiki renders semantic ordered steps from the same values, with the same protocol-badge mapping.
+
+The legacy `docs/USER_GUIDE.md` is an index into this canonical manual; do not duplicate or independently edit instructions there. New operating-guide content must be checked against actual UI controls and feature availability before claiming user workflow support. In particular, active IEC101 balanced mode is not implemented; physical RX-only is not equivalent to Virtual Inline; selected Save Cap is not automatic full-session recording; and a command ACTCON is not field feedback.
 
 ## R3 verified trace-lab teaching contract
 
