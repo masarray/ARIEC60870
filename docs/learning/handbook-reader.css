@@ -69,7 +69,7 @@
 .learning-lab-steps { margin:0; padding-left:22px; color:#52677a; }
 .learning-lab-steps li { font-size:12px; margin:5px 0; line-height:1.68; }
 .learning-lab-question { margin:13px 0 9px!important; font-weight:600; color:#193246!important; font-size:12.6px!important; }
-.learning-lab-reveal { display:inline-flex; align-items:center; justify-content:center; min-height:31px; padding:5px 11px; border-radius:7px; border:1px solid #d4e1eb; background:#fff; color:#315b76; font:600 11.7px/1.4 inherit; cursor:pointer; }
+.learning-lab-reveal { display:inline-flex; align-items:center; justify-content:center; min-height:31px; padding:5px 11px; border-radius:7px; border:1px solid #d4e1eb; background:#fff; color:#315b76; font-family:inherit; font-size:11.7px; font-weight:600; line-height:1.4; cursor:pointer; }
 .learning-lab-reveal:hover { background:#eef5f9; }
 .learning-lab-reveal:focus-visible { outline:2px solid #277ca6; outline-offset:2px; }
 .learning-lab-answer { margin:11px 0 0!important; padding-top:11px; border-top:1px solid #e0e8f0; font-size:12px!important; line-height:1.72!important; color:#344c61!important; }
