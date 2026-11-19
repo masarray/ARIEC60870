@@ -118,7 +118,7 @@ try {
     # Dedicated worker FAT must not wait for the separate legacy installer
     # gate. Acquire and verify the previous immutable public release itself.
     New-Item -ItemType Directory -Force -Path $source | Out-Null
-    $baseUrl = "https://github.com/masarray/ARIEC60870/releases/download/v$PreviousVersion"
+    $baseUrl = "https://github.com/masarray/arsee/releases/download/v$PreviousVersion"
     $oldZip = Join-Path $env:RUNNER_TEMP 'arsee-updater-previous.zip'
     $sumFile = Join-Path $env:RUNNER_TEMP 'arsee-updater-previous-sums.txt'
     curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldZip "$baseUrl/ARIEC60870-v$PreviousVersion-win-x64.zip"

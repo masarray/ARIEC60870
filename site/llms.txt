@@ -3,28 +3,28 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.15: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.15
-- Windows installer: https://github.com/masarray/ARIEC60870/releases/download/v3.6.15/ARIEC60870-v3.6.15-setup-win-x64.exe
-- Windows portable ZIP: https://github.com/masarray/ARIEC60870/releases/download/v3.6.15/ARIEC60870-v3.6.15-win-x64.zip
-- Previous stable v3.6.14: https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14
-- Exact-source public package and provenance: https://github.com/masarray/ARIEC60870/actions/workflows/release-package.yml
-- Native Windows updater and real-WPF acceptance evidence: https://github.com/masarray/ARIEC60870/actions/workflows/ci.yml
+- Latest public stable v3.6.16: https://github.com/masarray/arsee/releases/tag/v3.6.16
+- Windows installer: https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-setup-win-x64.exe
+- Windows portable ZIP: https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-win-x64.zip
+- Previous stable v3.6.15: https://github.com/masarray/arsee/releases/tag/v3.6.15
+- Exact-source public package and provenance: https://github.com/masarray/arsee/actions/workflows/release-package.yml
+- Native Windows updater and real-WPF acceptance evidence: https://github.com/masarray/arsee/actions/workflows/ci.yml
 - Historical broad IEC-101 draft #145 is unmerged; real RTU FAT still separate.
 
-## v3.6.15 improvements
-- Engineering Scaling tab now immediately opens on measured IEC-101/104 analog points (TI9/10/11/12/13/14/21/34/35/36). In the default 1360x820 editor, Factor/TwoPoint and X0/X100/Y0/Y100 are visible without vertical scrolling.
-- Mapping & Commands remains separate for digital/control and other metadata, and the DataGrid freezes CA/IOA/IEC Type/Name for reliable horizontal review.
+## v3.6.16 improvements
+- Grid-first Signal Map with CA/IOA, signal, bay, TYPE and mnemonic find/filter and an optional resizable engineering inspector.
+- Excel-like atomic multi-cell paste, Fill Down, Undo/Redo and four frozen identity columns; Factor/TwoPoint parameters remain available for measured analogs.
 - Actual WPF viewport acceptance checks every TwoPoint input, signed TI11 raw-count warnings and navigation without profile mutation.
 - v3.6.14 analog decoder/scaling engine, 31-point source names and opt-in Safe Sync 31 I/O remain unchanged. Real TI11 counts-to-MVar conversion requires authorized gateway calibration (#243).
 
 ## Pages
-- EN: https://masarray.github.io/ARIEC60870/
-- ID: https://masarray.github.io/ARIEC60870/id/
-- Download: https://masarray.github.io/ARIEC60870/download.html
-- Quick Start: https://masarray.github.io/ARIEC60870/quick-start.html
-- Field Wiki: https://masarray.github.io/ARIEC60870/wiki.html
-- FAQ: https://masarray.github.io/ARIEC60870/faq.html
-- Troubleshooting: https://masarray.github.io/ARIEC60870/troubleshooting.html
+- EN: https://masarray.github.io/arsee/
+- ID: https://masarray.github.io/arsee/id/
+- Download: https://masarray.github.io/arsee/download.html
+- Quick Start: https://masarray.github.io/arsee/quick-start.html
+- Field Wiki: https://masarray.github.io/arsee/wiki.html
+- FAQ: https://masarray.github.io/arsee/faq.html
+- Troubleshooting: https://masarray.github.io/arsee/troubleshooting.html
 
 ## Evidence boundary
 An addressed link response is not always an accepted application ASDU. GI is not proof every point was received. HOLD pins only the displayed viewport, not recording. Unverified IEC-101 balanced mode or physical multi-vendor FAT must not be claimed.

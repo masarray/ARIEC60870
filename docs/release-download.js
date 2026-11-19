@@ -3,9 +3,9 @@
 // Resolve end-user downloads from fully published GitHub Releases, never CI artifacts.
 (() => {
   "use strict";
-  const repo = "https://github.com/masarray/ARIEC60870";
-  const fallbackTag = "v3.6.15";
-  const api = "https://api.github.com/repos/masarray/ARIEC60870/releases?per_page=30";
+  const repo = "https://github.com/masarray/arsee";
+  const fallbackTag = "v3.6.16";
+  const api = "https://api.github.com/repos/masarray/arsee/releases?per_page=30";
   const validTag = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 
   function asset(release, name) {

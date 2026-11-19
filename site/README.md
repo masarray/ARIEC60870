@@ -1,8 +1,8 @@
 # ArSee public website
 
-Canonical English/Indonesian site: https://masarray.github.io/ARIEC60870/
+Canonical English/Indonesian site: https://masarray.github.io/arsee/
 
-**Latest stable:** [v3.6.15](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.15) · **previous stable:** [v3.6.14](https://github.com/masarray/ARIEC60870/releases/tag/v3.6.14). Physical SICAM FAT is not certified and draft IEC-101 engine PR #145 remains unreleased.
+**Latest stable:** [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) · **previous stable:** [v3.6.15](https://github.com/masarray/arsee/releases/tag/v3.6.15). Physical SICAM FAT is not certified and draft IEC-101 engine PR #145 remains unreleased.
 
 - `index.html`, `id/index.html`: bilingual product landing.
 - `download.html`, `quick-start.html`: Windows installer/portable paths and integrity.
@@ -14,4 +14,4 @@ Edit `site/` and run `scripts/sync-github-pages-docs-mirror.ps1` to refresh `doc
 
 Local preview: `python -m http.server 8080 --directory site`.
 
-The product is **ArSee**. Keep `/ARIEC60870/` Pages canonical until the repository rename and website cutover. See [rename runbook](../docs/ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
+The product is **ArSee**. The canonical Pages path is `/arsee/`; `/ARIEC60870/` is historical and is not the active GitHub Pages project URL. See [rename runbook](../docs/ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).

@@ -68,13 +68,49 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void CanonicalRepositoryRenameIsPropagatedToActiveDistributionSurfaces()
+    {
+        var root = FindRepositoryRoot();
+        const string repository = "https://github.com/masarray/arsee";
+        const string pages = "https://masarray.github.io/arsee/";
+        const string legacyRepository = "https://github.com/masarray/ARIEC60870";
+        const string legacyPages = "https://masarray.github.io/ARIEC60870/";
+
+        var installer = File.ReadAllText(root.File("installer/ARIEC60870.iss"));
+        Assert.Contains("AppPublisherURL=" + repository, installer);
+        Assert.Contains("AppSupportURL=" + repository + "/issues", installer);
+        Assert.Contains("AppUpdatesURL=" + repository + "/releases", installer);
+
+        var sbom = File.ReadAllText(root.File("scripts/generate-sbom-lite.ps1"));
+        Assert.Contains(repository + "/releases", sbom);
+        Assert.Contains(repository + "/sbom/$Version/", sbom);
+
+        var help = File.ReadAllText(root.File("src/ARIEC60870.Desktop/HelpWindow.xaml.cs"));
+        Assert.Contains(pages + "{path}", help);
+
+        var readme = File.ReadAllText(root.File("README.md"));
+        Assert.Contains(repository, readme);
+        Assert.Contains(pages, readme);
+        Assert.DoesNotContain("rename to `masarray/arsee` is planned", readme);
+
+        var legacyIndex = File.ReadAllText(root.File("index.html"));
+        Assert.Contains("href=\"" + pages + "\"", legacyIndex);
+
+        foreach (var content in new[] { installer, sbom, help, legacyIndex })
+        {
+            Assert.DoesNotContain(legacyRepository, content, StringComparison.Ordinal);
+            Assert.DoesNotContain(legacyPages, content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void PublicReleaseChannelsAndPagesFallbackMirrorAgree()
     {
         var root = FindRepositoryRoot();
         using var manifest = JsonDocument.Parse(File.ReadAllText(root.File("site/seo-manifest.json")));
         var version = manifest.RootElement.GetProperty("version").GetString();
         Assert.False(string.IsNullOrWhiteSpace(version));
-        var releaseUrl = $"https://github.com/masarray/ARIEC60870/releases/tag/v{version}";
+        var releaseUrl = $"https://github.com/masarray/arsee/releases/tag/v{version}";
 
         var readme = File.ReadAllText(root.File("README.md"));
         var home = File.ReadAllText(root.File("site/index.html"));
@@ -91,7 +127,7 @@ public sealed class RepositoryHygieneTests
 
         // Initial HTML must already download the published package, even before
         // JavaScript executes or when the GitHub API is rate-limited.
-        var downloadPrefix = $"https://github.com/masarray/ARIEC60870/releases/download/v{version}/";
+        var downloadPrefix = $"https://github.com/masarray/arsee/releases/download/v{version}/";
         foreach (var page in new[] { home, indonesian, download })
         {
             Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-setup-win-x64.exe", page);
@@ -100,9 +136,20 @@ public sealed class RepositoryHygieneTests
         }
         Assert.Contains(downloadPrefix + "SHA256SUMS.txt", download);
         Assert.Contains($"\"downloadUrl\":\"{downloadPrefix}ARIEC60870-v{version}-win-x64.zip\"", home);
-        Assert.Equal(File.ReadAllText(root.File("site/release-download.js")),
-            File.ReadAllText(root.File("docs/release-download.js")));
+        var releaseScript = File.ReadAllText(root.File("site/release-download.js"));
+        Assert.Equal(releaseScript, File.ReadAllText(root.File("docs/release-download.js")));
+        Assert.Contains($"const fallbackTag = \"v{version}\"", releaseScript);
 
+        // The no-network fallback, user-facing README and package provenance
+        // must be version-consistent with the verified stable site manifest.
+        // Historical prior-release links are allowed elsewhere.
+        Assert.Contains($"| **Latest public stable** | **v{version}**", readme);
+        Assert.Contains($"[v{version}]({releaseUrl})",
+            File.ReadAllText(root.File("site/README.md")));
+        var props = File.ReadAllText(root.File("Directory.Build.props"));
+        Assert.Contains("<PackageProjectUrl>https://github.com/masarray/arsee</PackageProjectUrl>", props);
+        Assert.Contains("<RepositoryUrl>https://github.com/masarray/arsee</RepositoryUrl>", props);
+        Assert.DoesNotContain("https://github.com/masarray/ARIEC60870", props);
 
         foreach (var page in new[]
         {
@@ -265,7 +312,7 @@ public sealed class RepositoryHygieneTests
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
         Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", siteIndex);
         Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", docsIndex);
-        Assert.Contains("https://masarray.github.io/ARIEC60870/", docsIndex);
+        Assert.Contains("https://masarray.github.io/arsee/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
     }
 
@@ -278,7 +325,7 @@ public sealed class RepositoryHygieneTests
         var sitemap = File.ReadAllText(root.File("site/sitemap.xml"));
 
         Assert.Equal("site/", manifest.GetProperty("sourceOfTruth").GetString());
-        Assert.Equal("https://masarray.github.io/ARIEC60870/", manifest.GetProperty("canonicalBaseUrl").GetString());
+        Assert.Equal("https://masarray.github.io/arsee/", manifest.GetProperty("canonicalBaseUrl").GetString());
 
         foreach (var page in manifest.GetProperty("pages").EnumerateArray())
         {

@@ -140,19 +140,22 @@ public sealed class Iec101PerLinkTransactionEngine
         var validation = Iec101SecondaryResponseValidator.Validate(candidate,
             exchange.LinkAddress, exchange.OriginalTransmit, matchesEarlierTransmit,
             exchange.PrimaryFunctionCode);
-        if (validation.IsValid && _statusReplyMayBelongToExpiredProbe &&
+        if (validation.IsValid &&
+            (_statusReplyMayBelongToExpiredProbe || exchange.LateStatusQuarantined) &&
             exchange.PrimaryFunctionCode is 8 or 9 &&
             candidate.LinkControl is { Prm: false, FunctionCode: 11 })
         {
             // Cannot distinguish an old FC11 from a fresh one on the same COM.
-            // Never promote one ambiguous response into link readiness. Consume
-            // one plausible late status; a later exchange needs its own proof.
+            // Once one candidate is quarantined, all FC11 candidates in this
+            // same pending exchange remain ambiguous. Another RX is not proof
+            // of another TX; only the next distinct FC8/FC9 may verify status.
             _statusReplyMayBelongToExpiredProbe = false;
             exchange.LateStatusQuarantined = true;
             validation = new Iec101SecondaryResponseValidation(false, false,
                 "IEC101-RX-AMBIGUOUS-LATE-FC11",
                 "Valid addressed FC11 after an earlier unanswered FC8/FC9 can be a delayed reply. " +
-                "Quarantined without validating link health or advancing FCB; require another response.");
+                "This exchange remains quarantined without validating link health or advancing FCB; " +
+                "require a fresh status request and response.");
         }
         if (!validation.IsValid) exchange.RejectedCandidates++;
         if (validation.IsValid && exchange.AcceptedValidation is null)

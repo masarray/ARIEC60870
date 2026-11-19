@@ -24,12 +24,13 @@ public sealed class ReleaseUpdateServiceTests
     }
 
     [Theory]
-    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", true)]
-    [InlineData("http://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", true)]
+    [InlineData("http://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
+    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
     [InlineData("https://evil.example/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
     [InlineData("https://github.com/masarray/other/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe", false)]
-    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/other.exe", false)]
-    [InlineData("https://github.com/masarray/ARIEC60870/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe?mirror=1", false)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/other.exe", false)]
+    [InlineData("https://github.com/masarray/arsee/releases/download/v3.6.9/ARIEC60870-v3.6.9-setup-win-x64.exe?mirror=1", false)]
     public void InstallerIsOnlyFetchedFromExactOfficialGithubRelease(string url, bool allowed)
     {
         Assert.Equal(allowed, ReleaseUpdateService.IsOfficialAssetUrl(url,
