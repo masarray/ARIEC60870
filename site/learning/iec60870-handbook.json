@@ -421,6 +421,261 @@
       "number": "03"
     },
     {
+      "key": "learn-lab-101",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Trace lab · IEC 101",
+      "titleId": "Laboratorium trace · IEC 101",
+      "summaryEn": "Five byte-verified serial exercises: link status, Class 2, E5 and checksum failure.",
+      "summaryId": "Lima latihan serial tervalidasi: link status, Class 2, E5 dan kesalahan checksum.",
+      "searchText": "101 lab physical hex checksum fc9 fc11 fcb e5 no data",
+      "sources": [
+        "https://infosys.beckhoff.com/content/1033/ts650x_tcplc_iec60870-5-10x/11700014987.html"
+      ],
+      "sections": [
+        {
+          "headingEn": "Primary link-status request, byte by byte",
+          "headingId": "Request link-status primary, byte demi byte",
+          "paragraphsEn": [
+            "The following independently constructed FT1.2 fixed frame uses a **one-octet link address of 1**. It contains no ASDU. The sender requests link status (primary function 9); it does not ask for Class 1 events or GI.",
+            "The additive checksum covers the control and address octets and is reduced modulo 256. The check must be performed before interpreting the service."
+          ],
+          "paragraphsId": [
+            "Frame fixed FT1.2 berikut disusun secara independen dengan **link address satu oktet bernilai 1**. Tidak ada ASDU. Pengirim meminta status link (primary function 9), bukan Class 1 maupun GI.",
+            "Checksum penjumlahan mencakup oktet kontrol dan address, kemudian modulo 256. Pemeriksaan dilakukan sebelum menafsirkan layanan."
+          ],
+          "bulletsEn": [
+            "Decode 0x10 start, 0x49 control, 0x01 link address, 0x4A checksum and 0x16 end.",
+            "0x49 has PRM=1, FC=9; do not confuse it with a reset or a class poll."
+          ],
+          "bulletsId": [
+            "Decode 0x10 start, 0x49 kontrol, 0x01 link address, 0x4A checksum dan 0x16 end.",
+            "0x49 berarti PRM=1, FC=9; jangan salah menganggapnya reset atau class poll."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-fixed",
+            "wireHex": "10 49 01 4A 16",
+            "expectedValid": true,
+            "expectedFields": {
+              "control": 73,
+              "address": 1,
+              "function": 9,
+              "primary": true
+            },
+            "scenarioEn": "A serial tap reports one complete fixed frame from master TX.",
+            "scenarioId": "Tap serial mencatat frame fixed lengkap dari TX master.",
+            "stepsEn": [
+              "Five octets total; link address width is one octet.",
+              "0x49 + 0x01 = 0x4A, so FT1.2 checksum matches."
+            ],
+            "stepsId": [
+              "Total lima oktet; panjang link address satu oktet.",
+              "0x49 + 0x01 = 0x4A, sehingga checksum FT1.2 cocok."
+            ],
+            "questionEn": "Is the RTU expected to answer with measurement ASDUs?",
+            "questionId": "Haruskah RTU membalas dengan ASDU pengukuran?",
+            "answerEn": "No. This is primary link-status FC9. Expect a permitted secondary link-status response such as FC11, subject to profile and actual link state.",
+            "answerId": "Tidak. Ini link-status FC9 dari primary. Yang diharapkan respons status link secondary seperti FC11 sesuai profil dan kondisi link yang benar."
+          },
+          "number": "4.1",
+          "id": "learn-lab-101-s1"
+        },
+        {
+          "headingEn": "Secondary link-status response",
+          "headingId": "Respons link-status secondary",
+          "paragraphsEn": [
+            "A valid status response can be a complete fixed FT1.2 frame. Decoding the direction and secondary function is necessary: a positive status response cannot be inferred from a packet count or from an uncorrelated single byte.",
+            "This constructed example keeps the same one-octet station address. It is a separate response frame, not a combined multi-frame telegram."
+          ],
+          "paragraphsId": [
+            "Respons status link valid dapat berupa frame fixed FT1.2 lengkap. Arah dan fungsi secondary harus di-decode: keberhasilan status tidak bisa ditebak dari jumlah packet atau satu byte tanpa korelasi.",
+            "Contoh ini memakai address stasiun satu oktet yang sama. Ini frame respons tersendiri, bukan telegram gabungan beberapa frame."
+          ],
+          "bulletsEn": [
+            "PRM=0 identifies a secondary response in the selected unbalanced procedure.",
+            "Secondary FC11 is link-status/access-demand context, not application ACTCON."
+          ],
+          "bulletsId": [
+            "PRM=0 menandai respons secondary pada prosedur unbalanced yang dipilih.",
+            "Secondary FC11 menunjukkan konteks status link/access-demand, bukan ACTCON aplikasi."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-fixed",
+            "wireHex": "10 0B 01 0C 16",
+            "expectedValid": true,
+            "expectedFields": {
+              "control": 11,
+              "address": 1,
+              "function": 11,
+              "primary": false
+            },
+            "scenarioEn": "RTU answers a preceding valid link-status request.",
+            "scenarioId": "RTU menjawab request link-status yang valid.",
+            "stepsEn": [
+              "0x0B + 0x01 = 0x0C checksum.",
+              "No ASDU: the result establishes only link-service evidence."
+            ],
+            "stepsId": [
+              "0x0B + 0x01 = 0x0C checksum.",
+              "Tidak ada ASDU: bukti ini hanya menetapkan layanan link."
+            ],
+            "questionEn": "Does this prove General Interrogation completed?",
+            "questionId": "Apakah ini membuktikan GI selesai?",
+            "answerEn": "No. A link-status reply contains no GI Type ID, COT, point image or completion evidence.",
+            "answerId": "Tidak. Respons link-status tidak berisi Type ID GI, COT, image point atau evidence penyelesaian GI."
+          },
+          "number": "4.2",
+          "id": "learn-lab-101-s2"
+        },
+        {
+          "headingEn": "Class 2 request and an empty buffer",
+          "headingId": "Request Class 2 dan buffer kosong",
+          "paragraphsEn": [
+            "A master in unbalanced operation normally requests background Class 2 data. Its request is a link-layer service with function code 11, not a spontaneous ASDU. In the example, FCV=1 and FCB=0; correct FCB evolution across repeated requests depends on established link state.",
+            "A valid secondary no-data FC9 is a normal outcome when nothing is queued. The master should continue the agreed scan and not report an RTU outage from an empty queue."
+          ],
+          "paragraphsId": [
+            "Master pada operasi unbalanced umumnya meminta data background Class 2. Request ini layanan lapisan link dengan function code 11, bukan ASDU spontan. Pada contoh, FCV=1 dan FCB=0; evolusi FCB pada request berikutnya bergantung state link yang sudah terbentuk.",
+            "No-data secondary FC9 yang valid merupakan hasil normal saat antrian kosong. Master seharusnya melanjutkan scan yang disepakati dan tidak menyatakan RTU gagal dari antrian kosong."
+          ],
+          "bulletsEn": [
+            "Verify the link was initialized before reasoning about FCB/FCV.",
+            "A no-data frame is different from silence or checksum failure."
+          ],
+          "bulletsId": [
+            "Pastikan link sudah diinisialisasi sebelum menilai FCB/FCV.",
+            "Frame no-data berbeda dari tidak ada respons maupun checksum rusak."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-fixed",
+            "wireHex": "10 5B 01 5C 16",
+            "expectedValid": true,
+            "expectedFields": {
+              "control": 91,
+              "address": 1,
+              "function": 11,
+              "primary": true
+            },
+            "scenarioEn": "A master sends one Class 2 request after proper link initialization.",
+            "scenarioId": "Master mengirim satu request Class 2 setelah inisialisasi link benar.",
+            "stepsEn": [
+              "0x5B = PRM + FCV + primary FC11 (Class 2 request).",
+              "0x5B + 0x01 = 0x5C checksum."
+            ],
+            "stepsId": [
+              "0x5B = PRM + FCV + primary FC11 (request Class 2).",
+              "0x5B + 0x01 = 0x5C checksum."
+            ],
+            "questionEn": "If the RTU has no Class 2 data, is lack of an event necessarily a fault?",
+            "questionId": "Jika RTU tidak memiliki data Class 2, apakah tidak adanya event selalu fault?",
+            "answerEn": "No. A permitted no-data response is healthy. Investigate no response, malformed bytes, or wrongly persistent ACD independently.",
+            "answerId": "Tidak. Respons no-data yang diperbolehkan menunjukkan kondisi sehat. Selidiki tidak adanya respons, byte rusak, atau ACD menetap secara terpisah."
+          },
+          "number": "4.3",
+          "id": "learn-lab-101-s3"
+        },
+        {
+          "headingEn": "A single-byte E5 must stay context-sensitive",
+          "headingId": "Byte tunggal E5 harus tetap kontekstual",
+          "paragraphsEn": [
+            "A lone 0xE5 carries no link address, ACD/DFC or function-code field. In IEC 101 procedures where a short response is permitted, the same raw byte can stand for a positive link acknowledgement or an empty Class 1/Class 2 response, depending on the uniquely matched outstanding request.",
+            "A link-status FC9 service expects a proper status answer and must not be certified by an uncorrelated E5. This exercise proves byte recognition, **not** the semantic role of E5 without context."
+          ],
+          "paragraphsId": [
+            "Byte tunggal 0xE5 tidak memuat link address, ACD/DFC maupun field function code. Pada prosedur IEC 101 yang mengizinkan short response, byte mentah yang sama dapat mewakili ACK link positif atau respons Class 1/Class 2 kosong, sesuai request tertunda yang unik dan cocok.",
+            "Layanan link-status FC9 mengharapkan respons status yang tepat dan tidak boleh dinyatakan berhasil dari E5 tanpa korelasi. Latihan ini membuktikan pengenalan byte, **bukan** makna E5 tanpa konteks."
+          ],
+          "bulletsEn": [
+            "Keep the raw label E5; inferred function must be clearly marked as inferred.",
+            "Never fabricate an address or ACD=0 inside a byte that has no such fields."
+          ],
+          "bulletsId": [
+            "Pertahankan label raw E5; function hasil korelasi harus ditandai inferred.",
+            "Jangan mengarang address atau ACD=0 dalam byte yang tidak memuat field tersebut."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-single",
+            "wireHex": "E5",
+            "expectedValid": true,
+            "expectedFields": {
+              "shortKind": "context-dependent"
+            },
+            "scenarioEn": "Only one octet is observed, without a matching request in this capture.",
+            "scenarioId": "Hanya satu oktet terlihat, tanpa request pendamping pada capture ini.",
+            "stepsEn": [
+              "Valid short response byte under applicable IEC101 procedure.",
+              "The request, address, ACD and whether it was ACK/no-data are unobserved."
+            ],
+            "stepsId": [
+              "Byte short response valid sesuai prosedur IEC101 yang berlaku.",
+              "Request, address, ACD serta apakah ACK/no-data tidak teramati."
+            ],
+            "questionEn": "Can ArSee label this as confirmed Class 1 no-data with ACD=0?",
+            "questionId": "Bolehkah ArSee menyebutnya Class 1 no-data terkonfirmasi dengan ACD=0?",
+            "answerEn": "No. The raw byte has no function/address/ACD fields. Correlation to an outstanding compatible poll is needed; otherwise label semantic outcome unknown.",
+            "answerId": "Tidak. Byte mentah ini tidak memiliki field function/address/ACD. Dibutuhkan korelasi request poll kompatibel yang unik; tanpa itu makna semantik unknown."
+          },
+          "number": "4.4",
+          "id": "learn-lab-101-s4"
+        },
+        {
+          "headingEn": "Bad checksum versus invalid one-byte A2",
+          "headingId": "Checksum salah versus byte A2 yang tidak sah",
+          "paragraphsEn": [
+            "This example differs from the first fixed frame by one checksum bit. The frame is structurally shaped like FT1.2 but **invalid**; do not trust any parsed function as a valid transaction response. A solitary 0xA2 must likewise not be accepted as a valid IEC 101 short NACK merely because another serial convention uses that value.",
+            "The useful question is which layer failed: byte integrity, application support, or missing capture context."
+          ],
+          "paragraphsId": [
+            "Contoh ini berbeda dari frame fixed pertama hanya pada satu bit checksum. Bentuknya menyerupai FT1.2 namun **tidak valid**; jangan mempercayai function hasil decode sebagai transaksi valid. Byte tunggal 0xA2 juga tidak boleh dianggap short NACK IEC 101 yang sah hanya karena konvensi serial lain memakai nilainya.",
+            "Pertanyaan utama adalah layer apa yang gagal: integritas byte, dukungan aplikasi, atau konteks capture yang belum lengkap."
+          ],
+          "bulletsEn": [
+            "0x49 + 0x01 gives 0x4A, not 0x4B.",
+            "Do not treat invalid bytes as a positive FAT proof."
+          ],
+          "bulletsId": [
+            "0x49 + 0x01 menghasilkan 0x4A, bukan 0x4B.",
+            "Jangan gunakan byte tidak valid sebagai FAT proof positif."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-fixed",
+            "wireHex": "10 49 01 4B 16",
+            "expectedValid": false,
+            "expectedFields": {
+              "failure": "checksum"
+            },
+            "scenarioEn": "Serial capture includes a damaged checksum in an otherwise fixed-looking request.",
+            "scenarioId": "Capture serial memuat checksum rusak pada request yang tampak fixed.",
+            "stepsEn": [
+              "Visible start/end and station address do not override checksum failure.",
+              "Retain original bytes and report invalid integrity first."
+            ],
+            "stepsId": [
+              "Start/end serta address yang terlihat tidak menghapus kegagalan checksum.",
+              "Pertahankan byte asli dan laporkan integritas tidak valid terlebih dahulu."
+            ],
+            "questionEn": "Should this be counted as a successful link-status request?",
+            "questionId": "Haruskah ini dihitung sebagai request link-status yang sukses?",
+            "answerEn": "No. It is a corrupted frame. A permissive-looking control field is not enough to claim an accepted link service.",
+            "answerId": "Tidak. Frame ini rusak. Control field yang tampak wajar tidak cukup untuk mengklaim layanan link diterima."
+          },
+          "number": "4.5",
+          "id": "learn-lab-101-s5"
+        }
+      ],
+      "number": "04"
+    },
+    {
       "key": "learn-iec103",
       "categoryEn": "Engineering handbook",
       "categoryId": "Buku belajar engineer",
@@ -454,7 +709,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s1",
-          "number": "4.1"
+          "number": "5.1"
         },
         {
           "headingEn": "How a relay should answer a serial master",
@@ -480,7 +735,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s2",
-          "number": "4.2"
+          "number": "5.2"
         },
         {
           "headingEn": "Relaying event evidence into SCADA",
@@ -506,7 +761,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s3",
-          "number": "4.3"
+          "number": "5.3"
         },
         {
           "headingEn": "Relay events are not ordinary RTU points",
@@ -532,7 +787,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s4",
-          "number": "4.4"
+          "number": "5.4"
         },
         {
           "headingEn": "No event while relay values can be read",
@@ -558,13 +813,210 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s5",
-          "number": "4.5"
+          "number": "5.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/3745"
       ],
-      "number": "04"
+      "number": "05"
+    },
+    {
+      "key": "learn-lab-103",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Trace lab · IEC 103",
+      "titleId": "Laboratorium trace · IEC 103",
+      "summaryEn": "Relay link proof, trip versus breaker feedback, FUN/INF and report-path gaps.",
+      "summaryId": "Bukti link relay, trip versus feedback breaker, FUN/INF dan gap jalur report.",
+      "searchText": "103 lab protection relay fun inf mapping breaker gateway",
+      "sources": [
+        "https://webstore.iec.ch/en/publication/3745"
+      ],
+      "sections": [
+        {
+          "headingEn": "Physical serial link is a separate proof",
+          "headingId": "Bukti link serial terpisah dari bukti aplikasi",
+          "paragraphsEn": [
+            "IEC 103 can use FT1.2 link frames similar in shape to IEC 101. A status exchange proves communication at the link layer; it does not establish which protection event, FUN/INF, disturbance record or generic service a relay supports.",
+            "Use the relay's declared compatibility profile to interpret its application object model. Do not reuse an IEC 101 CA/IOA mapping for an IEC 103 function-information identifier."
+          ],
+          "paragraphsId": [
+            "IEC 103 dapat memakai frame link FT1.2 yang bentuknya serupa IEC 101. Pertukaran status membuktikan komunikasi di lapisan link; belum menetapkan event proteksi, FUN/INF, disturbance record, atau generic service apa yang didukung relay.",
+            "Gunakan profil kompatibilitas relay untuk menafsirkan model objek aplikasi. Jangan memakai mapping CA/IOA IEC 101 sebagai pengganti identitas function-information IEC 103."
+          ],
+          "bulletsEn": [
+            "Primary FC9 requests status, not disturbance values.",
+            "Correlate secondary link responses to the correct relay address and capture direction."
+          ],
+          "bulletsId": [
+            "Primary FC9 meminta status, bukan nilai disturbance.",
+            "Korelasikan respons link secondary dengan address relay dan arah capture yang tepat."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec101-fixed",
+            "wireHex": "10 49 01 4A 16",
+            "expectedValid": true,
+            "expectedFields": {
+              "control": 73,
+              "address": 1,
+              "function": 9,
+              "primary": true
+            },
+            "scenarioEn": "The same physical FT1.2 envelope is observed on an IEC103-configured circuit.",
+            "scenarioId": "Envelope FT1.2 yang sama teramati pada jalur yang dikonfigurasi IEC103.",
+            "stepsEn": [
+              "The bytes identify a fixed link-status request to address 1.",
+              "They do not identify IEC103 FUN/INF or a relay event."
+            ],
+            "stepsId": [
+              "Byte menunjukkan request status link fixed ke address 1.",
+              "Byte tidak menunjukkan FUN/INF IEC103 atau event relay."
+            ],
+            "questionEn": "Can this frame alone prove a protection trip report?",
+            "questionId": "Dapatkah frame ini sendiri membuktikan laporan trip proteksi?",
+            "answerEn": "No. No application ASDU exists in this fixed frame. Only link integrity and context can be inferred.",
+            "answerId": "Tidak. Tidak ada ASDU aplikasi dalam frame fixed ini. Hanya integritas link dan konteks yang dapat dinilai."
+          },
+          "number": "6.1",
+          "id": "learn-lab-103-s1"
+        },
+        {
+          "headingEn": "Relay trip event versus breaker position",
+          "headingId": "Event trip relay versus posisi breaker",
+          "paragraphsEn": [
+            "Protection function start, pickup or trip indications may precede or differ from physical breaker auxiliary-contact position. The presence of a correctly decoded relay event does not prove that a breaker opened.",
+            "In a controlled FAT simulator, exercise a relay event and then independently verify the breaker-position feedback that the gateway maps to the SCADA point."
+          ],
+          "paragraphsId": [
+            "Indikasi start, pickup atau trip fungsi proteksi dapat lebih dahulu atau berbeda dari posisi kontak bantu breaker fisik. Event relay yang berhasil di-decode tidak membuktikan breaker telah membuka.",
+            "Dalam simulator FAT terkontrol, uji event relay lalu verifikasi feedback posisi breaker secara terpisah yang dimapping gateway ke point SCADA."
+          ],
+          "bulletsEn": [
+            "Record FUN/INF, relay event time, source and quality.",
+            "Separately record mapped breaker position, gateway translation, outbound IEC104 IOA and COT."
+          ],
+          "bulletsId": [
+            "Catat FUN/INF, waktu event relay, sumber dan kualitas.",
+            "Catat terpisah posisi breaker terpetakan, konversi gateway, IOA IEC104 keluar dan COT."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "An IEC103 relay indicates a trip-start event; no breaker-position change is captured.",
+            "scenarioId": "Relay IEC103 menunjukkan event awal trip; perubahan posisi breaker tidak tertangkap.",
+            "stepsEn": [
+              "The event is observed at the protection-function level.",
+              "The physical action is not observed and cannot be assumed."
+            ],
+            "stepsId": [
+              "Event teramati pada level fungsi proteksi.",
+              "Aksi fisik tidak teramati dan tidak boleh diasumsikan."
+            ],
+            "questionEn": "What is the correct FAT verdict for breaker operation?",
+            "questionId": "Apa verdict FAT yang tepat untuk operasi breaker?",
+            "answerEn": "Trip event observed; breaker operation not proven. Add independent auxiliary-contact feedback before marking a physical state change.",
+            "answerId": "Event trip teramati; operasi breaker belum terbukti. Tambahkan feedback kontak bantu independen sebelum menandai perubahan status fisik."
+          },
+          "number": "6.2",
+          "id": "learn-lab-103-s2"
+        },
+        {
+          "headingEn": "FUN/INF mapping cannot be invented",
+          "headingId": "Mapping FUN/INF tidak boleh dikarang",
+          "paragraphsEn": [
+            "When a protection relay emits a device-specific or generic data event, the field analyzer must preserve its raw FUN/INF and declare the mapping source. Guessing the human-readable name from another relay model makes an apparently readable but unsafe report.",
+            "If the event cannot be decoded confidently, record the raw ASDU, affected link, elapsed capture time and interoperability document required."
+          ],
+          "paragraphsId": [
+            "Saat relay proteksi mengirim event data generik atau spesifik perangkat, analyzer harus mempertahankan FUN/INF mentah serta sumber mapping. Menebak nama sinyal dari model relay berbeda menghasilkan laporan yang tampak terbaca namun tidak aman.",
+            "Jika event belum dapat di-decode secara yakin, catat ASDU raw, link terkait, waktu capture dan dokumen interoperability yang diperlukan."
+          ],
+          "bulletsEn": [
+            "A decoded numerical FUN/INF is not automatically a supported semantic label.",
+            "Use manufacturer/project-approved data points to complete translation."
+          ],
+          "bulletsId": [
+            "FUN/INF numerik yang berhasil di-decode belum otomatis memiliki label semantik yang didukung.",
+            "Gunakan data point yang disetujui produsen/proyek untuk melengkapi terjemahan."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "An unknown FUN/INF appears in an otherwise valid IEC103 ASDU.",
+            "scenarioId": "FUN/INF tidak dikenal muncul dalam ASDU IEC103 yang secara struktur valid.",
+            "stepsEn": [
+              "Validity of the transfer and validity of the label are separate results.",
+              "Preserve the unknown identifier, never replace it with a plausible point name."
+            ],
+            "stepsId": [
+              "Validitas transfer dan validitas nama sinyal merupakan hasil berbeda.",
+              "Simpan identitas yang belum dikenal, jangan menggantinya dengan nama point yang sekadar tampak masuk akal."
+            ],
+            "questionEn": "Should the engineer force it into a known breaker signal?",
+            "questionId": "Haruskah engineer memaksanya menjadi sinyal breaker yang dikenal?",
+            "answerEn": "No. Classify as valid transport/application envelope with unverified point semantics; obtain the approved relay profile.",
+            "answerId": "Tidak. Klasifikasikan envelope transport/aplikasi valid dengan semantik point belum terverifikasi; dapatkan profil relay resmi."
+          },
+          "number": "6.3",
+          "id": "learn-lab-103-s3"
+        },
+        {
+          "headingEn": "IEC103 to IEC104 report gap exercise",
+          "headingId": "Latihan gap report IEC103 menuju IEC104",
+          "paragraphsEn": [
+            "An activity monitor shows an IEC103 source change, but the IEC104 SCADA receives no spontaneous ASDU. Check the relay ASDU, gateway ingestion, mapping to outgoing CA/IOA, event queue, COT selection and IEC104 active data-transfer state.",
+            "A successful IEC104 GI after a manual refresh could reflect a current snapshot, not delivery of the missing event."
+          ],
+          "paragraphsId": [
+            "Activity monitor menunjukkan perubahan sumber IEC103, tetapi SCADA IEC104 tidak menerima ASDU spontan. Periksa ASDU relay, ingestion gateway, mapping CA/IOA keluar, antrian event, pemilihan COT dan status transfer data aktif IEC104.",
+            "GI IEC104 yang berhasil sesudah refresh manual bisa hanya mencerminkan snapshot terbaru, bukan pengiriman event yang hilang."
+          ],
+          "bulletsEn": [
+            "Capture both source and outgoing gateway traces in the same time window.",
+            "Don't treat successful read-only data updates as reporting proof."
+          ],
+          "bulletsId": [
+            "Capture trace sumber dan keluaran gateway pada interval sama.",
+            "Jangan menganggap pembaruan data read-only sukses sebagai bukti reporting."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "The source event is observed, but only an IEC104 GI response appears downstream.",
+            "scenarioId": "Event sumber terlihat, tetapi hanya respons GI IEC104 yang muncul pada sisi hilir.",
+            "stepsEn": [
+              "Source state changed; outgoing spontaneous event is not observed.",
+              "Investigate event generation and ownership before changing unrelated TCP timers."
+            ],
+            "stepsId": [
+              "State sumber berubah; event spontan keluar tidak teramati.",
+              "Selidiki pembentukan event dan ownership sebelum mengubah timer TCP tak terkait."
+            ],
+            "questionEn": "Is spontaneous reporting verified?",
+            "questionId": "Apakah spontaneous reporting terverifikasi?",
+            "answerEn": "No. GI snapshot and spontaneous events exercise different delivery paths. Mark reporting not proven.",
+            "answerId": "Tidak. Snapshot GI dan event spontan melewati jalur delivery berbeda. Tandai reporting belum terbukti."
+          },
+          "number": "6.4",
+          "id": "learn-lab-103-s4"
+        }
+      ],
+      "number": "06"
     },
     {
       "key": "learn-iec104",
@@ -608,7 +1060,7 @@
             "Idle → TESTFR act / TESTFR con (sesuai konfigurasi)"
           ],
           "id": "learn-iec104-s1",
-          "number": "5.1"
+          "number": "7.1"
         },
         {
           "headingEn": "How a server should send data",
@@ -634,7 +1086,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s2",
-          "number": "5.2"
+          "number": "7.2"
         },
         {
           "headingEn": "Commands, timeouts and reconnect",
@@ -660,7 +1112,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s3",
-          "number": "5.3"
+          "number": "7.3"
         },
         {
           "headingEn": "Sequence counters and acknowledgements",
@@ -686,7 +1138,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s4",
-          "number": "5.4"
+          "number": "7.4"
         },
         {
           "headingEn": "Spontaneous reporting and GI coexist",
@@ -720,14 +1172,367 @@
             "Perubahan proses independen → ASDU spontan dengan COT sesuai"
           ],
           "id": "learn-iec104-s5",
-          "number": "5.5"
+          "number": "7.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/25035",
         "https://webstore.iec.ch/en/publication/87194"
       ],
-      "number": "05"
+      "number": "07"
+    },
+    {
+      "key": "learn-lab-104",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Trace lab · IEC 104",
+      "titleId": "Laboratorium trace · IEC 104",
+      "summaryEn": "Seven checked APCI/ASDU exercises: STARTDT, GI, ACTCON, spontaneous, S-frame and malformed U.",
+      "summaryId": "Tujuh latihan APCI/ASDU: STARTDT, GI, ACTCON, spontan, S-frame dan U-frame rusak.",
+      "searchText": "104 lab tcp apci ns nr startdt gi cot type 100 spontaneous iframe sframe",
+      "sources": [
+        "https://infosys.beckhoff.com/content/1033/tf6500_tc3_iec60870_5_10x/984444939.html"
+      ],
+      "sections": [
+        {
+          "headingEn": "TCP connected is not STARTDT active",
+          "headingId": "TCP tersambung bukan berarti STARTDT aktif",
+          "paragraphsEn": [
+            "This six-octet IEC104 U-frame requests activation of application data transfer. It is not an ASDU and carries no point address, command Type ID or sequence N(S). TCP establishment alone cannot replace this handshake in the profile.",
+            "For U-frames, the declared APDU length is 4 because only four control octets follow 0x68 0x04."
+          ],
+          "paragraphsId": [
+            "U-frame IEC104 enam oktet ini meminta aktivasi transfer data aplikasi. Ini bukan ASDU dan tidak membawa point address, Type ID command atau sequence N(S). TCP terhubung saja tidak menggantikan handshake ini pada profil.",
+            "Pada U-frame, panjang APDU bernilai 4 karena hanya ada empat oktet kontrol sesudah 0x68 0x04."
+          ],
+          "bulletsEn": [
+            "0x07 means STARTDT activation with zero reserved control octets.",
+            "Check that the correct peer returns the permitted STARTDT confirmation."
+          ],
+          "bulletsId": [
+            "0x07 berarti aktivasi STARTDT dengan control reserved nol.",
+            "Periksa peer yang tepat mengirim konfirmasi STARTDT yang diizinkan."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-u",
+            "wireHex": "68 04 07 00 00 00",
+            "expectedValid": true,
+            "expectedFields": {
+              "command": "STARTDT act"
+            },
+            "scenarioEn": "IEC104 client has established TCP and asks the server to enable data transfer.",
+            "scenarioId": "Client IEC104 telah membentuk TCP dan meminta server mengaktifkan transfer data.",
+            "stepsEn": [
+              "0x68 start; 0x04 means four control octets.",
+              "0x07 identifies the U-control function STARTDT act."
+            ],
+            "stepsId": [
+              "0x68 start; 0x04 berarti empat oktet kontrol.",
+              "0x07 menandai fungsi kontrol U STARTDT act."
+            ],
+            "questionEn": "Are process ASDUs already proven to be flowing?",
+            "questionId": "Apakah ASDU proses sudah terbukti mengalir?",
+            "answerEn": "No. This is only an activation request. Confirm STARTDT con, then verify actual I-frame process data.",
+            "answerId": "Belum. Ini hanya request aktivasi. Verifikasi STARTDT con, lalu data proses I-frame yang benar-benar dikirim."
+          },
+          "number": "8.1",
+          "id": "learn-lab-104-s1"
+        },
+        {
+          "headingEn": "Server confirms the new active session",
+          "headingId": "Server mengonfirmasi session aktif baru",
+          "paragraphsEn": [
+            "STARTDT con is a separate U-frame from the receiving station. It acknowledges the transfer activation request, not the content of any GI or physical command.",
+            "Only after the permitted handshake may the chosen frontend be treated as data-transfer active, subject to the device's approved connection-ownership policy."
+          ],
+          "paragraphsId": [
+            "STARTDT con adalah U-frame terpisah dari stasiun penerima. Ini mengakui request aktivasi transfer, bukan isi GI maupun command fisik.",
+            "Hanya sesudah handshake yang diizinkan frontend diperlakukan aktif untuk transfer data, sesuai kebijakan ownership koneksi perangkat yang disetujui."
+          ],
+          "bulletsEn": [
+            "The control byte 0x0B corresponds to STARTDT con.",
+            "Do not copy APCI sequence counters from an old TCP socket after reconnect."
+          ],
+          "bulletsId": [
+            "Byte kontrol 0x0B berarti STARTDT con.",
+            "Jangan menyalin counter sequence APCI socket TCP lama setelah reconnect."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-u",
+            "wireHex": "68 04 0B 00 00 00",
+            "expectedValid": true,
+            "expectedFields": {
+              "command": "STARTDT con"
+            },
+            "scenarioEn": "The server responds to STARTDT activation on the same TCP association.",
+            "scenarioId": "Server merespons aktivasi STARTDT pada asosiasi TCP yang sama.",
+            "stepsEn": [
+              "U-format, length=4, reserved octets are all zero.",
+              "STARTDT con confirms session transfer state, not GI completion."
+            ],
+            "stepsId": [
+              "U-format, panjang=4, oktet reserved seluruhnya nol.",
+              "STARTDT con mengonfirmasi state transfer session, bukan GI selesai."
+            ],
+            "questionEn": "Should this single frame mark the current Values image as refreshed?",
+            "questionId": "Bolehkah satu frame ini membuat Values dianggap sudah refreshed?",
+            "answerEn": "No. Fresh process values require relevant ASDUs, for example an accepted GI lifecycle or new spontaneous updates.",
+            "answerId": "Tidak. Values baru membutuhkan ASDU relevan, misalnya GI lifecycle yang diterima atau update spontan baru."
+          },
+          "number": "8.2",
+          "id": "learn-lab-104-s2"
+        },
+        {
+          "headingEn": "A full IEC104 General Interrogation I-frame",
+          "headingId": "I-frame General Interrogation IEC104 lengkap",
+          "paragraphsEn": [
+            "This independently assembled APDU has 4 APCI control octets plus a 10-octet C_IC_NA_1 application command. N(S)=0, N(R)=0; Type ID=100 (0x64), VSQ=1, COT=6 activation, originator=0, CA=1, IOA=0 and QOI=20 station interrogation.",
+            "The example assumes the usual IEC104 COT=2, CA=2 and IOA=3 octet application layout. It proves a valid activation telegram, not successful acceptance or completion."
+          ],
+          "paragraphsId": [
+            "APDU yang disusun independen ini berisi 4 oktet kontrol APCI dan command C_IC_NA_1 10 oktet. N(S)=0, N(R)=0; Type ID=100 (0x64), VSQ=1, COT=6 aktivasi, originator=0, CA=1, IOA=0 dan QOI=20 GI stasiun.",
+            "Contoh mengasumsikan layout aplikasi IEC104 COT=2, CA=2 serta IOA=3 oktet. Ini membuktikan telegram aktivasi valid, bukan penerimaan ataupun penyelesaian sukses."
+          ],
+          "bulletsEn": [
+            "Read 0x0E length = 4 APCI + 10 ASDU.",
+            "Never call a transmit-only GI request a finished image refresh."
+          ],
+          "bulletsId": [
+            "Baca panjang 0x0E = 4 APCI + 10 ASDU.",
+            "Jangan menyebut request GI yang baru TX sebagai refresh image selesai."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-i",
+            "wireHex": "68 0E 00 00 00 00 64 01 06 00 01 00 00 00 00 14",
+            "expectedValid": true,
+            "expectedFields": {
+              "ns": 0,
+              "nr": 0,
+              "typeId": 100,
+              "cot": 6,
+              "ca": 1,
+              "ioa": 0
+            },
+            "scenarioEn": "A master sends station GI once STARTDT has completed.",
+            "scenarioId": "Master mengirim GI stasiun sesudah STARTDT selesai.",
+            "stepsEn": [
+              "APCI N(S)=0, N(R)=0; Type=100, COT=6.",
+              "0x14 is QOI=20, station interrogation."
+            ],
+            "stepsId": [
+              "APCI N(S)=0, N(R)=0; Type=100, COT=6.",
+              "0x14 berarti QOI=20, interrogation stasiun."
+            ],
+            "questionEn": "Is a positive ACTCON and image data already present in this APDU?",
+            "questionId": "Apakah ACTCON positif serta data image sudah ada di APDU ini?",
+            "answerEn": "No. This is the initiating command. Analyze later server I-frames separately.",
+            "answerId": "Belum. Ini perintah pemicu. Analisis I-frame server berikutnya secara terpisah."
+          },
+          "number": "8.3",
+          "id": "learn-lab-104-s3"
+        },
+        {
+          "headingEn": "GI ACTCON is acceptance, not completion",
+          "headingId": "ACTCON GI adalah penerimaan, bukan penyelesaian",
+          "paragraphsEn": [
+            "A server can confirm activation with COT=7. This response also acknowledges receipt progression through N(R)=1; protocol sequence acknowledgment and application ACTCON must be kept separate in a report.",
+            "Do not mark a requested GI group fully populated until all relevant data and applicable completion evidence are accounted for."
+          ],
+          "paragraphsId": [
+            "Server dapat mengonfirmasi aktivasi dengan COT=7. Respons ini juga menunjukkan perkembangan acknowledgement melalui N(R)=1; ACK sequence protokol dan ACTCON aplikasi harus dipisahkan dalam laporan.",
+            "Jangan menyatakan grup GI penuh sebelum seluruh data relevan dan evidence penyelesaian yang berlaku terhitung."
+          ],
+          "bulletsEn": [
+            "Server N(S)=0; its N(R)=1 acknowledges the master's first I-frame.",
+            "COT=7 is activation confirmation for the GI command."
+          ],
+          "bulletsId": [
+            "N(S) server=0; N(R)=1 mengakui I-frame pertama master.",
+            "COT=7 adalah activation confirmation command GI."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-i",
+            "wireHex": "68 0E 00 00 02 00 64 01 07 00 01 00 00 00 00 14",
+            "expectedValid": true,
+            "expectedFields": {
+              "ns": 0,
+              "nr": 1,
+              "typeId": 100,
+              "cot": 7,
+              "ca": 1,
+              "ioa": 0
+            },
+            "scenarioEn": "An RTU confirms the previously sent C_IC_NA_1 GI activation.",
+            "scenarioId": "RTU mengonfirmasi aktivasi GI C_IC_NA_1 yang sebelumnya dikirim.",
+            "stepsEn": [
+              "The I-frame carries Type=100 and COT=7.",
+              "CA/IOA and QOI are the same as in the related GI request."
+            ],
+            "stepsId": [
+              "I-frame membawa Type=100 dan COT=7.",
+              "CA/IOA dan QOI sama dengan request GI yang terkait."
+            ],
+            "questionEn": "Can the master stop waiting for process data now?",
+            "questionId": "Bolehkah master berhenti menunggu data proses sekarang?",
+            "answerEn": "No. ACTCON confirms activation only; track returned information ASDUs and final applicable termination evidence.",
+            "answerId": "Tidak. ACTCON hanya mengonfirmasi aktivasi; lanjutkan pencatatan ASDU informasi dan evidence terminasi yang berlaku."
+          },
+          "number": "8.4",
+          "id": "learn-lab-104-s4"
+        },
+        {
+          "headingEn": "Spontaneous single-point ASDU",
+          "headingId": "ASDU single-point spontan",
+          "paragraphsEn": [
+            "This example is an IEC104 server I-frame after the previous ACTCON. N(S)=1 and N(R)=1. The ASDU carries M_SP_NA_1, COT=3 (spontaneous), CA=1, IOA=1, SIQ=1 indicating SPI=1 with no quality flag asserted in this example.",
+            "The value must still be mapped through the project point list. A valid spontaneous ASDU does not imply a particular breaker name without an approved IOA mapping."
+          ],
+          "paragraphsId": [
+            "Contoh ini I-frame server IEC104 setelah ACTCON sebelumnya. N(S)=1 dan N(R)=1. ASDU membawa M_SP_NA_1, COT=3 (spontan), CA=1, IOA=1, SIQ=1 yang berarti SPI=1 tanpa quality flag disetel dalam contoh ini.",
+            "Nilai tetap harus dimapping melalui point list proyek. ASDU spontan valid belum berarti nama breaker tertentu tanpa mapping IOA yang disetujui."
+          ],
+          "bulletsEn": [
+            "A new COT=3 event is distinct from a GI snapshot transmission.",
+            "Check SIQ quality independently of the mapped signal label."
+          ],
+          "bulletsId": [
+            "Event baru COT=3 berbeda dari transmisi snapshot GI.",
+            "Periksa quality SIQ terpisah dari nama sinyal hasil mapping."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-i",
+            "wireHex": "68 0E 02 00 02 00 01 01 03 00 01 00 01 00 00 01",
+            "expectedValid": true,
+            "expectedFields": {
+              "ns": 1,
+              "nr": 1,
+              "typeId": 1,
+              "cot": 3,
+              "ca": 1,
+              "ioa": 1
+            },
+            "scenarioEn": "A process change is sent on an already active IEC104 data-transfer session.",
+            "scenarioId": "Perubahan proses dikirim pada session transfer data IEC104 yang sudah aktif.",
+            "stepsEn": [
+              "Type ID=1 (single point), COT=3, IOA=1.",
+              "SPI=1 here; not enough data to assign a human signal name."
+            ],
+            "stepsId": [
+              "Type ID=1 (single point), COT=3, IOA=1.",
+              "SPI=1 pada contoh ini; belum cukup untuk menetapkan nama sinyal manusia."
+            ],
+            "questionEn": "Does COT=3 turn this into GI completion?",
+            "questionId": "Apakah COT=3 mengubahnya menjadi GI selesai?",
+            "answerEn": "No. It is spontaneous event reporting. GI lifecycle must be tracked independently.",
+            "answerId": "Tidak. Ini pelaporan event spontan. GI lifecycle harus dipantau secara independen."
+          },
+          "number": "8.5",
+          "id": "learn-lab-104-s5"
+        },
+        {
+          "headingEn": "S-frame acknowledgement without ASDU",
+          "headingId": "Acknowledgement S-frame tanpa ASDU",
+          "paragraphsEn": [
+            "An IEC104 S-frame acknowledges received I-frame sequence progress. This example advertises N(R)=2 on one TCP association and carries no application ASDU; it cannot be used as a command ACTCON or process confirmation.",
+            "S-frame recognition requires all reserved control octets to be valid and a declared length of 4."
+          ],
+          "paragraphsId": [
+            "S-frame IEC104 mengakui kemajuan sequence I-frame yang diterima. Contoh ini menunjukkan N(R)=2 pada satu asosiasi TCP dan tidak membawa ASDU aplikasi; tidak boleh digunakan sebagai ACTCON command maupun konfirmasi proses.",
+            "Pengenalan S-frame memerlukan oktet kontrol reserved yang benar dan panjang yang dideklarasikan 4."
+          ],
+          "bulletsEn": [
+            "0x01 0x00 identifies S-format.",
+            "0x04 0x00 encodes N(R)=2 (shifted one bit)."
+          ],
+          "bulletsId": [
+            "0x01 0x00 menandai format S.",
+            "0x04 0x00 mengodekan N(R)=2 (geser satu bit)."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-s",
+            "wireHex": "68 04 01 00 04 00",
+            "expectedValid": true,
+            "expectedFields": {
+              "nr": 2
+            },
+            "scenarioEn": "The client acknowledges two server I-frames on the same connection.",
+            "scenarioId": "Client mengakui dua I-frame server pada koneksi yang sama.",
+            "stepsEn": [
+              "This is APCI flow control, not application control confirmation.",
+              "No CA, COT, IOA or process value exists in this frame."
+            ],
+            "stepsId": [
+              "Ini flow control APCI, bukan konfirmasi kontrol aplikasi.",
+              "Tidak ada CA, COT, IOA atau nilai proses dalam frame ini."
+            ],
+            "questionEn": "Does N(R)=2 prove the RTU executed a breaker command?",
+            "questionId": "Apakah N(R)=2 membuktikan RTU menjalankan command breaker?",
+            "answerEn": "No. Sequence acknowledgment cannot be promoted into physical-state evidence.",
+            "answerId": "Tidak. Acknowledgement sequence tidak dapat disamakan dengan evidence kondisi fisik."
+          },
+          "number": "8.6",
+          "id": "learn-lab-104-s6"
+        },
+        {
+          "headingEn": "Malformed U-frame reserved octet",
+          "headingId": "Oktet reserved U-frame tidak sah",
+          "paragraphsEn": [
+            "This six-byte frame has a nominal U-frame STARTDT act code, but one reserved control octet is nonzero. Structural validation must reject the APDU rather than treating it as a valid start handshake.",
+            "A robust analyzer should retain the exact bytes with a precise invalid reason. An invalid STARTDT con must not activate normal outgoing I-frame commands."
+          ],
+          "paragraphsId": [
+            "Frame enam byte ini memiliki kode STARTDT act U-frame yang tampak benar, tetapi satu oktet kontrol reserved tidak nol. Validasi struktur harus menolak APDU, bukan menganggapnya handshake yang sah.",
+            "Analyzer yang andal mempertahankan byte persis beserta alasan invalid. STARTDT con tidak valid tidak boleh mengaktifkan command I-frame keluar."
+          ],
+          "bulletsEn": [
+            "0x04 length is consistent with six bytes total.",
+            "0x01 in a reserved octet is not allowed for this U-frame."
+          ],
+          "bulletsId": [
+            "Panjang 0x04 sesuai dengan total enam byte.",
+            "0x01 pada oktet reserved tidak diizinkan untuk U-frame ini."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-u",
+            "wireHex": "68 04 07 01 00 00",
+            "expectedValid": false,
+            "expectedFields": {
+              "failure": "reserved-control"
+            },
+            "scenarioEn": "A seemingly plausible STARTDT frame arrives with a modified second control octet.",
+            "scenarioId": "Frame STARTDT yang tampak wajar datang dengan oktet kontrol kedua diubah.",
+            "stepsEn": [
+              "Start, length and primary U-function are not enough for acceptance.",
+              "Reject malformed APCI before declaring data-transfer active."
+            ],
+            "stepsId": [
+              "Start, length dan fungsi U utama belum cukup untuk menerima frame.",
+              "Tolak APCI rusak sebelum menyatakan transfer data aktif."
+            ],
+            "questionEn": "Is the data-transfer session now active?",
+            "questionId": "Apakah session transfer data sekarang aktif?",
+            "answerEn": "No. Reserved control octet invalidates the U-format APDU. Do not trust it as a STARTDT activation.",
+            "answerId": "Tidak. Oktet kontrol reserved membuat U-format APDU invalid. Jangan mempercayainya sebagai aktivasi STARTDT."
+          },
+          "number": "8.7",
+          "id": "learn-lab-104-s7"
+        }
+      ],
+      "number": "08"
     },
     {
       "key": "learn-lifecycle",
@@ -767,7 +1572,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s1",
-          "number": "6.1"
+          "number": "9.1"
         },
         {
           "headingEn": "SBO and direct-operate are different contracts",
@@ -791,7 +1596,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s2",
-          "number": "6.2"
+          "number": "9.2"
         },
         {
           "headingEn": "Synthetic command evidence timeline",
@@ -817,10 +1622,10 @@
             "Readback memastikan status aktual -> hasil terverifikasi"
           ],
           "id": "learn-lifecycle-s3",
-          "number": "6.3"
+          "number": "9.3"
         }
       ],
-      "number": "06"
+      "number": "09"
     },
     {
       "key": "learn-semantics",
@@ -856,7 +1661,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s1",
-          "number": "7.1"
+          "number": "10.1"
         },
         {
           "headingEn": "Quality and overflow are separate dimensions",
@@ -882,7 +1687,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s2",
-          "number": "7.2"
+          "number": "10.2"
         },
         {
           "headingEn": "Four different command outcomes",
@@ -908,7 +1713,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s3",
-          "number": "7.3"
+          "number": "10.3"
         },
         {
           "headingEn": "ASDU reading exercise: stop at the right layer",
@@ -934,14 +1739,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s4",
-          "number": "7.4"
+          "number": "10.4"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "07"
+      "number": "10"
     },
     {
       "key": "learn-gateways",
@@ -982,7 +1787,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s1",
-          "number": "8.1"
+          "number": "11.1"
         },
         {
           "headingEn": "Scaling and sign boundaries",
@@ -1006,7 +1811,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s2",
-          "number": "8.2"
+          "number": "11.2"
         },
         {
           "headingEn": "Diagnose a silent reporting chain",
@@ -1028,10 +1833,10 @@
             "SUMBER -> input gateway -> mapping -> antrian/COT -> TX ASDU IEC -> RX master"
           ],
           "id": "learn-gateways-s3",
-          "number": "8.3"
+          "number": "11.3"
         }
       ],
-      "number": "08"
+      "number": "11"
     },
     {
       "key": "learn-nuc",
@@ -1067,7 +1872,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s1",
-          "number": "9.1"
+          "number": "12.1"
         },
         {
           "headingEn": "NUC 101 polling, buffering and serial switch",
@@ -1093,7 +1898,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s2",
-          "number": "9.2"
+          "number": "12.2"
         },
         {
           "headingEn": "NUC 104 is a different topology",
@@ -1117,7 +1922,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s3",
-          "number": "9.3"
+          "number": "12.3"
         },
         {
           "headingEn": "NUC interoperability checklist before commissioning",
@@ -1143,14 +1948,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s4",
-          "number": "9.4"
+          "number": "12.4"
         }
       ],
       "sources": [
         "https://tekniskregelverk.banenor.no/tekniske-spesifikasjoner/kontaktledning/remote-terminal-unit/",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "09"
+      "number": "12"
     },
     {
       "key": "learn-redundancy",
@@ -1186,7 +1991,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s1",
-          "number": "10.1"
+          "number": "13.1"
         },
         {
           "headingEn": "Healthy IEC 101 A/B switchover example",
@@ -1222,7 +2027,7 @@
             "Bukti switch: owner A→B, RX valid pertama B, event terakhir terkonfirmasi"
           ],
           "id": "learn-redundancy-s2",
-          "number": "10.2"
+          "number": "13.2"
         },
         {
           "headingEn": "IEC 104 active frontend takeover",
@@ -1248,7 +2053,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s3",
-          "number": "10.3"
+          "number": "13.3"
         },
         {
           "headingEn": "Commissioning failover acceptance",
@@ -1276,7 +2081,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s4",
-          "number": "10.4"
+          "number": "13.4"
         },
         {
           "headingEn": "Do not split-brain the masters",
@@ -1302,7 +2107,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s5",
-          "number": "10.5"
+          "number": "13.5"
         },
         {
           "headingEn": "Switch boundary: what becomes unproven?",
@@ -1328,7 +2133,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s6",
-          "number": "10.6"
+          "number": "13.6"
         }
       ],
       "sources": [
@@ -1336,7 +2141,208 @@
         "https://webstore.iec.ch/en/publication/25035",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "10"
+      "number": "13"
+    },
+    {
+      "key": "learn-lab-redundancy",
+      "categoryEn": "Engineering handbook",
+      "categoryId": "Buku belajar engineer",
+      "titleEn": "Trace lab · redundancy",
+      "titleId": "Laboratorium trace · redundansi",
+      "summaryEn": "Four failure-boundary exercises: A/B ownership, IEC104 takeover, ambiguous control and event replay.",
+      "summaryId": "Empat latihan batas gangguan: ownership A/B, takeover IEC104, command ambigu dan event replay.",
+      "searchText": "redundancy lab failover standby ownership command replays",
+      "sources": [
+        "https://webstore.iec.ch/en/publication/23822",
+        "https://webstore.iec.ch/en/publication/25035"
+      ],
+      "sections": [
+        {
+          "headingEn": "IEC101 A/B standby is not a duplicate polling master",
+          "headingId": "Standby IEC101 A/B bukan master polling duplikat",
+          "paragraphsEn": [
+            "Consider a selected unbalanced active/standby arrangement: master sends Class 2 and bounded Class 1 requests to active link A, while link B receives only profile-permitted link-status supervision. An independent B Class 1 event drain is not implied by having two cables.",
+            "When A fails, choose B only after its health is proved, initialize B's independent link state and apply the explicitly approved post-switch GI policy."
+          ],
+          "paragraphsId": [
+            "Pada konfigurasi unbalanced active/standby yang dipilih: master mengirim Class 2 dan Class 1 terbatas pada link aktif A, sedangkan B hanya mendapat supervisi link-status yang diizinkan profil. Adanya dua kabel tidak berarti B juga melakukan drain Class 1 sendiri.",
+            "Ketika A gagal, pilih B setelah kesehatannya terbukti, inisialisasi state link B yang independen dan terapkan kebijakan GI pasca-switch yang disetujui eksplisit."
+          ],
+          "bulletsEn": [
+            "Capture primary/secondary direction separately for A and B.",
+            "No automatic global mandate for full GI after serial switchover."
+          ],
+          "bulletsId": [
+            "Capture arah primary/secondary terpisah untuk A dan B.",
+            "Tidak ada kewajiban GI penuh universal setelah switchover serial."
+          ],
+          "framesEn": [
+            "A active: Class2 + bounded Class1 | B: link-status supervision only",
+            "A fails -> prove B healthy -> reset/init B -> start approved traffic"
+          ],
+          "framesId": [
+            "A aktif: Class2 + Class1 terbatas | B: hanya supervisi link-status",
+            "A gagal -> buktikan B sehat -> reset/init B -> mulai traffic sesuai persetujuan"
+          ],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "A is polling Class 2; B periodically receives primary FC9 link-status requests.",
+            "scenarioId": "A melakukan polling Class 2; B secara periodik mendapat request link-status primary FC9.",
+            "stepsEn": [
+              "Status probes prove standby link liveness only.",
+              "Expect event drains and controls on the selected active owner."
+            ],
+            "stepsId": [
+              "Probe status hanya membuktikan liveness standby.",
+              "Drain event dan kontrol diharapkan pada owner aktif terpilih."
+            ],
+            "questionEn": "Is link B defective because it receives no Class 1 polling?",
+            "questionId": "Apakah link B rusak karena tidak menerima polling Class 1?",
+            "answerEn": "No. In this selected active/standby profile that is normal standby behavior. Diagnose against the approved contract, not a copied active scan.",
+            "answerId": "Tidak. Pada profil active/standby ini perilaku standby normal. Diagnosa berdasarkan kontrak yang disetujui, bukan salinan scan aktif."
+          },
+          "number": "14.1",
+          "id": "learn-lab-redundancy-s1"
+        },
+        {
+          "headingEn": "IEC104 frontend takeover needs new APCI state",
+          "headingId": "Takeover frontend IEC104 membutuhkan state APCI baru",
+          "paragraphsEn": [
+            "Some selected IEC104 redundancy policies require one application-active frontend among several TCP connections. A connected standby does not have the same STARTDT authority as the current owner.",
+            "When a new frontend becomes active, perform its own approved STARTDT exchange, establish independent N(S)/N(R), and refresh image data according to the project's GI policy. Never copy sequence numbers from the old socket."
+          ],
+          "paragraphsId": [
+            "Sebagian kebijakan redundansi IEC104 yang dipilih mengharuskan satu frontend aktif aplikasi di antara beberapa koneksi TCP. Standby yang tersambung belum memiliki kewenangan STARTDT seperti owner kini.",
+            "Saat frontend baru menjadi aktif, jalankan STARTDT yang disetujui pada koneksinya sendiri, bangun N(S)/N(R) independen, dan segarkan image sesuai kebijakan GI proyek. Jangan menyalin sequence socket lama."
+          ],
+          "bulletsEn": [
+            "Distinguish TCP connected, STARTDT confirmed, new process image complete.",
+            "Prevent both owners from issuing ambiguous duplicate commands."
+          ],
+          "bulletsId": [
+            "Bedakan TCP tersambung, STARTDT terkonfirmasi, image proses baru lengkap.",
+            "Cegah dua owner mengirim command duplikat ambigu."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "iec104-u",
+            "wireHex": "68 04 07 00 00 00",
+            "expectedValid": true,
+            "expectedFields": {
+              "command": "STARTDT act"
+            },
+            "scenarioEn": "Standby frontend B begins its permitted active transfer after A has been demoted.",
+            "scenarioId": "Frontend standby B memulai transfer aktif yang diizinkan setelah A diturunkan.",
+            "stepsEn": [
+              "New TCP B association has its own APCI state.",
+              "The U-frame requests activation but does not prove it was confirmed."
+            ],
+            "stepsId": [
+              "Asosiasi TCP B baru memiliki state APCI sendiri.",
+              "U-frame meminta aktivasi tetapi belum membuktikan konfirmasi."
+            ],
+            "questionEn": "Can N(S) from old frontend A be reused unchanged on B?",
+            "questionId": "Bolehkah N(S) dari frontend A lama dipakai begitu saja pada B?",
+            "answerEn": "No. IEC104 sequence accounting is per TCP association. Use the new session's independently validated state.",
+            "answerId": "Tidak. Akuntansi sequence IEC104 per asosiasi TCP. Gunakan state session baru yang tervalidasi independen."
+          },
+          "number": "14.2",
+          "id": "learn-lab-redundancy-s2"
+        },
+        {
+          "headingEn": "Unknown in-flight breaker command at the switch",
+          "headingId": "Command breaker in-flight saat switch berstatus unknown",
+          "paragraphsEn": [
+            "A command may reach the field device just before the active link drops, while ACTCON or fresh breaker feedback is lost. The correct outcome is **unknown**, not automatically success or failure.",
+            "After failover, the promoted owner must verify command authority and fresh independent feedback before allowing an operator to act. Automatic retransmission of a physical control solely because confirmation was not captured is unsafe."
+          ],
+          "paragraphsId": [
+            "Command dapat mencapai perangkat lapangan tepat sebelum link aktif jatuh, sementara ACTCON atau feedback breaker baru hilang. Hasil yang benar adalah **unknown**, bukan otomatis sukses atau gagal.",
+            "Sesudah failover, owner baru perlu memverifikasi otoritas command serta feedback independen terbaru sebelum operator dapat bertindak. Retransmit otomatis kontrol fisik hanya karena konfirmasi tidak tercapture merupakan tindakan tidak aman."
+          ],
+          "bulletsEn": [
+            "Record last TX before failure, confirmation boundaries and first RX on promoted link.",
+            "Reconcile actual field state separately from protocol ACKs."
+          ],
+          "bulletsId": [
+            "Catat TX terakhir sebelum gangguan, batas confirmation dan RX pertama pada link promosi.",
+            "Rekonsiliasi state lapangan aktual terpisah dari ACK protokol."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "TX command on A -> A lost -> no ACTCON captured -> B active -> status not yet read back.",
+            "scenarioId": "TX command pada A -> A hilang -> ACTCON tidak tertangkap -> B aktif -> status belum dibaca ulang.",
+            "stepsEn": [
+              "The missing ACTCON is not proof that the command never reached the RTU.",
+              "A second command could cause a duplicate physical operation."
+            ],
+            "stepsId": [
+              "ACTCON yang tidak tertangkap bukan bukti command tidak mencapai RTU.",
+              "Command kedua dapat menimbulkan aksi fisik duplikat."
+            ],
+            "questionEn": "May the master automatically retransmit the command on B?",
+            "questionId": "Bolehkah master otomatis mengirim ulang command di B?",
+            "answerEn": "No. Mark execution ambiguous and require state readback, permissions and operator-controlled recovery.",
+            "answerId": "Tidak. Tandai eksekusi ambigu dan wajibkan readback state, pemeriksaan izin serta recovery terkendali operator."
+          },
+          "number": "14.3",
+          "id": "learn-lab-redundancy-s3"
+        },
+        {
+          "headingEn": "How to prove event continuity at a boundary",
+          "headingId": "Cara membuktikan kontinuitas event saat batas switch",
+          "paragraphsEn": [
+            "Two links reporting the same event after a switch do not automatically represent two independent process events. Compare the last confirmed event before loss, source timestamp/identity, queue handling and new owner acknowledgment rules.",
+            "With only a tap on one duplex link, the opposite redundant link is unobserved. For physical A/B evidence, capture the required directions of both circuits or explicitly mark the unavailable path as not observed."
+          ],
+          "paragraphsId": [
+            "Dua link melaporkan event sama setelah switch tidak otomatis mewakili dua peristiwa proses independen. Bandingkan event terakhir terkonfirmasi sebelum kehilangan, identitas/timestamp sumber, penanganan antrian dan aturan ACK owner baru.",
+            "Dengan tap hanya pada satu link duplex, link redundant lainnya tidak teramati. Untuk evidence fisik A/B, capture arah yang diperlukan dari kedua sirkuit atau tandai jalur yang tidak tersedia sebagai not observed."
+          ],
+          "bulletsEn": [
+            "Correlate duplication only when source identity and event representation permit it.",
+            "Do not infer perfect exactly-once delivery between arbitrary vendor RTUs."
+          ],
+          "bulletsId": [
+            "Korelasikan duplikasi hanya jika identitas sumber dan representasi event mendukungnya.",
+            "Jangan menganggap delivery exactly-once sempurna antar RTU vendor berbeda."
+          ],
+          "framesEn": [],
+          "framesId": [],
+          "lab": {
+            "wireKind": "conceptual",
+            "wireHex": null,
+            "expectedValid": true,
+            "expectedFields": {},
+            "scenarioEn": "Event appears on A before loss; a visually identical event appears on B after switch.",
+            "scenarioId": "Event muncul pada A sebelum putus; event yang tampak identik muncul pada B setelah switch.",
+            "stepsEn": [
+              "One hypothesis is RTU retransmission of an unacknowledged event.",
+              "Without source identity/ACK evidence, exact duplication remains unproven."
+            ],
+            "stepsId": [
+              "Satu hipotesis adalah retransmit RTU atas event yang belum di-ACK.",
+              "Tanpa identitas sumber/evidence ACK, duplikasi persis belum terbukti."
+            ],
+            "questionEn": "Can the analyzer say 'two separate breaker operations'?",
+            "questionId": "Bolehkah analyzer menyatakan 'dua operasi breaker terpisah'?",
+            "answerEn": "No. Report potential retransmission or duplicate with stated confidence and preserve both raw captures.",
+            "answerId": "Tidak. Laporkan potensi retransmit atau duplikat beserta confidence-nya dan pertahankan kedua capture mentah."
+          },
+          "number": "14.4",
+          "id": "learn-lab-redundancy-s4"
+        }
+      ],
+      "number": "14"
     },
     {
       "key": "learn-interop",
@@ -1375,7 +2381,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s1",
-          "number": "11.1"
+          "number": "15.1"
         },
         {
           "headingEn": "Security is a separate engineering layer",
@@ -1401,7 +2407,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s2",
-          "number": "11.2"
+          "number": "15.2"
         },
         {
           "headingEn": "Claim only what the capture proves",
@@ -1425,10 +2431,10 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s3",
-          "number": "11.3"
+          "number": "15.3"
         }
       ],
-      "number": "11"
+      "number": "15"
     },
     {
       "key": "learn-field-guide",
@@ -1466,7 +2472,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s1",
-          "number": "12.1"
+          "number": "16.1"
         },
         {
           "headingEn": "A protocol FAT/SAT evidence matrix",
@@ -1494,7 +2500,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s2",
-          "number": "12.2"
+          "number": "16.2"
         },
         {
           "headingEn": "The trace-to-diagnosis workflow",
@@ -1520,7 +2526,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s3",
-          "number": "12.3"
+          "number": "16.3"
         },
         {
           "headingEn": "Field checklist: master polls but the RTU looks silent",
@@ -1546,7 +2552,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s4",
-          "number": "12.4"
+          "number": "16.4"
         }
       ],
       "sources": [
@@ -1555,8 +2561,8 @@
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "12"
+      "number": "16"
     }
   ],
-  "bookEdition": "Engineering Handbook R2"
+  "bookEdition": "Engineering Handbook R3 — Verified Trace Labs"
 }
