@@ -51,6 +51,7 @@ public sealed partial class SignalListEditorWindow : Window
 
     private readonly ObservableCollection<SignalListEditorRow> _rows = new();
     private readonly int? _observedCommonAddress;
+    private HelpWindow? _signalMapHelpWindow;
     private readonly TextBox _profileNameBox = new();
     private readonly TextBox _pathBox = new();
     private readonly TextBox _searchBox = new();
@@ -333,7 +334,12 @@ public sealed partial class SignalListEditorWindow : Window
 
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.Control)
+            if (e.Key == Key.F1)
+            {
+                OpenSignalMapHelp();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 SetInspectorVisible(!_inspectorOpen);
                 e.Handled = true;
@@ -452,6 +458,23 @@ public sealed partial class SignalListEditorWindow : Window
         parent.Children.Add(combo);
     }
 
+    private void OpenSignalMapHelp()
+    {
+        if (_signalMapHelpWindow is { IsVisible: true } open)
+        {
+            open.SelectTopic("learn-use-signal-map");
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            return;
+        }
+
+        var help = new HelpWindow("learn-use-signal-map") { Owner = this };
+        _signalMapHelpWindow = help;
+        help.Closed += (_, _) => _signalMapHelpWindow = null;
+        help.Show();
+    }
+
     private ContextMenu BuildMoreActionsMenu()
     {
         var menu = new ContextMenu();
@@ -461,6 +484,8 @@ public sealed partial class SignalListEditorWindow : Window
             item.Click += action;
             menu.Items.Add(item);
         }
+        Item("Signal Map guide (F1)", (_, _) => OpenSignalMapHelp());
+        menu.Items.Add(new Separator());
         Item("Duplicate signal", DuplicateRow_Click);
         Item("Delete signal...", DeleteRow_Click);
         menu.Items.Add(new Separator());

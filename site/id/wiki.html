@@ -26,6 +26,8 @@
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Wiki Engineering IEC 60870 | Belajar IEC 101 103 104 dari Evidence","description":"Pusat belajar IEC 60870 praktis untuk memahami IEC 60870-5-101, IEC 60870-5-103, dan IEC 60870-5-104 dari evidence lapangan.","inLanguage":"id","url":"https://masarray.github.io/arsee/id/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ArSee Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ArSee","item":"https://masarray.github.io/arsee/id/"},{"@type":"ListItem","position":2,"name":"Wiki Engineering","item":"https://masarray.github.io/arsee/id/wiki.html"}]}</script>
     <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../learning/handbook-reader.css" />
+    <script src="../learning/handbook-reader.js" defer></script>
     <script src="../script.js" defer></script>
   </head>
   <body>
@@ -50,7 +52,7 @@
           <p class="lead">Ini adalah pusat belajar praktis untuk engineer yang bekerja dengan IEC 60870-5-101, IEC 60870-5-103, dan IEC 60870-5-104. Fokusnya: keluarga protokol, bentuk frame, urutan komunikasi sehat, masalah lapangan yang sering terjadi, dan cara mengubah TX/RX mentah menjadi evidence yang bisa dipertanggungjawabkan.</p>
           <div class="hero-actions">
             <a class="button primary" href="../demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#smart-display"></use></svg><span>Tonton demo evidence</span></a>
-            <a class="button secondary" href="#learning-path"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Mulai belajar</span></a>
+            <a class="button secondary" href="#engineering-handbook"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="../assets/material-icons.svg#school"></use></svg><span>Mulai belajar</span></a>
           </div>
         </div>
         <aside class="wiki-hero-panel interactive-surface" aria-label="Orientasi cepat IEC 60870">
@@ -58,6 +60,17 @@
           <div class="wiki-kpi"><span>Masalah inti di lapangan</span><strong>Membuktikan apa yang benar-benar dikirim device</strong></div>
           <div class="wiki-kpi"><span>Evidence terbaik</span><strong>Frame trace + decoded meaning + report</strong></div>
         </aside>
+      </section>
+
+      <section class="section engineering-handbook" id="engineering-handbook">
+        <div class="section-heading">
+          <p class="eyebrow">Panduan dan pembelajaran ArSee</p>
+          <h2>Panduan ArSee &amp; Buku IEC 60870</h2>
+          <p>Mulai dari cara menggunakan ArSee langkah demi langkah: Setup, koneksi, Raw Frames, Values, Events, GI, command, capture, laporan dan troubleshooting. Kemudian pelajari IEC 101/103/104, NUC dan redundansi melalui latihan trace tervalidasi. Semua bab sama dengan Help Center offline.</p>
+        </div>
+        <div id="arsee-handbook" data-source="../learning/iec60870-handbook.json">
+          <p class="learning-status">Materi detail disinkronkan langsung dari katalog bersama Help Center aplikasi.</p>
+        </div>
       </section>
 
       <section class="section wiki-source-note">

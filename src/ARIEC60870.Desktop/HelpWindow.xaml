@@ -3,194 +3,358 @@
 <Window x:Class="ARIEC60870.Desktop.HelpWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ARIEC60870 Help Center"
-        Width="1120" Height="760" MinWidth="900" MinHeight="620"
+        Title="ArSee Help Center"
+        Width="1180" Height="820" MinWidth="780" MinHeight="540"
         WindowStartupLocation="CenterOwner"
         Icon="Assets/Icons/ariec60870-icon.png"
+        Background="{StaticResource SurfaceBrush}"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
-        FontFamily="{StaticResource AppFont}">
+        TextOptions.TextFormattingMode="Display"
+        FontFamily="{StaticResource AppFont}"
+        PreviewKeyDown="HelpWindow_PreviewKeyDown">
     <Window.Resources>
-        <Style x:Key="HelpSearchBox" TargetType="TextBox">
-            <Setter Property="Height" Value="38" />
-            <Setter Property="MinWidth" Value="250" />
-            <Setter Property="Padding" Value="13,8" />
-            <Setter Property="BorderBrush" Value="#DDE8F6" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
-            <Setter Property="FontSize" Value="12.2" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="13" SnapsToDevicePixels="True">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                <Setter TargetName="Root" Property="Background" Value="#FDFEFF" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="HelpTopicListBox" TargetType="ListBox">
+        <!-- Quiet navigation: semantic Material Outlined icon + title only.
+             Category and summary remain searchable in the ViewModel, not repeated visually. -->
+        <Style x:Key="HelpTopicListBox" TargetType="{x:Type ListBox}">
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
             <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
         </Style>
-
-        <Style x:Key="HelpTopicListItem" TargetType="ListBoxItem">
+        <Style x:Key="HelpTopicListItem" TargetType="{x:Type ListBoxItem}">
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,0,0,9" />
+            <Setter Property="Margin" Value="0,0,0,2" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="{StaticResource Ink700Brush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Shell" Background="#F8FBFF" BorderBrush="#E6EFFB" BorderThickness="1" CornerRadius="15" Padding="11" SnapsToDevicePixels="True">
-                            <ContentPresenter />
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent" BorderThickness="1"
+                                CornerRadius="8" Padding="9,8" SnapsToDevicePixels="True">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Shell" Property="Background" Value="Transparent" />
+                                <Setter TargetName="Shell" Property="BorderBrush" Value="Transparent" />
+                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Shell" Property="Background" Value="#F1F7FF" />
-                                <Setter TargetName="Shell" Property="BorderBrush" Value="#BFDBFE" />
+                                <Setter TargetName="Shell" Property="Background" Value="{StaticResource Panel75Brush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Shell" Property="Background" Value="#EAF1FF" />
+                                <Setter TargetName="Shell" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentDarkBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="Shell" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="group">
+                    <Setter Property="IsEnabled" Value="False" />
+                    <Setter Property="Margin" Value="0,6,0,0" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="section">
+                    <Setter Property="Margin" Value="0,0,0,0" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The TextBox and icon share a single 36-DIP row and vertical center.
+             A native PART_ContentHost preserves selection/caret/IME behavior. -->
+        <Style x:Key="HelpSearchInput" TargetType="{x:Type TextBox}">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Ink900Brush}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Ink900Brush}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Grid Background="Transparent">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Stretch" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HelpSearchChrome" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{StaticResource ArSeeContentWhiteBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=SearchBox}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="HelpClearSearchButton" TargetType="{x:Type Button}"
+               BasedOn="{StaticResource EventJournalSearchClearStyle}">
+            <Setter Property="Visibility" Value="Visible" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="14">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="12" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <!-- Article-first documentation workspace; native window already provides Close. -->
+    <Grid Background="{StaticResource SurfaceBrush}">
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="10" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource HeaderShell}" MinHeight="72">
-            <Grid>
+            <Border Grid.Row="0" Background="{StaticResource ArSeeContentWhiteBrush}"
+                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                    CornerRadius="12" Padding="15,10" SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="0" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="HelpTitleText" Grid.Column="0"
+                               Text="ArSee Help Center" Style="{StaticResource HeadingText}"
+                               FontSize="15" FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <ComboBox x:Name="LanguageComboBox" Width="112" Height="34"
+                                  Margin="0,0,8,0" SelectedIndex="0"
+                                  AutomationProperties.Name="Help language"
+                                  SelectionChanged="LanguageComboBox_SelectionChanged">
+                            <ComboBoxItem Content="English" Tag="en" />
+                            <ComboBoxItem Content="Indonesia" Tag="id" />
+                        </ComboBox>
+                        <Button x:Name="OpenOnlineButton"
+                                Style="{StaticResource ArSeeToolbarActionButtonStyle}"
+                                AutomationProperties.Name="Open Field Wiki"
+                                Click="OpenOnlineButton_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource ArSeeMaterialOutlinedOpenExternal}"
+                                      Width="16" Height="16" Stretch="Uniform"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      Margin="0,0,7,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="OpenOnlineLabel" Text="Open Field Wiki"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="246" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" MinWidth="0" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="46" Height="46" CornerRadius="16" Background="{StaticResource AccentSoftBrush}" BorderBrush="#D6E6FF" BorderThickness="1" Margin="0,0,13,0">
-                        <Grid>
-                            <Path Width="24" Height="24" Stretch="Uniform" Data="{StaticResource LucideBookOpenCheck}" Stroke="{StaticResource AccentBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="HelpTitleText" Text="ARIEC60870 Help Center" Style="{StaticResource HeadingText}" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock x:Name="HelpSubtitleText" Text="Quick field guidance for IEC 101, IEC 103, IEC 104, frame traces, findings, and reports." Style="{StaticResource SubtleText}" Margin="0,3,0,0" />
-                    </StackPanel>
-                </StackPanel>
+                <Border x:Name="HelpTopicsPanel" Grid.Column="0"
+                        Style="{StaticResource Card}" Effect="{x:Null}"
+                        Background="{StaticResource ArSeeContentWhiteBrush}"
+                        Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="10" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="9" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock x:Name="TopicListTitleText" Margin="4,4,4,2"
+                                   Text="Topics" Style="{StaticResource HeadingText}"
+                                   FontSize="12.5" FontWeight="SemiBold" />
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <ComboBox x:Name="LanguageComboBox" Width="112" Height="38" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="LanguageComboBox_SelectionChanged">
-                        <ComboBoxItem Content="English" Tag="en" />
-                        <ComboBoxItem Content="Indonesia" Tag="id" />
-                    </ComboBox>
-                    <TextBox x:Name="SearchBox" Style="{StaticResource HelpSearchBox}" TextChanged="SearchBox_TextChanged" Margin="0,0,8,0" />
-                    <Button x:Name="OpenOnlineButton" Style="{StaticResource SecondaryButton}" Click="OpenOnlineButton_Click" Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Path Width="16" Height="16" Stretch="Uniform" Data="{StaticResource LucideCircleChevronRight}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" Margin="0,0,7,0" />
-                            <TextBlock Text="Open Field Wiki" />
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource SecondaryButton}" Click="CloseButton_Click" Content="Close" />
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="310" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="10" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <StackPanel>
-                        <TextBlock x:Name="TopicListTitleText" Text="Field topics" Style="{StaticResource HeadingText}" FontSize="13.4" FontWeight="SemiBold" />
-                        <TextBlock x:Name="TopicListHintText" Text="Press F1 from any workspace to open the most relevant topic." Style="{StaticResource SubtleText}" FontSize="11.2" TextWrapping="Wrap" Margin="0,3,0,0" />
-                    </StackPanel>
-                    <ListBox x:Name="TopicListBox" Grid.Row="2" Style="{StaticResource HelpTopicListBox}" ItemContainerStyle="{StaticResource HelpTopicListItem}" SelectionChanged="TopicListBox_SelectionChanged">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="36" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Width="30" Height="30" CornerRadius="11" Background="#FFFFFF" BorderBrush="#E0EAFE" BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                        <TextBlock Text="{Binding Icon}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{Binding Category}" FontSize="9.8" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding Title}" FontSize="12.6" FontWeight="SemiBold" Foreground="{StaticResource Ink900Brush}" TextWrapping="Wrap" Margin="0,2,0,0" />
-                                        <TextBlock Text="{Binding Summary}" FontSize="10.7" Foreground="{StaticResource Ink500Brush}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="42" />
-                                    </StackPanel>
+                        <Border Grid.Row="2" Style="{StaticResource HelpSearchChrome}"
+                                Height="36" x:Name="SearchChrome">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="33" />
+                                    <ColumnDefinition Width="*" MinWidth="0" />
+                                    <ColumnDefinition Width="30" />
+                                </Grid.ColumnDefinitions>
+                                <Path x:Name="SearchGlyphPath" Grid.Column="0"
+                                      Data="{StaticResource ArSeeMaterialOutlinedSearch}"
+                                      Width="18" Height="18"
+                                      Fill="{StaticResource Ink500Brush}"
+                                      Stretch="Uniform" VerticalAlignment="Center"
+                                      HorizontalAlignment="Center" IsHitTestVisible="False" />
+                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBox x:Name="SearchBox" Style="{StaticResource HelpSearchInput}"
+                                             VerticalAlignment="Center"
+                                             AutomationProperties.Name="Search help topics"
+                                             TextChanged="SearchBox_TextChanged" />
+                                    <TextBlock x:Name="SearchWatermarkText"
+                                               Text="Search topics..." FontSize="11.5"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False"
+                                               TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource SubtleText}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </Border>
+                                <Button x:Name="ClearSearchButton" Grid.Column="2"
+                                        Width="26" Height="26" HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" Style="{StaticResource HelpClearSearchButton}"
+                                        AutomationProperties.Name="Clear help search"
+                                        Click="ClearSearchButton_Click">
+                                    <Path Data="{StaticResource ArSeeMaterialOutlinedClear}"
+                                          Width="14" Height="14" Stretch="Uniform"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Button>
+                            </Grid>
+                        </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource Card}" Padding="0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Border CornerRadius="17,17,0,0" Padding="20,18" BorderBrush="#E7EFFB" BorderThickness="0,0,0,1">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#FFFFFF" Offset="0" />
-                                <GradientStop Color="#F6FAFF" Offset="0.54" />
-                                <GradientStop Color="#EAF2FF" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock x:Name="TopicKickerText" Text="IEC-101" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
-                                <TextBlock x:Name="TopicTitleText" Text="Frame Trace" Style="{StaticResource HeadingText}" FontSize="22" FontWeight="SemiBold" Margin="0,3,0,0" TextWrapping="Wrap" />
-                                <TextBlock x:Name="TopicSummaryText" Text="Read protocol evidence without leaving the application." Style="{StaticResource SubtleText}" FontSize="12.4" Margin="0,7,30,0" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <Border Grid.Column="1" Width="58" Height="58" CornerRadius="20" Background="{StaticResource AccentSoftBrush}" BorderBrush="#D6E6FF" BorderThickness="1" VerticalAlignment="Center">
-                                <TextBlock x:Name="TopicHeroIconText" Text="?" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
+                        <Grid Grid.Row="4">
+                            <ListBox x:Name="TopicListBox"
+                                     Style="{StaticResource HelpTopicListBox}"
+                                     ItemContainerStyle="{StaticResource HelpTopicListItem}"
+                                     SelectionChanged="TopicListBox_SelectionChanged"
+                                     AutomationProperties.Name="Help chapters and subchapters">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <TextBlock x:Name="GroupHeading" Text="{Binding Title}"
+                                                       Visibility="Collapsed" Margin="2,9,0,5"
+                                                       FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Ink500Brush}"
+                                                       VerticalAlignment="Center" />
+                                            <Grid x:Name="ChapterRow" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="54" />
+                                                    <ColumnDefinition Width="*" MinWidth="0" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border x:Name="ProtocolBadge" Width="49" Height="22"
+                                                        CornerRadius="6" BorderThickness="0"
+                                                        Background="{Binding BadgeBackground}"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Badge}" FontSize="9"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{Binding BadgeForeground}"
+                                                                   TextAlignment="Center" VerticalAlignment="Center" />
+                                                        <Ellipse x:Name="NeutralTopicDot" Width="6" Height="6"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Fill="{Binding BadgeForeground}" Visibility="Collapsed" />
+                                                    </Grid>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                           FontSize="11.8" FontWeight="Medium"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                           VerticalAlignment="Center" TextWrapping="Wrap"
+                                                           LineHeight="16" />
+                                            </Grid>
+                                            <Grid x:Name="SectionRow" Visibility="Collapsed"
+                                                  Margin="13,0,0,0" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="19" />
+                                                    <ColumnDefinition Width="*" MinWidth="0" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Width="5" Height="5" HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         Fill="{Binding BadgeForeground}" Opacity="0.82" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                           ToolTip="{Binding Title}"
+                                                           FontSize="11.3" FontWeight="Normal"
+                                                           TextWrapping="Wrap" LineHeight="16"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Kind}" Value="group">
+                                                <Setter TargetName="GroupHeading" Property="Visibility" Value="Visible" />
+                                                <Setter TargetName="ChapterRow" Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Kind}" Value="section">
+                                                <Setter TargetName="ChapterRow" Property="Visibility" Value="Collapsed" />
+                                                <Setter TargetName="SectionRow" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Badge}" Value="">
+                                                <Setter TargetName="ProtocolBadge" Property="Background" Value="Transparent" />
+                                                <Setter TargetName="NeutralTopicDot" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock x:Name="NoTopicsText" Text="No matching topics."
+                                       Visibility="Collapsed" TextWrapping="Wrap"
+                                       Style="{StaticResource SubtleText}"
+                                       Margin="10,9" VerticalAlignment="Top"
+                                       IsHitTestVisible="False" />
                         </Grid>
-                    </Border>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="TopicContentPanel" Margin="20,18,20,20" />
-                    </ScrollViewer>
-                </Grid>
-            </Border>
+                    </Grid>
+                </Border>
+
+                <Border x:Name="HelpArticlePanel" Grid.Column="2"
+                        Style="{StaticResource Card}" Padding="0"
+                        Background="{StaticResource ArSeeContentWhiteBrush}" Effect="{x:Null}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border Padding="24,17,24,17"
+                                Background="{StaticResource ArSeeContentWhiteBrush}"
+                                BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="0,0,0,1">
+                            <StackPanel>
+                                <TextBlock x:Name="TopicKickerText" Text="Trace"
+                                           FontSize="10.5" FontWeight="Medium"
+                                           Foreground="{StaticResource Ink500Brush}" />
+                                <TextBlock x:Name="TopicTitleText" Text="Reading the frame trace"
+                                           Style="{StaticResource HeadingText}"
+                                           FontSize="20" FontWeight="SemiBold"
+                                           TextWrapping="Wrap" Margin="0,3,0,0" />
+                                <TextBlock x:Name="TopicSummaryText"
+                                           Text="Understand the protocol evidence."
+                                           Style="{StaticResource SubtleText}"
+                                           FontSize="11.5" TextWrapping="Wrap" Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <ScrollViewer x:Name="TopicScrollViewer" Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      CanContentScroll="False">
+                            <StackPanel x:Name="TopicContentPanel" Margin="24,14,24,20" />
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

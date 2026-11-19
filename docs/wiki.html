@@ -26,6 +26,8 @@
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"IEC 60870 Engineering Wiki | Learn IEC 101 103 104 Protocol Evidence","description":"Practical IEC 60870 engineering wiki for learning IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104 from field evidence.","inLanguage":"en","url":"https://masarray.github.io/arsee/wiki.html","about":["IEC 60870-5-101","IEC 60870-5-103","IEC 60870-5-104","SCADA protocol troubleshooting","Telecontrol protocols","ArSee Evidence Analyzer"],"publisher":{"@type":"Organization","name":"MasArray","url":"https://github.com/masarray"}}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ArSee","item":"https://masarray.github.io/arsee/"},{"@type":"ListItem","position":2,"name":"Engineering Wiki","item":"https://masarray.github.io/arsee/wiki.html"}]}</script>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="learning/handbook-reader.css" />
+    <script src="learning/handbook-reader.js" defer></script>
     <script src="script.js" defer></script>
   </head>
   <body>
@@ -50,7 +52,7 @@
           <p class="lead">This is a practical learning center for engineers working with IEC 60870-5-101, IEC 60870-5-103, and IEC 60870-5-104. It explains the protocol family, how frames are shaped, what healthy sessions look like, what usually breaks in the field, and how to turn raw TX/RX traffic into defensible evidence.</p>
           <div class="hero-actions">
             <a class="button primary" href="demo.html"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#smart-display"></use></svg><span>Watch evidence demo</span></a>
-            <a class="button secondary" href="#learning-path"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Start learning path</span></a>
+            <a class="button secondary" href="#engineering-handbook"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#school"></use></svg><span>Start learning path</span></a>
           </div>
         </div>
         <aside class="wiki-hero-panel interactive-surface" aria-label="IEC 60870 quick orientation">
@@ -58,6 +60,17 @@
           <div class="wiki-kpi"><span>Core field problem</span><strong>Proving what the device actually said</strong></div>
           <div class="wiki-kpi"><span>Best evidence</span><strong>Frame trace + decoded meaning + report</strong></div>
         </aside>
+      </section>
+
+      <section class="section engineering-handbook" id="engineering-handbook">
+        <div class="section-heading">
+          <p class="eyebrow">ArSee learning and support</p>
+          <h2>ArSee User Guide &amp; IEC 60870 Handbook</h2>
+          <p>Begin with step-by-step ArSee operating instructions: setup, connection, Raw Frames, Values, Events, GI, commands, captures, reports and troubleshooting. Then explore IEC 101/103/104, NUC and redundancy with verified trace exercises. All chapters are shared with the offline Help Center.</p>
+        </div>
+        <div id="arsee-handbook" data-source="learning/iec60870-handbook.json">
+          <p class="learning-status">The detailed chapters below are loaded from the exact shared content used by the desktop Help Center.</p>
+        </div>
       </section>
 
       <section class="section wiki-source-note">

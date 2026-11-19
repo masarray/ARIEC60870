@@ -4,7 +4,9 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace ARIEC60870.Desktop;
 
@@ -13,28 +15,15 @@ public partial class HelpWindow : Window
     private readonly List<HelpTopic> _topics;
     private string _language = "en";
     private string _selectedTopicKey;
+    private string _expandedChapterKey = "learn-use-start";
+    private bool _refreshingTopicList;
 
     public HelpWindow(string? topicKey = null)
     {
         InitializeComponent();
-        SearchBox.Text = "Search ACD, Class 1, command timeout...";
-        SearchBox.GotKeyboardFocus += (_, _) =>
-        {
-            if (SearchBox.Text == "Search ACD, Class 1, command timeout..." || SearchBox.Text == "Cari ACD, Class 1, command timeout...")
-            {
-                SearchBox.Text = string.Empty;
-            }
-        };
-        SearchBox.LostKeyboardFocus += (_, _) =>
-        {
-            if (string.IsNullOrWhiteSpace(SearchBox.Text))
-            {
-                SearchBox.Text = _language == "id" ? "Cari ACD, Class 1, command timeout..." : "Search ACD, Class 1, command timeout...";
-            }
-        };
-
-        _topics = CreateTopics();
-        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "overview" : topicKey!;
+        _topics = LoadSharedHandbook().Concat(CreateTopics()).ToList();
+        TopicListBox.Loaded += (_, _) => QueueInitialNavigationScrollReset();
+        _selectedTopicKey = string.IsNullOrWhiteSpace(topicKey) ? "learn-use-start" : topicKey!;
         RefreshLanguageText();
         RefreshTopicList();
         SelectTopic(_selectedTopicKey);
@@ -42,23 +31,93 @@ public partial class HelpWindow : Window
 
     public void SelectTopic(string? topicKey)
     {
-        if (!string.IsNullOrWhiteSpace(topicKey) && _topics.Any(topic => string.Equals(topic.Key, topicKey, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(topicKey) &&
+            _topics.Any(topic => string.Equals(topic.Key, topicKey, StringComparison.OrdinalIgnoreCase)))
         {
             _selectedTopicKey = topicKey!;
-        }
-
-        foreach (var item in TopicListBox.Items.OfType<HelpTopicListItem>())
-        {
-            if (string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase))
+            if (_selectedTopicKey.StartsWith("learn-", StringComparison.Ordinal) &&
+                _expandedChapterKey != _selectedTopicKey)
             {
-                TopicListBox.SelectedItem = item;
-                TopicListBox.ScrollIntoView(item);
-                return;
+                _expandedChapterKey = _selectedTopicKey;
+                RefreshTopicList();
+            }
+
+            // F1/context navigation has priority over a stale search filter.
+            if (!TopicListBox.Items.OfType<HelpTopicListItem>().Any(item =>
+                    string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                SearchBox.Clear();
+                RefreshTopicList();
             }
         }
 
-        var topic = _topics.FirstOrDefault(t => string.Equals(t.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)) ?? _topics[0];
+        var item = TopicListBox.Items.OfType<HelpTopicListItem>().FirstOrDefault(candidate =>
+            string.Equals(candidate.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase));
+        if (item is not null)
+        {
+            TopicListBox.SelectedItem = item;
+            TopicListBox.ScrollIntoView(item);
+            // SelectionChanged may be suppressed when rebuilding the hierarchical
+            // ItemsSource; the article must follow the requested key deterministically.
+            var selectedTopic = _topics.FirstOrDefault(topic =>
+                string.Equals(topic.Key, item.Key, StringComparison.OrdinalIgnoreCase));
+            if (selectedTopic is not null)
+                RenderTopic(selectedTopic);
+            QueueInitialNavigationScrollReset();
+            return;
+        }
+
+        if (TopicListBox.Items.Count == 0)
+        {
+            RenderNoResults();
+            return;
+        }
+
+        var topic = _topics.FirstOrDefault(t =>
+            string.Equals(t.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)) ?? _topics[0];
         RenderTopic(topic);
+    }
+
+    private void QueueInitialNavigationScrollReset()
+    {
+        if (_selectedTopicKey != "learn-use-start" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+            return;
+
+        // A virtualized ListBox can retain a mid-list estimate when the window
+        // first measures at a smaller DPI/runner viewport. Restore the book cover
+        // and its first chapter only after the navigation template has loaded.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (_selectedTopicKey != "learn-use-start" || !string.IsNullOrWhiteSpace(SearchBox.Text))
+                return;
+            FindNavigationScrollViewer(TopicListBox)?.ScrollToTop();
+        }), DispatcherPriority.ApplicationIdle);
+    }
+
+    private static ScrollViewer? FindNavigationScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer scrollViewer)
+            return scrollViewer;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            var match = FindNavigationScrollViewer(child);
+            if (match is not null)
+                return match;
+        }
+        return null;
+    }
+
+    private void RenderNoResults()
+    {
+        TopicListBox.SelectedItem = null;
+        TopicKickerText.Text = _language == "id" ? "PENCARIAN" : "SEARCH";
+        TopicTitleText.Text = _language == "id" ? "Topik tidak ditemukan" : "No matching topics";
+        TopicSummaryText.Text = _language == "id"
+            ? "Coba istilah protokol lain atau hapus pencarian untuk melihat semua topik."
+            : "Try a different protocol term or clear the search to browse all topics.";
+        TopicContentPanel.Children.Clear();
+        TopicScrollViewer.ScrollToTop();
     }
 
     private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -85,25 +144,65 @@ public partial class HelpWindow : Window
         }
 
         RefreshTopicList();
-        SelectTopic(_selectedTopicKey);
+        if (TopicListBox.Items.Count == 0)
+        {
+            RenderNoResults();
+        }
+        else
+        {
+            SelectTopic(_selectedTopicKey);
+        }
     }
 
     private void TopicListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (TopicListBox.SelectedItem is not HelpTopicListItem item)
+        if (_refreshingTopicList ||
+            TopicListBox.SelectedItem is not HelpTopicListItem item || item.Kind == "group")
+            return;
+
+        if (item.Kind == "chapter" && _expandedChapterKey != item.Key)
         {
+            _expandedChapterKey = item.Key;
+            RefreshTopicList();
+            SelectTopic(item.Key);
             return;
         }
 
         _selectedTopicKey = item.Key;
         var topic = _topics.FirstOrDefault(t => string.Equals(t.Key, item.Key, StringComparison.OrdinalIgnoreCase));
-        if (topic is not null)
+        if (topic is null)
+            return;
+
+        RenderTopic(topic);
+        if (item.Kind == "section" && item.SectionIndex >= 0 &&
+            item.SectionIndex < TopicContentPanel.Children.Count &&
+            TopicContentPanel.Children[item.SectionIndex] is FrameworkElement target)
         {
-            RenderTopic(topic);
+            TopicScrollViewer.UpdateLayout();
+            target.BringIntoView();
         }
     }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+    private void HelpWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && !LanguageComboBox.IsDropDownOpen)
+        {
+            Close();
+            e.Handled = true;
+        }
+    }
+
+    private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        SearchBox.Clear();
+        SearchBox.Focus();
+    }
 
     private void OpenOnlineButton_Click(object sender, RoutedEventArgs e)
     {
@@ -121,71 +220,159 @@ public partial class HelpWindow : Window
 
     private void RefreshLanguageText()
     {
-        HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ARIEC60870" : "ARIEC60870 Help Center";
-        HelpSubtitleText.Text = _language == "id"
-            ? "Panduan cepat untuk IEC 101, IEC 103, IEC 104, frame trace, findings, dan report."
-            : "Quick field guidance for IEC 101, IEC 103, IEC 104, frame traces, findings, and reports.";
-        TopicListTitleText.Text = _language == "id" ? "Topik lapangan" : "Field topics";
-        TopicListHintText.Text = _language == "id"
-            ? "Tekan F1 dari workspace apa pun untuk membuka topik yang paling relevan."
-            : "Press F1 from any workspace to open the most relevant topic.";
-        OpenOnlineButton.Content = BuildOnlineButtonContent(_language == "id" ? "Buka Field Wiki" : "Open Field Wiki");
-        if (string.IsNullOrWhiteSpace(SearchBox.Text)
-            || SearchBox.Text == "Search ACD, Class 1, command timeout..."
-            || SearchBox.Text == "Cari ACD, Class 1, command timeout...")
-        {
-            SearchBox.Text = _language == "id" ? "Cari ACD, Class 1, command timeout..." : "Search ACD, Class 1, command timeout...";
-        }
+        HelpTitleText.Text = _language == "id" ? "Pusat Bantuan ArSee" : "ArSee Help Center";
+        TopicListTitleText.Text = _language == "id" ? "Bab & topik" : "Chapters & topics";
+        OpenOnlineLabel.Text = _language == "id" ? "Buka Field Wiki" : "Open Field Wiki";
+        SearchWatermarkText.Text = _language == "id"
+            ? "Cari panduan dan protokol..."
+            : "Search guide and protocols...";
+        NoTopicsText.Text = _language == "id" ? "Tidak ada topik yang cocok." : "No matching topics.";
     }
 
-    private object BuildOnlineButtonContent(string label)
+    // Every Help icon is the unmodified 24px Google Material Icons Outlined
+    // geometry in the shared resource dictionary. No Unicode or custom glyphs.
+    private Geometry GetTopicMaterialGeometry(string key)
     {
-        var path = new System.Windows.Shapes.Path
+        var resource = key switch
         {
-            Width = 16,
-            Height = 16,
-            Stretch = Stretch.Uniform,
-            StrokeThickness = 2,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round,
-            Fill = Brushes.Transparent,
-            Data = (Geometry)FindResource("LucideCircleChevronRight"),
-            Margin = new Thickness(0, 0, 7, 0)
+            "learn-iec-family" => "ArSeeMaterialOutlinedBook",
+            "learn-iec101" => "ArSeeMaterialOutlinedLink",
+            "learn-iec103" => "ArSeeMaterialOutlinedTarget",
+            "learn-iec104" => "ArSeeMaterialOutlinedLink",
+            "learn-nuc" => "ArSeeMaterialOutlinedDescription",
+            "learn-redundancy" => "ArSeeMaterialOutlinedSync",
+            "learn-semantics" => "ArSeeMaterialOutlinedCode",
+            "learn-field-guide" => "ArSeeMaterialOutlinedTune",
+            "learn-unavailable" => "ArSeeMaterialOutlinedHelp",
+            "overview" => "ArSeeMaterialOutlinedBook",
+            "setup" => "ArSeeMaterialOutlinedTune",
+            "frame-trace" => "ArSeeMaterialOutlinedCode",
+            "addressing" => "ArSeeMaterialOutlinedLink",
+            "acd-dfc" => "ArSeeMaterialOutlinedTarget",
+            "class-polling" => "ArSeeMaterialOutlinedSync",
+            "general-interrogation" => "ArSeeMaterialOutlinedTarget",
+            "command-flow" => "ArSeeMaterialOutlinedFlag",
+            "command-timeout" => "ArSeeMaterialOutlinedClock",
+            "values" => "ArSeeMaterialOutlinedChart",
+            "events" => "ArSeeMaterialOutlinedEvent",
+            "quality-flags" => "ArSeeMaterialOutlinedFlag",
+            "smart-findings" => "ArSeeMaterialOutlinedAutoFix",
+            "report" => "ArSeeMaterialOutlinedDescription",
+            "dual-link" => "ArSeeMaterialOutlinedLink",
+            "iec103-relay" => "ArSeeMaterialOutlinedTarget",
+            "iec104-session" => "ArSeeMaterialOutlinedLink",
+            "troubleshooting" => "ArSeeMaterialOutlinedBug",
+            "evidence-workflow" => "ArSeeMaterialOutlinedHistory",
+            "glossary" => "ArSeeMaterialOutlinedBook",
+            _ => "ArSeeMaterialOutlinedHelp"
         };
-        path.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Button), 1) });
-        return new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { path, new TextBlock { Text = label } }
-        };
+
+        return (Geometry)FindResource(resource);
     }
+
+    private static readonly Brush HelpBadgeNeutralBackground = CreateBadgeBrush(237, 242, 247);
+    private static readonly Brush HelpBadgeNeutralForeground = CreateBadgeBrush(92, 109, 128);
+    private static readonly Brush HelpBadge101Background = CreateBadgeBrush(226, 244, 240);
+    private static readonly Brush HelpBadge101Foreground = CreateBadgeBrush(34, 113, 103);
+    private static readonly Brush HelpBadge103Background = CreateBadgeBrush(242, 233, 246);
+    private static readonly Brush HelpBadge103Foreground = CreateBadgeBrush(111, 77, 137);
+    private static readonly Brush HelpBadge104Background = CreateBadgeBrush(230, 239, 252);
+    private static readonly Brush HelpBadge104Foreground = CreateBadgeBrush(50, 91, 158);
+
+    private static Brush CreateBadgeBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static (string Badge, Brush Background, Brush Foreground) GetTopicBadge(string key)
+    {
+        if (key is "learn-lab-101" or "learn-use-101" ||
+            key.Contains("iec101", StringComparison.OrdinalIgnoreCase) ||
+            key is "addressing" or "acd-dfc" or "class-polling" or "general-interrogation" or "dual-link")
+            return ("IEC101", HelpBadge101Background, HelpBadge101Foreground);
+        if (key is "learn-lab-103" or "learn-use-103" || key.Contains("iec103", StringComparison.OrdinalIgnoreCase))
+            return ("IEC103", HelpBadge103Background, HelpBadge103Foreground);
+        if (key is "learn-lab-104" or "learn-use-104" || key.Contains("iec104", StringComparison.OrdinalIgnoreCase))
+            return ("IEC104", HelpBadge104Background, HelpBadge104Foreground);
+        return ("", HelpBadgeNeutralBackground, HelpBadgeNeutralForeground);
+    }
+
+    private HelpTopicListItem MakeNavItem(HelpTopic topic, string title, string kind, int sectionIndex = -1)
+    {
+        var badge = GetTopicBadge(topic.Key);
+        return new HelpTopicListItem(topic.Key, GetTopicMaterialGeometry(topic.Key),
+            Pick(topic.CategoryEn, topic.CategoryId),
+            title, Pick(topic.SummaryEn, topic.SummaryId), kind, sectionIndex,
+            badge.Badge, badge.Background, badge.Foreground);
+    }
+
+    private static string GetHelpNavigationGroup(string key) =>
+        key.StartsWith("learn-use-", StringComparison.Ordinal) ? "guide" :
+        key.StartsWith("learn-", StringComparison.Ordinal) ? "book" : "reference";
 
     private void RefreshTopicList()
     {
-        var rawSearch = SearchBox.Text ?? string.Empty;
-        if (rawSearch == "Search ACD, Class 1, command timeout..." || rawSearch == "Cari ACD, Class 1, command timeout...")
+        var terms = (SearchBox.Text ?? string.Empty).Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var items = new List<HelpTopicListItem>();
+        var matched = _topics.Where(topic => terms.Length == 0 ||
+            terms.All(term => Matches(topic, term))).ToList();
+
+        if (matched.Count > 0)
         {
-            rawSearch = string.Empty;
+            foreach (var group in new[] { "guide", "book", "reference" })
+            {
+                var inGroup = matched.Where(topic => GetHelpNavigationGroup(topic.Key) == group).ToList();
+                if (inGroup.Count == 0)
+                    continue;
+
+                var groupHeading = group switch
+                {
+                    "guide" => Pick("ARSEE USER GUIDE", "PANDUAN PENGGUNA ARSEE"),
+                    "book" => Pick("ENGINEER HANDBOOK", "BUKU ENGINEER"),
+                    _ => Pick("APP REFERENCE", "REFERENSI APLIKASI")
+                };
+                items.Add(new HelpTopicListItem("", GetTopicMaterialGeometry("overview"), "",
+                    groupHeading, "", "group", -1, "",
+                    HelpBadgeNeutralBackground, HelpBadgeNeutralForeground));
+
+                foreach (var topic in inGroup)
+                {
+                    var isChapter = group != "reference";
+                    items.Add(MakeNavItem(topic, Pick(topic.TitleEn, topic.TitleId),
+                        isChapter ? "chapter" : "topic"));
+                    if (!isChapter || (terms.Length == 0 && topic.Key != _expandedChapterKey))
+                        continue;
+
+                    for (var i = 0; i < topic.Sections.Count; i++)
+                    {
+                        var section = topic.Sections[i];
+                        if (section.HeadingEn is "Sources and standards" or "Further documentation")
+                            continue;
+                        var chapter = _topics.IndexOf(topic) + 1;
+                        var label = $"{chapter}.{i + 1}  {Pick(section.HeadingEn, section.HeadingId)}";
+                        items.Add(MakeNavItem(topic, label, "section", i));
+                    }
+                }
+            }
         }
 
-        var terms = rawSearch.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var items = _topics
-            .Where(topic => terms.Length == 0 || terms.All(term => Matches(topic, term)))
-            .Select(topic => new HelpTopicListItem(
-                topic.Key,
-                topic.Icon,
-                Pick(topic.CategoryEn, topic.CategoryId),
-                Pick(topic.TitleEn, topic.TitleId),
-                Pick(topic.SummaryEn, topic.SummaryId)))
-            .ToList();
-
-        TopicListBox.ItemsSource = items;
-        if (items.Count > 0 && !items.Any(item => string.Equals(item.Key, _selectedTopicKey, StringComparison.OrdinalIgnoreCase)))
+        _refreshingTopicList = true;
+        try
         {
-            _selectedTopicKey = items[0].Key;
+            TopicListBox.ItemsSource = items;
         }
+        finally
+        {
+            _refreshingTopicList = false;
+        }
+        NoTopicsText.Visibility = matched.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (matched.Count > 0 &&
+            !matched.Any(topic => string.Equals(topic.Key, _selectedTopicKey,
+                StringComparison.OrdinalIgnoreCase)))
+            _selectedTopicKey = matched[0].Key;
     }
 
     private bool Matches(HelpTopic topic, string term)
@@ -197,33 +384,62 @@ public partial class HelpWindow : Window
             || topic.TitleId.Contains(term, StringComparison.OrdinalIgnoreCase)
             || topic.SummaryEn.Contains(term, StringComparison.OrdinalIgnoreCase)
             || topic.SummaryId.Contains(term, StringComparison.OrdinalIgnoreCase)
-            || topic.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase);
+            || topic.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || topic.Sections.Any(section =>
+                section.HeadingEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || section.HeadingId.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || section.ParagraphsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.ParagraphsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.BulletsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || section.BulletsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                || (section.Workflow is { } flow && (
+                    flow.StepsEn.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || flow.StepsId.Any(p => p.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || flow.ExpectedEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.ExpectedId.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.TroubleshootingEn.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || flow.TroubleshootingId.Contains(term, StringComparison.OrdinalIgnoreCase))));
     }
 
     private void RenderTopic(HelpTopic topic)
     {
-        TopicKickerText.Text = Pick(topic.CategoryEn, topic.CategoryId);
+        var isHandbook = topic.Key.StartsWith("learn-", StringComparison.Ordinal);
+        var chapterNumber = _topics.IndexOf(topic) + 1;
+        TopicKickerText.Text = isHandbook
+            ? $"{(topic.Key.StartsWith("learn-use-", StringComparison.Ordinal)
+                ? Pick("ARSEE USER GUIDE", "PANDUAN PENGGUNA ARSEE")
+                : Pick("ENGINEER HANDBOOK", "BUKU ENGINEER"))}  ·  {Pick("CHAPTER", "BAB")} {chapterNumber:00}"
+            : Pick(topic.CategoryEn, topic.CategoryId);
         TopicTitleText.Text = Pick(topic.TitleEn, topic.TitleId);
         TopicSummaryText.Text = Pick(topic.SummaryEn, topic.SummaryId);
-        TopicHeroIconText.Text = topic.Icon;
         TopicContentPanel.Children.Clear();
 
-        foreach (var section in topic.Sections)
+        for (var index = 0; index < topic.Sections.Count; index++)
         {
-            TopicContentPanel.Children.Add(BuildSectionCard(section));
+            var number = isHandbook && topic.Sections[index].HeadingEn != "Sources and standards"
+                ? $"{chapterNumber}.{index + 1}" : null;
+            TopicContentPanel.Children.Add(BuildSectionCard(topic.Sections[index], number));
         }
+
+        // Switching topics should begin at the article heading, not the old scroll offset.
+        TopicScrollViewer.ScrollToTop();
     }
 
-    private Border BuildSectionCard(HelpSection section)
+    private Border BuildSectionCard(HelpSection section, string? sectionNumber)
     {
+        // Each article is measured against the available reading width. A horizontal
+        // StackPanel with a fixed-width text child clips at narrow windows / high DPI.
         var body = new StackPanel();
         body.Children.Add(new TextBlock
         {
-            Text = Pick(section.HeadingEn, section.HeadingId),
-            FontSize = 14.8,
+            Text = sectionNumber is null
+                ? Pick(section.HeadingEn, section.HeadingId)
+                : $"{sectionNumber}  {Pick(section.HeadingEn, section.HeadingId)}",
+            FontSize = 13.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("Ink900Brush"),
-            TextWrapping = TextWrapping.Wrap
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
         });
 
         foreach (var paragraph in PickList(section.ParagraphsEn, section.ParagraphsId))
@@ -231,45 +447,55 @@ public partial class HelpWindow : Window
             body.Children.Add(new TextBlock
             {
                 Text = paragraph,
-                FontSize = 12.4,
+                FontSize = 12.2,
                 Foreground = (Brush)FindResource("Ink600Brush"),
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 8, 0, 0),
+                Margin = new Thickness(0, 7, 0, 0),
                 LineHeight = 19
             });
         }
 
-        var bullets = PickList(section.BulletsEn, section.BulletsId).ToArray();
-        if (bullets.Length > 0)
+        var bullets = PickList(section.BulletsEn, section.BulletsId);
+        if (bullets.Count > 0)
         {
             var bulletPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             foreach (var bullet in bullets)
             {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 7) };
-                row.Children.Add(new Border
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(17) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var dot = new Border
                 {
-                    Width = 8,
-                    Height = 8,
-                    CornerRadius = new CornerRadius(4),
-                    Background = (Brush)FindResource("AccentBrush"),
-                    Margin = new Thickness(0, 5, 9, 0)
-                });
-                row.Children.Add(new TextBlock
+                    Width = 6,
+                    Height = 6,
+                    CornerRadius = new CornerRadius(3),
+                    Background = (Brush)FindResource("Ink500Brush"),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(1, 7, 0, 0)
+                };
+                Grid.SetColumn(dot, 0);
+                row.Children.Add(dot);
+
+                var text = new TextBlock
                 {
                     Text = bullet,
                     FontSize = 12.2,
                     Foreground = (Brush)FindResource("Ink700Brush"),
                     TextWrapping = TextWrapping.Wrap,
-                    LineHeight = 18,
-                    MaxWidth = 660
-                });
+                    LineHeight = 19
+                };
+                Grid.SetColumn(text, 1);
+                row.Children.Add(text);
                 bulletPanel.Children.Add(row);
             }
             body.Children.Add(bulletPanel);
         }
 
-        var frames = PickList(section.FrameLinesEn ?? Array.Empty<string>(), section.FrameLinesId ?? Array.Empty<string>()).ToArray();
-        if (frames.Length > 0)
+        var frames = PickList(section.FrameLinesEn ?? Array.Empty<string>(),
+                              section.FrameLinesId ?? Array.Empty<string>());
+        if (frames.Count > 0)
         {
             var code = new StackPanel();
             foreach (var line in frames)
@@ -278,35 +504,125 @@ public partial class HelpWindow : Window
                 {
                     Text = line,
                     FontFamily = (FontFamily)FindResource("TraceMonoFont"),
-                    FontSize = 12,
+                    FontSize = 11.5,
                     Foreground = (Brush)FindResource("Ink800Brush"),
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 2, 0, 2)
+                    Margin = new Thickness(0, 2, 0, 2),
+                    LineHeight = 17
                 });
             }
             body.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(246, 250, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(224, 234, 254)),
+                Background = (Brush)FindResource("Panel75Brush"),
+                BorderBrush = (Brush)FindResource("LineBrush"),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(13),
-                Padding = new Thickness(12, 10, 12, 10),
-                Margin = new Thickness(0, 11, 0, 0),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(11, 9, 11, 9),
+                Margin = new Thickness(0, 8, 0, 0),
                 Child = code
             });
         }
 
+        if (section.Workflow is not null)
+            body.Children.Add(BuildUserWorkflow(section.Workflow));
+
+        if (section.Lab is not null)
+            body.Children.Add(BuildTraceLab(section.Lab));
+
+        // Editorial section dividers keep the article as one continuous reading
+        // surface instead of stacked, nested, raised cards.
         return new Border
         {
-            Background = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(230, 239, 251)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(15),
-            Margin = new Thickness(0, 0, 0, 13),
+            Background = Brushes.Transparent,
+            BorderBrush = (Brush)FindResource("LineBrush"),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(0, 6, 0, 16),
+            Margin = new Thickness(0, 0, 0, 14),
             Child = body
         };
     }
+
+    private Border BuildUserWorkflow(HelpWorkflow workflow)
+    {
+        // The same numbered procedure and validation criteria are used on
+        // desktop and web. Avoid nested decorative cards in the article hero.
+        var content = new StackPanel();
+        var prerequisites = PickList(workflow.PrerequisitesEn, workflow.PrerequisitesId);
+        if (prerequisites.Count > 0)
+        {
+            content.Children.Add(MakeGuideLabel(Pick("BEFORE YOU START", "SEBELUM MEMULAI")));
+            foreach (var requirement in prerequisites)
+                content.Children.Add(MakeGuideText("• " + requirement, new Thickness(0, 3, 0, 0)));
+        }
+
+        content.Children.Add(MakeGuideLabel(Pick("STEP BY STEP", "LANGKAH-LANGKAH")));
+        var steps = PickList(workflow.StepsEn, workflow.StepsId);
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 9) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var number = new TextBlock
+            {
+                Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ".",
+                Foreground = (Brush)FindResource("Ink500Brush"),
+                FontSize = 11.8,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 1, 0, 0)
+            };
+            var action = MakeGuideText(steps[i], new Thickness(0));
+            Grid.SetColumn(number, 0);
+            Grid.SetColumn(action, 1);
+            row.Children.Add(number);
+            row.Children.Add(action);
+            content.Children.Add(row);
+        }
+
+        content.Children.Add(MakeGuideLabel(Pick("EXPECTED RESULT", "HASIL YANG DIHARAPKAN")));
+        content.Children.Add(MakeGuideText(Pick(workflow.ExpectedEn, workflow.ExpectedId),
+            new Thickness(0, 3, 0, 8)));
+        content.Children.Add(MakeGuideLabel(Pick("IF IT DOES NOT WORK", "JIKA BELUM BERHASIL")));
+        content.Children.Add(MakeGuideText(Pick(workflow.TroubleshootingEn, workflow.TroubleshootingId),
+            new Thickness(0, 3, 0, 0)));
+
+        var safety = Pick(workflow.SafetyEn, workflow.SafetyId);
+        if (!string.IsNullOrWhiteSpace(safety))
+        {
+            content.Children.Add(MakeGuideLabel(Pick("FIELD SAFETY", "KESELAMATAN LAPANGAN")));
+            content.Children.Add(MakeGuideText(safety, new Thickness(0, 3, 0, 0)));
+        }
+
+        return new Border
+        {
+            Tag = "ArSeeUserWorkflow",
+            Background = (Brush)FindResource("Panel75Brush"),
+            BorderBrush = (Brush)FindResource("LineBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 10, 0, 5),
+            Child = content
+        };
+    }
+
+    private TextBlock MakeGuideLabel(string label) => new()
+    {
+        Text = label,
+        FontSize = 10.1,
+        FontWeight = FontWeights.SemiBold,
+        Foreground = (Brush)FindResource("Ink500Brush"),
+        Margin = new Thickness(0, 12, 0, 4)
+    };
+
+    private TextBlock MakeGuideText(string value, Thickness margin) => new()
+    {
+        Text = value,
+        FontSize = 11.8,
+        Foreground = (Brush)FindResource("Ink700Brush"),
+        TextWrapping = TextWrapping.Wrap,
+        LineHeight = 18,
+        Margin = margin
+    };
 
     private string Pick(string en, string id) => _language == "id" ? id : en;
 
@@ -1052,7 +1368,9 @@ public partial class HelpWindow : Window
         };
     }
 
-    public sealed record HelpTopicListItem(string Key, string Icon, string Category, string Title, string Summary);
+    public sealed record HelpTopicListItem(
+        string Key, Geometry IconGeometry, string Category, string Title, string Summary,
+        string Kind, int SectionIndex, string Badge, Brush BadgeBackground, Brush BadgeForeground);
 
     private sealed record HelpTopic(
         string Key,
@@ -1066,6 +1384,8 @@ public partial class HelpWindow : Window
     {
         public string CategoryEn => Key switch
         {
+            var key when key.StartsWith("learn-use-", StringComparison.Ordinal) => "ArSee user guide",
+            var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Engineering handbook",
             "overview" => "Quick Help",
             "setup" => "Connection",
             "frame-trace" => "Trace",
@@ -1091,6 +1411,8 @@ public partial class HelpWindow : Window
 
         public string CategoryId => Key switch
         {
+            var key when key.StartsWith("learn-use-", StringComparison.Ordinal) => "Panduan pengguna ArSee",
+            var key when key.StartsWith("learn-", StringComparison.Ordinal) => "Buku belajar engineer",
             "overview" => "Bantuan Cepat",
             "setup" => "Koneksi",
             "frame-trace" => "Trace",
@@ -1123,5 +1445,7 @@ public partial class HelpWindow : Window
         IReadOnlyList<string> BulletsEn,
         IReadOnlyList<string> BulletsId,
         IReadOnlyList<string>? FrameLinesEn = null,
-        IReadOnlyList<string>? FrameLinesId = null);
+        IReadOnlyList<string>? FrameLinesId = null,
+        HelpLab? Lab = null,
+        HelpWorkflow? Workflow = null);
 }
