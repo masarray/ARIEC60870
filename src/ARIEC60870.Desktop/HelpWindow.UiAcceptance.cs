@@ -32,6 +32,8 @@ public partial class HelpWindow
         var captures = new List<object>();
 
         await CaptureAsync("en-handbook-default-window.png", "learn-iec-family", 1180, 820);
+        await CaptureAsync("en-iec104-trace-lab-default.png", "learn-lab-104", 1180, 820);
+        VerifyGuidedLabInteraction();
         await CaptureAsync("en-trace-780x540.png", "frame-trace", 780, 540);
 
         LanguageComboBox.SelectedIndex = 1;
@@ -50,6 +52,7 @@ public partial class HelpWindow
         if (TopicScrollViewer.VerticalOffset < 20)
             throw new InvalidOperationException("Clicking a nested IEC101 subchapter did not scroll the article.");
         SaveRenderedViewport(outputDirectory, "id-iec101-nested-subchapter-780x540.png");
+        await CaptureAsync("id-iec101-trace-lab-780x540.png", "learn-lab-101", 780, 540);
 
         LanguageComboBox.SelectedIndex = 0;
         await CaptureAsync("en-class1-780x540.png", "class-polling", 780, 540);
@@ -91,11 +94,11 @@ public partial class HelpWindow
                 result = "passed",
                 renderer = "native WPF RenderTargetBitmap",
                 dpiQualification = "logical DIP viewports only; operator must review Windows 125% and 150% DPI",
-                screenshots = 7,
+                screenshots = 9,
                 requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
                 note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
-                cases = new[] { "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
+                cases = new[] { "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "validated IEC104 trace lab", "IEC101 compact lab", "explanation reveal", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
             }, new JsonSerializerOptions { WriteIndented = true }));
 
@@ -122,6 +125,30 @@ public partial class HelpWindow
             });
             SaveRenderedViewport(outputDirectory, filename);
         }
+    }
+
+    private void VerifyGuidedLabInteraction()
+    {
+        // Inspect the actual WPF teaching control, not the JSON model alone.
+        var firstLab = TopicContentPanel.Children.OfType<Border>()
+            .Select(section => section.Child)
+            .OfType<StackPanel>()
+            .SelectMany(content => content.Children.OfType<Border>())
+            .FirstOrDefault(block => Equals(block.Tag, "GuidedTraceLab"));
+        if (firstLab?.Child is not StackPanel content)
+            throw new InvalidOperationException("R3 guided trace lesson did not render in the WPF article.");
+        var answer = content.Children.OfType<TextBlock>()
+            .SingleOrDefault(text => Equals(text.Tag, "HelpLabAnswer"));
+        var reveal = content.Children.OfType<Button>()
+            .SingleOrDefault(button => Equals(button.Tag, "HelpLabReveal"));
+        if (answer is null || reveal is null || answer.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Exercise explanation is not collapsed on first render.");
+        reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (answer.Visibility != Visibility.Visible || answer.Text.Length < 24)
+            throw new InvalidOperationException("Reveal explanation button did not expose the lesson answer.");
+        reveal.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (answer.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Hide explanation button did not restore the initial state.");
     }
 
     private void ValidateLayout()
