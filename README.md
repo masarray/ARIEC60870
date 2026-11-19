@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/arsee/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/arsee/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.17)
 
 **ArSee** is the public product name. Existing source namespaces, executable names and published asset filenames retain `ARIEC60870` for compatibility. The GitHub repository has been renamed to [`masarray/arsee`](https://github.com/masarray/arsee), and the canonical Pages website is [`masarray.github.io/arsee`](https://masarray.github.io/arsee/). Older repository URLs redirect; old GitHub Pages project URLs do not.
 
@@ -17,17 +17,19 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public prerelease** | **v3.6.17-rc.7** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-win-x64.zip) · [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/SHA256SUMS.txt) | Short FC10/FC11 tooltips, Latest Event follow indicator, bilingual Help Center and Signal Map |
-| **Latest public stable** | **v3.6.16** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.16/ARIEC60870-v3.6.16-win-x64.zip) | Grid-first Signal Map, atomic multi-cell edit, optional inspector |
-| **Previous stable** | **v3.6.15** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.15) | First-visible analog Scaling, Factor/TwoPoint |
+| **Latest public stable** | **v3.6.17** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-win-x64.zip) · [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.17/SHA256SUMS.txt) | Concise FC10/FC11, Latest Event auto-follow, bilingual Help and Signal Map |
+| **Previous stable** | **v3.6.16** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.16) | Grid-first Signal Map, atomic multi-cell edit |
+| **Public prerelease archive** | **v3.6.17-rc.7** | [RC.7 release page](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) | Immutable evaluation build preceding v3.6.17 |
 
 **ArSee** is the public product name; compatibility installer/ZIP names retain ARIEC60870.
 
-**Public RC.7 (19 November 2026):** The [release](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) includes concise FC10/FC11 “Class 1/2 Data Polling” tooltips, a Latest Event button that matches actual auto-scroll state, and preceding bilingual Help Center and Signal Map improvements. [Exact tagged-source Windows packaging #44478198266](https://github.com/masarray/arsee/actions/runs/44478198266) **passed**, with installer, portable ZIP, checksum, SPDX SBOM, attestation and WPF acceptance. This is **a public prerelease**, not a stable or physical FAT-certified product; the last stable release remains v3.6.16.
+**Published public stable v3.6.17 (19 November 2026):** [Official stable release](https://github.com/masarray/arsee/releases/tag/v3.6.17) and [source-bound Package #44540333243](https://github.com/masarray/arsee/actions/runs/44540333243) **SUCCESS**, with Windows installer, portable ZIP, SHA-256, SPDX SBOM and provenance. [Master CI/native independent installed-updater FAT #44539045530](https://github.com/masarray/arsee/actions/runs/44539045530) **SUCCESS** on the immutable stable tag source `5b1eada52cb26295dd91d73afe3b9d065e71a404`. This is software release qualification; physical RTU FAT remains separate.
 
-**Published stable v3.6.16 (18 November 2026):** PRs [#248](https://github.com/masarray/arsee/pull/248), [#250](https://github.com/masarray/arsee/pull/250), [#251](https://github.com/masarray/arsee/pull/251), [#252](https://github.com/masarray/arsee/pull/252), and [#253](https://github.com/masarray/arsee/pull/253) deliver a grid-first Signal Map with search/filter, atomic spreadsheet-like paste, Fill Down, Undo/Redo, shared toolbar styles, and a resizable on-demand Scaling/Mapping inspector. Windows package [workflow #44230597646](https://github.com/masarray/arsee/actions/runs/44230597646) passed. This does not establish physical RTU FAT.
+**Archived public RC.7 (19 November 2026):** The [release](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) includes concise FC10/FC11 “Class 1/2 Data Polling” tooltips, a Latest Event button that matches actual auto-scroll state, and preceding bilingual Help Center and Signal Map improvements. [Exact tagged-source Windows packaging #44478198266](https://github.com/masarray/arsee/actions/runs/44478198266) **passed**, with installer, portable ZIP, checksum, SPDX SBOM, attestation and WPF acceptance. This is **a public prerelease**, not a stable or physical FAT-certified product; the superseding public stable release is v3.6.17.
 
-**Release qualification:** RC.7 and stable v3.6.16 are unsigned software packages, **not IEC/SCADA field-conformance certificates**. Compare the [RC.7 SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/SHA256SUMS.txt) with the installer/ZIP, review [RC.7 release notes](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) and validate station engineering scaling using independent field references. Physical RTU FAT remains separate.
+**Previous stable v3.6.16 (18 November 2026):** PRs [#248](https://github.com/masarray/arsee/pull/248), [#250](https://github.com/masarray/arsee/pull/250), [#251](https://github.com/masarray/arsee/pull/251), [#252](https://github.com/masarray/arsee/pull/252), and [#253](https://github.com/masarray/arsee/pull/253) deliver a grid-first Signal Map with search/filter, atomic spreadsheet-like paste, Fill Down, Undo/Redo, shared toolbar styles, and a resizable on-demand Scaling/Mapping inspector. Windows package [workflow #44230597646](https://github.com/masarray/arsee/actions/runs/44230597646) passed. This does not establish physical RTU FAT.
+
+**Release qualification:** public stable v3.6.17 is an unsigned source-qualified software package, **not an IEC/SCADA field-conformance certificate**. Compare [v3.6.17 SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.17/SHA256SUMS.txt) against downloaded assets, review [stable release notes](https://github.com/masarray/arsee/releases/tag/v3.6.17), and validate engineering scaling using independent field references. Physical RTU FAT remains separate.
 
 <p align="center">
   <a href="https://masarray.github.io/arsee/">
@@ -35,7 +37,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [RC.7 package workflow](https://github.com/masarray/arsee/actions/runs/44478198266) validates the release executable and real-WPF evidence; physical RTU FAT remains separate.*
+*Illustrative product media. The [stable v3.6.17 Package workflow](https://github.com/masarray/arsee/actions/runs/44540333243) validates the public release executable and packaged real-WPF evidence; physical RTU FAT remains separate.*
 
 ## Engineering-unit scaling in Signal List
 
@@ -74,7 +76,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. For the newest **public prerelease**, [download the RC.7 installer](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/ARIEC60870-v3.6.17-rc.7-win-x64.zip), and verify [checksums](https://github.com/masarray/arsee/releases/download/v3.6.17-rc.7/SHA256SUMS.txt). For stable builds use [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16). Fully extract the portable ZIP before launching `ARIEC60870.exe` (not from inside the ZIP).
+1. Download the newest **public stable** [v3.6.17 installer](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.17/ARIEC60870-v3.6.17-win-x64.zip) and verify [checksums](https://github.com/masarray/arsee/releases/download/v3.6.17/SHA256SUMS.txt). [Previous stable v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) and the archived [RC.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) remain available. Extract the portable ZIP fully before launching `ARIEC60870.exe`.
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.

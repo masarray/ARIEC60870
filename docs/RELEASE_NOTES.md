@@ -1,10 +1,10 @@
 # Public release notes
 
-- **Latest public prerelease:** [ArSee v3.6.17-rc.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) — Windows x64 installer, portable ZIP, SHA-256, SPDX SBOM, and verified build provenance.
-- **Latest stable:** [ArSee v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16) — still available for users preferring the stable channel.
-- [RC.7 detailed source-bound notes](https://github.com/masarray/arsee/blob/v3.6.17-rc.7/docs/archive/release-notes/RELEASE_NOTES_v3.6.17-rc.7.md) · [Release package gate #44478198266](https://github.com/masarray/arsee/actions/runs/44478198266) · [Changelog](../CHANGELOG.md).
-- [Stable v3.6.16 release notes](archive/release-notes/RELEASE_NOTES_v3.6.16.md) · [CI/native Windows tests](https://github.com/masarray/arsee/actions/workflows/ci.yml).
+- **Latest public stable:** [ArSee v3.6.17](https://github.com/masarray/arsee/releases/tag/v3.6.17) — official Windows x64 installer, portable ZIP, SHA-256 checksums, SPDX SBOM and build provenance.
+- **Previous stable:** [v3.6.16](https://github.com/masarray/arsee/releases/tag/v3.6.16).
+- **Archived public preview:** [v3.6.17-rc.7](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) — not the current stable channel.
+- [Detailed v3.6.17 release notes](archive/release-notes/RELEASE_NOTES_v3.6.17.md) · [exact-source Windows Package #44540333243](https://github.com/masarray/arsee/actions/runs/44540333243) · [independent native updater FAT and source CI #44539045530](https://github.com/masarray/arsee/actions/runs/44539045530) · [Changelog](../CHANGELOG.md).
 
-**RC.7, published 19 November 2026:** FC10/FC11 Events hover now displays short, verified-poll labels; Latest Event button reflects actual auto-follow; routine operator tooltips are more concise. It retains the bilingual Help Center R4.1 and grid-first Signal Map editing available through the preceding RCs. Exact Windows build, xUnit, WPF acceptance, installer packaging, SHA-256/SBOM and attestation passed. The RC is not a stable production or IEC conformance certification; physical RTU/SCADA FAT and genuine Windows 125%/150% DPI still need operator evidence.
+**Published 19 November 2026.** ArSee v3.6.17 promotes the tested RC.7 usability improvements to the public stable software channel: concise IEC-101 FC10/FC11 Class 1/2 polling tooltips, Latest Event state that matches actual auto-follow, shorter action hints, bilingual Help Center/handbook and Signal Map editing. The Windows Package workflow verified the exact source, installer, ZIP, checksums, SPDX SBOM and provenance. Genuine independent installed-updater FAT succeeded on the same master source.
 
-Stable v3.6.16 remains at the latest public stable tier, providing the grid-first Signal Map GUI and supporting earlier IEC-101/104 features. Never infer engineering scaling or physical interoperability from software CI alone.
+**Important boundary:** This is a source-qualified *software* release, not IEC conformance or physical RTU/SCADA certification. Real 1200-bps SOE/FIFO, station-specific signed TI11 calibration, real Windows 125%/150% display DPI and physical IED/RTU interoperability remain unverified. Use authorized test benches; never silently replace station-owned profiles or assume physical FAT passed.
