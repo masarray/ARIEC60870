@@ -20,6 +20,10 @@
   --shadow-panel: 0 32px 90px rgba(15, 34, 52, 0.14);
   --radius: 18px;
   --radius-lg: 28px;
+  /* Shared layout and keyboard affordance tokens, intentionally CSS-only. */
+  --content-width: 1180px;
+  --page-gutter: 24px;
+  --focus-outline: 2px solid var(--brand-action);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
 }
@@ -53,6 +57,16 @@ section[id] { scroll-margin-top: 92px; }
 code { border: 1px solid rgba(220, 231, 238, 0.86); border-radius: 7px; background: rgba(244, 248, 251, 0.88); color: var(--ink-strong); font-size: 0.92em; padding: 0.1em 0.35em; }
 ul { margin: 14px 0 0; padding-left: 18px; color: var(--muted); }
 li + li { margin-top: 5px; }
+
+/* Keyboard focus is never dependent on JavaScript, animation or hover. */
+:where(a, button, summary):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 3px;
+}
+.screen-frame.zoom-trigger:focus-visible {
+  outline: 3px solid var(--brand-action);
+  outline-offset: 3px;
+}
 
 .ambient-grid {
   position: fixed;
@@ -127,7 +141,7 @@ li + li { margin-top: 5px; }
 .nav-links a:hover { background: var(--surface-soft); color: var(--ink); transform: translateY(-1px); }
 
 main,
-.site-footer { width: min(1180px, calc(100vw - 48px)); margin-inline: auto; }
+.site-footer { width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter))); margin-inline: auto; }
 .hero {
   position: relative;
   display: grid;
@@ -321,17 +335,10 @@ body h1,
 .lightbox-close { display: inline-flex; float: right; align-items: center; justify-content: center; min-height: 36px; margin-bottom: 12px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 500; padding: 8px 13px; }
 
 .site-footer { display: flex; justify-content: space-between; gap: 18px; padding: 28px 0 42px; border-top: 1px solid rgba(220, 231, 238, 0.82); color: var(--muted); font-size: 13px; font-weight: 430; }
-.reveal { opacity: 0; transform: translateY(18px); transition: opacity 680ms var(--ease), transform 680ms var(--ease); transition-delay: 0ms; will-change: opacity, transform; }
-.delay-1 { transition-delay: 100ms; }
-.delay-2 { transition-delay: 180ms; }
-.delay-3 { transition-delay: 260ms; }
-.reveal.is-visible { opacity: 1; transform: translateY(0); }
-.kinetic-ready { --rx: 0deg; --ry: 0deg; --lift: 0px; transform: translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d; }
-.kinetic-ready:hover { --lift: -2px; }
-.click-ripple { position: absolute; z-index: 5; width: 12px; height: 12px; pointer-events: none; border-radius: 999px; background: rgba(18, 168, 196, 0.20); transform: translate(-50%, -50%) scale(0); animation: rippleOut 620ms var(--ease) forwards; }
+/* P3: Content is visible by default, including when scripts fail or are disabled.
+   Keep subtle native CSS hover/focus states; no card tilt or perpetual reveal. */
 
 @keyframes pulseDot { 0%, 100% { opacity: 0.55; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.13); } }
-@keyframes rippleOut { to { opacity: 0; transform: translate(-50%, -50%) scale(34); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -868,7 +875,7 @@ body h1,
 }
 
 .demo-page {
-  width: min(1180px, calc(100vw - 48px));
+  width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter)));
   margin-inline: auto;
 }
 
@@ -1130,7 +1137,7 @@ body h1,
 
 /* IEC 60870 wiki learning hub */
 .wiki-main {
-  width: min(1180px, calc(100vw - 48px));
+  width: min(var(--content-width), calc(100vw - var(--page-gutter) - var(--page-gutter)));
 }
 
 .wiki-hero {
@@ -1687,4 +1694,10 @@ html:not(.faq-enhanced) .faq-accordion-trigger { cursor: default; }
   .lightbox { padding: 12px; }
   .lightbox-toolbar { justify-content: stretch; }
   .lightbox-toolbar button { flex: 1 1 auto; min-height: 44px; padding-inline: 10px; }
+  .reading-paths a, .faq-quicklinks a { min-height: 44px; }
+}
+
+/* Touch devices cannot hover a screenshot; keep the zoom hint discoverable. */
+@media (hover: none) {
+  .screen-frame.zoom-trigger::after { opacity: 1; transform: none; }
 }
