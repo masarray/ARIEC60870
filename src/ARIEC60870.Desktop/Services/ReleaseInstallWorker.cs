@@ -285,7 +285,7 @@ public static class ReleaseInstallWorker
             !string.Equals(Path.GetFullPath(plan.StageDirectory) + Path.DirectorySeparatorChar,
                 Path.GetDirectoryName(path) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(plan.InstallerPath,
-                Path.Combine(plan.StageDirectory, "ArSee-" + plan.Tag + "-setup-win-x64.exe"),
+                Path.Join(plan.StageDirectory, "ArSee-" + plan.Tag + "-setup-win-x64.exe"),
                 StringComparison.OrdinalIgnoreCase) ||
             !ReleaseUpdateService.HasManagedInstallation(plan.InstalledExecutable) ||
             !IsRegisteredInstallationTarget(plan.InstalledExecutable))
