@@ -44,9 +44,9 @@ public sealed class RepositoryHygieneTests
         var version = props.Descendants("Version").FirstOrDefault()?.Value;
 
         Assert.False(string.IsNullOrWhiteSpace(version));
-        // Source code may advance in a release-candidate PR while the public
-        // download page must truthfully advertise only the last released build.
-        // Its metadata must still agree internally and cannot be newer than code.
+        // Published RCs are built and tagged from dedicated release branches.
+        // A public RC may be newer than stable master source only with pinned
+        // GitHub Release source/workflow provenance in the site manifest.
         using var manifest = System.Text.Json.JsonDocument.Parse(
             File.ReadAllText(root.File("site/seo-manifest.json")));
         var published = manifest.RootElement.GetProperty("version").GetString();
@@ -54,13 +54,22 @@ public sealed class RepositoryHygieneTests
             $"Invalid source version: {version}");
         Assert.True(TryParseReleaseVersion(published, out var siteVersion, out var siteRc),
             $"Invalid public site release version: {published}");
-        // A stable site version X.Y.Z is newer than X.Y.Z-rc.N. Never
-        // publish stable metadata for an RC while claiming it is not final.
+        // A stable site version X.Y.Z is newer than X.Y.Z-rc.N.
         var siteIsNotNewer = siteVersion < codeVersion ||
             (siteVersion == codeVersion &&
              (!codeRc.HasValue || (siteRc.HasValue && siteRc.Value <= codeRc.Value)));
-        Assert.True(siteIsNotNewer,
-            $"Public website version {published} exceeds source candidate {version}.");
+        if (!siteIsNotNewer)
+        {
+            // No silent stable-version promotion. The official RC.7 release
+            // was published from a separate immutable source branch.
+            Assert.True(siteRc.HasValue, "A public version newer than master must be an RC.");
+            Assert.False(codeRc.HasValue, "Source version must remain the actual stable baseline.");
+            Assert.Equal(version, manifest.RootElement.GetProperty("latestStableVersion").GetString());
+            Assert.Equal($"v{published}", manifest.RootElement.GetProperty("releaseTag").GetString());
+            var releaseSha = manifest.RootElement.GetProperty("releaseSourceCommit").GetString();
+            Assert.Matches("^[0-9a-f]{40}$", releaseSha ?? string.Empty);
+            Assert.True(manifest.RootElement.GetProperty("releaseWorkflowId").GetInt64() > 0);
+        }
         var site = File.ReadAllText(root.File("site/index.html"));
         Assert.Contains($"name=\"application-version\" content=\"{published}\"", site);
         Assert.Contains($"\"softwareVersion\":\"{published}\"", site);
@@ -143,7 +152,19 @@ public sealed class RepositoryHygieneTests
         // The no-network fallback, user-facing README and package provenance
         // must be version-consistent with the verified stable site manifest.
         // Historical prior-release links are allowed elsewhere.
-        Assert.Contains($"| **Latest public stable** | **v{version}**", readme);
+        var isRc = version!.Contains("-rc.", StringComparison.Ordinal);
+        var releaseChannel = isRc ? "Latest public prerelease" : "Latest public stable";
+        Assert.Contains($"| **{releaseChannel}** | **v{version}**", readme);
+        if (isRc)
+        {
+            var stable = manifest.RootElement.GetProperty("latestStableVersion").GetString();
+            Assert.Contains($"| **Latest public stable** | **v{stable}**", readme);
+            foreach (var page in new[] { home, indonesian, download })
+            {
+                Assert.Contains($"/releases/tag/v{stable}", page);
+                Assert.Contains("prerelease", page, StringComparison.OrdinalIgnoreCase);
+            }
+        }
         Assert.Contains($"[v{version}]({releaseUrl})",
             File.ReadAllText(root.File("site/README.md")));
         var props = File.ReadAllText(root.File("Directory.Build.props"));
