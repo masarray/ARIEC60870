@@ -22,15 +22,15 @@ $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
 $source = Join-Path $env:RUNNER_TEMP 'ariec-old-release'
 $currentSource = (Resolve-Path 'artifacts/passive-gui-publish/ARIEC60870.Desktop.exe').Path
 $output = (Resolve-Path 'artifacts/installer').Path
-$installDir = Join-Path $env:LOCALAPPDATA 'Programs/ARIEC60870'
-$installedExe = Join-Path $installDir 'ARIEC60870.exe'
+$installDir = Join-Path $env:LOCALAPPDATA 'Programs/ArSee'
+$installedExe = Join-Path $installDir 'ArSee.exe'
 $stage = [IO.Path]::Combine($env:LOCALAPPDATA, 'ARIEC60870', 'updates', "v$version")
 $planPath = Join-Path $stage 'install-plan.json'
 $ackPath = Join-Path $stage 'startup-ack.json'
 $donePath = Join-Path $stage 'completed.marker'
 $log = Join-Path $stage 'worker-fat.txt'
-$currentSetup = Join-Path $output "ARIEC60870-v$version-setup-win-x64.exe"
-$oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
+$currentSetup = Join-Path $output "ArSee-v$version-setup-win-x64.exe"
+$oldSetup = Join-Path $output "ArSee-v$PreviousVersion-setup-win-x64.exe"
 # Native executable startup on GitHub Windows runners succeeded from runner
 # TEMP even when the identical canary under the repository artifact directory
 # timed out before /LOG. Execute setup fixtures from an isolated temp folder
@@ -38,7 +38,7 @@ $oldSetup = Join-Path $output "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
 $executionRoot = Join-Path $env:RUNNER_TEMP 'ariec-inno-fat-exec'
 $canaryOutput = Join-Path $executionRoot 'canary'
 New-Item -ItemType Directory -Force -Path $canaryOutput | Out-Null
-$oldSetupRuntime = Join-Path $executionRoot "ARIEC60870-v$PreviousVersion-setup-win-x64.exe"
+$oldSetupRuntime = Join-Path $executionRoot "ArSee-v$PreviousVersion-setup-win-x64.exe"
 $oldInstallLog = Join-Path $output 'UPDATER-FAT-OLD-INNO.log'
 # Never replace an existing engineer installation, even on a CI runner.
 if (Test-Path $installDir) {
@@ -229,6 +229,16 @@ try {
   $launched = Get-Process -Id $ack.Pid -ErrorAction SilentlyContinue
   if (!$launched -or $launched.HasExited) {
     throw 'New WPF process is not running after success.'
+  }
+  if (Test-Path (Join-Path $installDir 'ARIEC60870.exe')) {
+    throw 'Updater preserved duplicate legacy ARIEC60870.exe in installed application folder.'
+  }
+  $startGroup = Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs/ArSee'
+  if (!(Test-Path (Join-Path $startGroup 'ArSee.lnk'))) {
+    throw 'ArSee Start Menu shortcut missing after worker upgrade.'
+  }
+  if (Test-Path (Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs/ARIEC60870/ARIEC60870.lnk')) {
+    throw 'Obsolete legacy Start Menu shortcut still exists.'
   }
   if ($ack.FileVersion -notlike "$version*" -or
       $ack.Token -notmatch '^[0-9A-F]{48}$' -or
