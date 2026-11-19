@@ -15,7 +15,7 @@ public sealed class ReleasePackagingHygieneTests
 
         Assert.Contains("name: Package", workflow);
         Assert.Contains("Build user single-file EXE package", workflow);
-        Assert.Contains("ARIEC60870-v${{ needs.resolve.outputs.version }}-win-x64.zip", workflow);
+        Assert.Contains("ArSee-v${{ needs.resolve.outputs.version }}-win-x64.zip", workflow);
         Assert.DoesNotContain("win-x64-portable.zip", workflow);
         Assert.DoesNotContain("win-x64-singlefile.zip", workflow);
         Assert.DoesNotContain("build_singlefile", workflow);
@@ -27,8 +27,9 @@ public sealed class ReleasePackagingHygieneTests
         var root = FindRepositoryRoot();
         var script = File.ReadAllText(root.File("scripts/publish-windows-portable.ps1"));
 
-        Assert.Contains("ARIEC60870.exe", script);
+        Assert.Contains("ArSee.exe", script);
         Assert.Contains("PublishSingleFile=true", script);
+        Assert.DoesNotContain("ARIEC60870.exe", script);
         Assert.Contains("exactly one executable", script);
         Assert.DoesNotContain("Start-ARIEC60870", script);
         Assert.DoesNotContain("Open-CLI-Help", script);
@@ -42,11 +43,12 @@ public sealed class ReleasePackagingHygieneTests
         var root = FindRepositoryRoot();
         var verifier = File.ReadAllText(root.File("scripts/verify-release-package.ps1"));
 
-        Assert.Contains("ARIEC60870.exe", verifier);
+        Assert.Contains("ArSee.exe", verifier);
         Assert.Contains("README_RELEASE.txt", verifier);
         Assert.Contains("docs/USER_GUIDE.md", verifier);
         Assert.Contains("must not include batch launchers", verifier);
         Assert.Contains("exactly one executable", verifier);
+        Assert.DoesNotContain("ARIEC60870.exe", verifier);
     }
 
     [Fact]
@@ -59,8 +61,9 @@ public sealed class ReleasePackagingHygieneTests
 
         foreach (var text in new[] { readme, quickStart, releasePackaging })
         {
-            Assert.Contains("ARIEC60870.exe", text);
+            Assert.Contains("ArSee.exe", text);
             Assert.DoesNotContain("Start-ARIEC60870", text);
+            Assert.DoesNotContain("ARIEC60870.exe", text);
             Assert.DoesNotContain("Open-CLI-Help", text);
             Assert.DoesNotContain("win-x64-portable", text);
             Assert.DoesNotContain("win-x64-singlefile", text);
