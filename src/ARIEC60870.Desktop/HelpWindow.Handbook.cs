@@ -52,11 +52,26 @@ public partial class HelpWindow
             var sections = new List<HelpSection>();
             foreach (var section in chapter.GetProperty("sections").EnumerateArray())
             {
+                HelpLab? lab = null;
+                if (section.TryGetProperty("lab", out var labData))
+                {
+                    var kind = Read(labData, "wireKind");
+                    var hex = labData.GetProperty("wireHex").ValueKind == JsonValueKind.Null
+                        ? null : Read(labData, "wireHex");
+                    if (kind != "conceptual" && string.IsNullOrWhiteSpace(hex))
+                        throw new InvalidDataException("Missing lab frame bytes: " + key);
+                    lab = new HelpLab(
+                        kind, hex,
+                        Read(labData, "scenarioEn"), Read(labData, "scenarioId"),
+                        ReadArray(labData, "stepsEn"), ReadArray(labData, "stepsId"),
+                        Read(labData, "questionEn"), Read(labData, "questionId"),
+                        Read(labData, "answerEn"), Read(labData, "answerId"));
+                }
                 sections.Add(new HelpSection(
                     Read(section, "headingEn"), Read(section, "headingId"),
                     ReadArray(section, "paragraphsEn"), ReadArray(section, "paragraphsId"),
                     ReadArray(section, "bulletsEn"), ReadArray(section, "bulletsId"),
-                    ReadArray(section, "framesEn"), ReadArray(section, "framesId")));
+                    ReadArray(section, "framesEn"), ReadArray(section, "framesId"), lab));
             }
 
             var references = ReadArray(chapter, "sources");
@@ -79,6 +94,13 @@ public partial class HelpWindow
             throw new InvalidDataException("The shared IEC 60870 handbook has no chapters.");
         return chapters;
     }
+
+    private sealed record HelpLab(
+        string WireKind, string? WireHex,
+        string ScenarioEn, string ScenarioId,
+        IReadOnlyList<string> StepsEn, IReadOnlyList<string> StepsId,
+        string QuestionEn, string QuestionId,
+        string AnswerEn, string AnswerId);
 
     private static string Read(JsonElement element, string property) =>
         element.GetProperty(property).GetString() ??
