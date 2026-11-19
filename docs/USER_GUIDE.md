@@ -12,6 +12,7 @@ The full operating guide includes the following chapters in English and Indonesi
 | --- | --- | --- |
 | Getting started with ArSee | [Open](../site/wiki.html#learn-use-start) | Portable installation, native controls, built-in demo, first session |
 | Setup, target and profile | [Open](../site/wiki.html#learn-use-setup) | Protocol mode, UART/COM, TCP/IP, address widths, project JSON, start/stop |
+| Signal Map field-by-field | [Open](../site/wiki.html#learn-use-signal-map) | CA/IOA/TI, Bay/TYPE/Mnemonic, state map, Factor/TwoPoint, command feedback, IEC103 FUN/INF, validation and Save & Apply |
 | IEC 101 active master | [Open](../site/wiki.html#learn-use-101) | Unbalanced serial link, Class 1/2, GI, slow-baud investigations |
 | IEC 103 relay testing | [Open](../site/wiki.html#learn-use-103) | Serial relay access, FUN/INF signal mapping, event proofs |
 | IEC 104 TCP/IP sessions | [Open](../site/wiki.html#learn-use-104) | Host/port, STARTDT, APCI sequence, GI, spontaneous reports |
