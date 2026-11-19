@@ -24,6 +24,7 @@ public partial class HelpWindow
         // The same canonical data file must be packaged and readable offline.
         if (!_topics.Any(topic => topic.Key == "learn-use-start") ||
             !_topics.Any(topic => topic.Key == "learn-use-setup") ||
+            !_topics.Any(topic => topic.Key == "learn-use-signal-map") ||
             !_topics.Any(topic => topic.Key == "learn-use-passive") ||
             !_topics.Any(topic => topic.Key == "learn-use-evidence") ||
             !_topics.Any(topic => topic.Key == "learn-iec-family") ||
@@ -37,6 +38,8 @@ public partial class HelpWindow
 
         await CaptureAsync("en-user-guide-default-window.png", "learn-use-start", 1180, 820);
         VerifyOperatingGuideStructure();
+        await CaptureAsync("en-signal-map-guide-1180x820.png", "learn-use-signal-map", 1180, 820);
+        VerifyOperatingGuideStructure();
         await CaptureAsync("en-handbook-default-window.png", "learn-iec-family", 1180, 820);
         await CaptureAsync("en-iec104-trace-lab-default.png", "learn-lab-104", 1180, 820);
         VerifyGuidedLabInteraction();
@@ -44,6 +47,8 @@ public partial class HelpWindow
 
         LanguageComboBox.SelectedIndex = 1;
         await CaptureAsync("id-user-guide-setup-780x540.png", "learn-use-setup", 780, 540);
+        VerifyOperatingGuideStructure();
+        await CaptureAsync("id-signal-map-guide-780x540.png", "learn-use-signal-map", 780, 540);
         VerifyOperatingGuideStructure();
         await CaptureAsync("id-iec101-780x540.png", "learn-iec101", 780, 540);
         if (TopicTitleText.Text != "IEC 60870-5-101")
@@ -102,11 +107,11 @@ public partial class HelpWindow
                 result = "passed",
                 renderer = "native WPF RenderTargetBitmap",
                 dpiQualification = "logical DIP viewports only; operator must review Windows 125% and 150% DPI",
-                screenshots = 11,
+                screenshots = 13,
                 requestedWindowSizes = new[] { "default: 1180x820 DIP", "search: 1080x750 DIP", "compact: 780x540 DIP" },
                 note = "Windows runner may constrain the requested size; actual measured logical dimensions accompany each screenshot.",
                 languages = new[] { "en", "id" },
-                cases = new[] { "offline bilingual stepwise ArSee operating guide", "user guide chapter hierarchy", "preconditions, action steps and troubleshooting", "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "validated IEC104 trace lab", "IEC101 compact lab", "explanation reveal", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
+                cases = new[] { "offline bilingual stepwise ArSee operating guide", "user guide chapter hierarchy", "preconditions, action steps and troubleshooting", "Signal Map field-by-field bilingual procedure at default and compact sizes", "offline bilingual engineering handbook", "IEC protocol badges", "nested subchapter deep navigation", "validated IEC104 trace lab", "IEC101 compact lab", "explanation reveal", "trace", "polling", "filtered search", "empty results", "contextual F1 recovery" },
                 measurements = captures
             }, new JsonSerializerOptions { WriteIndented = true }));
 
