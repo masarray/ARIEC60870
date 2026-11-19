@@ -445,11 +445,13 @@
             "prerequisitesId": [],
             "stepsEn": [
               "Select IEC 101 or IEC 104 in Setup, then click Signals on the left rail.",
+              "While the Signal Map editor is open, press F1 or choose More actions → Signal Map guide (F1) to open this chapter directly without leaving the grid.",
               "Check the editable profile name and loaded filename at the top of Signal Map.",
               "Use More actions → Load profile... to open an approved IEC 101/104 JSON; use Save As for a new project copy."
             ],
             "stepsId": [
               "Pilih IEC 101 atau IEC 104 di Setup, lalu klik Signals pada rail kiri.",
+              "Saat editor Signal Map terbuka, tekan F1 atau pilih More actions → Signal Map guide (F1) untuk langsung membuka bab ini tanpa meninggalkan grid.",
               "Periksa nama profil yang bisa diedit serta nama file termuat di bagian atas Signal Map.",
               "Gunakan More actions → Load profile... untuk membuka JSON IEC 101/104 yang disetujui; gunakan Save As untuk salinan baru proyek."
             ],
