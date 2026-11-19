@@ -55,6 +55,19 @@ public partial class HelpWindow
             var sections = new List<HelpSection>();
             foreach (var section in chapter.GetProperty("sections").EnumerateArray())
             {
+                HelpWorkflow? workflow = null;
+                if (section.TryGetProperty("workflow", out var workflowData))
+                {
+                    workflow = new HelpWorkflow(
+                        ReadArray(workflowData, "prerequisitesEn"), ReadArray(workflowData, "prerequisitesId"),
+                        ReadArray(workflowData, "stepsEn"), ReadArray(workflowData, "stepsId"),
+                        Read(workflowData, "expectedEn"), Read(workflowData, "expectedId"),
+                        Read(workflowData, "troubleshootingEn"), Read(workflowData, "troubleshootingId"),
+                        Read(workflowData, "safetyEn"), Read(workflowData, "safetyId"));
+                    if (workflow.StepsEn.Count == 0 || workflow.StepsEn.Count != workflow.StepsId.Count)
+                        throw new InvalidDataException("Incomplete bilingual operating instructions: " + key);
+                }
+
                 HelpLab? lab = null;
                 if (section.TryGetProperty("lab", out var labData))
                 {
@@ -74,16 +87,23 @@ public partial class HelpWindow
                     Read(section, "headingEn"), Read(section, "headingId"),
                     ReadArray(section, "paragraphsEn"), ReadArray(section, "paragraphsId"),
                     ReadArray(section, "bulletsEn"), ReadArray(section, "bulletsId"),
-                    ReadArray(section, "framesEn"), ReadArray(section, "framesId"), lab));
+                    ReadArray(section, "framesEn"), ReadArray(section, "framesId"), lab, workflow));
             }
 
             var references = ReadArray(chapter, "sources");
             if (references.Length != 0)
             {
                 sections.Add(new HelpSection(
-                    "Sources and standards", "Rujukan standar dan sumber",
-                    new[] { "Use the applicable licensed standard and approved project interoperability profile for formal conformance. These are public catalogues and example conventions, not substitutes for normative requirements." },
-                    new[] { "Gunakan standar berlisensi yang berlaku dan interoperability profile proyek untuk penilaian kesesuaian formal. Ini adalah katalog publik dan contoh konvensi, bukan pengganti ketentuan normatif." },
+                    key.StartsWith("learn-use-", StringComparison.Ordinal)
+                        ? "Further documentation" : "Sources and standards",
+                    key.StartsWith("learn-use-", StringComparison.Ordinal)
+                        ? "Dokumentasi tambahan" : "Rujukan standar dan sumber",
+                    new[] { key.StartsWith("learn-use-", StringComparison.Ordinal)
+                        ? "These links point to the public ArSee user documentation and engineering references. Match the installed application version to the guide."
+                        : "Use the applicable licensed standard and approved project interoperability profile for formal conformance. These are public catalogues and example conventions, not substitutes for normative requirements." },
+                    new[] { key.StartsWith("learn-use-", StringComparison.Ordinal)
+                        ? "Tautan ini menuju dokumentasi pengguna publik ArSee dan referensi engineering. Cocokkan versi aplikasi yang terpasang dengan panduan."
+                        : "Gunakan standar berlisensi yang berlaku dan interoperability profile proyek untuk penilaian kesesuaian formal. Ini adalah katalog publik dan contoh konvensi, bukan pengganti ketentuan normatif." },
                     references, references));
             }
 
@@ -207,6 +227,13 @@ public partial class HelpWindow
             Child = body
         };
     }
+
+    private sealed record HelpWorkflow(
+        IReadOnlyList<string> PrerequisitesEn, IReadOnlyList<string> PrerequisitesId,
+        IReadOnlyList<string> StepsEn, IReadOnlyList<string> StepsId,
+        string ExpectedEn, string ExpectedId,
+        string TroubleshootingEn, string TroubleshootingId,
+        string SafetyEn, string SafetyId);
 
     private sealed record HelpLab(
         string WireKind, string? WireHex,
