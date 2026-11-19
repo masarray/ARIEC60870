@@ -18,10 +18,10 @@ public sealed class SharedHandbookTests
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Contains("IEC", root.GetProperty("noticeEn").GetString());
         var chapters = root.GetProperty("chapters").EnumerateArray().ToArray();
-        Assert.True(chapters.Length >= 27, "R4 handbook requires eleven user-guide chapters plus sixteen engineering chapters.");
-        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 115,
-            "R4 handbook requires 115 bilingual theory, trace and user-guide sections.");
-        Assert.Equal("Engineering Handbook R4 — ArSee User Guide + Trace Labs", root.GetProperty("bookEdition").GetString());
+        Assert.True(chapters.Length >= 28, "R4.1 handbook requires twelve user-guide chapters plus sixteen engineering chapters.");
+        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 128,
+            "R4.1 handbook requires 128 bilingual theory, trace and operator sections.");
+        Assert.Equal("Engineering Handbook R4.1 — Detailed Signal Map Guide", root.GetProperty("bookEdition").GetString());
         Assert.Equal(chapters.Length, chapters.Select(c => c.GetProperty("key").GetString()).Distinct().Count());
         var expected = new[]
         {
@@ -29,7 +29,7 @@ public sealed class SharedHandbookTests
             "learn-nuc", "learn-redundancy", "learn-semantics", "learn-field-guide",
             "learn-framing", "learn-lifecycle", "learn-gateways", "learn-interop",
             "learn-lab-101", "learn-lab-103", "learn-lab-104", "learn-lab-redundancy",
-            "learn-use-start", "learn-use-setup", "learn-use-101", "learn-use-103",
+            "learn-use-start", "learn-use-setup", "learn-use-signal-map", "learn-use-101", "learn-use-103",
             "learn-use-104", "learn-use-dual", "learn-use-passive", "learn-use-views",
             "learn-use-commands", "learn-use-evidence", "learn-use-diagnose"
         };
@@ -97,9 +97,9 @@ public sealed class SharedHandbookTests
         var chapters = document.RootElement.GetProperty("chapters").EnumerateArray()
             .Where(chapter => chapter.GetProperty("key").GetString()!.StartsWith("learn-use-", StringComparison.Ordinal))
             .ToArray();
-        Assert.Equal(11, chapters.Length);
+        Assert.Equal(12, chapters.Length);
         var lessons = chapters.SelectMany(ch => ch.GetProperty("sections").EnumerateArray()).ToArray();
-        Assert.Equal(45, lessons.Length);
+        Assert.Equal(58, lessons.Length);
         Assert.All(lessons, section =>
         {
             Assert.True(section.TryGetProperty("workflow", out var workflow));
@@ -126,6 +126,45 @@ public sealed class SharedHandbookTests
         Assert.Contains("lookup(workflow, 'expected')", wiki);
         Assert.Contains("lookup(workflow, 'troubleshooting')", wiki);
         Assert.DoesNotContain("innerHTML", wiki);
+    }
+
+    [Fact]
+    public void SignalMapLessonsMatchEditorFieldNamesAndOpenFromF1()
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(
+            Source("site/learning/iec60870-handbook.json")));
+        var guide = document.RootElement.GetProperty("chapters").EnumerateArray()
+            .Single(chapter => chapter.GetProperty("key").GetString() == "learn-use-signal-map");
+        var lessons = guide.GetProperty("sections").EnumerateArray().ToArray();
+        Assert.Equal(13, lessons.Length);
+        Assert.All(lessons, section =>
+        {
+            Assert.True(section.TryGetProperty("workflow", out var workflow));
+            Assert.True(workflow.GetProperty("stepsEn").GetArrayLength() >= 3);
+            Assert.Equal(workflow.GetProperty("stepsEn").GetArrayLength(),
+                workflow.GetProperty("stepsId").GetArrayLength());
+        });
+
+        var editor = File.ReadAllText(Source("src/ARIEC60870.Desktop/SignalListEditorWindow.cs"));
+        foreach (var label in new[]
+        {
+            "Signal Map", "Save & Apply", "Validate entire list", "Validate signal",
+            "Generate name", "Common address (CA)", "Information object (IOA)",
+            "IEC Type ID (TI)", "Scaling mode", "State map", "Feedback IOA",
+            "Sync 31 I/O reference...", "Export blank Field FAT worksheet..."
+        })
+            Assert.Contains(label, editor);
+        Assert.Contains("if (e.Key == Key.F1)", editor);
+        Assert.Contains("Signal Map guide (F1)", editor);
+        Assert.Contains("new HelpWindow(\"learn-use-signal-map\")", editor);
+
+        var text = string.Join(" ",
+            lessons.SelectMany(section => section.GetProperty("workflow")
+                .GetProperty("stepsEn").EnumerateArray().Select(step => step.GetString())));
+        Assert.Contains("TI11", text);
+        Assert.Contains("Two-point", text);
+        Assert.Contains("IEC103", text);
+        Assert.Contains("Save & Apply", text);
     }
 
     [Fact]
