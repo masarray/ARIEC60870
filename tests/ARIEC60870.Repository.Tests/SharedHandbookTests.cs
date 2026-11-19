@@ -18,16 +18,17 @@ public sealed class SharedHandbookTests
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
         Assert.Contains("IEC", root.GetProperty("noticeEn").GetString());
         var chapters = root.GetProperty("chapters").EnumerateArray().ToArray();
-        Assert.True(chapters.Length >= 12, "Engineer book must cover 12 complete learning chapters.");
-        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 50,
-            "Book-depth learning needs at least 50 bilingual sections.");
-        Assert.Equal("Engineering Handbook R2", root.GetProperty("bookEdition").GetString());
+        Assert.True(chapters.Length >= 16, "R3 handbook requires sixteen theory and trace-lab chapters.");
+        Assert.True(chapters.Sum(ch => ch.GetProperty("sections").GetArrayLength()) >= 70,
+            "R3 handbook needs at least 70 bilingual sections.");
+        Assert.Equal("Engineering Handbook R3 — Verified Trace Labs", root.GetProperty("bookEdition").GetString());
         Assert.Equal(chapters.Length, chapters.Select(c => c.GetProperty("key").GetString()).Distinct().Count());
         var expected = new[]
         {
             "learn-iec-family", "learn-iec101", "learn-iec103", "learn-iec104",
             "learn-nuc", "learn-redundancy", "learn-semantics", "learn-field-guide",
-            "learn-framing", "learn-lifecycle", "learn-gateways", "learn-interop"
+            "learn-framing", "learn-lifecycle", "learn-gateways", "learn-interop",
+            "learn-lab-101", "learn-lab-103", "learn-lab-104", "learn-lab-redundancy"
         };
         foreach (var key in expected)
         {
@@ -86,6 +87,49 @@ public sealed class SharedHandbookTests
     }
 
     [Fact]
+    public void R3TraceLabsAreCompleteAndShareTheirAnswersAcrossDesktopAndWeb()
+    {
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(Source("site/learning/iec60870-handbook.json")));
+        var chapters = document.RootElement.GetProperty("chapters").EnumerateArray().ToArray();
+        var exercises = chapters
+            .SelectMany(ch => ch.GetProperty("sections").EnumerateArray())
+            .Where(section => section.TryGetProperty("lab", out _))
+            .Select(section => section.GetProperty("lab")).ToArray();
+        Assert.True(exercises.Length >= 20);
+        Assert.True(exercises.Count(lab =>
+            lab.GetProperty("wireHex").ValueKind == JsonValueKind.String) >= 14);
+        Assert.True(exercises.Count(lab =>
+            !lab.GetProperty("expectedValid").GetBoolean()) >= 2);
+
+        foreach (var lab in exercises)
+        {
+            foreach (var field in new[] { "scenario", "question", "answer" })
+            {
+                Assert.False(string.IsNullOrWhiteSpace(lab.GetProperty(field + "En").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(lab.GetProperty(field + "Id").GetString()));
+            }
+            Assert.True(lab.GetProperty("stepsEn").GetArrayLength() > 0);
+            Assert.Equal(lab.GetProperty("stepsEn").GetArrayLength(),
+                lab.GetProperty("stepsId").GetArrayLength());
+            Assert.Equal(JsonValueKind.Object, lab.GetProperty("expectedFields").ValueKind);
+        }
+
+        var loader = File.ReadAllText(Source("src/ARIEC60870.Desktop/HelpWindow.Handbook.cs"));
+        Assert.Contains("Read(labData, \"wireHex\")", loader);
+        Assert.Contains("BuildTraceLab(HelpLab lab)", loader);
+        Assert.Contains("HelpLabReveal", loader);
+        Assert.Contains("HelpLabAnswer", loader);
+        Assert.Contains("Visibility.Collapsed", loader);
+
+        var renderer = File.ReadAllText(Source("src/ARIEC60870.Desktop/HelpWindow.xaml.cs"));
+        Assert.Contains("BuildTraceLab(section.Lab)", renderer);
+        Assert.Contains("learn-lab-101", renderer);
+        Assert.Contains("learn-lab-103", renderer);
+        Assert.Contains("learn-lab-104", renderer);
+    }
+
+    [Fact]
     public void ReaderUsesSafeDomAndExplicitProtocolProfileCaveats()
     {
         var js = File.ReadAllText(Source("site/learning/handbook-reader.js"));
@@ -97,6 +141,10 @@ public sealed class SharedHandbookTests
         Assert.Contains("learning-section-button", js);
         Assert.Contains("learning-protocol-badge", js);
         Assert.Contains("scrollIntoView", js);
+        Assert.Contains("learning-trace-lab", js);
+        Assert.Contains("learning-lab-reveal", js);
+        Assert.Contains("aria-controls", js);
+        Assert.Contains("answer.hidden = !reveal", js);
 
         var corpus = File.ReadAllText(Source("site/learning/iec60870-handbook.json"));
         Assert.Contains("not a universal IEC requirement", corpus);
