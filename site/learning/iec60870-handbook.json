@@ -7,6 +7,2009 @@
   "noticeId": "Panduan belajar engineering orisinal. Bukan salinan/pengganti standar IEC berlisensi, interoperability list yang disetujui, atau prosedur keselamatan. Persyaratan bergantung edisi dan profil proyek.",
   "chapters": [
     {
+      "key": "learn-use-start",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Getting started with ArSee",
+      "titleId": "Mulai menggunakan ArSee",
+      "summaryEn": "Install, find the real controls, and complete a safe first session before visiting an RTU.",
+      "summaryId": "Instal, kenali kontrol aplikasi yang sebenarnya, dan selesaikan sesi pertama yang aman sebelum ke RTU.",
+      "searchText": "Getting started with ArSee Mulai menggunakan ArSee Install, find the real controls, and complete a safe first session before visiting an RTU. Instal, kenali kontrol aplikasi yang sebenarnya, dan selesaikan sesi pertama yang aman sebelum ke RTU. Install the Windows portable package Instal paket portable Windows Read the window in three areas Kenali tiga area utama jendela First safe practice in built-in demo Latihan aman pertama dengan demo bawaan The basic investigation workflow Alur investigasi paling sederhana",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Install the Windows portable package",
+          "headingId": "Instal paket portable Windows",
+          "paragraphsEn": [
+            "ArSee is a Windows IEC 60870 protocol analyzer. The published package is a ZIP containing the desktop application; it is not a production SCADA server."
+          ],
+          "paragraphsId": [
+            "ArSee adalah analyzer protokol IEC 60870 untuk Windows. Paket publik berupa ZIP berisi aplikasi desktop; bukan SCADA server produksi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [
+              "A trusted release package and an ordinary writable local folder."
+            ],
+            "prerequisitesId": [
+              "Paket release tepercaya dan folder lokal yang dapat ditulis."
+            ],
+            "stepsEn": [
+              "Open the official ArSee GitHub Releases page and select the applicable Windows x64 release ZIP.",
+              "Extract every file to a local folder, for example C:\\Tools\\ArSee; do not run directly from a compressed archive.",
+              "Start ARIEC60870.exe from the extracted folder.",
+              "If SmartScreen appears, first verify the release source and checksum according to your organization policy."
+            ],
+            "stepsId": [
+              "Buka GitHub Releases resmi ArSee dan pilih ZIP Windows x64 yang sesuai.",
+              "Ekstrak seluruh isi ke folder lokal, misalnya C:\\Tools\\ArSee; jangan menjalankan langsung dari arsip.",
+              "Jalankan ARIEC60870.exe dari folder hasil ekstraksi.",
+              "Jika SmartScreen muncul, verifikasi asal release dan checksum menurut kebijakan organisasi sebelum melanjutkan."
+            ],
+            "expectedEn": "Main Window opens with Setup, Connect, Report, Open Cap, Save Cap, Trace TXT, Clear, Signals and Help in the left action rail.",
+            "expectedId": "Main Window terbuka dengan Setup, Connect, Report, Open Cap, Save Cap, Trace TXT, Clear, Signals dan Help pada action rail kiri.",
+            "troubleshootingEn": "If the executable will not launch, verify extraction, Windows compatibility and organizational application restrictions; do not bypass company security controls blindly.",
+            "troubleshootingId": "Jika executable tidak terbuka, periksa hasil ekstraksi, kompatibilitas Windows dan kebijakan aplikasi organisasi; jangan menonaktifkan kontrol keamanan sembarangan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "1.1",
+          "id": "learn-use-start-s1"
+        },
+        {
+          "headingEn": "Read the window in three areas",
+          "headingId": "Kenali tiga area utama jendela",
+          "paragraphsEn": [
+            "The left action rail starts and stops the session. The center contains selectable investigation workspaces. The right side provides a collapsible Command Panel for IEC 101/104 operations."
+          ],
+          "paragraphsId": [
+            "Action rail kiri mengatur sesi. Bagian tengah berisi workspace analisis yang dapat dipilih. Sisi kanan memiliki Command Panel lipat untuk operasi IEC 101/104."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Inspect the left rail: Setup opens configuration; Connect toggles to Disconnect during a running active session.",
+              "Use the central workspace navigation: Raw Frames, Values, Events, Controls, GI, Report, and other views appropriate to the selected protocol.",
+              "Click the slim COMMAND PANEL header/chevron when you actually need GI, Read IOA or supported control actions.",
+              "Use Help or F1 to open context-sensitive instructions for the selected workspace."
+            ],
+            "stepsId": [
+              "Perhatikan action rail kiri: Setup membuka konfigurasi; Connect berubah menjadi Disconnect selama sesi aktif.",
+              "Gunakan navigasi workspace tengah: Raw Frames, Values, Events, Controls, GI, Report, dan view lain sesuai protokol.",
+              "Klik header/chevron COMMAND PANEL yang ramping hanya saat memerlukan GI, Read IOA atau kontrol yang didukung.",
+              "Gunakan Help atau F1 untuk membuka instruksi kontekstual sesuai workspace yang dipilih."
+            ],
+            "expectedEn": "You can reach the trace and evidence workspaces without opening the command dock or adding visual clutter.",
+            "expectedId": "Trace dan workspace evidence bisa digunakan tanpa membuka command dock atau menambah keramaian layar.",
+            "troubleshootingEn": "Some workspaces hide or change labels in Passive Monitor or Dual Link mode; this is intentional profile-specific navigation.",
+            "troubleshootingId": "Sebagian workspace tersembunyi atau berubah nama pada mode Passive Monitor atau Dual Link; ini navigasi sesuai profil.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "1.2",
+          "id": "learn-use-start-s2"
+        },
+        {
+          "headingEn": "First safe practice in built-in demo",
+          "headingId": "Latihan aman pertama dengan demo bawaan",
+          "paragraphsEn": [
+            "Built-in demo simulation is an explicit per-run choice. Saved demo settings are deliberately not automatically restored as the next startup target."
+          ],
+          "paragraphsId": [
+            "Demo simulation bawaan adalah pilihan eksplisit per sesi. Pengaturan demo yang tersimpan sengaja tidak otomatis dipakai sebagai target startup berikut."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [
+              "No production control cable or live breaker is needed."
+            ],
+            "prerequisitesId": [
+              "Tidak memerlukan kabel kontrol produksi maupun breaker hidup."
+            ],
+            "stepsEn": [
+              "Click Setup, select IEC 60870-5-104 or another suitable supported lab profile.",
+              "In TARGET MODE choose Built-in demo simulation, not Real device / server.",
+              "Review protocol and address widths, then use Setup's Connect action.",
+              "Inspect Raw Frames, Values and Events. When done, click Disconnect.",
+              "For real commissioning, reopen Setup and explicitly verify that TARGET MODE is Real device / server."
+            ],
+            "stepsId": [
+              "Klik Setup, pilih IEC 60870-5-104 atau profil lab lain yang didukung.",
+              "Pada TARGET MODE pilih Built-in demo simulation, bukan Real device / server.",
+              "Periksa protokol dan ukuran field address, lalu gunakan Connect dalam Setup.",
+              "Lihat Raw Frames, Values dan Events. Setelah selesai klik Disconnect.",
+              "Untuk commissioning riil, buka Setup lagi dan pastikan TARGET MODE adalah Real device / server."
+            ],
+            "expectedEn": "A simulated IEC session is clearly separated from a connection to an external RTU; demo values are not field FAT evidence.",
+            "expectedId": "Sesi IEC simulasi jelas terpisah dari koneksi RTU eksternal; nilai demo bukan evidence FAT lapangan.",
+            "troubleshootingEn": "If expected demo data are absent, check the selected mode and workspace; do not infer a real-device fault from the internal simulator.",
+            "troubleshootingId": "Jika data demo tidak terlihat, periksa mode dan workspace; jangan menyimpulkan kegagalan perangkat lapangan dari simulator internal.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "1.3",
+          "id": "learn-use-start-s3"
+        },
+        {
+          "headingEn": "The basic investigation workflow",
+          "headingId": "Alur investigasi paling sederhana",
+          "paragraphsEn": [
+            "Work from observable bytes toward engineering conclusions. Never interpret a connected indicator as proof of a finished GI, spontaneous event delivery, or physical breaker feedback."
+          ],
+          "paragraphsId": [
+            "Mulai dari byte yang teramati menuju kesimpulan engineering. Indikator connected bukan bukti GI selesai, event spontan terkirim, atau feedback breaker fisik."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose the protocol and target in Setup; check the device interoperability profile.",
+              "Connect or start monitoring; confirm RX/TX or captured byte evidence in Raw Frames.",
+              "Correlate decoded addresses, Type/COT and quality with Values and Events.",
+              "Use Controls and GI views for lifecycle evidence where supported.",
+              "Select useful raw/evidence rows and save a capture or create a PDF report.",
+              "Disconnect or Stop Monitor before changing cables or changing the connection profile."
+            ],
+            "stepsId": [
+              "Pilih protokol dan target di Setup; periksa interoperability profile perangkat.",
+              "Connect atau mulai monitoring; pastikan evidence byte RX/TX pada Raw Frames.",
+              "Cocokkan address, Type/COT dan quality yang di-decode dengan Values dan Events.",
+              "Gunakan view Controls dan GI untuk evidence lifecycle bila didukung.",
+              "Pilih baris raw/evidence yang relevan lalu simpan capture atau buat report PDF.",
+              "Disconnect atau Stop Monitor sebelum mengganti kabel atau profil koneksi."
+            ],
+            "expectedEn": "A useful result links transport, decoded application data and independently verified process meaning.",
+            "expectedId": "Hasil yang berguna menghubungkan transport, data aplikasi terdecode, dan makna proses yang diverifikasi independen.",
+            "troubleshootingEn": "When a step lacks trace evidence, mark it not observed rather than claiming device failure or success.",
+            "troubleshootingId": "Jika suatu tahap tidak mempunyai evidence trace, tandai not observed, jangan langsung menyimpulkan perangkat gagal atau sukses.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "1.4",
+          "id": "learn-use-start-s4"
+        }
+      ],
+      "number": "01"
+    },
+    {
+      "key": "learn-use-setup",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Setup, target and profile",
+      "titleId": "Setup, target dan profil",
+      "summaryEn": "Configure protocol, physical access, field widths and project interoperability without guesswork.",
+      "summaryId": "Atur protokol, akses fisik, panjang field dan interoperabilitas proyek tanpa menebak.",
+      "searchText": "Setup, target and profile Setup, target dan profil Configure protocol, physical access, field widths and project interoperability without guesswork. Atur protokol, akses fisik, panjang field dan interoperabilitas proyek tanpa menebak. Select exactly the intended protocol mode Pilih mode protokol yang benar Configure serial framing and flow control Konfigurasi framing serial dan flow control Set COT, CA and IOA field widths correctly Atur panjang field COT, CA dan IOA dengan benar Import and verify a project interoperability profile Impor dan verifikasi profil interoperabilitas proyek Start, stop and session limit Start, stop dan batas waktu sesi",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Select exactly the intended protocol mode",
+          "headingId": "Pilih mode protokol yang benar",
+          "paragraphsEn": [
+            "The PROTOCOL PROFILE dropdown offers IEC 103 serial, IEC 101 serial, IEC 101 Dual Link, IEC 101 Passive Monitor and IEC 104 TCP/IP. These are distinct workflows; changing the dropdown changes relevant controls."
+          ],
+          "paragraphsId": [
+            "Dropdown PROTOCOL PROFILE menyediakan IEC 103 serial, IEC 101 serial, IEC 101 Dual Link, IEC 101 Passive Monitor dan IEC 104 TCP/IP. Alur kerjanya berbeda; pemilihan mode mengubah kontrol yang relevan."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Open Setup in the left rail.",
+              "Select the precise desired mode in PROTOCOL PROFILE.",
+              "Read the protocol description card and check whether Serial Connection or IEC-104 TCP/IP Access is visible.",
+              "Choose TARGET MODE Real device / server for an approved live endpoint, or Built-in demo simulation for a test fixture.",
+              "Review remaining controls before clicking Connect."
+            ],
+            "stepsId": [
+              "Buka Setup pada action rail kiri.",
+              "Pilih mode persis pada PROTOCOL PROFILE.",
+              "Baca kartu deskripsi protokol dan periksa apakah Serial Connection atau IEC-104 TCP/IP Access tampil.",
+              "Pilih TARGET MODE Real device / server untuk endpoint live yang disetujui, atau Built-in demo simulation untuk fixture tes.",
+              "Periksa seluruh kontrol sebelum menekan Connect."
+            ],
+            "expectedEn": "Only settings applicable to the selected protocol are emphasized; unused controls are hidden or disabled.",
+            "expectedId": "Hanya pengaturan yang relevan dengan protokol diprioritaskan; kontrol yang tidak berlaku disembunyikan atau dinonaktifkan.",
+            "troubleshootingEn": "Do not interpret a previous demo configuration as an automatically active real-device target.",
+            "troubleshootingId": "Jangan menganggap konfigurasi demo sebelumnya otomatis menjadi target riil yang aktif.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "2.1",
+          "id": "learn-use-setup-s1"
+        },
+        {
+          "headingEn": "Configure serial framing and flow control",
+          "headingId": "Konfigurasi framing serial dan flow control",
+          "paragraphsEn": [
+            "IEC 101/103 require the port and UART settings to match the actual device; COM connection alone does not prove that the RTU can decode the bytes."
+          ],
+          "paragraphsId": [
+            "IEC 101/103 memerlukan port serta pengaturan UART sesuai perangkat; COM yang terbuka saja belum membuktikan RTU dapat men-decode byte."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [
+              "Approved wiring diagram and actual IEC serial interoperability settings."
+            ],
+            "prerequisitesId": [
+              "Diagram kabel yang disetujui dan pengaturan interoperability serial IEC yang sebenarnya."
+            ],
+            "stepsEn": [
+              "Read the Windows Device Manager COM number and select it under SERIAL CONNECTION; use Refresh if the port list changed.",
+              "Set Baudrate and Serial (for example 8E1 only when specified by the device).",
+              "Choose Flow control None, RTS/CTS or XON/XOFF according to the installation.",
+              "Review output lines RTS and DTR; do not energize an unapproved control line.",
+              "Enter the correct Link Address and address/field widths in the interoperability profile.",
+              "Confirm physical wiring, grounding and converter signal directions before Connect."
+            ],
+            "stepsId": [
+              "Baca nomor COM di Device Manager lalu pilih pada SERIAL CONNECTION; klik Refresh jika daftar port berubah.",
+              "Atur Baudrate dan Serial (misalnya 8E1 hanya jika ditentukan perangkat).",
+              "Pilih Flow control None, RTS/CTS atau XON/XOFF sesuai instalasi.",
+              "Periksa output line RTS dan DTR; jangan mengaktifkan jalur kontrol tanpa izin.",
+              "Masukkan Link Address serta panjang field/address sesuai interoperability profile.",
+              "Pastikan wiring, ground dan arah sinyal converter sebelum Connect."
+            ],
+            "expectedEn": "Raw Frames shows valid link frames only when physical and parser settings agree.",
+            "expectedId": "Raw Frames menampilkan link frame valid ketika pengaturan fisik dan parser cocok.",
+            "troubleshootingEn": "TX/RX LEDs can flash while response remains invalid. Check null modem/pinout, flow control, baud/parity, Link Address and checksum before adjusting random timeouts.",
+            "troubleshootingId": "LED TX/RX bisa berkedip sementara respons tetap invalid. Periksa null modem/pinout, flow control, baud/parity, Link Address dan checksum sebelum mengubah timeout secara acak.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "2.2",
+          "id": "learn-use-setup-s2"
+        },
+        {
+          "headingEn": "Set COT, CA and IOA field widths correctly",
+          "headingId": "Atur panjang field COT, CA dan IOA dengan benar",
+          "paragraphsEn": [
+            "IEC 101/104 decoder meaning depends on agreed COT, Common Address and IOA sizes. IEC 103 has separate fixed protocol-specific field handling and FUN/INF semantics."
+          ],
+          "paragraphsId": [
+            "Makna decode IEC 101/104 bergantung panjang field COT, Common Address dan IOA yang disepakati. IEC 103 memakai penanganan field khusus dan semantik FUN/INF."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Read the supplier interoperability sheet and approved SCADA database.",
+              "For IEC 101 choose the agreed Link length plus COT size, CA size and IOA size.",
+              "For IEC 104 confirm COT size, CA size and IOA size in Setup; read host and port separately.",
+              "Compare Common Address and sample IOA with the station/point list.",
+              "Inspect Raw Frames after connection; decode that looks scrambled may indicate mismatched widths rather than bad data."
+            ],
+            "stepsId": [
+              "Baca interoperability sheet vendor dan database SCADA yang telah disetujui.",
+              "Untuk IEC 101 pilih Link length serta COT size, CA size dan IOA size yang disepakati.",
+              "Untuk IEC 104 konfirmasikan COT size, CA size dan IOA size pada Setup; host dan port diisi terpisah.",
+              "Bandingkan Common Address dan contoh IOA dengan daftar stasiun/point.",
+              "Periksa Raw Frames setelah koneksi; decode kacau dapat disebabkan panjang field salah, bukan data rusak."
+            ],
+            "expectedEn": "Type ID, COT, CA and IOA are decoded consistently with the selected station profile.",
+            "expectedId": "Type ID, COT, CA dan IOA terdecode secara konsisten dengan profil stasiun.",
+            "troubleshootingEn": "Never repair a wrong displayed signal label by silently altering raw frame bytes or fabricating a Common Address.",
+            "troubleshootingId": "Jangan memperbaiki label sinyal yang salah dengan mengubah byte raw atau mengarang Common Address.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "2.3",
+          "id": "learn-use-setup-s3"
+        },
+        {
+          "headingEn": "Import and verify a project interoperability profile",
+          "headingId": "Impor dan verifikasi profil interoperabilitas proyek",
+          "paragraphsEn": [
+            "INTEROPERABILITY CONVENTION offers Generic IEC, optional Historical NUC and Project custom JSON. Importing a profile does not silently change field widths or start transmission."
+          ],
+          "paragraphsId": [
+            "INTEROPERABILITY CONVENTION menyediakan Generic IEC, Historical NUC opsional dan Project custom JSON. Impor profil tidak diam-diam mengubah panjang field atau memulai transmisi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Disconnect before changing the profile.",
+              "In Setup choose Import profile and select the approved IEC-10x JSON file.",
+              "Read the profile preview and confirm the selected Project custom entry.",
+              "Compare visible field widths and address values manually with the imported profile and field device.",
+              "Use Export profile only to save a known reviewed configuration.",
+              "Reconnect only after all settings and station identity have been validated."
+            ],
+            "stepsId": [
+              "Disconnect sebelum mengganti profil.",
+              "Pada Setup pilih Import profile lalu pilih file JSON IEC-10x yang disetujui.",
+              "Baca preview profil dan pastikan Project custom terpilih.",
+              "Bandingkan panjang field dan nilai address yang tampil dengan profil impor serta perangkat lapangan.",
+              "Gunakan Export profile hanya untuk menyimpan konfigurasi yang telah ditinjau.",
+              "Hubungkan kembali setelah semua pengaturan dan identitas stasiun tervalidasi."
+            ],
+            "expectedEn": "The application validates the imported profile; an invalid file is rejected rather than used as an invisible fallback.",
+            "expectedId": "Aplikasi memvalidasi profil impor; file invalid ditolak, bukan diam-diam dipakai sebagai fallback.",
+            "troubleshootingEn": "If import is rejected, check JSON schema, protocol, supported field widths and size; importing is not a substitute for project sign-off.",
+            "troubleshootingId": "Jika impor ditolak, cek schema JSON, protokol, panjang field yang didukung dan ukuran file; impor bukan pengganti persetujuan proyek.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "2.4",
+          "id": "learn-use-setup-s4"
+        },
+        {
+          "headingEn": "Start, stop and session limit",
+          "headingId": "Start, stop dan batas waktu sesi",
+          "paragraphsEn": [
+            "The left rail uses one Connect/Disconnect toggle for an active protocol session; Setup also has a Connect action. Session timeout (s) can limit duration, while 0 denotes the open-ended option in the application settings."
+          ],
+          "paragraphsId": [
+            "Action rail kiri menggunakan satu toggle Connect/Disconnect untuk sesi protokol aktif; Setup juga memiliki Connect. Session timeout (s) dapat membatasi durasi, sedangkan 0 berarti opsi tanpa batas otomatis dalam pengaturan aplikasi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Finish Setup and click Connect in Setup or the left rail.",
+              "Confirm the caption changes to Disconnect and transport activity is observable.",
+              "If you need bounded evidence, set SESSION LIMIT and Response timeout before starting.",
+              "Use Disconnect when finished; wait for active transport closure before changing wiring or profiles.",
+              "Use Clear only when you want to clear visible session rows; it is not an export operation."
+            ],
+            "stepsId": [
+              "Selesaikan Setup dan klik Connect pada Setup atau action rail kiri.",
+              "Pastikan caption berubah menjadi Disconnect dan ada aktivitas transport yang teramati.",
+              "Jika membutuhkan evidence berbatas waktu, atur SESSION LIMIT dan Response timeout sebelum mulai.",
+              "Klik Disconnect setelah selesai; pastikan transport tertutup sebelum mengubah wiring atau profil.",
+              "Gunakan Clear hanya ketika ingin membersihkan baris sesi yang terlihat; itu bukan operasi ekspor."
+            ],
+            "expectedEn": "A bounded session closes cleanly and its evidence can then be selected, reviewed and saved.",
+            "expectedId": "Sesi berbatas waktu berhenti dengan baik dan evidence dapat dipilih, diperiksa serta disimpan.",
+            "troubleshootingEn": "If Connect is refused, read the validation message; it may identify a missing COM port, unsupported balanced mode or inconsistent address/profile settings.",
+            "troubleshootingId": "Jika Connect ditolak, baca pesan validasi; mungkin karena COM belum dipilih, balanced mode belum didukung, atau profil/address tidak cocok.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "2.5",
+          "id": "learn-use-setup-s5"
+        }
+      ],
+      "number": "02"
+    },
+    {
+      "key": "learn-use-101",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "IEC 101 active master — step by step",
+      "titleId": "IEC 101 master aktif — langkah demi langkah",
+      "summaryEn": "Establish a compliant unbalanced link and distinguish polling, GI and event evidence.",
+      "summaryId": "Bentuk link unbalanced yang tepat dan bedakan polling, GI serta evidence event.",
+      "searchText": "IEC 101 active master — step by step IEC 101 master aktif — langkah demi langkah Establish a compliant unbalanced link and distinguish polling, GI and event evidence. Bentuk link unbalanced yang tepat dan bedakan polling, GI serta evidence event. Prepare the serial IEC 101 connection Siapkan koneksi serial IEC 101 Understand Class 2 and Class 1 traffic Memahami traffic Class 2 dan Class 1 Perform and verify GI Lakukan dan verifikasi GI Diagnose slow-baud or repeated-poll problems Diagnosa baud rendah atau polling berulang",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Prepare the serial IEC 101 connection",
+          "headingId": "Siapkan koneksi serial IEC 101",
+          "paragraphsEn": [
+            "IEC 101 master uses serial link framing and Class 1/Class 2 polling. This build does not offer active balanced-master polling; the displayed balanced selection is explicitly marked as planned."
+          ],
+          "paragraphsId": [
+            "Master IEC 101 menggunakan framing link serial dan polling Class 1/Class 2. Build ini belum menyediakan polling master balanced aktif; opsi balanced ditandai sebagai rencana."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose IEC 60870-5-101 - Telecontrol serial in Setup.",
+              "Select Real device / server, then COM, Baudrate, serial format and required Flow control.",
+              "Set Link Address, Common Address, Link length, COT size, CA size and IOA size from the device interoperability profile.",
+              "Use Unbalanced for supported master polling. Review Reset remote link and Reset FCB startup settings according to device policy.",
+              "Click Connect and inspect Raw Frames."
+            ],
+            "stepsId": [
+              "Pilih IEC 60870-5-101 - Telecontrol serial pada Setup.",
+              "Pilih Real device / server, lalu COM, Baudrate, format serial dan Flow control sesuai kebutuhan.",
+              "Atur Link Address, Common Address, Link length, COT size, CA size dan IOA size dari interoperability profile perangkat.",
+              "Gunakan Unbalanced untuk polling master yang didukung. Tinjau Reset remote link dan Reset FCB sesuai kebijakan perangkat.",
+              "Klik Connect lalu periksa Raw Frames."
+            ],
+            "expectedEn": "Correct link initialization and directionally paired link requests/responses are visible.",
+            "expectedId": "Inisialisasi link yang benar dan request/response link berpasangan sesuai arah terlihat.",
+            "troubleshootingEn": "If link-status replies are missing, verify correct RTU address, serial wiring, output lines, COM occupancy and physical TX/RX capture before interpreting COT.",
+            "troubleshootingId": "Jika respons link-status hilang, verifikasi address RTU, wiring serial, output line, COM yang digunakan serta TX/RX fisik sebelum menafsirkan COT.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.1",
+          "id": "learn-use-101-s1"
+        },
+        {
+          "headingEn": "Understand Class 2 and Class 1 traffic",
+          "headingId": "Memahami traffic Class 2 dan Class 1",
+          "paragraphsEn": [
+            "The CLASS POLLING POLICY includes a Class 2 interval and a maximum Class 1 drain. ACD may signal pending high-priority information; DFC concerns link flow control, not the QDS overflow bit."
+          ],
+          "paragraphsId": [
+            "CLASS POLLING POLICY mencakup Class 2 interval dan maksimum drain Class 1. ACD dapat menunjukkan data prioritas menunggu; DFC menyangkut flow control link, bukan bit overflow QDS."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Observe Class 2 requests in Raw Frames after startup.",
+              "Check their secondary responses: valid data or permitted no-data can both be healthy.",
+              "When ACD indicates priority data, look for bounded Class 1 requests and associated responses.",
+              "Review Events and the Class counters together, not independently.",
+              "When Class 1 never empties, inspect event classification, queue size, poll cadence and response validity."
+            ],
+            "stepsId": [
+              "Amati request Class 2 pada Raw Frames setelah startup.",
+              "Periksa respons secondary: data valid maupun no-data yang diizinkan dapat sama-sama sehat.",
+              "Saat ACD menunjukkan data prioritas, cari request Class 1 terbatas beserta responsnya.",
+              "Periksa Events bersama penghitung Class, bukan terpisah.",
+              "Saat Class 1 tidak pernah kosong, cek klasifikasi event, ukuran antrian, ritme polling dan validitas respons."
+            ],
+            "expectedEn": "Master continues normal scans without equating an empty Class 2 queue to a communication failure.",
+            "expectedId": "Master melanjutkan scan normal tanpa menyamakan antrian Class 2 kosong dengan kegagalan komunikasi.",
+            "troubleshootingEn": "E5 can be ACK or context-permitted no-data depending on the outstanding request; the raw byte itself has no FC, ACD, DFC or link address.",
+            "troubleshootingId": "E5 dapat merupakan ACK atau no-data yang diizinkan sesuai request tertunda; byte mentahnya tidak memiliki FC, ACD, DFC maupun link address.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.2",
+          "id": "learn-use-101-s2"
+        },
+        {
+          "headingEn": "Perform and verify GI",
+          "headingId": "Lakukan dan verifikasi GI",
+          "paragraphsEn": [
+            "General Interrogation requests a current application image. Sending GI does not by itself prove that the RTU returned all configured points."
+          ],
+          "paragraphsId": [
+            "General Interrogation meminta image aplikasi terkini. Mengirim GI sendiri belum membuktikan RTU mengirim semua point yang dikonfigurasi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Before Connect, optionally select General interrogation on connect for the initial session.",
+              "Alternatively, during a connected IEC 101 session expand COMMAND PANEL and press GI • TI-100.",
+              "Open the GI workspace and correlate activation, response ASDUs, source address and completion evidence.",
+              "Compare received values against the approved project signal list in Values.",
+              "Save relevant Raw Frames and GI case evidence for the FAT record."
+            ],
+            "stepsId": [
+              "Sebelum Connect, bila perlu aktifkan General interrogation on connect untuk sesi awal.",
+              "Atau saat sesi IEC 101 terhubung buka COMMAND PANEL dan klik GI • TI-100.",
+              "Buka workspace GI dan cocokkan aktivasi, ASDU respons, address sumber serta evidence penyelesaian.",
+              "Bandingkan Values yang diterima dengan daftar sinyal proyek yang disetujui.",
+              "Simpan Raw Frames dan evidence kasus GI yang relevan untuk laporan FAT."
+            ],
+            "expectedEn": "The GI case shows a traceable request, applicable confirmations, data and completion, or an explicit partial/unknown result.",
+            "expectedId": "Kasus GI menampilkan request, konfirmasi yang berlaku, data serta terminasi yang dapat ditelusuri, atau hasil partial/unknown yang jelas.",
+            "troubleshootingEn": "If fewer points arrive than expected, check configuration group, mapping, bandwidth, queue/backpressure and missing ACTTERM rather than assuming a fixed count mandated by IEC.",
+            "troubleshootingId": "Jika point yang masuk lebih sedikit dari harapan, cek grup konfigurasi, mapping, bandwidth, antrian/backpressure dan ACTTERM yang hilang; IEC tidak menentukan angka point sembarang yang wajib.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.3",
+          "id": "learn-use-101-s3"
+        },
+        {
+          "headingEn": "Diagnose slow-baud or repeated-poll problems",
+          "headingId": "Diagnosa baud rendah atau polling berulang",
+          "paragraphsEn": [
+            "At 1200 bps or a busy serial RTU, transport bandwidth and an overflowing event queue can delay GI/background traffic. Software traces may not prove electrical inter-frame idle timing."
+          ],
+          "paragraphsId": [
+            "Pada 1200 bps atau RTU serial yang sibuk, bandwidth dan antrian event penuh dapat menunda GI/traffic background. Trace software tidak selalu membuktikan idle timing elektrik antarfame."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Record a time-bounded trace that includes requests and both physical directions.",
+              "Measure how often Class 2, bounded Class 1 and GI transactions are visible.",
+              "Distinguish a valid no-data response from an actual response timeout.",
+              "Review max drain, device buffer behavior and possible serial CTS/RTS constraints against profile.",
+              "Change only one approved setting at a time, recapture and compare evidence."
+            ],
+            "stepsId": [
+              "Rekam trace berbatas waktu yang mencakup request dan kedua arah fisik.",
+              "Amati frekuensi transaksi Class 2, drain Class 1 terbatas dan GI.",
+              "Bedakan respons no-data valid dari response timeout sebenarnya.",
+              "Periksa max drain, perilaku buffer perangkat dan kemungkinan pembatas CTS/RTS sesuai profil.",
+              "Ubah hanya satu pengaturan yang disetujui pada satu waktu, capture ulang dan bandingkan evidence."
+            ],
+            "expectedEn": "The investigation identifies whether failure is physical, link response, application queue or mapping-related.",
+            "expectedId": "Investigasi menunjukkan apakah kegagalan berkaitan dengan fisik, respons link, antrian aplikasi atau mapping.",
+            "troubleshootingEn": "Do not increase retry loops blindly; repeated commands/polls can worsen a saturated 1200-bps circuit.",
+            "troubleshootingId": "Jangan memperbanyak retry secara membabi buta; command/poll berulang dapat memperparah sirkuit 1200-bps yang jenuh.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "3.4",
+          "id": "learn-use-101-s4"
+        }
+      ],
+      "number": "03"
+    },
+    {
+      "key": "learn-use-103",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "IEC 103 relay testing",
+      "titleId": "Pengujian relay IEC 103",
+      "summaryEn": "Connect a protection relay, interpret FUN/INF and distinguish protection events from field status.",
+      "summaryId": "Hubungkan relay proteksi, baca FUN/INF dan bedakan event proteksi dari status lapangan.",
+      "searchText": "IEC 103 relay testing Pengujian relay IEC 103 Connect a protection relay, interpret FUN/INF and distinguish protection events from field status. Hubungkan relay proteksi, baca FUN/INF dan bedakan event proteksi dari status lapangan. Connect the relay safely Hubungkan relay dengan aman Load signal descriptions for FUN/INF Muat deskripsi sinyal FUN/INF Verify protection-event evidence Verifikasi evidence event proteksi",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Connect the relay safely",
+          "headingId": "Hubungkan relay dengan aman",
+          "paragraphsEn": [
+            "IEC 60870-5-103 - Protection relay serial is a distinct serial protocol mode with relay-oriented event semantics; it is not the IEC 101 CA/IOA model."
+          ],
+          "paragraphsId": [
+            "IEC 60870-5-103 - Protection relay serial adalah mode protokol serial tersendiri dengan semantik event relay; bukan model CA/IOA IEC 101."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose IEC 60870-5-103 in PROTOCOL PROFILE.",
+              "Match COM, baud, serial parity/stop bits, flow control and relay link address.",
+              "Review the displayed IEC 103 startup and polling options in Setup.",
+              "Choose Real device / server for a physical relay and click Connect.",
+              "Check link replies in Raw Frames before judging FUN/INF objects."
+            ],
+            "stepsId": [
+              "Pilih IEC 60870-5-103 pada PROTOCOL PROFILE.",
+              "Sesuaikan COM, baud, parity/stop bit, flow control serta link address relay.",
+              "Periksa opsi startup dan polling IEC 103 yang muncul dalam Setup.",
+              "Pilih Real device / server untuk relay fisik dan klik Connect.",
+              "Cek respons link pada Raw Frames sebelum menilai objek FUN/INF."
+            ],
+            "expectedEn": "Valid link and relay data traffic become available to the analyzer.",
+            "expectedId": "Traffic link dan data relay valid tersedia untuk dianalisis.",
+            "troubleshootingEn": "If a link looks active but no event appears, verify the relay event settings and request/response frames rather than interpreting no-data as a fault.",
+            "troubleshootingId": "Jika link aktif tetapi event tidak terlihat, verifikasi pengaturan event relay dan frame request/response; no-data bukan selalu kegagalan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "4.1",
+          "id": "learn-use-103-s1"
+        },
+        {
+          "headingEn": "Load signal descriptions for FUN/INF",
+          "headingId": "Muat deskripsi sinyal FUN/INF",
+          "paragraphsEn": [
+            "ArSee can use a user-owned mapping profile so decoded numeric relay identifiers are displayed with project-specific signal names; unrecognized FUN/INF must remain identifiable."
+          ],
+          "paragraphsId": [
+            "ArSee dapat memakai mapping milik pengguna supaya identitas relay numerik terdecode ditampilkan dengan nama sinyal proyek; FUN/INF yang belum dikenal harus tetap dapat dikenali."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Click Signals on the left rail to open the Signal List editor, or use the mapping profile control in Setup.",
+              "Select an approved relay FUN/INF map for the tested IED model.",
+              "Verify sample numeric FUN and INF values against the actual relay documentation.",
+              "Reopen Values, Events and Raw Frames to compare label, source and raw identity.",
+              "Keep the profile local; avoid sharing proprietary customer point maps publicly."
+            ],
+            "stepsId": [
+              "Klik Signals pada action rail kiri untuk membuka Signal List editor, atau gunakan pengaturan mapping dalam Setup.",
+              "Pilih map FUN/INF relay yang disetujui untuk model IED yang diuji.",
+              "Verifikasi contoh angka FUN dan INF dengan dokumentasi relay sebenarnya.",
+              "Buka lagi Values, Events dan Raw Frames untuk mencocokkan label, sumber dan identitas mentah.",
+              "Simpan profil secara lokal; hindari publikasi mapping point pelanggan."
+            ],
+            "expectedEn": "Known signals show correct project names without altering recorded raw FUN/INF.",
+            "expectedId": "Sinyal yang dikenal tampil dengan nama proyek yang benar tanpa mengubah FUN/INF raw.",
+            "troubleshootingEn": "Wrong signal name can be a mapping issue even when the FT1.2 link and ASDU are valid.",
+            "troubleshootingId": "Nama sinyal salah dapat berasal dari mapping meskipun link FT1.2 dan ASDU valid.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "4.2",
+          "id": "learn-use-103-s2"
+        },
+        {
+          "headingEn": "Verify protection-event evidence",
+          "headingId": "Verifikasi evidence event proteksi",
+          "paragraphsEn": [
+            "Pickup, trip and reset are protection-function events; they are not automatically the same as breaker auxiliary-contact feedback."
+          ],
+          "paragraphsId": [
+            "Pickup, trip dan reset adalah event fungsi proteksi; bukan otomatis sama dengan feedback kontak bantu breaker."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Use an approved relay simulator/test procedure or permitted non-operational test event.",
+              "Observe relevant Class polling and response frames.",
+              "Inspect Events for relay event meaning and timestamp.",
+              "Open its original frame in Raw Frames and verify FUN/INF.",
+              "If a gateway is involved, separately verify outgoing IEC 101/104 point mapping and actual breaker feedback."
+            ],
+            "stepsId": [
+              "Gunakan simulator relay/prosedur uji yang disetujui atau event test non-operasional yang diizinkan.",
+              "Amati polling Class terkait dan frame respons.",
+              "Periksa Events untuk arti event relay dan timestamp.",
+              "Buka frame asal pada Raw Frames dan verifikasi FUN/INF.",
+              "Jika melalui gateway, verifikasi terpisah mapping point IEC 101/104 keluar dan feedback breaker aktual."
+            ],
+            "expectedEn": "Test report identifies the observed relay function, timestamp and whether physical breaker position was independently proven.",
+            "expectedId": "Laporan tes mengidentifikasi fungsi relay yang teramati, timestamp dan apakah posisi breaker fisik terbukti independen.",
+            "troubleshootingEn": "Do not claim breaker opened solely from a decoded relay trip indication.",
+            "troubleshootingId": "Jangan menyatakan breaker membuka hanya berdasarkan indikasi trip relay yang berhasil didecode.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "4.3",
+          "id": "learn-use-103-s3"
+        }
+      ],
+      "number": "04"
+    },
+    {
+      "key": "learn-use-104",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "IEC 104 TCP/IP sessions",
+      "titleId": "Sesi IEC 104 TCP/IP",
+      "summaryEn": "Diagnose network connection, STARTDT, sequence acknowledgments and real application updates.",
+      "summaryId": "Diagnosa koneksi jaringan, STARTDT, ACK sequence dan pembaruan aplikasi nyata.",
+      "searchText": "IEC 104 TCP/IP sessions Sesi IEC 104 TCP/IP Diagnose network connection, STARTDT, sequence acknowledgments and real application updates. Diagnosa koneksi jaringan, STARTDT, ACK sequence dan pembaruan aplikasi nyata. Configure TCP server access Konfigurasi akses server TCP Read STARTDT, I/S/U frames and sequence Baca STARTDT, I/S/U-frame dan sequence Run a real application GI lifecycle Jalankan lifecycle GI aplikasi Verify spontaneous event reporting Verifikasi pelaporan event spontan",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Configure TCP server access",
+          "headingId": "Konfigurasi akses server TCP",
+          "paragraphsEn": [
+            "IEC 104 uses a TCP association to the server/outstation. TCP port 2404 is common but the installation may select another approved listener."
+          ],
+          "paragraphsId": [
+            "IEC 104 memakai asosiasi TCP menuju server/outstation. Port TCP 2404 umum dipakai tetapi instalasi dapat menentukan listener lain yang disetujui."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose IEC 60870-5-104 - Telecontrol TCP/IP in Setup.",
+              "Under IEC-104 TCP/IP ACCESS enter Server host / IP and Port.",
+              "Review Common Address and supported COT/CA/IOA widths.",
+              "Use Real device / server and confirm the intended target is reachable and authorized.",
+              "Click Connect; open Raw Frames to observe IEC 104 APCI."
+            ],
+            "stepsId": [
+              "Pilih IEC 60870-5-104 - Telecontrol TCP/IP dalam Setup.",
+              "Di IEC-104 TCP/IP ACCESS masukkan Server host / IP dan Port.",
+              "Periksa Common Address dan panjang COT/CA/IOA yang didukung.",
+              "Gunakan Real device / server dan pastikan target bisa diakses serta diizinkan.",
+              "Klik Connect; buka Raw Frames untuk mengamati APCI IEC 104."
+            ],
+            "expectedEn": "TCP and permitted STARTDT exchange can be correlated with the expected server.",
+            "expectedId": "TCP dan pertukaran STARTDT yang diizinkan dapat dikorelasikan dengan server target.",
+            "troubleshootingEn": "If TCP connect fails, check IP, route, listener port and host firewall authorization; do not disable all firewalls as a diagnostic shortcut.",
+            "troubleshootingId": "Jika koneksi TCP gagal, cek IP, route, port listener dan izin firewall; jangan mematikan seluruh firewall sebagai jalan pintas.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "5.1",
+          "id": "learn-use-104-s1"
+        },
+        {
+          "headingEn": "Read STARTDT, I/S/U frames and sequence",
+          "headingId": "Baca STARTDT, I/S/U-frame dan sequence",
+          "paragraphsEn": [
+            "An established TCP socket is not yet proof of active application data transfer. IEC 104 APCI has distinct I, S and U frame semantics and sequence state per connection."
+          ],
+          "paragraphsId": [
+            "Socket TCP yang terhubung belum membuktikan transfer data aplikasi aktif. APCI IEC 104 memiliki makna I, S dan U berbeda serta state sequence per koneksi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Inspect STARTDT act and STARTDT con in Raw Frames.",
+              "Look for I-frames carrying process or GI ASDUs.",
+              "Inspect N(S)/N(R) and S-frame acknowledgments for the same TCP association.",
+              "Review TESTFR separately as a liveness exchange, not as a data update.",
+              "If the socket reconnects, evaluate new sequence accounting instead of reusing old values."
+            ],
+            "stepsId": [
+              "Periksa STARTDT act dan STARTDT con pada Raw Frames.",
+              "Cari I-frame yang membawa ASDU proses atau GI.",
+              "Periksa N(S)/N(R) dan ACK S-frame pada asosiasi TCP yang sama.",
+              "Tinjau TESTFR sebagai pertukaran liveness, bukan update data.",
+              "Jika socket reconnect, evaluasi sequence baru, bukan menggunakan nilai lama."
+            ],
+            "expectedEn": "APCI handshake and data flow can be proven separately from application COT and field status.",
+            "expectedId": "Handshake APCI dan alur data dapat dibuktikan terpisah dari COT aplikasi serta status lapangan.",
+            "troubleshootingEn": "Malformed or reserved-control U-frames must not be used to mark the session successfully started.",
+            "troubleshootingId": "U-frame yang malformed atau memakai reserved-control salah tidak boleh dipakai sebagai bukti session sukses.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "5.2",
+          "id": "learn-use-104-s2"
+        },
+        {
+          "headingEn": "Run a real application GI lifecycle",
+          "headingId": "Jalankan lifecycle GI aplikasi",
+          "paragraphsEn": [
+            "GI • TI-100 requests process image values. Its activation, returned data and applicable termination are separate messages; an I-frame ACK alone is not GI completion."
+          ],
+          "paragraphsId": [
+            "GI • TI-100 meminta nilai process image. Aktivasi, data balik serta terminasi yang berlaku merupakan pesan terpisah; ACK I-frame bukan penyelesaian GI."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "After STARTDT con, open COMMAND PANEL and press GI • TI-100, or use configured GI on connect.",
+              "Switch to the GI workspace and select the associated transaction.",
+              "Correlate request, positive or negative ACTCON, returned ASDUs and termination evidence.",
+              "Check Values for received point data and quality.",
+              "Save the relevant Raw Frames and a report with the observed outcome."
+            ],
+            "stepsId": [
+              "Sesudah STARTDT con, buka COMMAND PANEL lalu klik GI • TI-100, atau gunakan GI on connect yang telah dikonfigurasi.",
+              "Buka workspace GI lalu pilih transaksi terkait.",
+              "Cocokkan request, ACTCON positif atau negatif, ASDU data balik serta evidence terminasi.",
+              "Periksa Values untuk data point dan quality yang diterima.",
+              "Simpan Raw Frames dan laporan dengan hasil aktual yang teramati."
+            ],
+            "expectedEn": "A completed GI is distinguishable from an accepted-but-incomplete request.",
+            "expectedId": "GI yang selesai dapat dibedakan dari request yang diterima tetapi belum lengkap.",
+            "troubleshootingEn": "If TESTFR succeeds but GI does not, investigate CA, COT, device GI support and application queue, not just network reachability.",
+            "troubleshootingId": "Jika TESTFR sukses tetapi GI gagal, periksa CA, COT, dukungan GI perangkat dan antrian aplikasi, bukan sekadar konektivitas jaringan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "5.3",
+          "id": "learn-use-104-s3"
+        },
+        {
+          "headingEn": "Verify spontaneous event reporting",
+          "headingId": "Verifikasi pelaporan event spontan",
+          "paragraphsEn": [
+            "An updated Value from GI can mask missing spontaneous reporting. A real spontaneous process change must be supported by an appropriate outgoing ASDU with event COT."
+          ],
+          "paragraphsId": [
+            "Value yang berubah akibat GI bisa menyembunyikan masalah pelaporan spontan. Perubahan proses spontan harus didukung ASDU keluar dengan COT event yang sesuai."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Use a simulator or authorized safe point-change procedure.",
+              "With STARTDT active, record the point transition and its source time.",
+              "Inspect Events for the new information and Raw Frames for COT, CA and IOA.",
+              "Compare what the RTU transmitted with what the SCADA/ArSee received.",
+              "Treat any event seen only after a new GI as reporting still unproven."
+            ],
+            "stepsId": [
+              "Gunakan simulator atau prosedur perubahan point aman yang diizinkan.",
+              "Saat STARTDT aktif, rekam perubahan point dan waktu sumber.",
+              "Periksa Events untuk informasi baru dan Raw Frames untuk COT, CA dan IOA.",
+              "Bandingkan pesan yang dikirim RTU dengan yang diterima SCADA/ArSee.",
+              "Jika event baru muncul setelah GI ulang, pelaporan spontan masih belum terbukti."
+            ],
+            "expectedEn": "Evidence includes actual spontaneous ASDU delivery, not just a refreshed snapshot.",
+            "expectedId": "Evidence mencakup pengiriman ASDU spontan sesungguhnya, bukan sekadar snapshot yang disegarkan.",
+            "troubleshootingEn": "If source data changes but no spontaneous TX appears, examine gateway event generation, mapping, active frontend ownership and server event queue.",
+            "troubleshootingId": "Jika data sumber berubah tetapi tidak ada spontaneous TX, periksa pembentukan event gateway, mapping, ownership frontend aktif dan antrian event server.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "5.4",
+          "id": "learn-use-104-s4"
+        }
+      ],
+      "number": "05"
+    },
+    {
+      "key": "learn-use-dual",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "IEC 101 Dual Link redundancy",
+      "titleId": "Redundansi IEC 101 Dual Link",
+      "summaryEn": "Set up separate A/B circuits and test healthy switchover without assuming both links poll together.",
+      "summaryId": "Atur jalur A/B terpisah dan uji switchover sehat tanpa menganggap kedua link polling bersama.",
+      "searchText": "IEC 101 Dual Link redundancy Redundansi IEC 101 Dual Link Set up separate A/B circuits and test healthy switchover without assuming both links poll together. Atur jalur A/B terpisah dan uji switchover sehat tanpa menganggap kedua link polling bersama. Prepare active and standby links Siapkan link aktif dan standby Review standby health before switching Periksa kesehatan standby sebelum switching Request and verify a manual switchover Minta dan verifikasi switchover manual",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Prepare active and standby links",
+          "headingId": "Siapkan link aktif dan standby",
+          "paragraphsEn": [
+            "IEC 101 Dual Link is a distinct protocol profile. Standby B is supervised according to its link policy; it does not issue independent Class 1/Class 2 polling or controls while standby."
+          ],
+          "paragraphsId": [
+            "IEC 101 Dual Link adalah profil protokol tersendiri. Standby B diawasi sesuai kebijakan link; tidak melakukan polling Class 1/Class 2 atau kontrol independen saat standby."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Choose IEC 60870-5-101 - Dual link redundancy in Setup.",
+              "Select primary COM A and the backup COM B, each with valid approved wiring.",
+              "Review link address A and Link B addr; heed the different-address advisory if shown.",
+              "Review the common serial framing and link fields against the approved redundant RTU configuration.",
+              "Connect, then open the Redundancy workspace to review link status."
+            ],
+            "stepsId": [
+              "Pilih IEC 60870-5-101 - Dual link redundancy pada Setup.",
+              "Pilih COM primary A dan COM backup B, masing-masing dengan wiring yang disetujui.",
+              "Periksa link address A serta Link B addr; ikuti advisory bila address berbeda.",
+              "Bandingkan framing serial dan field link dengan konfigurasi redundant RTU yang disetujui.",
+              "Connect, lalu buka workspace Redundancy untuk memeriksa status link."
+            ],
+            "expectedEn": "One application-active link carries normal polling while standby is supervised; both physical links remain identifiable in evidence.",
+            "expectedId": "Satu link aplikasi aktif membawa polling normal sementara standby diawasi; kedua link fisik tetap dapat dibedakan dalam evidence.",
+            "troubleshootingEn": "If B does not show normal Class polling while standby, that is expected for this selected topology; do not call it a failure.",
+            "troubleshootingId": "Jika B tidak menampilkan Class polling saat standby, itu normal untuk topologi ini; jangan dinyatakan gagal.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "6.1",
+          "id": "learn-use-dual-s1"
+        },
+        {
+          "headingEn": "Review standby health before switching",
+          "headingId": "Periksa kesehatan standby sebelum switching",
+          "paragraphsEn": [
+            "A second connected COM is not proof that standby can take over. A successful manual switch request may be declined if the standby is unhealthy."
+          ],
+          "paragraphsId": [
+            "COM kedua yang terhubung bukan bukti standby siap mengambil alih. Request manual switch dapat ditolak jika standby tidak sehat."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Observe the Redundancy workspace's link health and event timeline.",
+              "Verify address and independent status response on B.",
+              "Confirm which link currently owns the master polling and command authority.",
+              "Record a baseline of GI/Values and A/B status before performing an approved test.",
+              "Keep the original link available for controlled rollback."
+            ],
+            "stepsId": [
+              "Amati kesehatan link dan timeline peristiwa pada workspace Redundancy.",
+              "Pastikan address dan respons status independen pada B.",
+              "Pastikan link mana yang memiliki kewenangan master polling serta command.",
+              "Rekam baseline GI/Values dan status A/B sebelum tes yang disetujui.",
+              "Pertahankan link awal agar rollback terkendali tersedia."
+            ],
+            "expectedEn": "Status, owner and evidence timeline show which link is safe for promotion.",
+            "expectedId": "Status, owner dan timeline evidence menunjukkan link mana yang aman dipromosikan.",
+            "troubleshootingEn": "If standby is unavailable, investigate B COM, framing, link address, wiring and RTU channel health before forcing switch.",
+            "troubleshootingId": "Jika standby tidak tersedia, cek COM B, framing, link address, wiring dan kesehatan channel RTU sebelum memaksakan switch.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "6.2",
+          "id": "learn-use-dual-s2"
+        },
+        {
+          "headingEn": "Request and verify a manual switchover",
+          "headingId": "Minta dan verifikasi switchover manual",
+          "paragraphsEn": [
+            "The Redundancy workspace has a manual switchover action that queues takeover only when the standby is healthy. GI after switching follows the selected project policy, not a universal requirement."
+          ],
+          "paragraphsId": [
+            "Workspace Redundancy memiliki aksi switchover manual yang mengantrikan takeover hanya bila standby sehat. GI setelah switch mengikuti kebijakan proyek, bukan kewajiban universal."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Confirm the test is authorized and standby status is healthy.",
+              "Use the manual switchover control in the Redundancy workspace.",
+              "Track the controller timeline for promotion or refusal.",
+              "Check new link initialization, request/response sequence and current active ownership.",
+              "Run a GI on the active link only if required by project test procedure; verify data and event continuity.",
+              "Save evidence of last A frame and first valid B frame where capture coverage permits."
+            ],
+            "stepsId": [
+              "Pastikan tes diizinkan dan status standby sehat.",
+              "Gunakan kontrol manual switchover pada workspace Redundancy.",
+              "Pantau timeline controller untuk promosi atau penolakan.",
+              "Periksa inisialisasi link baru, urutan request/response dan owner aktif.",
+              "Jalankan GI pada link aktif hanya jika diwajibkan prosedur tes proyek; verifikasi data dan kontinuitas event.",
+              "Simpan evidence frame terakhir A dan frame valid pertama B jika cakupan capture memungkinkan."
+            ],
+            "expectedEn": "Promotion and its post-switch communication are proven by trace, not just a colored status tile.",
+            "expectedId": "Promosi dan komunikasi pasca-switch dibuktikan melalui trace, bukan hanya tile status berwarna.",
+            "troubleshootingEn": "If a command was in flight at failure, mark execution unknown and read actual field status; never blindly retransmit a physical command.",
+            "troubleshootingId": "Jika command sedang berjalan saat gangguan, tandai eksekusi unknown dan baca status lapangan aktual; jangan mengirim ulang kontrol fisik tanpa verifikasi.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "6.3",
+          "id": "learn-use-dual-s3"
+        }
+      ],
+      "number": "06"
+    },
+    {
+      "key": "learn-use-passive",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "IEC 101 Passive Monitor",
+      "titleId": "IEC 101 Passive Monitor",
+      "summaryEn": "Observe live serial communications without becoming a competing polling master; record only when needed.",
+      "summaryId": "Amati komunikasi serial langsung tanpa menjadi master polling pesaing; rekam hanya saat diperlukan.",
+      "searchText": "IEC 101 Passive Monitor IEC 101 Passive Monitor Observe live serial communications without becoming a competing polling master; record only when needed. Amati komunikasi serial langsung tanpa menjadi master polling pesaing; rekam hanya saat diperlukan. Understand physical RX-only safety Pahami keselamatan physical RX-only Start live monitoring without recording files Mulai monitoring live tanpa merekam file Enable full raw-session journal when required Aktifkan jurnal raw satu sesi bila diperlukan Virtual Inline is not physically RX-only Virtual Inline bukan physical RX-only",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md",
+        "https://github.com/masarray/arsee/blob/master/docs/IEC101_FIELD_RX_FAT_QUICKSTART.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Understand physical RX-only safety",
+          "headingId": "Pahami keselamatan physical RX-only",
+          "paragraphsEn": [
+            "Physical RX-only uses receive-only taps on transmitter directions. The software does not send protocol commands in this mode, but opening serial hardware can still affect modem lines without physical isolation."
+          ],
+          "paragraphsId": [
+            "Physical RX-only menggunakan tap receiver-only pada arah transmitter. Software tidak mengirim command protokol pada mode ini, tetapi membuka hardware serial tetap bisa memengaruhi jalur modem tanpa isolasi fisik."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Use approved isolated/high-impedance serial taps; never connect a monitor TX, RTS or DTR directly to production controls.",
+              "For one full-duplex link, prepare two separate COM receive inputs: SCADA TX and RTU TX.",
+              "For redundant A/B, select Also monitor redundant Link B (4 RX ports) and prepare four independent receiver inputs.",
+              "Match UART framing and decoder Link address/COT/CA/IOA widths to the actual field setup.",
+              "Choose IEC 60870-5-101 - Passive Monitor and CAPTURE SOURCE Physical RX-only."
+            ],
+            "stepsId": [
+              "Gunakan tap serial isolated/high-impedance yang disetujui; jangan menghubungkan TX, RTS atau DTR monitor langsung ke kontrol produksi.",
+              "Untuk satu link full-duplex, siapkan dua COM input receive terpisah: SCADA TX dan RTU TX.",
+              "Untuk A/B redundant, aktifkan Also monitor redundant Link B (4 RX ports) dan siapkan empat receiver independen.",
+              "Sesuaikan framing UART dan panjang Link address/COT/CA/IOA decoder dengan setup lapangan.",
+              "Pilih IEC 60870-5-101 - Passive Monitor dan CAPTURE SOURCE Physical RX-only."
+            ],
+            "expectedEn": "Both observed directions are distinguishable; no extra Class 1/Class 2 requests originate from the monitor.",
+            "expectedId": "Kedua arah yang diamati dapat dibedakan; monitor tidak menghasilkan request Class 1/Class 2 tambahan.",
+            "troubleshootingEn": "A two-COM tap proves one duplex circuit only; it cannot infer traffic on unobserved Link B. Electrical safety depends on wiring, not the software checkbox.",
+            "troubleshootingId": "Tap dua COM hanya membuktikan satu sirkuit duplex; tidak dapat menyimpulkan traffic Link B yang tidak diamati. Keselamatan elektrik bergantung wiring, bukan checkbox.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "7.1",
+          "id": "learn-use-passive-s1"
+        },
+        {
+          "headingEn": "Start live monitoring without recording files",
+          "headingId": "Mulai monitoring live tanpa merekam file",
+          "paragraphsEn": [
+            "The physical monitor's default optional full-session recording is OFF. Starting a monitor shows live bytes/frames but does not automatically create a raw journal."
+          ],
+          "paragraphsId": [
+            "Default optional full-session recording pada physical monitor adalah OFF. Start Monitor menampilkan byte/frame langsung tetapi tidak otomatis membuat raw journal."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "In Setup choose both receive COM ports and verify their source-direction labels.",
+              "Leave Record entire raw session to disk unchecked if you only need live observation.",
+              "Click Start Monitor on the action rail.",
+              "Read source byte counters and FT1.2 valid frame count; then inspect Raw Frames, Values and Events.",
+              "Select significant frames and use Save Cap if you need a portable evidence subset.",
+              "Click Stop Monitor when finished."
+            ],
+            "stepsId": [
+              "Pada Setup pilih kedua COM receive dan periksa label arah sumber.",
+              "Biarkan Record entire raw session to disk tidak dicentang jika hanya perlu observasi langsung.",
+              "Klik Start Monitor pada action rail.",
+              "Baca penghitung byte sumber dan jumlah frame FT1.2 valid; lalu lihat Raw Frames, Values dan Events.",
+              "Pilih frame penting dan gunakan Save Cap jika memerlukan subset evidence portable.",
+              "Klik Stop Monitor saat selesai."
+            ],
+            "expectedEn": "You can distinguish bytes received from successfully framed IEC telegrams and save only the evidence needed.",
+            "expectedId": "Anda dapat membedakan byte yang diterima dari telegram IEC valid, lalu menyimpan evidence seperlunya.",
+            "troubleshootingEn": "Zero RX counters call for COM/physical direction checks; nonzero RX but zero FT1.2 frames suggests framing/baud/parity/decoder problems.",
+            "troubleshootingId": "Penghitung RX nol memerlukan cek COM/arah fisik; RX tidak nol tetapi FT1.2 nol mengarah pada masalah framing/baud/parity/decoder.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "7.2",
+          "id": "learn-use-passive-s2"
+        },
+        {
+          "headingEn": "Enable full raw-session journal when required",
+          "headingId": "Aktifkan jurnal raw satu sesi bila diperlukan",
+          "paragraphsEn": [
+            "For a complete evidentiary journal, enable the recording checkbox before starting. Its output path is used only when the option is enabled."
+          ],
+          "paragraphsId": [
+            "Untuk jurnal evidence lengkap, aktifkan checkbox perekaman sebelum Start. Path output hanya dipakai saat opsi itu aktif."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Stop the current monitor session before changing recording scope.",
+              "Check Record entire raw session to disk in Setup.",
+              "Select a writable output folder via Browse.",
+              "Verify capture source labels and Link A/B receivers, then Start Monitor.",
+              "After the intended observation interval, click Stop Monitor and allow journal finalization.",
+              "Preserve manifest.json and all related binary streams together."
+            ],
+            "stepsId": [
+              "Stop sesi monitor sebelum mengubah cakupan perekaman.",
+              "Centang Record entire raw session to disk pada Setup.",
+              "Pilih folder output yang dapat ditulis melalui Browse.",
+              "Pastikan label sumber capture dan receiver Link A/B, lalu Start Monitor.",
+              "Setelah interval observasi selesai, klik Stop Monitor dan izinkan finalisasi jurnal.",
+              "Simpan manifest.json bersama seluruh stream binernya."
+            ],
+            "expectedEn": "An optional full-session journal can be verified and revisited without treating its content as automatically protocol-correct.",
+            "expectedId": "Jurnal full-session opsional dapat diverifikasi dan dibuka kembali tanpa menganggap isinya otomatis benar secara protokol.",
+            "troubleshootingEn": "If recording is OFF, absence of a journal is expected. A capture with missing manifest/stream or failed integrity check should not be used as conclusive evidence.",
+            "troubleshootingId": "Jika recording OFF, tidak adanya jurnal adalah normal. Capture tanpa manifest/stream lengkap atau gagal verifikasi integritas tidak boleh dipakai sebagai evidence pasti.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "7.3",
+          "id": "learn-use-passive-s3"
+        },
+        {
+          "headingEn": "Virtual Inline is not physically RX-only",
+          "headingId": "Virtual Inline bukan physical RX-only",
+          "paragraphsEn": [
+            "CAPTURE SOURCE also offers Virtual Inline, which actively forwards between two COM endpoints while observing IEC 101 traffic. It is fundamentally different from physical receiver-only tapping."
+          ],
+          "paragraphsId": [
+            "CAPTURE SOURCE juga menawarkan Virtual Inline yang meneruskan traffic secara aktif antara dua endpoint COM sekaligus mengamati IEC 101. Ini berbeda secara mendasar dari tap receiver-only fisik."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Use Virtual Inline only on a planned virtual serial bench or explicitly approved inline setup.",
+              "Identify which two COM endpoints belong to the master-side and slave-side virtual pair.",
+              "Select CAPTURE SOURCE Virtual Inline and configure its ports.",
+              "Check that starting changes the action caption to Start Relay/Stop Relay.",
+              "Verify both application endpoints communicate normally and stop the relay before reconfiguring."
+            ],
+            "stepsId": [
+              "Gunakan Virtual Inline hanya di bench virtual serial atau instalasi inline yang diizinkan eksplisit.",
+              "Identifikasi dua endpoint COM sisi master dan sisi slave dari pasangan virtual.",
+              "Pilih CAPTURE SOURCE Virtual Inline dan konfigurasi portnya.",
+              "Periksa action caption berubah menjadi Start Relay/Stop Relay.",
+              "Pastikan kedua endpoint aplikasi berkomunikasi normal dan hentikan relay sebelum reconfig."
+            ],
+            "expectedEn": "The virtual bridge forwards IEC messages between the intended endpoints and exposes decoded evidence.",
+            "expectedId": "Bridge virtual meneruskan pesan IEC antara endpoint yang dimaksud dan menampilkan evidence decoded.",
+            "troubleshootingEn": "Do not assume Virtual Inline is non-intrusive like a high-impedance passive tap or use it as a production safety bypass.",
+            "troubleshootingId": "Jangan menganggap Virtual Inline non-intrusive seperti tap pasif high-impedance atau memakainya untuk melewati prosedur keselamatan produksi.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "7.4",
+          "id": "learn-use-passive-s4"
+        }
+      ],
+      "number": "07"
+    },
+    {
+      "key": "learn-use-views",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Reading the analysis workspaces",
+      "titleId": "Membaca workspace analisis",
+      "summaryEn": "Navigate Raw Frames, Values, Events, Controls, GI and findings with evidence-first habits.",
+      "summaryId": "Jelajahi Raw Frames, Values, Events, Controls, GI dan findings dengan evidence sebagai acuan.",
+      "searchText": "Reading the analysis workspaces Membaca workspace analisis Navigate Raw Frames, Values, Events, Controls, GI and findings with evidence-first habits. Jelajahi Raw Frames, Values, Events, Controls, GI dan findings dengan evidence sebagai acuan. Raw Frames: locate and decode one telegram Raw Frames: temukan dan decode satu telegram Filter or search recent and archived traces Filter atau cari trace terbaru dan arsip Values: current point image and quality Values: image point terkini dan quality Events: inspect changes and history Events: periksa perubahan dan riwayat Smart Findings, Controls and GI case views Smart Findings, Controls dan view kasus GI",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Raw Frames: locate and decode one telegram",
+          "headingId": "Raw Frames: temukan dan decode satu telegram",
+          "paragraphsEn": [
+            "Raw Frames (also called Frame Trace in the Help Center) exposes recorded wire evidence, direction, decoded protocol fields and selected-frame details."
+          ],
+          "paragraphsId": [
+            "Raw Frames (disebut Frame Trace dalam Help Center) menampilkan evidence wire, arah, field protokol terdecode dan detail frame terpilih."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Open Raw Frames from the central workspace navigation.",
+              "Look at TX/RX direction, sequence/order, link/APCI validity and the row summary.",
+              "Select one frame to inspect its raw HEX and protocol map/detail beside or below the row list.",
+              "Read Type ID/COT/CA/IOA or IEC 103 FUN/INF, and check ACD/DFC or APCI sequence where relevant.",
+              "Use selected-row copy/export tools to preserve the actual bytes and meaning."
+            ],
+            "stepsId": [
+              "Buka Raw Frames pada navigasi workspace tengah.",
+              "Lihat arah TX/RX, sequence/order, validitas link/APCI dan ringkasan baris.",
+              "Pilih satu frame untuk melihat HEX raw dan protocol map/detail di samping atau bawah daftar.",
+              "Baca Type ID/COT/CA/IOA atau FUN/INF IEC 103, lalu ACD/DFC atau sequence APCI bila relevan.",
+              "Gunakan copy/export baris terpilih untuk mempertahankan byte dan makna sebenarnya."
+            ],
+            "expectedEn": "An explanation is grounded in a specific raw frame rather than inferred from a value display alone.",
+            "expectedId": "Penjelasan didasarkan pada satu frame raw tertentu, bukan ditebak dari value display saja.",
+            "troubleshootingEn": "Incorrect decoding may be a wrong interoperability field width, incomplete capture or invalid frame; avoid assigning names before resolving those layers.",
+            "troubleshootingId": "Decode keliru dapat terjadi karena panjang field salah, capture tidak lengkap atau frame invalid; hindari memberi nama sinyal sebelum layer itu jelas.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "8.1",
+          "id": "learn-use-views-s1"
+        },
+        {
+          "headingEn": "Filter or search recent and archived traces",
+          "headingId": "Filter atau cari trace terbaru dan arsip",
+          "paragraphsEn": [
+            "The trace workspace supports search in visible rows and a separate Find in recorded archive route for captures with more data than the preview window."
+          ],
+          "paragraphsId": [
+            "Workspace trace mendukung pencarian pada baris yang terlihat dan jalur Find in recorded archive terpisah untuk capture lebih besar dari preview."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Enter a relevant query in the Raw Frames search field.",
+              "Review matching rows and select an item to inspect its decoded details.",
+              "For a loaded .ariec capture, choose Find in recorded archive when the target is not in the current preview.",
+              "Use previous/next archive search results and cancel an unneeded long query.",
+              "Clear the filter before drawing conclusions about absence of traffic."
+            ],
+            "stepsId": [
+              "Masukkan kata pencarian pada field search Raw Frames.",
+              "Periksa baris yang cocok lalu pilih item untuk melihat detail decode.",
+              "Untuk capture .ariec yang dimuat, gunakan Find in recorded archive jika target tidak ada di preview.",
+              "Gunakan previous/next hasil pencarian arsip dan cancel jika pencarian tidak diperlukan.",
+              "Bersihkan filter sebelum menyimpulkan traffic tidak ada."
+            ],
+            "expectedEn": "Evidence can be found beyond the bounded live/preview list without assuming only the first visible rows exist.",
+            "expectedId": "Evidence dapat ditemukan di luar daftar live/preview terbatas tanpa menganggap hanya baris yang terlihat yang tersedia.",
+            "troubleshootingEn": "A zero-result filtered view does not prove the remote device never transmitted the event; expand the search/capture scope.",
+            "troubleshootingId": "View hasil filter kosong tidak membuktikan perangkat remote tidak pernah mengirim event; perluas pencarian/cakupan capture.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "8.2",
+          "id": "learn-use-views-s2"
+        },
+        {
+          "headingEn": "Values: current point image and quality",
+          "headingId": "Values: image point terkini dan quality",
+          "paragraphsEn": [
+            "Values shows the most recently decoded value per supported point. It is an interpretation projection, not an independent field sensor."
+          ],
+          "paragraphsId": [
+            "Values menampilkan nilai terdecode terbaru untuk point yang didukung. Ini proyeksi interpretasi, bukan sensor lapangan independen."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Open Values and search by signal name, CA, IOA, FUN/INF or source as applicable.",
+              "Inspect numeric/digital meaning together with quality and time.",
+              "Use Open original source frame when the row offers it.",
+              "Compare the displayed signal name with the approved Signal List.",
+              "If data appear only after GI, separately investigate whether spontaneous events are configured and sent."
+            ],
+            "stepsId": [
+              "Buka Values lalu cari nama sinyal, CA, IOA, FUN/INF atau sumber sesuai yang tersedia.",
+              "Periksa makna analog/digital bersama quality dan waktu.",
+              "Gunakan Open original source frame bila tersedia pada baris.",
+              "Bandingkan nama sinyal dengan Signal List yang disetujui.",
+              "Jika data hanya muncul setelah GI, periksa secara terpisah konfigurasi dan pengiriman event spontan."
+            ],
+            "expectedEn": "Displayed value can be traced back to an actual decoded source frame and project mapping.",
+            "expectedId": "Value yang tampil dapat ditelusuri ke frame sumber terdecode serta mapping proyek.",
+            "troubleshootingEn": "A named point with an invalid quality or wrong CA is not automatically a valid field condition.",
+            "troubleshootingId": "Point bernama dengan quality invalid atau CA salah tidak otomatis menunjukkan kondisi lapangan valid.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "8.3",
+          "id": "learn-use-views-s3"
+        },
+        {
+          "headingEn": "Events: inspect changes and history",
+          "headingId": "Events: periksa perubahan dan riwayat",
+          "paragraphsEn": [
+            "Events offers event history with search, source-frame navigation and CSV export. A filtered or paged view is not the same as the full indexed history."
+          ],
+          "paragraphsId": [
+            "Events menyediakan riwayat event dengan search, navigasi frame sumber dan ekspor CSV. View terfilter atau berpaginasi bukan seluruh riwayat terindeks."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Open Events and search for a changed signal, COT, source or IOA.",
+              "Inspect time, semantic value, quality and original source.",
+              "Use Open original frame to correlate the event with Raw Frames.",
+              "Use pagination or All indexed events controls for deeper history.",
+              "Use Export CSV and verify the intended scope before sharing."
+            ],
+            "stepsId": [
+              "Buka Events dan cari sinyal berubah, COT, sumber atau IOA.",
+              "Periksa waktu, nilai semantik, quality dan sumber asal.",
+              "Klik Open original frame untuk mencocokkan event ke Raw Frames.",
+              "Gunakan pagination atau All indexed events untuk riwayat lebih dalam.",
+              "Gunakan Export CSV lalu verifikasi cakupan sebelum berbagi."
+            ],
+            "expectedEn": "An event can be traced to its actual decoded frame, and exported rows match the chosen scope.",
+            "expectedId": "Event dapat ditelusuri ke frame decoded asli, dan baris ekspor sesuai cakupan yang dipilih.",
+            "troubleshootingEn": "When an event is absent, check active filters and capture interval before declaring a missing RTU report.",
+            "troubleshootingId": "Saat event tidak terlihat, cek filter aktif dan interval capture sebelum menyatakan RTU gagal melapor.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "8.4",
+          "id": "learn-use-views-s4"
+        },
+        {
+          "headingEn": "Smart Findings, Controls and GI case views",
+          "headingId": "Smart Findings, Controls dan view kasus GI",
+          "paragraphsEn": [
+            "Smart Findings proposes diagnostic explanations; Controls and GI views gather transaction-oriented evidence. They cannot replace the raw frames from which conclusions are derived."
+          ],
+          "paragraphsId": [
+            "Smart Findings mengusulkan diagnosis; view Controls dan GI mengumpulkan evidence per transaksi. Keduanya tidak menggantikan frame raw yang menjadi dasar kesimpulan."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Open Smart Findings and inspect the proposed cause, evidence and recommended check.",
+              "Follow the cited frame or signal rather than applying every suggestion blindly.",
+              "Open Controls to inspect command lifecycle evidence when present.",
+              "Open GI to inspect an interrogation request/response sequence.",
+              "Export or retain the relevant raw evidence for FAT/SAT review."
+            ],
+            "stepsId": [
+              "Buka Smart Findings dan periksa dugaan penyebab, evidence serta pemeriksaan yang disarankan.",
+              "Ikuti frame/sinyal yang dirujuk, jangan langsung menerapkan semua saran.",
+              "Buka Controls untuk memeriksa lifecycle command bila ada.",
+              "Buka GI untuk memeriksa urutan request/response interrogation.",
+              "Ekspor atau simpan evidence raw yang relevan untuk FAT/SAT."
+            ],
+            "expectedEn": "The user can separate observed protocol facts from automated diagnostic suggestions.",
+            "expectedId": "Pengguna dapat memisahkan fakta protokol teramati dari saran diagnosis otomatis.",
+            "troubleshootingEn": "Treat a suggested correction as a hypothesis until link framing, address, COT and raw capture prove it.",
+            "troubleshootingId": "Anggap saran koreksi sebagai hipotesis sampai framing link, address, COT dan capture raw membuktikannya.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "8.5",
+          "id": "learn-use-views-s5"
+        }
+      ],
+      "number": "08"
+    },
+    {
+      "key": "learn-use-commands",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Command Panel, GI and controls",
+      "titleId": "Command Panel, GI dan kontrol",
+      "summaryEn": "Use read-only operations first and handle potentially physical controls only under an approved test procedure.",
+      "summaryId": "Dahulukan operasi read-only dan gunakan kontrol fisik hanya berdasarkan prosedur uji yang disetujui.",
+      "searchText": "Command Panel, GI and controls Command Panel, GI dan kontrol Use read-only operations first and handle potentially physical controls only under an approved test procedure. Dahulukan operasi read-only dan gunakan kontrol fisik hanya berdasarkan prosedur uji yang disetujui. Open the right-side Command Panel Buka Command Panel sisi kanan Use Read IOA and GI before control tests Gunakan Read IOA dan GI sebelum uji kontrol Choose command type and operation mode Pilih jenis command dan mode operasi Read the Select/Operate lifecycle Baca lifecycle Select/Operate",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Open the right-side Command Panel",
+          "headingId": "Buka Command Panel sisi kanan",
+          "paragraphsEn": [
+            "The right dock is collapsible, and IEC 103 is not an active IEC 101/104 command-ASDU mode in this build."
+          ],
+          "paragraphsId": [
+            "Dock kanan dapat dilipat, dan IEC 103 bukan mode command-ASDU aktif IEC 101/104 pada build ini."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Connect an IEC 101 or IEC 104 session with the intended authority.",
+              "Click the slim COMMAND PANEL header or chevron on the right to expand.",
+              "Review the quick actions GI • TI-100, Timesync • TI-103 and Read IOA • TI-102.",
+              "Keep the panel collapsed when you only need passive inspection.",
+              "Verify session status before any action that sends protocol traffic."
+            ],
+            "stepsId": [
+              "Hubungkan sesi IEC 101 atau IEC 104 dengan kewenangan yang tepat.",
+              "Klik header atau chevron COMMAND PANEL ramping di kanan untuk membuka.",
+              "Periksa quick action GI • TI-100, Timesync • TI-103 dan Read IOA • TI-102.",
+              "Biarkan panel tertutup saat hanya perlu inspeksi pasif.",
+              "Pastikan status sesi sebelum menjalankan aksi yang mengirim traffic protokol."
+            ],
+            "expectedEn": "The panel displays the correct command controls without reducing the center article/trace view unnecessarily.",
+            "expectedId": "Panel menampilkan kontrol command yang relevan tanpa mengurangi ruang trace tengah jika tidak diperlukan.",
+            "troubleshootingEn": "If IEC 103 is selected, do not attempt unsupported IEC 101/104 control ASDUs from the dock.",
+            "troubleshootingId": "Jika IEC 103 terpilih, jangan mencoba ASDU kontrol IEC 101/104 yang tidak didukung melalui dock.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "9.1",
+          "id": "learn-use-commands-s1"
+        },
+        {
+          "headingEn": "Use Read IOA and GI before control tests",
+          "headingId": "Gunakan Read IOA dan GI sebelum uji kontrol",
+          "paragraphsEn": [
+            "Read IOA and GI request application data; positive communication acknowledgement alone is not proof of a fresh data value."
+          ],
+          "paragraphsId": [
+            "Read IOA dan GI meminta data aplikasi; ACK komunikasi positif belum membuktikan adanya nilai data terbaru."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "For a single-point read enter target Common Address (CA) and IOA.",
+              "Click Read IOA • TI-102 while connected and authorized.",
+              "Trace the request and its corresponding response in Raw Frames.",
+              "For a wider current image use GI • TI-100 and inspect GI cases.",
+              "Compare Values and quality with expected station mapping."
+            ],
+            "stepsId": [
+              "Untuk baca satu point masukkan Common Address (CA) dan IOA.",
+              "Klik Read IOA • TI-102 saat terhubung dan berwenang.",
+              "Lacak request serta responsnya pada Raw Frames.",
+              "Untuk image lebih luas gunakan GI • TI-100 lalu periksa kasus GI.",
+              "Bandingkan Values dan quality dengan mapping stasiun."
+            ],
+            "expectedEn": "Each read/interrogation request can be distinguished from the resulting data and any negative confirmation.",
+            "expectedId": "Setiap read/interrogation request dapat dibedakan dari data hasil dan negative confirmation.",
+            "troubleshootingEn": "If a read request is rejected or no data appears, verify address, support, station profile and status before sending repeated requests.",
+            "troubleshootingId": "Jika read ditolak atau tanpa data, verifikasi address, dukungan, profil stasiun dan status sebelum request berulang.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "9.2",
+          "id": "learn-use-commands-s2"
+        },
+        {
+          "headingEn": "Choose command type and operation mode",
+          "headingId": "Pilih jenis command dan mode operasi",
+          "paragraphsEn": [
+            "The dock offers TI 45 Single Command, TI 46 Double Command, TI 47 Regulating, and TI 48 normalized setpoint; Qualifier / operation selects Select Before Operate or Direct Operate."
+          ],
+          "paragraphsId": [
+            "Dock menyediakan TI 45 Single Command, TI 46 Double Command, TI 47 Regulating dan TI 48 setpoint normalized; Qualifier / operation memilih Select Before Operate atau Direct Operate."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [
+              "Approved test point, authorization and device command interoperability sheet."
+            ],
+            "prerequisitesId": [
+              "Test point yang disetujui, otorisasi dan interoperability sheet command perangkat."
+            ],
+            "stepsEn": [
+              "Select the approved signal in Target or enter CA and IOA explicitly.",
+              "Choose the correct Command type and check the target/feedback preview.",
+              "Select Select Before Operate (SBO) only if supported by the device profile; otherwise follow the approved direct-operate procedure.",
+              "Review QOC QU pulse or QOS QL setpoint qualifier and numeric setpoint where applicable.",
+              "Inspect the exact action buttons that update with the selected command and mode.",
+              "Do not transmit until an authorized tester has checked target, expected direction, interlock and impact."
+            ],
+            "stepsId": [
+              "Pilih sinyal yang disetujui di Target atau isi CA dan IOA secara eksplisit.",
+              "Pilih Command type yang benar dan periksa preview target/feedback.",
+              "Pilih Select Before Operate (SBO) hanya jika profil perangkat mendukung; jika tidak ikuti prosedur Direct Operate yang disetujui.",
+              "Periksa qualifier QOC QU pulse atau QOS QL setpoint serta angka setpoint jika relevan.",
+              "Periksa tombol aksi yang berubah sesuai tipe command dan mode.",
+              "Jangan kirim sebelum penguji berwenang memeriksa target, arah yang diinginkan, interlock dan dampak."
+            ],
+            "expectedEn": "The preview and action layout match the intended protocol command; an unsupported or conflicting target is not silently operated.",
+            "expectedId": "Preview dan tombol aksi cocok dengan perintah protokol yang dimaksud; target yang tidak didukung atau konflik tidak diam-diam dioperasikan.",
+            "troubleshootingEn": "Do not assume the preselected command type, qualifier or point address is safe for a real breaker; always review them.",
+            "troubleshootingId": "Jangan menganggap tipe command, qualifier atau point address yang terpilih awal aman untuk breaker; selalu tinjau.",
+            "safetyEn": "Never exercise live switchgear solely to verify the Help Center instructions.",
+            "safetyId": "Jangan mengoperasikan switchgear hidup hanya untuk memverifikasi instruksi Help Center."
+          },
+          "number": "9.3",
+          "id": "learn-use-commands-s3"
+        },
+        {
+          "headingEn": "Read the Select/Operate lifecycle",
+          "headingId": "Baca lifecycle Select/Operate",
+          "paragraphsEn": [
+            "The dock has Select Open/Close and Operate Open/Close actions appropriate to the chosen mode. For Direct Operate, a stale SELECT input is rejected by application logic."
+          ],
+          "paragraphsId": [
+            "Dock memiliki aksi Select Open/Close dan Operate Open/Close sesuai mode. Pada Direct Operate, input SELECT yang stale ditolak oleh logika aplikasi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "In an authorized safe test choose the intended CA/IOA and supported SBO mode.",
+              "Issue Select for the target state, then inspect confirmation in Controls and Raw Frames.",
+              "If select was accepted and authority remains valid, issue the matching Operate action.",
+              "Observe application ACTCON/ACTTERM when supported, and separately inspect actual process-state feedback.",
+              "If any transaction times out or a failover intervenes, mark outcome unknown until verified from the source."
+            ],
+            "stepsId": [
+              "Pada tes aman yang diizinkan pilih CA/IOA dan mode SBO yang didukung.",
+              "Kirim Select untuk state tujuan, lalu periksa konfirmasi pada Controls dan Raw Frames.",
+              "Jika select diterima dan kewenangan masih valid, kirim Operate yang sesuai.",
+              "Amati ACTCON/ACTTERM aplikasi bila didukung, dan periksa feedback state proses terpisah.",
+              "Jika transaksi timeout atau diselingi failover, tandai hasil unknown sampai terverifikasi dari sumber."
+            ],
+            "expectedEn": "Control case evidence identifies request, confirmation and independently observed final state.",
+            "expectedId": "Evidence kasus kontrol mengidentifikasi request, confirmation dan final state yang teramati secara independen.",
+            "troubleshootingEn": "Transport ACK, positive ACTCON or ACTTERM alone does not guarantee mechanical breaker movement; do not automatically repeat uncertain physical commands.",
+            "troubleshootingId": "ACK transport, ACTCON positif atau ACTTERM saja tidak menjamin breaker bergerak; jangan otomatis mengulang command fisik yang hasilnya tidak pasti.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "9.4",
+          "id": "learn-use-commands-s4"
+        }
+      ],
+      "number": "09"
+    },
+    {
+      "key": "learn-use-evidence",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Save captures, export and report",
+      "titleId": "Simpan capture, ekspor dan laporan",
+      "summaryEn": "Preserve selected raw evidence, reopen trustworthy archives and export controlled FAT/SAT reports.",
+      "summaryId": "Simpan evidence raw terpilih, buka arsip tepercaya dan ekspor laporan FAT/SAT terkendali.",
+      "searchText": "Save captures, export and report Simpan capture, ekspor dan laporan Preserve selected raw evidence, reopen trustworthy archives and export controlled FAT/SAT reports. Simpan evidence raw terpilih, buka arsip tepercaya dan ekspor laporan FAT/SAT terkendali. Save selected evidence as .ariec Simpan evidence terpilih sebagai .ariec Open a capture and validate its scope Buka capture dan validasi cakupannya Export trace text and event CSV Ekspor teks trace dan CSV event Preview and export a PDF report Preview dan ekspor laporan PDF Protect field and customer information Lindungi informasi lapangan dan pelanggan",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Save selected evidence as .ariec",
+          "headingId": "Simpan evidence terpilih sebagai .ariec",
+          "paragraphsEn": [
+            "Save Cap exports selected Raw Frames or Evidence Ledger rows as a portable .ariec archive. It is not a blind full-session recording."
+          ],
+          "paragraphsId": [
+            "Save Cap mengekspor baris Raw Frames atau Evidence Ledger yang dipilih sebagai arsip portable .ariec. Ini bukan perekaman otomatis seluruh sesi."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "In Raw Frames or Evidence Ledger select one or several relevant rows.",
+              "Click Save Cap in the left rail or the matching contextual action.",
+              "Choose a filename and a destination for the .ariec archive.",
+              "Check the confirmation for selected source and row count.",
+              "Keep the file with the associated FAT note and approved project profile."
+            ],
+            "stepsId": [
+              "Di Raw Frames atau Evidence Ledger pilih satu atau beberapa baris yang relevan.",
+              "Klik Save Cap di action rail kiri atau aksi kontekstual terkait.",
+              "Pilih nama file dan lokasi arsip .ariec.",
+              "Periksa konfirmasi sumber dan jumlah baris terpilih.",
+              "Simpan file bersama catatan FAT dan profil proyek yang disetujui."
+            ],
+            "expectedEn": "An ARIEC capture is written from the selected evidence rows and can later be reopened for offline analysis.",
+            "expectedId": "Capture ARIEC ditulis dari baris evidence yang dipilih dan dapat dibuka kembali untuk analisis offline.",
+            "troubleshootingEn": "If nothing is selected the application asks you to select rows; do not assume Save Cap silently included every event.",
+            "troubleshootingId": "Jika tidak ada baris terpilih aplikasi meminta seleksi; jangan mengira Save Cap diam-diam memasukkan semua event.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "10.1",
+          "id": "learn-use-evidence-s1"
+        },
+        {
+          "headingEn": "Open a capture and validate its scope",
+          "headingId": "Buka capture dan validasi cakupannya",
+          "paragraphsEn": [
+            "Open Cap accepts .ariec/.zip evidence and manifest.json from a full passive journal. Imported preview rows can be bounded, while archived search can examine the broader stored source."
+          ],
+          "paragraphsId": [
+            "Open Cap menerima evidence .ariec/.zip dan manifest.json dari jurnal pasif lengkap. Preview impor dapat dibatasi, sementara pencarian arsip dapat memeriksa sumber yang lebih luas."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Click Open Cap in the action rail.",
+              "Select an .ariec or .zip capture, or manifest.json when reopening a complete passive recording.",
+              "Allow the application to validate the archive and restore its evidence projection.",
+              "Open Raw Frames and inspect protocol/source metadata before trusting displayed labels.",
+              "Use Find in recorded archive when the needed frame is outside the visible preview."
+            ],
+            "stepsId": [
+              "Klik Open Cap di action rail.",
+              "Pilih capture .ariec atau .zip, atau manifest.json saat membuka jurnal pasif lengkap.",
+              "Izinkan aplikasi memvalidasi arsip dan memulihkan proyeksi evidence.",
+              "Buka Raw Frames dan periksa metadata protokol/sumber sebelum mempercayai label.",
+              "Gunakan Find in recorded archive jika frame yang diperlukan di luar preview."
+            ],
+            "expectedEn": "Offline review uses validated saved bytes without requiring a new connection to the original device.",
+            "expectedId": "Review offline memakai byte tersimpan yang tervalidasi tanpa perlu koneksi baru ke perangkat asal.",
+            "troubleshootingEn": "A mismatched or incomplete archive should be rejected/flagged; do not manually alter hash or raw stream to force it open.",
+            "troubleshootingId": "Arsip yang tidak lengkap atau tidak cocok harus ditolak/ditandai; jangan mengubah hash atau raw stream untuk memaksa dibuka.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "10.2",
+          "id": "learn-use-evidence-s2"
+        },
+        {
+          "headingEn": "Export trace text and event CSV",
+          "headingId": "Ekspor teks trace dan CSV event",
+          "paragraphsEn": [
+            "Trace TXT exports selected trace rows, or all currently visible trace rows when none are selected. Events offers its own CSV export scope."
+          ],
+          "paragraphsId": [
+            "Trace TXT mengekspor baris trace terpilih, atau seluruh baris trace yang sedang terlihat jika tidak ada yang dipilih. Events menyediakan ekspor CSV dengan cakupan tersendiri."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Filter and select raw frames that support the issue.",
+              "Click Trace TXT in the action rail and check the written text file.",
+              "For event records open Events and choose Export CSV.",
+              "Choose between filtered and available indexed event scope where offered.",
+              "Verify column headers, direction, timestamps and file scope against the original trace."
+            ],
+            "stepsId": [
+              "Filter dan pilih raw frame yang mendukung masalah.",
+              "Klik Trace TXT pada action rail lalu periksa file teks yang dibuat.",
+              "Untuk catatan event buka Events dan pilih Export CSV.",
+              "Pilih cakupan event terfilter atau indexed sesuai opsi yang ditawarkan.",
+              "Cek header kolom, arah, timestamp dan cakupan file dibanding trace asal."
+            ],
+            "expectedEn": "Plain-text and CSV extracts are useful for sharing selected evidence while the canonical .ariec retains richer raw context.",
+            "expectedId": "Ekstrak teks dan CSV berguna untuk berbagi evidence terpilih sedangkan .ariec canonical mempertahankan konteks raw lebih kaya.",
+            "troubleshootingEn": "Visible rows might be filtered or preview-limited; do not represent a filtered TXT/CSV as the whole field capture.",
+            "troubleshootingId": "Baris terlihat dapat terfilter atau terbatas preview; jangan menyatakan TXT/CSV terfilter sebagai seluruh capture lapangan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "10.3",
+          "id": "learn-use-evidence-s3"
+        },
+        {
+          "headingEn": "Preview and export a PDF report",
+          "headingId": "Preview dan ekspor laporan PDF",
+          "paragraphsEn": [
+            "Report provides a preview and the left action rail's Report action exports a professional PDF using ArSee's native report engine."
+          ],
+          "paragraphsId": [
+            "Report menyediakan preview dan action Report pada rail kiri mengekspor PDF profesional dengan engine report bawaan ArSee."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "First run a session or open a validated capture with evidence rows.",
+              "Open Report workspace, refresh preview if necessary and verify its evidence scope.",
+              "Inspect report pages and select source rows that actually support your conclusion.",
+              "Click Report on the left rail to export PDF, choose a destination and save.",
+              "Open the exported PDF and inspect station names, times, decoded fields and completeness before sharing."
+            ],
+            "stepsId": [
+              "Jalankan sesi atau buka capture valid yang memiliki baris evidence.",
+              "Buka workspace Report, refresh preview bila perlu dan verifikasi cakupan evidence.",
+              "Periksa halaman laporan serta baris sumber yang benar-benar mendukung kesimpulan.",
+              "Klik Report pada rail kiri untuk ekspor PDF, pilih lokasi lalu simpan.",
+              "Buka PDF hasilnya dan periksa nama stasiun, waktu, field decode serta kelengkapan sebelum berbagi."
+            ],
+            "expectedEn": "The PDF corresponds to the current evidence scope and includes engineering context suitable for FAT/SAT review.",
+            "expectedId": "PDF sesuai cakupan evidence saat ini dan memuat konteks engineering untuk review FAT/SAT.",
+            "troubleshootingEn": "No evidence rows means export is refused; first connect/run or open a valid capture. A PDF is a documented observation, not automatic compliance certification.",
+            "troubleshootingId": "Tanpa baris evidence ekspor ditolak; jalankan sesi atau buka capture valid dahulu. PDF adalah observasi terdokumentasi, bukan sertifikasi compliance otomatis.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "10.4",
+          "id": "learn-use-evidence-s4"
+        },
+        {
+          "headingEn": "Protect field and customer information",
+          "headingId": "Lindungi informasi lapangan dan pelanggan",
+          "paragraphsEn": [
+            "Captures, profiles and reports may contain station names, IP addresses, COM numbers, raw frames, signal names and time-correlated operational data."
+          ],
+          "paragraphsId": [
+            "Capture, profil dan laporan dapat berisi nama stasiun, alamat IP, nomor COM, frame raw, nama sinyal serta data operasi terkait waktu."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Before sharing, identify whether the audience is project-internal or public.",
+              "Review every filename, report header, profile and raw frame for customer data.",
+              "Keep unsanitized captures only in an approved storage location.",
+              "For public examples use the built-in demo or independently constructed synthetic frames.",
+              "Never replace real project evidence with fictitious byte sequences without explicitly declaring simulation."
+            ],
+            "stepsId": [
+              "Sebelum berbagi, tentukan apakah penerimanya internal proyek atau publik.",
+              "Periksa nama file, header laporan, profil dan setiap frame raw terkait data pelanggan.",
+              "Simpan capture asli hanya di lokasi yang disetujui.",
+              "Untuk contoh publik gunakan demo bawaan atau frame sintetis yang dibuat independen.",
+              "Jangan mengganti evidence proyek asli dengan byte fiktif tanpa menyatakan simulasi secara eksplisit."
+            ],
+            "expectedEn": "Project evidence remains traceable while public learning examples contain no customer-specific configuration.",
+            "expectedId": "Evidence proyek tetap dapat ditelusuri sementara contoh belajar publik tidak berisi konfigurasi pelanggan.",
+            "troubleshootingEn": "Checksum/manifest integrity proves file consistency, not that a USB adapter or operator captured every physical bit correctly.",
+            "troubleshootingId": "Integritas checksum/manifest membuktikan konsistensi file, bukan bahwa adapter USB atau operator menangkap setiap bit fisik tanpa kehilangan.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "10.5",
+          "id": "learn-use-evidence-s5"
+        }
+      ],
+      "number": "10"
+    },
+    {
+      "key": "learn-use-diagnose",
+      "categoryEn": "ArSee user guide",
+      "categoryId": "Panduan penggunaan ArSee",
+      "titleEn": "Troubleshooting and common questions",
+      "titleId": "Troubleshooting dan pertanyaan umum",
+      "summaryEn": "Diagnose missing communication or mismatched values layer by layer instead of trying random settings.",
+      "summaryId": "Diagnosis komunikasi hilang atau value tidak cocok berdasarkan lapisan, bukan mengganti pengaturan acak.",
+      "searchText": "Troubleshooting and common questions Troubleshooting dan pertanyaan umum Diagnose missing communication or mismatched values layer by layer instead of trying random settings. Diagnosis komunikasi hilang atau value tidak cocok berdasarkan lapisan, bukan mengganti pengaturan acak. Connect succeeds but no data arrives Connect berhasil tetapi tidak ada data Values or event names look wrong Nama Values atau event terlihat salah GI incomplete, event missing or duplicate GI tidak lengkap, event hilang atau duplikat Help Center, search and contextual F1 Help Center, pencarian dan F1 kontekstual",
+      "sources": [
+        "https://github.com/masarray/arsee/blob/master/docs/USER_GUIDE.md"
+      ],
+      "sections": [
+        {
+          "headingEn": "Connect succeeds but no data arrives",
+          "headingId": "Connect berhasil tetapi tidak ada data",
+          "paragraphsEn": [
+            "A green/connected state only proves a subset of transport conditions. It cannot prove a working station image or reporting pipeline."
+          ],
+          "paragraphsId": [
+            "Indikator connected hanya membuktikan sebagian kondisi transport. Itu belum membuktikan station image atau reporting pipeline bekerja."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Identify which protocol and live/demo target is selected.",
+              "In Raw Frames distinguish no TX, TX without RX, RX malformed, and RX valid but no application ASDU.",
+              "For serial, verify COM, baud, parity, link address, flow control, ACD/DFC and request function.",
+              "For IEC104, verify STARTDT con and I-frame application data after TCP connect.",
+              "Only then inspect CA/IOA/FUN-INF mapping and event generation."
+            ],
+            "stepsId": [
+              "Identifikasi protokol dan target live/demo yang dipilih.",
+              "Di Raw Frames bedakan tidak ada TX, TX tanpa RX, RX rusak, serta RX valid tetapi tanpa ASDU aplikasi.",
+              "Untuk serial, verifikasi COM, baud, parity, link address, flow control, ACD/DFC dan function request.",
+              "Untuk IEC104, verifikasi STARTDT con dan data aplikasi I-frame setelah TCP connect.",
+              "Baru setelah itu periksa mapping CA/IOA/FUN-INF serta pembentukan event."
+            ],
+            "expectedEn": "The investigation points to the first unproven layer and records exact raw evidence for retest.",
+            "expectedId": "Investigasi menunjukkan lapisan pertama yang belum terbukti dan menyimpan evidence raw untuk uji ulang.",
+            "troubleshootingEn": "Do not infer a wiring fault merely from an empty Values list or a blinking TX/RX LED.",
+            "troubleshootingId": "Jangan menyimpulkan wiring salah hanya karena Values kosong atau LED TX/RX berkedip.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "11.1",
+          "id": "learn-use-diagnose-s1"
+        },
+        {
+          "headingEn": "Values or event names look wrong",
+          "headingId": "Nama Values atau event terlihat salah",
+          "paragraphsEn": [
+            "A valid raw frame may be assigned a wrong human label if the selected Signal List maps the wrong CA/IOA or relay FUN/INF."
+          ],
+          "paragraphsId": [
+            "Frame raw valid dapat mendapat label manusia yang salah jika Signal List terpilih memetakan CA/IOA atau FUN/INF relay secara keliru."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Select the suspicious row and open original source frame.",
+              "Verify raw station address, Type ID, COT, CA/IOA or FUN/INF.",
+              "Compare the mapping profile and approved signal list revision.",
+              "Check quality bits and timestamp before drawing a field conclusion.",
+              "Correct the project-owned map, then re-open/review evidence; retain original raw bytes."
+            ],
+            "stepsId": [
+              "Pilih baris mencurigakan dan buka frame sumber asli.",
+              "Verifikasi station address, Type ID, COT, CA/IOA atau FUN/INF raw.",
+              "Bandingkan mapping profile dengan revisi signal list yang disetujui.",
+              "Cek quality bit dan timestamp sebelum menarik kesimpulan lapangan.",
+              "Perbaiki map milik proyek, lalu review evidence lagi; simpan byte asli."
+            ],
+            "expectedEn": "Label, raw address and engineering meaning agree with the approved project signal list.",
+            "expectedId": "Label, address raw dan makna engineering cocok dengan signal list proyek yang disetujui.",
+            "troubleshootingEn": "Never hide mismatch by silently rewriting the captured CA/IOA or asserting good quality that the device did not send.",
+            "troubleshootingId": "Jangan menyembunyikan mismatch dengan mengubah CA/IOA hasil capture atau menganggap quality bagus yang tidak dikirim perangkat.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "11.2",
+          "id": "learn-use-diagnose-s2"
+        },
+        {
+          "headingEn": "GI incomplete, event missing or duplicate",
+          "headingId": "GI tidak lengkap, event hilang atau duplikat",
+          "paragraphsEn": [
+            "GI, events and A/B retransmissions use different transaction concepts. A snapshot after GI cannot automatically prove continuous event reporting."
+          ],
+          "paragraphsId": [
+            "GI, event serta retransmission A/B memakai konsep transaksi berbeda. Snapshot setelah GI tidak otomatis membuktikan pelaporan event kontinu."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Correlate the GI request, acceptance, process ASDUs and completion in the GI workspace.",
+              "Review event COT/source and original frame in Events and Raw Frames.",
+              "Check whether Class 1 drain, queue pressure or site bandwidth delayed application data.",
+              "If dual link switched, compare last confirmed A event and first B event with source identity.",
+              "Classify each finding as observed, correlated, inferred or not observed."
+            ],
+            "stepsId": [
+              "Cocokkan request GI, acceptance, ASDU proses dan terminasi di workspace GI.",
+              "Periksa COT/sumber event serta frame asal pada Events dan Raw Frames.",
+              "Cek apakah drain Class 1, kepadatan antrian atau bandwidth site menunda data aplikasi.",
+              "Jika Dual Link berpindah, bandingkan event terakhir A yang terkonfirmasi dan event pertama B menurut identitas sumber.",
+              "Klasifikasikan hasil sebagai observed, correlated, inferred atau not observed."
+            ],
+            "expectedEn": "FAT notes distinguish partial GI, missing event delivery and potential retransmission without inventing physical events.",
+            "expectedId": "Catatan FAT membedakan GI partial, event yang belum terkirim dan potensi retransmission tanpa mengarang event fisik.",
+            "troubleshootingEn": "Never equate ACD with a guaranteed event, or duplicate-looking frames with two physical breaker operations.",
+            "troubleshootingId": "Jangan samakan ACD dengan event pasti, atau frame mirip duplikat dengan dua operasi breaker fisik.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "11.3",
+          "id": "learn-use-diagnose-s3"
+        },
+        {
+          "headingEn": "Help Center, search and contextual F1",
+          "headingId": "Help Center, pencarian dan F1 kontekstual",
+          "paragraphsEn": [
+            "Help Center has a searchable chapter index and follows the selected workspace when you press F1. It includes both ArSee operating procedures and independently written IEC protocol lessons."
+          ],
+          "paragraphsId": [
+            "Help Center memiliki indeks bab yang bisa dicari dan mengikuti workspace yang dipilih saat Anda menekan F1. Isinya mencakup prosedur ArSee dan materi IEC yang ditulis independen."
+          ],
+          "bulletsEn": [],
+          "bulletsId": [],
+          "framesEn": [],
+          "framesId": [],
+          "workflow": {
+            "prerequisitesEn": [],
+            "prerequisitesId": [],
+            "stepsEn": [
+              "Click Help on the left rail or press F1 while a specific workspace is open.",
+              "In the Help Center, choose your language.",
+              "Open the ArSee user-guide chapters for operating procedures; choose IEC101/103/104 lessons for protocol meaning.",
+              "Use Search to find features, COT/CA/IOA, Class 1, STARTDT, GI, report or troubleshooting.",
+              "Choose a numbered subchapter in the left index to scroll the reading pane to the relevant explanation."
+            ],
+            "stepsId": [
+              "Klik Help di rail kiri atau tekan F1 saat workspace tertentu terbuka.",
+              "Pada Help Center pilih bahasa.",
+              "Buka bab panduan pengguna ArSee untuk prosedur; pilih bab IEC101/103/104 untuk makna protokol.",
+              "Gunakan Search untuk mencari fitur, COT/CA/IOA, Class 1, STARTDT, GI, report atau troubleshooting.",
+              "Pilih subbab bernomor di indeks kiri untuk memindahkan panel baca ke pembahasan yang relevan."
+            ],
+            "expectedEn": "A beginner can progress from a specific UI button to the trace proof and engineering explanation without leaving ArSee.",
+            "expectedId": "Pemula dapat berpindah dari tombol UI ke bukti trace serta penjelasan engineering tanpa meninggalkan ArSee.",
+            "troubleshootingEn": "F1 is contextual and may open a short feature topic rather than the book index; use navigation/search to reach the complete guide.",
+            "troubleshootingId": "F1 bersifat kontekstual dan dapat membuka topik fitur singkat alih-alih indeks buku; gunakan navigasi/search untuk panduan lengkap.",
+            "safetyEn": "",
+            "safetyId": ""
+          },
+          "number": "11.4",
+          "id": "learn-use-diagnose-s4"
+        }
+      ],
+      "number": "11"
+    },
+    {
       "key": "learn-iec-family",
       "categoryEn": "Engineering handbook",
       "categoryId": "Buku belajar engineer",
@@ -40,7 +2043,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s1",
-          "number": "1.1"
+          "number": "12.1"
         },
         {
           "headingEn": "Read the layers in order",
@@ -66,7 +2069,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s2",
-          "number": "1.2"
+          "number": "12.2"
         },
         {
           "headingEn": "Master, outstation and time",
@@ -92,7 +2095,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s3",
-          "number": "1.3"
+          "number": "12.3"
         },
         {
           "headingEn": "Interoperability is a contract, not a checkbox",
@@ -116,7 +2119,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s4",
-          "number": "1.4"
+          "number": "12.4"
         },
         {
           "headingEn": "A beginner's five questions for every frame",
@@ -140,7 +2143,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec-family-s5",
-          "number": "1.5"
+          "number": "12.5"
         }
       ],
       "sources": [
@@ -149,7 +2152,7 @@
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "01"
+      "number": "12"
     },
     {
       "key": "learn-framing",
@@ -190,7 +2193,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-framing-s1",
-          "number": "2.1"
+          "number": "13.1"
         },
         {
           "headingEn": "Trust ladder: byte to application conclusion",
@@ -214,7 +2217,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-framing-s2",
-          "number": "2.2"
+          "number": "13.2"
         },
         {
           "headingEn": "Two conceptual capture patterns",
@@ -238,10 +2241,10 @@
             "B / TCP: connect -> STARTDT act/con -> GI act -> ACTCON -> data -> selesai"
           ],
           "id": "learn-framing-s3",
-          "number": "2.3"
+          "number": "13.3"
         }
       ],
-      "number": "02"
+      "number": "13"
     },
     {
       "key": "learn-iec101",
@@ -283,7 +2286,7 @@
             "Link ACK bukan ACTCON; catat kedua lapisan terpisah."
           ],
           "id": "learn-iec101-s1",
-          "number": "3.1"
+          "number": "14.1"
         },
         {
           "headingEn": "Healthy unbalanced Class 2 / Class 1 polling",
@@ -321,7 +2324,7 @@
             "RX  Event, lalu Class 1 habis → lanjut Class 2"
           ],
           "id": "learn-iec101-s2",
-          "number": "3.2"
+          "number": "14.2"
         },
         {
           "headingEn": "Startup, GI and command evidence",
@@ -347,7 +2350,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec101-s3",
-          "number": "3.3"
+          "number": "14.3"
         },
         {
           "headingEn": "Fixed and variable FT1.2 frames",
@@ -377,7 +2380,7 @@
             "Skematis: [START][LENGTH][CONTROL][LINK ADDRESS][ASDU?][CHECKSUM][END]"
           ],
           "id": "learn-iec101-s4",
-          "number": "3.4"
+          "number": "14.4"
         },
         {
           "headingEn": "How the RTU must react to an empty event queue",
@@ -411,14 +2414,14 @@
             "TX master  Kembali ke Class 2 normal"
           ],
           "id": "learn-iec101-s5",
-          "number": "3.5"
+          "number": "14.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/3743"
       ],
-      "number": "03"
+      "number": "14"
     },
     {
       "key": "learn-lab-101",
@@ -479,7 +2482,7 @@
             "answerEn": "No. This is primary link-status FC9. Expect a permitted secondary link-status response such as FC11, subject to profile and actual link state.",
             "answerId": "Tidak. Ini link-status FC9 dari primary. Yang diharapkan respons status link secondary seperti FC11 sesuai profil dan kondisi link yang benar."
           },
-          "number": "4.1",
+          "number": "15.1",
           "id": "learn-lab-101-s1"
         },
         {
@@ -528,7 +2531,7 @@
             "answerEn": "No. A link-status reply contains no GI Type ID, COT, point image or completion evidence.",
             "answerId": "Tidak. Respons link-status tidak berisi Type ID GI, COT, image point atau evidence penyelesaian GI."
           },
-          "number": "4.2",
+          "number": "15.2",
           "id": "learn-lab-101-s2"
         },
         {
@@ -577,7 +2580,7 @@
             "answerEn": "No. A permitted no-data response is healthy. Investigate no response, malformed bytes, or wrongly persistent ACD independently.",
             "answerId": "Tidak. Respons no-data yang diperbolehkan menunjukkan kondisi sehat. Selidiki tidak adanya respons, byte rusak, atau ACD menetap secara terpisah."
           },
-          "number": "4.3",
+          "number": "15.3",
           "id": "learn-lab-101-s3"
         },
         {
@@ -623,7 +2626,7 @@
             "answerEn": "No. The raw byte has no function/address/ACD fields. Correlation to an outstanding compatible poll is needed; otherwise label semantic outcome unknown.",
             "answerId": "Tidak. Byte mentah ini tidak memiliki field function/address/ACD. Dibutuhkan korelasi request poll kompatibel yang unik; tanpa itu makna semantik unknown."
           },
-          "number": "4.4",
+          "number": "15.4",
           "id": "learn-lab-101-s4"
         },
         {
@@ -669,11 +2672,11 @@
             "answerEn": "No. It is a corrupted frame. A permissive-looking control field is not enough to claim an accepted link service.",
             "answerId": "Tidak. Frame ini rusak. Control field yang tampak wajar tidak cukup untuk mengklaim layanan link diterima."
           },
-          "number": "4.5",
+          "number": "15.5",
           "id": "learn-lab-101-s5"
         }
       ],
-      "number": "04"
+      "number": "15"
     },
     {
       "key": "learn-iec103",
@@ -709,7 +2712,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s1",
-          "number": "5.1"
+          "number": "16.1"
         },
         {
           "headingEn": "How a relay should answer a serial master",
@@ -735,7 +2738,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s2",
-          "number": "5.2"
+          "number": "16.2"
         },
         {
           "headingEn": "Relaying event evidence into SCADA",
@@ -761,7 +2764,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s3",
-          "number": "5.3"
+          "number": "16.3"
         },
         {
           "headingEn": "Relay events are not ordinary RTU points",
@@ -787,7 +2790,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s4",
-          "number": "5.4"
+          "number": "16.4"
         },
         {
           "headingEn": "No event while relay values can be read",
@@ -813,13 +2816,13 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec103-s5",
-          "number": "5.5"
+          "number": "16.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/3745"
       ],
-      "number": "05"
+      "number": "16"
     },
     {
       "key": "learn-lab-103",
@@ -880,7 +2883,7 @@
             "answerEn": "No. No application ASDU exists in this fixed frame. Only link integrity and context can be inferred.",
             "answerId": "Tidak. Tidak ada ASDU aplikasi dalam frame fixed ini. Hanya integritas link dan konteks yang dapat dinilai."
           },
-          "number": "6.1",
+          "number": "17.1",
           "id": "learn-lab-103-s1"
         },
         {
@@ -924,7 +2927,7 @@
             "answerEn": "Trip event observed; breaker operation not proven. Add independent auxiliary-contact feedback before marking a physical state change.",
             "answerId": "Event trip teramati; operasi breaker belum terbukti. Tambahkan feedback kontak bantu independen sebelum menandai perubahan status fisik."
           },
-          "number": "6.2",
+          "number": "17.2",
           "id": "learn-lab-103-s2"
         },
         {
@@ -968,7 +2971,7 @@
             "answerEn": "No. Classify as valid transport/application envelope with unverified point semantics; obtain the approved relay profile.",
             "answerId": "Tidak. Klasifikasikan envelope transport/aplikasi valid dengan semantik point belum terverifikasi; dapatkan profil relay resmi."
           },
-          "number": "6.3",
+          "number": "17.3",
           "id": "learn-lab-103-s3"
         },
         {
@@ -1012,11 +3015,11 @@
             "answerEn": "No. GI snapshot and spontaneous events exercise different delivery paths. Mark reporting not proven.",
             "answerId": "Tidak. Snapshot GI dan event spontan melewati jalur delivery berbeda. Tandai reporting belum terbukti."
           },
-          "number": "6.4",
+          "number": "17.4",
           "id": "learn-lab-103-s4"
         }
       ],
-      "number": "06"
+      "number": "17"
     },
     {
       "key": "learn-iec104",
@@ -1060,7 +3063,7 @@
             "Idle → TESTFR act / TESTFR con (sesuai konfigurasi)"
           ],
           "id": "learn-iec104-s1",
-          "number": "7.1"
+          "number": "18.1"
         },
         {
           "headingEn": "How a server should send data",
@@ -1086,7 +3089,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s2",
-          "number": "7.2"
+          "number": "18.2"
         },
         {
           "headingEn": "Commands, timeouts and reconnect",
@@ -1112,7 +3115,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s3",
-          "number": "7.3"
+          "number": "18.3"
         },
         {
           "headingEn": "Sequence counters and acknowledgements",
@@ -1138,7 +3141,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-iec104-s4",
-          "number": "7.4"
+          "number": "18.4"
         },
         {
           "headingEn": "Spontaneous reporting and GI coexist",
@@ -1172,14 +3175,14 @@
             "Perubahan proses independen → ASDU spontan dengan COT sesuai"
           ],
           "id": "learn-iec104-s5",
-          "number": "7.5"
+          "number": "18.5"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/25035",
         "https://webstore.iec.ch/en/publication/87194"
       ],
-      "number": "07"
+      "number": "18"
     },
     {
       "key": "learn-lab-104",
@@ -1237,7 +3240,7 @@
             "answerEn": "No. This is only an activation request. Confirm STARTDT con, then verify actual I-frame process data.",
             "answerId": "Belum. Ini hanya request aktivasi. Verifikasi STARTDT con, lalu data proses I-frame yang benar-benar dikirim."
           },
-          "number": "8.1",
+          "number": "19.1",
           "id": "learn-lab-104-s1"
         },
         {
@@ -1283,7 +3286,7 @@
             "answerEn": "No. Fresh process values require relevant ASDUs, for example an accepted GI lifecycle or new spontaneous updates.",
             "answerId": "Tidak. Values baru membutuhkan ASDU relevan, misalnya GI lifecycle yang diterima atau update spontan baru."
           },
-          "number": "8.2",
+          "number": "19.2",
           "id": "learn-lab-104-s2"
         },
         {
@@ -1334,7 +3337,7 @@
             "answerEn": "No. This is the initiating command. Analyze later server I-frames separately.",
             "answerId": "Belum. Ini perintah pemicu. Analisis I-frame server berikutnya secara terpisah."
           },
-          "number": "8.3",
+          "number": "19.3",
           "id": "learn-lab-104-s3"
         },
         {
@@ -1385,7 +3388,7 @@
             "answerEn": "No. ACTCON confirms activation only; track returned information ASDUs and final applicable termination evidence.",
             "answerId": "Tidak. ACTCON hanya mengonfirmasi aktivasi; lanjutkan pencatatan ASDU informasi dan evidence terminasi yang berlaku."
           },
-          "number": "8.4",
+          "number": "19.4",
           "id": "learn-lab-104-s4"
         },
         {
@@ -1436,7 +3439,7 @@
             "answerEn": "No. It is spontaneous event reporting. GI lifecycle must be tracked independently.",
             "answerId": "Tidak. Ini pelaporan event spontan. GI lifecycle harus dipantau secara independen."
           },
-          "number": "8.5",
+          "number": "19.5",
           "id": "learn-lab-104-s5"
         },
         {
@@ -1482,7 +3485,7 @@
             "answerEn": "No. Sequence acknowledgment cannot be promoted into physical-state evidence.",
             "answerId": "Tidak. Acknowledgement sequence tidak dapat disamakan dengan evidence kondisi fisik."
           },
-          "number": "8.6",
+          "number": "19.6",
           "id": "learn-lab-104-s6"
         },
         {
@@ -1528,11 +3531,11 @@
             "answerEn": "No. Reserved control octet invalidates the U-format APDU. Do not trust it as a STARTDT activation.",
             "answerId": "Tidak. Oktet kontrol reserved membuat U-format APDU invalid. Jangan mempercayainya sebagai aktivasi STARTDT."
           },
-          "number": "8.7",
+          "number": "19.7",
           "id": "learn-lab-104-s7"
         }
       ],
-      "number": "08"
+      "number": "19"
     },
     {
       "key": "learn-lifecycle",
@@ -1572,7 +3575,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s1",
-          "number": "9.1"
+          "number": "20.1"
         },
         {
           "headingEn": "SBO and direct-operate are different contracts",
@@ -1596,7 +3599,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-lifecycle-s2",
-          "number": "9.2"
+          "number": "20.2"
         },
         {
           "headingEn": "Synthetic command evidence timeline",
@@ -1622,10 +3625,10 @@
             "Readback memastikan status aktual -> hasil terverifikasi"
           ],
           "id": "learn-lifecycle-s3",
-          "number": "9.3"
+          "number": "20.3"
         }
       ],
-      "number": "09"
+      "number": "20"
     },
     {
       "key": "learn-semantics",
@@ -1661,7 +3664,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s1",
-          "number": "10.1"
+          "number": "21.1"
         },
         {
           "headingEn": "Quality and overflow are separate dimensions",
@@ -1687,7 +3690,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s2",
-          "number": "10.2"
+          "number": "21.2"
         },
         {
           "headingEn": "Four different command outcomes",
@@ -1713,7 +3716,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s3",
-          "number": "10.3"
+          "number": "21.3"
         },
         {
           "headingEn": "ASDU reading exercise: stop at the right layer",
@@ -1739,14 +3742,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-semantics-s4",
-          "number": "10.4"
+          "number": "21.4"
         }
       ],
       "sources": [
         "https://webstore.iec.ch/en/publication/23822",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "10"
+      "number": "21"
     },
     {
       "key": "learn-gateways",
@@ -1787,7 +3790,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s1",
-          "number": "11.1"
+          "number": "22.1"
         },
         {
           "headingEn": "Scaling and sign boundaries",
@@ -1811,7 +3814,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-gateways-s2",
-          "number": "11.2"
+          "number": "22.2"
         },
         {
           "headingEn": "Diagnose a silent reporting chain",
@@ -1833,10 +3836,10 @@
             "SUMBER -> input gateway -> mapping -> antrian/COT -> TX ASDU IEC -> RX master"
           ],
           "id": "learn-gateways-s3",
-          "number": "11.3"
+          "number": "22.3"
         }
       ],
-      "number": "11"
+      "number": "22"
     },
     {
       "key": "learn-nuc",
@@ -1872,7 +3875,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s1",
-          "number": "12.1"
+          "number": "23.1"
         },
         {
           "headingEn": "NUC 101 polling, buffering and serial switch",
@@ -1898,7 +3901,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s2",
-          "number": "12.2"
+          "number": "23.2"
         },
         {
           "headingEn": "NUC 104 is a different topology",
@@ -1922,7 +3925,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s3",
-          "number": "12.3"
+          "number": "23.3"
         },
         {
           "headingEn": "NUC interoperability checklist before commissioning",
@@ -1948,14 +3951,14 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-nuc-s4",
-          "number": "12.4"
+          "number": "23.4"
         }
       ],
       "sources": [
         "https://tekniskregelverk.banenor.no/tekniske-spesifikasjoner/kontaktledning/remote-terminal-unit/",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "12"
+      "number": "23"
     },
     {
       "key": "learn-redundancy",
@@ -1991,7 +3994,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s1",
-          "number": "13.1"
+          "number": "24.1"
         },
         {
           "headingEn": "Healthy IEC 101 A/B switchover example",
@@ -2027,7 +4030,7 @@
             "Bukti switch: owner A→B, RX valid pertama B, event terakhir terkonfirmasi"
           ],
           "id": "learn-redundancy-s2",
-          "number": "13.2"
+          "number": "24.2"
         },
         {
           "headingEn": "IEC 104 active frontend takeover",
@@ -2053,7 +4056,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s3",
-          "number": "13.3"
+          "number": "24.3"
         },
         {
           "headingEn": "Commissioning failover acceptance",
@@ -2081,7 +4084,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s4",
-          "number": "13.4"
+          "number": "24.4"
         },
         {
           "headingEn": "Do not split-brain the masters",
@@ -2107,7 +4110,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s5",
-          "number": "13.5"
+          "number": "24.5"
         },
         {
           "headingEn": "Switch boundary: what becomes unproven?",
@@ -2133,7 +4136,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-redundancy-s6",
-          "number": "13.6"
+          "number": "24.6"
         }
       ],
       "sources": [
@@ -2141,7 +4144,7 @@
         "https://webstore.iec.ch/en/publication/25035",
         "https://tekniskregelverk.banenor.no/siteassets/tekniske-spesifikasjoner/kontaktledning/dokumenter/fram-agreement-kl-rtu-appendix-interoperability-ice-60870-5-104.pdf"
       ],
-      "number": "13"
+      "number": "24"
     },
     {
       "key": "learn-lab-redundancy",
@@ -2204,7 +4207,7 @@
             "answerEn": "No. In this selected active/standby profile that is normal standby behavior. Diagnose against the approved contract, not a copied active scan.",
             "answerId": "Tidak. Pada profil active/standby ini perilaku standby normal. Diagnosa berdasarkan kontrak yang disetujui, bukan salinan scan aktif."
           },
-          "number": "14.1",
+          "number": "25.1",
           "id": "learn-lab-redundancy-s1"
         },
         {
@@ -2250,7 +4253,7 @@
             "answerEn": "No. IEC104 sequence accounting is per TCP association. Use the new session's independently validated state.",
             "answerId": "Tidak. Akuntansi sequence IEC104 per asosiasi TCP. Gunakan state session baru yang tervalidasi independen."
           },
-          "number": "14.2",
+          "number": "25.2",
           "id": "learn-lab-redundancy-s2"
         },
         {
@@ -2294,7 +4297,7 @@
             "answerEn": "No. Mark execution ambiguous and require state readback, permissions and operator-controlled recovery.",
             "answerId": "Tidak. Tandai eksekusi ambigu dan wajibkan readback state, pemeriksaan izin serta recovery terkendali operator."
           },
-          "number": "14.3",
+          "number": "25.3",
           "id": "learn-lab-redundancy-s3"
         },
         {
@@ -2338,11 +4341,11 @@
             "answerEn": "No. Report potential retransmission or duplicate with stated confidence and preserve both raw captures.",
             "answerId": "Tidak. Laporkan potensi retransmit atau duplikat beserta confidence-nya dan pertahankan kedua capture mentah."
           },
-          "number": "14.4",
+          "number": "25.4",
           "id": "learn-lab-redundancy-s4"
         }
       ],
-      "number": "14"
+      "number": "25"
     },
     {
       "key": "learn-interop",
@@ -2381,7 +4384,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s1",
-          "number": "15.1"
+          "number": "26.1"
         },
         {
           "headingEn": "Security is a separate engineering layer",
@@ -2407,7 +4410,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s2",
-          "number": "15.2"
+          "number": "26.2"
         },
         {
           "headingEn": "Claim only what the capture proves",
@@ -2431,10 +4434,10 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-interop-s3",
-          "number": "15.3"
+          "number": "26.3"
         }
       ],
-      "number": "15"
+      "number": "26"
     },
     {
       "key": "learn-field-guide",
@@ -2472,7 +4475,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s1",
-          "number": "16.1"
+          "number": "27.1"
         },
         {
           "headingEn": "A protocol FAT/SAT evidence matrix",
@@ -2500,7 +4503,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s2",
-          "number": "16.2"
+          "number": "27.2"
         },
         {
           "headingEn": "The trace-to-diagnosis workflow",
@@ -2526,7 +4529,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s3",
-          "number": "16.3"
+          "number": "27.3"
         },
         {
           "headingEn": "Field checklist: master polls but the RTU looks silent",
@@ -2552,7 +4555,7 @@
           "framesEn": [],
           "framesId": [],
           "id": "learn-field-guide-s4",
-          "number": "16.4"
+          "number": "27.4"
         }
       ],
       "sources": [
@@ -2561,8 +4564,8 @@
         "https://webstore.iec.ch/en/publication/3745",
         "https://webstore.iec.ch/en/publication/25035"
       ],
-      "number": "16"
+      "number": "27"
     }
   ],
-  "bookEdition": "Engineering Handbook R3 — Verified Trace Labs"
+  "bookEdition": "Engineering Handbook R4 — ArSee User Guide + Trace Labs"
 }
