@@ -512,8 +512,20 @@
           ],
           "bulletsEn": [],
           "bulletsId": [],
-          "framesEn": [],
-          "framesId": [],
+          "framesEn": [
+            "LAB EXAMPLE — replace values from the actual RTU",
+            "CA  IOA  TI  SIGNAL NAME",
+            "1   101  31  TEST FEEDER TSD CB",
+            "Bay: FEEDER   TYPE: TSD   Mnemonic: CB",
+            "IEC role: M_DP_TB_1   Policy: MonitorOnly"
+          ],
+          "framesId": [
+            "CONTOH LAB — ganti dengan data RTU sebenarnya",
+            "CA  IOA  TI  NAMA SINYAL",
+            "1   101  31  TEST FEEDER TSD CB",
+            "Bay: FEEDER   TYPE: TSD   Mnemonic: CB",
+            "IEC role: M_DP_TB_1   Policy: MonitorOnly"
+          ],
           "workflow": {
             "prerequisitesEn": [],
             "prerequisitesId": [],
@@ -702,8 +714,20 @@
           ],
           "bulletsEn": [],
           "bulletsId": [],
-          "framesEn": [],
-          "framesId": [],
+          "framesEn": [
+            "SYNTHETIC LAB ONLY — TI9 normalized source",
+            "Scaling mode: TwoPoint   Unit: %",
+            "X0 = 0       X100 = 1",
+            "Y0 = 0       Y100 = 100",
+            "Decoded X = 0.25  →  display Y = 25 %"
+          ],
+          "framesId": [
+            "KHUSUS LAB SINTETIS — sumber TI9 normalized",
+            "Scaling mode: TwoPoint   Unit: %",
+            "X0 = 0       X100 = 1",
+            "Y0 = 0       Y100 = 100",
+            "Decoded X = 0.25  →  tampilan Y = 25 %"
+          ],
           "workflow": {
             "prerequisitesEn": [],
             "prerequisitesId": [],
