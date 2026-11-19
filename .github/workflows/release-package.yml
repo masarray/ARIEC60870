@@ -300,7 +300,19 @@ jobs:
                 (job.steps||[]).some(step=>
                   step.name==='Verify independent update worker from genuine installed previous release' &&
                   step.conclusion==='success'));
-              if(fat){verified={run,job:fat};break;}
+              // From v3.6.18, require genuine legacy v3.6.17 Inno upgrade
+              // evidence as well as independent updater worker FAT.
+              const brandRequired=parts[0]>3 ||
+                (parts[0]===3 && (parts[1]>6 || (parts[1]===6 && parts[2]>=18)));
+              const migration=jobs.find(job=>
+                job.name==='Native Windows legacy-to-ArSee branding migration FAT' &&
+                job.conclusion==='success' &&
+                (job.steps||[]).some(step=>
+                  step.name==='Verify genuine v3.6.17 to ArSee.exe upgrade and shortcut cleanup' &&
+                  step.conclusion==='success'));
+              if(fat && (!brandRequired || migration)){
+                verified={run,job:fat,migration};break;
+              }
             }
             if(!verified) {
               core.setFailed(
@@ -308,7 +320,7 @@ jobs:
                 'Inno upgrade FAT for exact source commit '+context.sha+'. '+
                 'Require green exact-SHA master push native FAT or explicit '+
                 'CI profile=updater on an isolated Windows VM. '+
-                'A green build, WPF unit tests, or compiled setup are NOT enough. '+
+                'A green build, WPF unit tests, compiled setup or skipped branding migration are NOT enough. '+
                 'See issue #195.');
               return;
             }
