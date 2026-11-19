@@ -154,7 +154,7 @@ main,
 .hero::before {
   content: "";
   position: absolute;
-  inset: 76px -12vw auto;
+  inset: 76px 0 auto;
   height: 56%;
   z-index: -1;
   background:
@@ -891,7 +891,7 @@ body h1,
 .demo-hero::before {
   content: "";
   position: absolute;
-  inset: 86px -14vw auto;
+  inset: 86px 0 auto;
   z-index: -1;
   height: 360px;
   background:
@@ -1152,7 +1152,7 @@ body h1,
 .wiki-hero::before {
   content: "";
   position: absolute;
-  inset: 20px -12vw auto;
+  inset: 20px 0 auto;
   z-index: -1;
   height: 360px;
   background:
