@@ -173,7 +173,7 @@ public sealed class ReleaseUpdateServiceTests
         var folder = Path.Combine(Path.GetTempPath(), "arsee-reg-rollback-" +
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
-        var exe = Path.Combine(folder, "ArSee.exe");
+        var exe = Path.Join(folder, "ArSee.exe");
         try
         {
             using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(keyPath)!)
@@ -222,7 +222,7 @@ public sealed class ReleaseUpdateServiceTests
         Directory.CreateDirectory(folder);
         try
         {
-            var executable = Path.Combine(folder, "ArSee.exe");
+            var executable = Path.Join(folder, "ArSee.exe");
             File.WriteAllText(executable, "fixture");
             Assert.False(ReleaseUpdateService.HasManagedInstallation(executable));
             File.WriteAllText(Path.Combine(folder, "unins000.exe"), "fixture");
