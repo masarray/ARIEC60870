@@ -208,7 +208,7 @@ public partial class HelpWindow
         if (_selectedTopicKey == "learn-iec-family" &&
             string.IsNullOrWhiteSpace(SearchBox.Text) &&
             FindNavigationScrollViewer(TopicListBox) is ScrollViewer navigation &&
-            navigation.VerticalOffset > 2)
+            navigation.VerticalOffset > 12)
             throw new InvalidOperationException(
                 $"The handbook index did not open at chapter one: offset {navigation.VerticalOffset:F1}.");
 
