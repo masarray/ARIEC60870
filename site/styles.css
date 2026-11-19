@@ -1633,3 +1633,58 @@ body h1,
   html.nav-enhanced .site-header .brand small { display: none; }
   html.nav-enhanced .site-header .nav-toggle { padding-inline: 10px; }
 }
+
+
+/* P2: quiet evidence-journey captions and keyboard-accessible image viewer. */
+.gallery-step { display: block; margin: 12px 8px 2px; color: var(--brand-ink); font-size: 12px; font-weight: 560; line-height: 1.4; letter-spacing: .055em; }
+.screen-card .gallery-step + h3 { margin-top: 7px; }
+.gallery-guide {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--hairline);
+  color: var(--muted); font-size: 14px; line-height: 1.6;
+}
+.gallery-guide a { color: var(--brand-ink); font-weight: 560; text-underline-offset: 4px; }
+.gallery-guide a:hover { text-decoration-thickness: 2px; }
+.lightbox-toolbar { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.lightbox-toolbar button {
+  float: none; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 42px; margin: 0; padding: 8px 14px; border: 1px solid var(--hairline-2);
+  border-radius: 12px; background: var(--surface); color: var(--ink-strong);
+  font: inherit; font-size: 13px; font-weight: 520; cursor: pointer;
+}
+.lightbox-toolbar button:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--brand); }
+.lightbox-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+.lightbox-toolbar button:focus-visible { outline: 2px solid var(--brand-action); outline-offset: 2px; }
+.lightbox figcaption { font-size: 14px; font-weight: 520; }
+.screen-frame.zoom-trigger::after { content: "Zoom"; }
+html[lang="id"] .screen-frame.zoom-trigger::after { content: "Perbesar"; }
+
+/* Wiki reading shortcuts are linked to existing verified section IDs. */
+.reading-paths {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 14px 0 18px; border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--muted); font-size: 14px; line-height: 1.5;
+}
+.reading-paths > span { margin-right: 6px; }
+.reading-paths a, .faq-quicklinks a {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 6px 11px;
+  border: 1px solid var(--hairline); border-radius: 10px; background: #fff;
+  color: var(--brand-ink); font-weight: 520; text-decoration: none;
+}
+.reading-paths a:hover, .faq-quicklinks a:hover { border-color: var(--brand); background: var(--brand-soft); }
+.reading-paths a:focus-visible, .faq-quicklinks a:focus-visible { outline: 2px solid var(--brand-action); outline-offset: 2px; }
+.wiki-main section[id], .faq-accordion-trigger[id] { scroll-margin-top: 94px; }
+.faq-quicklinks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 20px; font-size: 13px; line-height: 1.5; }
+.faq-quicklinks > span { flex-basis: 100%; color: var(--muted); }
+/* Readable, screen-reader-visible FAQ fallback when shared JavaScript is disabled. */
+html:not(.faq-enhanced) .faq-accordion-panel { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition: none; }
+html:not(.faq-enhanced) .faq-accordion-content::before { opacity: 1; }
+html:not(.faq-enhanced) .faq-accordion-trigger { cursor: default; }
+@media (max-width: 620px) {
+  .reading-paths { padding-inline: 2px; gap: 7px; }
+  .gallery-guide { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .lightbox { padding: 12px; }
+  .lightbox-toolbar { justify-content: stretch; }
+  .lightbox-toolbar button { flex: 1 1 auto; min-height: 44px; padding-inline: 10px; }
+}

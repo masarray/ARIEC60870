@@ -108,61 +108,104 @@
   }
 
 
-  const faqCards = document.querySelectorAll(".faq-accordion-card");
-  faqCards.forEach((card) => {
+  // Accordion enhancement with deep links; static HTML remains readable without JavaScript.
+  const faqCards = Array.from(document.querySelectorAll(".faq-accordion-card"));
+  const setFaqOpen = (card, open) => {
+    card.classList.toggle("is-open", open);
     const trigger = card.querySelector(".faq-accordion-trigger");
     const panel = card.querySelector(".faq-accordion-panel");
-    if (!trigger || !panel) {
-      return;
-    }
-
-    card.classList.remove("is-open");
-    trigger.setAttribute("aria-expanded", "false");
-    panel.setAttribute("aria-hidden", "true");
-
-    trigger.addEventListener("click", () => {
-      const willOpen = !card.classList.contains("is-open");
-      const list = card.closest(".faq-accordion-list");
-      const groupCards = list ? list.querySelectorAll(".faq-accordion-card") : faqCards;
-
-      groupCards.forEach((otherCard) => {
-        const otherTrigger = otherCard.querySelector(".faq-accordion-trigger");
-        const otherPanel = otherCard.querySelector(".faq-accordion-panel");
-        otherCard.classList.remove("is-open");
-        otherTrigger?.setAttribute("aria-expanded", "false");
-        otherPanel?.setAttribute("aria-hidden", "true");
+    trigger?.setAttribute("aria-expanded", String(open));
+    panel?.setAttribute("aria-hidden", String(!open));
+    if (panel) panel.inert = !open;
+  };
+  if (faqCards.length) {
+    faqCards.forEach((card) => {
+      const trigger = card.querySelector(".faq-accordion-trigger");
+      const panel = card.querySelector(".faq-accordion-panel");
+      if (!trigger || !panel) return;
+      setFaqOpen(card, false);
+      trigger.addEventListener("click", () => {
+        const willOpen = !card.classList.contains("is-open");
+        const group = card.closest(".faq-accordion-list");
+        (group ? Array.from(group.querySelectorAll(".faq-accordion-card")) : faqCards)
+          .forEach((other) => setFaqOpen(other, false));
+        if (willOpen) setFaqOpen(card, true);
       });
-
-      if (willOpen) {
-        card.classList.add("is-open");
-        trigger.setAttribute("aria-expanded", "true");
-        panel.setAttribute("aria-hidden", "false");
-      }
     });
-  });
+    document.documentElement.classList.add("faq-enhanced");
+    const revealFaq = (id) => {
+      const trigger = document.getElementById(id);
+      if (!trigger?.classList.contains("faq-accordion-trigger")) return;
+      const card = trigger.closest(".faq-accordion-card");
+      if (!card) return;
+      const group = card.closest(".faq-accordion-list");
+      (group ? Array.from(group.querySelectorAll(".faq-accordion-card")) : faqCards)
+        .forEach((other) => setFaqOpen(other, false));
+      setFaqOpen(card, true);
+      trigger.scrollIntoView({ block: "start" });
+    };
+    const revealFromHash = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+      try { revealFaq(decodeURIComponent(hash)); } catch (_) { /* Ignore malformed fragments. */ }
+    };
+    document.querySelectorAll(".faq-quicklinks a[href^='#']").forEach((link) => {
+      link.addEventListener("click", () => revealFaq(link.getAttribute("href").slice(1)));
+    });
+    window.addEventListener("hashchange", revealFromHash);
+    revealFromHash();
+  }
 
+  // User-controlled screenshot journey: arrows, bounds, and opener focus restoration.
   const lightbox = document.querySelector(".lightbox");
   const lightboxImage = lightbox?.querySelector("img");
   const lightboxCaption = lightbox?.querySelector("figcaption");
   const lightboxClose = lightbox?.querySelector(".lightbox-close");
+  const lightboxPrev = lightbox?.querySelector(".lightbox-prev");
+  const lightboxNext = lightbox?.querySelector(".lightbox-next");
+  const screenshots = Array.from(document.querySelectorAll(".zoom-trigger"));
+  let activeScreenshot = -1;
+  let screenshotOpener = null;
 
-  document.querySelectorAll(".zoom-trigger").forEach((trigger) => {
-    trigger.addEventListener("click", () => {
-      if (!lightbox || !lightboxImage || !lightboxCaption) {
-        return;
-      }
-
-      lightboxImage.src = trigger.dataset.full || "";
-      lightboxImage.alt = trigger.querySelector("img")?.alt || "";
-      lightboxCaption.textContent = trigger.dataset.title || "Application screenshot";
+  function showScreenshot(index) {
+    if (!lightbox || !lightboxImage || !lightboxCaption || index < 0 || index >= screenshots.length) return;
+    const trigger = screenshots[index];
+    activeScreenshot = index;
+    lightboxImage.src = trigger.dataset.full || "";
+    lightboxImage.alt = trigger.querySelector("img")?.alt || "";
+    lightboxCaption.textContent = String(index + 1) + " / " + String(screenshots.length) + " · " + (trigger.dataset.title || "Screenshot");
+    if (lightboxPrev) lightboxPrev.disabled = index === 0;
+    if (lightboxNext) lightboxNext.disabled = index === screenshots.length - 1;
+    if (!lightbox.open) {
+      screenshotOpener = trigger;
       lightbox.showModal();
-    });
+    }
+  }
+
+  screenshots.forEach((trigger, index) => {
+    trigger.addEventListener("click", () => showScreenshot(index));
   });
 
+  lightboxPrev?.addEventListener("click", () => showScreenshot(activeScreenshot - 1));
+  lightboxNext?.addEventListener("click", () => showScreenshot(activeScreenshot + 1));
+  lightbox?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft" && activeScreenshot > 0) {
+      event.preventDefault();
+      showScreenshot(activeScreenshot - 1);
+    }
+    if (event.key === "ArrowRight" && activeScreenshot < screenshots.length - 1) {
+      event.preventDefault();
+      showScreenshot(activeScreenshot + 1);
+    }
+  });
   lightboxClose?.addEventListener("click", () => lightbox?.close());
   lightbox?.addEventListener("click", (event) => {
-    if (event.target === lightbox) {
-      lightbox.close();
-    }
+    if (event.target === lightbox) lightbox.close();
+  });
+  lightbox?.addEventListener("close", () => {
+    lightboxImage?.removeAttribute("src");
+    activeScreenshot = -1;
+    screenshotOpener?.focus();
+    screenshotOpener = null;
   });
 })();

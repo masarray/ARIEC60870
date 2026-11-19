@@ -54,13 +54,13 @@
         <div class="demo-stage interactive-surface">
           <div class="demo-stage-bar"><span class="live-pill">WebM demo</span></div>
           <div class="demo-video-frame">
-            <video controls autoplay muted loop playsinline loading="lazy" preload="metadata" poster="assets/screenshots/ariec60870-evidence-workspace.webp" aria-label="ArSee WebM demo showing protocol testing, raw frame interpretation, Smart Findings, and PDF report workflow">
+            <video controls muted playsinline loading="lazy" preload="none" poster="assets/screenshots/ariec60870-evidence-workspace.webp" aria-label="ArSee WebM demo showing protocol testing, raw frame interpretation, Smart Findings, and PDF report workflow">
               <source src="assets/screenshots/IEC-60870.webm" type="video/webm" />
               <img src="assets/screenshots/ariec60870-evidence-workspace.webp" alt="ArSee demo preview image" />
             </video>
           </div>
           <div class="demo-stage-footer">
-            <span>Muted autoplay is enabled for quick preview. Use the player controls for inspection.</span>
+            <span>Press Play when you are ready. Pause or replay any part using the player controls.</span>
             <a href="assets/screenshots/IEC-60870.webm">Open WebM file</a>
           </div>
         </div>
@@ -108,7 +108,7 @@
               <img src="assets/screenshots/ariec60870-frame-trace.webp" alt="ArSee line monitor with TX RX frames and selected-frame interpretation" loading="lazy" />
             </button>
             <span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#search"></use></svg></span>
-            <h3>Line monitor</h3>
+            <span class="gallery-step" aria-hidden="true">01 / 04</span><h3>Line monitor</h3>
             <p>Protocol-aware frame trace with readable selected-frame meaning.</p>
           </article>
           <article class="screen-card reveal delay-1 interactive-surface">
@@ -116,7 +116,7 @@
               <img src="assets/screenshots/ariec60870-smart-findings.webp" alt="ArSee Smart Findings showing proof and recommended next action" loading="lazy" />
             </button>
             <span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#analytics"></use></svg></span>
-            <h3>Smart Findings</h3>
+            <span class="gallery-step" aria-hidden="true">02 / 04</span><h3>Smart Findings</h3>
             <p>Problem, proof, likely cause, and next action in one evidence row.</p>
           </article>
           <article class="screen-card reveal delay-2 interactive-surface">
@@ -124,7 +124,7 @@
               <img src="assets/screenshots/ariec60870-event-log.webp" alt="ArSee relay event log with timestamped event evidence" loading="lazy" />
             </button>
             <span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg></span>
-            <h3>Relay event log</h3>
+            <span class="gallery-step" aria-hidden="true">03 / 04</span><h3>Relay event log</h3>
             <p>SOE-style event evidence remains connected to decoded protocol traffic.</p>
           </article>
           <article class="screen-card reveal delay-3 interactive-surface">
@@ -132,10 +132,11 @@
               <img src="assets/screenshots/ariec60870-report-workspace.webp" alt="ArSee report workspace with PDF evidence preview" loading="lazy" />
             </button>
             <span class="card-top-icon" aria-hidden="true"><svg class="material-icon" aria-hidden="true" focusable="false"><use href="assets/material-icons.svg#description"></use></svg></span>
-            <h3>Report workspace</h3>
+            <span class="gallery-step" aria-hidden="true">04 / 04</span><h3>Report workspace</h3>
             <p>Preview the evidence package before exporting the PDF report.</p>
           </article>
         </div>
+        <div class="gallery-guide"><span>New to IEC 60870?</span><a href="wiki.html#beginner-primer">Start with the beginner guide</a></div>
       </section>
 
       <section class="section download-band">
@@ -152,7 +153,7 @@
         </div>
       </section>
     </main>
-    <dialog class="lightbox" aria-label="Screenshot preview"><button class="lightbox-close" type="button" aria-label="Close preview">Close</button><figure><img alt="" /><figcaption></figcaption></figure></dialog>
+    <dialog class="lightbox" aria-label="Screenshot preview"><div class="lightbox-toolbar"><button class="lightbox-prev" type="button" aria-label="Previous screenshot">Previous</button><button class="lightbox-next" type="button" aria-label="Next screenshot">Next</button><button class="lightbox-close" type="button" aria-label="Close preview">Close</button></div><figure><img alt="" /><figcaption></figcaption></figure></dialog>
     <footer class="site-footer"><span>© 2026 Ari Sulistiono · ArSee · Apache-2.0 open source</span><span class="footer-links"><a href="./">Home</a><a href="wiki.html">Field Wiki</a><a href="smart-findings.html">Smart Findings</a><a href="download.html">Download</a></span></footer>
   </body>
 </html>
