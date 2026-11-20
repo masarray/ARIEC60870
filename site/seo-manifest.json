@@ -1,10 +1,10 @@
 {
   "site": "ArSee",
-  "version": "3.6.17",
-  "latestStableVersion": "3.6.17",
-  "releaseTag": "v3.6.17",
-  "releaseSourceCommit": "5b1eada52cb26295dd91d73afe3b9d065e71a404",
-  "releaseWorkflowId": 44540333243,
+  "version": "3.6.18",
+  "latestStableVersion": "3.6.18",
+  "releaseTag": "v3.6.18",
+  "releaseSourceCommit": "80988bc759b52c18343acbf2f0ab1a09fa09594d",
+  "releaseWorkflowId": 44645100994,
   "sourceOfTruth": "site/",
   "canonicalBaseUrl": "https://masarray.github.io/arsee/",
   "canonical": "https://masarray.github.io/arsee/",
@@ -207,5 +207,6 @@
     "iec60870-common-address-mismatch.html",
     "iec60870-command-actcon-missing.html",
     "iec60870-pdf-evidence-report.html"
-  ]
+  ],
+  "assetPrefix": "ArSee"
 }

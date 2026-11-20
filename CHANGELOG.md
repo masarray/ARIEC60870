@@ -1,3 +1,10 @@
+## [3.6.18] - Published public stable (2026-11-20)
+
+- **Published** [v3.6.18 stable](https://github.com/masarray/arsee/releases/tag/v3.6.18) at immutable source `80988bc759b52c18343acbf2f0ab1a09fa09594d`; [Windows packaging/provenance #44645100994](https://github.com/masarray/arsee/actions/runs/44645100994) and [source/migration/updater FAT #44644140702](https://github.com/masarray/arsee/actions/runs/44644140702) passed.
+- Fixed Windows installation branding: installed `ArSee.exe`, one `ArSee` Start Menu entry, fresh default `Programs/ArSee`, and supported migration cleanup of known legacy executable/shortcuts. Exact genuine old v3.6.17 installer, WPF startup, uninstall registration and user-data sentinel were checked on Windows.
+- New public installer/ZIP/SBOM names use `ArSee-v3.6.18-...`. Published v3.6.17 assets remain immutable; existing users must perform **one manual in-place installer upgrade** because the old updater recognizes only historical filenames.
+- Internal C# namespaces and `%LOCALAPPDATA%\ARIEC60870` user-data directory remain unchanged to protect compatibility. Physical IEC/SCADA field FAT remains not certified.
+
 ## [3.6.17] - Published public stable (2026-11-19)
 
 - **Published** [v3.6.17 stable](https://github.com/masarray/arsee/releases/tag/v3.6.17) at immutable source SHA `5b1eada52cb26295dd91d73afe3b9d065e71a404`. Exact-source [master CI and independent installed-updater FAT #44539045530](https://github.com/masarray/arsee/actions/runs/44539045530), [Package #44540333243](https://github.com/masarray/arsee/actions/runs/44540333243), installer, portable ZIP, SHA-256, SPDX SBOM and build provenance all passed.
