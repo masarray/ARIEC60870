@@ -31,8 +31,8 @@ public sealed class CommandOperatorPresentationTests
     }
 
     [Theory]
-    [InlineData("SELECT accepted", "RTU accepted SELECT", "Execute only")]
-    [InlineData("EXECUTE accepted", "RTU accepted EXECUTE", "Await ACTTERM")]
+    [InlineData("SELECT accepted", "SELECT accepted by RTU", "Execute only")]
+    [InlineData("EXECUTE accepted", "EXECUTE accepted by RTU", "Await ACTTERM")]
     [InlineData("ACTTERM observed", "Protocol ended", "physical movement is not proven")]
     [InlineData("RTU rejected", "RTU rejected", "interlocks")]
     public void OperatorsCanDistinguishAcceptanceCompletionAndRejection(
