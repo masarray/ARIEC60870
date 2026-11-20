@@ -212,7 +212,9 @@ public sealed class Iec10xCommandCasebook
                         ? state.Current.Status
                         : state.FeedbackMatched
                             ? "Feedback matched · ACTTERM not observed"
-                            : "EXECUTE accepted · ACTTERM not observed",
+                            : state.FeedbackMismatchSeen
+                                ? "Feedback mismatch · ACTTERM not observed"
+                                : "EXECUTE accepted · ACTTERM not observed",
                     Interpretation = terminalWasSeen
                         ? state.Current.Interpretation
                         : state.FeedbackMatched
