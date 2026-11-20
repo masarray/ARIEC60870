@@ -320,23 +320,29 @@ public partial class MainWindow : Window
 
     private void OpenSetup_Click(object sender, RoutedEventArgs e)
     {
+        // Setup is also an online, read-only connection inspector. Never
+        // mutate an active transport merely to display its configuration.
+        UpdateConnectToggleVisual(_sessionCancellation is not null);
         SetupOverlay.Visibility = Visibility.Visible;
     }
 
     private void CloseSetup_Click(object sender, RoutedEventArgs e)
     {
-        SaveSetupPreferencesFromUi(silent: true);
         SetupOverlay.Visibility = Visibility.Collapsed;
+        // Cancel discards edits rather than silently persisting them.
+        // Live sessions have all configuration editors locked.
+        if (_sessionCancellation is null)
+            LoadSetupPreferences();
     }
 
     private void CloseSetupAndConnect_Click(object sender, RoutedEventArgs e)
     {
-        SaveSetupPreferencesFromUi(silent: true);
-        SetupOverlay.Visibility = Visibility.Collapsed;
         if (_sessionCancellation is null)
-        {
-            Start_Click(sender, e);
-        }
+            SaveSetupPreferencesFromUi(silent: true);
+        SetupOverlay.Visibility = Visibility.Collapsed;
+        // Reuse the exact same Start/Stop session lifecycle as the rail;
+        // no duplicate disconnect logic, command transactions or transport.
+        ConnectToggle_Click(sender, e);
     }
 
     private void RefreshPorts()

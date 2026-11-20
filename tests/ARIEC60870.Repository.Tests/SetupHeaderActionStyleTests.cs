@@ -27,9 +27,16 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("{StaticResource SetupCloseIconButtonStyle}", (string?)close.Attribute("Style"));
         Assert.Equal("Close configuration",
             (string?)close.Attribute("AutomationProperties.Name"));
-        // Dynamic "Start Relay & Monitor" must measure naturally, not clip at 116 DIP.
-        Assert.Null(connect.Attribute("Width"));
-        Assert.Equal("116", (string?)connect.Attribute("MinWidth"));
+        // A fixed action width accommodates all labels and prevents visual jumps.
+        Assert.Equal("176", (string?)connect.Attribute("Width"));
+        Assert.Null(connect.Attribute("MinWidth"));
+        Assert.Equal("SetupActionFooter",
+            (string?)connect.Parent!.Attribute(Xaml + "Name"));
+        Assert.Equal("1", (string?)close.Attribute("Grid.Column"));
+        var cancel = buttons.Single(x => (string?)x.Attribute(Xaml + "Name") == "SetupCancelButton");
+        Assert.Equal("116", (string?)cancel.Attribute("Width"));
+        Assert.Equal("CloseSetup_Click", (string?)cancel.Attribute("Click"));
+        Assert.Same(connect.Parent, cancel.Parent);
         Assert.Null(close.Attribute("Content"));
 
         var glyph = close.Elements().Single(x => x.Name.LocalName == "Path");
@@ -40,6 +47,78 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal("18", (string?)glyph.Attribute("Width"));
         Assert.Equal("18", (string?)glyph.Attribute("Height"));
         Assert.Contains("Foreground", (string?)glyph.Attribute("Fill"));
+    }
+
+    [Fact]
+    public void SetupHasViewportSafeScrollBodyAndFixedBottomActions()
+    {
+        var doc = XDocument.Load(Source("MainWindow.xaml"));
+        var setup = doc.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "SetupOverlay");
+        var card = setup.Elements().Single(x => x.Name.LocalName == "Border");
+        Assert.Equal("900", (string?)card.Attribute("MaxWidth"));
+        Assert.Equal("780", (string?)card.Attribute("MaxHeight"));
+
+        var scroller = setup.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "SetupSettingsScroll");
+        Assert.Equal("2", (string?)scroller.Attribute("Grid.Row"));
+        Assert.Equal("Auto", (string?)scroller.Attribute("VerticalScrollBarVisibility"));
+        var footer = setup.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "SetupActionFooter");
+        Assert.Equal("4", (string?)footer.Parent?.Attribute("Grid.Row"));
+        var mapping = setup.Descendants().Single(x =>
+            (string?)x.Attribute(Xaml + "Name") == "MappingProfilePanel");
+        Assert.Contains(scroller.Descendants(), x => ReferenceEquals(x, mapping));
+        Assert.Contains(setup.Descendants(), x =>
+            x.Name.LocalName == "Expander" &&
+            (string?)x.Attribute("Header") == "Interoperability · advanced");
+        Assert.Contains(setup.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "AdvancedFieldWidthsExpander");
+    }
+
+    [Fact]
+    public void ConnectedSetupIsReadOnlyAndDisconnectUsesExistingSessionToggle()
+    {
+        var code = File.ReadAllText(Source("MainWindow.xaml.cs"));
+        var session = File.ReadAllText(Source("Features/MainWindow.Session.cs"));
+        var state = File.ReadAllText(Source("Features/MainWindow.MappingValueStatus.cs"));
+        Assert.Contains("ConnectToggle_Click(sender, e);", code);
+        Assert.Contains("if (_sessionCancellation is null)", code);
+        Assert.Contains("LoadSetupPreferences();", code);
+        Assert.Contains("SetupConnectButton.Tag = isRunning ? \"Disconnect\" : \"Connect\";", session);
+        Assert.Contains("SetupButton.IsEnabled = true;", state);
+        Assert.DoesNotContain("SetupButton.IsEnabled = !isRunning;", state);
+        foreach (var field in new[] { "InteroperabilityConventionComboBox",
+            "PassiveSourceComboBox", "SerialHandshakeComboBox",
+            "SerialRtsCheckBox", "SerialDtrCheckBox",
+            "PassiveLinkBScadaPortComboBox", "PassiveLinkBRtuPortComboBox",
+            "PassiveCaptureFolderPicker", "SetupImportProfileButton",
+            "SetupRefreshPortsButton", "BackupAddressReviewButton",
+            "BackupAddressContinueButton" })
+        {
+            Assert.Contains(field + ".IsEnabled = !isRunning;", state);
+        }
+        var names = new[] { "PassiveCaptureFolderPicker", "SetupImportProfileButton",
+            "SetupRefreshPortsButton", "BackupAddressReviewButton",
+            "BackupAddressContinueButton" };
+        var setup = XDocument.Load(Source("MainWindow.xaml"));
+        foreach (var name in names)
+            Assert.Single(setup.Descendants(),
+                x => (string?)x.Attribute(Xaml + "Name") == name);
+        // Retain scrolling/expanders online; only configuration inputs lock.
+        Assert.DoesNotContain("SetupSettingsScroll.IsEnabled = !isRunning", state);
+        var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
+        foreach (var key in new[] { "SetupDisconnectIdleBrush",
+            "SetupDisconnectHoverBrush", "SetupDisconnectPressedBrush" })
+            Assert.NotNull(Resource(theme, "LinearGradientBrush", key));
+        var buttonTemplate = Resource(theme, "ControlTemplate", "SetupConnectButtonTemplate");
+        var disconnect = Assert.Single(buttonTemplate.Descendants(), x =>
+            x.Name.LocalName == "Trigger" &&
+            (string?)x.Attribute("Property") == "Tag" &&
+            (string?)x.Attribute("Value") == "Disconnect");
+        Assert.Equal("{StaticResource SetupDisconnectShadow}",
+            TriggerSetterValue(disconnect, "SetupConnectSurface", "Effect"));
+        Assert.NotNull(Resource(theme, "DropShadowEffect", "SetupDisconnectShadow"));
     }
 
     [Fact]
