@@ -3022,7 +3022,7 @@
                                 <ComboBoxItem Content="Project custom · imported JSON" />
                             </ComboBox>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <Button Content="Import profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
+                                <Button x:Name="SetupImportProfileButton" Content="Import profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ImportInteroperabilityProfile_Click" Padding="10,5" />
                                 <Button Content="Export profile" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="ExportInteroperabilityProfile_Click" Margin="7,0,0,0" Padding="10,5" />
                             </StackPanel>
                             <TextBlock x:Name="InteroperabilityProfilePreviewText" Style="{StaticResource SubtleText}"
@@ -3061,7 +3061,7 @@
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="94"/></Grid.ColumnDefinitions>
                                     <ComboBox x:Name="PortComboBox" Grid.Column="0" SelectionChanged="PassiveRelayPort_SelectionChanged" />
-                                    <Button Grid.Column="2" Content="Refresh" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="RefreshPorts_Click" />
+                                    <Button x:Name="SetupRefreshPortsButton" Grid.Column="2" Content="Refresh" Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Click="RefreshPorts_Click" />
                                 </Grid>
                                 <StackPanel x:Name="PassiveSecondaryPortPanel" Visibility="Collapsed" Margin="0,0,0,12">
                                     <TextBlock x:Name="PassiveRtuPortLabel" Text="Link A · RTU TX" Style="{StaticResource EyebrowText}" Margin="0,0,0,6"/>
@@ -3170,9 +3170,9 @@
                                                    Foreground="#425B74"
                                                    Text="In most redundant IEC-101 configurations, both links use the same Link Address. Please verify that these addresses match your RTU configuration. Different addresses are supported when intentionally configured."/>
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <Button Content="Review Settings" Click="BackupAddressReview_Click"
+                                            <Button x:Name="BackupAddressReviewButton" Content="Review Settings" Click="BackupAddressReview_Click"
                                                     Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4" FontSize="10.5"/>
-                                            <Button Content="Continue Anyway" Click="BackupAddressContinue_Click"
+                                            <Button x:Name="BackupAddressContinueButton" Content="Continue Anyway" Click="BackupAddressContinue_Click"
                                                     Style="{StaticResource ArSeeWorkspaceActionButtonStyle}" Padding="9,4"
                                                     FontSize="10.5" Margin="6,0,0,0"/>
                                         </StackPanel>
@@ -3203,7 +3203,7 @@
                                 <CheckBox x:Name="PassiveFullRecordingCheckBox" Style="{StaticResource SetupSwitchCheckBox}" Content="Record entire raw session to disk" IsChecked="False" Margin="0,0,0,8"
                                           ToolTip="Record all raw RX frames to disk (opt-in)" />
                                 <TextBlock Text="Normally monitor live, select frames in Trace, then save a portable .ariec file." Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="2,0,0,9" />
-                                <Grid>
+                                <Grid x:Name="PassiveCaptureFolderPicker">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="PassiveCaptureFolderBox" Grid.Column="0" IsReadOnly="True" FontSize="11"
                                              IsEnabled="{Binding IsChecked, ElementName=PassiveFullRecordingCheckBox}"
