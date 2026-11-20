@@ -40,12 +40,16 @@ public partial class MainWindow
             return;
 
         var phase = stage.Phase;
+        // The Master casebook already owns this decoded target meaning.
+        // Display it only when it fits the fixed-width header, never parse
+        // or guess breaker state from raw bytes or a UI button label.
+        var target = commandCase.Target.Length <= 17 ? " · " + commandCase.Target : string.Empty;
         var message = phase switch
         {
-            "SELECT sent" => "SELECT sent · awaiting RTU",
-            "SELECT ACTCON" => "SELECT accepted · RTU ACTCON",
-            "EXECUTE sent" => "EXECUTE sent · awaiting RTU",
-            "EXECUTE ACTCON" => "EXECUTE accepted · RTU ACTCON",
+            "SELECT sent" => "SELECT sent" + target,
+            "SELECT ACTCON" => "SELECT accepted" + target,
+            "EXECUTE sent" => "EXECUTE sent" + target,
+            "EXECUTE ACTCON" => "EXECUTE accepted" + target,
             "EXECUTE ACTTERM" => "EXECUTE ended · verify CB",
             "RTU rejection" => "Command rejected · review",
             "RTU DEACTCON" => "Cancellation confirmed",
