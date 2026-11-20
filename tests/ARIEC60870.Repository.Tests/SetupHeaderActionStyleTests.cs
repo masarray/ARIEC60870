@@ -225,6 +225,11 @@ public sealed class SetupHeaderActionStyleTests
         var grid = Assert.Single(panel.Descendants(), x =>
             (string?)x.Attribute(Xaml + "Name") == "FramePropertiesGrid");
         Assert.Equal("False", (string?)grid.Attribute("ToolTipService.IsEnabled"));
+        Assert.Equal("ExcludeHeader", (string?)grid.Attribute("ClipboardCopyMode"));
+        var templateColumns = grid.Descendants()
+            .Where(x => x.Name.LocalName == "DataGridTemplateColumn").ToArray();
+        Assert.Equal("{Binding Field}", (string?)templateColumns[0].Attribute("ClipboardContentBinding"));
+        Assert.Equal("{Binding Value}", (string?)templateColumns[1].Attribute("ClipboardContentBinding"));
 
         Assert.DoesNotContain(panel.DescendantsAndSelf().SelectMany(x => x.Attributes()),
             a => a.Name.LocalName == "ToolTip" ||
