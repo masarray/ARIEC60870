@@ -91,20 +91,24 @@ begin
   Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{' +
     '{#AppGuid}' + '}_is1';
 
+  Log('ArSee migration preflight: checking previous HKCU uninstall registration');
   if not RegQueryStringValue(HKCU, Key, 'InstallLocation', RegisteredDir) then
   begin
     if DirExists(LegacyDir) then
       Result := 'Unregistered legacy ARIEC60870 program folder detected. ' +
         'No program files were changed. Please resolve the orphan folder first.';
+    Log('ArSee migration preflight: InstallLocation registry missing; ' + Result);
     Exit;
   end;
   RegisteredDir := RemoveBackslashUnlessRoot(RegisteredDir);
+  Log('ArSee migration previous: ' + RegisteredDir + ', expected legacy: ' + LegacyDir + ', wizard target: ' + WizardDirValue);
   if CompareText(RegisteredDir, LegacyDir) <> 0 then
   begin
     { Respect custom paths; do not orphan an existing installation. }
     if CompareText(RegisteredDir, WizardDirValue) <> 0 then
       Result := 'ArSee is already installed elsewhere. ' +
         'Choose its existing installation folder for an in-place update.';
+    Log('ArSee migration: existing non-legacy installation path; ' + Result);
     Exit;
   end;
 
@@ -119,9 +123,11 @@ begin
     Exit;
   end;
 
+  Log('ArSee migration: legacy install identified and in-place updater ruled out');
   if CompareText(WizardDirValue, NewDir) <> 0 then
   begin
     Result := 'This legacy installation can migrate only to the default Programs\ArSee directory.';
+    Log('ArSee migration rejected wizard destination; ' + Result);
     Exit;
   end;
   { Never overwrite unexpected data at the destination. }
@@ -129,6 +135,7 @@ begin
   begin
     Result := 'Programs\ArSee already contains files. The legacy installation was left intact. ' +
       'Inspect the destination before retrying.';
+    Log('ArSee migration rejected destination collision; ' + Result);
     Exit;
   end;
   PreviousUninstaller := AddBackslash(LegacyDir) + 'unins000.exe';
@@ -140,6 +147,7 @@ begin
   end;
   { No wildcard or recursive deletion of user-owned data. The historical
     installer never removes the separate LocalAppData\ARIEC60870 workspace. }
+  Log('ArSee migration: invoking registered legacy Inno uninstaller');
   if not Exec(PreviousUninstaller,
     '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE,
     ewWaitUntilTerminated, ExitCode) then
@@ -147,6 +155,7 @@ begin
     Result := 'Could not launch the registered legacy uninstaller.';
     Exit;
   end;
+  Log('ArSee migration: previous uninstaller returned code ' + IntToStr(ExitCode));
   if ExitCode <> 0 then
   begin
     Result := 'Legacy uninstall failed with exit code ' + IntToStr(ExitCode) + '.';
@@ -157,6 +166,7 @@ begin
      FileExists(AddBackslash(LegacyDir) + 'ArSee.exe') then
   begin
     Result := 'Legacy uninstall was incomplete. The new installation did not start.';
+    Log('ArSee migration: previous uninstall incomplete');
     Exit;
   end;
   if DirExists(LegacyDir) and (not RemoveDir(LegacyDir)) then

@@ -106,6 +106,11 @@ try {
         throw 'Original v3.6.17 installation missing at documented legacy path.'
     }
     if ((Get-ArSeeRegistrations).Count -ne 1) { throw 'Previous version has duplicate uninstall registrations.' }
+    $previousRegistration = Get-ArSeeRegistrations | Select-Object -First 1
+    $previousRecord = Get-ItemProperty $previousRegistration.PSPath
+    Record ("DIAGNOSTIC: previous key=" + $previousRegistration.PSChildName +
+        "; InstallLocation=" + $previousRecord.InstallLocation +
+        "; legacyPath=" + $legacyDir)
     Record 'PASS: installed genuine old Windows EXE, same AppId and uninstall record.'
 
     # Recreate the reported post-upgrade two-shortcut condition using real .lnk files.
@@ -123,7 +128,8 @@ try {
     New-Item -ItemType Directory -Force $newDir | Out-Null
     $collision = Join-Path $newDir 'owner-file.txt'
     'unchanged' | Set-Content $collision
-    $rejected = Start-Process -FilePath $setup -ArgumentList $arguments -PassThru
+    $collisionLog = Join-Path $evidence 'collision-setup.log'
+    $rejected = Start-Process -FilePath $setup -ArgumentList ($arguments + @("/LOG=$collisionLog")) -PassThru
     try {
         if (!$rejected.WaitForExit(180000)) { throw 'Collision setup timed out.' }
         if ($rejected.ExitCode -eq 0) { throw 'Installer accepted a non-empty destination.' }
@@ -137,7 +143,8 @@ try {
     # The v3.6.17/18 updater passes these exact safety flags and expects
     # the EXE to remain at the legacy location. Block this path BEFORE uninstall.
     $workerArgs = @($arguments) + @('/NOCLOSEAPPLICATIONS','/NOFORCECLOSEAPPLICATIONS')
-    $blocked = Start-Process -FilePath $setup -ArgumentList $workerArgs -PassThru
+    $workerLog = Join-Path $evidence 'old-worker-block-setup.log'
+    $blocked = Start-Process -FilePath $setup -ArgumentList ($workerArgs + @("/LOG=$workerLog")) -PassThru
     try {
         if (!$blocked.WaitForExit(180000)) { throw 'Legacy updater interception timed out.' }
         if ($blocked.ExitCode -eq 0) { throw 'Legacy worker was incorrectly allowed to migrate directory.' }
@@ -147,7 +154,8 @@ try {
     }
     Record 'PASS: v3.6.17/v3.6.18 fixed-path updater fails safely before uninstall.'
 
-    Invoke-Bounded $setup $arguments 180
+    $migrationLog = Join-Path $evidence 'migration-setup.log'
+    Invoke-Bounded $setup ($arguments + @("/LOG=$migrationLog")) 180
     if (!(Test-Path $newExe)) { throw 'ArSee.exe missing from upgraded installation.' }
     if ((Get-Item $newExe).VersionInfo.FileVersion -notlike "$version*") {
         throw 'Upgraded ArSee.exe does not contain current release version.'
@@ -191,6 +199,13 @@ try {
 }
 catch {
     Record ('FAIL: ' + $_.Exception.Message)
+    foreach ($log in @('collision-setup.log', 'old-worker-block-setup.log','migration-setup.log')) {
+        $path = Join-Path $evidence $log
+        if (Test-Path $path) {
+            Get-Content $path | Where-Object { $_ -match 'ArSee migration|PrepareToInstall|Error|exit code|Inno Setup' } |
+                Select-Object -Last 35 | ForEach-Object { Record ('DIAGNOSTIC ' + $log + ': ' + $_) }
+        }
+    }
     throw
 }
 finally {
