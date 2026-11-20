@@ -54,10 +54,12 @@ public sealed class PublicLandingP1Tests
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "site/seo-manifest.json")));
         var stable = manifest.RootElement.GetProperty("latestStableVersion").GetString();
         Assert.False(string.IsNullOrWhiteSpace(stable));
+        var assetPrefix = manifest.RootElement.GetProperty("assetPrefix").GetString();
+        Assert.Contains(assetPrefix, new[] { "ArSee", "ARIEC60870" });
         Assert.Contains("v" + stable, html);
-        Assert.Contains("v3.6.16", html);
-        Assert.Contains($"ARIEC60870-v{stable}-setup-win-x64.exe", html);
-        Assert.Contains($"ARIEC60870-v{stable}-win-x64.zip", html);
+        Assert.Contains("v3.6.17", html);
+        Assert.Contains($"{assetPrefix}-v{stable}-setup-win-x64.exe", html);
+        Assert.Contains($"{assetPrefix}-v{stable}-win-x64.zip", html);
     }
 
     [Theory]

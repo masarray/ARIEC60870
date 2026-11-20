@@ -119,6 +119,8 @@ public sealed class RepositoryHygieneTests
         using var manifest = JsonDocument.Parse(File.ReadAllText(root.File("site/seo-manifest.json")));
         var version = manifest.RootElement.GetProperty("version").GetString();
         Assert.False(string.IsNullOrWhiteSpace(version));
+        var assetPrefix = manifest.RootElement.GetProperty("assetPrefix").GetString();
+        Assert.Contains(assetPrefix, new[] { "ArSee", "ARIEC60870" });
         var releaseUrl = $"https://github.com/masarray/arsee/releases/tag/v{version}";
 
         var readme = File.ReadAllText(root.File("README.md"));
@@ -131,16 +133,16 @@ public sealed class RepositoryHygieneTests
         Assert.Contains(releaseUrl, download);
         Assert.Contains($"name=\"application-version\" content=\"{version}\"", home);
         Assert.Contains($"\"softwareVersion\":\"{version}\"", home);
-        Assert.Contains($"ARIEC60870-v{version}-setup-win-x64.exe", download);
-        Assert.Contains($"ARIEC60870-v{version}-win-x64.zip", download);
+        Assert.Contains($"{assetPrefix}-v{version}-setup-win-x64.exe", download);
+        Assert.Contains($"{assetPrefix}-v{version}-win-x64.zip", download);
 
         // Initial HTML must already download the published package, even before
         // JavaScript executes or when the GitHub API is rate-limited.
         var downloadPrefix = $"https://github.com/masarray/arsee/releases/download/v{version}/";
         foreach (var page in new[] { home, indonesian, download })
         {
-            Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-setup-win-x64.exe", page);
-            Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-win-x64.zip", page);
+            Assert.Contains(downloadPrefix + $"{assetPrefix}-v{version}-setup-win-x64.exe", page);
+            Assert.Contains(downloadPrefix + $"{assetPrefix}-v{version}-win-x64.zip", page);
             Assert.Contains("release-download.js", page);
         }
         Assert.Contains(downloadPrefix + "SHA256SUMS.txt", download);
@@ -149,10 +151,10 @@ public sealed class RepositoryHygieneTests
         foreach (var page in new[] { faq, indonesianFaq })
         {
             Assert.Contains(releaseUrl, page);
-            Assert.Contains(downloadPrefix + $"ARIEC60870-v{version}-win-x64.zip", page);
+            Assert.Contains(downloadPrefix + $"{assetPrefix}-v{version}-win-x64.zip", page);
             Assert.DoesNotContain("/releases/tag/v3.6.8", page, StringComparison.Ordinal);
         }
-        Assert.Contains($"\"downloadUrl\":\"{downloadPrefix}ARIEC60870-v{version}-win-x64.zip\"", home);
+        Assert.Contains($"\"downloadUrl\":\"{downloadPrefix}{assetPrefix}-v{version}-win-x64.zip\"", home);
         var releaseScript = File.ReadAllText(root.File("site/release-download.js"));
         Assert.Equal(releaseScript, File.ReadAllText(root.File("docs/release-download.js")));
         Assert.Contains($"const fallbackTag = \"v{version}\"", releaseScript);
