@@ -341,6 +341,22 @@ jobs:
         if: needs.classify.outputs.run_windows == 'true'
         run: dotnet build ARIEC60870.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
+      # Temporary, branch-scoped source formatting handoff. Remove before merge.
+      - name: Export canonical formatter output for legacy acceptance file
+        if: github.head_ref == 'fix/ux02-wpf-acceptance-master-gate'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = 'src/ARIEC60870.Desktop/Features/MainWindow.ObservationAcceptance.cs'
+          dotnet format ARIEC60870.sln --include $source --verbosity minimal --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Formatter failed.' }
+          $encoded = [Convert]::ToBase64String([IO.File]::ReadAllBytes($source))
+          Write-Host 'FORMATTED_SOURCE_BEGIN'
+          for ($i = 0; $i -lt $encoded.Length; $i += 4096) {
+            Write-Host ('FMT_CHUNK:' + $encoded.Substring($i, [Math]::Min(4096, $encoded.Length - $i)))
+          }
+          Write-Host 'FORMATTED_SOURCE_END'
+
       - name: Check code formatting (changed C# sources only, blocking)
         if: needs.classify.outputs.run_windows == 'true' && needs.classify.outputs.run_format == 'true'
         shell: pwsh
