@@ -2974,7 +2974,6 @@
                                     Style="{StaticResource SetupCloseIconButtonStyle}"
                                     Margin="14,0,0,0"
                                     Click="CloseSetup_Click"
-                                    ToolTip="Close connection settings"
                                     AutomationProperties.Name="Close configuration">
                                 <!-- SVG path retained, scaled to a discreet desktop-caption-sized glyph.
                                      The native button retains keyboard and accessibility semantics. -->
