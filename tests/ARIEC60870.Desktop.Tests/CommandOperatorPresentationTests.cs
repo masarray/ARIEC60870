@@ -54,11 +54,14 @@ public sealed class CommandOperatorPresentationTests
         {
             SequenceNumber = 12,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
-            Direction = direction, TimestampUtc = DateTime.UtcNow,
-            AsduDetails = decode, TypeId = decode.TypeId,
+            Direction = direction,
+            TimestampUtc = DateTime.UtcNow,
+            AsduDetails = decode,
+            TypeId = decode.TypeId,
             CommonAddressNumber = decode.CommonAddress,
             InformationObjectAddress = decode.InformationObjectAddress,
-            CauseDetails = decode.CauseDetails, RawHex = "68 fixture"
+            CauseDetails = decode.CauseDetails,
+            RawHex = "68 fixture"
         };
     }
 
