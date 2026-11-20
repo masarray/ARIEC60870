@@ -100,6 +100,30 @@ try {
     }
     Record "PASS: genuine immutable v$PreviousVersion installer checksum verified."
 
+    # v3.6.18 reached the legacy path by upgrading an existing v3.6.17
+    # install, not by doing a fresh install with the newer default folder.
+    if ($PreviousVersion -eq '3.6.18') {
+        $seedBase = 'https://github.com/masarray/arsee/releases/download/v3.6.17'
+        $seedName = 'ARIEC60870-v3.6.17-setup-win-x64.exe'
+        $seedSetup = Join-Path $env:RUNNER_TEMP $seedName
+        $seedSums = Join-Path $env:RUNNER_TEMP 'ArSee-seed-v3.6.17-SHA256SUMS.txt'
+        curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $seedSetup "$seedBase/$seedName"
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot download v3.6.17 migration seed.' }
+        curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 45 -o $seedSums "$seedBase/SHA256SUMS.txt"
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot download v3.6.17 seed checksums.' }
+        $seedLines = @(Get-Content $seedSums | Where-Object { $_.EndsWith("  $seedName") })
+        if ($seedLines.Count -ne 1) { throw 'Ambiguous v3.6.17 seed checksum.' }
+        $seedHash = ([regex]::Match($seedLines[0], '^[0-9a-fA-F]{64}')).Value
+        if (!$seedHash -or (Get-FileHash $seedSetup -Algorithm SHA256).Hash -ine $seedHash) {
+            throw 'v3.6.17 seed checksum mismatch.'
+        }
+        Invoke-Bounded $seedSetup $arguments 150
+        if (!(Test-Path (Join-Path $legacyDir 'ARIEC60870.exe'))) {
+            throw 'v3.6.17 seed was not installed in the legacy directory.'
+        }
+        Record 'PASS: authentic v3.6.17 seeded previous directory for genuine v3.6.18 in-place upgrade.'
+    }
+
     Invoke-Bounded $oldInstaller $arguments 150
     if (!(Test-Path $legacyExe) -or
         (Get-Item $legacyExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
@@ -195,6 +219,22 @@ try {
         throw 'Uninstaller deleted user-owned data.'
     }
     Record 'PASS: uninstall removes executable/registration and preserves user workspace.'
+    # Inno's detached uninstaller cleanup may finish after its initial process
+    # exits. Only remove an empty program directory; never erase user files.
+    $removedEmptyNewDirectory = $false
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        if (!(Test-Path $newDir)) { $removedEmptyNewDirectory = $true; break }
+        $remaining = @(Get-ChildItem -LiteralPath $newDir -Force -ErrorAction Stop)
+        if ($remaining.Count -eq 0) {
+            try { [IO.Directory]::Delete($newDir); $removedEmptyNewDirectory = $true; break }
+            catch [IO.IOException] { }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    if (!$removedEmptyNewDirectory) {
+        throw 'Uninstalled Programs/ArSee directory still contains files or uninstall cleanup has not finished.'
+    }
+    Record 'PASS: empty post-uninstall program folder cleaned without deleting unknown files.'
     Remove-Item $sentinel -Force
 }
 catch {
