@@ -13,6 +13,7 @@
         FontFamily="{StaticResource AppFont}" Loaded="QuickFindWindow_Loaded">
     <Window.Resources>
         <vm:IecSignalTypeBadgeConverter x:Key="IecSignalTypeBadgeConverter" />
+        <vm:CommandCaseOperatorConverter x:Key="CommandCaseOperatorConverter" />
 
         <!-- All approved text-action/search pill styles are centralized in
              ModernTheme.xaml, not cloned for individual workspaces. -->
@@ -2470,7 +2471,7 @@
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Case" Binding="{Binding CaseId}" Width="52"/>
                                     <DataGridTextColumn Header="Host time" Binding="{Binding FirstTime}" Width="104"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.25*" MinWidth="130"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Converter={StaticResource CommandCaseOperatorConverter}}" Width="1.35*" MinWidth="175" ElementStyle="{StaticResource GridCellNoWrapText}"/>
                                     <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="77"/>
                                     <DataGridTemplateColumn Header="Type / address" Width="1.35*" MinWidth="155"
                                                             ClipboardContentBinding="{Binding Address}">
@@ -2497,7 +2498,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="1*" MinWidth="100"/>
-                                    <DataGridTextColumn Header="Evidence" Binding="{Binding Interpretation}" Width="1.8*" MinWidth="135"/>
+                                    <DataGridTextColumn Header="Next check" Binding="{Binding Converter={StaticResource CommandCaseOperatorConverter}, ConverterParameter=Guidance}" Width="2.2*" MinWidth="165" ElementStyle="{StaticResource GridCellNoWrapText}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                             <DataGrid x:Name="ControlCaseStagesGrid" PreviewMouseRightButtonDown="DataGrid_PreviewMouseRightButtonDown" MouseDoubleClick="ControlCaseJump_Click" Grid.Row="4" ItemsSource="{Binding ControlCaseStages}"
@@ -2522,7 +2523,7 @@
                                     <DataGridTextColumn Header="Interpretation" Binding="{Binding Explanation}" Width="*"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock x:Name="ControlCaseDetailsBox" Grid.Row="5" Text="Select a command case." TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="22"
+                            <TextBlock x:Name="ControlCaseDetailsBox" Grid.Row="5" Text="Select a command case." TextWrapping="Wrap" MaxHeight="48"
                                        Foreground="{StaticResource Ink600Brush}" FontSize="12.3" Margin="4,2,4,0"/>
                         </Grid>
                     </TabItem>
@@ -2686,6 +2687,17 @@
                         <TextBlock x:Name="CommandDockTitleText" Text="COMMAND PANEL"
                                    Style="{StaticResource EyebrowText}"
                                    VerticalAlignment="Center" Margin="1,0,0,0"/>
+                        <!-- Fixed-header overlay: no layout shift or extra command-card height.
+                             The only notification timer lives in MainWindow.CommandFeedback. -->
+                        <Border x:Name="CommandToastBorder" Grid.Column="0"
+                                Visibility="Collapsed" Opacity="1" CornerRadius="7"
+                                Background="#E6F4F1" Padding="7,3" MaxWidth="244"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                IsHitTestVisible="False">
+                            <TextBlock x:Name="CommandToastText" Text=""
+                                       FontSize="11.2" FontWeight="Medium" Foreground="#155E4B"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                        </Border>
                         <Path x:Name="CommandDockToggleIcon" Grid.Column="1"
                               Style="{StaticResource CircleIconPath}"
                               Data="{StaticResource LucideCircleChevronRight}"
