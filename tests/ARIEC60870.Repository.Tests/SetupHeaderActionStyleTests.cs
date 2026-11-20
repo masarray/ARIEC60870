@@ -103,7 +103,8 @@ public sealed class SetupHeaderActionStyleTests
             "BackupAddressContinueButton" };
         var setup = XDocument.Load(Source("MainWindow.xaml"));
         foreach (var name in names)
-            Assert.Single(setup.Descendants().Where(x => (string?)x.Attribute(Xaml + "Name") == name));
+            Assert.Single(setup.Descendants(),
+                x => (string?)x.Attribute(Xaml + "Name") == name);
         // Retain scrolling/expanders online; only configuration inputs lock.
         Assert.DoesNotContain("SetupSettingsScroll.IsEnabled = !isRunning", state);
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
