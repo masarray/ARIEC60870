@@ -90,10 +90,22 @@ public sealed class SetupHeaderActionStyleTests
         Assert.DoesNotContain("SetupButton.IsEnabled = !isRunning;", state);
         foreach (var field in new[] { "InteroperabilityConventionComboBox",
             "PassiveSourceComboBox", "SerialHandshakeComboBox",
-            "SerialRtsCheckBox", "SerialDtrCheckBox" })
+            "SerialRtsCheckBox", "SerialDtrCheckBox",
+            "PassiveLinkBScadaPortComboBox", "PassiveLinkBRtuPortComboBox",
+            "PassiveCaptureFolderPicker", "SetupImportProfileButton",
+            "SetupRefreshPortsButton", "BackupAddressReviewButton",
+            "BackupAddressContinueButton" })
         {
             Assert.Contains(field + ".IsEnabled = !isRunning;", state);
         }
+        var names = new[] { "PassiveCaptureFolderPicker", "SetupImportProfileButton",
+            "SetupRefreshPortsButton", "BackupAddressReviewButton",
+            "BackupAddressContinueButton" };
+        var setup = XDocument.Load(Source("MainWindow.xaml"));
+        foreach (var name in names)
+            Assert.Single(setup.Descendants().Where(x => (string?)x.Attribute(Xaml + "Name") == name));
+        // Retain scrolling/expanders online; only configuration inputs lock.
+        Assert.DoesNotContain("SetupSettingsScroll.IsEnabled = !isRunning", state);
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
         foreach (var key in new[] { "SetupDisconnectIdleBrush",
             "SetupDisconnectHoverBrush", "SetupDisconnectPressedBrush" })
