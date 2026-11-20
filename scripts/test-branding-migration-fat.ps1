@@ -224,7 +224,17 @@ try {
     $removedEmptyNewDirectory = $false
     for ($attempt = 0; $attempt -lt 120; $attempt++) {
         if (!(Test-Path $newDir)) { $removedEmptyNewDirectory = $true; break }
-        $remaining = @(Get-ChildItem -LiteralPath $newDir -Force -ErrorAction Stop)
+        # Inno's cleanup may remove this directory between Test-Path and
+        # Get-ChildItem. Treat only a confirmed vanished path as success.
+        try {
+            $remaining = @(Get-ChildItem -LiteralPath $newDir -Force -ErrorAction Stop)
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            if (!(Test-Path -LiteralPath $newDir)) {
+                $removedEmptyNewDirectory = $true
+                break
+            }
+            throw
+        }
         if ($remaining.Count -eq 0) {
             try { [IO.Directory]::Delete($newDir); $removedEmptyNewDirectory = $true; break }
             catch [IO.IOException] { }
