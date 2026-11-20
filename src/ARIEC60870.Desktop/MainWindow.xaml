@@ -1166,7 +1166,6 @@
                                          <Button DockPanel.Dock="Right" Content="›"
                                                  Style="{StaticResource TraceChevronStyle}"
                                                  Click="TraceFrameDetailsClose_Click"
-                                                
                                                  AutomationProperties.Name="Collapse Frame Details"/>
                                          <TextBlock Text="Frame Details · Full Properties" FontSize="12.4"
                                                     FontWeight="Medium" Foreground="#223B54"
@@ -1190,8 +1189,9 @@
                                               RowDetailsVisibilityMode="Collapsed"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E5EBF0"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                              SelectionMode="Single" SelectionUnit="FullRow"
-                                              BorderThickness="1" BorderBrush="#CCD9E3" Background="White" ToolTipService.IsEnabled="False">
+                                              SelectionMode="Single" SelectionUnit="FullRow" ClipboardCopyMode="ExcludeHeader"
+                                              BorderThickness="1" BorderBrush="#CCD9E3" Background="White"
+                                              ToolTipService.IsEnabled="False">
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <Setter Property="Background" Value="#FFFFFF"/>
@@ -1219,7 +1219,8 @@
                                             </Style>
                                         </DataGrid.CellStyle>
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="NAME" Width="1.40*" MinWidth="155" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="NAME" Width="1.40*" MinWidth="155" CanUserResize="True"
+                                                                    ClipboardContentBinding="{Binding Field}">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Grid Height="25">
@@ -1268,11 +1269,11 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="VALUE" Width="1.00*" MinWidth="110" CanUserResize="True">
+                                            <DataGridTemplateColumn Header="VALUE" Width="1.00*" MinWidth="110" CanUserResize="True"
+                                                                    ClipboardContentBinding="{Binding Value}">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <TextBlock Text="{Binding Value}"
-                                                                  
                                                                    FontSize="11.3" Margin="7,0,5,0"
                                                                    VerticalAlignment="Center"
                                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
