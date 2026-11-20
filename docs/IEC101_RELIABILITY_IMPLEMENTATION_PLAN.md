@@ -197,3 +197,38 @@ Next owner/action:
 ```
 
 **Completion rule:** all R00–R16 have traceable automated acceptance and verified shared single/A/B behaviors before labeling IEC101 P0 *software complete*. Claim *SICAM-interoperable* only with real supervised FAT; never infer it from simulator or an IEC_Test screenshot from a possibly different COM port.
+
+
+## IEC101-Rxx / CMD-01 field regression — sequential SBO after missing ACTTERM (21 Nov 2026)
+
+User screenshots of ArSee 3.6.19 show the same pattern on active IEC-101
+single COM and A/B: the first TI46 SELECT COT6 -> ACTCON COT7 and
+EXECUTE COT6 -> ACTCON COT7 succeed, with subsequent digital feedback.
+A second operator-issued command to the same CA/IOA is then falsely folded
+into the still-active first case and labelled "overlapping" / "ambiguous"
+despite new source-qualified request/reply telegrams.
+
+Root cause: the bounded Master evidence casebook retained the first
+transaction in the active identity index until both EXECUTE ACTTERM and
+mapped feedback matched. Neither ACTTERM nor explicit command-to-feedback
+mapping can be assumed to exist at all RTUs.
+
+Owner: existing Master Iec10xCommandCasebook. When a genuinely new Master
+request is observed after a positive matched EXECUTE ACTCON (or ACTTERM),
+the previous immutable case is archived with its exact observed statuses.
+Missing ACTTERM, absent feedback and feedback mismatch remain explicit;
+never report physical success. A fresh case gets a distinct ID and original
+evidence references. Source, IEC101 physical link, CA, IOA, TI, OA and
+IEC104 connection identity remain enforced. No timer, auto command retry,
+UI parser or TX path change. Repeated SELECT before EXECUTE, unresolved
+EXECUTE without ACTCON, negative and ambiguous responses stay fail-closed.
+Late EXECUTE RTU COT7/10 during a fresh SELECT is separately unpaired.
+
+Deterministic tests: SINGLE, LINK A, LINK B positive two-command SBO
+sequences without ACTTERM, with/without mapped process feedback, wrong
+physical source, late EXECUTE replies, unaccepted EXECUTE, real overlapping
+SELECT. This is a forensic observation fix, not proof of physical dispatch.
+
+Field FAT still required: compare original TX/RX HEX, physical source,
+timestamps, positive/negative COT, ACTTERM (if sent) and quality-valid
+feedback for OPEN then CLOSE on an authorized non-production bench.

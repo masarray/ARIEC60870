@@ -527,4 +527,159 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Contains("EVIDENCE LIMITED", result.ToEvidenceText());
     }
 
+
+    [Theory]
+    [InlineData("SINGLE")]
+    [InlineData("LINK A")]
+    [InlineData("LINK B")]
+    public void RepeatedSboAfterPositiveExecuteActconCreatesDistinctCasesWithoutActterm(string source)
+    {
+        var b = new Iec10xCommandCasebook();
+        // Field reproduction: SELECT+ACTCON, EXECUTE+ACTCON, mapped DPI ON;
+        // new SELECT OFF arrives with no EXECUTE ACTTERM. A/B and single
+        // have the same source-qualified command lifecycle.
+        Assert.True(b.Observe(Command(source: source, code: 2), feedbackIoa: 201));
+        Assert.True(b.Observe(Command(cot: 7, rtu: true, source: source, code: 2)));
+        Assert.True(b.Observe(Command(select: false, source: source, code: 2)));
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true, source: source, code: 2)));
+        Assert.True(b.Observe(Feedback(source: source, code: 2)));
+
+        Assert.True(b.Observe(Command(source: source, code: 1), feedbackIoa: 201));
+        Assert.Equal(2, b.Count);
+        Assert.Equal(1, b.ActiveCount);
+        Assert.Equal("Feedback matched · ACTTERM not observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        Assert.NotEqual(b.Snapshot()[0].CaseId, b.Snapshot()[1].CaseId);
+
+        Assert.True(b.Observe(Command(cot: 7, rtu: true, source: source, code: 1)));
+        Assert.True(b.Observe(Command(select: false, source: source, code: 1)));
+        Assert.True(b.Observe(Command(cot: 7, select: false, rtu: true, source: source, code: 1)));
+        Assert.True(b.Observe(Feedback(source: source, code: 1)));
+        Assert.Equal("Feedback matched · ACTTERM pending", b.Snapshot()[1].Status);
+        Assert.DoesNotContain(b.Snapshot(), c => c.Status == "Ambiguous");
+        Assert.Contains("not independent proof", b.Snapshot()[0].Interpretation);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void NoMappedFeedbackDoesNotMakeLaterConfirmedCommandOverlapForever(bool firstSelect)
+    {
+        var b = new Iec10xCommandCasebook();
+        if (firstSelect)
+        {
+            b.Observe(Command(code: 2));
+            b.Observe(Command(cot: 7, rtu: true, code: 2));
+        }
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(cot: 7, select: false, rtu: true, code: 2));
+
+        b.Observe(Command(code: 1));
+        Assert.Equal(2, b.Count);
+        Assert.Equal("EXECUTE accepted · ACTTERM not observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        b.Observe(Command(cot: 7, rtu: true, code: 1));
+        Assert.Equal("SELECT accepted", b.Snapshot()[1].Status);
+        Assert.Equal(1, b.ActiveCount);
+    }
+
+    [Fact]
+    public void DelayedOldExecuteReplyCannotPoisonNewSelectOrConfirmIt()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(code: 2));
+        b.Observe(Command(cot: 7, rtu: true, code: 2));
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(cot: 7, select: false, rtu: true, code: 2));
+        b.Observe(Command(code: 1));
+
+        // A late ACTTERM/ACTCON carrying EXECUTE phase cannot be associated
+        // with the new SELECT; leave it as explicitly unpaired evidence.
+        b.Observe(Command(cot: 10, select: false, code: 2, rtu: true));
+        b.Observe(Command(cot: 7, select: false, code: 2, rtu: true));
+        Assert.Equal(4, b.Count);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        Assert.All(b.Snapshot().Skip(2), c => Assert.Equal("Unmatched response", c.Status));
+        Assert.Equal(1, b.ActiveCount);
+
+        b.Observe(Command(cot: 7, select: true, code: 1, rtu: true));
+        Assert.Equal("SELECT accepted", b.Snapshot()[1].Status);
+    }
+
+    [Fact]
+    public void UnconfirmedExecuteAndUnresolvedSelectRemainAmbiguousForSafety()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(code: 2));
+        b.Observe(Command(cot: 7, rtu: true, code: 2));
+        b.Observe(Command(select: false, code: 2));
+        // No matching RTU execute ACTCON: a new SELECT may overlap.
+        b.Observe(Command(code: 1));
+        Assert.Equal(1, b.Count);
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+        Assert.Equal(1, b.ActiveCount);
+        // Even a late EXECUTE ACTCON must not clear that ambiguity.
+        b.Observe(Command(cot: 7, select: false, code: 2, rtu: true));
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+    }
+
+    [Fact]
+    public void NewCommandOnOtherLinkNeverSupersedesOldActiveOwner()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(source: "LINK A", code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, rtu: true, source: "LINK A", code: 2));
+        b.Observe(Command(select: false, source: "LINK A", code: 2));
+        b.Observe(Command(cot: 7, select: false, rtu: true, source: "LINK A", code: 2));
+        b.Observe(Command(source: "LINK B", code: 1), feedbackIoa: 201);
+        Assert.Equal(2, b.ActiveCount);
+        Assert.Equal("EXECUTE accepted", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        // Wrong physical source must not confirm B.
+        b.Observe(Command(cot: 7, rtu: true, source: "LINK A", code: 1));
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+    }
+
+
+    [Fact]
+    public void RepeatedExecuteWithoutTermOrFreshSelectIsNotSilentlyIndependent()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 7));
+        b.Observe(Command(select: false, code: 2));
+        Assert.Equal(1, b.Count);
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+    }
+
+    [Fact]
+    public void NewSelectAfterObservedActtermIsIndependentEvenWithMissingFeedback()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 7));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 10));
+        Assert.Equal("ACTTERM observed", b.Snapshot()[0].Status);
+        b.Observe(Command(select: true, code: 1));
+        Assert.Equal(2, b.Count);
+        Assert.Equal("ACTTERM observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+    }
+
+
+    [Fact]
+    public void NewSelectDoesNotHideMostRecentMismatchedProcessFeedback()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, rtu: true, select: false, code: 2));
+        b.Observe(Feedback(code: 2)); // First reported ON.
+        b.Observe(Feedback(code: 1)); // Latest reported OFF, not the requested state.
+        Assert.Equal("Feedback mismatch", b.Snapshot()[0].Status);
+        b.Observe(Command(select: true, code: 1), feedbackIoa: 201);
+        Assert.Equal("Feedback mismatch · ACTTERM not observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        Assert.Contains("latest mapped feedback differed", b.Snapshot()[0].Interpretation);
+    }
+
 }
