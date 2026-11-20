@@ -168,8 +168,11 @@ public partial class MainWindow
         if (SetupConnectButton.Template.FindName("SetupConnectSurface", SetupConnectButton)
                 is not Border actionSurface ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
-                is not Border { Background: SolidColorBrush closeFill,
-                                BorderBrush: SolidColorBrush closeLine } ||
+                is not Border
+                {
+                    Background: SolidColorBrush closeFill,
+                    BorderBrush: SolidColorBrush closeLine
+                } ||
             closeFill.Color != (Color)ColorConverter.ConvertFromString("#F8FAFC") ||
             closeLine.Color != (Color)ColorConverter.ConvertFromString("#BCCCDD") ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
@@ -271,7 +274,7 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     $"Setup switch {control.Name} geometry: track={track.ActualWidth:0.0}x{track.ActualHeight:0.0}, " +
                     $"thumb={thumb.ActualWidth:0.0}x{thumb.ActualHeight:0.0}, " +
-                    $"vertical offset={Math.Abs(centerY-captionY):0.00}, caption gap={captionGap:0.0}.");
+                    $"vertical offset={Math.Abs(centerY - captionY):0.00}, caption gap={captionGap:0.0}.");
         }
     }
 
@@ -547,7 +550,7 @@ public partial class MainWindow
                 $"trace={FrameTraceRows.Count}, raw=" +
                 string.Join("|", FrameTraceRows.Select(x => x.RawHex).Take(10)));
         ClearSessionView(clearLog: false);
-                // A forensic line monitor must NEVER start in a view that silently
+        // A forensic line monitor must NEVER start in a view that silently
         // omits Master TX polls while showing their RTU replies.
         if (TraceQuickScopeCombo.SelectedIndex != 1 ||
             MainTabControl.SelectedIndex != 1 ||
@@ -722,7 +725,7 @@ public partial class MainWindow
         PassiveRtuRoleLabel.Text = "Input 2 · auto detecting";
         // The prior passive GUI + history smoke probes have already exercised
         // source-qualified navigation; this stage stress-tests the live WPF ring.
-        
+
         SetTraceSearchSurface(archive: false);
         TraceQuickFindBox.Clear();
         TraceQuickScopeCombo.SelectedIndex = 1; // All frames for 1,400-frame retention stress
@@ -785,9 +788,10 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "Real physical TX/RX frame was eligible for UI backpressure data loss.");
         if (ClassifyLowValueBackpressureBucket(new Iec103MasterEvidenceEvent
-            {
-                Summary = "background poll", RawHex = string.Empty
-            }) == string.Empty)
+        {
+            Summary = "background poll",
+            RawHex = string.Empty
+        }) == string.Empty)
             throw new InvalidOperationException(
                 "Synthetic non-wire activity no longer permits UI-only coalescing.");
 
@@ -962,42 +966,42 @@ public partial class MainWindow
         // parser/projection path; it never opens a transport or transmits.
         void SeedSpontaneousEventRows()
         {
-        _passiveLinkAddressWidth = 1;
-        _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
-        for (var i = 0; i < 2; i++)
-        {
-            var eventAsdu = new byte[] { 1, 1, 3, 0, 1, 0, (byte)(7 + i), 0, 0, 1 };
-            var eventPayload = new byte[] { 0x08, 0x69 }.Concat(eventAsdu).ToArray();
-            var eventWire = new byte[] { 0x68, (byte)eventPayload.Length, (byte)eventPayload.Length, 0x68 }
-                .Concat(eventPayload)
-                .Concat(new byte[] { (byte)(eventPayload.Sum(x => x) & 0xff), 0x16 })
-                .ToArray();
-            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1430 + i) * 5L,
-                baseline.AddMilliseconds((1430 + i) * 40d), "Variable", true, eventWire));
-        }
-        // Real passive IEC101 decode: Type13 spontaneous floating measurement
-        // and Type15 spontaneous integrated totals. Each must enter Events;
-        // GI/interrogated snapshots remain only in Values/GI.
-        var measurement = new byte[] { 13, 1, 3, 0, 1, 0, 21, 0, 0, 0, 0, 0xB4, 0x41, 0 };
-        var counter = new byte[] { 15, 1, 3, 0, 1, 0, 22, 0, 0, 0xD2, 4, 0, 0, 0 };
-        var factOffset = 1433;
-        foreach (var asdu in new[] { measurement, counter })
-        {
-            var payload = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
-            var wire = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
-                .Concat(payload)
-                .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 }).ToArray();
-            FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, factOffset * 5L,
-                baseline.AddMilliseconds(factOffset * 40d), "Variable", true, wire));
-            factOffset++;
-        }
-        FlushUiQueues();
-        if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
-            throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
-        if (!RelayEventRows.Any(row => row.TypeId == "13" && row.TypeBadge?.Label == "FLT") ||
-            !RelayEventRows.Any(row => row.TypeId == "15" && row.TypeBadge?.Label == "BCR"))
-            throw new InvalidOperationException(
-                "Decoded IEC-101 spontaneous FLT and BCR badges are missing from Events.");
+            _passiveLinkAddressWidth = 1;
+            _passiveAsduDecoder = new Iec10xAsduDecoder(2, 2, 3);
+            for (var i = 0; i < 2; i++)
+            {
+                var eventAsdu = new byte[] { 1, 1, 3, 0, 1, 0, (byte)(7 + i), 0, 0, 1 };
+                var eventPayload = new byte[] { 0x08, 0x69 }.Concat(eventAsdu).ToArray();
+                var eventWire = new byte[] { 0x68, (byte)eventPayload.Length, (byte)eventPayload.Length, 0x68 }
+                    .Concat(eventPayload)
+                    .Concat(new byte[] { (byte)(eventPayload.Sum(x => x) & 0xff), 0x16 })
+                    .ToArray();
+                FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, (1430 + i) * 5L,
+                    baseline.AddMilliseconds((1430 + i) * 40d), "Variable", true, eventWire));
+            }
+            // Real passive IEC101 decode: Type13 spontaneous floating measurement
+            // and Type15 spontaneous integrated totals. Each must enter Events;
+            // GI/interrogated snapshots remain only in Values/GI.
+            var measurement = new byte[] { 13, 1, 3, 0, 1, 0, 21, 0, 0, 0, 0, 0xB4, 0x41, 0 };
+            var counter = new byte[] { 15, 1, 3, 0, 1, 0, 22, 0, 0, 0xD2, 4, 0, 0, 0 };
+            var factOffset = 1433;
+            foreach (var asdu in new[] { measurement, counter })
+            {
+                var payload = new byte[] { 0x08, 0x69 }.Concat(asdu).ToArray();
+                var wire = new byte[] { 0x68, (byte)payload.Length, (byte)payload.Length, 0x68 }
+                    .Concat(payload)
+                    .Concat(new byte[] { (byte)(payload.Sum(x => x) & 0xff), 0x16 }).ToArray();
+                FeedPassiveFrameToExistingViews(new PassiveObservedFrame(1, factOffset * 5L,
+                    baseline.AddMilliseconds(factOffset * 40d), "Variable", true, wire));
+                factOffset++;
+            }
+            FlushUiQueues();
+            if (_relayEventStore.Snapshot().Count() < 2 || RelayEventRows.Count < 2)
+                throw new InvalidOperationException("Spontaneous IEC-101 SOE test frames did not populate the Events store and WPF projection.");
+            if (!RelayEventRows.Any(row => row.TypeId == "13" && row.TypeBadge?.Label == "FLT") ||
+                !RelayEventRows.Any(row => row.TypeId == "15" && row.TypeBadge?.Label == "BCR"))
+                throw new InvalidOperationException(
+                    "Decoded IEC-101 spontaneous FLT and BCR badges are missing from Events.");
         }
 
         // Representative decoded process data must be visible in screenshot and
@@ -1073,7 +1077,7 @@ public partial class MainWindow
         await Dispatcher.Yield(DispatcherPriority.Loaded);
         UpdateLayout();
         SaveRealWpfBitmap(outputDirectory, "engineer-dp-off-quality-good.png");
-                TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
+        TraceQuickScopeCombo.SelectedIndex = 0; // operator focus, never delete underlying frames
         ApplyQuickFind();
         focusVisibleFrames = FrameTraceGrid.Items.Count;
         var txSourceCount = FrameTraceRows.Count(row => row.Direction == "TX");
@@ -1171,7 +1175,7 @@ public partial class MainWindow
             AssertOneLineToolbar(TraceWindowSearchBar, TraceQuickCountText,
                 TraceAutoScrollButton, FrameTraceGrid, "Trace", 9);
             AssertSearchFlushLeft(TraceWindowSearchBar, FrameTraceGrid, "Trace");
-                AssertSharedToolbarSearch(TraceWindowSearchBar, TraceQuickFindBox, TraceSearchClearButton, "Trace");
+            AssertSharedToolbarSearch(TraceWindowSearchBar, TraceQuickFindBox, TraceSearchClearButton, "Trace");
 
             // GitHub-hosted runners may clamp top-level WPF windows to the
             // actual desktop work area. Recording a 1540x960 *request* is not
@@ -1268,7 +1272,7 @@ public partial class MainWindow
                     SelectedValueContextText.IsVisible ||
                     ValueGrid.Columns[1] is not DataGridTemplateColumn valueStateColumn ||
                     valueStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
-                        { Path.Path: "OperatorValue" })
+                    { Path.Path: "OperatorValue" })
                     throw new InvalidOperationException("Values grid-first layout, status or clipboard contract missing.");
                 if (ValueGrid.Items.Count < 2 || ValueRows.Count < 2)
                     throw new InvalidOperationException("Values has no realized process data after valid decoded two-point ASDU.");
@@ -1376,7 +1380,7 @@ public partial class MainWindow
                         string.Equals(col.Header?.ToString(), "State / value",
                             StringComparison.Ordinal)) is not DataGridTemplateColumn eventStateColumn ||
                     eventStateColumn.ClipboardContentBinding is not System.Windows.Data.Binding
-                        { Path.Path: "OperatorValue" })
+                    { Path.Path: "OperatorValue" })
                     throw new InvalidOperationException(
                         "Unified Event History top toolbar or clipboard contract missing.");
 
@@ -1887,14 +1891,14 @@ public partial class MainWindow
                 _pendingEvidence.Enqueue(new SessionEvidenceEnvelope(
                     System.Threading.Volatile.Read(ref _eventProjectionEpoch),
                     new Iec103MasterEvidenceEvent
-                {
-                    SequenceNumber = 8_000_000L + i,
-                    ProtocolMode = Iec60870ProtocolMode.Iec103,
-                    Direction = FrameDirection.MasterToSlave,
-                    Category = "Info",
-                    DataClass = "Test",
-                    Summary = "Synthetic terminal receive-queue drain"
-                }));
+                    {
+                        SequenceNumber = 8_000_000L + i,
+                        ProtocolMode = Iec60870ProtocolMode.Iec103,
+                        Direction = FrameDirection.MasterToSlave,
+                        Category = "Info",
+                        DataClass = "Test",
+                        Summary = "Synthetic terminal receive-queue drain"
+                    }));
             }
             await ApplyFinalResultAsync(new Iec103MasterRunResult
             {
@@ -2077,7 +2081,7 @@ public partial class MainWindow
             // Clear is normally Collapsed with an empty search; Width remains tokenized.
             EventsSearchClearButton.Width < 24 ||
             EventsSearchClearButton.Background is not SolidColorBrush
-                { Color: { A: 0 } })
+            { Color: { A: 0 } })
             throw new InvalidOperationException(
                 "Event Journal search field or transparent clear icon lost its alignment.");
 
