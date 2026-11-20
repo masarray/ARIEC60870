@@ -52,7 +52,7 @@ public sealed class CommandOperatorPresentationTests
         Assert.Empty(decode.Issues);
         return new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 12, EvidenceReference = "test:12",
+            SequenceNumber = 12,
             ProtocolMode = Iec60870ProtocolMode.Iec101,
             Direction = direction, TimestampUtc = DateTime.UtcNow,
             AsduDetails = decode, TypeId = decode.TypeId,
