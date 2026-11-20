@@ -198,12 +198,15 @@ public sealed class Iec10xCommandCasebook
             // lifecycles. Some RTUs do not send an EXECUTE ACTTERM; a previous
             // positively confirmed EXECUTE must not poison every later command
             // to the same CA/IOA as "overlapping" forever. A NEW observed
-            // Master request is an independent transaction boundary only once
-            // the previous EXECUTE ACTCON (or ACTTERM) is observed. Unresolved
+            // Master SELECT is an independent transaction boundary once the
+            // previous EXECUTE ACTCON (or ACTTERM) is observed. A repeated
+            // EXECUTE without ACTTERM is still indistinguishable from a retry
+            // and is not silently accepted as a fresh direct operation. Unresolved
             // SELECT, missing EXECUTE ACTCON, and already ambiguous cases are
             // deliberately NOT eligible for rollover.
             if (!state.Ambiguous && !state.CancelRequested && !state.Negative &&
-                state.Executed && (state.ExecuteAccepted || state.Terminated))
+                state.Executed && (state.ExecuteAccepted || state.Terminated) &&
+                (select || state.Terminated))
             {
                 var terminalWasSeen = state.Terminated;
                 Replace(state, state.Current with
