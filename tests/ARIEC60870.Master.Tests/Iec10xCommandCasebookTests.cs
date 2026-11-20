@@ -640,4 +640,30 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
     }
 
+
+    [Fact]
+    public void RepeatedExecuteWithoutTermOrFreshSelectIsNotSilentlyIndependent()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 7));
+        b.Observe(Command(select: false, code: 2));
+        Assert.Equal(1, b.Count);
+        Assert.Equal("Ambiguous", b.Snapshot()[0].Status);
+    }
+
+    [Fact]
+    public void NewSelectAfterObservedActtermIsIndependentEvenWithMissingFeedback()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 7));
+        b.Observe(Command(select: false, code: 2, rtu: true, cot: 10));
+        Assert.Equal("ACTTERM observed", b.Snapshot()[0].Status);
+        b.Observe(Command(select: true, code: 1));
+        Assert.Equal(2, b.Count);
+        Assert.Equal("ACTTERM observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+    }
+
 }
