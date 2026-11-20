@@ -23,9 +23,9 @@ public sealed class CommandOperatorPresentationTests
     public void OverlappingCommandsShowSpecificHumanNextActionWithoutSuccessClaim()
     {
         var c = Case("Ambiguous", "SELECT overlapping");
-        Assert.StartsWith("Needs review", CommandCaseOperatorPresentation.Status(c));
+        Assert.StartsWith("Multiple commands", CommandCaseOperatorPresentation.Status(c));
         var guidance = CommandCaseOperatorPresentation.Guidance(c);
-        Assert.Contains("Repeated or overlapping", guidance);
+        Assert.Contains("requests overlap", guidance);
         Assert.Contains("Stop repeating commands", guidance);
         Assert.DoesNotContain("successful", guidance, StringComparison.OrdinalIgnoreCase);
     }
