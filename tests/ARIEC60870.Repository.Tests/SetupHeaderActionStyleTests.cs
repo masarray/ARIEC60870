@@ -191,7 +191,7 @@ public sealed class SetupHeaderActionStyleTests
 
         var closeHover = Trigger(closeTemplate, "IsMouseOver");
         var closePressed = Trigger(closeTemplate, "IsPressed");
-        Assert.Equal("#FFF0EF", TriggerSetterValue(closeHover, "SetupCloseSurface", "Background"));
+        Assert.Equal("#FFF0F1", TriggerSetterValue(closeHover, "SetupCloseSurface", "Background"));
         Assert.Equal("#B42335", TriggerSetterValue(closeHover, null, "Foreground"));
         Assert.Equal("#EF3346", TriggerSetterValue(closePressed, "SetupCloseSurface", "Background"));
         Assert.Equal("#FFFFFF", TriggerSetterValue(closePressed, null, "Foreground"));
