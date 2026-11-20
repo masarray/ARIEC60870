@@ -11,3 +11,5 @@ The older in-app update worker verifies a fixed executable location. From an old
 Native Windows FAT must check authentic checksum-pinned v3.6.17 and v3.6.18 installs, collision failure before uninstall, migration to one ArSee.exe and shortcut, matching Inno registration, WPF smoke, uninstall and preservation of app data. No recursive deletion of unknown files is allowed.
 
 **Limitation:** this migration uninstalls old program binaries before installing the replacement. If Windows loses power or setup fails during that narrow interval, reinstall the public setup. No user workspace deletion is performed, but this is not a transactionally reversible program-binary move. Do not claim fully proven until Windows CI passes.
+
+**Published-updater compatibility:** The already-shipped v3.6.17/v3.6.18 update workers cannot safely relocate their own executable. Their distinct `/NOCLOSEAPPLICATIONS` and `/NOFORCECLOSEAPPLICATIONS` launch combination is rejected before uninstall when the registered install is still in the legacy folder. Windows CI includes this negative case. Users can still launch the official installer directly to migrate.

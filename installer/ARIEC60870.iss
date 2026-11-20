@@ -108,6 +108,17 @@ begin
     Exit;
   end;
 
+  { v3.6.17/18 in-app workers verify the original EXE path and would
+    incorrectly roll back after a successful relocation. Reject only those
+    worker-originated upgrade invocations BEFORE touching the old app. }
+  if (Pos('/NOCLOSEAPPLICATIONS', UpperCase(GetCmdTail)) > 0) and
+     (Pos('/NOFORCECLOSEAPPLICATIONS', UpperCase(GetCmdTail)) > 0) then
+  begin
+    Result := 'This legacy-folder upgrade must use the official installer directly. ' +
+      'The older in-app updater cannot safely change the installation folder.';
+    Exit;
+  end;
+
   if CompareText(WizardDirValue, NewDir) <> 0 then
   begin
     Result := 'This legacy installation can migrate only to the default Programs\ArSee directory.';

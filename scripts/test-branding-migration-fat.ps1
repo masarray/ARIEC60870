@@ -134,6 +134,19 @@ try {
     Remove-Item $collision,$newDir -Force
     Record 'PASS: destination collision blocked before removing legacy program.'
 
+    # The v3.6.17/18 updater passes these exact safety flags and expects
+    # the EXE to remain at the legacy location. Block this path BEFORE uninstall.
+    $workerArgs = @($arguments) + @('/NOCLOSEAPPLICATIONS','/NOFORCECLOSEAPPLICATIONS')
+    $blocked = Start-Process -FilePath $setup -ArgumentList $workerArgs -PassThru
+    try {
+        if (!$blocked.WaitForExit(180000)) { throw 'Legacy updater interception timed out.' }
+        if ($blocked.ExitCode -eq 0) { throw 'Legacy worker was incorrectly allowed to migrate directory.' }
+    } finally { $blocked.Dispose() }
+    if (!(Test-Path $legacyExe) -or (Test-Path $newDir)) {
+        throw 'Legacy updater guard modified the previous working installation.'
+    }
+    Record 'PASS: v3.6.17/v3.6.18 fixed-path updater fails safely before uninstall.'
+
     Invoke-Bounded $setup $arguments 180
     if (!(Test-Path $newExe)) { throw 'ArSee.exe missing from upgraded installation.' }
     if ((Get-Item $newExe).VersionInfo.FileVersion -notlike "$version*") {

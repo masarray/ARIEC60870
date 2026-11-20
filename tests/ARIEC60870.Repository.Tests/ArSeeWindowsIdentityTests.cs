@@ -19,6 +19,8 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("UsePreviousAppDir=no", script);
         Assert.Contains("function PrepareToInstall(var NeedsRestart: Boolean): String;", script);
         Assert.Contains("if DirExists(NewDir) then", script);
+        Assert.Contains("Pos('/NOCLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
+        Assert.Contains("Pos('/NOFORCECLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
         Assert.Contains("not RemoveDir(LegacyDir)", script);
         Assert.DoesNotContain("DelTree(LegacyDir", script);
         Assert.Contains("UsePreviousGroup=no", script); // do not reuse legacy group name
@@ -69,6 +71,7 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("branding-migration-preserve.txt", fat);
         Assert.Contains("PreviousVersion = '3.6.17'", fat);
         Assert.Contains("Legacy Programs/ARIEC60870 folder remains after migration.", fat);
+        Assert.Contains("Legacy worker was incorrectly allowed to migrate directory.", fat);
         Assert.Contains("-PreviousVersion $old", ci);
     }
 
