@@ -83,7 +83,8 @@ Filename: "{app}\ArSee.exe"; Description: "Launch ArSee"; Flags: nowait postinst
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   LegacyDir, NewDir, RegisteredDir, PreviousUninstaller, Key: String;
-  ExitCode: Integer;
+  ExitCode, Attempts: Integer;
+  FindRec: TFindRec;
 begin
   Result := '';
   LegacyDir := ExpandConstant('{localappdata}\Programs\ARIEC60870');
@@ -169,7 +170,38 @@ begin
     Log('ArSee migration: previous uninstall incomplete');
     Exit;
   end;
-  if DirExists(LegacyDir) and (not RemoveDir(LegacyDir)) then
-    Result := 'The old program directory contains unrecognized files. ' +
-      'They were preserved. Review that directory before completing the migration.';
+  { Inno uninstall spawns a temporary clone to delete its original EXE.
+    Exec(ewWaitUntilTerminated) may return before the clone has finished
+    deleting its own files. Wait for a bounded 30 seconds until it has
+    removed the last installer file, never DeleteFile or DelTree unknown
+    content. This keeps a partial move from silently succeeding. }
+  Attempts := 0;
+  while DirExists(LegacyDir) and (Attempts < 120) do
+  begin
+    if RemoveDir(LegacyDir) then
+      Break;
+    Sleep(250);
+    Attempts := Attempts + 1;
+  end;
+  if DirExists(LegacyDir) then
+  begin
+    Log('ArSee migration: legacy directory still occupied after bounded cleanup wait');
+    if FindFirst(AddBackslash(LegacyDir) + '*', FindRec) then
+    begin
+      try
+        repeat
+          if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+            Log('ArSee migration residual program-folder entry: ' + FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+    Result := 'The previous Inno uninstaller has not finished cleaning its program ' +
+      'folder within 30 seconds, or unrecognized files remain. ' +
+      'No unknown files were deleted. Review the old folder before retrying.';
+  end
+  else
+    Log('ArSee migration: previous program folder removed after cleanup wait ' +
+      IntToStr(Attempts) + '/120');
 end;

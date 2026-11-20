@@ -199,6 +199,12 @@ try {
 }
 catch {
     Record ('FAIL: ' + $_.Exception.Message)
+    if (Test-Path $legacyDir) {
+        Get-ChildItem $legacyDir -Force -ErrorAction SilentlyContinue |
+            ForEach-Object { Record ('DIAGNOSTIC legacy-folder-entry: ' + $_.Name + ' (' + $_.Length + ' bytes)') }
+    }
+    Get-CimInstance Win32_Process -Filter "Name like 'unins%'" -ErrorAction SilentlyContinue |
+        ForEach-Object { Record ('DIAGNOSTIC uninstall-process: ' + $_.Name + ' pid=' + $_.ProcessId) }
     foreach ($log in @('collision-setup.log', 'old-worker-block-setup.log','migration-setup.log')) {
         $path = Join-Path $evidence $log
         if (Test-Path $path) {
@@ -209,9 +215,9 @@ catch {
     throw
 }
 finally {
-    if (!$uninstalled -and (Test-Path (Join-Path $legacyDir 'unins000.exe'))) {
-        Record 'NOTE: CI migration failure, attempting safe runner cleanup.'
-        try { Invoke-Bounded (Join-Path $legacyDir 'unins000.exe') @('/VERYSILENT','/NORESTART') 90 }
-        catch { Record ('WARNING: CI runner cleanup incomplete: ' + $_.Exception.Message) }
+    # Do not race the detached Inno uninstall clone by launching unins000 a
+    # second time. Runner disposal cleans this disposable CI environment.
+    if (!$uninstalled -and (Test-Path $legacyDir)) {
+        Record 'NOTE: disposable runner retains migration evidence; no second concurrent legacy uninstall.'
     }
 }

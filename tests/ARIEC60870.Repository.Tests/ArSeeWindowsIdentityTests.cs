@@ -21,7 +21,11 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("if DirExists(NewDir) then", script);
         Assert.Contains("Pos('/NOCLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
         Assert.Contains("Pos('/NOFORCECLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
-        Assert.Contains("not RemoveDir(LegacyDir)", script);
+        Assert.Contains("RemoveDir(LegacyDir)", script);
+        Assert.Contains("Attempts < 120", script);
+        Assert.Contains("Sleep(250)", script);
+        Assert.Contains("FindFirst(AddBackslash(LegacyDir)", script);
+        Assert.DoesNotContain("DelTree(", script);
         Assert.DoesNotContain("DelTree(LegacyDir", script);
         Assert.Contains("UsePreviousGroup=no", script); // do not reuse legacy group name
         Assert.Contains("UninstallDisplayName=ArSee", script);
