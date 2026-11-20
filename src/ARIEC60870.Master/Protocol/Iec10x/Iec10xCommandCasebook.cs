@@ -213,16 +213,18 @@ public sealed class Iec10xCommandCasebook
                 {
                     Status = terminalWasSeen
                         ? state.Current.Status
-                        : state.FeedbackMatched
-                            ? "Feedback matched · ACTTERM not observed"
-                            : state.FeedbackMismatchSeen
-                                ? "Feedback mismatch · ACTTERM not observed"
+                        : state.Current.Status == "Feedback mismatch"
+                            ? "Feedback mismatch · ACTTERM not observed"
+                            : state.FeedbackMatched
+                                ? "Feedback matched · ACTTERM not observed"
                                 : "EXECUTE accepted · ACTTERM not observed",
                     Interpretation = terminalWasSeen
                         ? state.Current.Interpretation
-                        : state.FeedbackMatched
-                            ? "Previous EXECUTE had positive ACTCON and matching mapped RTU feedback; ACTTERM was not observed before a later command. This is not independent proof of physical operation."
-                            : "Previous EXECUTE had positive ACTCON but ACTTERM and verified mapped feedback were not observed before a later command. Completion remains unverified; do not infer physical operation."
+                        : state.Current.Status == "Feedback mismatch"
+                            ? "Previous EXECUTE had positive ACTCON but the latest mapped feedback differed from the requested target. ACTTERM was not observed before a later command; no verified completion."
+                            : state.FeedbackMatched
+                                ? "Previous EXECUTE had positive ACTCON and matching mapped RTU feedback; ACTTERM was not observed before a later command. This is not independent proof of physical operation."
+                                : "Previous EXECUTE had positive ACTCON but ACTTERM and matching mapped feedback were not observed before a later command. Completion remains unverified; do not infer physical operation."
                 });
                 _active.Remove(key);
                 StartNewCase(item, key, command, target, wireIdentity, feedbackIoa);
