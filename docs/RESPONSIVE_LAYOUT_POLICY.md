@@ -221,7 +221,7 @@ labeling this new editor visually complete. Raw IEC/Trace layout is unchanged.
 
 Controls uses human-readable status and a Next check field, derived from the
 immutable Master-owned case evidence. Ambiguous repeated SELECT/EXECUTE
-traffic is labelled Needs review (overlapping), with direct advice to inspect
+traffic is labelled Multiple commands (review), with direct advice to inspect
 TX/RX stages and concurrent Masters, not an unexplained success/failure claim.
 
 The only transient status occupies a fixed overlay in the existing COMMAND
