@@ -1191,8 +1191,7 @@
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E5EBF0"
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               SelectionMode="Single" SelectionUnit="FullRow"
-                                              BorderThickness="1" BorderBrush="#CCD9E3" Background="White"
-                                             >
+                                              BorderThickness="1" BorderBrush="#CCD9E3" Background="White" ToolTipService.IsEnabled="False">
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <Setter Property="Background" Value="#FFFFFF"/>
