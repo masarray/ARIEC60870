@@ -152,45 +152,96 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Acceptance of rendered Config header controls, not a stylesheet-only
-    /// assertion: native WPF buttons, supplied SVG X path, shared 36-DIP rhythm
-    /// and readable positive Connect material without altering click handlers.
+    /// Validate the actual WPF Connection Setup after UX-02: a single close
+    /// icon in the fixed header and Cancel / fixed-width Connect or Disconnect
+    /// in the fixed footer. This exercises rendered templates and actual
+    /// viewport positions, not merely XAML source attributes. Never connects
+    /// a serial device, and never substitutes visual states for live FAT.
     /// </summary>
     private void VerifySetupHeaderActions()
     {
         SetupConnectButton.ApplyTemplate();
+        SetupCancelButton.ApplyTemplate();
         SetupCloseButton.ApplyTemplate();
+        UpdateLayout();
+
         if (SetupConnectButton.Template.FindName("SetupConnectSurface", SetupConnectButton)
-                is not Border { Background: LinearGradientBrush connectFill } ||
+                is not Border actionSurface ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
-                is not Border { Background: SolidColorBrush closeFill, BorderBrush: SolidColorBrush closeLine } ||
+                is not Border { Background: SolidColorBrush closeFill,
+                                BorderBrush: SolidColorBrush closeLine } ||
             closeFill.Color != (Color)ColorConverter.ConvertFromString("#F8FAFC") ||
             closeLine.Color != (Color)ColorConverter.ConvertFromString("#BCCCDD") ||
-            SetupConnectButton.ActualHeight < 35 ||
-            SetupCloseButton.ActualWidth < 35 ||
-            SetupCloseButton.ActualHeight < 35 ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
                 is not Border { CornerRadius: { TopLeft: 18, TopRight: 18 } } ||
-            !double.IsNaN(SetupConnectButton.Width) ||
-            SetupConnectButton.MinWidth < 116 ||
-            connectFill.GradientStops.Count != 3)
+            !SetupConnectButton.IsVisible || !SetupCancelButton.IsVisible ||
+            !SetupCloseButton.IsVisible ||
+            Math.Abs(SetupConnectButton.Width - 176) > 0.1 ||
+            Math.Abs(SetupCancelButton.Width - 116) > 0.1 ||
+            Math.Abs(SetupConnectButton.ActualWidth - 176) > 1 ||
+            Math.Abs(SetupCancelButton.ActualWidth - 116) > 1 ||
+            SetupConnectButton.ActualHeight < 35 ||
+            SetupCancelButton.ActualHeight < 35 ||
+            SetupCloseButton.ActualWidth < 35 ||
+            SetupCloseButton.ActualHeight < 35 ||
+            SetupActionFooter.Parent is not Border footerBorder ||
+            Grid.GetRow(footerBorder) != 4 ||
+            SetupOverlay.Children.OfType<Border>().SingleOrDefault() is not Border dialogCard)
             throw new InvalidOperationException(
-                "Config Connect gradient or icon-only Close button template was not rendered.");
+                "Connection Setup WPF action templates, fixed widths, or footer ownership are invalid.");
+
         var closeCenter = SetupCloseIcon.TranslatePoint(
             new Point(SetupCloseIcon.ActualWidth / 2, SetupCloseIcon.ActualHeight / 2),
             SetupCloseButton);
-        var connectCenter = SetupConnectButton.TranslatePoint(
-            new Point(SetupConnectButton.ActualWidth / 2,
-                      SetupConnectButton.ActualHeight / 2), SetupOverlay);
-        var closeHeaderCenter = SetupCloseButton.TranslatePoint(
-            new Point(SetupCloseButton.ActualWidth / 2,
-                      SetupCloseButton.ActualHeight / 2), SetupOverlay);
+        var connectTop = SetupConnectButton.TranslatePoint(new Point(), SetupOverlay);
+        var cancelTop = SetupCancelButton.TranslatePoint(new Point(), SetupOverlay);
+        var closeTop = SetupCloseButton.TranslatePoint(new Point(), SetupOverlay);
+        var footerBottom = SetupActionFooter.TranslatePoint(
+            new Point(0, SetupActionFooter.ActualHeight), SetupOverlay).Y;
+        var cardBottom = dialogCard.TranslatePoint(
+            new Point(0, dialogCard.ActualHeight), SetupOverlay).Y;
+
         if (SetupCloseIcon.ActualWidth < 17 || SetupCloseIcon.ActualHeight < 17 ||
             Math.Abs(closeCenter.X - SetupCloseButton.ActualWidth / 2) > 1.5 ||
             Math.Abs(closeCenter.Y - SetupCloseButton.ActualHeight / 2) > 1.5 ||
-            Math.Abs(connectCenter.Y - closeHeaderCenter.Y) > 1.5)
+            Math.Abs(connectTop.Y - cancelTop.Y) > 1.5 ||
+            cancelTop.X + SetupCancelButton.ActualWidth > connectTop.X + 0.5 ||
+            connectTop.Y < closeTop.Y + SetupCloseButton.ActualHeight + 30 ||
+            cardBottom - footerBottom < 0 || cardBottom - footerBottom > 35)
             throw new InvalidOperationException(
-                "Config header SVG close glyph or Connect/Close vertical alignment is incorrect.");
+                "Connection Setup footer/header geometry is misaligned or outside the dialog.");
+
+        // Verify both real template states using a presentation-only Tag switch.
+        // Do not fake a live transport or call any Connect/Stop handler here.
+        var originalTag = SetupConnectButton.Tag;
+        try
+        {
+            SetupConnectButton.Tag = "Connect";
+            UpdateLayout();
+            if (actionSurface.Background is not LinearGradientBrush greenFill ||
+                greenFill.GradientStops.Count != 3)
+                throw new InvalidOperationException(
+                    "Offline Connection Setup action did not render its green gradient.");
+
+            SetupConnectButton.Tag = "Disconnect";
+            UpdateLayout();
+            if (actionSurface.Background is not LinearGradientBrush redFill ||
+                FindResource("SetupDisconnectIdleBrush") is not LinearGradientBrush expectedRed ||
+                redFill.GradientStops.Count != 3 ||
+                redFill.GradientStops[1].Color != expectedRed.GradientStops[1].Color ||
+                redFill.GradientStops[1].Color == greenFill.GradientStops[1].Color ||
+                actionSurface.Effect is not System.Windows.Media.Effects.DropShadowEffect redShadow ||
+                FindResource("SetupDisconnectShadow") is not System.Windows.Media.Effects.DropShadowEffect expectedShadow ||
+                redShadow.Color != expectedShadow.Color ||
+                Math.Abs(SetupConnectButton.ActualWidth - 176) > 1)
+                throw new InvalidOperationException(
+                    "Online Disconnect red material, shadow, or fixed width was not rendered.");
+        }
+        finally
+        {
+            SetupConnectButton.Tag = originalTag;
+            UpdateLayout();
+        }
     }
 
     private static void VerifyVisibleSetupSwitches(CheckBox[] switches)
