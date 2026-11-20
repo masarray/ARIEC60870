@@ -190,21 +190,37 @@ public sealed class Iec10xCommandCasebook
                         "Observed incomplete", "Index limit reached; original raw archive remains authoritative.");
                     _active.Remove(oldest.Key);
                 }
-                var c = NewCase(item, key, target, feedbackIoa, select ? "SELECT sent" : "EXECUTE sent",
-                    "Waiting for source-matched RTU ACTCON; link ACK is not application acceptance.");
-                state = new State
+                StartNewCase(item, key, command, target, wireIdentity, feedbackIoa);
+                return true;
+            }
+
+            // IEC-101/104 confirmation and process feedback have separate
+            // lifecycles. Some RTUs do not send an EXECUTE ACTTERM; a previous
+            // positively confirmed EXECUTE must not poison every later command
+            // to the same CA/IOA as "overlapping" forever. A NEW observed
+            // Master request is an independent transaction boundary only once
+            // the previous EXECUTE ACTCON (or ACTTERM) is observed. Unresolved
+            // SELECT, missing EXECUTE ACTCON, and already ambiguous cases are
+            // deliberately NOT eligible for rollover.
+            if (!state.Ambiguous && !state.CancelRequested && !state.Negative &&
+                state.Executed && (state.ExecuteAccepted || state.Terminated))
+            {
+                var terminalWasSeen = state.Terminated;
+                Replace(state, state.Current with
                 {
-                    Key = key,
-                    Current = c,
-                    Target = target,
-                    WireIdentity = wireIdentity,
-                    ExpectedOn = ExpectedLogicalOn(command),
-                    FeedbackIoa = feedbackIoa,
-                    LastRequestSelect = select,
-                    LastRequestSequence = item.SequenceNumber,
-                    Executed = !select
-                };
-                _active.Add(key, state);
+                    Status = terminalWasSeen
+                        ? state.Current.Status
+                        : state.FeedbackMatched
+                            ? "Feedback matched · ACTTERM not observed"
+                            : "EXECUTE accepted · ACTTERM not observed",
+                    Interpretation = terminalWasSeen
+                        ? state.Current.Interpretation
+                        : state.FeedbackMatched
+                            ? "Previous EXECUTE had positive ACTCON and matching mapped RTU feedback; ACTTERM was not observed before a later command. This is not independent proof of physical operation."
+                            : "Previous EXECUTE had positive ACTCON but ACTTERM and verified mapped feedback were not observed before a later command. Completion remains unverified; do not infer physical operation."
+                });
+                _active.Remove(key);
+                StartNewCase(item, key, command, target, wireIdentity, feedbackIoa);
                 return true;
             }
 
@@ -248,6 +264,19 @@ public sealed class Iec10xCommandCasebook
         {
             _ = NewCase(item, key, target, feedbackIoa, "Unmatched RTU response",
                 "No source/CA/IOA/Type/OA/link-matched Master request observed in this bounded session.",
+                "Unmatched response");
+            return true;
+        }
+
+        // A late EXECUTE reply may arrive after a new SELECT has begun.
+        // Never consume it as the new SELECT's response or mark that new
+        // case ambiguous: the phase belongs to a different transaction.
+        // Preserve the telegram in a separate bounded forensic case.
+        if (state.LastRequestSelect && !state.Executed && !select &&
+            cot.Code is 7 or 10)
+        {
+            _ = NewCase(item, key, target, feedbackIoa, "Unpaired EXECUTE reply",
+                "RTU EXECUTE response observed during a different SELECT phase; possibly delayed from a previous command. No unique pairing or physical-operation proof.",
                 "Unmatched response");
             return true;
         }
@@ -471,6 +500,27 @@ public sealed class Iec10xCommandCasebook
                 ? "Matching observed RTU digital state; not independently verified physical switchgear position."
                 : "The mapped feedback is not at the requested target; investigate relay/RTU/plant state.");
         if (agrees && state.Terminated) _active.Remove(state.Key);
+    }
+
+    private void StartNewCase(Iec103MasterEvidenceEvent item, CommandKey key,
+        Iec10xCommandDetails command, string target, string wireIdentity, int? feedbackIoa)
+    {
+        var select = command.Select!.Value;
+        var c = NewCase(item, key, target, feedbackIoa,
+            select ? "SELECT sent" : "EXECUTE sent",
+            "Waiting for source-matched RTU ACTCON; link ACK is not application acceptance.");
+        _active.Add(key, new State
+        {
+            Key = key,
+            Current = c,
+            Target = target,
+            WireIdentity = wireIdentity,
+            ExpectedOn = ExpectedLogicalOn(command),
+            FeedbackIoa = feedbackIoa,
+            LastRequestSelect = select,
+            LastRequestSequence = item.SequenceNumber,
+            Executed = !select
+        });
     }
 
     private static bool? ExpectedLogicalOn(Iec10xCommandDetails command)
