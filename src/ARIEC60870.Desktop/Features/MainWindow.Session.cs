@@ -67,12 +67,26 @@ public partial class MainWindow
             return;
         }
 
+        var isPassive = IsIec101PassiveMonitorSelected();
+        var isVirtual = isPassive && IsVirtualInlineSelected();
         if (ConnectToggleCaption is not null)
         {
-            ConnectToggleCaption.Text = IsIec101PassiveMonitorSelected()
-                ? (isRunning ? (IsVirtualInlineSelected() ? "Stop Relay" : "Stop Monitor")
-                    : (IsVirtualInlineSelected() ? "Start Relay" : "Start Monitor"))
+            ConnectToggleCaption.Text = isPassive
+                ? (isRunning ? (isVirtual ? "Stop Relay" : "Stop Monitor")
+                    : (isVirtual ? "Start Relay" : "Start Monitor"))
                 : (isRunning ? "Disconnect" : "Connect");
+        }
+        if (SetupConnectButton is not null)
+        {
+            var caption = isRunning ? "Disconnect"
+                : isPassive ? (isVirtual ? "Start Relay & Monitor" : "Start Monitor")
+                : "Connect";
+            SetupConnectButton.Content = caption;
+            SetupConnectButton.Tag = isRunning ? "Disconnect" : "Connect";
+            SetupConnectButton.ToolTip = isRunning
+                ? "Disconnect and close the active transport"
+                : "Connect using these settings";
+            System.Windows.Automation.AutomationProperties.SetName(SetupConnectButton, caption);
         }
 
         if (ConnectIconOn is not null)
@@ -836,11 +850,11 @@ public partial class MainWindow
         };
         SetupSubtitleText.Text = mode switch
         {
-            Iec60870ProtocolMode.Iec101 when isPassive101 => "Observe IEC-101 from physical RX taps or a virtual inline connection.",
-            Iec60870ProtocolMode.Iec101 when isDual101 => "Two independent serial links: active owns GI, commands and Class polling; standby is supervised without draining event queues.",
-            Iec60870ProtocolMode.Iec101 => "Serial telecontrol interface: link address, CA, IOA, COT, General Interrogation and Class 1/Class 2 polling.",
-            Iec60870ProtocolMode.Iec104 => "TCP/IP telecontrol interface: server endpoint, STARTDT, APCI I/S/U frames, CA, IOA and ASDU decode.",
-            _ => "Serial protection interface: link address, Class 1/Class 2 policy, FUN/INF mapping."
+            Iec60870ProtocolMode.Iec101 when isPassive101 => "Receive-only serial monitoring",
+            Iec60870ProtocolMode.Iec101 when isDual101 => "Active Link A · supervised standby Link B",
+            Iec60870ProtocolMode.Iec101 => "IEC-101 · single serial link",
+            Iec60870ProtocolMode.Iec104 => "IEC-104 · TCP/IP",
+            _ => "IEC-103 · protection relay"
         };
         ProtocolSetupBadgeText.Text = mode switch
         {
@@ -910,11 +924,10 @@ public partial class MainWindow
         if (isPassive101 && string.IsNullOrWhiteSpace(PassiveCaptureFolderBox.Text))
             PassiveCaptureFolderBox.Text = DefaultPassiveCaptureDirectory();
         PassiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Visible : Visibility.Collapsed;
-        ProtocolSetupDescriptionCard.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
+        ProtocolSetupDescriptionCard.Visibility = Visibility.Collapsed;
         ActiveSetupRightPanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         ActiveSerialHandshakePanel.Visibility = isPassive101 ? Visibility.Collapsed : Visibility.Visible;
-        SetupConnectButton.Content = isPassive101
-            ? (IsVirtualInlineSelected() ? "Start Relay & Monitor" : "Start Monitor") : "Connect";
+        // The common session presenter owns the footer action caption and color.
         ApplyCommandDockLayout();
         UpdateConnectToggleVisual(_sessionCancellation is not null);
         DualLinkBackupPanel.Visibility = isDual101 ? Visibility.Visible : Visibility.Collapsed;
@@ -922,6 +935,7 @@ public partial class MainWindow
         TcpConnectionPanel.Visibility = tcpVisibility;
         SerialPollingPanel.Visibility = is104 || isPassive101 ? Visibility.Collapsed : Visibility.Visible;
         Iec10xProfilePanel.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
+        AdvancedFieldWidthsExpander.Visibility = is103 ? Visibility.Collapsed : Visibility.Visible;
         UpdateInteroperabilityProfilePreview();
         LinkAddressSizePanel.Visibility = is101 ? Visibility.Visible : Visibility.Collapsed;
         TransmissionModeComboBox.IsEnabled = is101;

@@ -340,6 +340,21 @@
         <GradientStop Color="#11A767" Offset="0.55"/>
         <GradientStop Color="#1ABA74" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SetupDisconnectIdleBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#EF707A" Offset="0"/>
+        <GradientStop Color="#DD394B" Offset="0.52"/>
+        <GradientStop Color="#BA1E32" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SetupDisconnectHoverBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FA8990" Offset="0"/>
+        <GradientStop Color="#E84E60" Offset="0.52"/>
+        <GradientStop Color="#C92840" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SetupDisconnectPressedBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#AD1B2D" Offset="0"/>
+        <GradientStop Color="#C52C43" Offset="0.52"/>
+        <GradientStop Color="#E04A5B" Offset="1"/>
+    </LinearGradientBrush>
     <DropShadowEffect x:Key="SetupConnectShadow" Color="#08663E"
                       BlurRadius="8" ShadowDepth="2" Opacity="0.21"
                       RenderingBias="Performance"/>
@@ -385,6 +400,26 @@
             <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.55"/>
             </Trigger>
+            <Trigger Property="Tag" Value="Disconnect">
+                <Setter TargetName="SetupConnectSurface" Property="Background" Value="{StaticResource SetupDisconnectIdleBrush}"/>
+                <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#A62138"/>
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="Tag" Value="Disconnect"/>
+                    <Condition Property="IsMouseOver" Value="True"/>
+                </MultiTrigger.Conditions>
+                <Setter TargetName="SetupConnectSurface" Property="Background" Value="{StaticResource SetupDisconnectHoverBrush}"/>
+                <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#B92A42"/>
+            </MultiTrigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="Tag" Value="Disconnect"/>
+                    <Condition Property="IsPressed" Value="True"/>
+                </MultiTrigger.Conditions>
+                <Setter TargetName="SetupConnectSurface" Property="Background" Value="{StaticResource SetupDisconnectPressedBrush}"/>
+                <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#991D2E"/>
+            </MultiTrigger>
         </ControlTemplate.Triggers>
     </ControlTemplate>
     <Style x:Key="SetupConnectButtonStyle" TargetType="{x:Type Button}"

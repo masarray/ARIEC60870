@@ -1127,7 +1127,7 @@ public partial class MainWindow
             StopButton.Visibility = Visibility.Collapsed;
         }
         UpdateConnectToggleVisual(isRunning);
-        SetupButton.IsEnabled = !isRunning;
+        SetupButton.IsEnabled = true;
         SetupOverlay.Visibility = isRunning ? Visibility.Collapsed : SetupOverlay.Visibility;
         ExportReportButton.IsEnabled = true;
         // Switching to an offline .ariec archive clears the current evidence view;
@@ -1135,6 +1135,18 @@ public partial class MainWindow
         // A full raw journal exists only if the operator opted in before Start Monitor.
         OpenCaptureButton.IsEnabled = !isRunning || !IsIec101PassiveMonitorSelected();
         ProtocolModeComboBox.IsEnabled = !isRunning;
+        InteroperabilityConventionComboBox.IsEnabled = !isRunning;
+        PassiveSourceComboBox.IsEnabled = !isRunning;
+        PassiveLinkBEnabledCheckBox.IsEnabled = !isRunning;
+        PassiveLinkWidthCombo.IsEnabled = !isRunning;
+        PassiveCotWidthCombo.IsEnabled = !isRunning;
+        PassiveCaWidthCombo.IsEnabled = !isRunning;
+        PassiveIoaWidthCombo.IsEnabled = !isRunning;
+        PassiveLinkModeCombo.IsEnabled = !isRunning;
+        PassiveFrameGapBox.IsEnabled = !isRunning;
+        SerialHandshakeComboBox.IsEnabled = !isRunning;
+        SerialRtsCheckBox.IsEnabled = !isRunning;
+        SerialDtrCheckBox.IsEnabled = !isRunning;
         PassiveFullRecordingCheckBox.IsEnabled = !isRunning;
         TransportModeComboBox.IsEnabled = !isRunning;
         TcpHostBox.IsEnabled = !isRunning;
