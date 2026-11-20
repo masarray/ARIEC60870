@@ -139,3 +139,23 @@ Master-owned typed IEC101/104 COT3 and COT11/12 process event classification now
 
 Events now shows its **actual** category scope in a compact visible ComboBox in the one-line header; a 1/141 filtered display cannot silently masquerade as unfiltered All. Live unchanged-scope event-tail reconciliation cannot Reset WPF even after a full bounded-window rollover. Filter/scope transitions are explicit rebuilds, not normal live events. A 420-row preview remains bounded and is not a complete durable archive. This corrects the verified hidden-filter ambiguity and protects the collection from routine full resets; physical reproduction must still establish any other contributing driver of the field oscillation.
 
+
+
+## Command action terminology and response integrity (2026-11-20)
+
+The November operator Windows acceptance confirms stable Events/Values/Trace
+under 1,000+ event observations. A separate usability flaw remains in the
+original v3.6.19: the compact event cell hid SELECT/EXECUTE phases behind
+generic Command requested and ACTCON accepted labels.
+
+The updated Event projection now consumes decoded S/E, typed command value,
+and an exactly matched source-qualified Master casebook stage. Short labels
+distinguish SELECT sent, SELECT accepted by ACTCON, EXECUTE sent, EXECUTE
+accepted by ACTCON, EXECUTE ended by ACTTERM, negative reply, and unmatched or
+ambiguous reply. A raw positive COT7 without a matched case is received but
+UNPAIRED, not accepted by the current operator transaction. TEST remains
+non-operational. Full COT/P-N/OA/IOA, Case ID and original HEX remain available.
+
+The bounded Master casebook is the sole correlation authority: no UI toast or
+event label is evidence of physical switchgear motion. Only explicitly mapped,
+quality-valid feedback can establish a matching reported process state.
