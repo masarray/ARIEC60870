@@ -112,10 +112,13 @@ public sealed class SetupHeaderActionStyleTests
             "SetupDisconnectHoverBrush", "SetupDisconnectPressedBrush" })
             Assert.NotNull(Resource(theme, "LinearGradientBrush", key));
         var buttonTemplate = Resource(theme, "ControlTemplate", "SetupConnectButtonTemplate");
-        Assert.Contains(buttonTemplate.Descendants(), x =>
+        var disconnect = Assert.Single(buttonTemplate.Descendants(), x =>
             x.Name.LocalName == "Trigger" &&
             (string?)x.Attribute("Property") == "Tag" &&
             (string?)x.Attribute("Value") == "Disconnect");
+        Assert.Equal("{StaticResource SetupDisconnectShadow}",
+            TriggerSetterValue(disconnect, "SetupConnectSurface", "Effect"));
+        Assert.NotNull(Resource(theme, "DropShadowEffect", "SetupDisconnectShadow"));
     }
 
     [Fact]
