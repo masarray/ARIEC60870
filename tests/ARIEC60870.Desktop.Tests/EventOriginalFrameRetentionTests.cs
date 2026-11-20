@@ -69,7 +69,7 @@ public sealed class EventOriginalFrameRetentionTests
             TransactionKind = "Command",
             NewValue = "Command rejected · negative ACTCON · Case #2 · DCS=1 (OFF)"
         });
-        Assert.Equal("Command observed", command.CompactDisplayValue);
+        Assert.Equal("Command rejected · negative ACTCON", command.CompactDisplayValue);
         Assert.Contains("negative ACTCON · Case #2", command.DisplayValue);
 
         var gi = new RelayEventRow(new Iec103RelayEventLogEntry
