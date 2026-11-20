@@ -118,7 +118,7 @@ public sealed class PublicLandingP1Tests
 
         var download = File.ReadAllText(Path.Combine(root.FullName, "site/id/download.html"));
         Assert.Contains("SHA256SUMS.txt", download);
-        Assert.Contains("v3.6.16", download);
+        Assert.Contains("v3.6.17", download);
         Assert.Contains("pengujian engineering yang diizinkan", download);
         Assert.Contains("data-release-filename=\"installer\"", download);
         Assert.Contains("data-release-filename=\"zip\"", download);
