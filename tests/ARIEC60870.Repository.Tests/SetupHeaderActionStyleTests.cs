@@ -216,6 +216,32 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
+    public void FrameDetailsIsPopupFreeButRetainsDecodedValuesAndAccessibleActions()
+    {
+        var window = XDocument.Load(Source("MainWindow.xaml"));
+        var panel = Assert.Single(window.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "FrameInterpreterPanel");
+        Assert.Equal("False", (string?)panel.Attribute("ToolTipService.IsEnabled"));
+        var grid = Assert.Single(panel.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "FramePropertiesGrid");
+        Assert.Equal("False", (string?)grid.Attribute("ToolTipService.IsEnabled"));
+
+        Assert.DoesNotContain(panel.DescendantsAndSelf().SelectMany(x => x.Attributes()),
+            a => a.Name.LocalName == "ToolTip" ||
+                 (a.Name.LocalName == "ToolTipService.IsEnabled" && a.Value == "True"));
+        Assert.Contains(panel.Descendants(), x =>
+            x.Name.LocalName == "TextBlock" && (string?)x.Attribute("Text") == "{Binding Value}");
+
+        var toggle = Assert.Single(window.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "TraceInspectorToggle");
+        Assert.Null(toggle.Attribute("ToolTip"));
+        Assert.Equal("False", (string?)toggle.Attribute("ToolTipService.IsEnabled"));
+        Assert.Equal("Expand Frame Details", (string?)toggle.Attribute("AutomationProperties.Name"));
+        Assert.DoesNotContain("TraceInspectorToggle.ToolTip =",
+            File.ReadAllText(Source("Features/MainWindow.ObservationLayout.cs")));
+    }
+
+    [Fact]
     public void CommandPanelLabelsUseRealIECTypeIdsAndNeverExposeGlobalClear()
     {
         var window = XDocument.Load(Source("MainWindow.xaml"));
