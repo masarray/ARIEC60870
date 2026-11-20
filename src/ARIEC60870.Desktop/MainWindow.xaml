@@ -808,9 +808,8 @@
                                         <Button x:Name="TraceInspectorToggle" Content="‹"
                                                 Margin="0,0,9,0"
                                                 Style="{StaticResource TraceChevronStyle}" Click="TraceInspectorToggle_Click"
-                                                ToolTip="Expand Frame Details; double-click any frame"
                                                 AutomationProperties.Name="Expand Frame Details"
-                                                ToolTipService.IsEnabled="True" Visibility="Visible"/>
+                                                ToolTipService.IsEnabled="False" Visibility="Visible"/>
                                         <TextBlock FontSize="10.9"
                                                    FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0">
                                             <TextBlock.Style>
@@ -1167,7 +1166,7 @@
                                          <Button DockPanel.Dock="Right" Content="›"
                                                  Style="{StaticResource TraceChevronStyle}"
                                                  Click="TraceFrameDetailsClose_Click"
-                                                 ToolTip="Collapse Frame Details" ToolTipService.IsEnabled="True"
+                                                
                                                  AutomationProperties.Name="Collapse Frame Details"/>
                                          <TextBlock Text="Frame Details · Full Properties" FontSize="12.4"
                                                     FontWeight="Medium" Foreground="#223B54"
@@ -1193,7 +1192,7 @@
                                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               SelectionMode="Single" SelectionUnit="FullRow"
                                               BorderThickness="1" BorderBrush="#CCD9E3" Background="White"
-                                              ToolTipService.IsEnabled="True">
+                                             >
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <Setter Property="Background" Value="#FFFFFF"/>
@@ -1224,7 +1223,7 @@
                                             <DataGridTemplateColumn Header="NAME" Width="1.40*" MinWidth="155" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <Grid Height="25" ToolTipService.IsEnabled="True" ToolTip="{Binding NameTooltip}">
+                                                        <Grid Height="25">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>
@@ -1236,7 +1235,7 @@
                                                                     Focusable="False" Cursor="Hand"
                                                                     Tag="{Binding Key}" Click="FramePropertyDisclosure_Click"
                                                                     Content="{Binding ExpansionMark}" FontSize="12"
-                                                                    Foreground="#456684" ToolTip="Expand or collapse decoded fields"/>
+                                                                    Foreground="#456684"/>
                                                             <TextBlock Grid.Column="1" Text="{Binding Field}"
                                                                        VerticalAlignment="Center"
                                                                        FontSize="11.4" FontWeight="Normal"
@@ -1273,8 +1272,8 @@
                                             <DataGridTemplateColumn Header="VALUE" Width="1.00*" MinWidth="110" CanUserResize="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding Value}" ToolTip="{Binding Value}"
-                                                                   ToolTipService.IsEnabled="True"
+                                                        <TextBlock Text="{Binding Value}"
+                                                                  
                                                                    FontSize="11.3" Margin="7,0,5,0"
                                                                    VerticalAlignment="Center"
                                                                    TextWrapping="NoWrap" TextTrimming="CharacterEllipsis">
@@ -2951,7 +2950,7 @@
         </Border>
 
         <Grid x:Name="SetupOverlay" Grid.RowSpan="2" Grid.ColumnSpan="3" Visibility="Collapsed" Background="#770F172A" Panel.ZIndex="20">
-            <Border Style="{StaticResource Card}" MaxWidth="900" MaxHeight="780" Margin="20" Padding="18" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border x:Name="SetupDialogCard" Style="{StaticResource Card}" MaxWidth="900" MaxHeight="780" Margin="20" Padding="18" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -2977,11 +2976,11 @@
                                     Click="CloseSetup_Click"
                                     ToolTip="Close connection settings"
                                     AutomationProperties.Name="Close configuration">
-                                <!-- Original supplied 24x24 SVG path, scaled as an 18-DIP glyph.
-                                     Keep native Button click, keyboard and accessibility semantics. -->
+                                <!-- SVG path retained, scaled to a discreet desktop-caption-sized glyph.
+                                     The native button retains keyboard and accessibility semantics. -->
                                 <Path x:Name="SetupCloseIcon"
                                       Data="M6.4,19L5,17.6L10.6,12L5,6.4L6.4,5L12,10.6L17.6,5L19,6.4L13.4,12L19,17.6L17.6,19L12,13.4L6.4,19Z"
-                                      Width="18" Height="18" Stretch="Uniform"
+                                      Width="14" Height="14" Stretch="Uniform"
                                       Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Button>
                     </Grid>
