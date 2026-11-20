@@ -147,7 +147,7 @@ public static class Iec10xCommandEventProjection
             _ => string.Empty
         };
         if (state.Length > 0) step += " · " + state;
-        if (test) step += " · TEST (non-operational)";
+        if (test) step = "TEST (non-operational) · " + step;
         return step;
     }
 }
