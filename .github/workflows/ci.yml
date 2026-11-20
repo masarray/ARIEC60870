@@ -60,6 +60,7 @@ jobs:
       run_packages: ${{ steps.scope.outputs.run_packages }}
       run_updater_fat: ${{ steps.scope.outputs.run_updater_fat }}
       run_help_preview: ${{ steps.scope.outputs.run_help_preview }}
+      run_setup_wpf: ${{ steps.scope.outputs.run_setup_wpf }}
       run_workflow_lint: ${{ steps.scope.outputs.run_workflow_lint }}
     steps:
       - name: Classify changes and verify requested SHA
@@ -74,6 +75,7 @@ jobs:
             let runPackages = true;
             let runUpdaterFat = false;
             let runHelpPreview = false;
+            let runSetupWpf = false;
             let runWorkflowLint = context.eventName !== 'workflow_dispatch';
             // Fail safe: large or unclassified diffs always run Windows and package gates.
             const fullyListed = files => files.length > 0 && files.length < 300;
@@ -98,6 +100,14 @@ jobs:
               files.some(file => paths(file).some(name =>
                 /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(name) ||
                 /^(scripts\/release-comment-controller\.cjs|tests\/release-comment-controller\.test\.cjs)$/i.test(name)));
+            // A Connection Setup/layout PR must prove its actual WPF render
+            // before merge, not only the cheap source and xUnit checks.
+            // Unknown diffs fail closed; protocol-only PRs avoid extra packaging.
+            const setupWpfChanged = files => !fullyListed(files) ||
+              files.some(file => paths(file).some(name =>
+                /^src\/ARIEC60870\.Desktop\/(MainWindow\.xaml|Resources\/ModernTheme\.xaml|Features\/MainWindow\.(Session|MappingValueStatus|ObservationAcceptance)\.cs)$/i.test(name) ||
+                /^tests\/ARIEC60870\.Repository\.Tests\/SetupHeaderActionStyleTests\.cs$/i.test(name) ||
+                /^\.github\/workflows\/ci\.yml$/i.test(name)));
             const formattingRelevant = files => !fullyListed(files) ||
               files.some(file => paths(file).some(name =>
                 /\.(cs|vb|fs)$/i.test(name) || /(^|\/)\.editorconfig$/i.test(name)));
@@ -139,6 +149,20 @@ jobs:
                 return;
               }
             }
+            for (const [label, files, expected] of [
+              ['setup-xaml', [{filename:'src/ARIEC60870.Desktop/MainWindow.xaml'}], true],
+              ['setup-theme', [{filename:'src/ARIEC60870.Desktop/Resources/ModernTheme.xaml'}], true],
+              ['setup-wpf-probe', [{filename:'src/ARIEC60870.Desktop/Features/MainWindow.ObservationAcceptance.cs'}], true],
+              ['setup-ci-gate', [{filename:'.github/workflows/ci.yml'}], true],
+              ['protocol-only', [{filename:'src/ARIEC60870.Master/Iec101Master.cs'}], false],
+              ['docs-only', [{filename:'docs/README.md'}], false],
+              ['unknown-diff', [], true]
+            ]) {
+              if (setupWpfChanged(files) !== expected) {
+                core.setFailed('Setup WPF CI classifier regression in fixture ' + label);
+                return;
+              }
+            }
             if (context.eventName === 'pull_request') {
               const files = await github.paginate(github.rest.pulls.listFiles, {
                 owner, repo, pull_number: context.payload.pull_request.number, per_page: 100
@@ -148,6 +172,7 @@ jobs:
               formatFiles = formattingSources(files);
               runPackages = runtimeChanged(files);
               runUpdaterFat = updaterChanged(files);
+              runSetupWpf = setupWpfChanged(files);
               runHelpPreview = fullyListed(files) && files.some(file =>
                 paths(file).some(name => /^src\/ARIEC60870\.Desktop\/HelpWindow\.xaml(\.cs)?$/i.test(name) ||
                   /^src\/ARIEC60870\.Desktop\/HelpWindow\.UiAcceptance\.cs$/i.test(name)));
@@ -166,6 +191,7 @@ jobs:
                   runPackages = runtimeChanged(files);
                   runUpdaterFat = updaterChanged(files);
                   runWorkflowLint = workflowChanged(files);
+                  runSetupWpf = setupWpfChanged(files);
                 } catch (error) {
                   core.warning('Push comparison unavailable; using full test: ' + error.message);
                 }
@@ -222,7 +248,8 @@ jobs:
             core.setOutput('run_packages', String(runPackages));
             core.setOutput('run_updater_fat', String(runUpdaterFat));
             core.setOutput('run_help_preview', String(runHelpPreview));
-            core.setOutput('run_workflow_lint', String(runWorkflowLint));
+            core.setOutput('run_setup_wpf', String(runSetupWpf));
+            core.setOutput('run_workflow_lint',  String(runWorkflowLint));
             core.notice(runWindows ? 'Windows correctness gate required' : 'Static content only; no Windows runner');
             core.notice(runPackages ? 'Runtime scope: package when on master' : 'No runtime change: skip automatic packaging');
 
@@ -262,6 +289,7 @@ jobs:
     timeout-minutes: 25
     env:
       RUN_PACKAGES: ${{ needs.classify.outputs.run_windows == 'true' && (needs.classify.outputs.run_updater_fat == 'true' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true')) }}
+      RUN_SETUP_WPF: ${{ github.event_name == 'pull_request' && needs.classify.outputs.run_setup_wpf == 'true' }}
       RUN_INSTALLER: ${{ needs.classify.outputs.run_updater_fat == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'installer' || inputs.profile == 'updater')) }}
       RUN_UPDATER_FAST: ${{ github.event_name == 'pull_request' && needs.classify.outputs.run_updater_fat == 'true' }}
       COLLECT_COVERAGE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.classify.outputs.run_packages == 'true') }}
@@ -470,7 +498,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Package ARIEC60870 GUI with integrated Passive Monitor
-        if: env.RUN_PACKAGES == 'true'
+        if: env.RUN_PACKAGES == 'true' || env.RUN_SETUP_WPF == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -529,7 +557,7 @@ jobs:
           retention-days: 14
 
       - name: OBS-C real-WPF viewport and 1400-frame acceptance
-        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
+        if: (env.RUN_PACKAGES == 'true' || env.RUN_SETUP_WPF == 'true') && env.RUN_UPDATER_FAST != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -545,7 +573,7 @@ jobs:
           if ((Get-ChildItem $output -Filter *.png).Count -lt 7) { throw 'Missing real-WPF viewport screenshots.' }
 
       - name: Upload OBS-C Windows WPF screenshots and metrics
-        if: always() && env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
+        if: always() && (env.RUN_PACKAGES == 'true' || env.RUN_SETUP_WPF == 'true') && env.RUN_UPDATER_FAST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-OBS-C-ui-evidence
@@ -554,7 +582,7 @@ jobs:
           retention-days: 14
 
       - name: Upload integrated P0 Windows GUI test package
-        if: env.RUN_PACKAGES == 'true' && env.RUN_UPDATER_FAST != 'true'
+        if: (env.RUN_PACKAGES == 'true' || env.RUN_SETUP_WPF == 'true') && env.RUN_UPDATER_FAST != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ARIEC60870-Passive-Monitor-P0-GUI-win-x64
