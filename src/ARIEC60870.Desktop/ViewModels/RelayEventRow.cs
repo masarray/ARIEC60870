@@ -221,7 +221,8 @@ public sealed class RelayEventRow
             // collapse them to COT7="accepted" for unpaired/ambiguous replies.
             // The full qualifier, Case # and original bytes remain in NewValue.
             var action = entry.NewValue ?? string.Empty;
-            if (action.StartsWith("SELECT ", StringComparison.Ordinal) ||
+            if (action.StartsWith("TEST ", StringComparison.Ordinal) ||
+                action.StartsWith("SELECT ", StringComparison.Ordinal) ||
                 action.StartsWith("EXECUTE ", StringComparison.Ordinal) ||
                 action.StartsWith("Repeated ", StringComparison.Ordinal) ||
                 action.StartsWith("Reply mismatch", StringComparison.Ordinal) ||
