@@ -88,7 +88,7 @@ Further documentation: [User Guide](docs/USER_GUIDE.md) · [Quick Start](docs/QU
 
 ## Scope and safety boundaries
 
-- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** Independently reviewed link/transaction/COM/GI/SBO changes #219–#230 are included in v3.6.13; [draft PR #145](https://github.com/masarray/arsee/pull/145) remains unmerged. Physical COM recovery, GI/SBO feedback and 1,200-bps SOE FIFO need field FAT.
+- **Full IEC-101 SICAM A8000 physical interoperability is not certified.** Independently reviewed link/transaction/COM/GI/SBO changes #219–#230 are included in v3.6.13; [historical PR #145](https://github.com/masarray/arsee/pull/145) was closed superseded and is not a releasable integration branch. Physical COM recovery, GI/SBO feedback and 1,200-bps SOE FIFO need field FAT.
 - IEC-101 **balanced mode**, universal multi-vendor interoperability, industrial FIFO/SOE endurance, and electrically isolated 2/4-port capture are not certified.
 - **HOLD** pins the visible trace viewport while acquisition continues; it does not itself guarantee durable archival recording.
 - ArSee is **not** a production SCADA master, gateway, safety device or accredited IEC conformance test suite. Use active functions on approved isolated benches only.
