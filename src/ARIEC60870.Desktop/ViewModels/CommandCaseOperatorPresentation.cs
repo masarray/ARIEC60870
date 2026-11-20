@@ -16,7 +16,7 @@ public static class CommandCaseOperatorPresentation
 {
     public static string Status(Iec10xCommandCasebook.CommandCase c) => c.Status switch
     {
-        "Ambiguous" => "Needs review · overlapping",
+        "Ambiguous" => "Multiple commands · review",
         "SELECT sent" => "SELECT sent · waiting",
         "SELECT accepted" => "SELECT accepted by RTU",
         "EXECUTE sent" => "EXECUTE sent · waiting",
@@ -38,7 +38,7 @@ public static class CommandCaseOperatorPresentation
         if (c.Status == "Ambiguous")
         {
             if (last.Contains("overlapping", StringComparison.OrdinalIgnoreCase))
-                return "Repeated or overlapping SELECT/EXECUTE on this target. Stop repeating commands; compare the TX and RX stages below, and check other Masters. No unique operation result can be confirmed.";
+                return "Stop repeating commands. Multiple SELECT/EXECUTE requests overlap on this target; compare TX/RX stages below and check other Masters. No unique operation result is confirmed.";
             if (last.Contains("out of order", StringComparison.OrdinalIgnoreCase))
                 return "RTU reply was duplicate or earlier than the matching request. Inspect the original frames and physical source; do not interpret it as command success.";
             return "The RTU reply does not uniquely match the requested SELECT/EXECUTE phase or command value. Inspect TX/RX frames and concurrent Masters; do not retry automatically.";
