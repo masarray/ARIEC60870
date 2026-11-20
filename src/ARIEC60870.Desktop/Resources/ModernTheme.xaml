@@ -441,21 +441,21 @@
     <ControlTemplate x:Key="SetupCloseIconButtonTemplate" TargetType="{x:Type Button}">
         <Grid Background="Transparent" SnapsToDevicePixels="True">
             <Border x:Name="SetupCloseSurface"
-                    CornerRadius="18"
+                    CornerRadius="6"
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="1"/>
+                    BorderThickness="0"/>
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <Border x:Name="SetupCloseFocusRing"
                     IsHitTestVisible="False" Visibility="Collapsed"
-                    CornerRadius="15" Margin="3"
+                    CornerRadius="4" Margin="2"
                     BorderBrush="#D67A85" BorderThickness="1"/>
         </Grid>
         <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="SetupCloseSurface" Property="Background" Value="#FFF0EF"/>
-                <Setter TargetName="SetupCloseSurface" Property="BorderBrush" Value="#F1B4B8"/>
-                <Setter Property="Foreground" Value="#B34D56"/>
+                <Setter TargetName="SetupCloseSurface" Property="Background" Value="#FFF0F1"/>
+                <Setter TargetName="SetupCloseSurface" Property="BorderBrush" Value="#FFF0F1"/>
+                <Setter Property="Foreground" Value="#B42335"/>
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
                 <Setter TargetName="SetupCloseSurface" Property="Background" Value="#EF3346"/>
@@ -471,15 +471,15 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
     <Style x:Key="SetupCloseIconButtonStyle" TargetType="{x:Type Button}">
-        <Setter Property="Width" Value="36"/>
-        <Setter Property="Height" Value="36"/>
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="30"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="FontWeight" Value="Normal"/>
-        <Setter Property="Foreground" Value="#1F1F1F"/>
-        <!-- A quiet circular surface, matching the 36-DIP Connect action rhythm.
-             Keep the approved muted-red hover and vivid-red pressed state. -->
-        <Setter Property="Background" Value="#F8FAFC"/>
-        <Setter Property="BorderBrush" Value="#BCCCDD"/>
+        <Setter Property="Foreground" Value="#475569"/>
+        <!-- A neutral 30-DIP desktop-caption control; quiet until hovered,
+             with clear red hover/pressed feedback and keyboard focus. -->
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template" Value="{StaticResource SetupCloseIconButtonTemplate}"/>
