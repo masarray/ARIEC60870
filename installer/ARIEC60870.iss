@@ -28,7 +28,8 @@ AppCopyright=Copyright (C) 2026 Ari Sulistiono
 DefaultDirName={localappdata}\Programs\ArSee
 DefaultGroupName=ArSee
 DisableProgramGroupPage=yes
-UsePreviousAppDir=yes
+; Do not silently reuse the registered legacy default directory.
+UsePreviousAppDir=no
 UsePreviousGroup=no
 UsePreviousTasks=yes
 PrivilegesRequired=lowest
@@ -74,3 +75,133 @@ Filename: "{app}\ArSee.exe"; Description: "Launch ArSee"; Flags: nowait postinst
 ; Intentionally NO [UninstallDelete] for %LOCALAPPDATA%\ARIEC60870
 ; (settings, Signal Lists, capture history and updater state live outside {app}).
 ; Windows Restart Manager requests normal shutdown; no force-kill by default.
+
+; Migration uses the genuine previous Inno uninstaller before installing
+; to a different folder. Otherwise different uninstall logs with the same
+; AppId leave duplicate program trees and stale Windows registrations.
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  LegacyDir, NewDir, RegisteredDir, PreviousUninstaller, Key: String;
+  ExitCode, Attempts: Integer;
+  FindRec: TFindRec;
+begin
+  Result := '';
+  LegacyDir := ExpandConstant('{localappdata}\Programs\ARIEC60870');
+  NewDir := ExpandConstant('{localappdata}\Programs\ArSee');
+  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{' +
+    '{#AppGuid}' + '}_is1';
+
+  Log('ArSee migration preflight: checking previous HKCU uninstall registration');
+  if not RegQueryStringValue(HKCU, Key, 'InstallLocation', RegisteredDir) then
+  begin
+    if DirExists(LegacyDir) then
+      Result := 'Unregistered legacy ARIEC60870 program folder detected. ' +
+        'No program files were changed. Please resolve the orphan folder first.';
+    Log('ArSee migration preflight: InstallLocation registry missing; ' + Result);
+    Exit;
+  end;
+  RegisteredDir := RemoveBackslashUnlessRoot(RegisteredDir);
+  Log('ArSee migration previous: ' + RegisteredDir + ', expected legacy: ' + LegacyDir + ', wizard target: ' + WizardDirValue);
+  if CompareText(RegisteredDir, LegacyDir) <> 0 then
+  begin
+    { Respect custom paths; do not orphan an existing installation. }
+    if CompareText(RegisteredDir, WizardDirValue) <> 0 then
+      Result := 'ArSee is already installed elsewhere. ' +
+        'Choose its existing installation folder for an in-place update.';
+    Log('ArSee migration: existing non-legacy installation path; ' + Result);
+    Exit;
+  end;
+
+  { v3.6.17/18 in-app workers verify the original EXE path and would
+    incorrectly roll back after a successful relocation. Reject only those
+    worker-originated upgrade invocations BEFORE touching the old app. }
+  if (Pos('/NOCLOSEAPPLICATIONS', UpperCase(GetCmdTail)) > 0) and
+     (Pos('/NOFORCECLOSEAPPLICATIONS', UpperCase(GetCmdTail)) > 0) then
+  begin
+    Result := 'This legacy-folder upgrade must use the official installer directly. ' +
+      'The older in-app updater cannot safely change the installation folder.';
+    Exit;
+  end;
+
+  Log('ArSee migration: legacy install identified and in-place updater ruled out');
+  if CompareText(WizardDirValue, NewDir) <> 0 then
+  begin
+    Result := 'This legacy installation can migrate only to the default Programs\ArSee directory.';
+    Log('ArSee migration rejected wizard destination; ' + Result);
+    Exit;
+  end;
+  { Never overwrite unexpected data at the destination. }
+  if DirExists(NewDir) then
+  begin
+    Result := 'Programs\ArSee already contains files. The legacy installation was left intact. ' +
+      'Inspect the destination before retrying.';
+    Log('ArSee migration rejected destination collision; ' + Result);
+    Exit;
+  end;
+  PreviousUninstaller := AddBackslash(LegacyDir) + 'unins000.exe';
+  if (not FileExists(PreviousUninstaller)) or
+     (not FileExists(AddBackslash(LegacyDir) + 'unins000.dat')) then
+  begin
+    Result := 'Legacy Inno uninstall records are missing. Migration stopped without changes.';
+    Exit;
+  end;
+  { No wildcard or recursive deletion of user-owned data. The historical
+    installer never removes the separate LocalAppData\ARIEC60870 workspace. }
+  Log('ArSee migration: invoking registered legacy Inno uninstaller');
+  if not Exec(PreviousUninstaller,
+    '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE,
+    ewWaitUntilTerminated, ExitCode) then
+  begin
+    Result := 'Could not launch the registered legacy uninstaller.';
+    Exit;
+  end;
+  Log('ArSee migration: previous uninstaller returned code ' + IntToStr(ExitCode));
+  if ExitCode <> 0 then
+  begin
+    Result := 'Legacy uninstall failed with exit code ' + IntToStr(ExitCode) + '.';
+    Exit;
+  end;
+  if RegKeyExists(HKCU, Key) or
+     FileExists(AddBackslash(LegacyDir) + 'ARIEC60870.exe') or
+     FileExists(AddBackslash(LegacyDir) + 'ArSee.exe') then
+  begin
+    Result := 'Legacy uninstall was incomplete. The new installation did not start.';
+    Log('ArSee migration: previous uninstall incomplete');
+    Exit;
+  end;
+  { Inno uninstall spawns a temporary clone to delete its original EXE.
+    Exec(ewWaitUntilTerminated) may return before the clone has finished
+    deleting its own files. Wait for a bounded 30 seconds until it has
+    removed the last installer file, never DeleteFile or DelTree unknown
+    content. This keeps a partial move from silently succeeding. }
+  Attempts := 0;
+  while DirExists(LegacyDir) and (Attempts < 120) do
+  begin
+    if RemoveDir(LegacyDir) then
+      Break;
+    Sleep(250);
+    Attempts := Attempts + 1;
+  end;
+  if DirExists(LegacyDir) then
+  begin
+    Log('ArSee migration: legacy directory still occupied after bounded cleanup wait');
+    if FindFirst(AddBackslash(LegacyDir) + '*', FindRec) then
+    begin
+      try
+        repeat
+          if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+            Log('ArSee migration residual program-folder entry: ' + FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+    Result := 'The previous Inno uninstaller has not finished cleaning its program ' +
+      'folder within 30 seconds, or unrecognized files remain. ' +
+      'No unknown files were deleted. Review the old folder before retrying.';
+  end
+  else
+    Log('ArSee migration: previous program folder removed after cleanup wait ' +
+      IntToStr(Attempts) + '/120');
+end;

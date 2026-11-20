@@ -16,7 +16,17 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("AppName=ArSee", script);
         Assert.Contains("AppId={{{#AppGuid}}", script);
         Assert.Contains("DefaultDirName={localappdata}\\Programs\\ArSee", script);
-        Assert.Contains("UsePreviousAppDir=yes", script); // safe in-place rollback target
+        Assert.Contains("UsePreviousAppDir=no", script);
+        Assert.Contains("function PrepareToInstall(var NeedsRestart: Boolean): String;", script);
+        Assert.Contains("if DirExists(NewDir) then", script);
+        Assert.Contains("Pos('/NOCLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
+        Assert.Contains("Pos('/NOFORCECLOSEAPPLICATIONS', UpperCase(GetCmdTail))", script);
+        Assert.Contains("RemoveDir(LegacyDir)", script);
+        Assert.Contains("Attempts < 120", script);
+        Assert.Contains("Sleep(250)", script);
+        Assert.Contains("FindFirst(AddBackslash(LegacyDir)", script);
+        Assert.DoesNotContain("DelTree(", script);
+        Assert.DoesNotContain("DelTree(LegacyDir", script);
         Assert.Contains("UsePreviousGroup=no", script); // do not reuse legacy group name
         Assert.Contains("UninstallDisplayName=ArSee", script);
         Assert.Contains("UninstallDisplayIcon={app}\\ArSee.exe", script);
@@ -63,6 +73,10 @@ public sealed class ArSeeWindowsIdentityTests
         Assert.Contains("ARIEC60870.lnk", fat);
         Assert.Contains("Get-ArSeeRegistrations", fat);
         Assert.Contains("branding-migration-preserve.txt", fat);
+        Assert.Contains("PreviousVersion = '3.6.17'", fat);
+        Assert.Contains("Legacy Programs/ARIEC60870 folder remains after migration.", fat);
+        Assert.Contains("Legacy worker was incorrectly allowed to migrate directory.", fat);
+        Assert.Contains("-PreviousVersion $old", ci);
     }
 
     [Fact]

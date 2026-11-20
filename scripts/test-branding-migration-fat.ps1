@@ -12,7 +12,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$CurrentSetup,
-    [string]$EvidenceDir = 'artifacts/branding-migration-fat'
+    [string]$EvidenceDir = 'artifacts/branding-migration-fat',
+    [ValidateSet('3.6.17','3.6.18')][string]$PreviousVersion = '3.6.17'
 )
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or
@@ -27,18 +28,20 @@ if ([version]$version -le [version]'3.6.17') {
 $setup = (Resolve-Path $CurrentSetup).Path
 $evidence = [IO.Path]::GetFullPath($EvidenceDir)
 New-Item -ItemType Directory -Path $evidence -Force | Out-Null
-$acceptance = Join-Path $evidence 'BRANDING-MIGRATION-ACCEPTANCE.txt'
+$acceptance = Join-Path $evidence "BRANDING-MIGRATION-ACCEPTANCE-$PreviousVersion.txt"
 $legacyDir = Join-Path $env:LOCALAPPDATA 'Programs\ARIEC60870'
 $newDir = Join-Path $env:LOCALAPPDATA 'Programs\ArSee'
-$legacyExe = Join-Path $legacyDir 'ARIEC60870.exe'
-$newExe = Join-Path $legacyDir 'ArSee.exe'
+$oldExeName = if ($PreviousVersion -eq '3.6.17') { 'ARIEC60870.exe' } else { 'ArSee.exe' }
+$legacyExe = Join-Path $legacyDir $oldExeName
+$newExe = Join-Path $newDir 'ArSee.exe'
 $oldGroup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\ARIEC60870'
 $newGroup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\ArSee'
 $workspace = Join-Path $env:LOCALAPPDATA 'ARIEC60870'
 $sentinel = Join-Path $workspace 'branding-migration-preserve.txt'
-$oldInstaller = Join-Path $env:RUNNER_TEMP 'ARIEC60870-v3.6.17-setup-win-x64.exe'
-$oldSums = Join-Path $env:RUNNER_TEMP 'ArSee-legacy-v3.6.17-SHA256SUMS.txt'
-$official = 'https://github.com/masarray/arsee/releases/download/v3.6.17'
+$oldName = if ($PreviousVersion -eq '3.6.17') { 'ARIEC60870-v3.6.17-setup-win-x64.exe' } else { 'ArSee-v3.6.18-setup-win-x64.exe' }
+$oldInstaller = Join-Path $env:RUNNER_TEMP $oldName
+$oldSums = Join-Path $env:RUNNER_TEMP "ArSee-v$PreviousVersion-SHA256SUMS.txt"
+$official = "https://github.com/masarray/arsee/releases/download/v$PreviousVersion"
 $uninstalled = $false
 
 function Record([string]$message) {
@@ -84,7 +87,7 @@ try {
     }
     Record "PASS: exact current installer $expectedNew matches CI-built SHA256."
 
-    curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldInstaller "$official/ARIEC60870-v3.6.17-setup-win-x64.exe"
+    curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $oldInstaller "$official/$oldName"
     if ($LASTEXITCODE -ne 0) { throw 'Cannot download published v3.6.17 installer.' }
     curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 45 -o $oldSums "$official/SHA256SUMS.txt"
     if ($LASTEXITCODE -ne 0) { throw 'Cannot download published v3.6.17 checksums.' }
@@ -95,14 +98,43 @@ try {
     if (!$oldHash -or (Get-FileHash $oldInstaller -Algorithm SHA256).Hash -ine $oldHash) {
         throw 'Published legacy installer SHA256 mismatch.'
     }
-    Record 'PASS: genuine immutable v3.6.17 installer checksum verified.'
+    Record "PASS: genuine immutable v$PreviousVersion installer checksum verified."
+
+    # v3.6.18 reached the legacy path by upgrading an existing v3.6.17
+    # install, not by doing a fresh install with the newer default folder.
+    if ($PreviousVersion -eq '3.6.18') {
+        $seedBase = 'https://github.com/masarray/arsee/releases/download/v3.6.17'
+        $seedName = 'ARIEC60870-v3.6.17-setup-win-x64.exe'
+        $seedSetup = Join-Path $env:RUNNER_TEMP $seedName
+        $seedSums = Join-Path $env:RUNNER_TEMP 'ArSee-seed-v3.6.17-SHA256SUMS.txt'
+        curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 180 -o $seedSetup "$seedBase/$seedName"
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot download v3.6.17 migration seed.' }
+        curl.exe -fLsS --retry 3 --retry-delay 2 --max-time 45 -o $seedSums "$seedBase/SHA256SUMS.txt"
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot download v3.6.17 seed checksums.' }
+        $seedLines = @(Get-Content $seedSums | Where-Object { $_.EndsWith("  $seedName") })
+        if ($seedLines.Count -ne 1) { throw 'Ambiguous v3.6.17 seed checksum.' }
+        $seedHash = ([regex]::Match($seedLines[0], '^[0-9a-fA-F]{64}')).Value
+        if (!$seedHash -or (Get-FileHash $seedSetup -Algorithm SHA256).Hash -ine $seedHash) {
+            throw 'v3.6.17 seed checksum mismatch.'
+        }
+        Invoke-Bounded $seedSetup $arguments 150
+        if (!(Test-Path (Join-Path $legacyDir 'ARIEC60870.exe'))) {
+            throw 'v3.6.17 seed was not installed in the legacy directory.'
+        }
+        Record 'PASS: authentic v3.6.17 seeded previous directory for genuine v3.6.18 in-place upgrade.'
+    }
 
     Invoke-Bounded $oldInstaller $arguments 150
     if (!(Test-Path $legacyExe) -or
-        (Get-Item $legacyExe).VersionInfo.FileVersion -notlike '3.6.17*') {
+        (Get-Item $legacyExe).VersionInfo.FileVersion -notlike "$PreviousVersion*") {
         throw 'Original v3.6.17 installation missing at documented legacy path.'
     }
     if ((Get-ArSeeRegistrations).Count -ne 1) { throw 'Previous version has duplicate uninstall registrations.' }
+    $previousRegistration = Get-ArSeeRegistrations | Select-Object -First 1
+    $previousRecord = Get-ItemProperty $previousRegistration.PSPath
+    Record ("DIAGNOSTIC: previous key=" + $previousRegistration.PSChildName +
+        "; InstallLocation=" + $previousRecord.InstallLocation +
+        "; legacyPath=" + $legacyDir)
     Record 'PASS: installed genuine old Windows EXE, same AppId and uninstall record.'
 
     # Recreate the reported post-upgrade two-shortcut condition using real .lnk files.
@@ -116,12 +148,44 @@ try {
     'retain-user-evidence' | Set-Content $sentinel -Encoding utf8
     Record 'PASS: seeded two real legacy Start Menu shortcuts and app-data sentinel.'
 
-    Invoke-Bounded $setup $arguments 180
+    # Preflight collision is required to fail *before* removing the old copy.
+    New-Item -ItemType Directory -Force $newDir | Out-Null
+    $collision = Join-Path $newDir 'owner-file.txt'
+    'unchanged' | Set-Content $collision
+    $collisionLog = Join-Path $evidence 'collision-setup.log'
+    $rejected = Start-Process -FilePath $setup -ArgumentList ($arguments + @("/LOG=$collisionLog")) -PassThru
+    try {
+        if (!$rejected.WaitForExit(180000)) { throw 'Collision setup timed out.' }
+        if ($rejected.ExitCode -eq 0) { throw 'Installer accepted a non-empty destination.' }
+    } finally { $rejected.Dispose() }
+    if (!(Test-Path $legacyExe) -or (Get-Content $collision -Raw).Trim() -ne 'unchanged') {
+        throw 'Collision guard damaged the old application or destination sentinel.'
+    }
+    Remove-Item $collision,$newDir -Force
+    Record 'PASS: destination collision blocked before removing legacy program.'
+
+    # The v3.6.17/18 updater passes these exact safety flags and expects
+    # the EXE to remain at the legacy location. Block this path BEFORE uninstall.
+    $workerArgs = @($arguments) + @('/NOCLOSEAPPLICATIONS','/NOFORCECLOSEAPPLICATIONS')
+    $workerLog = Join-Path $evidence 'old-worker-block-setup.log'
+    $blocked = Start-Process -FilePath $setup -ArgumentList ($workerArgs + @("/LOG=$workerLog")) -PassThru
+    try {
+        if (!$blocked.WaitForExit(180000)) { throw 'Legacy updater interception timed out.' }
+        if ($blocked.ExitCode -eq 0) { throw 'Legacy worker was incorrectly allowed to migrate directory.' }
+    } finally { $blocked.Dispose() }
+    if (!(Test-Path $legacyExe) -or (Test-Path $newDir)) {
+        throw 'Legacy updater guard modified the previous working installation.'
+    }
+    Record 'PASS: v3.6.17/v3.6.18 fixed-path updater fails safely before uninstall.'
+
+    $migrationLog = Join-Path $evidence 'migration-setup.log'
+    Invoke-Bounded $setup ($arguments + @("/LOG=$migrationLog")) 180
     if (!(Test-Path $newExe)) { throw 'ArSee.exe missing from upgraded installation.' }
     if ((Get-Item $newExe).VersionInfo.FileVersion -notlike "$version*") {
         throw 'Upgraded ArSee.exe does not contain current release version.'
     }
-    if (Test-Path $legacyExe) { throw 'Legacy ARIEC60870.exe remains beside ArSee.exe.' }
+    if (Test-Path $legacyDir) { throw 'Legacy Programs/ARIEC60870 folder remains after migration.' }
+    if (Test-Path (Join-Path $newDir 'ARIEC60870.exe')) { throw 'Legacy EXE remains in Programs/ArSee.' }
     if (!(Test-Path (Join-Path $newGroup 'ArSee.lnk'))) {
         throw 'New ArSee Start Menu shortcut was not installed.'
     }
@@ -132,6 +196,7 @@ try {
     }
     if ((Get-ArSeeRegistrations).Count -ne 1) { throw 'Upgrade produced duplicate ArSee uninstall entries.' }
     $registry = (Get-ArSeeRegistrations)[0]
+    if ([IO.Path]::GetFullPath((Get-ItemProperty $registry.PSPath).InstallLocation).TrimEnd('\') -ine $newDir.TrimEnd('\')) { throw 'New registration still points to old folder.' }
     if ((Get-ItemProperty $registry.PSPath).DisplayVersion -ne $version) {
         throw 'ArSee uninstall record reports an unexpected version.'
     }
@@ -141,9 +206,9 @@ try {
     $smoke = Start-Process -FilePath $newExe -ArgumentList '--passive-gui-smoke' -PassThru -Wait
     if ($smoke.ExitCode -ne 0) { throw "Upgraded ArSee WPF smoke failed: $($smoke.ExitCode)" }
     Record 'PASS: one ArSee.exe, one ArSee shortcut/group, no legacy shortcut/EXE, one uninstall registration, WPF smoke, intact user data.'
-    Record 'NOTE: historical install directory intentionally reused for safe same-AppId in-place upgrade. Fresh installations use Programs/ArSee.'
+    Record "PASS: migrated v$PreviousVersion program folder to Programs/ArSee."
 
-    $uninstall = Join-Path $legacyDir 'unins000.exe'
+    $uninstall = Join-Path $newDir 'unins000.exe'
     if (!(Test-Path $uninstall)) { throw 'Uninstaller missing after upgrade.' }
     Invoke-Bounded $uninstall @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') 150
     $uninstalled = $true
@@ -154,15 +219,55 @@ try {
         throw 'Uninstaller deleted user-owned data.'
     }
     Record 'PASS: uninstall removes executable/registration and preserves user workspace.'
+    # Inno's detached uninstaller cleanup may finish after its initial process
+    # exits. Only remove an empty program directory; never erase user files.
+    $removedEmptyNewDirectory = $false
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        if (!(Test-Path $newDir)) { $removedEmptyNewDirectory = $true; break }
+        # Inno's cleanup may remove this directory between Test-Path and
+        # Get-ChildItem. Treat only a confirmed vanished path as success.
+        try {
+            $remaining = @(Get-ChildItem -LiteralPath $newDir -Force -ErrorAction Stop)
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            if (!(Test-Path -LiteralPath $newDir)) {
+                $removedEmptyNewDirectory = $true
+                break
+            }
+            throw
+        }
+        if ($remaining.Count -eq 0) {
+            try { [IO.Directory]::Delete($newDir); $removedEmptyNewDirectory = $true; break }
+            catch [IO.IOException] { }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    if (!$removedEmptyNewDirectory) {
+        throw 'Uninstalled Programs/ArSee directory still contains files or uninstall cleanup has not finished.'
+    }
+    Record 'PASS: empty post-uninstall program folder cleaned without deleting unknown files.'
+    Remove-Item $sentinel -Force
 }
 catch {
     Record ('FAIL: ' + $_.Exception.Message)
+    if (Test-Path $legacyDir) {
+        Get-ChildItem $legacyDir -Force -ErrorAction SilentlyContinue |
+            ForEach-Object { Record ('DIAGNOSTIC legacy-folder-entry: ' + $_.Name + ' (' + $_.Length + ' bytes)') }
+    }
+    Get-CimInstance Win32_Process -Filter "Name like 'unins%'" -ErrorAction SilentlyContinue |
+        ForEach-Object { Record ('DIAGNOSTIC uninstall-process: ' + $_.Name + ' pid=' + $_.ProcessId) }
+    foreach ($log in @('collision-setup.log', 'old-worker-block-setup.log','migration-setup.log')) {
+        $path = Join-Path $evidence $log
+        if (Test-Path $path) {
+            Get-Content $path | Where-Object { $_ -match 'ArSee migration|PrepareToInstall|Error|exit code|Inno Setup' } |
+                Select-Object -Last 35 | ForEach-Object { Record ('DIAGNOSTIC ' + $log + ': ' + $_) }
+        }
+    }
     throw
 }
 finally {
-    if (!$uninstalled -and (Test-Path (Join-Path $legacyDir 'unins000.exe'))) {
-        Record 'NOTE: CI migration failure, attempting safe runner cleanup.'
-        try { Invoke-Bounded (Join-Path $legacyDir 'unins000.exe') @('/VERYSILENT','/NORESTART') 90 }
-        catch { Record ('WARNING: CI runner cleanup incomplete: ' + $_.Exception.Message) }
+    # Do not race the detached Inno uninstall clone by launching unins000 a
+    # second time. Runner disposal cleans this disposable CI environment.
+    if (!$uninstalled -and (Test-Path $legacyDir)) {
+        Record 'NOTE: disposable runner retains migration evidence; no second concurrent legacy uninstall.'
     }
 }
