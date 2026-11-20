@@ -39,6 +39,18 @@ public sealed class ReleaseUpdateServiceTests
     }
 
     [Fact]
+    public void LegacyInstallPathMustUseOfficialInstallerNotInPlaceWorker()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        Assert.True(ReleaseUpdateService.RequiresManualInstallMigration(
+            Path.Combine(local, "Programs", "ARIEC60870", "ArSee.exe")));
+        Assert.False(ReleaseUpdateService.RequiresManualInstallMigration(
+            Path.Combine(local, "Programs", "ArSee", "ArSee.exe")));
+        Assert.False(ReleaseUpdateService.RequiresManualInstallMigration(
+            Path.Combine(local, "Programs", "ARIEC60870", "Other.exe")));
+    }
+
+    [Fact]
     public void ChecksumMustMatchTheExactInstallerFileName()
     {
         var correct = new string('a', 64);

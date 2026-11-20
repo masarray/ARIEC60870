@@ -33,6 +33,24 @@ public static class ReleaseUpdateService
             File.Exists(Path.Combine(directory, "unins000.dat"));
     }
 
+    /// <summary>Legacy-path relocation needs the official installer; the
+    /// in-place worker must not treat a successful move as failed rollback.</summary>
+    public static bool RequiresManualInstallMigration(string executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath)) return false;
+        try
+        {
+            var path = Path.GetFullPath(executablePath);
+            var old = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Programs", "ARIEC60870");
+            return string.Equals(Path.GetFileName(path), "ArSee.exe", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Path.GetDirectoryName(path), old, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        { return false; }
+    }
+
     public static bool TryParseStableTag(string? tag, out Version version)
     {
         version = new Version(0, 0, 0);

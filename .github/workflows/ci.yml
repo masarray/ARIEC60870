@@ -891,7 +891,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
       (inputs.profile == 'installer' || inputs.profile == 'updater'))
     runs-on: windows-2022
-    timeout-minutes: 19
+    timeout-minutes: 30
     steps:
       - name: Checkout exact tested installer migration source
         uses: actions/checkout@v4
@@ -904,18 +904,20 @@ jobs:
           path: artifacts/installer-deliverable/
       - name: Verify genuine v3.6.17 to ArSee.exe upgrade and shortcut cleanup
         shell: pwsh
-        timeout-minutes: 16
+        timeout-minutes: 27
         run: |
           $ErrorActionPreference = 'Stop'
           [xml]$props = Get-Content Directory.Build.props
           $version = [string]$props.Project.PropertyGroup.Version
-          ./scripts/test-branding-migration-fat.ps1 -CurrentSetup "artifacts/installer-deliverable/ArSee-v$version-setup-win-x64.exe"
+          foreach ($old in @('3.6.17','3.6.18')) {
+            ./scripts/test-branding-migration-fat.ps1 -CurrentSetup "artifacts/installer-deliverable/ArSee-v$version-setup-win-x64.exe" -PreviousVersion $old -EvidenceDir "artifacts/branding-migration-fat/v$old"
+          }
       - name: Preserve branding migration FAT phase evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ArSee-legacy-branding-migration-fat
-          path: artifacts/branding-migration-fat/*
+          path: artifacts/branding-migration-fat/**/*
           if-no-files-found: warn
           retention-days: 14
 

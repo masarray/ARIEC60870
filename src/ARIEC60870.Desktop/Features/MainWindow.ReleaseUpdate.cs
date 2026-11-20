@@ -87,6 +87,7 @@ public partial class MainWindow
         var state = ReadReleaseUpdateState();
         if (state?.LastPromptedTag == latest.Tag ||
             !ReleaseUpdateService.HasManagedInstallation(Environment.ProcessPath ?? string.Empty) ||
+            ReleaseUpdateService.RequiresManualInstallMigration(Environment.ProcessPath ?? string.Empty) ||
             IsReleaseUpdateSessionActive())
             return;
         SaveReleaseUpdateCheckState(latest.Tag, promptedTag: latest.Tag);
@@ -112,6 +113,17 @@ public partial class MainWindow
             ModernMessageBox.Show(this,
                 "This copy of ArSee is running as a portable application. Automatic replacement is supported for the installed version. Download the official installer from GitHub Releases to switch to managed updates.",
                 "Portable installation", MessageBoxButton.OK, MessageBoxImage.Information);
+            OpenOfficialReleasePage();
+            return;
+        }
+
+        if (ReleaseUpdateService.RequiresManualInstallMigration(currentExe))
+        {
+            ModernMessageBox.Show(this,
+                "This ArSee installation still uses the original Programs\\ARIEC60870 folder. " +
+                "Please close active IEC sessions and run the official Windows installer " +
+                "once to move to Programs\\ArSee. The in-place updater cannot safely move folders.",
+                "One-time ArSee folder migration", MessageBoxButton.OK, MessageBoxImage.Information);
             OpenOfficialReleasePage();
             return;
         }
