@@ -37,15 +37,21 @@ public sealed class EventOriginalFrameRetentionTests
         var liveTrace = new BoundedRingBuffer<Iec103MasterEvidenceEvent>(2);
         liveTrace.Add(new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 900, ProtocolMode = original.ProtocolMode,
-            Direction = FrameDirection.SlaveToMaster, PhysicalSource = original.PhysicalSource,
-            PhysicalStreamId = 1, RawStreamOffset = 2000
+            SequenceNumber = 900,
+            ProtocolMode = original.ProtocolMode,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = original.PhysicalSource,
+            PhysicalStreamId = 1,
+            RawStreamOffset = 2000
         });
         liveTrace.Add(new Iec103MasterEvidenceEvent
         {
-            SequenceNumber = 901, ProtocolMode = original.ProtocolMode,
-            Direction = FrameDirection.SlaveToMaster, PhysicalSource = original.PhysicalSource,
-            PhysicalStreamId = 1, RawStreamOffset = 2010
+            SequenceNumber = 901,
+            ProtocolMode = original.ProtocolMode,
+            Direction = FrameDirection.SlaveToMaster,
+            PhysicalSource = original.PhysicalSource,
+            PhysicalStreamId = 1,
+            RawStreamOffset = 2010
         });
         Assert.DoesNotContain(liveTrace.Snapshot(), x =>
             Iec10xObservationIdentity.SamePhysicalFrame(x, eventRow.EvidenceReference,
@@ -69,7 +75,7 @@ public sealed class EventOriginalFrameRetentionTests
             TransactionKind = "Command",
             NewValue = "Command rejected · negative ACTCON · Case #2 · DCS=1 (OFF)"
         });
-        Assert.Equal("Command observed", command.CompactDisplayValue);
+        Assert.Equal("Command rejected · negative ACTCON", command.CompactDisplayValue);
         Assert.Contains("negative ACTCON · Case #2", command.DisplayValue);
 
         var gi = new RelayEventRow(new Iec103RelayEventLogEntry

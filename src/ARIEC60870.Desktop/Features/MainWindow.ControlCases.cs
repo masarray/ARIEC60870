@@ -48,8 +48,9 @@ public partial class MainWindow
         }
         ControlCaseStages.ReconcileByKey(c.Stages, stage => (stage.Sequence, stage.EvidenceReference));
         if (ControlCaseDetailsBox is not null)
-            ControlCaseDetailsBox.Text = c.Interpretation +
-                "  ·  Observation means protocol evidence, not independently verified physical operation.";
+            ControlCaseDetailsBox.Text =
+                ARIEC60870.Desktop.ViewModels.CommandCaseOperatorPresentation.Status(c) + ": " +
+                ARIEC60870.Desktop.ViewModels.CommandCaseOperatorPresentation.Guidance(c);
     }
 
     private void ControlCaseCopy_Click(object sender, RoutedEventArgs e)

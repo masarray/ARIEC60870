@@ -389,10 +389,20 @@ public partial class MainWindow
             var commandCase = _commandCasebook.FindByEvidence(item);
             var mappedCommand = _displayPointIndex.Resolve(
                 item.CommonAddressNumber, item.InformationObjectAddress, item.TypeId).Point?.Name;
+            // Only an exact evidence-identified casebook stage may authorize
+            // the short UI wording (e.g. "SELECT accepted"). Never promote
+            // a raw positive ACTCON from an unrelated Master to success.
+            var observedStage = commandCase?.Stages.FirstOrDefault(stage =>
+                stage.Sequence == item.SequenceNumber &&
+                stage.EvidenceReference == item.EvidenceReference);
             var commandStage = Iec10xCommandEventProjection.Project(item,
-                commandCase?.CaseId, mappedCommand);
+                commandCase?.CaseId, mappedCommand, observedStage?.Phase);
             if (commandStage is not null)
+            {
                 AppendProtocolEvent(commandStage, item);
+                if (commandCase is not null && observedStage is not null)
+                    ShowObservedCommandFeedback(item, commandCase, observedStage);
+            }
 
             // Application semantics live in Master; the WPF projection only receives typed
             // milestones. Interrogated data updates GI counters, not one SOE row per value.

@@ -3,6 +3,7 @@
 
 using ARIEC60870.Core.Model;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Protocol.Iec10x;
 
 namespace ARIEC60870.Desktop.ViewModels;
 
@@ -12,7 +13,7 @@ namespace ARIEC60870.Desktop.ViewModels;
 /// </summary>
 public static class Iec10xCommandEventProjection
 {
-    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null, string? mappedSignalName = null)
+    public static Iec103RelayEventLogEntry? Project(Iec103MasterEvidenceEvent item, long? caseId = null, string? mappedSignalName = null, string? matchedStagePhase = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (item.ProtocolMode is not (Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104) ||
@@ -45,6 +46,7 @@ public static class Iec10xCommandEventProjection
             ? commandLabel + " · " + target
             : mappedSignalName + " · " + target;
         var qualifier = asdu.CommandDetails?.ValueMeaning ?? string.Empty;
+        var step = StepText(asdu, item.Direction, matchedStagePhase);
         // CP56Time2a belongs to the original command ASDU, not the USB/PC receipt.
         // Keep invalid-time explicitly marked; only use host time when wire time is absent.
         var decodedTime = item.InformationObjectDetails?.TimestampText;
@@ -72,10 +74,10 @@ public static class Iec10xCommandEventProjection
             SignalName = signal,
             SignalGroup = "Commands",
             SignalType = "Command",
-            NewValue = title +
-                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "") +
+            NewValue = step +
+                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : ""),
+            EdgeReason = (isMaster ? "Observed Master TX · " : "Observed RTU RX · ") + title +
                 (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
-            EdgeReason = isMaster ? "Observed Master TX" : "Observed RTU RX",
             CauseOfTransmission = asdu.CotNameWithFlags,
             AsduType = asdu.TypeName,
             RawHex = item.RawHex,
@@ -86,5 +88,55 @@ public static class Iec10xCommandEventProjection
             CauseDetails = asdu.CauseDetails,
             QualityText = "N/A (command)"
         };
+    }
+
+    /// <summary>
+    /// An ACTCON telegram is a received protocol fact. Only the casebook's
+    /// exact-matched stage can elevate that fact to a correlated acceptance.
+    /// This method never interprets ACTCON as physical CB operation.
+    /// </summary>
+    private static string StepText(Iec10xAsduDecode asdu, FrameDirection direction, string? matchedStage)
+    {
+        var select = asdu.CommandDetails?.Select;
+        var action = select == true ? "SELECT" : select == false ? "EXECUTE" : "Command";
+        var cot = asdu.CauseDetails?.Code ?? asdu.CauseOfTransmission;
+        var negative = asdu.CauseDetails?.Negative == true || asdu.IsNegativeConfirm;
+        var test = asdu.CauseDetails?.Test == true;
+        string step;
+
+        if (matchedStage?.Contains("overlapping", StringComparison.OrdinalIgnoreCase) == true)
+            step = "Repeated " + action + " · review";
+        else if (matchedStage?.Contains("ambiguous", StringComparison.OrdinalIgnoreCase) == true ||
+                 matchedStage?.Contains("out of order", StringComparison.OrdinalIgnoreCase) == true)
+            step = "Reply mismatch · review";
+        else if (direction == FrameDirection.MasterToSlave)
+            step = cot switch
+            {
+                6 => action + " sent",
+                8 => "CANCEL requested",
+                _ => "Master command COT " + cot
+            };
+        else if (negative || cot is >= 44 and <= 47)
+            step = "Command rejected · COT " + cot;
+        else
+            step = cot switch
+            {
+                7 when matchedStage is "SELECT ACTCON" or "EXECUTE ACTCON" => action + " accepted · ACTCON",
+                7 => action + " ACTCON received · unpaired",
+                9 when matchedStage == "RTU DEACTCON" => "Cancellation confirmed",
+                9 => "DEACTCON received · unpaired",
+                10 when matchedStage == "EXECUTE ACTTERM" => "EXECUTE ended · ACTTERM",
+                10 => "ACTTERM received · unpaired",
+                _ => "RTU command COT " + cot
+            };
+
+        // Only the canonical Core decoder may interpret qualifier bits.
+        // ValueMeaning already distinguishes SCS/DCS/RCS and signed setpoints.
+        // A COT7 confirmation is still not physical Open/Close proof.
+        var decodedValue = asdu.CommandDetails?.ValueMeaning;
+        if (!string.IsNullOrWhiteSpace(decodedValue) && decodedValue.Length <= 22)
+            step += " · " + decodedValue;
+        if (test) step = "TEST (non-operational) · " + step;
+        return step;
     }
 }

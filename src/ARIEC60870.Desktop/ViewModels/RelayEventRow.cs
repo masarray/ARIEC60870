@@ -217,12 +217,28 @@ public sealed class RelayEventRow
 
         if (entry.TransactionKind == "Command")
         {
-            var stage = entry.CauseDetails is { Negative: true } ? "Command rejected · NEG" :
+            // New command events contain the exact SELECT/EXECUTE phase. Never
+            // collapse them to COT7="accepted" for unpaired/ambiguous replies.
+            // The full qualifier, Case # and original bytes remain in NewValue.
+            var action = entry.NewValue ?? string.Empty;
+            if (action.StartsWith("TEST ", StringComparison.Ordinal) ||
+                action.StartsWith("SELECT ", StringComparison.Ordinal) ||
+                action.StartsWith("EXECUTE ", StringComparison.Ordinal) ||
+                action.StartsWith("Repeated ", StringComparison.Ordinal) ||
+                action.StartsWith("Reply mismatch", StringComparison.Ordinal) ||
+                action.StartsWith("Command rejected", StringComparison.Ordinal) ||
+                action.StartsWith("Cancellation ", StringComparison.Ordinal))
+            {
+                var evidence = action.IndexOf(" · Case #", StringComparison.Ordinal);
+                if (evidence >= 0) action = action[..evidence];
+                return action.Length <= 48 ? action : action[..47] + "…";
+            }
+            // Legacy recorded events lack the typed phase; do not guess one.
+            return entry.CauseDetails is { Negative: true } ? "Command rejected · NEG" :
                 entry.CauseDetails?.Code is >= 44 and <= 47 ? "Command protocol error" :
                 entry.CauseDetails?.Code == 6 ? "Command requested" :
-                entry.CauseDetails?.Code == 7 ? "ACTCON · accepted" :
+                entry.CauseDetails?.Code == 7 ? "ACTCON observed · unpaired" :
                 entry.CauseDetails?.Code == 10 ? "ACTTERM observed" : "Command observed";
-            return stage; // Case, IOA and original target remain accessible without truncation.
         }
 
         // Event's compact cell is a preview, not a new parser. Preserve complete

@@ -614,5 +614,8 @@ public partial class MainWindow
         var selectedName = CommandSignalComboBox?.SelectedItem is CommandSignalOption option ? $" · {option.Name}" : string.Empty;
         CommandDockStatusText.Text = "Command queued for dispatch (not yet confirmed by RTU): " + request.Summary + selectedName;
         AppendSessionLog("Command dock queued: " + request.Summary + selectedName);
+        // Click/admission is only a queued intent; the observed TX and RTU
+        // ACTCON toasts originate separately from exact casebook stages.
+        ShowCommandToastMessage("Command queued · awaiting TX");
     }
 }

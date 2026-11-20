@@ -215,3 +215,23 @@ pixel-level visibility on 1120-DIP minimum window, DPI 125/150% or
 Windows font rendering. A real Windows WPF screenshot at narrow editor
 width and keyboard navigation/scroll check remains human QA before
 labeling this new editor visually complete. Raw IEC/Trace layout is unchanged.
+
+
+## Controls operator response and ephemeral command feedback (2026-11-20)
+
+Controls uses human-readable status and a Next check field, derived from the
+immutable Master-owned case evidence. Ambiguous repeated SELECT/EXECUTE
+traffic is labelled Multiple commands (review), with direct advice to inspect
+TX/RX stages and concurrent Masters, not an unexplained success/failure claim.
+
+The only transient status occupies a fixed overlay in the existing COMMAND
+PANEL heading; it never pushes command buttons or observation grids. A single
+DispatcherTimer displays an observed TX/RTU stage for 1.75s, then fades for
+250ms. An admitted button click is clearly labelled queued, not sent.
+RX-only passive observations, replay and historical event rows do not generate
+active command toasts. Do not create new timers per incoming frame or refresh
+the DataGrid to display these messages.
+
+New screenshots and Windows CI are required before claiming the updated
+Control UX passed operator acceptance. The user's existing screenshots
+document the pre-fix v3.6.19 issue and successful no-flicker observation.
