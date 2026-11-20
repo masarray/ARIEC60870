@@ -87,8 +87,8 @@ public partial class MainWindow
         }
 
         TraceInspectorToggle.Content = visible ? "›" : "‹";
-        TraceInspectorToggle.ToolTip = visible
-            ? "Collapse Frame Details" : "Expand Frame Details; double-click any frame";
+        // No transient popup on the Frame Details workspace. Accessible
+        // names still communicate the action to keyboard/screen-reader users.
         System.Windows.Automation.AutomationProperties.SetName(TraceInspectorToggle,
             visible ? "Collapse Frame Details" : "Expand Frame Details");
     }

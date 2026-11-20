@@ -141,7 +141,32 @@ public partial class MainWindow
             [
                 PassiveLinkBEnabledCheckBox, PassiveFullRecordingCheckBox
             ]);
+            // Passive monitor is much shorter than IEC-104; avoid the former
+            // enormous blank lower half while preserving a fixed footer.
+            if (SetupDialogCard.ActualHeight > 690)
+                throw new InvalidOperationException(
+                    $"Passive setup did not shrink to content; card={SetupDialogCard.ActualHeight:0} DIP.");
             SaveRealWpfBitmap(outputDirectory, "setup-passive-compact-switches.png");
+
+            // Exercise the same responsive dialog shell across all protocol
+            // profiles, including the longer IEC-104 runtime panel.
+            foreach (var (mode, file) in new[]
+            {
+                (0, "setup-iec103-caption-close.png"),
+                (2, "setup-iec101-dual-caption-close.png"),
+                (4, "setup-iec104-scrollable-footer.png")
+            })
+            {
+                ProtocolModeComboBox.SelectedIndex = mode;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                UpdateLayout();
+                VerifySetupHeaderActions();
+                if (SetupSettingsScroll.ActualHeight <= 0 ||
+                    SetupDialogCard.ActualHeight > SetupOverlay.ActualHeight - 30)
+                    throw new InvalidOperationException(
+                        "Connection Setup scroll viewport does not fit the rendered window.");
+                SaveRealWpfBitmap(outputDirectory, file);
+            }
         }
         finally
         {
@@ -173,10 +198,10 @@ public partial class MainWindow
                     Background: SolidColorBrush closeFill,
                     BorderBrush: SolidColorBrush closeLine
                 } ||
-            closeFill.Color != (Color)ColorConverter.ConvertFromString("#F8FAFC") ||
-            closeLine.Color != (Color)ColorConverter.ConvertFromString("#BCCCDD") ||
+            closeFill.Color != Colors.Transparent ||
+            closeLine.Color != Colors.Transparent ||
             SetupCloseButton.Template.FindName("SetupCloseSurface", SetupCloseButton)
-                is not Border { CornerRadius: { TopLeft: 18, TopRight: 18 } } ||
+                is not Border { CornerRadius: { TopLeft: 6, TopRight: 6 } } ||
             !SetupConnectButton.IsVisible || !SetupCancelButton.IsVisible ||
             !SetupCloseButton.IsVisible ||
             Math.Abs(SetupConnectButton.Width - 176) > 0.1 ||
@@ -185,8 +210,8 @@ public partial class MainWindow
             Math.Abs(SetupCancelButton.ActualWidth - 116) > 1 ||
             SetupConnectButton.ActualHeight < 35 ||
             SetupCancelButton.ActualHeight < 35 ||
-            SetupCloseButton.ActualWidth < 35 ||
-            SetupCloseButton.ActualHeight < 35 ||
+            SetupCloseButton.ActualWidth < 29 || SetupCloseButton.ActualWidth > 31 ||
+            SetupCloseButton.ActualHeight < 29 || SetupCloseButton.ActualHeight > 31 ||
             SetupActionFooter.Parent is not Border footerBorder ||
             Grid.GetRow(footerBorder) != 4 ||
             SetupOverlay.Children.OfType<Border>().SingleOrDefault() is not Border dialogCard)
@@ -204,7 +229,7 @@ public partial class MainWindow
         var cardBottom = dialogCard.TranslatePoint(
             new Point(0, dialogCard.ActualHeight), SetupOverlay).Y;
 
-        if (SetupCloseIcon.ActualWidth < 17 || SetupCloseIcon.ActualHeight < 17 ||
+        if (SetupCloseIcon.ActualWidth < 13 || SetupCloseIcon.ActualHeight < 13 ||
             Math.Abs(closeCenter.X - SetupCloseButton.ActualWidth / 2) > 1.5 ||
             Math.Abs(closeCenter.Y - SetupCloseButton.ActualHeight / 2) > 1.5 ||
             Math.Abs(connectTop.Y - cancelTop.Y) > 1.5 ||

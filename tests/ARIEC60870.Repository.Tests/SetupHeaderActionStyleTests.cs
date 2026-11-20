@@ -44,8 +44,8 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Equal(
             "M6.4,19L5,17.6L10.6,12L5,6.4L6.4,5L12,10.6L17.6,5L19,6.4L13.4,12L19,17.6L17.6,19L12,13.4L6.4,19Z",
             (string?)glyph.Attribute("Data"));
-        Assert.Equal("18", (string?)glyph.Attribute("Width"));
-        Assert.Equal("18", (string?)glyph.Attribute("Height"));
+        Assert.Equal("14", (string?)glyph.Attribute("Width"));
+        Assert.Equal("14", (string?)glyph.Attribute("Height"));
         Assert.Contains("Foreground", (string?)glyph.Attribute("Fill"));
     }
 
@@ -58,6 +58,8 @@ public sealed class SetupHeaderActionStyleTests
         var card = setup.Elements().Single(x => x.Name.LocalName == "Border");
         Assert.Equal("900", (string?)card.Attribute("MaxWidth"));
         Assert.Equal("780", (string?)card.Attribute("MaxHeight"));
+        Assert.Equal("Center", (string?)card.Attribute("VerticalAlignment"));
+        Assert.Equal("SetupDialogCard", (string?)card.Attribute(Xaml + "Name"));
 
         var scroller = setup.Descendants().Single(x =>
             (string?)x.Attribute(Xaml + "Name") == "SetupSettingsScroll");
@@ -162,8 +164,8 @@ public sealed class SetupHeaderActionStyleTests
         var close = Resource(doc, "Style", "SetupCloseIconButtonStyle");
         Assert.Equal("{StaticResource ArSeeWorkspaceActionButtonStyle}",
             (string?)connect.Attribute("BasedOn"));
-        Assert.Equal("36", SetterValue(close, "Height"));
-        Assert.Equal("36", SetterValue(close, "Width"));
+        Assert.Equal("30", SetterValue(close, "Height"));
+        Assert.Equal("30", SetterValue(close, "Width"));
 
         var connectTemplate = Resource(doc, "ControlTemplate", "SetupConnectButtonTemplate");
         var closeTemplate = Resource(doc, "ControlTemplate", "SetupCloseIconButtonTemplate");
@@ -189,28 +191,59 @@ public sealed class SetupHeaderActionStyleTests
 
         var closeHover = Trigger(closeTemplate, "IsMouseOver");
         var closePressed = Trigger(closeTemplate, "IsPressed");
-        Assert.Equal("#FFF0EF", TriggerSetterValue(closeHover, "SetupCloseSurface", "Background"));
-        Assert.Equal("#B34D56", TriggerSetterValue(closeHover, null, "Foreground"));
+        Assert.Equal("#FFF0F1", TriggerSetterValue(closeHover, "SetupCloseSurface", "Background"));
+        Assert.Equal("#B42335", TriggerSetterValue(closeHover, null, "Foreground"));
         Assert.Equal("#EF3346", TriggerSetterValue(closePressed, "SetupCloseSurface", "Background"));
         Assert.Equal("#FFFFFF", TriggerSetterValue(closePressed, null, "Foreground"));
     }
 
     [Fact]
-    public void ConfigCloseHasCircularBorderWithoutChangingRedInteractionStates()
+    public void ConfigCloseUsesCompactCaptionButtonWithQuietIdleAndRedFeedback()
     {
         var theme = XDocument.Load(Source("Resources/ModernTheme.xaml"));
         var close = Resource(theme, "Style", "SetupCloseIconButtonStyle");
         var template = Resource(theme, "ControlTemplate", "SetupCloseIconButtonTemplate");
-        Assert.Equal("#F8FAFC", SetterValue(close, "Background"));
-        Assert.Equal("#BCCCDD", SetterValue(close, "BorderBrush"));
+        Assert.Equal("Transparent", SetterValue(close, "Background"));
+        Assert.Equal("Transparent", SetterValue(close, "BorderBrush"));
         var surface = template.Descendants().Single(x => x.Name.LocalName == "Border" &&
             (string?)x.Attribute(Xaml + "Name") == "SetupCloseSurface");
-        Assert.Equal("18", (string?)surface.Attribute("CornerRadius"));
-        Assert.Equal("1", (string?)surface.Attribute("BorderThickness"));
-        Assert.Equal("#FFF0EF", TriggerSetterValue(Trigger(template, "IsMouseOver"),
+        Assert.Equal("6", (string?)surface.Attribute("CornerRadius"));
+        Assert.Equal("0", (string?)surface.Attribute("BorderThickness"));
+        Assert.Equal("#FFF0F1", TriggerSetterValue(Trigger(template, "IsMouseOver"),
             "SetupCloseSurface", "Background"));
         Assert.Equal("#EF3346", TriggerSetterValue(Trigger(template, "IsPressed"),
             "SetupCloseSurface", "Background"));
+    }
+
+    [Fact]
+    public void FrameDetailsIsPopupFreeButRetainsDecodedValuesAndAccessibleActions()
+    {
+        var window = XDocument.Load(Source("MainWindow.xaml"));
+        var panel = Assert.Single(window.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "FrameInterpreterPanel");
+        Assert.Equal("False", (string?)panel.Attribute("ToolTipService.IsEnabled"));
+        var grid = Assert.Single(panel.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "FramePropertiesGrid");
+        Assert.Equal("False", (string?)grid.Attribute("ToolTipService.IsEnabled"));
+        Assert.Equal("ExcludeHeader", (string?)grid.Attribute("ClipboardCopyMode"));
+        var templateColumns = grid.Descendants()
+            .Where(x => x.Name.LocalName == "DataGridTemplateColumn").ToArray();
+        Assert.Equal("{Binding Field}", (string?)templateColumns[0].Attribute("ClipboardContentBinding"));
+        Assert.Equal("{Binding Value}", (string?)templateColumns[1].Attribute("ClipboardContentBinding"));
+
+        Assert.DoesNotContain(panel.DescendantsAndSelf().SelectMany(x => x.Attributes()),
+            a => a.Name.LocalName == "ToolTip" ||
+                 (a.Name.LocalName == "ToolTipService.IsEnabled" && a.Value == "True"));
+        Assert.Contains(panel.Descendants(), x =>
+            x.Name.LocalName == "TextBlock" && (string?)x.Attribute("Text") == "{Binding Value}");
+
+        var toggle = Assert.Single(window.Descendants(), x =>
+            (string?)x.Attribute(Xaml + "Name") == "TraceInspectorToggle");
+        Assert.Null(toggle.Attribute("ToolTip"));
+        Assert.Equal("False", (string?)toggle.Attribute("ToolTipService.IsEnabled"));
+        Assert.Equal("Expand Frame Details", (string?)toggle.Attribute("AutomationProperties.Name"));
+        Assert.DoesNotContain("TraceInspectorToggle.ToolTip =",
+            File.ReadAllText(Source("Features/MainWindow.ObservationLayout.cs")));
     }
 
     [Fact]
