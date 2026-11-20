@@ -666,4 +666,20 @@ public sealed class Iec10xCommandCasebookTests
         Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
     }
 
+
+    [Fact]
+    public void NewSelectDoesNotHideMostRecentMismatchedProcessFeedback()
+    {
+        var b = new Iec10xCommandCasebook();
+        b.Observe(Command(select: false, code: 2), feedbackIoa: 201);
+        b.Observe(Command(cot: 7, rtu: true, select: false, code: 2));
+        b.Observe(Feedback(code: 2)); // First reported ON.
+        b.Observe(Feedback(code: 1)); // Latest reported OFF, not the requested state.
+        Assert.Equal("Feedback mismatch", b.Snapshot()[0].Status);
+        b.Observe(Command(select: true, code: 1), feedbackIoa: 201);
+        Assert.Equal("Feedback mismatch · ACTTERM not observed", b.Snapshot()[0].Status);
+        Assert.Equal("SELECT sent", b.Snapshot()[1].Status);
+        Assert.Contains("latest mapped feedback differed", b.Snapshot()[0].Interpretation);
+    }
+
 }
