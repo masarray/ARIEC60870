@@ -138,11 +138,15 @@ public static class Iec10xCommandEventProjection
             45 or 58 when q.HasValue => (q.Value & 1) == 1 ? "ON" : "OFF",
             46 or 59 when q.HasValue => (q.Value & 3) switch
             {
-                1 => "OFF", 2 => "ON", _ => "invalid DCS"
+                1 => "OFF",
+                2 => "ON",
+                _ => "invalid DCS"
             },
             47 or 60 when q.HasValue => (q.Value & 3) switch
             {
-                1 => "LOWER", 2 => "HIGHER", _ => "invalid RCS"
+                1 => "LOWER",
+                2 => "HIGHER",
+                _ => "invalid RCS"
             },
             _ => string.Empty
         };
