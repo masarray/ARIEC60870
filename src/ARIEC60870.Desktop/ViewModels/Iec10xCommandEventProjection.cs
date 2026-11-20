@@ -75,9 +75,9 @@ public static class Iec10xCommandEventProjection
             SignalGroup = "Commands",
             SignalType = "Command",
             NewValue = step +
-                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "") +
+                (caseId.HasValue ? " · Case #" + caseId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : ""),
+            EdgeReason = (isMaster ? "Observed Master TX · " : "Observed RTU RX · ") + title +
                 (string.IsNullOrWhiteSpace(qualifier) ? "" : " · " + qualifier),
-            EdgeReason = (isMaster ? "Observed Master TX · " : "Observed RTU RX · ") + title,
             CauseOfTransmission = asdu.CotNameWithFlags,
             AsduType = asdu.TypeName,
             RawHex = item.RawHex,
@@ -130,27 +130,12 @@ public static class Iec10xCommandEventProjection
                 _ => "RTU command COT " + cot
             };
 
-        // Keep control state separate from the protocol phase. A positive
-        // reply is never a verified physical Open/Close indication.
-        var q = asdu.CommandDetails?.QualifierRaw;
-        var state = asdu.TypeId switch
-        {
-            45 or 58 when q.HasValue => (q.Value & 1) == 1 ? "ON" : "OFF",
-            46 or 59 when q.HasValue => (q.Value & 3) switch
-            {
-                1 => "OFF",
-                2 => "ON",
-                _ => "invalid DCS"
-            },
-            47 or 60 when q.HasValue => (q.Value & 3) switch
-            {
-                1 => "LOWER",
-                2 => "HIGHER",
-                _ => "invalid RCS"
-            },
-            _ => string.Empty
-        };
-        if (state.Length > 0) step += " · " + state;
+        // Only the canonical Core decoder may interpret qualifier bits.
+        // ValueMeaning already distinguishes SCS/DCS/RCS and signed setpoints.
+        // A COT7 confirmation is still not physical Open/Close proof.
+        var decodedValue = asdu.CommandDetails?.ValueMeaning;
+        if (!string.IsNullOrWhiteSpace(decodedValue) && decodedValue.Length <= 22)
+            step += " · " + decodedValue;
         if (test) step = "TEST (non-operational) · " + step;
         return step;
     }
