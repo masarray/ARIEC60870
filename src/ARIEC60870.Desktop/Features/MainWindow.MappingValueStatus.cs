@@ -1136,8 +1136,18 @@ public partial class MainWindow
         OpenCaptureButton.IsEnabled = !isRunning || !IsIec101PassiveMonitorSelected();
         ProtocolModeComboBox.IsEnabled = !isRunning;
         InteroperabilityConventionComboBox.IsEnabled = !isRunning;
+        // The online Setup is an inspector; only the separate footer action
+        // may stop a live session. Changing profile, serial port or standby
+        // advisory must not mutate a connected engine behind the UI.
+        SetupImportProfileButton.IsEnabled = !isRunning;
+        SetupRefreshPortsButton.IsEnabled = !isRunning;
+        BackupAddressReviewButton.IsEnabled = !isRunning;
+        BackupAddressContinueButton.IsEnabled = !isRunning;
         PassiveSourceComboBox.IsEnabled = !isRunning;
         PassiveLinkBEnabledCheckBox.IsEnabled = !isRunning;
+        PassiveLinkBScadaPortComboBox.IsEnabled = !isRunning;
+        PassiveLinkBRtuPortComboBox.IsEnabled = !isRunning;
+        PassiveCaptureFolderPicker.IsEnabled = !isRunning;
         PassiveLinkWidthCombo.IsEnabled = !isRunning;
         PassiveCotWidthCombo.IsEnabled = !isRunning;
         PassiveCaWidthCombo.IsEnabled = !isRunning;
