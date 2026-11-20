@@ -358,6 +358,9 @@
     <DropShadowEffect x:Key="SetupConnectShadow" Color="#08663E"
                       BlurRadius="8" ShadowDepth="2" Opacity="0.21"
                       RenderingBias="Performance"/>
+    <DropShadowEffect x:Key="SetupDisconnectShadow" Color="#9C263B"
+                      BlurRadius="8" ShadowDepth="2" Opacity="0.16"
+                      RenderingBias="Performance"/>
     <ControlTemplate x:Key="SetupConnectButtonTemplate" TargetType="{x:Type Button}">
         <Grid x:Name="SetupConnectRoot" SnapsToDevicePixels="True">
             <Border x:Name="SetupConnectSurface"
@@ -403,6 +406,7 @@
             <Trigger Property="Tag" Value="Disconnect">
                 <Setter TargetName="SetupConnectSurface" Property="Background" Value="{StaticResource SetupDisconnectIdleBrush}"/>
                 <Setter TargetName="SetupConnectSurface" Property="BorderBrush" Value="#A62138"/>
+                <Setter TargetName="SetupConnectSurface" Property="Effect" Value="{StaticResource SetupDisconnectShadow}"/>
             </Trigger>
             <MultiTrigger>
                 <MultiTrigger.Conditions>
