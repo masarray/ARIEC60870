@@ -1702,12 +1702,11 @@
                                     <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="1.55*" MinWidth="118" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
-                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
-                                    <!-- IEC has no per-event buffered/live bit. These short
-                                         labels are COT/timing evidence, never queue certainty. -->
-                                    <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryHint}"
-                                                        Width="91" MinWidth="80"
-                                                        ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <!-- Show suspected RTU backlog inline in spontaneous COT,
+                                         without an extra column or claiming a protocol buffer bit. -->
+                                    <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}"
+                                                            ClipboardContentBinding="{Binding CotLabel}"
+                                                            Width="1.65*" MinWidth="184" />
                                     <!-- IEC-101 FC10/11 is the request link function, not
                                          a permanent IOA Class 1/2 declaration. -->
                                     <DataGridTextColumn Header="FC" Binding="{Binding RequestFcCode}" Width="65" MinWidth="60">
