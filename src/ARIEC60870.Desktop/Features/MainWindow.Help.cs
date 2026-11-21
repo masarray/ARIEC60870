@@ -18,7 +18,8 @@ public partial class MainWindow
         // CheckBox/ToggleButton as explicit action buttons: both inherit
         // ButtonBase and the old guard silently discarded Enter on Auto-GI
         // and other focused switches (most visible in IEC-101 Single).
-        if (e.Key == Key.Enter && CanSubmitSetupOnEnter(Keyboard.FocusedElement))
+        if (e.Key == Key.Enter &&
+            CanSubmitSetupOnEnter(ResolveSetupEnterSource(e.OriginalSource)))
         {
             e.Handled = true;
             // Route through the actual WPF button Click, exactly as the mouse
@@ -34,6 +35,29 @@ public partial class MainWindow
             e.Handled = true;
             OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
         }
+    }
+
+    private static IInputElement? ResolveSetupEnterSource(object? originalSource)
+    {
+        // PreviewKeyDown tunnels through the actual setup control. Resolve
+        // its nearest interactive ancestor, not a possibly stale global
+        // Keyboard.FocusedElement (which differs across protocol templates).
+        var element = originalSource as DependencyObject;
+        while (element is not null)
+        {
+            if (element is System.Windows.Controls.TextBox or
+                System.Windows.Controls.ComboBox or
+                System.Windows.Controls.Primitives.ButtonBase)
+                return (IInputElement)element;
+
+            var visualParent = element is System.Windows.Media.Visual or
+                System.Windows.Media.Media3D.Visual3D
+                ? System.Windows.Media.VisualTreeHelper.GetParent(element)
+                : null;
+            element = visualParent ?? LogicalTreeHelper.GetParent(element);
+        }
+
+        return Keyboard.FocusedElement;
     }
 
     // Also used by real-WPF acceptance without opening COM or invoking Click.
