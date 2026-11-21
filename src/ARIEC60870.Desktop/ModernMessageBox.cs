@@ -28,8 +28,14 @@ public static class ModernMessageBox
         => Show(owner, messageBoxText, caption, button, MessageBoxImage.None);
 
     public static MessageBoxResult Show(Window? owner, string messageBoxText, string caption, MessageBoxButton button, MessageBoxImage icon)
+        => Show(owner, messageBoxText, caption, button, icon, MessageBoxResult.None);
+
+    // Opt-in fail-closed default for active protocol authorization prompts.
+    // All existing callers retain their default buttons unchanged.
+    public static MessageBoxResult Show(Window? owner, string messageBoxText, string caption,
+        MessageBoxButton button, MessageBoxImage icon, MessageBoxResult defaultResult)
     {
-        var dialog = new ModernMessageDialog(caption, messageBoxText, button, icon)
+        var dialog = new ModernMessageDialog(caption, messageBoxText, button, icon, defaultResult)
         {
             WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner
         };
@@ -54,7 +60,8 @@ internal sealed class ModernMessageDialog : Window
     private readonly Brush _ink500Brush;
     private Button? _defaultButton;
 
-    public ModernMessageDialog(string title, string message, MessageBoxButton buttons, MessageBoxImage icon)
+    public ModernMessageDialog(string title, string message, MessageBoxButton buttons,
+        MessageBoxImage icon, MessageBoxResult defaultResult = MessageBoxResult.None)
     {
         _buttons = buttons;
         _accentBrush = GetBrush("AccentBrush", "#2563EB");
@@ -80,7 +87,7 @@ internal sealed class ModernMessageDialog : Window
         SnapsToDevicePixels = true;
         KeyDown += OnKeyDown;
 
-        Content = BuildContent(title, message, buttons, icon);
+        Content = BuildContent(title, message, buttons, icon, defaultResult);
     }
 
     public MessageBoxResult Result { get; private set; } = MessageBoxResult.None;
@@ -107,7 +114,8 @@ internal sealed class ModernMessageDialog : Window
         base.OnClosing(e);
     }
 
-    private UIElement BuildContent(string title, string message, MessageBoxButton buttons, MessageBoxImage icon)
+    private UIElement BuildContent(string title, string message, MessageBoxButton buttons,
+        MessageBoxImage icon, MessageBoxResult defaultResult)
     {
         var shell = new Border
         {
@@ -214,7 +222,7 @@ internal sealed class ModernMessageDialog : Window
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right
         };
-        foreach (var button in CreateDialogButtons(buttons))
+        foreach (var button in CreateDialogButtons(buttons, defaultResult))
         {
             buttonPanel.Children.Add(button);
         }
@@ -278,7 +286,7 @@ internal sealed class ModernMessageDialog : Window
         return button;
     }
 
-    private Button[] CreateDialogButtons(MessageBoxButton buttons)
+    private Button[] CreateDialogButtons(MessageBoxButton buttons, MessageBoxResult defaultResult)
         => buttons switch
         {
             MessageBoxButton.OKCancel => new[]
@@ -288,8 +296,10 @@ internal sealed class ModernMessageDialog : Window
             },
             MessageBoxButton.YesNo => new[]
             {
-                CreateDialogButton("No", MessageBoxResult.No, isPrimary: false, isDefault: false),
-                CreateDialogButton("Yes", MessageBoxResult.Yes, isPrimary: true, isDefault: true)
+                CreateDialogButton("No", MessageBoxResult.No, isPrimary: false,
+                    isDefault: defaultResult == MessageBoxResult.No),
+                CreateDialogButton("Yes", MessageBoxResult.Yes, isPrimary: true,
+                    isDefault: defaultResult != MessageBoxResult.No)
             },
             MessageBoxButton.YesNoCancel => new[]
             {
