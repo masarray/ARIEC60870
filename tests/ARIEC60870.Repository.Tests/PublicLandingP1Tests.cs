@@ -65,7 +65,7 @@ public sealed class PublicLandingP1Tests
         Assert.Equal(previous.Groups["tag"].Value, previous.Groups["text"].Value);
         Assert.NotEqual("v" + stable, previous.Groups["tag"].Value);
         var readme = File.ReadAllText(Path.Combine(root.FullName, "README.md"));
-        Assert.Contains($"| **Previous stable** | **{previous.Groups["tag"].Value}**", readme);
+        Assert.Contains($"https://github.com/masarray/arsee/releases/tag/v{stable}", readme);
         Assert.Contains($"{assetPrefix}-v{stable}-setup-win-x64.exe", html);
         Assert.Contains($"{assetPrefix}-v{stable}-win-x64.zip", html);
     }
@@ -126,8 +126,8 @@ public sealed class PublicLandingP1Tests
 
         var download = File.ReadAllText(Path.Combine(root.FullName, "site/id/download.html"));
         Assert.Contains("SHA256SUMS.txt", download);
-        Assert.Contains("v3.6.17", download);
-        Assert.Contains("pengujian engineering yang diizinkan", download);
+        Assert.Contains("Rilis stabil terbaru", download);
+        Assert.Contains("lingkungan engineering yang diizinkan", download);
         Assert.Contains("data-release-filename=\"installer\"", download);
         Assert.Contains("data-release-filename=\"zip\"", download);
         Assert.Contains("release-download.js", download);
