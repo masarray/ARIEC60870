@@ -357,7 +357,9 @@ public sealed class EventDeliveryEvidenceTests
                 LinkAddress = 105,
                 LinkControl = new LinkControlInfo
                 {
-                    Prm = false, FunctionCode = 8, Acd = true
+                    Prm = false,
+                    FunctionCode = 8,
+                    Acd = true
                 }
             }
         };
