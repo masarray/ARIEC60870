@@ -1,3 +1,11 @@
+## [3.6.19] - Published public stable (2026-11-21)
+
+- **Published** [v3.6.19 stable](https://github.com/masarray/arsee/releases/tag/v3.6.19), immutable release source `b384e06b4ec435dae698ed995b02baf44499cefc`; [Package and provenance #44869528440](https://github.com/masarray/arsee/actions/runs/44869528440) and [master CI, independent genuine installed-updater and legacy migration FAT #44869011472](https://github.com/masarray/arsee/actions/runs/44869011472) passed.
+- **IEC-101 Class-1 pending cue:** exact verified FC10→FC8 original response ACD=1 marks `3 · spontaneous (buffer)` in the existing COT column; ACD=0 removes it immediately from subsequent events. This reports additional Class-1 demand only, **not a universal per-object FIFO age/origin bit**; historical event decisions remain indexed.
+- Prevented silent IEC-101 addressing-width changes when changing IEC-103/104 modes, refined compact Connection Setup and Frame Details, truthful IEC control case feedback and dual-link operator status.
+- Migrates an authentic registered legacy program folder through guarded Inno uninstall to `Programs/ArSee`; previously installed user-owned `%LOCALAPPDATA%/ARIEC60870` profiles, maps and captures are preserved. Older worker cannot relocate its own executable; use official direct Setup for this one-time migration.
+- One-device IEC-101 screenshot showed a transient `(buffer)` sequence clearing to normal with separate FC11 background data, 777 displayed events and 0 reported issues. **Not certified:** multi-vendor / 2-/4-channel live hardware SOE, RTU FIFO overflow, full IEC conformance, and physical control operation.
+
 ## [3.6.18] - Published public stable (2026-11-20)
 
 - **Published** [v3.6.18 stable](https://github.com/masarray/arsee/releases/tag/v3.6.18) at immutable source `80988bc759b52c18343acbf2f0ab1a09fa09594d`; [Windows packaging/provenance #44645100994](https://github.com/masarray/arsee/actions/runs/44645100994) and [source/migration/updater FAT #44644140702](https://github.com/masarray/arsee/actions/runs/44644140702) passed.

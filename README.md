@@ -3,7 +3,7 @@
 [![CI](https://github.com/masarray/arsee/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/ci.yml)
 [![Pages](https://github.com/masarray/arsee/actions/workflows/pages.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/pages.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.18)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-blue)](https://github.com/masarray/arsee/releases/tag/v3.6.19)
 
 **ArSee** is the public product name. New Windows executable and release assets use `ArSee`; historical C# namespaces and user-data paths keep `ARIEC60870` for backward compatibility. The GitHub repository has been renamed to [`masarray/arsee`](https://github.com/masarray/arsee), and the canonical Pages website is [`masarray.github.io/arsee`](https://masarray.github.io/arsee/). Older repository URLs redirect; old GitHub Pages project URLs do not.
 
@@ -17,13 +17,15 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 | Release channel | Version | Official downloads | Purpose |
 |---|---|---|---|
-| **Latest public stable** | **v3.6.18** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.18/ArSee-v3.6.18-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.18/ArSee-v3.6.18-win-x64.zip) · [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.18/SHA256SUMS.txt) | ArSee.exe and one clean shortcut; safe legacy installer migration |
-| **Previous stable** | **v3.6.17** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.17) | Bilingual Help, Signal Map and polling/Events UX; old installer naming |
+| **Latest public stable** | **v3.6.19** | **[Windows installer](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-setup-win-x64.exe)** · [Portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-win-x64.zip) · [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.19/SHA256SUMS.txt) | Source-verified Class-1 ACD event queue cue, profile/UX improvements, tested guarded legacy installer migration |
+| **Previous stable** | **v3.6.18** | [Stable release page](https://github.com/masarray/arsee/releases/tag/v3.6.18) | Branded ArSee.exe and clean shortcut; historical previous-installation path retained |
 | **Public prerelease archive** | **v3.6.17-rc.7** | [RC.7 release page](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7) | Immutable evaluation build preceding v3.6.17 |
 
-**The current installer, portable ZIP, and user-facing executable use `ArSee`.** Historical v3.6.17 assets keep their original filenames and cannot auto-update into renamed v3.6.18 assets; install v3.6.18 manually once over the existing installation.
+**The current installer, portable ZIP, and user-facing executable use `ArSee`.** Existing legacy `Programs/ARIEC60870` installations (v3.6.17/v3.6.18) must use the official v3.6.19 installer directly for folder relocation, with IEC sessions closed. Do not manually uninstall or delete `%LOCALAPPDATA%/ARIEC60870` operator settings, mappings or captures.
 
-**Published public stable v3.6.18 (20 November 2026):** [Official ArSee installer and ZIP](https://github.com/masarray/arsee/releases/tag/v3.6.18) published from exact source `80988bc759b52c18343acbf2f0ab1a09fa09594d`. [Windows release Package #44645100994](https://github.com/masarray/arsee/actions/runs/44645100994) and [source CI, genuine v3.6.17 → ArSee installer migration and independent updater FAT #44644140702](https://github.com/masarray/arsee/actions/runs/44644140702) **SUCCESS**. Fixed duplicate old Start Menu shortcuts and renamed the installed user executable **ArSee.exe**; safe in-place upgrade preserves user data. Physical RTU/SCADA FAT is still separate.
+**Published public stable v3.6.19 (21 November 2026):** [Official ArSee Windows installer and ZIP](https://github.com/masarray/arsee/releases/tag/v3.6.19) from immutable source `b384e06b4ec435dae698ed995b02baf44499cefc`. [Package #44869528440](https://github.com/masarray/arsee/actions/runs/44869528440) and [master CI, original installed updater and genuine legacy migration FAT #44869011472](https://github.com/masarray/arsee/actions/runs/44869011472) **SUCCESS**, with WPF, xUnit, SBOM and build provenance. IEC-101 `(buffer)` denotes ACD-confirmed **Class-1 data pending** on an exact FC10→FC8 exchange, not the age of an individual FIFO event. User-observed communication on one real RTU confirms the cue appears then clears; no certification of multi-vendor RTU interoperability, lossless FIFO or energized switchgear controls.
+
+**Historical public stable v3.6.18 (20 November 2026):** [Official ArSee installer and ZIP](https://github.com/masarray/arsee/releases/tag/v3.6.18) published from exact source `80988bc759b52c18343acbf2f0ab1a09fa09594d`. [Windows release Package #44645100994](https://github.com/masarray/arsee/actions/runs/44645100994) and [source CI, genuine v3.6.17 → ArSee installer migration and independent updater FAT #44644140702](https://github.com/masarray/arsee/actions/runs/44644140702) **SUCCESS**. Fixed duplicate old Start Menu shortcuts and renamed the installed user executable **ArSee.exe**; safe in-place upgrade preserves user data. Physical RTU/SCADA FAT is still separate.
 
 **Historical public stable v3.6.17 (19 November 2026):** [Official stable release](https://github.com/masarray/arsee/releases/tag/v3.6.17) and [source-bound Package #44540333243](https://github.com/masarray/arsee/actions/runs/44540333243) **SUCCESS**, with Windows installer, portable ZIP, SHA-256, SPDX SBOM and provenance. [Master CI/native independent installed-updater FAT #44539045530](https://github.com/masarray/arsee/actions/runs/44539045530) **SUCCESS** on the immutable stable tag source `5b1eada52cb26295dd91d73afe3b9d065e71a404`. This is software release qualification; physical RTU FAT remains separate.
 
@@ -31,7 +33,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
 
 **Previous stable v3.6.16 (18 November 2026):** PRs [#248](https://github.com/masarray/arsee/pull/248), [#250](https://github.com/masarray/arsee/pull/250), [#251](https://github.com/masarray/arsee/pull/251), [#252](https://github.com/masarray/arsee/pull/252), and [#253](https://github.com/masarray/arsee/pull/253) deliver a grid-first Signal Map with search/filter, atomic spreadsheet-like paste, Fill Down, Undo/Redo, shared toolbar styles, and a resizable on-demand Scaling/Mapping inspector. Windows package [workflow #44230597646](https://github.com/masarray/arsee/actions/runs/44230597646) passed. This does not establish physical RTU FAT.
 
-**Release qualification:** public stable v3.6.18 is an unsigned, source-qualified software package, **not an IEC/SCADA field-conformance certificate**. Compare [v3.6.18 SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.18/SHA256SUMS.txt), inspect [official release notes](https://github.com/masarray/arsee/releases/tag/v3.6.18) and validate station scaling against independent field references. Real RTU FAT remains separate.
+**Release qualification:** public stable v3.6.19 is an unsigned, source-qualified software package, **not an IEC/SCADA field-conformance certificate**. Compare [v3.6.19 SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.19/SHA256SUMS.txt), inspect [official release notes](https://github.com/masarray/arsee/releases/tag/v3.6.19) and validate project signal scaling against independent field references. Hardware interoperability FAT remains separate.
 
 <p align="center">
   <a href="https://masarray.github.io/arsee/">
@@ -39,7 +41,7 @@ ArSee is a free, Apache-2.0 open-source Windows protocol tester and evidence ana
   </a>
 </p>
 
-*Illustrative product media. The [v3.6.18 release workflow](https://github.com/masarray/arsee/actions/runs/44645100994) verifies the public installer and packaged Windows evidence. This does not certify physical RTU interoperability.*
+*Illustrative product media. The [v3.6.19 release workflow](https://github.com/masarray/arsee/actions/runs/44869528440) verifies the public installer and packaged Windows evidence. This does not certify physical RTU interoperability.*
 
 ## Engineering-unit scaling in Signal List
 
@@ -78,7 +80,7 @@ An acknowledged frame or GI termination is **not** proof that every configured p
 
 ## Five-minute first run
 
-1. Download the newest **public stable** [v3.6.18 ArSee installer](https://github.com/masarray/arsee/releases/download/v3.6.18/ArSee-v3.6.18-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.18/ArSee-v3.6.18-win-x64.zip), and check [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.18/SHA256SUMS.txt). Existing v3.6.17 installs must be upgraded **manually without uninstalling** to preserve settings; new packages launch **ArSee.exe**. [Previous stable v3.6.17](https://github.com/masarray/arsee/releases/tag/v3.6.17) remains available unchanged.
+1. Download [v3.6.19 official ArSee installer](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-setup-win-x64.exe) or [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-win-x64.zip), and compare the official [SHA-256](https://github.com/masarray/arsee/releases/download/v3.6.19/SHA256SUMS.txt). For old program-folder installations, close active sessions and run official Setup directly; do **not** manually uninstall or delete saved `%LOCALAPPDATA%/ARIEC60870` user data. [Previous stable v3.6.18](https://github.com/masarray/arsee/releases/tag/v3.6.18) remains available.
 2. In **Setup**, choose IEC-101 serial, IEC-101 passive, IEC-103 serial or IEC-104 TCP and enter the project-approved COM/TCP, serial handshake, link and ASDU address settings.
 3. Connect only to an **authorized simulator or isolated test endpoint**. Do not guess RTS/DTR states or reset a live outstation.
 4. Compare original TX/RX frame evidence with the interpretation in Raw Frames, Values, Events and GI/Controls as available.
