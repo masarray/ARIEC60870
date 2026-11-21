@@ -4,7 +4,7 @@
 (() => {
   "use strict";
   const repo = "https://github.com/masarray/arsee";
-  const fallbackTag = "v3.6.19";
+  const fallbackTag = "v3.6.20";
   const api = "https://api.github.com/repos/masarray/arsee/releases?per_page=30";
   const validTag = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 
@@ -96,10 +96,10 @@
         Date.parse(b.release.published_at || 0) - Date.parse(a.release.published_at || 0));
       // One release must contain matching installer, ZIP, checksum and SBOM.
       // A half-uploaded stable tag must not replace an already working public RC.
-      const current = packages.find((p) => p.installer);
+      // The main public download channel prioritizes complete stable releases.\n      const current = packages.find((p) => p.installer && !p.release.prerelease) ??\n        packages.find((p) => p.installer);
       if (current) update(current);
     } catch (_) {
-      // Offline/API rate-limited visitors retain the verified public stable v3.6.19 links.
+      // Offline/API rate-limited visitors retain the verified public stable v3.6.20 links.
     }
   }
   refresh();
