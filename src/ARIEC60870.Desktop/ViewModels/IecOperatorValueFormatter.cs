@@ -32,10 +32,10 @@ public static class IecOperatorValueFormatter
             var scaledText = original.Trim();
             if (!scaledText.StartsWith("Scaled=", StringComparison.OrdinalIgnoreCase))
                 return original;
-            var numeric = scaledText["Scaled=".Length..].Trim();
-            var suffix = numeric.IndexOf(',');
-            if (suffix >= 0) numeric = numeric[..suffix].Trim();
-            return short.TryParse(numeric, NumberStyles.Integer,
+            var scaledNumber = scaledText["Scaled=".Length..].Trim();
+            var scaledSuffix = scaledNumber.IndexOf(',');
+            if (scaledSuffix >= 0) scaledNumber = scaledNumber[..scaledSuffix].Trim();
+            return short.TryParse(scaledNumber, NumberStyles.Integer,
                 CultureInfo.InvariantCulture, out var raw)
                 ? raw.ToString(CultureInfo.InvariantCulture) : original;
         }
