@@ -43,20 +43,23 @@ async function runCase(browserName, browser, width, route) {
     entry.visual = visual;
     assert(visual.hasCss, "Shared stylesheet did not load");
     const typography = await page.evaluate(async () => {
-      await document.fonts.load('400 15px "Inter"');
+      const loadedFaces = await document.fonts.load('400 15px "Inter"');
       await document.fonts.ready;
       const body = getComputedStyle(document.body);
-      const loaded = [...document.fonts].some(face => face.family === "Inter" && face.status === "loaded");
+      // FontFace.family quoting differs between Chromium and Firefox; use the
+      // actual FontFaceSet.load result, which requires a declared and loaded face.
+      const loaded = loadedFaces.length > 0 && loadedFaces.every(face => face.status === "loaded");
+      const faces = loadedFaces.map(face => ({ name: face.family, status: face.status }));
       const heading = getComputedStyle(document.querySelector("h1"));
       const sample = document.querySelector(".hero-copy .lead, .doc-hero p, main p");
       const color = getComputedStyle(sample).color;
-      return { family: body.fontFamily, loaded, h1Px: parseFloat(heading.fontSize), textColor: color };
+      return { family: body.fontFamily, loaded, faces, h1Px: parseFloat(heading.fontSize), textColor: color };
     });
     assert(typography.family.startsWith('"Inter"') || typography.family.startsWith("Inter,"),
       "ArSee public pages must use the bundled Inter font: " + typography.family);
-    assert(typography.loaded, "Self-hosted Inter font did not load on " + route);
+    assert(typography.loaded, "Self-hosted Inter font did not load on " + route + ": " + JSON.stringify(typography.faces));
     assert(typography.h1Px <= 37, "Oversized/bulky page headline: " + typography.h1Px);
-    const rgb = typography.textColor.match(/[\\d.]+/g)?.slice(0, 3).map(Number);
+    const rgb = typography.textColor.match(/[0-9.]+/g)?.slice(0, 3).map(Number);
     assert(rgb && rgb.length === 3, "Could not inspect body text contrast");
     const linear = rgb.map(n => {
       const c = n / 255;
