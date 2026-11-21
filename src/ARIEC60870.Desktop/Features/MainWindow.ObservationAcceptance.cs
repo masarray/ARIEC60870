@@ -132,6 +132,28 @@ public partial class MainWindow
                     "Fresh IEC-101 startup must show Reset Remote Link ON.");
             SaveRealWpfBitmap(outputDirectory, "setup-iec101-compact-switches.png");
 
+            // P0: changing protocol must never rewrite the saved IEC-101
+            // FT1.2/ASDU widths to IEC-103's fixed 1-byte interpretation.
+            SelectComboContent(LinkAddressSizeComboBox, "2");
+            SelectComboContent(CotSizeComboBox, "2");
+            SelectComboContent(CaSizeComboBox, "2");
+            SelectComboContent(IoaSizeComboBox, "3");
+            ProtocolModeComboBox.SelectedIndex = 0;
+            ProtocolModeComboBox.SelectedIndex = 1;
+            if (ReadIec101SetupWidths() != Iec101SetupWidths.GenericDefaults)
+                throw new InvalidOperationException(
+                    "IEC-103 mode switch overwrote the IEC-101 operator's 2/2/2/3 profile.");
+            ProtocolModeComboBox.SelectedIndex = 4;
+            if (ReadComboInt(CotSizeComboBox, "COT") != 2 ||
+                ReadComboInt(CaSizeComboBox, "CA") != 2 ||
+                ReadComboInt(IoaSizeComboBox, "IOA") != 3)
+                throw new InvalidOperationException(
+                    "IEC-104 ASDU field widths inherited an incompatible IEC-103 profile.");
+            ProtocolModeComboBox.SelectedIndex = 1;
+            if (ReadIec101SetupWidths() != Iec101SetupWidths.GenericDefaults)
+                throw new InvalidOperationException(
+                    "IEC-104 mode switch overwrote the IEC-101 operator's profile.");
+
             // Passive mode keeps the identical style and Checked/Unchecked
             // event handlers. Ensure both conditional switches align too.
             ProtocolModeComboBox.SelectedIndex = 3;
@@ -165,6 +187,11 @@ public partial class MainWindow
                     SetupDialogCard.ActualHeight > SetupOverlay.ActualHeight - 30)
                     throw new InvalidOperationException(
                         "Connection Setup scroll viewport does not fit the rendered window.");
+                if (mode == 4 &&
+                    (Iec104RuntimePanel.IsExpanded ||
+                     SetupSettingsScroll.ComputedVerticalScrollBarVisibility == Visibility.Visible))
+                    throw new InvalidOperationException(
+                        "IEC-104 compact Setup must show its normal controls without a scrollbar; APCI advanced stays available on demand.");
                 SaveRealWpfBitmap(outputDirectory, file);
             }
         }
