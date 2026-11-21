@@ -394,6 +394,11 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
         }
 
+        // The clock-sync reply can assert DFC or revoke the verified link.
+        // Do not slip a GI through the newly busy/unverified state. The
+        // session-owned GI intent remains pending until a real wire attempt.
+        if (!_linkVerified || _remoteDfcBusy) return;
+
         if (!_settings.SendGeneralInterrogationOnConnect || _startupGiAttempted) return;
 
         // The intent remains pending until the actual startup GI write attempt.

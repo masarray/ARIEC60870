@@ -50,6 +50,45 @@ public sealed class Iec101SingleLinkDfcBusyRecoveryTests
         Assert.DoesNotContain(result.Findings, x => x.Id == "IEC101-SESSION-FAULT");
     }
 
+    [Fact]
+    public async Task FirstConnectGiWaitsForDfcClearAndTransmitsExactlyOnce()
+    {
+        var settings = new Iec103MasterSettings
+        {
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PortName = "DFC-FIRST-GI",
+            BaudRate = 1200,
+            LinkAddress = 105, LinkAddressSize = 2,
+            CommonAddress = 105, CommonAddressSize = 2,
+            CauseOfTransmissionSize = 2, InformationObjectAddressSize = 3,
+            ResponseTimeoutMs = 90,
+            BusyBackoffMs = 70,
+            Class2PollIntervalMs = 50,
+            StartupDelayMs = 0,
+            MaxClass1DrainFrames = 2,
+            ResetRemoteLinkOnConnect = false,
+            ResetFcbOnConnect = false,
+            SendGeneralInterrogationOnConnect = true,
+            SendClockSyncOnConnect = false,
+            RequestClass2ImmediatelyAfterStartup = false
+        };
+        // The first addressed FC11 proves the secondary but sets DFC=1;
+        // the second FC9 clears it. A confirmed link is NOT GI permission
+        // while that exact source is still remote-busy.
+        await using var port = new BusyThenRecoveredSecondary(initialBusy: true);
+        var result = await new Iec101MasterSession(settings, port)
+            .RunForAsync(TimeSpan.FromMilliseconds(850), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(port.StatusProbes >= 2);
+        Assert.Equal(0, port.DataSentWhileBusy);
+        Assert.Equal(1, port.GiRequests);
+        Assert.Equal(1, result.Counters.GiCommands);
+        Assert.Single(result.Events.Where(e =>
+            e.Direction == ARIEC60870.Core.Model.FrameDirection.MasterToSlave &&
+            e.TypeId == 100 && e.CauseOfTransmission == 6));
+    }
+
     private sealed class BusyThenRecoveredSecondary : IByteTransport
     {
         private readonly Ft12Parser _parser = Ft12Parser.ForIec101(2);
@@ -57,9 +96,13 @@ public sealed class Iec101SingleLinkDfcBusyRecoveryTests
         private bool _busy;
         private int _busyProbes;
 
+        public BusyThenRecoveredSecondary(bool initialBusy = false) =>
+            _busy = initialBusy;
+
         public bool IsOpen { get; private set; }
         public int Class2Requests { get; private set; }
         public int StatusProbes { get; private set; }
+        public int GiRequests { get; private set; }
         public int DataSentWhileBusy { get; private set; }
 
         public ValueTask OpenAsync(CancellationToken cancellationToken)
@@ -96,6 +139,8 @@ public sealed class Iec101SingleLinkDfcBusyRecoveryTests
                 case 10:
                 case 3:
                     if (_busy) DataSentWhileBusy++;
+                    if (frame.AsduBytes.Count > 0 && frame.AsduBytes[0] == 100)
+                        GiRequests++;
                     Enqueue([0xE5]);
                     break;
                 case 0:
