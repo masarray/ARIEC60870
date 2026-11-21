@@ -100,6 +100,19 @@ public sealed class EventHistoryQuerySnapshot
 /// </summary>
 public static class EventHistoryQueryEngine
 {
+    // A new session starts with a zero-row snapshot, NOT with a new filter
+    // preference. Incremental tail extension must know from event #1 whether
+    // the saved Include/Exclude/Search requires an ordinal index.
+    public static EventHistoryQuerySnapshot EmptyForScope(
+        string? query, IReadOnlyCollection<string> include, IReadOnlyCollection<string> exclude) =>
+        new(0, IsUnfiltered(query, include, exclude) ? null : Array.Empty<long>());
+
+    private static bool IsUnfiltered(
+        string? query, IReadOnlyCollection<string> include, IReadOnlyCollection<string> exclude) =>
+        string.IsNullOrWhiteSpace(query) && exclude.Count == 0 &&
+        new[] { "Digital", "Measurement", "Commands", "GI", "Other" }
+            .All(include.Contains);
+
     public static EventHistoryQuerySnapshot Build(
         EventHistoryJournal journal, long ceiling, string? query,
         IReadOnlyCollection<string> include, IReadOnlyCollection<string> exclude,
@@ -115,10 +128,8 @@ public static class EventHistoryQueryEngine
         var allowed = new HashSet<string>(include, StringComparer.Ordinal);
         var blocked = new HashSet<string>(exclude, StringComparer.Ordinal);
         var search = query?.Trim() ?? string.Empty;
-        var all = search.Length == 0 && blocked.Count == 0 &&
-            new[] { "Digital", "Measurement", "Commands", "GI", "Other" }
-                .All(allowed.Contains);
-        if (all) return new EventHistoryQuerySnapshot(ceiling, null);
+        if (IsUnfiltered(search, allowed, blocked))
+            return new EventHistoryQuerySnapshot(ceiling, null);
         var matches = Scan(journal, 0, ceiling, search, allowed, blocked,
             classify, cancellationToken, names);
         return new EventHistoryQuerySnapshot(ceiling, matches.ToArray());
