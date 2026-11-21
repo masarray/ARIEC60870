@@ -395,7 +395,7 @@ public sealed class RepositoryHygieneTests
 
         var siteIndex = File.ReadAllText(root.File("site/index.html"));
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
-        Assert.Contains("See what your IEC 60870 link is really doing.", siteIndex);
+        Assert.Contains("Understand your IEC 60870 communication.", siteIndex);
         Assert.Equal(siteIndex, docsIndex);
         Assert.Contains("https://masarray.github.io/arsee/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
@@ -616,7 +616,7 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("\"@type\": \"FAQPage\"", site);
         Assert.Contains("\"@type\": \"BreadcrumbList\"", site);
         Assert.Contains("Native PDF evidence report", site);
-        Assert.Contains("See what your IEC 60870 link is really doing.", docsMirror);
+        Assert.Contains("Understand your IEC 60870 communication.", docsMirror);
         Assert.Equal(site, docsMirror);
         Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);

@@ -48,7 +48,7 @@ public sealed class PublicLandingP1Tests
         Assert.NotEmpty(title);
         Assert.NotEmpty(lead);
         Assert.DoesNotContain("Protocol Tester & Analyzer", title);
-        Assert.InRange(title.Length, 45, 100);
+        Assert.InRange(title.Length, 30, 100); // Readable concise headlines are intentional.
         Assert.InRange(lead.Length, 90, 310);
         // Public stable source of truth changes only after an actual release publishes.
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "site/seo-manifest.json")));
@@ -162,7 +162,7 @@ public sealed class PublicLandingP1Tests
         var root = RepositoryRoot();
         var css = File.ReadAllText(Path.Combine(root.FullName, "site/styles.css"));
         Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
-        foreach (var required in new[] { "--public-radius:", "--public-section-space:",
+        foreach (var required in new[] { "--public-radius:", "--public-space:",
             ".landing-home #product .proof-card", ".landing-home #screens .screen-grid",
             "scroll-snap-type: x mandatory", ".landing-home .capability-atlas",
             ".demo-page .demo-story-card", ".download-page .doc-card" })
@@ -177,6 +177,67 @@ public sealed class PublicLandingP1Tests
             Assert.Contains("data-release-filename=\"installer\"", site);
             Assert.Contains("data-release-filename=\"zip\"", site);
         }
+    }
+
+    [Theory]
+    [InlineData("index.html")]
+    [InlineData("id/index.html")]
+    [InlineData("demo.html")]
+    [InlineData("id/demo.html")]
+    [InlineData("download.html")]
+    [InlineData("id/download.html")]
+    public void MainLandingPagesPreloadTheLocallyLicensedInterVariableFont(string page)
+    {
+        var root = RepositoryRoot();
+        var path = page.Replace('/', Path.DirectorySeparatorChar);
+        var html = File.ReadAllText(Path.Combine(root.FullName, "site", path));
+        Assert.Equal(html, File.ReadAllText(Path.Combine(root.FullName, "docs", path)));
+        var fontPath = page.StartsWith("id/", StringComparison.Ordinal)
+            ? "../assets/fonts/InterVariable.woff2"
+            : "assets/fonts/InterVariable.woff2";
+        Assert.Contains($"<link rel=\"preload\" href=\"{fontPath}\" as=\"font\" type=\"font/woff2\" crossorigin />", html);
+    }
+
+    [Fact]
+    public void InterIsBundledLocallyWithItsLicenseAndNoRemoteFontDependency()
+    {
+        var root = RepositoryRoot();
+        var css = File.ReadAllText(Path.Combine(root.FullName, "site/styles.css"));
+        Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
+        Assert.Contains("@font-face", css);
+        Assert.Contains("font-family: \"Inter\";", css);
+        Assert.Contains("assets/fonts/InterVariable.woff2", css);
+        Assert.Contains("font-display: swap;", css);
+        Assert.Contains("font-family: \"Inter\", ui-sans-serif", css);
+        Assert.DoesNotContain("fonts.googleapis.com", css);
+        Assert.DoesNotContain("fonts.gstatic.com", css);
+        Assert.DoesNotContain("font-family: Aptos, Inter", css);
+
+        var siteFont = File.ReadAllBytes(Path.Combine(root.FullName, "site/assets/fonts/InterVariable.woff2"));
+        var mirroredFont = File.ReadAllBytes(Path.Combine(root.FullName, "docs/assets/fonts/InterVariable.woff2"));
+        Assert.InRange(siteFont.Length, 100_000, 600_000);
+        Assert.Equal(new byte[] { (byte)'w', (byte)'O', (byte)'F', (byte)'2' }, siteFont[..4]);
+        Assert.Equal(siteFont, mirroredFont);
+        var license = File.ReadAllText(Path.Combine(root.FullName, "site/assets/fonts/OFL.txt"));
+        Assert.Contains("SIL OPEN FONT LICENSE", license);
+        Assert.Equal(license, File.ReadAllText(Path.Combine(root.FullName, "docs/assets/fonts/OFL.txt")));
+    }
+
+    [Theory]
+    [InlineData("site/index.html")]
+    [InlineData("site/id/index.html")]
+    public void HeroPrioritizesSoftwareAndReleasesWithoutDuplicatedBadgeTiles(string path)
+    {
+        var root = RepositoryRoot();
+        var html = File.ReadAllText(Path.Combine(root.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
+        var hero = html[html.IndexOf("<section class=\"hero\">", StringComparison.Ordinal)..];
+        hero = hero[..hero.IndexOf("</section>", StringComparison.Ordinal)];
+        Assert.Contains("data-auto-preview", hero);
+        Assert.Contains("class=\"preview-meta\"", hero);
+        Assert.Contains("data-release", html); // Release resolver and its metadata survive.
+        Assert.DoesNotContain("class=\"metric-row\"", hero);
+        Assert.DoesNotContain("class=\"trust-strip\"", hero);
+        Assert.Equal(2, Regex.Matches(hero, "class=\"button (primary|secondary)\"").Count);
     }
 
     [Fact]
@@ -195,8 +256,9 @@ public sealed class PublicLandingP1Tests
         Assert.Contains("html.nav-enhanced .site-header .nav-links.is-open", css);
         Assert.Contains("min-height: 44px", css);
         Assert.Contains("html.nav-enhanced .site-header .brand small { display: none; }", css);
-        Assert.Contains(".landing-home .proof-card span { font-size: 15px;", css);
-        Assert.Contains(".landing-home .hero-copy .lead { max-width: 62ch; font-size: 16px;", css);
+        Assert.Contains(".landing-home #product .proof-card span:not(.card-top-icon)", css);
+        Assert.Contains(".landing-home .hero-copy .lead", css);
+        Assert.Contains("max-width: 56ch;", css);
         Assert.Equal(script, File.ReadAllText(Path.Combine(root.FullName, "docs/script.js")));
         Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
     }
