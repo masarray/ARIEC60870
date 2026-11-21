@@ -1,5 +1,14 @@
 /* Copyright 2026 Ari Sulistiono
    SPDX-License-Identifier: Apache-2.0 */
+/* Self-hosted official Inter Variable (SIL OFL 1.1; see assets/fonts/OFL.txt). */
+@font-face {
+  font-family: "Inter";
+  src: url("assets/fonts/InterVariable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --bg: #fbfdff;
@@ -10,10 +19,10 @@
   --brand-soft: #edf8fb;
   --brand-ink: #15536a;
   --brand-action: #0b647a;
-  --ink: #102234;
+  --ink: #182d3b;
   --ink-strong: #071827;
-  --muted: #64758a;
-  --muted-2: #8a98a8;
+  --muted: #516579;
+  --muted-2: #63778a;
   --hairline: #dce7ee;
   --hairline-2: #cbdbe5;
   --shadow-soft: 0 18px 60px rgba(15, 34, 52, 0.08);
@@ -39,11 +48,11 @@ body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(70% 52% at 52% 0%, rgba(61, 127, 156, 0.10), transparent 72%),
-    linear-gradient(180deg, #ffffff 0%, #f7fbfd 54%, #fbfdff 100%);
+  background: #fbfcfd;
   color: var(--ink);
-  font-family: Aptos, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  font-synthesis: none;
   font-size: 15px;
   font-weight: 400;
   line-height: 1.66;
@@ -1584,23 +1593,6 @@ body h1,
 @media (max-width:620px) { .release-line { gap: 5px 8px; font-size: 11px; } .release-disclaimer, .release-caption { max-width: 100%; } }
 
 
-/* P1: calmer landing typography and human-readable card descriptions. */
-.landing-home .hero { min-height: auto; padding-block: 132px 72px; }
-.landing-home .hero-copy h1 { max-width: 23ch; font-size: clamp(30px, 3vw, 40px); font-weight: 550; line-height: 1.17; }
-.landing-home .hero-copy .eyebrow { margin-bottom: 16px; font-size: 12px; line-height: 1.5; letter-spacing: .035em; }
-.landing-home .hero-copy .lead { max-width: 62ch; font-size: 16px; line-height: 1.72; }
-.landing-home .hero-actions { margin-top: 24px; }
-.landing-home .release-line { margin-block: 18px 0; font-size: 13px; }
-.landing-home .release-disclaimer, .landing-home .release-caption { font-size: 13px; line-height: 1.6; }
-.landing-home .trust-strip { margin-top: 18px; }
-.landing-home .trust-strip span { font-size: 13px; line-height: 1.3; }
-.landing-home .section-heading { max-width: 740px; }
-.landing-home .section-heading p { max-width: 68ch; font-size: 16px; line-height: 1.7; }
-.landing-home .proof-card { min-height: 0; border-radius: 16px; padding: 20px; }
-.landing-home .proof-card span { font-size: 15px; line-height: 1.65; }
-.landing-home .screen-card p, .landing-home .doc-card p { font-size: 15px; line-height: 1.65; }
-.landing-home .section { padding-block: 72px; }
-
 /* Progressive navigation: no-JS retains visible existing links. */
 .site-header .nav-toggle { display: none; }
 @media (max-width: 980px) {
@@ -1714,245 +1706,215 @@ html:not(.faq-enhanced) .faq-accordion-trigger { cursor: default; }
 .credibility-grid a:focus-visible { outline:2px solid var(--brand-2); outline-offset:3px; }
 @media (max-width:760px) { .credibility-grid { grid-template-columns:1fr; gap:14px; } .credibility-section { padding-block:46px; } }
 
-/* ArSee public presentation system
-   Scope: EN/ID home, product demo and downloads.
-   One rhythm, restrained radii/shadows and consistent responsive galleries. */
+/* Public design system: one measured type/space/radius scale for EN/ID pages.
+   Older component CSS above remains for Wiki/FAQ; public presentation is defined here. */
 :root {
-  --public-rule: #dce7ee;
-  --public-radius: 13px;
-  --public-section-space: clamp(48px, 5.4vw, 68px);
+  --public-radius: 10px;
+  --public-rule: #dce5eb;
+  --public-space: clamp(42px, 4.4vw, 56px);
+  --public-copy: 64ch;
+  --public-body: 14px;
 }
-.landing-home .section,
-.demo-page > .section { padding-block: var(--public-section-space); }
-.landing-home .section-heading,
-.demo-page .section-heading { max-width: 780px; margin-bottom: 27px; }
-.landing-home .section-heading h2,
-.demo-page .section-heading h2 { font-size: clamp(25px, 2.55vw, 31px); line-height: 1.22; font-weight: 550; }
-.landing-home .section-heading p,
-.demo-page .section-heading p { max-width: 66ch; font-size: 14.5px; line-height: 1.68; }
-.landing-home .section-heading .eyebrow,
-.demo-page .section-heading .eyebrow { margin-bottom: 11px; }
-.landing-home .button,
-.demo-page .button,
-.download-page .button { min-height: 44px; border-radius: 11px; box-shadow: none; }
-.landing-home .button:hover,
-.demo-page .button:hover,
-.download-page .button:hover { transform: none; }
-.landing-home .button.secondary,
-.demo-page .button.secondary,
-.download-page .button.secondary { box-shadow: none; }
-
-/* First fold: single readable focal point, real software preview, quiet metadata. */
+.ambient-grid { display: none; }
+.site-header { height: 62px; background: rgba(255,255,255,.96); border-color: var(--public-rule); box-shadow: none; backdrop-filter: blur(12px); }
+.site-header .brand { gap: 9px; }
+.site-header .brand img { width: 34px; height: 34px; box-shadow: none; }
+.site-header .brand strong { font-size: 14px; font-weight: 610; }
+.site-header .brand small { font-size: 11px; }
+.site-header .nav-links { border-color: transparent; background: transparent; gap: 3px; padding: 2px; }
+.site-header .nav-links a { border-radius: 8px; padding: 9px 11px; font-size: 12.5px; font-weight: 500; }
+.site-header .nav-links a:hover { transform: none; }
+body h1, .demo-hero h1, .wiki-hero h1, .faq-copy h1,
+.doc-hero h1 { font-size: clamp(29px, 2.7vw, 36px); line-height: 1.21; letter-spacing: -.025em; font-weight: 560; }
+h2 { font-size: clamp(23px, 2.2vw, 29px); line-height: 1.28; letter-spacing: -.018em; font-weight: 550; }
+h3 { font-weight: 550; letter-spacing: -.008em; }
+p { color: var(--muted); }
+.eyebrow { margin-bottom: 10px; font-size: 10.5px; font-weight: 580; letter-spacing: .055em; line-height: 1.5; }
+.eyebrow::before { width: 5px; height: 5px; box-shadow: none; }
+.lead, .section-heading p { max-width: var(--public-copy); font-size: 15px; line-height: 1.72; font-weight: 400; }
+.section-heading { max-width: 780px; margin-bottom: 24px; }
+.section-heading h2 { max-width: 27ch; margin-bottom: 12px; }
+.section-heading p { max-width: var(--public-copy); font-size: var(--public-body); line-height: 1.72; }
+.button, .landing-home .button, .demo-page .button, .download-page .button {
+  min-height: 42px; padding: 0 15px; border-radius: 9px;
+  box-shadow: none; font-size: 13px; font-weight: 570;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.button:hover, .landing-home .button:hover, .demo-page .button:hover, .download-page .button:hover { transform: none; }
+.button::after { content: none; }
+.button.secondary { box-shadow: none; background: #fff; border: 1px solid #cbdbe5; }
+.release-line { border-radius: 7px; box-shadow: none; background: transparent; border: none; padding: 0; }
+.release-line .release-current { font-weight: 560; }
+.landing-home .section, .demo-page > .section { padding-block: var(--public-space); border-color: var(--public-rule); }
+.landing-home .section-heading, .demo-page .section-heading { margin-bottom: 24px; }
+.landing-home .section-heading h2, .demo-page .section-heading h2 { font-size: clamp(23px, 2.2vw, 29px); font-weight: 550; line-height: 1.28; }
+.landing-home .section-heading p, .demo-page .section-heading p { max-width: var(--public-copy); font-size: 14px; line-height: 1.7; }
+/* Clear first fold: one message, one video, two CTAs, one release line. */
 .landing-home .hero {
-  min-height: 0;
-  grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr);
-  gap: clamp(28px, 3.8vw, 50px);
-  align-items: center;
-  padding-block: 112px 55px;
+  min-height: 0; grid-template-columns: minmax(0,.94fr) minmax(0,1.06fr);
+  align-items: center; gap: clamp(32px,4.5vw,58px); padding-block: 103px 48px;
 }
-.landing-home .hero-copy h1 { max-width: 22ch; font-size: clamp(31px, 3vw, 39px); line-height: 1.16; font-weight: 550; }
-.landing-home .hero-copy .eyebrow { margin-bottom: 12px; }
-.landing-home .hero-copy .lead { max-width: 58ch; font-size: 15.5px; line-height: 1.68; }
-.landing-home .hero-actions { margin-top: 22px; gap: 10px; }
-.landing-home .release-line { margin-block: 16px 0; padding: 6px 9px; font-size: 11.5px; border-radius: 9px; }
-.landing-home .release-disclaimer { margin-top: 10px; font-size: 12px; line-height: 1.55; }
-.landing-home .trust-strip { margin-top: 12px; gap: 6px; }
-.landing-home .trust-strip span { border-radius: 7px; padding: 7px 9px; box-shadow: none; font-size: 11.5px; }
-.landing-home .hero-copy > .release-caption { margin-top: 12px; max-width: 57ch; font-size: 11.5px; line-height: 1.6; }
-.landing-home .hero-panel {
-  width: 100%; max-width: 100%; overflow: visible; padding: 0;
-  border: none; background: transparent; box-shadow: none;
-}
-.landing-home .hero-panel::before { inset: -14px -14px 12px; opacity: .46; border-radius: 18px; }
+.landing-home .hero::before, .landing-home .hero-panel::before { content: none; }
+.landing-home .hero-copy { max-width: 535px; }
+.landing-home .hero-copy h1 { max-width: 22ch; margin-bottom: 14px; font-size: clamp(29px,2.7vw,36px); line-height: 1.22; }
+.landing-home .hero-copy .lead { max-width: 56ch; margin-bottom: 0; font-size: 14.8px; line-height: 1.72; }
+.landing-home .hero-actions { margin-top: 22px; gap: 9px; }
+.landing-home .release-line { margin: 15px 0 0; gap: 3px 9px; font-size: 11.5px; line-height: 1.6; }
+.landing-home .release-disclaimer { max-width: 55ch; margin-top: 11px; font-size: 12.4px; line-height: 1.68; }
+.landing-home .hero-panel { min-width: 0; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; }
 .landing-home .featured-screen {
-  border: 1px solid var(--public-rule);
-  border-radius: var(--public-radius);
-  box-shadow: 0 13px 32px rgba(15, 34, 52, .09);
+  aspect-ratio: 16/9; border: 1px solid var(--public-rule);
+  border-radius: var(--public-radius); background: #fff; box-shadow: 0 13px 31px rgba(15,34,52,.085);
 }
-.landing-home .demo-motion-hint { margin: 8px 2px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.landing-home .metric-row {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0; margin-top: 13px; padding-top: 12px;
-  border-top: 1px solid var(--public-rule);
+.landing-home .preview-meta {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 5px 13px; padding: 10px 1px 0; font-size: 11.5px; color: var(--muted); line-height: 1.5;
 }
-.landing-home .metric-row div {
-  min-width: 0; min-height: 0; padding: 0 11px;
-  border: 0; border-left: 1px solid var(--public-rule);
-  border-radius: 0; background: transparent; box-shadow: none;
-}
-.landing-home .metric-row div:first-child { padding-left: 0; border-left: 0; }
-.landing-home .metric-row span { font-size: 11px; line-height: 1.4; }
-.landing-home .metric-row strong { margin-top: 5px; font-size: 12.5px; font-weight: 550; line-height: 1.42; }
-.landing-home .hero-panel > .release-caption { margin-top: 10px; font-size: 11px; line-height: 1.5; }
-
-/* Benefits: rule-based engineering summaries instead of bulky floating tiles. */
-.landing-home #product .proof-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 19px; }
-.landing-home #product .proof-card,
-.landing-home #product .proof-card:hover {
-  min-height: 0; padding: 15px 0 4px; border: 0;
+.landing-home .preview-meta a { color: var(--brand-ink); font-weight: 550; text-underline-offset: 3px; }
+/* Quiet benefit summary: two readable columns, no floating cards. */
+.landing-home #product .proof-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px 32px; }
+.landing-home #product .proof-card, .landing-home #product .proof-card:hover {
+  display: block; min-height: 0; padding: 15px 0 3px; border: 0;
   border-top: 1px solid var(--public-rule); border-radius: 0;
   background: transparent; box-shadow: none; transform: none;
 }
 .landing-home #product .proof-card .card-top-icon {
-  width: 29px; height: 29px; margin-bottom: 10px;
-  border-radius: 8px; background: var(--brand-soft); box-shadow: none;
+  display: inline-flex; width: 27px; height: 27px; margin-bottom: 9px;
+  border-radius: 7px; background: #eef5f8; box-shadow: none;
 }
-.landing-home #product .proof-card .card-top-icon .material-icon { width: 16px; height: 16px; }
-.landing-home #product .proof-card strong { margin-bottom: 7px; font-size: 14px; font-weight: 560; }
-.landing-home #product .proof-card span:not(.card-top-icon) { font-size: 12.5px; line-height: 1.6; }
-
-/* Gallery stays visible, real and full-sized. No duplicate image surfaces. */
-.landing-home #screens .screen-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.landing-home #screens .screen-card,
-.landing-home #screens .screen-card:hover {
-  min-width: 0; padding: 7px 7px 13px; border: 1px solid var(--public-rule);
-  border-radius: var(--public-radius);
-  background: rgba(255, 255, 255, .78); box-shadow: none; transform: none;
+.landing-home #product .proof-card .card-top-icon .material-icon { width: 15px; height: 15px; }
+.landing-home #product .proof-card strong { display: block; max-width: 40ch; margin-bottom: 6px; font-size: 14.2px; font-weight: 560; line-height: 1.4; }
+.landing-home #product .proof-card span:not(.card-top-icon) {
+  display: block; max-width: 60ch; font-size: 13.5px; line-height: 1.72; color: var(--muted);
+}
+/* Screenshots carry the visual interest; captions are subordinate. */
+.landing-home #screens .screen-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px 17px; }
+.landing-home #screens .screen-card, .landing-home #screens .screen-card:hover {
+  min-width: 0; border: none; border-radius: 0; padding: 0; background: none;
+  box-shadow: none; transform: none;
 }
 .landing-home #screens .screen-card .screen-frame {
-  aspect-ratio: 16 / 9; border-radius: 8px;
-  border: 1px solid rgba(220, 231, 238, .94); box-shadow: none;
+  aspect-ratio: 16/9; border: 1px solid #d7e1e8; border-radius: 7px; box-shadow: none;
 }
 .landing-home #screens .screen-card img { object-fit: contain; }
-.landing-home #screens .gallery-step { margin: 9px 8px 0; font-size: 10.5px; }
-.landing-home #screens .screen-card h3 { margin: 6px 8px 4px; font-size: 14px; font-weight: 550; }
-.landing-home #screens .screen-card p { margin: 0 8px; font-size: 12px; line-height: 1.5; }
+.landing-home #screens .gallery-step { margin: 8px 0 2px; font-size: 10px; line-height: 1.45; }
+.landing-home #screens .screen-card h3 { margin: 4px 0 2px; font-size: 13.6px; font-weight: 560; line-height: 1.38; }
+.landing-home #screens .screen-card p { margin: 0; font-size: 12.5px; line-height: 1.56; }
 .landing-home #screens .gallery-swipe-hint { display: none; }
-.landing-home #screens .screen-grid:focus-visible { outline: 2px solid var(--brand-action); outline-offset: 3px; border-radius: 6px; }
-
-/* Capability atlas and open engineering use matching typographic scale and rules. */
-.landing-home .feature-atlas-section { padding-block: var(--public-section-space); }
+.landing-home #screens .screen-grid:focus-visible { outline: 2px solid var(--brand-action); outline-offset: 3px; }
+.gallery-guide { margin-top: 18px; padding-top: 12px; gap: 7px 12px; font-size: 12.5px; }
+/* Detailed protocol information remains, but with readable line length and contrast. */
+.landing-home .feature-atlas-section { padding-block: var(--public-space); }
 .landing-home .capability-atlas {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 32px; border-top: 1px solid var(--public-rule);
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 0 34px; border-top: 1px solid var(--public-rule);
 }
-.landing-home .capability-item { min-width: 0; padding: 17px 2px 19px; border-bottom: 1px solid var(--public-rule); }
-.landing-home .capability-item h3 { margin-bottom: 8px; font-size: 15px; font-weight: 550; line-height: 1.4; }
-.landing-home .capability-item ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.62; }
-.landing-home .capability-item li + li { margin-top: 5px; }
-.landing-home .feature-atlas-note { margin: 14px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.landing-home .feature-atlas-note a { color: var(--brand-ink); text-underline-offset: 3px; }
-.landing-home .credibility-section .section-heading { margin-bottom: 24px; }
-.landing-home .credibility-grid { gap: 24px; }
-.landing-home .credibility-grid article { padding-top: 17px; border-top: 1px solid var(--public-rule); }
-.landing-home .credibility-grid .credibility-kicker { margin-bottom: 9px; font-size: 10px; }
-.landing-home .credibility-grid h3 { margin-bottom: 8px; font-size: 15px; font-weight: 550; }
-.landing-home .credibility-grid p { margin-bottom: 8px; font-size: 12.5px; line-height: 1.6; }
-
-/* Closing sections should feel like part of the same page, not another design. */
-.landing-home .evidence-band {
-  margin-inline: 0; padding-inline: 0; border-top: 1px solid var(--public-rule); background: none;
-}
+.landing-home .capability-item { min-width: 0; padding: 17px 1px 16px; border-bottom: 1px solid var(--public-rule); }
+.landing-home .capability-item h3 { margin-bottom: 7px; font-size: 14.7px; font-weight: 570; line-height: 1.4; }
+.landing-home .capability-item ul { max-width: 60ch; margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.74; }
+.landing-home .capability-item li + li { margin-top: 6px; }
+.landing-home .feature-atlas-note { margin-top: 13px; max-width: 100ch; font-size: 12.5px; line-height: 1.64; }
+.landing-home .feature-atlas-note a { color: var(--brand-ink); }
+.landing-home .credibility-section { padding-block: var(--public-space); }
+.landing-home .credibility-grid { gap: 26px; }
+.landing-home .credibility-grid article { padding-top: 13px; border-color: var(--public-rule); }
+.landing-home .credibility-kicker { margin-bottom: 10px; }
+.landing-home .credibility-grid h3 { margin-bottom: 7px; font-size: 14.6px; }
+.landing-home .credibility-grid p { max-width: 48ch; font-size: 13.3px; line-height: 1.7; }
+.landing-home .evidence-band { margin-inline: 0; padding-inline: 0; border-color: var(--public-rule); background: none; }
 .landing-home .download-band { border-top: 1px solid var(--public-rule); }
-.landing-home .download-card,
-.demo-page .download-card {
-  gap: 20px; padding: clamp(20px, 3vw, 28px);
-  border: 1px solid var(--public-rule); border-radius: var(--public-radius);
-  background: rgba(246, 251, 253, .92); box-shadow: none;
+.landing-home .download-card, .demo-page .download-card {
+  gap: 19px; padding: clamp(17px,2.5vw,24px);
+  border-radius: var(--public-radius); border: 1px solid var(--public-rule);
+  background: #f6f9fb; box-shadow: none;
 }
-.landing-home .download-card h2,
-.demo-page .download-card h2 { font-size: clamp(22px, 2.2vw, 28px); line-height: 1.26; }
-.landing-home .download-card p,
-.demo-page .download-card p { font-size: 13px; line-height: 1.6; }
-
-/* Demo and download inherit the same calm product presentation. */
+.landing-home .download-card h2, .demo-page .download-card h2 { font-size: clamp(21px,2.1vw,27px); line-height: 1.3; }
+.landing-home .download-card p, .demo-page .download-card p { font-size: 13px; line-height: 1.7; }
+/* The same typography and quiet surfaces carry through demo and download. */
 .demo-page .demo-hero {
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, .68fr);
-  gap: 34px; align-items: end; padding-block: 114px 28px;
+  grid-template-columns: minmax(0,1.5fr) minmax(0,.62fr); gap: 35px;
+  align-items: end; padding-block: 102px 28px;
 }
-.demo-page .demo-hero h1 { max-width: 760px; font-size: clamp(30px, 3vw, 39px); line-height: 1.13; font-weight: 550; }
-.demo-page .demo-hero .lead { max-width: 66ch; font-size: 15.5px; line-height: 1.68; }
+.demo-page .demo-hero::before { content: none; }
+.demo-page .demo-hero h1 { max-width: 23ch; font-size: clamp(29px,2.7vw,36px); line-height: 1.2; }
+.demo-page .demo-hero .lead { max-width: 65ch; font-size: 14.8px; line-height: 1.72; }
 .demo-page .demo-hero-proof { gap: 0; border-top: 1px solid var(--public-rule); }
 .demo-page .demo-hero-proof div {
-  padding: 11px 0 10px; border: 0; border-bottom: 1px solid var(--public-rule);
+  padding: 12px 0 10px; border: 0; border-bottom: 1px solid var(--public-rule);
   border-radius: 0; background: none; box-shadow: none;
 }
-.demo-page .demo-hero-proof strong { margin-top: 3px; font-size: 13px; font-weight: 550; }
-.demo-page .demo-stage-section { padding: 7px 0 66px; }
+.demo-page .demo-hero-proof strong { margin-top: 4px; font-size: 13px; font-weight: 560; }
+.demo-page .demo-stage-section { padding: 5px 0 50px; }
 .demo-page .demo-video-frame {
   border: 1px solid var(--public-rule); border-radius: var(--public-radius);
-  box-shadow: 0 13px 32px rgba(15, 34, 52, .09);
+  box-shadow: 0 13px 32px rgba(15,34,52,.08);
 }
-.demo-page .demo-story-grid { gap: 16px; }
-.demo-page .demo-story-card,
-.demo-page .demo-story-card:hover {
-  min-height: 0; padding: 17px 0 5px; border: 0;
+.demo-page .demo-story-grid { gap: 17px; }
+.demo-page .demo-story-card, .demo-page .demo-story-card:hover {
+  min-height: 0; padding: 14px 0 3px; border: 0;
   border-top: 1px solid var(--public-rule); border-radius: 0;
   background: none; box-shadow: none; transform: none;
 }
-.demo-page .demo-step { width: 32px; height: 26px; margin-bottom: 11px; border-radius: 8px; }
-.demo-page .demo-story-card h3 { font-size: 15px; font-weight: 550; }
-.demo-page .demo-story-card p { font-size: 13px; line-height: 1.6; }
-.demo-page .demo-gallery-section .screen-card,
-.demo-page .demo-gallery-section .screen-card:hover {
-  border: 1px solid var(--public-rule); border-radius: var(--public-radius);
-  background: rgba(255,255,255,.78); box-shadow: none; transform: none;
-  padding: 8px 8px 14px;
+.demo-page .demo-step { width: 32px; height: 25px; margin-bottom: 10px; border-radius: 7px; }
+.demo-page .demo-story-card h3 { font-size: 14.7px; font-weight: 560; }
+.demo-page .demo-story-card p { font-size: 13.4px; line-height: 1.7; }
+.demo-page .demo-gallery-section .screen-card, .demo-page .demo-gallery-section .screen-card:hover {
+  padding: 0; border: 0; background: transparent; border-radius: 0; box-shadow: none; transform: none;
 }
-.demo-page .demo-gallery-section .screen-frame { border-radius: 8px; box-shadow: none; }
-.demo-page .demo-gallery-section .screen-card h3 { margin-top: 8px; font-size: 15px; }
-.demo-page .demo-gallery-section .screen-card p { font-size: 13px; line-height: 1.6; }
-.download-page { padding-top: 112px; }
-.download-page .doc-hero { max-width: 800px; padding: 33px 0 30px; }
-.download-page .doc-hero h1 { font-size: clamp(30px, 3vw, 39px); line-height: 1.16; font-weight: 550; }
-.download-page .doc-hero p { font-size: 14px; line-height: 1.66; }
-.download-page .doc-grid { gap: 14px; }
-.download-page .doc-card,
-.download-page .doc-card:hover {
-  min-height: 0; padding: 20px; border: 1px solid var(--public-rule);
-  border-radius: var(--public-radius); background: rgba(255,255,255,.81);
-  box-shadow: none; transform: none;
+.demo-page .demo-gallery-section .screen-frame { border-radius: 7px; box-shadow: none; }
+.demo-page .demo-gallery-section .screen-card h3 { margin: 8px 0 4px; font-size: 14.5px; }
+.demo-page .demo-gallery-section .screen-card p { margin: 0; font-size: 13.2px; line-height: 1.68; }
+.download-page { padding-top: 101px; }
+.download-page .doc-hero { max-width: 790px; padding: 30px 0 24px; }
+.download-page .doc-hero h1 { font-size: clamp(29px,2.7vw,36px); line-height: 1.22; }
+.download-page .doc-hero p { max-width: 72ch; font-size: 14px; line-height: 1.72; }
+.download-page .doc-hero .release-caption { font-size: 12.6px; line-height: 1.65; }
+.download-page .doc-grid { gap: 15px; }
+.download-page .doc-card, .download-page .doc-card:hover {
+  min-height: 0; padding: 18px; border: 1px solid var(--public-rule);
+  border-radius: var(--public-radius); background: #fff; box-shadow: none; transform: none;
 }
-.download-page .doc-card h3 { font-size: 17px; font-weight: 550; }
-.download-page .doc-card p { font-size: 13.5px; line-height: 1.6; }
-
-/* Tablet: clear columns, sensible minimum widths; mobile: swipeable screenshots. */
+.download-page .doc-card h3 { font-size: 16px; font-weight: 560; }
+.download-page .doc-card p { font-size: 13.5px; line-height: 1.7; }
+/* Long-form FAQ/Wiki remain readable, but never inherit an oversized display face. */
+.doc-main h1, .wiki-main h1, .faq-copy h1 { font-size: clamp(29px,2.7vw,36px); line-height: 1.22; }
+.doc-main p, .wiki-main p { line-height: 1.72; }
 @media (max-width: 980px) {
-  .landing-home .hero { grid-template-columns: minmax(0, 1fr); padding-block: 108px 45px; gap: 26px; }
-  .landing-home .hero-copy { max-width: 730px; }
-  .landing-home #product .proof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .landing-home #screens .screen-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .demo-page .demo-hero { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 108px 24px; }
-  .demo-page .demo-hero-proof { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; border: 0; }
+  .landing-home .hero { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 98px 37px; }
+  .landing-home .hero-copy { max-width: 700px; }
+  .landing-home #screens .screen-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .demo-page .demo-hero { grid-template-columns: minmax(0,1fr); gap: 18px; padding-block: 99px 22px; }
+  .demo-page .demo-hero-proof { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; border: 0; }
   .demo-page .demo-hero-proof div { border-top: 1px solid var(--public-rule); border-bottom: 0; }
 }
 @media (max-width: 620px) {
-  .landing-home .section,
-  .demo-page > .section { padding-block: 42px; }
-  .landing-home .hero { padding-block: 106px 39px; }
-  .landing-home .hero-copy h1 { font-size: 30px; }
-  .landing-home .hero-copy .lead { font-size: 15px; }
-  .landing-home .hero-actions { gap: 9px; }
-  .landing-home .metric-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .landing-home .metric-row div { padding-inline: 8px; }
-  .landing-home .metric-row strong { font-size: 11.5px; }
-  .landing-home #product .proof-grid { grid-template-columns: minmax(0,1fr); gap: 8px; }
-  .landing-home #product .proof-card { display: grid; grid-template-columns: 30px minmax(0,1fr); column-gap: 12px; padding-top: 12px; }
-  .landing-home #product .proof-card .card-top-icon { grid-row: 1 / span 2; margin: 0; }
-  .landing-home #product .proof-card strong { margin: 0 0 3px; }
-  .landing-home #product .proof-card span:not(.card-top-icon) { grid-column: 2; }
+  .site-header { min-height: 62px; height: 62px; }
+  html.nav-enhanced .site-header { min-height: 62px; height: 62px; }
+  .landing-home .section, .demo-page > .section { padding-block: 38px; }
+  .landing-home .hero { padding-block: 93px 36px; }
+  .landing-home .hero-copy h1, .demo-page .demo-hero h1 { font-size: 29px; line-height: 1.21; }
+  .landing-home .hero-copy .lead, .demo-page .demo-hero .lead { font-size: 14.5px; }
+  .landing-home .release-line { max-width: 100%; font-size: 11.3px; }
+  .landing-home #product .proof-grid { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .landing-home #product .proof-card { padding-top: 13px; }
   .landing-home #screens .screen-grid {
     display: grid; grid-template-columns: none; grid-auto-flow: column;
-    grid-auto-columns: minmax(260px, 83%); gap: 12px;
+    grid-auto-columns: minmax(250px,84%); gap: 14px;
     overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain;
     scroll-snap-type: x mandatory; scroll-padding-inline: 2px;
-    padding: 2px 2px 13px; scrollbar-width: thin;
+    padding: 2px 2px 12px; scrollbar-width: thin;
   }
   .landing-home #screens .screen-card { scroll-snap-align: start; }
-  .landing-home #screens .gallery-swipe-hint { display: block; margin: -5px 0 13px; font-size: 12px; line-height: 1.5; }
-  .landing-home .capability-atlas { grid-template-columns: minmax(0,1fr); }
-  .landing-home .capability-item { padding: 16px 2px; }
-  .landing-home .credibility-grid { grid-template-columns: 1fr; gap: 16px; }
-  .landing-home .download-card,
-  .demo-page .download-card { padding: 20px; }
-  .demo-page .demo-hero { padding-block: 106px 23px; }
-  .demo-page .demo-hero h1 { font-size: 30px; }
-  .demo-page .demo-hero .lead { font-size: 15px; }
-  .demo-page .demo-hero-proof { grid-template-columns: minmax(0,1fr); gap: 0; }
-  .demo-page .demo-video-frame { border-radius: var(--public-radius); }
+  .landing-home #screens .gallery-swipe-hint { display: block; margin: -2px 0 12px; font-size: 12.5px; line-height: 1.65; }
+  .landing-home .capability-atlas { grid-template-columns: 1fr; }
+  .landing-home .capability-item { padding-block: 15px; }
+  .landing-home .credibility-grid { grid-template-columns: 1fr; gap: 13px; }
+  .demo-page .demo-hero { padding-block: 94px 20px; }
+  .demo-page .demo-hero-proof { grid-template-columns: 1fr; gap: 0; }
   .demo-page .demo-story-grid { grid-template-columns: 1fr; }
-  .download-page { padding-top: 106px; }
-  .download-page .doc-hero { padding: 12px 0 24px; }
+  .download-page { padding-top: 93px; }
+  .download-page .doc-hero { padding: 9px 0 21px; }
   .download-page .doc-grid { grid-template-columns: 1fr; }
+  .landing-home .download-card, .demo-page .download-card { padding: 18px; }
 }
 
