@@ -320,6 +320,17 @@ Field screenshot showed all 22 process rows with `Good` but did not contain inde
 - CA mismatch and TI mismatch now use one amber fill/border token while retaining a **normal-weight red CA number plus a separate small warning triangle**. IOA hover is a four-line decimal-only octet breakdown (total IOA, IOA1 LOW, IOA2 MID, IOA3 HIGH); other numeric/HEX/physical byte evidence remains available in frame inspection.
 - Deterministic regressions cover canonical decoded TI13 QDS with 5 active flags, TI1 SIQ and TI3 DIQ invalid but not overflow, counter BCR CY/CA vs measurement QDS OV, clean SIQ raw byte, missing-quality Unknown, and separate QDS bytes in two SQ=1 objects. Real RTU/simulator injection with IV=1/OV=1 remains a separate FAT step; no known clean capture can prove the colored warning appearance.
 
+## 2026-11-21 — IEC-101 Class-1 pending evidence / EVENT-02
+
+Reuses the existing bounded, source-qualified `EventFrameExchangeTracker`
+and the actual original FT1.2 decoded link-control ACD bit. No extra poll,
+wire TX, timer, per-row refresh or full-history scan. Marking of individual
+historical Event rows remains immutable and indexed once; the next verified
+ACD=0 Class1 response naturally clears the cue for following rows. The cue
+means **pending Class1 data** (reported by RTU), not confirmed age or RTU FIFO
+storage for the current event. Cross-protocol relative-timestamp catch-up
+inference remains a fallback when no IEC101 validated FC10/FC8 is available.
+
 ## 2026-11-21 — transient event backlog presentation / EVENT-02
 
 Event buffer cue is a read-only forensic **sequence inference** at canonical event ingestion. It is not the Desktop's own disk/index queue backlog, not a protocol buffer-origin flag, and not a Class 1/2 polling decision. Only a bounded per-protocol/physical-source/CA state (maximum 64 keys) compares two distinct consecutive RTU event-time interval pairs against corresponding host RX intervals. A constant RTU/PC time offset never contributes evidence. Existing event history stores the immutable decision once and virtualized WPF pages simply render it; no per-frame UI timer, background scan, full-history recalculation or new column is permitted. The next normal-rate event removes the cue without mutating older journal entries. Do not claim a FIFO has been drained solely because the cue disappears: it means **no current observable catch-up**. Physical timestamp accuracy, RTU clock synchronization and FIFO state still require FAT.
