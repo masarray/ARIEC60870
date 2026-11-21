@@ -8,10 +8,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
 
-    <Version>3.6.19</Version>
-    <AssemblyVersion>3.6.19.0</AssemblyVersion>
-    <FileVersion>3.6.19.0</FileVersion>
-    <InformationalVersion>3.6.19+folder-migration</InformationalVersion>
+    <Version>3.6.20</Version>
+    <AssemblyVersion>3.6.20.0</AssemblyVersion>
+    <FileVersion>3.6.20.0</FileVersion>
+    <InformationalVersion>3.6.20-rc.1+iec101-first-connect-gi</InformationalVersion>
     <Authors>Ari Sulistiono</Authors>
     <Company>Ari Sulistiono</Company>
     <Product>ArSee</Product>
