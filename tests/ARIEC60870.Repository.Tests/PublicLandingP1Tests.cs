@@ -134,6 +134,51 @@ public sealed class PublicLandingP1Tests
         Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
     }
 
+    [Theory]
+    [InlineData("site/index.html", "docs/index.html")]
+    [InlineData("site/id/index.html", "docs/id/index.html")]
+    public void LandingPresentationHasPredictableOrderAndKeyboardScrollableGallery(string source, string mirror)
+    {
+        var root = RepositoryRoot();
+        var html = File.ReadAllText(Path.Combine(root.FullName, source.Replace('/', Path.DirectorySeparatorChar)));
+        var mirrored = File.ReadAllText(Path.Combine(root.FullName, mirror.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.Equal(html, mirrored);
+
+        var ids = Regex.Matches(html, @"<section[^>]+id=""(?<id>[^""]+)""")
+            .Select(x => x.Groups["id"].Value)
+            .Where(x => x is "product" or "screens" or "capabilities" or "open-engineering" or "wiki" or "download")
+            .ToArray();
+        Assert.Equal(new[] { "product", "screens", "capabilities", "open-engineering", "wiki", "download" }, ids);
+        Assert.Contains("class=\"screen-grid\" tabindex=\"0\" role=\"region\" aria-label=", html);
+        Assert.Contains("class=\"gallery-swipe-hint\"", html);
+        Assert.Equal(11, Regex.Matches(html, "class=\"screen-frame zoom-trigger\"").Count);
+        Assert.Contains("v3.6.20", html);
+        Assert.Contains("IEC-60870.webm", html);
+    }
+
+    [Fact]
+    public void DownloadDemoAndHomeShareOneLightweightLayoutContract()
+    {
+        var root = RepositoryRoot();
+        var css = File.ReadAllText(Path.Combine(root.FullName, "site/styles.css"));
+        Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
+        foreach (var required in new[] { "--public-radius:", "--public-section-space:",
+            ".landing-home #product .proof-card", ".landing-home #screens .screen-grid",
+            "scroll-snap-type: x mandatory", ".landing-home .capability-atlas",
+            ".demo-page .demo-story-card", ".download-page .doc-card" })
+            Assert.Contains(required, css);
+
+        foreach (var path in new[] { "download.html", "id/download.html" })
+        {
+            var site = File.ReadAllText(Path.Combine(root.FullName, "site", path.Replace('/', Path.DirectorySeparatorChar)));
+            var mirror = File.ReadAllText(Path.Combine(root.FullName, "docs", path.Replace('/', Path.DirectorySeparatorChar)));
+            Assert.Equal(site, mirror);
+            Assert.Contains("<main class=\"doc-main download-page\">", site);
+            Assert.Contains("data-release-filename=\"installer\"", site);
+            Assert.Contains("data-release-filename=\"zip\"", site);
+        }
+    }
+
     [Fact]
     public void SharedMobileNavigationIsKeyboardFriendlyAndHasNoJsFallback()
     {

@@ -88,6 +88,32 @@ async function runCase(browserName, browser, width, route) {
         assert(href && (href.startsWith("https://github.com/masarray/arsee") || href === "wiki.html"),
           "Source evidence links must resolve to official ArSee locations: " + href);
       }
+      const sectionIds = await page.locator("main > section[id]").evaluateAll(
+        sections => sections.map(section => section.id));
+      assert.deepEqual(sectionIds, ["product", "screens", "capabilities",
+        "open-engineering", "wiki", "download"],
+        "The product tour must flow from benefits through screenshots, features, trust and download");
+      const galleryGrid = page.locator("#screens .screen-grid");
+      if (width <= 620) {
+        const mobileGallery = await galleryGrid.evaluate(element => ({
+          overflow: getComputedStyle(element).overflowX,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          name: element.getAttribute("aria-label"),
+          tabindex: element.getAttribute("tabindex"),
+        }));
+        assert(mobileGallery.scrollWidth > mobileGallery.clientWidth,
+          "Mobile 11-view gallery must provide a real horizontal scrolling track");
+        assert.equal(mobileGallery.overflow, "auto", "Swipe gallery must be native-scrollable");
+        assert(mobileGallery.name && mobileGallery.tabindex === "0",
+          "Swipe gallery must be named and keyboard focusable");
+      } else {
+        const expectedColumns = width <= 980 ? 2 : 3;
+        const columns = await galleryGrid.evaluate(element =>
+          getComputedStyle(element).gridTemplateColumns.split(" ").filter(Boolean).length);
+        assert.equal(columns, expectedColumns,
+          "Gallery should form consistent 2-column tablet and 3-column desktop layouts");
+      }
     }
     if (width <= 620 && route.includes("wiki.html")) {
       for (const item of await page.locator(".reading-paths a").all()) {
@@ -108,6 +134,7 @@ async function runCase(browserName, browser, width, route) {
       assert.equal(await gallery.count(), expectedGallerySize,
         "The product home must expose 11 screenshots; the focused demo retains four");
       if (route.endsWith("index.html")) {
+        assert(await page.locator(".gallery-swipe-hint").count(), "Mobile gallery affordance missing");
         const paths = await gallery.evaluateAll(elements => elements.map(element => element.dataset.full));
         assert.equal(new Set(paths).size, 11, "Duplicate application screenshots are not useful");
         for (const element of await gallery.all()) {
