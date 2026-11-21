@@ -120,6 +120,24 @@ async function runCase(browserName, browser, width, route) {
       assert.deepEqual(sectionIds, ["product", "screens", "capabilities",
         "open-engineering", "wiki", "download"],
         "The product tour must flow from benefits through screenshots, features, trust and download");
+      const workflows = page.locator("#product .proof-grid > article");
+      assert.equal(await workflows.count(), 4, "Home must show four real engineering use cases, not extra cards");
+      const workflowAudit = await workflows.evaluateAll(cards => ({
+        keys: cards.map(card => card.dataset.workflow),
+        labels: cards.map(card => card.querySelector(".proof-index")?.textContent.trim()),
+        headings: cards.map(card => card.querySelector("strong")?.textContent.trim()),
+        descriptions: cards.map(card => card.querySelector("span:not(.card-top-icon)")?.textContent.trim()),
+        columns: getComputedStyle(cards[0].parentElement).gridTemplateColumns.split(" ").length,
+      }));
+      assert.deepEqual(workflowAudit.keys, ["commissioning", "troubleshooting", "fat-sat", "communication-testing"],
+        "Homepage benefit order must follow the four real commissioning/test workflows");
+      assert.deepEqual(workflowAudit.labels, ["01 / 04", "02 / 04", "03 / 04", "04 / 04"],
+        "Quiet workflow numbering must stay consistent");
+      assert(workflowAudit.headings.every(x => x && x.length <= 35), "Benefit headings should remain concise");
+      assert(workflowAudit.descriptions.every(x => x && x.length >= 65 && x.length <= 180),
+        "Benefits need a brief, readable outcome, not dense cards");
+      assert.equal(workflowAudit.columns, width <= 620 ? 1 : 2,
+        "Benefits must be one column on phone and two columns on desktop/tablet");
       const hero = page.locator(".hero");
       assert.equal(await hero.locator(".metric-row").count(), 0, "Hero must not repeat three bulky metric tiles");
       assert.equal(await hero.locator(".trust-strip").count(), 0, "Hero must not duplicate source-backed benefit copy");
@@ -145,6 +163,14 @@ async function runCase(browserName, browser, width, route) {
         assert.equal(columns, expectedColumns,
           "Gallery should form consistent 2-column tablet and 3-column desktop layouts");
       }
+    }
+    if (route.endsWith("demo.html")) {
+      const steps = page.locator("#flow .demo-story-card");
+      assert.equal(await steps.count(), 4, "Demo should show exactly four evidence workflow steps");
+      const workflowText = await page.locator("#flow").innerText();
+      assert(workflowText.includes("FAT/SAT"), "Both demo languages must explain FAT/SAT evidence");
+      assert(workflowText.toLowerCase().includes(route.startsWith("id/") ? "prosedur proyek" : "approved project procedure"),
+        "Formal acceptance must remain a project procedure, not an app certification claim");
     }
     if (width <= 620 && route.includes("wiki.html")) {
       for (const item of await page.locator(".reading-paths a").all()) {
