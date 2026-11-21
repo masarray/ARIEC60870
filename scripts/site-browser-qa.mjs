@@ -200,6 +200,7 @@ async function releaseResolverCase(browserName, browser, route) {
     ];
     await page.route("https://api.github.com/repos/masarray/arsee/releases?per_page=30",
       request => request.fulfill({ status: 200, contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
         body: JSON.stringify(apiData) }));
     const response = await page.goto(new URL(route, origin).href,
       { waitUntil: "domcontentloaded", timeout: 45000 });
