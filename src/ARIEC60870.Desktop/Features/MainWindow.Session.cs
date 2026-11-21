@@ -109,6 +109,7 @@ public partial class MainWindow
                 : (isRunning ? "Stop monitor (finalize optional recording)" :
                     "Start receive-only monitor (recording off by default)"))
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
+        UpdateSetupDefaultAction();
     }
 
     private async void Start_Click(object sender, RoutedEventArgs e)
