@@ -1294,6 +1294,7 @@ public partial class MainWindow
         DiagnosticRows.Clear();
         TriggerCaptureRows.Clear();
         DualLinkTimelineRows.Clear();
+        _dualLinkStatusTimeline.Reset();
         if (TriggerCaptureDetailBox is not null)
         {
             TriggerCaptureDetailBox.Text = "Automatic IEC trigger captures will appear here. Select a capture row to view detail.";
