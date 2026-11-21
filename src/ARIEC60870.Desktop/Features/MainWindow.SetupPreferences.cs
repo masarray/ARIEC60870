@@ -388,7 +388,7 @@ public partial class MainWindow
                 BackupLinkAddress = int.TryParse(BackupLinkAddressBox.Text, out var backupLinkAddress) ? backupLinkAddress : settings.LinkAddress,
                 BackupLinkAddressExplicit = _backupLinkAddressExplicit,
                 CommonAddress = settings.CommonAddress,
-                Iec101WidthsSchema = 1,
+                Iec101WidthsSchema = _iec101SetupWidthsNeedReview ? 0 : 1,
                 LinkAddressSize = _iec101SetupWidths.Link,
                 CauseOfTransmissionSize = _iec101SetupWidths.Cot,
                 CommonAddressSize = _iec101SetupWidths.Ca,
