@@ -337,8 +337,8 @@ public sealed class EventJournalPremiumSurfaceTests
 
         var columns = timeline.Descendants().Where(x =>
             x.Name.LocalName == "DataGridTextColumn").ToArray();
-        Assert.Equal(["Time", "Link", "Event", "Reason", "Result"],
-            columns.Select(x => (string?)x.Attribute("Header")).ToArray());
+        Assert.Equal("Time,Link,Event,Reason,Result",
+            string.Join(",", columns.Select(x => (string?)x.Attribute("Header"))));
         Assert.All(columns, column =>
             Assert.Equal("{StaticResource GridCellNoWrapText}",
                 (string?)column.Attribute("ElementStyle")));
