@@ -640,7 +640,9 @@ public partial class MainWindow
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
             };
             var relayEventRow = new RelayEventRow(eventSource, item,
-                deliveryEvidence: _eventDeliverySequence.Observe(eventSource));
+                deliveryEvidence: _eventDeliverySequence.Observe(eventSource,
+                    item.PhysicalFrameSequenceNumber ?? item.SequenceNumber,
+                    item.ConnectionInstanceId));
 
             RecordEventHistory(relayEventRow);
             _relayEventStore.Add(relayEventRow);
