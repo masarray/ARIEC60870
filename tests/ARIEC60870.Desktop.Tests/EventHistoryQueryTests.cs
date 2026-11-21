@@ -84,6 +84,14 @@ public sealed class EventHistoryQueryTests
         Assert.Equal(5, Assert.Single(
             searched.ReadPage(reconnectedSession, 0)).EventNumber);
 
+        // A previously unfiltered empty snapshot from an older caller must
+        // also fail closed against a persisted Exclude selection.
+        var stale = new EventHistoryQuerySnapshot(0, null);
+        var repaired = EventHistoryQueryEngine.Extend(reconnectedSession, stale,
+            reconnectedSession.Count, "", All, excluded, Category);
+        Assert.Equal(3, repaired.Count);
+        Assert.True(repaired.IsFiltered);
+
         Assert.False(EventHistoryQueryEngine.EmptyForScope(
             "", All, []).IsFiltered);
     }
