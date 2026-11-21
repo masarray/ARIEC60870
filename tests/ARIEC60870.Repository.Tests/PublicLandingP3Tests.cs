@@ -18,7 +18,12 @@ public sealed class PublicLandingP3Tests
         // A previous global .reveal rule hid most of the site when JS was unavailable.
         Assert.DoesNotContain(".reveal { opacity: 0", css);
         Assert.DoesNotContain(".reveal.is-visible", css);
-        Assert.DoesNotContain("IntersectionObserver", script);
+        // One optional video-only observer is allowed; static page content never
+        // depends on observation or JavaScript to become visible.
+        Assert.Contains("document.querySelector(\"video[data-auto-preview]\")", script);
+        Assert.Contains("const observer = new IntersectionObserver", script);
+        Assert.Contains("prefers-reduced-motion: reduce", script);
+        Assert.Contains("navigator.connection?.saveData", script);
         Assert.DoesNotContain("revealItems", script);
 
         // FAQ content still has a readable baseline when script enhancement is absent.

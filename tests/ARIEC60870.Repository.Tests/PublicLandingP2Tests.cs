@@ -20,9 +20,10 @@ public sealed class PublicLandingP2Tests
         Assert.Equal(site, mirror);
 
         var images = Regex.Matches(site, @"class=""screen-frame zoom-trigger""");
-        Assert.Equal(4, images.Count);
-        for (var step = 1; step <= 4; step++)
-            Assert.Contains($"class=\"gallery-step\" aria-hidden=\"true\">{step:00} / 04", site);
+        var expectedCount = page.EndsWith("index.html", StringComparison.Ordinal) ? 11 : 4;
+        Assert.Equal(expectedCount, images.Count);
+        for (var step = 1; step <= expectedCount; step++)
+            Assert.Contains($"class=\"gallery-step\" aria-hidden=\"true\">{step:00} / {expectedCount:00}", site);
 
         Assert.Contains("class=\"gallery-guide\"", site);
         Assert.Contains("class=\"lightbox-toolbar\"", site);
@@ -34,8 +35,16 @@ public sealed class PublicLandingP2Tests
         Assert.NotEmpty(video);
         Assert.Contains("controls", video);
         Assert.Contains("preload=\"none\"", video);
-        Assert.DoesNotContain("autoplay", video);
-        Assert.DoesNotContain("loop", video);
+        Assert.DoesNotContain("autoplay", video); // Never start motion without JS/user preferences.
+        if (page.EndsWith("index.html", StringComparison.Ordinal))
+        {
+            Assert.Contains("loop", video); // Controlled, muted loop on the main landing only.
+            Assert.Contains("data-auto-preview", video);
+        }
+        else
+        {
+            Assert.DoesNotContain("loop", video); // Focused demo remains user-operated.
+        }
     }
 
     [Theory]
