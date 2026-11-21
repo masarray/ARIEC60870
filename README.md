@@ -2,7 +2,7 @@
 
 **Understand the exchange. Find the issue. Keep the evidence.**
 
-ArSee is a **free, open-source Windows engineering tool** for **IEC 60870-5-101, -103 and -104**. Inspect original TX/RX frames alongside decoded values, events, diagnostics and evidence-linked findings, then prepare a native PDF report for engineering review.
+ArSee is a **free, open-source Windows engineering tool** for **IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104**. Inspect original TX/RX frames alongside decoded values, events, diagnostics and evidence-linked findings, then prepare a native PDF report for engineering review.
 
 [![CI](https://github.com/masarray/arsee/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/masarray/arsee/actions/workflows/ci.yml)
 [![Website](https://github.com/masarray/arsee/actions/workflows/pages.yml/badge.svg?branch=master)](https://masarray.github.io/arsee/)
