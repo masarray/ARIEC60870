@@ -4,6 +4,7 @@
 using ARIEC60870.Core.Model;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
+using ARIEC60870.Master.Iec101.Redundancy;
 using ARIEC60870.Master.Protocol.Iec10x;
 using Xunit;
 
@@ -64,6 +65,83 @@ public sealed class SmartRedundancyUxTests
         Assert.DoesNotContain("Rejected", row.Result);
         Assert.Equal("Standby health probe accepted", row.Reason);
     }
+
+    [Fact]
+    public void HealthyDualLinkSnapshotProducesUsefulTimelineOnceNotOneRowPerPoll()
+    {
+        var observer = new DualLinkStatusTimelineProjection();
+        var initial = HealthySnapshot(12, 8);
+        var first = observer.Observe(initial);
+        Assert.Contains(first, x => x.Event == "Session observed");
+        Assert.Contains(first, x => x.Event == "Active assigned" && x.Link == "Link A");
+        Assert.Contains(first, x => x.Event == "Link healthy" && x.Link == "Link A");
+        Assert.Contains(first, x => x.Event == "Link healthy" && x.Link == "Link B");
+        Assert.Contains(first, x => x.Event == "Image empty");
+        Assert.All(first, x => Assert.False(string.IsNullOrWhiteSpace(x.Result)));
+
+        // The RX counters and last supervision timestamp change on every
+        // healthy standby FC9 probe: this must NOT grow the timeline.
+        var afterPoll = HealthySnapshot(30, 26);
+        Assert.Empty(observer.Observe(afterPoll));
+        var statusRow = new DualLinkTimelineRow(first.Single(x => x.Event == "Link healthy" && x.Link == "Link B"));
+        Assert.Contains("Validated RTU", statusRow.Reason);
+        Assert.Contains("COM2", statusRow.FullResult);
+        Assert.Equal(0, statusRow.Sequence);
+
+        var degraded = new Iec101RedundancySessionSnapshot
+        {
+            ControllerState = Iec101RedundancyControllerState.Degraded,
+            ActiveLinkName = "Link A",
+            StandbyLinkName = "Link B",
+            ApplicationImageState = Iec101ApplicationImageState.Empty,
+            LinkA = afterPoll.LinkA,
+            LinkB = new Iec101RedundancyChannelSnapshot
+            {
+                Name = "Link B",
+                PortName = "COM2",
+                LinkAddress = 105,
+                Role = Iec101RedundancyChannelRole.Standby,
+                IsHealthy = false,
+                State = Iec101RedundancyChannelState.FailedLatched,
+                ConsecutiveTimeouts = 2
+            }
+        };
+        var transitions = observer.Observe(degraded);
+        Assert.Contains(transitions, x => x.Event == "Link degraded" && x.Link == "Link B");
+        Assert.Contains(transitions, x => x.Event == "State changed");
+        Assert.Empty(observer.Observe(degraded));
+        observer.Reset();
+        Assert.Contains(observer.Observe(initial), x => x.Event == "Link healthy" && x.Link == "Link A");
+    }
+
+    private static Iec101RedundancySessionSnapshot HealthySnapshot(int aRx, int bRx) => new()
+    {
+        ControllerState = Iec101RedundancyControllerState.Healthy,
+        ActiveLinkName = "Link A",
+        StandbyLinkName = "Link B",
+        ApplicationImageState = Iec101ApplicationImageState.Empty,
+        LastStandbySupervisionUtc = DateTime.UtcNow,
+        LinkA = new Iec101RedundancyChannelSnapshot
+        {
+            Name = "Link A",
+            PortName = "COM1",
+            LinkAddress = 105,
+            Role = Iec101RedundancyChannelRole.Active,
+            State = Iec101RedundancyChannelState.ActivePolling,
+            IsHealthy = true,
+            RxFrames = aRx
+        },
+        LinkB = new Iec101RedundancyChannelSnapshot
+        {
+            Name = "Link B",
+            PortName = "COM2",
+            LinkAddress = 105,
+            Role = Iec101RedundancyChannelRole.Standby,
+            State = Iec101RedundancyChannelState.StandbySupervising,
+            IsHealthy = true,
+            RxFrames = bRx
+        }
+    };
 
     [Fact]
     public void TypedSignalShowsOneIoaAndItsOwnRtuTimeWithoutRepeatingInContext()

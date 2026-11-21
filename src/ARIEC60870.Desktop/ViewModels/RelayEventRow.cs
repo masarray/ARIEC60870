@@ -97,7 +97,12 @@ public sealed class RelayEventRow
         TiExplanation = Iec10xTypeIdPresentation.Tooltip(item.TypeId, Protocol);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
-        CotLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
+        // Show a compact suspected-buffer cue inside COT, not a redundant
+        // Delivery column. The '?' is essential: IEC-101/104 carry no
+        // universal RTU queue-origin bit and timestamps may be unsynchronized.
+        var cotBaseLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
+        CotLabel = DeliveryEvidence.Label == "Buffered?"
+            ? cotBaseLabel + " (BUFFERED?)" : cotBaseLabel;
         CotChips = ProtocolFlagPresentation.Cot(item.CauseDetails);
         CotDetail = item.CauseDetails?.Detail ?? Cot;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";

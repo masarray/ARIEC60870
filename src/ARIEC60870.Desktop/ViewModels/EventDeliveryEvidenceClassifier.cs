@@ -62,9 +62,9 @@ public static class EventDeliveryEvidenceClassifier
 
         var delay = item.ArrivalTimeUtc.ToUniversalTime() - deviceLocal.ToUniversalTime();
         if (delay >= TimeSpan.FromSeconds(30))
-            return new("Delayed?", "COT3 with device time at least 30 s before PC arrival; clock/time-zone mismatch or buffering are both possible.");
+            return new("Buffered?", "COT3 spontaneous with RTU timestamp at least 30 s older than PC receipt. Possible queued/buffered event; clock synchronization, RTU time zone and replay are NOT verified.");
         if (delay.Duration() <= TimeSpan.FromSeconds(5))
-            return new("Near-live?", "COT3 with device time within 5 s of PC arrival; clocks and actual buffer path remain unverified.");
+            return new("Spontaneous", "COT3 with near-coincident device and PC time; this does not prove direct live delivery.");
 
         return new("Spontaneous", "COT3; device/host time difference is inconclusive without clock validation.");
     }

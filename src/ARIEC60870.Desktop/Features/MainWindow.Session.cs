@@ -650,6 +650,8 @@ public partial class MainWindow
         return backup;
     }
 
+    private readonly DualLinkStatusTimelineProjection _dualLinkStatusTimeline = new();
+
     private void OnDualLinkSnapshotChanged(long epoch, Iec101RedundancySessionSnapshot snapshot)
     {
         if (epoch != System.Threading.Volatile.Read(ref _eventProjectionEpoch)) return;
@@ -663,6 +665,14 @@ public partial class MainWindow
 
     private void ApplyDualLinkSnapshot(Iec101RedundancySessionSnapshot snapshot)
     {
+        // Present session and RTU-proven link milestones once per transition.
+        // A successful repeated FC9 standby probe updates the live card only,
+        // never floods the timeline with per-poll rows.
+        foreach (var status in _dualLinkStatusTimeline.Observe(snapshot))
+        {
+            DualLinkTimelineRows.Add(new DualLinkTimelineRow(status));
+            DualLinkTimelineRows.TrimStart(MaxVisibleDualLinkTimelineRows);
+        }
         var activeName = string.IsNullOrWhiteSpace(snapshot.ActiveLinkName) ? "-" : snapshot.ActiveLinkName;
         var standbyName = string.IsNullOrWhiteSpace(snapshot.StandbyLinkName) ? "-" : snapshot.StandbyLinkName;
         var standbyAge = snapshot.LastStandbySupervisionUtc.HasValue

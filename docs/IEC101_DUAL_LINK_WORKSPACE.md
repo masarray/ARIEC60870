@@ -11,7 +11,7 @@ The release layout is intentionally compact:
 - one Image/Switch card for application image and last switchover proof;
 - one filtered redundancy timeline.
 
-The timeline is not a dump of all evidence rows. It only shows redundancy decisions and proof events: manual switch requests, failover start/completion/rejection, standby timeout/failure, recovery milestones, command blocking, image stale/ready transitions, and post-switch GI result. Routine supervision and normal Class polling belong in Trace, not here.
+The timeline is not a dump of all evidence rows. It shows redundancy decisions and proof events (manual switch requests, failover/recovery milestones, standby failures and post-switch GI), **plus one compact UI-only snapshot milestone when controller state, active ownership, A/B validated secondary health, or application-image state changes**. This prevents a completely empty timeline in a healthy active/standby session. The milestone explicitly distinguishes snapshot observation from original wire evidence. Repeated healthy FC9 standby supervision and normal Class polling stay in Trace, not the timeline.
 
 ## Operator proof actions
 

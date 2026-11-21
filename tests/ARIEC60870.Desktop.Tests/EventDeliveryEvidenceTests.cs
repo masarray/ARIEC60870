@@ -39,10 +39,10 @@ public sealed class EventDeliveryEvidenceTests
     }
 
     [Fact]
-    public void SpontaneousWithKnownLargeLagIsOnlySuspectedDelayed()
+    public void SpontaneousWithKnownLargeLagIsOnlySuspectedBuffering()
     {
         var result = EventDeliveryEvidenceClassifier.Classify(Entry(3, DeviceLocal(ArrivalUtc.AddMinutes(-2))));
-        Assert.Equal("Delayed?", result.Label);
+        Assert.Equal("Buffered?", result.Label);
         Assert.Contains("clock", result.Basis, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -50,7 +50,7 @@ public sealed class EventDeliveryEvidenceTests
     public void SpontaneousNearPCArrivalIsNeverAdvertisedAsProvenLive()
     {
         var result = EventDeliveryEvidenceClassifier.Classify(Entry(3, DeviceLocal(ArrivalUtc.AddSeconds(-1))));
-        Assert.Equal("Near-live?", result.Label);
+        Assert.Equal("Spontaneous", result.Label);
     }
 
     [Theory]
@@ -75,6 +75,27 @@ public sealed class EventDeliveryEvidenceTests
             RelayTimeText = DeviceLocal(ArrivalUtc.AddDays(-1))
         };
         Assert.Equal("Unverified", EventDeliveryEvidenceClassifier.Classify(negative).Label);
+    }
+
+    [Fact]
+    public void EventCotShowsSuspectedBufferedInlineWithoutChangingOriginalCause()
+    {
+        var item = Entry(3, DeviceLocal(ArrivalUtc.AddMinutes(-2)));
+        var row = new RelayEventRow(item);
+        Assert.Contains("(BUFFERED?)", row.CotLabel);
+        Assert.Equal(3, item.CauseDetails?.Code);
+        Assert.Contains("clock", row.DeliveryEvidence.Basis, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void NearTimeOrInvalidDateNeverAddsBufferedCue()
+    {
+        var near = new RelayEventRow(Entry(3, DeviceLocal(ArrivalUtc.AddSeconds(-1))));
+        Assert.DoesNotContain("BUFFERED", near.CotLabel);
+        var invalid = new RelayEventRow(Entry(3, DeviceLocal(ArrivalUtc.AddMinutes(-2)), invalid: true));
+        Assert.DoesNotContain("BUFFERED", invalid.CotLabel);
+        var gi = new RelayEventRow(Entry(20, DeviceLocal(ArrivalUtc.AddHours(-2))));
+        Assert.DoesNotContain("BUFFERED", gi.CotLabel);
     }
 
     [Fact]

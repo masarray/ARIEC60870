@@ -308,6 +308,20 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal(expected, geometry.Value);
     }
 
+    [Fact]
+    public void EventsShowsBufferHypothesisInsideCotAndNoExtraDeliveryColumn()
+    {
+        var doc = XDocument.Load(FindMainWindowXaml());
+        var grid = Named(doc.Root!, "DataGrid", "RelayEventGrid");
+        var columns = grid.Descendants().Where(e => e.Name.LocalName.EndsWith("Column", StringComparison.Ordinal)).ToArray();
+        Assert.DoesNotContain(columns, e => (string?)e.Attribute("Header") == "Delivery");
+        var cot = Assert.Single(columns, e => (string?)e.Attribute("Header") == "COT");
+        Assert.Equal("{Binding CotLabel}", (string?)cot.Attribute("ClipboardContentBinding"));
+        Assert.Equal("184", (string?)cot.Attribute("MinWidth"));
+        var timeline = Named(doc.Root!, "DataGrid", "DualLinkTimelineGrid");
+        Assert.Equal("{Binding DualLinkTimelineRows}", (string?)timeline.Attribute("ItemsSource"));
+    }
+
     private static string FindIconResourcesXaml()
         => Path.Combine(Path.GetDirectoryName(FindMainWindowXaml())!, "Resources", "LucideIcons.xaml");
 
