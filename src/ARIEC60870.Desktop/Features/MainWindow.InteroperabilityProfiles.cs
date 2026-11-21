@@ -52,11 +52,7 @@ public partial class MainWindow
         => UpdateInteroperabilityProfilePreview();
 
     private void InteroperabilityWidth_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        UpdateInteroperabilityProfilePreview();
-        if (IsInitialized && !_isApplyingSavedSetup)
-            UpdateIec101WidthReview();
-    }
+        => UpdateInteroperabilityProfilePreview();
 
     private void UpdateInteroperabilityProfilePreview()
     {
