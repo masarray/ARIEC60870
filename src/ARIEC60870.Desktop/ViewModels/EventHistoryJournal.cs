@@ -86,7 +86,8 @@ public sealed class EventHistoryJournal : IDisposable
                 EventHistoryOriginalSnapshot.Capture(row.OriginalFrameEvidence, row.SourceEntry.RawHex),
                 EventHistoryOriginalSnapshot.Capture(row.ObservedRequestFrame),
                 Iec10xEngineeringValue.Capture(row.OriginalFrameEvidence?.AsduDetails,
-                    row.OriginalFrameEvidence?.InformationObjectDetails)));
+                    row.OriginalFrameEvidence?.InformationObjectDetails),
+                row.DeliveryEvidence));
             if (payloads[i].Length is < 1 or > 1024 * 1024)
                 throw new IOException("Event history record outside bounded size.");
         }
@@ -183,10 +184,11 @@ public sealed class EventHistoryJournal : IDisposable
 
     public sealed record Entry(long EventNumber, Iec103RelayEventLogEntry Source,
         EventHistoryOriginalSnapshot? Original, EventHistoryOriginalSnapshot? Request = null,
-        Iec10xEngineeringSample? EngineeringSample = null)
+        Iec10xEngineeringSample? EngineeringSample = null,
+        EventDeliveryEvidence? DeliveryEvidence = null)
     {
         public RelayEventRow ToRow() => new(Source, Original?.Restore(Source.RawHex),
-            EventNumber, Request?.Restore(), EngineeringSample);
+            EventNumber, Request?.Restore(), EngineeringSample, DeliveryEvidence);
 
         // Querying 50k+ events must not re-parse FT1.2 bytes simply to match
         // a signal name, value or category. Only preserve the typed edge flag
@@ -198,7 +200,8 @@ public sealed class EventHistoryJournal : IDisposable
                 IsRelayEdgeEvent = Original.IsRelayEdgeEvent,
                 IsRelayValue = Original.IsRelayValue,
                 IsMappedSignal = Original.IsMappedSignal
-            }, EventNumber, engineeringSample: EngineeringSample);
+            }, EventNumber, engineeringSample: EngineeringSample,
+            deliveryEvidence: DeliveryEvidence);
     }
 
     public void Dispose()
