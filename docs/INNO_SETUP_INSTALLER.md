@@ -14,6 +14,26 @@ The CI gate installs silently, smoke-tests the installed WPF executable,
 reinstalls it, checks a user-data sentinel, checks the uninstall entry and
 uninstalls while retaining %LOCALAPPDATA%\\ARIEC60870.
 
+## Offline prerequisite policy (P0)
+
+The **official Windows x64 installer embeds a .NET 8/WPF self-contained
+publish**, not a framework-dependent executable. A normal PC does **not**
+need the Visual Studio IDE, the .NET SDK, or a separately installed .NET
+Desktop Runtime. On release and CI the exact EXE is started with
+`DOTNET_ROOT` redirected to an intentionally absent directory and .NET
+multilevel lookup disabled; failure stops packaging. This is a controlled
+launch test, not proof of every Windows-native DLL being available on every
+OS revision.
+
+**Do not run arbitrary online installers during setup.** A blanket
+Visual C++ redistributable install is not a requirement of the current pure
+WPF host. If a future feature introduces a native dependency, its owner must
+prove that dependency on a clean supported Windows VM, include a
+license-compliant, verified, appropriately signed offline prerequisite
+installer only when required, check its successful installation with a
+bounded failure/retry path, and preserve user-data/upgrade rollback. Never
+hide an installer failure behind an apparently successful ArSee install.
+
 ## Safety and limitations
 
 The installer uses Windows Restart Manager with `CloseApplications=yes` and
