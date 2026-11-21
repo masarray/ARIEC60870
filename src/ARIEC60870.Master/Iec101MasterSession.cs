@@ -283,14 +283,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
                 "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
 
-        // An initial COM fault must not swallow a GI that was never attempted.
-        // Never replay attempted FC3, nor issue clock-sync on a recovered COM.
-        var pendingStartup = (!reopened && _settings.SendClockSyncOnConnect) ||
-            (_settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted);
-        if (_linkVerified && pendingStartup)
+        // Clock sync is first-epoch only. GI has independent, session-owned intent
+        // until its first actual driver write attempt. A local scheduler flag must
+        // never silently consume GI when no TI100/COT6 write has been attempted.
+        var pendingClockSync = !reopened && _settings.SendClockSyncOnConnect;
+        if (_linkVerified && (pendingClockSync || StartupGiAwaitingFirstWrite))
         {
-            pendingStartup = false;
-            await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
+            var allowClockSync = pendingClockSync;
+            pendingClockSync = false;
+            await RunVerifiedStartupActionsAsync(allowClockSync, cancellationToken).ConfigureAwait(false);
         }
         else if (!_linkVerified)
         {
@@ -327,10 +328,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                 }
             }
 
-            if (pendingStartup)
+            // Preserve approved startup GI until SendRawAsync marks the first
+            // attempt. Re-evaluate after any link proof/DFC recovery; a prior
+            // action that returned early cannot strand GI behind Class2/ACD.
+            if (pendingClockSync || StartupGiAwaitingFirstWrite)
             {
-                pendingStartup = false;
-                await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
+                var allowClockSync = pendingClockSync;
+                pendingClockSync = false;
+                await RunVerifiedStartupActionsAsync(allowClockSync, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -373,6 +378,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             await Task.Delay(10, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private bool StartupGiAwaitingFirstWrite =>
+        _settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted;
 
     private async Task RunVerifiedStartupActionsAsync(bool allowClockSync, CancellationToken cancellationToken)
     {
