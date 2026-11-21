@@ -351,7 +351,12 @@ public partial class MainWindow
             // independent ASDU sizes, over an operator's IEC-101 profile.
             if (settings.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
                 !IsIec101PassiveMonitorSelected())
+            {
+                // An explicit IEC-101 session accepts the displayed widths as
+                // operator configuration. Other modes may not certify them.
                 _iec101SetupWidths = ReadIec101SetupWidths();
+                _iec101SetupWidthsNeedReview = false;
+            }
             var prefs = new SetupPreferences
             {
                 ProtocolMode = settings.ProtocolMode.ToString(),
