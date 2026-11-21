@@ -11,7 +11,15 @@ ArSee is a **free, open-source Windows engineering tool** for **IEC 60870-5-101,
 
 **[Product website](https://masarray.github.io/arsee/)** · **[Download](https://masarray.github.io/arsee/download.html)** · **[Watch the demo](https://masarray.github.io/arsee/demo.html)** · **[Quick Start](https://masarray.github.io/arsee/quick-start.html)** · **[Field Wiki](https://masarray.github.io/arsee/wiki.html)**
 
-<p align="center"><a href="https://masarray.github.io/arsee/"><img src="site/assets/screenshots/ariec60870-evidence-workspace.webp" width="90%" alt="ArSee IEC 60870 engineering evidence workspace" /></a></p>
+## See ArSee in action
+
+<p align="center">
+  <a href="https://masarray.github.io/arsee/demo.html">
+    <img src="docs/assets/screenshots/IEC-60870.gif" width="960" alt="Animated demonstration of the ArSee IEC 60870 software interface" />
+  </a>
+</p>
+
+<p align="center"><sub><a href="docs/assets/screenshots/IEC-60870.gif">Open the original animated GIF</a> · <a href="https://masarray.github.io/arsee/demo.html">Watch the website demo</a></sub></p>
 
 ## Download for Windows x64
 
@@ -24,6 +32,26 @@ ArSee is a **free, open-source Windows engineering tool** for **IEC 60870-5-101,
 | **Integrity & release notes** | [SHA-256 checksums](https://github.com/masarray/arsee/releases/download/v3.6.20/SHA256SUMS.txt) · [Versioned release](https://github.com/masarray/arsee/releases/tag/v3.6.20) |
 
 Official release packages may be unsigned. Use the [download guide](https://masarray.github.io/arsee/download.html) for setup, portable use and upgrade guidance.
+
+## Interface screenshots
+
+See the actual Windows application directly in this README. Click a screenshot for its original resolution.
+
+| Signal monitoring | Event investigation |
+| :---: | :---: |
+| <a href="docs/assets/screenshots/ariec60870-value-viewer.webp"><img src="docs/assets/screenshots/ariec60870-value-viewer.webp" width="470" alt="ArSee Values Viewer — decoded IEC signal values and quality" /></a> | <a href="docs/assets/screenshots/ariec60870-event-log.webp"><img src="docs/assets/screenshots/ariec60870-event-log.webp" width="470" alt="ArSee Event Journal — received event history" /></a> |
+| **Values Viewer** — live decoded point values | **Event Journal** — observations and timestamps |
+| <a href="docs/assets/screenshots/ariec60870-frame-trace.webp"><img src="docs/assets/screenshots/ariec60870-frame-trace.webp" width="470" alt="ArSee Frame Trace — original TX RX frames and interpretation" /></a> | <a href="docs/assets/screenshots/ariec60870-diagnostics.webp"><img src="docs/assets/screenshots/ariec60870-diagnostics.webp" width="470" alt="ArSee protocol communication diagnostics" /></a> |
+| **Frame Trace** — original TX/RX evidence | **Diagnostics** — link and protocol behavior |
+| <a href="docs/assets/screenshots/ariec60870-signal-list-editor.webp"><img src="docs/assets/screenshots/ariec60870-signal-list-editor.webp" width="470" alt="ArSee Signal List editor — mapping and engineering scaling" /></a> | <a href="docs/assets/screenshots/ariec60870-smart-findings.webp"><img src="docs/assets/screenshots/ariec60870-smart-findings.webp" width="470" alt="ArSee Smart Findings and operator evidence" /></a> |
+| **Signal Map** — engineer-owned point mapping | **Smart Findings** — evidence-led explanations |
+| <a href="docs/assets/screenshots/ariec60870-report-workspace.webp"><img src="docs/assets/screenshots/ariec60870-report-workspace.webp" width="470" alt="ArSee report workspace with PDF preview and export" /></a> | <a href="docs/assets/screenshots/ariec60870-pdf-report.webp"><img src="docs/assets/screenshots/ariec60870-pdf-report.webp" width="470" alt="ArSee sample native PDF evidence report" /></a> |
+| **Report Workspace** — preview before export | **PDF Evidence** — document the session |
+| <a href="docs/assets/screenshots/ariec60870-iec101-setup.webp"><img src="docs/assets/screenshots/ariec60870-iec101-setup.webp" width="470" alt="ArSee IEC 60870-5-101 serial setup" /></a> | <a href="docs/assets/screenshots/ariec60870-iec103-setup.webp"><img src="docs/assets/screenshots/ariec60870-iec103-setup.webp" width="470" alt="ArSee IEC 60870-5-103 serial relay setup" /></a> |
+| **IEC-101 Setup** — RTU serial parameters | **IEC-103 Setup** — protection relay parameters |
+
+<p align="center"><a href="docs/assets/screenshots/ariec60870-iec104-setup.webp"><img src="docs/assets/screenshots/ariec60870-iec104-setup.webp" width="640" alt="ArSee IEC 60870-5-104 TCP/IP setup" /></a></p>
+<p align="center"><sub>IEC-104 Setup — TCP/IP communication profile</sub></p>
 
 ## From a connection symptom to engineering evidence
 
@@ -48,15 +76,85 @@ The original communication remains inspectable even when decoding is incomplete 
 
 **[Explore screenshots and the demo](https://masarray.github.io/arsee/demo.html)** · [Step-by-step Quick Start](https://masarray.github.io/arsee/quick-start.html) · [Full User Guide](docs/USER_GUIDE.md)
 
-## Capabilities
+## Detailed feature reference
 
-- **IEC-101:** unbalanced master sessions, Class 1/2 polling, GI, source-linked control feedback, dual-link A/B workflow and a separate receive-only serial monitor.
-- **IEC-103:** protection-relay exchanges, supported FUN/INF fields, values and event interpretation.
-- **IEC-104:** TCP connection, APCI/ASDU interpretation, STARTDT/TESTFR and supported transactions.
-- **Signal List:** user-owned signal mapping and Factor or X0/X100/Y0/Y100 two-point scaling of applicable analog values.
-- **Evidence workspace:** Frame Trace, Values, Events, Diagnostics, Smart Findings, selected-frame inspection and native PDF reporting.
+ArSee is designed around a practical path: **Configure → Connect / Capture → Observe → Investigate → Report**. The tables below describe supported engineering workflows; the exact protocol mode and published build determine which controls are available.
 
-See the [release notes](https://github.com/masarray/arsee/releases/tag/v3.6.20) for behavior delivered by the current stable build. Illustrative screenshots and demo media are not protocol conformance evidence.
+### IEC 60870-5-101 · Serial RTU and gateway testing
+
+| Feature | Engineering use |
+| --- | --- |
+| **Active unbalanced master** | Configure COM port, baud rate, framing, link address, ASDU field lengths and device-specific startup settings. |
+| **Link-layer interpretation** | Observe FT1.2 telegram structure, link functions, ACD/DFC, acknowledged responses and Class 1/Class 2 polling. |
+| **General Interrogation (GI)** | Observe the request, confirmations, returned data and termination as separate protocol milestones. The configured on-connect GI policy is respected. |
+| **Commands and feedback** | Inspect supported reads, time synchronization and direct/select-before-operate command transactions in authorized test sessions. |
+| **Dual-link A/B** | Observe independent link health, active/standby ownership, switchover reasons and Redundancy timeline details. |
+| **Passive RX-only monitor** | Receive-only serial observation, including supported multi-RX monitoring workflows; electrical isolation depends on hardware. |
+| **Serial recovery diagnostics** | Distinguish link status, incomplete frames and reconnect behavior without fabricating values or command outcomes. |
+
+### IEC 60870-5-103 · Protection relay testing
+
+- Serial master communication with configurable port, serial profile and link address.
+- Link exchange and reset visibility, supported relay Class 1/Class 2 polling and event diagnostics.
+- Supported **FUN/INF** interpretation, relay indications, measured values and event timestamps where provided.
+- Project-specific mapping for relay signal identities; unknown vendor information stays explicitly unclassified.
+
+### IEC 60870-5-104 · TCP/IP testing
+
+- TCP client/master connection to project-approved IEC-104 endpoints.
+- I-format, S-format and U-format frame interpretation with sequence and session context.
+- **STARTDT / STOPDT / TESTFR** control exchange and supported ASDU data inspection.
+- General Interrogation, spontaneous event/value analysis and supported command-feedback evidence.
+- Source-aware diagnostics for session continuity and transaction behavior.
+
+### Frame Trace, protocol decoder and diagnostics
+
+- **Original TX/RX evidence:** inspect observed telegrams alongside selected-frame interpretation; undecodable or malformed bytes remain visible as raw evidence.
+- **Detailed protocol fields:** Type ID, Cause of Transmission, Common Address, IOA, flags, quality and timestamps; IEC-103 FUN/INF and IEC-104 APCI where applicable.
+- **Operator investigation:** search, inspect, navigate history and use supported AUTO/HOLD viewport controls without conflating display following with traffic capture.
+- **Communication diagnostics:** investigate missing data even when a serial link or TCP socket appears connected; inspect GI/command phase observations and protocol irregularities.
+- **Evidence links:** where available, move from event/finding context to an original source frame rather than using a guessed interpretation.
+
+### Values, Event Journal and Signal Map
+
+| Workspace | What it provides |
+| --- | --- |
+| **Values Viewer** | Current decoded point states, analog measurements, counts and available quality flags. |
+| **Event Journal / SOE** | Time-ordered decoded observations, digital/analog filters, search and source timestamps when supplied; missing device time is not invented. |
+| **Signal List** | User-defined CA/IOA/Type ID identities, Bay/TYPE/Mnemonic names and state mappings; applicable IEC-103 FUN/INF mapping. |
+| **Engineering scaling** | Factor and two-point **X0/X100/Y0/Y100** conversion for applicable normalized/scaled measurements without altering the original telegram. |
+| **Mapping editor** | Search/filter, selection and spreadsheet-style editing, validated paste, Fill Down and Undo/Redo where supported. |
+| **Profile preservation** | Existing user mappings remain user-owned. Reference profile ranges are examples, not universal RTU engineering units. |
+
+### General Interrogation, Controls and Redundancy
+
+- **GI status:** differentiate original request, ACTCON, GI data and ACTTERM. Completion of one phase is not proof that every configured signal arrived.
+- **Command Panel:** supported Read IOA, clock sync, control qualifier and select/execute workflows with response and timeout evidence, where available in the selected mode.
+- **Feedback truth:** distinguish a protocol confirmation, negative confirmation, missing feedback and actual physical operation; ArSee does not assume a breaker moved.
+- **IEC-101 A/B:** inspect active/standby state, selected Reason/Result timeline and link-specific evidence without treating the two COM connections as one source.
+
+### Smart Findings and Operator Evidence
+
+- Contextual findings for supported issues such as **Common Address mismatch, GI gaps, missing ACTCON/ACTTERM, command timeout and IEC-104 session instability**.
+- Findings emphasize **problem, protocol proof, possible cause and next action**, not unexplained scores.
+- Events, trace and findings preserve source references where available; a missing original TX frame is shown as incomplete evidence rather than manufactured.
+- Separates observed facts from inferred explanations and uncertain or unsupported protocol content.
+
+### Captures, exports and native reporting
+
+- Save and reopen supported capture evidence for offline investigation; archived completeness is distinct from an on-screen bounded trace.
+- Supported **Trace TXT, Events CSV and capture** workflows alongside source-aware report content.
+- Integrated **native PDF** preview/export with communications evidence, event details and findings where present.
+- Review or redact confidential station names, IP addresses, signal details and customer identifiers before sharing.
+
+### User experience, learning and distribution
+
+- Compact Windows engineering desktop with **Setup, Trace, Values, Events, Diagnostics, Signal Mapping, Controls, GI, Redundancy and Report** workspaces as applicable.
+- Bilingual **English and Indonesian Help Center / Field Wiki**, step-by-step guidance, trace-lab examples and troubleshooting documentation.
+- Windows x64 **installer and portable ZIP**, with stable-channel update behavior for installed editions and explicit manual updates for portable ZIP.
+- Published **Apache-2.0 source, CI, SHA-256 checksums, SBOM and build provenance** for release traceability.
+
+For configuration details, see the [User Guide](docs/USER_GUIDE.md), [Quick Start](docs/QUICK_START.md), [Protocol Coverage](https://masarray.github.io/arsee/protocol-coverage.html) and [Field Wiki](https://masarray.github.io/arsee/wiki.html). Screenshots are interface illustrations, not claims of universal interoperability.
 
 ## Open source and traceable releases
 
