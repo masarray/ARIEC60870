@@ -118,6 +118,7 @@ public partial class MainWindow
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             UpdateLayout();
             VerifySetupHeaderActions();
+            VerifySetupEnterRoutingWithoutTransport("IEC-101 Single");
             VerifyVisibleSetupSwitches(
             [
                 SerialRtsCheckBox, SerialDtrCheckBox,
@@ -190,6 +191,7 @@ public partial class MainWindow
             [
                 PassiveLinkBEnabledCheckBox, PassiveFullRecordingCheckBox
             ]);
+            VerifySetupEnterRoutingWithoutTransport("IEC-101 Passive");
             // Passive monitor is much shorter than IEC-104; avoid the former
             // enormous blank lower half while preserving a fixed footer.
             if (SetupDialogCard.ActualHeight > 690)
@@ -210,6 +212,12 @@ public partial class MainWindow
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 UpdateLayout();
                 VerifySetupHeaderActions();
+                VerifySetupEnterRoutingWithoutTransport(mode switch
+                {
+                    0 => "IEC-103",
+                    2 => "IEC-101 Dual",
+                    _ => "IEC-104"
+                });
                 if (SetupSettingsScroll.ActualHeight <= 0 ||
                     SetupDialogCard.ActualHeight > SetupOverlay.ActualHeight - 30)
                     throw new InvalidOperationException(
@@ -228,6 +236,31 @@ public partial class MainWindow
             SetupOverlay.Visibility = previousVisibility;
             UpdateLayout();
         }
+    }
+
+    /// <summary>
+    /// Real WPF control/policy regression across every protocol profile,
+    /// including the focused Auto-GI CheckBox bug. Do not synthesize a click
+    /// or open COM during visual acceptance.
+    /// </summary>
+    private void VerifySetupEnterRoutingWithoutTransport(string profile)
+    {
+        UpdateSetupDefaultAction();
+        if (!SetupConnectButton.IsDefault ||
+            !CanSubmitSetupOnEnter(GiCheckBox) ||
+            !CanSubmitSetupOnEnter(ResetRemoteLinkCheckBox) ||
+            !CanSubmitSetupOnEnter(SerialRtsCheckBox) ||
+            !CanSubmitSetupOnEnter(ProtocolModeComboBox) ||
+            !CanSubmitSetupOnEnter(LinkAddressBox) ||
+            !CanSubmitSetupOnEnter(SetupConnectButton))
+            throw new InvalidOperationException(
+                profile + ": Enter must reach Connect from CheckBox, ComboBox, input, and Connect focus.");
+
+        if (CanSubmitSetupOnEnter(SetupCancelButton) ||
+            CanSubmitSetupOnEnter(SetupCloseButton) ||
+            CanSubmitSetupOnEnter(new TextBox { AcceptsReturn = true }))
+            throw new InvalidOperationException(
+                profile + ": Enter must preserve Cancel/Close/multiline behavior.");
     }
 
     /// <summary>
