@@ -84,9 +84,9 @@ public sealed class Iec101SingleLinkDfcBusyRecoveryTests
         Assert.Equal(0, port.DataSentWhileBusy);
         Assert.Equal(1, port.GiRequests);
         Assert.Equal(1, result.Counters.GiCommands);
-        Assert.Single(result.Events.Where(e =>
+        Assert.Single(result.Events, e =>
             e.Direction == ARIEC60870.Core.Model.FrameDirection.MasterToSlave &&
-            e.TypeId == 100 && e.CauseOfTransmission == 6));
+            e.TypeId == 100 && e.CauseOfTransmission == 6);
     }
 
     private sealed class BusyThenRecoveredSecondary : IByteTransport
