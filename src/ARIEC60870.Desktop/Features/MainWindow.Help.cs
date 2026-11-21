@@ -14,20 +14,18 @@ public partial class MainWindow
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        // Enter applies the visible communication setup through the exact
-        // Connect-button path. It must NEVER disconnect a live session or
-        // steal Enter from a dropdown, multiline editor, or Cancel button.
-        if (e.Key == Key.Enter && SetupOverlay?.IsVisible == true &&
-            _sessionCancellation is null)
+        // The Setup footer is the only Enter default action. Do not interpret
+        // CheckBox/ToggleButton as explicit action buttons: both inherit
+        // ButtonBase and the old guard silently discarded Enter on Auto-GI
+        // and other focused switches (most visible in IEC-101 Single).
+        if (e.Key == Key.Enter && CanSubmitSetupOnEnter(Keyboard.FocusedElement))
         {
-            if (Keyboard.FocusedElement is System.Windows.Controls.ComboBox { IsDropDownOpen: true } ||
-                Keyboard.FocusedElement is System.Windows.Controls.TextBox { AcceptsReturn: true } ||
-                Keyboard.FocusedElement is System.Windows.Controls.Primitives.ButtonBase button &&
-                    !ReferenceEquals(button, SetupConnectButton))
-                return;
-
             e.Handled = true;
-            CloseSetupAndConnect_Click(SetupConnectButton, new RoutedEventArgs());
+            // Route through the actual WPF button Click, exactly as the mouse
+            // does: one validation/start lifecycle, no mode-specific shortcut.
+            SetupConnectButton.RaiseEvent(new RoutedEventArgs(
+                System.Windows.Controls.Primitives.ButtonBase.ClickEvent,
+                SetupConnectButton));
             return;
         }
 
@@ -36,6 +34,25 @@ public partial class MainWindow
             e.Handled = true;
             OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
         }
+    }
+
+    // Also used by real-WPF acceptance without opening COM or invoking Click.
+    private bool CanSubmitSetupOnEnter(IInputElement? focused)
+    {
+        if (SetupOverlay?.IsVisible != true ||
+            _sessionCancellation is not null || SetupConnectButton?.IsEnabled != true)
+            return false;
+
+        // Preserve dropdown selection and multiline editing. An ordinary
+        // TextBox, CheckBox, RadioButton or ToggleButton must not block Enter.
+        if (focused is System.Windows.Controls.ComboBox { IsDropDownOpen: true } ||
+            focused is System.Windows.Controls.TextBox { AcceptsReturn: true })
+            return false;
+
+        // Only a real action Button (Cancel/Close/Browse/etc) retains Enter.
+        // CheckBox/ToggleButton derive ButtonBase but are not Button.
+        return focused is not System.Windows.Controls.Button button ||
+            ReferenceEquals(button, SetupConnectButton);
     }
 
     private void OpenHelpWindow(string topicKey)
