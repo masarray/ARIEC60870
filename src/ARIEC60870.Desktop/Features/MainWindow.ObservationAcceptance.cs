@@ -154,6 +154,33 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "IEC-104 mode switch overwrote the IEC-101 operator's profile.");
 
+            // Real-WPF policy -> BuildSettingsFromUi regression. PR #303's pure
+            // policy tests never exercised the exact Connect settings path.
+            // A stale checkbox visual may NOT override the saved per-protocol
+            // intent; an operator's explicit OFF must still remain OFF.
+            var previousGiOverride = _iec101StartupGiOperatorOverride;
+            try
+            {
+                _iec101StartupGiOperatorOverride = true;
+                GiCheckBox.IsChecked = false; // simulate stale visual state
+                var onSettings = BuildSettingsFromUi(validateActiveProfile: false);
+                if (!onSettings.SendGeneralInterrogationOnConnect || GiCheckBox.IsChecked != true)
+                    throw new InvalidOperationException(
+                        "IEC-101 Connect silently lost explicitly enabled startup GI.");
+
+                _iec101StartupGiOperatorOverride = false;
+                GiCheckBox.IsChecked = true; // stale visual state in reverse
+                var offSettings = BuildSettingsFromUi(validateActiveProfile: false);
+                if (offSettings.SendGeneralInterrogationOnConnect || GiCheckBox.IsChecked != false)
+                    throw new InvalidOperationException(
+                        "IEC-101 Connect ignored explicitly disabled startup GI.");
+            }
+            finally
+            {
+                _iec101StartupGiOperatorOverride = previousGiOverride;
+                ApplyProtocolUxProfile(GetSelectedProtocolMode());
+            }
+
             // Passive mode keeps the identical style and Checked/Unchecked
             // event handlers. Ensure both conditional switches align too.
             ProtocolModeComboBox.SelectedIndex = 3;
