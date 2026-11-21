@@ -124,6 +124,26 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
+    public void EnterConnectDoesNotTriggerOnlineDisconnectOrDismissFailedSetup()
+    {
+        var help = File.ReadAllText(Source("Features/MainWindow.Help.cs"));
+        var setup = File.ReadAllText(Source("MainWindow.xaml.cs"));
+        Assert.Contains("e.Key == Key.Enter && SetupOverlay?.IsVisible == true", help);
+        Assert.Contains("_sessionCancellation is null", help);
+        Assert.Contains("IsDropDownOpen: true", help);
+        Assert.Contains("AcceptsReturn: true", help);
+        Assert.Contains("CloseSetupAndConnect_Click(SetupConnectButton", help);
+
+        var handler = setup.Split("private void CloseSetupAndConnect_Click(")[1]
+            .Split("private void RefreshPorts()", 2)[0];
+        Assert.Contains("if (_sessionCancellation is not null)", handler);
+        Assert.Contains("ConnectToggle_Click(sender, e);", handler);
+        Assert.Contains("if (_sessionCancellation is not null)\n            SetupOverlay.Visibility = Visibility.Collapsed;", handler);
+        // No unconditional collapse on the Disconnect branch.
+        Assert.DoesNotContain("SetupOverlay.Visibility = Visibility.Collapsed;\n        ConnectToggle_Click", handler);
+    }
+
+    [Fact]
     public void BrandPngAlignsToHeaderTopWithoutShiftingRailButtons()
     {
         var doc = XDocument.Load(Source("MainWindow.xaml"));
