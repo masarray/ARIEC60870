@@ -103,6 +103,26 @@ The indicator is derived from the existing Event History follow policy, current 
 
 The **FC** cell shows only confirmed IEC-101 request functions from an exact primary TX and secondary RX match. The tooltip is deliberately short: `FC10 → Class 1 Data Polling` and `FC11 → Class 2 Data Polling`. Without a verified match, FC stays `—`, never an invented Class. It describes **which poll returned the event**, not how the RTU permanently configured that IOA; Class 1 data can arrive during a Class 2 poll. Detailed proof remains in the original frames, exported `RequestFC`, and this policy document, rather than multi-sentence hover text. Do not modify link correlation, source identity or journal serialization merely to change wording.
 
+## 2026-11-21 — buffered/live presentation is evidence, never a standard bit
+
+- IEC-101/104 do **not** encode a universal buffered-vs-live event flag.
+  An RTU can send an internally buffered event as COT3 spontaneous; IEC-101
+  FC10 Class 1 polling is *delivery mechanism*, not proof of queue age.
+- The compact Event Journal `Delivery` column is classified from typed
+  IEC-101/104 COT plus a *valid complete* device date/time vs PC arrival:
+  COT1=Cyclic; COT2=Background; COT11/12=Return info; COT20..36=GI data.
+  COT3 with no trustworthy absolute device timestamp remains Spontaneous.
+- A COT3 timestamp at least 30 seconds older than host arrival is labeled
+  `Delayed?`, **never Buffered**. Within 5 seconds is `Near-live?`, **never
+  Live confirmed**. An unsynchronized RTU/PC, time-zone ambiguity, replay,
+  and out-of-order buffered delivery may all affect this hint. Negative/TEST
+  causes remain Unverified; command/GI milestones remain Transaction.
+- Source COT, timestamp, host arrival, protocol, channel, original frame and
+  the classifier basis remain available in exported CSV. Never rewrite raw
+  evidence or transfer guessed timing confidence into SOE quality/command
+  verdicts. To prove actual buffering, correlate synchronized event/arrival
+  timestamps with RTU queue configuration or an independently verified test.
+
 ## 2026-10-30 R3-B/C GI/Command observation policy
 - Header **EVENT** increments only when one factual row is appended to the bounded Event Log (digital edge, spontaneous change, command stage, or GI milestone), not on every measurement or poll.
 - GI is a first-class filtered event group. One GI request, ACTCON and ACTTERM each create a concise event milestone; interrogated COT20..36 data accumulate typed frame/object counts without producing repetitive SOE. A reported ACTTERM explicitly states *coverage unknown* unless a project-approved expected mapping proves it.
