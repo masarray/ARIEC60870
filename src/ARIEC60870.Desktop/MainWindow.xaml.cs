@@ -258,6 +258,10 @@ public partial class MainWindow : Window
         LinkAddressBox.TextChanged += LinkAAddress_TextChanged;
         BackupLinkAddressBox.TextChanged += LinkBAddress_TextChanged;
         DataContext = this;
+        // Native WPF default Enter action is scoped to a visible, idle Setup.
+        // Child focus changes between IEC-101 Single/Dual/103/104 must not
+        // change whether pressing Enter can start the connection.
+        SetupOverlay.IsVisibleChanged += (_, _) => UpdateSetupDefaultAction();
         ResetEventHistory();
         Closed += (_, _) => _eventHistoryWriter?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -342,17 +346,29 @@ public partial class MainWindow : Window
 
     private void RefreshPorts_Click(object sender, RoutedEventArgs e) => RefreshPorts();
 
+    private void UpdateSetupDefaultAction()
+    {
+        // IsDefault registers WPF's native Enter access key. It is disabled
+        // outside the dialog and for active sessions, so it cannot start a
+        // connection from the cockpit or disconnect an online inspector.
+        SetupConnectButton.IsDefault =
+            SetupOverlay.IsVisible && _sessionCancellation is null &&
+            SetupConnectButton.IsEnabled;
+    }
+
     private void OpenSetup_Click(object sender, RoutedEventArgs e)
     {
         // Setup is also an online, read-only connection inspector. Never
         // mutate an active transport merely to display its configuration.
         UpdateConnectToggleVisual(_sessionCancellation is not null);
         SetupOverlay.Visibility = Visibility.Visible;
+        UpdateSetupDefaultAction();
     }
 
     private void CloseSetup_Click(object sender, RoutedEventArgs e)
     {
         SetupOverlay.Visibility = Visibility.Collapsed;
+        UpdateSetupDefaultAction();
         // Cancel discards edits rather than silently persisting them.
         // Live sessions have all configuration editors locked.
         if (_sessionCancellation is null)
