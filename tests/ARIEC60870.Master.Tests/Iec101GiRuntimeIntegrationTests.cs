@@ -65,6 +65,45 @@ public sealed class Iec101GiRuntimeIntegrationTests
             e.TypeId == 100);
     }
 
+    [Fact]
+    public async Task FieldWidthLink105StartupGiAppearsInOriginalTxAndGiCasebookBeforeClass2()
+    {
+        // Regress the user's IEC-101 1200-bps Link/CA 105, 2/2/2/3 setup.
+        // In addition to engine counters, pass each original evidence frame
+        // through the exact typed GI casebook used by the WPF workspace.
+        var settings = Settings();
+        settings.LinkAddress = 105;
+        settings.LinkAddressSize = 2;
+        settings.CommonAddress = 105;
+        settings.BaudRate = 1200;
+        await using var transport = new SimulatedIec101Transport(settings);
+        var result = await new Iec101MasterSession(settings, transport)
+            .RunForAsync(TimeSpan.FromMilliseconds(1200), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        var requests = result.Events.Where(e =>
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.TypeId == 100 && e.CauseOfTransmission == 6).ToArray();
+        Assert.Single(requests);
+        Assert.Equal(105, requests[0].CommonAddressNumber);
+        Assert.Equal(105, requests[0].LinkAddress);
+        Assert.False(string.IsNullOrWhiteSpace(requests[0].RawHex));
+
+        var casebook = new Iec10xGiCasebook();
+        foreach (var evidence in result.Events.OrderBy(e => e.SequenceNumber))
+            casebook.Observe(evidence);
+        Assert.Contains(casebook.Snapshot(), c =>
+            c.CommonAddress == 105 && c.LinkAddress == 105 &&
+            c.Stages.Any(stage => stage.Phase == "GI request"));
+
+        var background = result.Events.FirstOrDefault(e =>
+            e.Direction == FrameDirection.MasterToSlave &&
+            e.Frame?.LinkControl?.FunctionCode == 11);
+        if (background is not null)
+            Assert.True(requests[0].SequenceNumber < background.SequenceNumber,
+                "First Connect GI must precede normal Class 2 polling.");
+    }
+
     private static Iec103MasterSettings Settings() => new()
     {
         ProtocolMode = Iec60870ProtocolMode.Iec101,
