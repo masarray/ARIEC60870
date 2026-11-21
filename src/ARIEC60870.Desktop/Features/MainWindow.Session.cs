@@ -805,7 +805,28 @@ public partial class MainWindow
             return;
         }
 
+        // Remember IEC-101's configured widths BEFORE the IEC-103 profile
+        // forces its fixed 1-byte fields. Restore independently after switch.
+        if (!_isApplyingSavedSetup && _previousSetupModeWasActiveIec101)
+            _iec101SetupWidths = ReadIec101SetupWidths();
+
+        var enteringActiveIec101 = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec101 &&
+            !IsIec101PassiveMonitorSelected();
         ApplyProtocolUxProfile(GetSelectedProtocolMode());
+        if (!_isApplyingSavedSetup)
+        {
+            if (enteringActiveIec101)
+                ApplyIec101SetupWidths();
+            else if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec104)
+            {
+                // IEC-104 ASDU widths are fixed, not inherited from IEC-103.
+                SelectComboContent(CotSizeComboBox, "2");
+                SelectComboContent(CaSizeComboBox, "2");
+                SelectComboContent(IoaSizeComboBox, "3");
+            }
+            UpdateIec101WidthReview();
+        }
+        _previousSetupModeWasActiveIec101 = enteringActiveIec101;
         MainTabControl.SelectedIndex = IsIec101PassiveMonitorSelected() ? 1 : IsIec101DualLinkModeSelected() ? 9 : 1;
         UpdateSegmentedNav(false);
     }

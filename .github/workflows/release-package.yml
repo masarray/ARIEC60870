@@ -401,8 +401,17 @@ jobs:
           $output = 'artifacts/release-wpf-evidence'
           if (!(Test-Path $exe)) { throw 'Exact release GUI executable missing.' }
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
-          if ($smoke.ExitCode -ne 0) { throw "Release GUI smoke failed with exit code $($smoke.ExitCode)." }
+          # Shipping a self-contained .NET/WPF runtime is safer than fetching
+          # random VC++/.NET installers during a field install. Reject a
+          # release if its exact EXE cannot start with external .NET disabled.
+          $env:DOTNET_ROOT = Join-Path $output 'intentionally-missing-dotnet'
+          $env:DOTNET_MULTILEVEL_LOOKUP = '0'
+          try {
+            $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
+            if ($smoke.ExitCode -ne 0) { throw "Self-contained release dependency isolation failed: $($smoke.ExitCode)." }
+          } finally {
+            Remove-Item Env:DOTNET_ROOT,Env:DOTNET_MULTILEVEL_LOOKUP -ErrorAction SilentlyContinue
+          }
           $accept = Start-Process -FilePath $exe -ArgumentList @('--observation-ui-acceptance', '--observation-out', $output) -Wait -PassThru -NoNewWindow
           if ($accept.ExitCode -ne 0) {
             if (Test-Path (Join-Path $output 'failure.txt')) { Get-Content (Join-Path $output 'failure.txt') }

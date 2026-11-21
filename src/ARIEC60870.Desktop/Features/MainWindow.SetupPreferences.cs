@@ -31,6 +31,37 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private Iec101SetupWidths _iec101SetupWidths = Iec101SetupWidths.GenericDefaults;
+    private bool _iec101SetupWidthsNeedReview;
+    private bool _previousSetupModeWasActiveIec101;
+
+    private Iec101SetupWidths ReadIec101SetupWidths() => new(
+        ReadComboInt(LinkAddressSizeComboBox, "IEC-101 link width"),
+        ReadComboInt(CotSizeComboBox, "IEC-101 COT width"),
+        ReadComboInt(CaSizeComboBox, "IEC-101 CA width"),
+        ReadComboInt(IoaSizeComboBox, "IEC-101 IOA width"));
+
+    private void ApplyIec101SetupWidths()
+    {
+        SelectComboContent(LinkAddressSizeComboBox, _iec101SetupWidths.Link.ToString());
+        SelectComboContent(CotSizeComboBox, _iec101SetupWidths.Cot.ToString());
+        SelectComboContent(CaSizeComboBox, _iec101SetupWidths.Ca.ToString());
+        SelectComboContent(IoaSizeComboBox, _iec101SetupWidths.Ioa.ToString());
+    }
+
+    private void UpdateIec101WidthReview()
+    {
+        if (Iec101WidthReviewText is null) return;
+        var activeIec101 = GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec101 &&
+            !IsIec101PassiveMonitorSelected();
+        Iec101WidthReviewText.Visibility = activeIec101 &&
+            (_iec101SetupWidthsNeedReview || ReadIec101SetupWidths().IsAllOne)
+                ? Visibility.Visible : Visibility.Collapsed;
+        Iec101WidthReviewText.Text = _iec101SetupWidthsNeedReview
+            ? "Legacy setup used another protocol. IEC-101 field widths were restored to generic defaults; verify Link/COT/CA/IOA against the actual RTU before TX."
+            : "IEC-101 uses 1-byte Link/COT/CA/IOA. Valid for some RTUs; verify the device profile. A wrong Link width can produce FC9 TX with no RX.";
+    }
+
     private void ApplyIoaProfileDefaultsToUi(Iec10xPointMappingProfile profile, bool onlyWhenUiLooksDefault)
     {
         var defaults = profile.DefaultSettings;
@@ -129,6 +160,12 @@ public partial class MainWindow
             }
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
+            _iec101SetupWidths = Iec101SetupWidths.Restore(
+                prefs.Iec101WidthsSchema, prefs.ProtocolMode,
+                new Iec101SetupWidths(prefs.LinkAddressSize,
+                    prefs.CauseOfTransmissionSize, prefs.CommonAddressSize,
+                    prefs.InformationObjectAddressSize),
+                out _iec101SetupWidthsNeedReview);
             SelectProtocolMode(prefs.ProtocolMode);
             if (!string.IsNullOrWhiteSpace(prefs.CustomInteroperabilityProfileJson))
             {
@@ -211,10 +248,16 @@ public partial class MainWindow
                 prefs.LinkAddress, prefs.BackupLinkAddress, _backupLinkAddressExplicit).ToString();
             CommonAddressBox.Text = prefs.CommonAddress.ToString();
             CommandCaBox.Text = prefs.CommonAddress.ToString();
-            SelectComboContent(LinkAddressSizeComboBox, Math.Clamp(prefs.LinkAddressSize, 0, 2).ToString());
-            SelectComboContent(CotSizeComboBox, Math.Clamp(prefs.CauseOfTransmissionSize, 1, 2).ToString());
-            SelectComboContent(CaSizeComboBox, Math.Clamp(prefs.CommonAddressSize, 1, 2).ToString());
-            SelectComboContent(IoaSizeComboBox, Math.Clamp(prefs.InformationObjectAddressSize, 1, 3).ToString());
+            if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec101 &&
+                !IsIec101PassiveMonitorSelected())
+                ApplyIec101SetupWidths();
+            else if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec104)
+            {
+                SelectComboContent(CotSizeComboBox, "2");
+                SelectComboContent(CaSizeComboBox, "2");
+                SelectComboContent(IoaSizeComboBox, "3");
+            }
+            // IEC-103's fixed 1-byte fields must not replace the IEC-101 memory.
             SelectComboContent(TransmissionModeComboBox, prefs.TransmissionMode?.StartsWith("Balanced", StringComparison.OrdinalIgnoreCase) == true ? "Unbalanced" : "Unbalanced");
 
             Class2IntervalBox.Text = prefs.Class2PollIntervalMs > 0 ? prefs.Class2PollIntervalMs.ToString() : "500";
@@ -253,6 +296,12 @@ public partial class MainWindow
             _commandDockExpanded = prefs.ObservationDockPreferenceVersion >= 1 && prefs.CommandDockExpanded;
             ApplyCommandDockLayout();
             UpdateInteroperabilityProfilePreview();
+            UpdateIec101WidthReview();
+            if (_iec101SetupWidthsNeedReview)
+                AddUiDiagnostic("Warning", "Setup", "IEC101-WIDTHS-REVIEW",
+                    "Legacy protocol switch may have overwritten IEC-101 field widths",
+                    "Old preferences stored one shared width set across IEC-101/103/104. Generic IEC-101 widths are shown, not a verified RTU profile.",
+                    "Open IEC-101 Setup > Field widths and confirm the approved Link/COT/CA/IOA lengths before connecting.");
         }
         catch (Exception ex)
         {
@@ -298,6 +347,16 @@ public partial class MainWindow
     {
         try
         {
+            // Do not persist fixed IEC-103 sizes (1/1/1/1), or IEC-104's
+            // independent ASDU sizes, over an operator's IEC-101 profile.
+            if (settings.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
+                !IsIec101PassiveMonitorSelected())
+            {
+                // An explicit IEC-101 session accepts the displayed widths as
+                // operator configuration. Other modes may not certify them.
+                _iec101SetupWidths = ReadIec101SetupWidths();
+                _iec101SetupWidthsNeedReview = false;
+            }
             var prefs = new SetupPreferences
             {
                 ProtocolMode = settings.ProtocolMode.ToString(),
@@ -329,10 +388,11 @@ public partial class MainWindow
                 BackupLinkAddress = int.TryParse(BackupLinkAddressBox.Text, out var backupLinkAddress) ? backupLinkAddress : settings.LinkAddress,
                 BackupLinkAddressExplicit = _backupLinkAddressExplicit,
                 CommonAddress = settings.CommonAddress,
-                LinkAddressSize = settings.LinkAddressSize,
-                CauseOfTransmissionSize = settings.CauseOfTransmissionSize,
-                CommonAddressSize = settings.CommonAddressSize,
-                InformationObjectAddressSize = settings.InformationObjectAddressSize,
+                Iec101WidthsSchema = _iec101SetupWidthsNeedReview ? 0 : 1,
+                LinkAddressSize = _iec101SetupWidths.Link,
+                CauseOfTransmissionSize = _iec101SetupWidths.Cot,
+                CommonAddressSize = _iec101SetupWidths.Ca,
+                InformationObjectAddressSize = _iec101SetupWidths.Ioa,
                 TransmissionMode = settings.TransmissionMode,
                 Iec104T0TimeoutMs = settings.Iec104T0TimeoutMs,
                 Iec104T1AckTimeoutMs = settings.Iec104T1AckTimeoutMs,
@@ -497,6 +557,9 @@ public partial class MainWindow
         public int BackupLinkAddress { get; set; } = 1;
         public bool? BackupLinkAddressExplicit { get; set; }
         public int CommonAddress { get; set; } = 1;
+        // Schema 0 used one global field-width set, overwritten on IEC-103 exit.
+        // Schema 1 stores exclusively the last explicitly selected IEC-101 widths.
+        public int Iec101WidthsSchema { get; set; }
         public int LinkAddressSize { get; set; } = 1;
         public int CauseOfTransmissionSize { get; set; } = 2;
         public int CommonAddressSize { get; set; } = 2;
