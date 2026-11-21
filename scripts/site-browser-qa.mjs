@@ -213,8 +213,10 @@ async function releaseResolverCase(browserName, browser, route) {
       "Resolver did not select complete stable installer");
     assert(await page.locator('a[href="' + prefix + 'win-x64.zip"]').count(),
       "Resolver did not select complete stable portable ZIP");
-    assert.equal(await page.locator('meta[name="application-version"]').getAttribute("content"),
-      "9.9.9", "API version did not update structured page metadata");
+    assert.equal(await page.locator('[data-release-filename="installer"]').first().textContent(),
+      "ArSee-v9.9.9-setup-win-x64.exe", "Installer filename did not follow API release");
+    assert.equal(await page.locator(".release-line a").first().getAttribute("href"),
+      repoUrl + "/releases/tag/v9.9.9", "Release notes link did not follow API release");
     assert.equal(errorsOnPage.length, 0, "Browser JS errors: " + errorsOnPage.join("; "));
     entry.passed = true;
   } catch (error) {
