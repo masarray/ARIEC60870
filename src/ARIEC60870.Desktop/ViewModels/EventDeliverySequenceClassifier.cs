@@ -23,7 +23,8 @@ public sealed class EventDeliverySequenceClassifier
 
     public void Reset() => _sources.Clear();
 
-    public EventDeliveryEvidence Observe(Iec103RelayEventLogEntry item)
+    public EventDeliveryEvidence Observe(Iec103RelayEventLogEntry item,
+        long? physicalFrameSequence = null, string? connectionInstance = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         var semantic = EventDeliveryEvidenceClassifier.Classify(item);
@@ -32,7 +33,11 @@ public sealed class EventDeliverySequenceClassifier
             return semantic;
 
         var key = new SourceKey(item.ProtocolMode, item.PhysicalSource ?? string.Empty,
-            item.CommonAddress);
+            item.CommonAddress, connectionInstance ?? string.Empty);
+        // A multi-object ASDU creates several object-level sequence numbers;
+        // the physical frame sequence supplied by canonical decoder wins.
+        var frameSequence = physicalFrameSequence is > 0
+            ? physicalFrameSequence.Value : item.EvidenceSequenceNumber;
         if (!_sources.TryGetValue(key, out var state))
         {
             if (_sources.Count >= MaxSources)
@@ -46,8 +51,8 @@ public sealed class EventDeliverySequenceClassifier
         }
 
         var host = item.ArrivalTimeUtc.ToUniversalTime();
-        if (item.EvidenceSequenceNumber > 0 &&
-            state.LastFrameSequence == item.EvidenceSequenceNumber &&
+        if (frameSequence > 0 &&
+            state.LastFrameSequence == frameSequence &&
             state.LastFrameSequence > 0)
         {
             // Every object in one ASDU shares the physical frame. Never
@@ -83,13 +88,14 @@ public sealed class EventDeliverySequenceClassifier
         state.HasObservation = true;
         state.LastArrivalUtc = host;
         state.LastDeviceTime = device;
-        state.LastFrameSequence = item.EvidenceSequenceNumber;
+        state.LastFrameSequence = frameSequence;
         state.LastDecision = label;
         return label;
     }
 
     private readonly record struct SourceKey(
-        Iec60870ProtocolMode Protocol, string PhysicalSource, int? CommonAddress);
+        Iec60870ProtocolMode Protocol, string PhysicalSource, int? CommonAddress,
+        string ConnectionInstance);
 
     private sealed class SourceState
     {
