@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -239,9 +240,9 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Real WPF control/policy regression across every protocol profile,
-    /// including the focused Auto-GI CheckBox bug. Do not synthesize a click
-    /// or open COM during visual acceptance.
+    /// Actual WPF routed PreviewKeyDown -> footer Click regression on every
+    /// protocol mode. Temporarily replace the Click handler with a counter:
+    /// this drives the real visual/event tree but NEVER opens COM or TCP.
     /// </summary>
     private void VerifySetupEnterRoutingWithoutTransport(string profile)
     {
@@ -254,13 +255,62 @@ public partial class MainWindow
             !CanSubmitSetupOnEnter(LinkAddressBox) ||
             !CanSubmitSetupOnEnter(SetupConnectButton))
             throw new InvalidOperationException(
-                profile + ": Enter must reach Connect from CheckBox, ComboBox, input, and Connect focus.");
+                profile + ": Enter must reach Connect from switch, combo, input, and footer.");
 
         if (CanSubmitSetupOnEnter(SetupCancelButton) ||
             CanSubmitSetupOnEnter(SetupCloseButton) ||
             CanSubmitSetupOnEnter(new TextBox { AcceptsReturn = true }))
             throw new InvalidOperationException(
                 profile + ": Enter must preserve Cancel/Close/multiline behavior.");
+
+        var presentation = PresentationSource.FromVisual(this) ??
+            throw new InvalidOperationException(profile + ": missing live WPF presentation source.");
+        var switchControl = profile == "IEC-101 Passive"
+            ? (UIElement)PassiveFullRecordingCheckBox : GiCheckBox;
+        var editor = profile == "IEC-104" ? (UIElement)TcpHostBox : LinkAddressBox;
+        var clicks = 0;
+        RoutedEventHandler probe = (_, _) => clicks++;
+        SetupConnectButton.Click -= CloseSetupAndConnect_Click;
+        SetupConnectButton.Click += probe;
+        try
+        {
+            foreach (var target in new UIElement[]
+            {
+                switchControl, editor, ProtocolModeComboBox, SetupConnectButton
+            })
+            {
+                var before = clicks;
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, presentation, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                target.RaiseEvent(key);
+                if (!key.Handled || clicks != before + 1 ||
+                    SetupOverlay.Visibility != Visibility.Visible ||
+                    _sessionCancellation is not null)
+                    throw new InvalidOperationException(
+                        profile + ": routed Enter did not invoke exactly one Connect Click from " +
+                        target.GetType().Name + ".");
+            }
+
+            foreach (var target in new UIElement[] { SetupCancelButton, SetupCloseButton })
+            {
+                var before = clicks;
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, presentation, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                target.RaiseEvent(key);
+                if (key.Handled || clicks != before)
+                    throw new InvalidOperationException(
+                        profile + ": Enter on an explicit action button was stolen by Connect.");
+            }
+        }
+        finally
+        {
+            SetupConnectButton.Click -= probe;
+            SetupConnectButton.Click += CloseSetupAndConnect_Click;
+        }
     }
 
     /// <summary>
