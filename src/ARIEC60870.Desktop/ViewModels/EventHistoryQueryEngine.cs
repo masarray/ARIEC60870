@@ -144,6 +144,13 @@ public static class EventHistoryQueryEngine
         ArgumentNullException.ThrowIfNull(previous);
         if (newCeiling < previous.Ceiling || newCeiling > journal.Count)
             throw new ArgumentOutOfRangeException(nameof(newCeiling));
+        // Defensive reconciliation: even if an older caller forgot to seed
+        // the filtered empty snapshot at session reset, never extend it via
+        // the unfiltered fast path. Rebuild only on a scope/index mismatch;
+        // steady-state sessions remain incremental O(new events).
+        if (previous.IsFiltered != !IsUnfiltered(query, include, exclude))
+            return Build(journal, newCeiling, query, include, exclude,
+                classify, cancellationToken, names);
         if (newCeiling == previous.Ceiling) return previous;
         if (!previous.IsFiltered) return previous.Append(newCeiling, Array.Empty<long>());
         var added = Scan(journal, previous.Ceiling, newCeiling, query?.Trim() ?? "",
