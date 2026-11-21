@@ -57,8 +57,16 @@ public partial class MainWindow
         if (GiCasesGrid?.SelectedItem is not Iec10xGiCasebook.GiCase c)
         {
             if (GiCaseStages.Count > 0) GiCaseStages.Clear();
-            if (GiStageSummaryText is not null) GiStageSummaryText.Text = "Select a GI case to inspect its milestones";
-            if (GiCaseDetailsBox is not null) GiCaseDetailsBox.Text = "Select a GI conversation.";
+            var missingGiExplanation = _lastRequestedStartupGi switch
+            {
+                false => "Startup GI was OFF at Connect (Setup preference). No TI100/COT6 request was scheduled. To request automatic station GI, enable 'General interrogation on connect' in Setup and reconnect.",
+                true => "Startup GI was ON at Connect, but no source-qualified TI100/COT6 conversation is recorded here. Inspect Raw Frames and Diagnostics for the GI TX, secondary link verification and DFC state; Event RX alone is not GI proof.",
+                _ => "Select a GI conversation. An active Master with GI enabled starts an evidence-backed TI100/COT6 case after a verified link."
+            };
+            if (GiStageSummaryText is not null)
+                GiStageSummaryText.Text = _lastRequestedStartupGi == false
+                    ? "0 GI cases · startup GI disabled" : "0 GI cases · inspect startup GI";
+            if (GiCaseDetailsBox is not null) GiCaseDetailsBox.Text = missingGiExplanation;
             return;
         }
         // Readable default: preserve the original stages, but focus on

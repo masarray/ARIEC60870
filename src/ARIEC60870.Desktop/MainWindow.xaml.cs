@@ -64,6 +64,11 @@ public partial class MainWindow : Window
     private bool _isApplyingSavedSetup;
     private bool _savedSetupPreferencesLoaded;
     private bool? _iec101ResetRemoteLinkOperatorOverride;
+    private bool? _iec101StartupGiOperatorOverride;
+    private bool? _iec103StartupGiOperatorOverride;
+    private bool? _iec104StartupGiOperatorOverride;
+    // The currently selected Connect policy is displayed without synthesizing GI traffic.
+    private bool? _lastRequestedStartupGi;
     private bool? _iec103ResetRemoteLinkOperatorOverride;
     private bool _defaultIoaSeedSettingsApplied;
     private bool _isProtocolTraceDragSelecting;
@@ -226,6 +231,25 @@ public partial class MainWindow : Window
                 _iec101ResetRemoteLinkOperatorOverride = enabled;
             else if (GetSelectedProtocolMode() == Iec60870ProtocolMode.Iec103)
                 _iec103ResetRemoteLinkOperatorOverride = enabled;
+        };
+        // Startup GI is an operator setting per active protocol. The CheckBox
+        // Click event is the only way to create an explicit override; restoring
+        // a saved profile or changing protocol must not count as operator intent.
+        GiCheckBox.Click += (_, _) =>
+        {
+            var enabled = GiCheckBox.IsChecked == true;
+            switch (GetSelectedProtocolMode())
+            {
+                case Iec60870ProtocolMode.Iec101 when !IsIec101PassiveMonitorSelected():
+                    _iec101StartupGiOperatorOverride = enabled;
+                    break;
+                case Iec60870ProtocolMode.Iec103:
+                    _iec103StartupGiOperatorOverride = enabled;
+                    break;
+                case Iec60870ProtocolMode.Iec104:
+                    _iec104StartupGiOperatorOverride = enabled;
+                    break;
+            }
         };
         // Fresh standby defaults follow Link A until the engineer explicitly edits B.
         // Hook only after InitializeComponent so XAML initialization is not mistaken

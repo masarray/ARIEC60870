@@ -276,7 +276,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _learnedCommonAddress = null;
             _retriedGiWithObservedCommonAddress = false;
             _giRequestedOnActiveOwner = false;
-            _startupGiPending = false;
+            // A GI already attempted was removed from the pending queue before
+            // TX. If no GI write was attempted yet, keep first-Connect intent
+            // through physical recovery without replaying any ambiguous FC3.
             _lastClass2PollUtc = DateTime.MinValue;
         }
 
@@ -345,11 +347,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         }
 
         SetControllerState(Iec101RedundancyControllerState.ElectingActive, "IEC-101 active link elected", $"Active={_active.Name}; Standby={_standby.Name}.");
+        // Arm operator-authorized first-Connect GI even when COM A is initially
+        // unavailable. Consume before the first TX attempt; never replay it
+        // after an ambiguous send, failover or COM epoch.
+        _startupGiPending = _options.BaseSettings.SendGeneralInterrogationOnConnect;
 
         if (!_active.IsOpen)
         {
-            // No hidden startup GI when the missing active COM reappears.
-            _startupGiPending = false;
+            // Preserve only the not-yet-attempted first-Connect GI; a later
+            // healthy active owner must first pass addressed FC9 proof.
             if (_standby.IsOpen)
             {
                 await _standby.RequestLinkStatusAsync("Initial standby proof with active COM unavailable", cancellationToken).ConfigureAwait(false);
@@ -387,7 +393,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             _counters.ClockSyncCommands++;
         }
 
-        _startupGiPending = _options.BaseSettings.SendGeneralInterrogationOnConnect;
         if (_startupGiPending && _active.IsHealthy)
         {
             _startupGiPending = false;
@@ -484,6 +489,20 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
+        // Startup GI must not be starved by a continuous ACD Class-1 drain:
+        // the same validated active link owns this one operator Connect intent.
+        // Remote DFC=1 or a failed/suspect active is not eligible.
+        if (_startupGiPending && _active.IsHealthy && !ActiveNeedsRescue())
+        {
+            _startupGiPending = false;
+            await RunGeneralInterrogationLifecycleOnActiveAsync(
+                "Deferred startup GI after verified active secondary",
+                "Deferred dual-link startup GI",
+                "Deferred dual-link Class 2 verification",
+                commonAddress: null, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         if (_active.LinkState.Acd)
         {
             var ownerAtDrain = _active;
@@ -527,17 +546,6 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
                 await TryFailoverAsync("Active link failed and standby has emergency rescue proof", cancellationToken, bypassStabilizationGuard: true).ConfigureAwait(false);
                 return;
             }
-        }
-
-        if (_startupGiPending && _active.IsHealthy)
-        {
-            _startupGiPending = false;
-            await RunGeneralInterrogationLifecycleOnActiveAsync(
-                "Deferred startup GI after verified active secondary",
-                "Deferred dual-link startup GI",
-                "Deferred dual-link Class 2 verification",
-                commonAddress: null, cancellationToken).ConfigureAwait(false);
-            return;
         }
 
         if (now - _lastClass2PollUtc >= TimeSpan.FromMilliseconds(_options.BaseSettings.Class2PollIntervalMs))

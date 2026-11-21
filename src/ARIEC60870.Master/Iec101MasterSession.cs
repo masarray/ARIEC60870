@@ -43,6 +43,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
     private readonly Iec101ObservedCaPolicy _observedCa = new();
     private bool _retriedGiWithObservedCommonAddress;
     private bool _giRequestedThisSession;
+    // Retain first-connect GI intent across physical recovery only until its
+    // first actual wire write attempt; never replay an ambiguous FC3.
+    private bool _startupGiAttempted;
     private readonly Iec101BoundedFifo<QueuedControl> _controlCommands = new(64);
     private readonly record struct QueuedControl(Iec60870ControlCommandRequest Request,
         bool ReadyWhenQueued, int LinkGeneration, DateTime QueuedUtc);
@@ -152,7 +155,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                             $"COM={_settings.PortName}; attempt={physicalFaultAttempts}; failure={fault.Message}; " +
                             $"old-epoch queued requests discarded={discarded}.",
                             "Physical transport I/O failure, not normal RTU silence, DFC busy, or Class 2 no-data.",
-                            "Inspect USB/serial driver and COM owner. No hidden link reset, GI, clock-sync, or command replay on reopen.");
+                            "Inspect USB/serial driver and COM owner. Never replay attempted GI, clock sync, link reset or control; unsent startup GI may run after new secondary proof.");
                     }
 
                     try
@@ -256,7 +259,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         _giRequestedThisSession = false;
         if (reopened)
             SetState(Iec103MasterState.OpeningTransport, "IEC-101 COM reopened — secondary verification required",
-                "Fresh physical epoch; only FC9 status verification precedes ordinary data polling. No automatic link reset, startup GI/clock-sync replay, or old operator command.");
+                "Fresh physical epoch; FC9 proof precedes process traffic. Never replay clock/control/reset or attempted GI; unsent startup GI may still be issued once.");
         DrainTransportDiagnostics("Open transport");
         // A Windows COM handle does not establish IEC-101 RTU connectivity.
         SetState(Iec103MasterState.OpeningTransport,
@@ -280,14 +283,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
                 "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
 
-        // Startup actions belong to the original operator Connect only; no
-        // potentially mutating GI or clock-sync replay on a new COM epoch.
-        var pendingStartup = !reopened &&
-            (_settings.SendClockSyncOnConnect || _settings.SendGeneralInterrogationOnConnect);
+        // An initial COM fault must not swallow a GI that was never attempted.
+        // Never replay attempted FC3, nor issue clock-sync on a recovered COM.
+        var pendingStartup = (!reopened && _settings.SendClockSyncOnConnect) ||
+            (_settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted);
         if (_linkVerified && pendingStartup)
         {
             pendingStartup = false;
-            await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+            await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
         }
         else if (!_linkVerified)
         {
@@ -327,7 +330,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             if (pendingStartup)
             {
                 pendingStartup = false;
-                await RunVerifiedStartupActionsAsync(cancellationToken).ConfigureAwait(false);
+                await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -371,24 +374,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         }
     }
 
-    private async Task RunVerifiedStartupActionsAsync(CancellationToken cancellationToken)
+    private async Task RunVerifiedStartupActionsAsync(bool allowClockSync, CancellationToken cancellationToken)
     {
         if (!_linkVerified) return;
-        if (_settings.SendClockSyncOnConnect)
+        if (allowClockSync && _settings.SendClockSyncOnConnect)
         {
             await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
                 Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now),
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
         }
 
-        if (!_settings.SendGeneralInterrogationOnConnect) return;
+        if (!_settings.SendGeneralInterrogationOnConnect || _startupGiAttempted) return;
 
+        // The intent remains pending until the actual startup GI write attempt.
         _giRequestedThisSession = true;
-        _counters.GiCommands++;
         var giResponse = await SendVariableAndReceiveAsync(
             "IEC-101 general interrogation", "Class 2",
             Iec10xAsduBuilder.GeneralInterrogation(_settings),
-            "Startup station interrogation C_IC_NA_1", cancellationToken).ConfigureAwait(false);
+            "Startup station interrogation C_IC_NA_1", cancellationToken,
+            startupGiIntent: true).ConfigureAwait(false);
 
         if (giResponse is null || IsNegativeConfirmation(giResponse, 100))
         {
@@ -867,7 +871,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         return response;
     }
 
-    private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
+    private async Task<Ft12FrameDecode?> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken, bool startupGiIntent = false)
     {
         // Every FC3 request (including GI/clock sync/controls) is new intent;
         // neither a busy reply nor a delayed status authorizes an automatic replay.
@@ -875,15 +879,23 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
             _settings.LinkAddressSize, _settings.PortName);
         _transactions.MarkTransmitAttempt(exchange);
-        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken, startupGiIntent).ConfigureAwait(false);
         _transactions.MarkAwaitingResponse(exchange);
         var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
         _transactions.Complete(exchange);
         return response;
     }
 
-    private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken, bool startupGiIntent = false)
     {
+        // Mark BEFORE invoking the driver: even a failed or partially written
+        // FC3 may have reached the RTU and must never be automatically replayed.
+        // A preceding clock-sync/DFC failure does not consume an unsent GI.
+        if (startupGiIntent)
+        {
+            _startupGiAttempted = true;
+            _counters.GiCommands++;
+        }
         try
         {
             await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);

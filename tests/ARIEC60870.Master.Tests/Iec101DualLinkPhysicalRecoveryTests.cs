@@ -89,6 +89,28 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
     }
 
     [Fact]
+    public async Task MissingInitialActiveComDoesNotSwallowUnsentStartupGi()
+    {
+        var settings = Settings();
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class1DrainDelayMs = 0;
+        settings.MaxClass1DrainFrames = 10;
+        var options = Options(settings);
+        await using var a = new FlakySimulatedPort(options.LinkA.ApplyTo(settings), failFirstOpen: true);
+        await using var b = new FlakySimulatedPort(options.LinkB.ApplyTo(settings));
+        var result = await new Iec101DualLinkRedundancySession(options, a, b)
+            .RunForAsync(TimeSpan.FromMilliseconds(1800), CancellationToken.None);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.True(a.OpenCount >= 2, "A must reopen independently after first COM failure.");
+        Assert.Equal(1, a.GiWrites + b.GiWrites);
+        Assert.Equal(1, result.Counters.GiCommands);
+        Assert.True(result.Counters.GiEndResponses >= 1,
+            "First successful active station link must receive a single initial GI.");
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-DUAL-COM-PHYSICAL-RECOVERY");
+    }
+
+    [Fact]
     public async Task MissingStandbyOnStartupDoesNotKillHealthyActiveMaster()
     {
         var settings = Settings();
@@ -164,6 +186,7 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
         public int OpenCount { get; private set; }
         public int StatusWrites { get; private set; }
         public int Class2Writes { get; private set; }
+        public int GiWrites { get; private set; }
         public bool WasUnplugged { get; private set; }
 
         public ValueTask OpenAsync(CancellationToken token)
@@ -182,6 +205,10 @@ public sealed class Iec101DualLinkPhysicalRecoveryTests
             var message = bytes.ToArray();
             var fc = message.Length > 1 && message[0] == 0x10
                 ? message[1] & 0x0f : -1;
+            // Fixture link-address width is 1: ASDU Type ID follows
+            // 68,L,L,68,C,Link. This is test-only wire inspection.
+            if (message.Length > 6 && message[0] == 0x68 && message[6] == 100)
+                GiWrites++;
             if (fc == 9) StatusWrites++;
             if (fc == 11)
             {

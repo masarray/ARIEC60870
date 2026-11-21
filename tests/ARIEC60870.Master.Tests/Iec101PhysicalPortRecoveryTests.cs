@@ -127,6 +127,50 @@ public sealed class Iec101PhysicalPortRecoveryTests
         Assert.True(result.Counters.GiCommands <= 1, "A GI attempted before COM loss must not replay on another physical epoch.");
     }
 
+    [Fact]
+    public async Task FirstConnectAutoGiSurvivesComUnavailableBeforeAnyTx()
+    {
+        var settings = Settings();
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.Class1DrainDelayMs = 0;
+        settings.MaxClass1DrainFrames = 10;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        await using var port = new GiThenUnplugPort(settings, () => stop.Cancel(), failFirstOpen: true);
+
+        var result = await new Iec101MasterSession(settings, port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.Equal(1, port.GiWrites);
+        Assert.Equal(1, result.Counters.GiCommands);
+        Assert.True(result.Counters.GiEndResponses > 0,
+            "Never-transmitted GI should run once after fresh FC9 secondary proof.");
+        Assert.True(port.RecoveredClass2Writes > 0);
+        Assert.Contains(result.Findings, f => f.Id == "IEC101-COM-PHYSICAL-RECOVERY");
+    }
+
+    [Fact]
+    public async Task ClockSyncPhysicalFaultBeforeFirstGiDefersGiWithoutReplayingClock()
+    {
+        var settings = Settings();
+        settings.SendGeneralInterrogationOnConnect = true;
+        settings.SendClockSyncOnConnect = true;
+        settings.Class1DrainDelayMs = 0;
+        settings.MaxClass1DrainFrames = 10;
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        await using var port = new GiThenUnplugPort(settings, () => stop.Cancel(), failClockSyncOnce: true);
+
+        var result = await new Iec101MasterSession(settings, port).RunAsync(stop.Token);
+
+        Assert.True(result.CompletedNormally, result.CompletionReason);
+        Assert.Equal(2, port.OpenCount);
+        Assert.Equal(1, port.ClockWrites); // Ambiguous clock sync is NOT replayed.
+        Assert.Equal(1, port.GiWrites);
+        Assert.Equal(1, result.Counters.GiCommands);
+        Assert.True(result.Counters.GiEndResponses > 0);
+        Assert.True(port.RecoveredClass2Writes > 0);
+    }
+
     private sealed class RecoverablePort : IByteTransport
     {
         private readonly Queue<byte> _rx = new();
@@ -233,22 +277,30 @@ public sealed class Iec101PhysicalPortRecoveryTests
         private readonly Ft12Parser _parser;
         private readonly Action _onRecoveredClass2;
         private bool _unplugged;
+        private readonly bool _failFirstOpen;
+        private readonly bool _failClockSyncOnce;
 
-        public GiThenUnplugPort(Iec103MasterSettings settings, Action onRecoveredClass2)
+        public GiThenUnplugPort(Iec103MasterSettings settings, Action onRecoveredClass2,
+            bool failFirstOpen = false, bool failClockSyncOnce = false)
         {
             _peer = new SimulatedIec101Transport(settings);
             _parser = Ft12Parser.ForIec101(settings.LinkAddressSize);
             _onRecoveredClass2 = onRecoveredClass2;
+            _failFirstOpen = failFirstOpen;
+            _failClockSyncOnce = failClockSyncOnce;
         }
 
         public bool IsOpen => _peer.IsOpen;
         public int OpenCount { get; private set; }
         public int GiWrites { get; private set; }
+        public int ClockWrites { get; private set; }
         public int RecoveredClass2Writes { get; private set; }
 
         public ValueTask OpenAsync(CancellationToken token)
         {
             OpenCount++;
+            if (_failFirstOpen && OpenCount == 1)
+                throw new IOException("Synthetic initial COM unavailable before all IEC101 TX.");
             return _peer.OpenAsync(token);
         }
 
@@ -259,6 +311,15 @@ public sealed class Iec101PhysicalPortRecoveryTests
             var decoded = _parser.Decode(bytes.ToArray());
             if (decoded.AsduBytes.Count > 0 && decoded.AsduBytes[0] == 100)
                 GiWrites++;
+            if (decoded.AsduBytes.Count > 0 && decoded.AsduBytes[0] == 103)
+            {
+                ClockWrites++;
+                if (_failClockSyncOnce && OpenCount == 1)
+                {
+                    await _peer.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    throw new IOException("Synthetic driver failure during first clock sync before GI.");
+                }
+            }
             var function = decoded.LinkControl?.FunctionCode;
             if (decoded.Format == Ft12FrameFormat.FixedLength && function == 11)
             {

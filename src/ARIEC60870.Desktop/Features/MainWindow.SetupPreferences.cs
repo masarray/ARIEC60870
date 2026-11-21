@@ -198,6 +198,23 @@ public partial class MainWindow
                 _iec101ResetRemoteLinkOperatorOverride = restored.Iec101;
                 _iec103ResetRemoteLinkOperatorOverride = restored.Iec103;
             }
+            // Legacy files had one shared GI flag. Migrate only the saved
+            // protocol's actual setting, never transplant IEC-103/104 OFF to IEC-101.
+            // Explicit OFF in a saved IEC-101 profile remains OFF.
+            if (prefs.StartupGiPreferenceSchema >= 1)
+            {
+                _iec101StartupGiOperatorOverride = prefs.Iec101StartupGiOperatorOverride;
+                _iec103StartupGiOperatorOverride = prefs.Iec103StartupGiOperatorOverride;
+                _iec104StartupGiOperatorOverride = prefs.Iec104StartupGiOperatorOverride;
+            }
+            else
+            {
+                var gi = StartupGiPreferencePolicy.MigrateLegacy(
+                    prefs.ProtocolMode, prefs.SendGeneralInterrogationOnConnect);
+                _iec101StartupGiOperatorOverride = gi.Iec101;
+                _iec103StartupGiOperatorOverride = gi.Iec103;
+                _iec104StartupGiOperatorOverride = gi.Iec104;
+            }
             _savedSetupPreferencesLoaded = true;
             _isApplyingSavedSetup = true;
             _iec101SetupWidths = Iec101SetupWidths.Restore(
@@ -316,7 +333,10 @@ public partial class MainWindow
             ResetFcbCheckBox.IsChecked = prefs.ResetFcbOnConnect;
             Class2StartupCheckBox.IsChecked = prefs.RequestClass2ImmediatelyAfterStartup;
             ClockSyncCheckBox.IsChecked = prefs.SendClockSyncOnConnect;
-            GiCheckBox.IsChecked = prefs.SendGeneralInterrogationOnConnect;
+            GiCheckBox.IsChecked = StartupGiPreferencePolicy.OnConnect(
+                GetSelectedProtocolMode(), IsIec101PassiveMonitorSelected(),
+                _iec101StartupGiOperatorOverride,
+                _iec103StartupGiOperatorOverride, _iec104StartupGiOperatorOverride);
             // Persist the full path only in local setup preferences. The UI
             // remains redacted for customer/site-identifying filenames.
             var savedMappingPath = prefs.MappingProfilePath;
@@ -453,6 +473,10 @@ public partial class MainWindow
                 RequestClass2ImmediatelyAfterStartup = settings.RequestClass2ImmediatelyAfterStartup,
                 SendClockSyncOnConnect = settings.SendClockSyncOnConnect,
                 SendGeneralInterrogationOnConnect = settings.SendGeneralInterrogationOnConnect,
+                StartupGiPreferenceSchema = 1,
+                Iec101StartupGiOperatorOverride = _iec101StartupGiOperatorOverride,
+                Iec103StartupGiOperatorOverride = _iec103StartupGiOperatorOverride,
+                Iec104StartupGiOperatorOverride = _iec104StartupGiOperatorOverride,
                 MappingProfilePath = _activeMappingProfileFilePath,
                 CommandDockExpanded = _commandDockExpanded,
                 ObservationDockPreferenceVersion = 1,
@@ -627,6 +651,12 @@ public partial class MainWindow
         public bool RequestClass2ImmediatelyAfterStartup { get; set; } = true;
         public bool SendClockSyncOnConnect { get; set; }
         public bool SendGeneralInterrogationOnConnect { get; set; } = true;
+        // Schema 0: unscoped legacy checkbox; 1: nullable operator overrides
+        // for each active protocol, to avoid cross-mode GI cancellation.
+        public int StartupGiPreferenceSchema { get; set; }
+        public bool? Iec101StartupGiOperatorOverride { get; set; }
+        public bool? Iec103StartupGiOperatorOverride { get; set; }
+        public bool? Iec104StartupGiOperatorOverride { get; set; }
         public string MappingProfilePath { get; set; } = string.Empty;
         public bool CommandDockExpanded { get; set; }
         public int ObservationDockPreferenceVersion { get; set; }
