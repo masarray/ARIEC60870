@@ -119,6 +119,50 @@ public sealed class PublicLandingP1Tests
         }
     }
 
+    [Theory]
+    [InlineData("index.html", "Commissioning", "Troubleshooting", "FAT &amp; SAT evidence", "Communication testing")]
+    [InlineData("id/index.html", "Commissioning", "Troubleshooting", "Bukti FAT &amp; SAT", "Pengujian komunikasi")]
+    public void LandingShowsFourConciseFieldWorkflowsWithoutExtraCards(
+        string path, string commissioning, string troubleshooting, string fatSat, string communication)
+    {
+        var root = RepositoryRoot();
+        var html = File.ReadAllText(Path.Combine(root.FullName, "site", path.Replace('/', Path.DirectorySeparatorChar)));
+        var mirror = File.ReadAllText(Path.Combine(root.FullName, "docs", path.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.Equal(html, mirror);
+        var section = Regex.Match(html, @"<section class=""section"" id=""product"">[\s\S]*?</section>").Value;
+        Assert.NotEmpty(section);
+        var cards = Regex.Matches(section, @"<article class=""proof-card[^""]*"" data-workflow=""(?<key>[^""]+)"">");
+        Assert.Equal(new[] { "commissioning", "troubleshooting", "fat-sat", "communication-testing" },
+            cards.Select(x => x.Groups["key"].Value).ToArray());
+        Assert.Equal(4, Regex.Matches(section, @"class=""proof-index""").Count);
+        foreach (var title in new[] { commissioning, troubleshooting, fatSat, communication })
+            Assert.Contains($"<strong>{title}</strong>", section);
+        Assert.DoesNotContain("class=\"card-top-icon", section);
+        Assert.Contains("GI", section);
+        Assert.Contains("TX/RX", section);
+        Assert.Contains("PDF", section);
+        Assert.Contains("IEC-101", section);
+        Assert.Contains("IEC-103", section);
+        Assert.Contains("IEC-104", section);
+        Assert.Contains("unbalanced", section); // Accurate IEC-101 scope, never balanced claim.
+    }
+
+    [Theory]
+    [InlineData("demo.html", "approved project procedure")]
+    [InlineData("id/demo.html", "prosedur proyek")]
+    public void BilingualDemoClarifiesFatSatEvidenceDoesNotReplaceProjectAcceptance(string path, string boundary)
+    {
+        var root = RepositoryRoot();
+        var html = File.ReadAllText(Path.Combine(root.FullName, "site", path.Replace('/', Path.DirectorySeparatorChar)));
+        Assert.Equal(html, File.ReadAllText(Path.Combine(root.FullName, "docs", path.Replace('/', Path.DirectorySeparatorChar))));
+        var flow = Regex.Match(html, @"<section class=""section demo-story-section"" id=""flow"">[\s\S]*?</section>").Value;
+        Assert.NotEmpty(flow);
+        Assert.Equal(4, Regex.Matches(flow, @"class=""demo-story-card reveal").Count);
+        Assert.Contains("FAT/SAT", flow);
+        Assert.Contains(boundary, flow);
+        Assert.Contains("TX/RX", flow);
+    }
+
     [Fact]
     public void LightweightMotionHonorsVisitorPreferences()
     {
