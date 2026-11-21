@@ -102,16 +102,16 @@ public sealed class EventDeliveryEvidenceTests
     private static Iec103RelayEventLogEntry Timed(long frame, DateTime host, DateTime device,
         string source = "Link A", int ca = 1, int cot = 3, bool invalid = false,
         Iec60870ProtocolMode protocol = Iec60870ProtocolMode.Iec101) => new()
-    {
-        EvidenceSequenceNumber = frame,
-        PhysicalSource = source,
-        CommonAddress = ca,
-        ProtocolMode = protocol,
-        CauseDetails = new Iec10xCauseDetails((byte)cot, cot, false, false, 0),
-        RelayTimeText = device.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
-        RelayTimeInvalid = invalid,
-        ArrivalTimeUtc = host
-    };
+        {
+            EvidenceSequenceNumber = frame,
+            PhysicalSource = source,
+            CommonAddress = ca,
+            ProtocolMode = protocol,
+            CauseDetails = new Iec10xCauseDetails((byte)cot, cot, false, false, 0),
+            RelayTimeText = device.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
+            RelayTimeInvalid = invalid,
+            ArrivalTimeUtc = host
+        };
 
     [Fact]
     public void StableSevenHourOffsetWithNormalRateNeverShowsBuffer()
