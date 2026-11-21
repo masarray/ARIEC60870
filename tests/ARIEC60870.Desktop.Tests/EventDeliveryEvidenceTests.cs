@@ -82,7 +82,8 @@ public sealed class EventDeliveryEvidenceTests
     {
         var cmd = new Iec103RelayEventLogEntry
         {
-            TransactionKind = "Command", ProtocolMode = Iec60870ProtocolMode.Iec101,
+            TransactionKind = "Command",
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
             CauseDetails = new Iec10xCauseDetails(3, 3, false, false, 0),
             ArrivalTimeUtc = ArrivalUtc
         };
