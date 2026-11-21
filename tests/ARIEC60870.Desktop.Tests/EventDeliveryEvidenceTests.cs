@@ -307,8 +307,8 @@ public sealed class EventDeliveryEvidenceTests
             var pending = EventDeliverySequenceClassifier
                 .VerifiedIec101Class1Pending(reply, matched);
             Assert.Equal(i < 4, pending);
-            var source = Timed(reply.SequenceNumber, ArrivalUtc.AddMilliseconds(i * 100),
-                device.AddMilliseconds(i * 100));
+            var source = Timed(reply.SequenceNumber, ArrivalUtc.AddMilliseconds(i * 100d),
+                device.AddMilliseconds(i * 100d));
             var result = detector.Observe(source,
                 physicalFrameSequence: reply.SequenceNumber,
                 verifiedClass1Pending: pending);
