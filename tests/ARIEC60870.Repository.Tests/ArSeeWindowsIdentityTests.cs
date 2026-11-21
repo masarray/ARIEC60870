@@ -85,9 +85,9 @@ public sealed class ArSeeWindowsIdentityTests
         var site = Read("site/release-download.js");
         var docs = Read("docs/release-download.js");
         Assert.Equal(site, docs);
-        Assert.Contains("const fallbackTag = \"v3.6.19\"", site);
-        Assert.Contains("ArSee-v3.6.19-setup-win-x64.exe", Read("site/download.html"));
-        Assert.Contains("ArSee-v3.6.19-win-x64.zip", Read("site/id/download.html"));
+        Assert.Contains("const fallbackTag = \"v3.6.20\"", site);
+        Assert.Contains("ArSee-v3.6.20-setup-win-x64.exe", Read("site/download.html"));
+        Assert.Contains("ArSee-v3.6.20-win-x64.zip", Read("site/id/download.html"));
         Assert.Contains("\"ArSee-\", \"ARIEC60870-\"", site);
     }
 
