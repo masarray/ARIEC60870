@@ -68,7 +68,7 @@ These controls support transparency and traceability of the software build. They
 
 ## Compatibility and scope
 
-**Upgrading legacy installations:** New executables and packages are named **ArSee**, while legacy user data paths remain compatible. For v3.6.17/v3.6.18 installed under `Programs/ARIEC60870`, close active IEC/capture sessions and run the official v3.6.20 installer directly. Preserve `%LOCALAPPDATA%/ARIEC60870` user data and mappings. [Migration guidance](docs/RELEASE_INSTALL_FOLDER_MIGRATION_v3.6.19.md).
+**Upgrading legacy installations:** The Windows executable is **`ArSee.exe`**. New installers and release assets use **ArSee**, while legacy user data paths remain compatible. For v3.6.17/v3.6.18 installed under `Programs/ARIEC60870`, close active IEC/capture sessions and run the official v3.6.20 installer directly. Preserve `%LOCALAPPDATA%/ARIEC60870` user data and mappings. [Migration guidance](docs/RELEASE_INSTALL_FOLDER_MIGRATION_v3.6.19.md).
 
 ArSee is an engineering tester/analyzer, **not a production SCADA master or an accredited conformance test suite**. Use active operations only on authorized systems. A protocol acknowledgment does not by itself prove physical control operation. IEC-101 balanced mode and universal multi-vendor compatibility are not advertised.
 
