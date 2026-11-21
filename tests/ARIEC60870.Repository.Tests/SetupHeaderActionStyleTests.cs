@@ -128,7 +128,7 @@ public sealed class SetupHeaderActionStyleTests
     {
         var help = File.ReadAllText(Source("Features/MainWindow.Help.cs"));
         var setup = File.ReadAllText(Source("MainWindow.xaml.cs"));
-        Assert.Contains("e.Key == Key.Enter && CanSubmitSetupOnEnter(Keyboard.FocusedElement)", help);
+        Assert.Contains("CanSubmitSetupOnEnter(ResolveSetupEnterSource(e.OriginalSource))", help);
         Assert.Contains("_sessionCancellation is not null", help);
         Assert.Contains("IsDropDownOpen: true", help);
         Assert.Contains("AcceptsReturn: true", help);
@@ -147,6 +147,10 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Contains("2 => \"IEC-101 Dual\"", acceptance);
         Assert.Contains("0 => \"IEC-103\"", acceptance);
         Assert.Contains("_ => \"IEC-104\"", acceptance);
+        Assert.Contains("target.RaiseEvent(key);", acceptance);
+        Assert.Contains("RoutedEvent = Keyboard.PreviewKeyDownEvent", acceptance);
+        Assert.Contains("SetupConnectButton.Click -= CloseSetupAndConnect_Click;", acceptance);
+        Assert.Contains("SetupConnectButton.Click += CloseSetupAndConnect_Click;", acceptance);
 
         var handler = setup.Split("private void CloseSetupAndConnect_Click(")[1]
             .Split("private void RefreshPorts()", 2)[0]
