@@ -656,13 +656,6 @@ public partial class MainWindow
                 prefs = new SetupPreferences();
             }
 
-            // Old single IEC-101 saves contain genuine operator widths.
-            // Mark them scoped before changing the saved mode to Passive;
-            // otherwise the migration cannot distinguish them from the
-            // IEC-103-overwritten legacy 1/1/1/1 profile on next launch.
-            if (prefs.Iec101WidthsSchema == 0 &&
-                string.Equals(prefs.ProtocolMode, "Iec101", StringComparison.OrdinalIgnoreCase))
-                prefs.Iec101WidthsSchema = 1;
             prefs.ProtocolMode = "Iec101Passive";
             prefs.PassiveCaptureSource = IsVirtualInlineSelected()
                 ? "Virtual Inline (VSPE)" : "Physical RX-only";
