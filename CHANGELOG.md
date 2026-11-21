@@ -1,3 +1,9 @@
+## [3.6.20-rc.1] - IEC-101 first-Connect GI hotfix candidate (not stable)
+
+- **Candidate only:** isolate v3.6.19 first-connect GI corrections from immutable stable; release notes: [v3.6.20-rc.1](docs/archive/release-notes/RELEASE_NOTES_v3.6.20-rc.1.md). Do not mark as stable or physically certified until the official prerelease Package and independent hardware FAT complete.
+- [PR #303](https://github.com/masarray/arsee/pull/303): protocol-scoped IEC101/103/104 automatic-GI intent, conservative legacy preference migration, explicit OFF respected, passive zero-TX; first-connect unsent GI survives pre-TX COM fault and is issued once after addressed secondary verification; attempted FC3 GI is never automatically replayed. Dual A/B retains unsent intent on first active COM recovery.
+- Empty GI tab now explains the effective startup policy; startup evidence log names ON/OFF. Source regression tests include early COM outage, clock-sync fault before GI, attempted GI not resent, and A/B recovery. Actual first-connect RTU wire validation still required.
+
 ## [3.6.19] - Published public stable (2026-11-21)
 
 - **Published** [v3.6.19 stable](https://github.com/masarray/arsee/releases/tag/v3.6.19), immutable release source `b384e06b4ec435dae698ed995b02baf44499cefc`; [Package and provenance #44869528440](https://github.com/masarray/arsee/actions/runs/44869528440) and [master CI, independent genuine installed-updater and legacy migration FAT #44869011472](https://github.com/masarray/arsee/actions/runs/44869011472) passed.
