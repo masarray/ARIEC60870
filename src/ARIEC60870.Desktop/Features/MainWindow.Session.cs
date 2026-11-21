@@ -152,6 +152,12 @@ public partial class MainWindow
         }
 
         ClearSessionView(clearLog: false);
+        // Record the effective on-connect GI policy for truthful empty-GI UI.
+        // This does not schedule or simulate a command: Master owns all TX.
+        _lastRequestedStartupGi = settings.SendGeneralInterrogationOnConnect;
+        AppendSessionLog(settings.SendGeneralInterrogationOnConnect
+            ? "Startup GI: ON. Master will send TI100/COT6 once the active secondary link is verified and not DFC-busy."
+            : "Startup GI: OFF by effective Setup preference. No automatic interrogation will be sent; enable 'General interrogation on connect' to request it next Connect.");
         PrepareLiveTraceForConnect();
         SeedValueViewerFromIoaProfile(settings.ProtocolMode);
         _stopRequested = false;
@@ -860,6 +866,12 @@ public partial class MainWindow
                 mode, isPassive101,
                 _iec101ResetRemoteLinkOperatorOverride,
                 _iec103ResetRemoteLinkOperatorOverride);
+        if (GiCheckBox is not null)
+            GiCheckBox.IsChecked = StartupGiPreferencePolicy.OnConnect(
+                mode, isPassive101,
+                _iec101StartupGiOperatorOverride,
+                _iec103StartupGiOperatorOverride,
+                _iec104StartupGiOperatorOverride);
         var serialVisibility = is104 ? Visibility.Collapsed : Visibility.Visible;
         var tcpVisibility = is104 ? Visibility.Visible : Visibility.Collapsed;
         var funInfVisibility = is103 ? Visibility.Visible : Visibility.Collapsed;
