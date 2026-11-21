@@ -275,6 +275,25 @@ public partial class MainWindow
 
                 SetupButton.RaiseEvent(new RoutedEventArgs(
                     System.Windows.Controls.Primitives.ButtonBase.ClickEvent, SetupButton));
+
+                // Immediate Enter BEFORE Dispatcher.Input transfers focus.
+                // This is the exact first-open failure that previous tests
+                // missed; do not let a successful deferred-focus case mask it.
+                if (SetupOverlay.Visibility != Visibility.Visible ||
+                    !CanSubmitSetupOnEnter(SetupButton))
+                    throw new InvalidOperationException(
+                        name + ": first-open rail focus must permit Enter.");
+                var beforeImmediate = clicks;
+                var immediateEnter = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                SetupButton.RaiseEvent(immediateEnter);
+                if (!immediateEnter.Handled || clicks != beforeImmediate + 1 ||
+                    _sessionCancellation is not null)
+                    throw new InvalidOperationException(
+                        name + ": immediate Enter before focus transfer failed.");
+
                 await Dispatcher.Yield(DispatcherPriority.Background);
                 UpdateLayout();
 
