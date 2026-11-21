@@ -204,7 +204,7 @@ public static class EventHistoryCsvExporter
             await using (var csv = new StreamWriter(file, new UTF8Encoding(true), 65536))
             {
                 await csv.WriteLineAsync(
-                    "EventNumber,HostArrivalUtc,RelayTimestamp,Protocol,Source,Signal,PreviousValue,Value,CA,IOA,TI,COT,RequestFC,Quality,QualityInvalid,FrameReference,RawHex");
+                    "EventNumber,HostArrivalUtc,RelayTimestamp,Protocol,Source,Signal,PreviousValue,Value,CA,IOA,TI,COT,RequestFC,Quality,QualityInvalid,FrameReference,RawHex,DeliveryEvidence,DeliveryBasis");
                 for (long start = 0; start < snapshot.Count; start += 200)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
