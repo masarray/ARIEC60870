@@ -128,11 +128,25 @@ public sealed class SetupHeaderActionStyleTests
     {
         var help = File.ReadAllText(Source("Features/MainWindow.Help.cs"));
         var setup = File.ReadAllText(Source("MainWindow.xaml.cs"));
-        Assert.Contains("e.Key == Key.Enter && SetupOverlay?.IsVisible == true", help);
-        Assert.Contains("_sessionCancellation is null", help);
+        Assert.Contains("e.Key == Key.Enter && CanSubmitSetupOnEnter(Keyboard.FocusedElement)", help);
+        Assert.Contains("_sessionCancellation is not null", help);
         Assert.Contains("IsDropDownOpen: true", help);
         Assert.Contains("AcceptsReturn: true", help);
-        Assert.Contains("CloseSetupAndConnect_Click(SetupConnectButton", help);
+        // WPF CheckBox/ToggleButton derive ButtonBase but must not be
+        // mistaken for Cancel/Close or other explicit action Buttons.
+        Assert.Contains("focused is not System.Windows.Controls.Button button", help);
+        Assert.DoesNotContain("ButtonBase button", help);
+        Assert.Contains("SetupConnectButton.RaiseEvent(new RoutedEventArgs(", help);
+        Assert.Contains("ButtonBase.ClickEvent", help);
+        Assert.Contains("SetupOverlay.IsVisibleChanged += (_, _) => UpdateSetupDefaultAction();", setup);
+        Assert.Contains("SetupConnectButton.IsDefault =", setup);
+        Assert.Contains("SetupOverlay.IsVisible && _sessionCancellation is null", setup);
+        var acceptance = File.ReadAllText(Source("Features/MainWindow.ObservationAcceptance.cs"));
+        Assert.Contains("VerifySetupEnterRoutingWithoutTransport(\"IEC-101 Single\")", acceptance);
+        Assert.Contains("VerifySetupEnterRoutingWithoutTransport(\"IEC-101 Passive\")", acceptance);
+        Assert.Contains("2 => \"IEC-101 Dual\"", acceptance);
+        Assert.Contains("0 => \"IEC-103\"", acceptance);
+        Assert.Contains("_ => \"IEC-104\"", acceptance);
 
         var handler = setup.Split("private void CloseSetupAndConnect_Click(")[1]
             .Split("private void RefreshPorts()", 2)[0]
