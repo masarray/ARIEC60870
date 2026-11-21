@@ -134,6 +134,10 @@ public partial class MainWindow
         {
             settings = BuildSettingsFromUi();
             durationSeconds = ReadInt(DurationBox, "Session timeout", 0, 86400);
+            // Do not open a COM port or send FC9 when migrated IEC-101
+            // field widths are still unverified. A Save is not approval.
+            if (!ConfirmIec101WidthsBeforeConnect(settings))
+                return;
             SaveSetupPreferences(settings, durationSeconds, silent: true);
             _evidenceProfileId = settings.InteroperabilityProfileId;
             _evidenceProfileEdition = settings.InteroperabilityProfileEdition;

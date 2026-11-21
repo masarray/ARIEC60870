@@ -18,8 +18,24 @@ public readonly record struct Iec101SetupWidths(int Link, int Cot, int Ca, int I
     public bool IsAllOne => Link == 1 && Cot == 1 && Ca == 1 && Ioa == 1;
 
     public static Iec101SetupWidths Restore(
-        int schema, string? savedMode, Iec101SetupWidths legacy, out bool reviewRequired)
+        int schema, string? savedMode, Iec101SetupWidths legacy, out bool reviewRequired,
+        bool persistedReviewRequired = false)
     {
+        // Schema 2 persists operator-review provenance independently.
+        // A Save during migration may not certify IEC-101 widths.
+        if (schema == 2)
+        {
+            reviewRequired = persistedReviewRequired || !legacy.IsValid;
+            return legacy.IsValid ? legacy : GenericDefaults;
+        }
+
+        // Unknown future schema: fail closed until a valid profile is reviewed.
+        if (schema > 2)
+        {
+            reviewRequired = true;
+            return GenericDefaults;
+        }
+
         // Old prefs used one set of widths for every protocol. IEC-103
         // forced all four to 1, then overwrote IEC-101 on application exit.
         // An IEC-104 save could similarly replace the preceding IEC-101

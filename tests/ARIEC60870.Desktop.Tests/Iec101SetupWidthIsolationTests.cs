@@ -48,6 +48,41 @@ public sealed class Iec101SetupWidthIsolationTests
     }
 
     [Theory]
+    [InlineData("Iec101")]
+    [InlineData("Iec103")]
+    [InlineData("Iec104")]
+    public void UnverifiedModernWidthsRemainUnverifiedAcrossSavedModes(string mode)
+    {
+        var entered = new Iec101SetupWidths(2, 2, 2, 3);
+        var restored = Iec101SetupWidths.Restore(
+            2, mode, entered, out var review, persistedReviewRequired: true);
+        Assert.Equal(entered, restored);
+        Assert.True(review);
+    }
+
+    [Fact]
+    public void ExplicitlyApprovedModernWidthsRemainStableAcrossModes()
+    {
+        var entered = new Iec101SetupWidths(1, 2, 2, 3);
+        var restored = Iec101SetupWidths.Restore(
+            2, "Iec103", entered, out var review, persistedReviewRequired: false);
+        Assert.Equal(entered, restored);
+        Assert.False(review);
+    }
+
+    [Fact]
+    public void InvalidOrUnknownSchemaRequiresOperatorReview()
+    {
+        var invalid = new Iec101SetupWidths(0, 0, 0, 0);
+        Assert.Equal(Iec101SetupWidths.GenericDefaults,
+            Iec101SetupWidths.Restore(2, "Iec101", invalid, out var invalidReview));
+        Assert.True(invalidReview);
+        Assert.Equal(Iec101SetupWidths.GenericDefaults,
+            Iec101SetupWidths.Restore(99, "Iec101", Iec101SetupWidths.GenericDefaults, out var futureReview));
+        Assert.True(futureReview);
+    }
+
+    [Theory]
     [InlineData(1, 1, 1, 1)]
     [InlineData(1, 2, 2, 3)]
     [InlineData(2, 2, 2, 3)]

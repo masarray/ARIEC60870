@@ -62,6 +62,46 @@ public partial class MainWindow
             : "IEC-101 uses 1-byte Link/COT/CA/IOA. Valid for some RTUs; verify the device profile. A wrong Link width can produce FC9 TX with no RX.";
     }
 
+    // Legacy migration requires one explicit operator decision before active
+    // IEC-101 TX. A declined dialog returns without opening the COM port.
+    private bool ConfirmIec101WidthsBeforeConnect(Iec103MasterSettings settings)
+    {
+        if (settings.ProtocolMode != Iec60870ProtocolMode.Iec101 ||
+            !_iec101SetupWidthsNeedReview)
+            return true;
+
+        var widths = ReadIec101SetupWidths();
+        if (!widths.IsValid)
+            throw new InvalidOperationException(
+                "Invalid IEC-101 Link/COT/CA/IOA widths. Correct them in Setup before connecting.");
+
+        var answer = ModernMessageBox.Show(this,
+            "Migrated IEC-101 field widths have NOT been verified against the RTU.\n\n" +
+            $"Link address: {settings.LinkAddress} ({widths.Link} octet)\n" +
+            $"COT: {widths.Cot} octet | CA: {settings.CommonAddress} ({widths.Ca} octet)\n" +
+            $"IOA: {widths.Ioa} octet\n\n" +
+            "Compare all widths with your approved RTU configuration.\n" +
+            "Approve these exact values for active IEC-101 transmission?\n\n" +
+            "No / Close = do not connect or transmit.",
+            "Verify IEC-101 field widths", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning, MessageBoxResult.No);
+
+        if (answer != MessageBoxResult.Yes)
+        {
+            AddUiDiagnostic("Warning", "Setup", "IEC101-WIDTHS-NOT-APPROVED",
+                "IEC-101 connect cancelled: migrated field widths not approved",
+                "No IEC-101 frames were sent. Settings still require review.",
+                "Verify Link/COT/CA/IOA against the RTU configuration, then retry Connect.");
+            return false;
+        }
+
+        _iec101SetupWidths = widths;
+        _iec101SetupWidthsNeedReview = false;
+        UpdateIec101WidthReview();
+        AppendSessionLog("IEC-101 migrated field widths explicitly approved before active TX.");
+        return true;
+    }
+
     private void ApplyIoaProfileDefaultsToUi(Iec10xPointMappingProfile profile, bool onlyWhenUiLooksDefault)
     {
         var defaults = profile.DefaultSettings;
@@ -165,7 +205,8 @@ public partial class MainWindow
                 new Iec101SetupWidths(prefs.LinkAddressSize,
                     prefs.CauseOfTransmissionSize, prefs.CommonAddressSize,
                     prefs.InformationObjectAddressSize),
-                out _iec101SetupWidthsNeedReview);
+                out _iec101SetupWidthsNeedReview,
+                prefs.Iec101WidthsReviewRequired);
             SelectProtocolMode(prefs.ProtocolMode);
             if (!string.IsNullOrWhiteSpace(prefs.CustomInteroperabilityProfileJson))
             {
@@ -352,10 +393,10 @@ public partial class MainWindow
             if (settings.ProtocolMode == Iec60870ProtocolMode.Iec101 &&
                 !IsIec101PassiveMonitorSelected())
             {
-                // An explicit IEC-101 session accepts the displayed widths as
-                // operator configuration. Other modes may not certify them.
+                // Keep the entered widths but do NOT clear review state on
+                // implicit Save / shutdown. Only the explicit Connect gate
+                // is allowed to approve a migrated IEC-101 profile.
                 _iec101SetupWidths = ReadIec101SetupWidths();
-                _iec101SetupWidthsNeedReview = false;
             }
             var prefs = new SetupPreferences
             {
@@ -388,7 +429,8 @@ public partial class MainWindow
                 BackupLinkAddress = int.TryParse(BackupLinkAddressBox.Text, out var backupLinkAddress) ? backupLinkAddress : settings.LinkAddress,
                 BackupLinkAddressExplicit = _backupLinkAddressExplicit,
                 CommonAddress = settings.CommonAddress,
-                Iec101WidthsSchema = _iec101SetupWidthsNeedReview ? 0 : 1,
+                Iec101WidthsSchema = 2,
+                Iec101WidthsReviewRequired = _iec101SetupWidthsNeedReview,
                 LinkAddressSize = _iec101SetupWidths.Link,
                 CauseOfTransmissionSize = _iec101SetupWidths.Cot,
                 CommonAddressSize = _iec101SetupWidths.Ca,
@@ -557,9 +599,10 @@ public partial class MainWindow
         public int BackupLinkAddress { get; set; } = 1;
         public bool? BackupLinkAddressExplicit { get; set; }
         public int CommonAddress { get; set; } = 1;
-        // Schema 0 used one global field-width set, overwritten on IEC-103 exit.
-        // Schema 1 stores exclusively the last explicitly selected IEC-101 widths.
+        // Schema 0: legacy shared widths; 1: IEC-101 scoped widths;
+        // 2: scoped widths with separately persisted operator review state.
         public int Iec101WidthsSchema { get; set; }
+        public bool Iec101WidthsReviewRequired { get; set; }
         public int LinkAddressSize { get; set; } = 1;
         public int CauseOfTransmissionSize { get; set; } = 2;
         public int CommonAddressSize { get; set; } = 2;
