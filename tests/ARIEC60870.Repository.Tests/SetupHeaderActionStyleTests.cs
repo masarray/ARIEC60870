@@ -135,7 +135,8 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Contains("CloseSetupAndConnect_Click(SetupConnectButton", help);
 
         var handler = setup.Split("private void CloseSetupAndConnect_Click(")[1]
-            .Split("private void RefreshPorts()", 2)[0];
+            .Split("private void RefreshPorts()", 2)[0]
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
         Assert.Contains("if (_sessionCancellation is not null)", handler);
         Assert.Contains("ConnectToggle_Click(sender, e);", handler);
         Assert.Contains("if (_sessionCancellation is not null)\n            SetupOverlay.Visibility = Visibility.Collapsed;", handler);
