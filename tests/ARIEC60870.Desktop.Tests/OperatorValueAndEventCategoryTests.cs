@@ -17,7 +17,15 @@ public sealed class OperatorValueAndEventCategoryTests
     [InlineData("101", "13", "Float=corrupt", "Float=corrupt")]
     [InlineData("103", "13", "Float=178", "Float=178")]
     [InlineData("101", "1", "SP=ON", "SP=ON")]
-    [InlineData("101", "11", "Scaled=178", "Scaled=178")]
+    [InlineData("101", "11", "Scaled=178", "178")]
+    [InlineData("101", "11", "Scaled=4", "4")]
+    [InlineData("101", "11", "Scaled=-32768", "-32768")]
+    [InlineData("104", "35", "Scaled=32767", "32767")]
+    [InlineData("104", "12", "Scaled=178, QDS=0x00", "178")]
+    [InlineData("101", "11", "1715.125 MVar", "1715.125 MVar")]
+    [InlineData("101", "11", "Scaled=50000", "Scaled=50000")]
+    [InlineData("101", "11", "Scaled=invalid", "Scaled=invalid")]
+    [InlineData("103", "11", "Scaled=178", "Scaled=178")]
     public void GridLabelDoesNotRepeatTypedFloatBadge(
         string protocol, string typeId, string value, string expected) =>
         Assert.Equal(expected, IecOperatorValueFormatter.ForGrid(protocol, typeId, value));
