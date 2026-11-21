@@ -1703,6 +1703,11 @@
                                     
                                     <DataGridTemplateColumn Header="State / value" CellTemplate="{StaticResource DigitalValueCellTemplate}" ClipboardContentBinding="{Binding OperatorValue}" Width="1.25*" MinWidth="128"/>
                                     <DataGridTemplateColumn Header="COT" CellTemplate="{StaticResource ForensicCotCellTemplate}" Width="1.15*" MinWidth="110" />
+                                    <!-- IEC has no per-event buffered/live bit. These short
+                                         labels are COT/timing evidence, never queue certainty. -->
+                                    <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryHint}"
+                                                        Width="91" MinWidth="80"
+                                                        ElementStyle="{StaticResource GridCellNoWrapText}" />
                                     <!-- IEC-101 FC10/11 is the request link function, not
                                          a permanent IOA Class 1/2 declaration. -->
                                     <DataGridTextColumn Header="FC" Binding="{Binding RequestFcCode}" Width="65" MinWidth="60">
