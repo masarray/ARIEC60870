@@ -103,18 +103,36 @@ The indicator is derived from the existing Event History follow policy, current 
 
 The **FC** cell shows only confirmed IEC-101 request functions from an exact primary TX and secondary RX match. The tooltip is deliberately short: `FC10 → Class 1 Data Polling` and `FC11 → Class 2 Data Polling`. Without a verified match, FC stays `—`, never an invented Class. It describes **which poll returned the event**, not how the RTU permanently configured that IOA; Class 1 data can arrive during a Class 2 poll. Detailed proof remains in the original frames, exported `RequestFC`, and this policy document, rather than multi-sentence hover text. Do not modify link correlation, source identity or journal serialization merely to change wording.
 
+## 2026-11-21 — compact COT buffered hypothesis (UX field regression)
+
+- The separate `Delivery` **UI column has been removed**. The Event Journal
+  presents original COT3 as `3 · spontaneous`; when a valid complete RTU
+  timestamp predates PC receipt by at least 30 s, show
+  `3 · spontaneous (BUFFERED?)` in the **same COT cell**.
+- The question mark is mandatory. IEC-101/104 do **not** carry a universal
+  buffered/live bit. FC10 Class 1 polling is not proof that an RTU queued the
+  particular object. RTU clock offset, time zone, unsynchronized PC, replay,
+  and transmission delay are possible alternatives.
+- Near-time COT3 remains `spontaneous`, not `live confirmed`. Untimed,
+  malformed, invalid, negative/TEST, GI/transactions are not labeled buffered.
+  The exported CSV still contains separate `DeliveryEvidence` and
+  `DeliveryBasis` for independent forensic inspection.
+- Never change original COT, source/IOA, time or raw RX frame when adding a
+  UI-only suspected-buffer cue. Confirm actual buffer origin only with RTU
+  queue evidence and independently verified clock/time settings.
+
 ## 2026-11-21 — buffered/live presentation is evidence, never a standard bit
 
 - IEC-101/104 do **not** encode a universal buffered-vs-live event flag.
   An RTU can send an internally buffered event as COT3 spontaneous; IEC-101
   FC10 Class 1 polling is *delivery mechanism*, not proof of queue age.
-- The compact Event Journal `Delivery` column is classified from typed
+- The exported Event Journal `DeliveryEvidence` / `DeliveryBasis` fields are classified from typed
   IEC-101/104 COT plus a *valid complete* device date/time vs PC arrival:
   COT1=Cyclic; COT2=Background; COT11/12=Return info; COT20..36=GI data.
   COT3 with no trustworthy absolute device timestamp remains Spontaneous.
 - A COT3 timestamp at least 30 seconds older than host arrival is labeled
-  `Delayed?`, **never Buffered**. Within 5 seconds is `Near-live?`, **never
-  Live confirmed**. An unsynchronized RTU/PC, time-zone ambiguity, replay,
+  `Buffered?` as a *hypothesis*, **never confirmed Buffered**. Within 5 seconds
+  stays `Spontaneous`, **never Live confirmed**. An unsynchronized RTU/PC, time-zone ambiguity, replay,
   and out-of-order buffered delivery may all affect this hint. Negative/TEST
   causes remain Unverified; command/GI milestones remain Transaction.
 - Source COT, timestamp, host arrival, protocol, channel, original frame and
