@@ -8,6 +8,20 @@ namespace ARIEC60870.Desktop.ViewModels;
 
 public sealed class DualLinkTimelineRow
 {
+    // A status projection is explicitly an operator-facing snapshot, not a
+    // new IEC-101 TX/RX event or a fabricated frame/evidence sequence.
+    public DualLinkTimelineRow(DualLinkStatusMilestone status)
+    {
+        Sequence = 0;
+        Time = status.ObservedUtc.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        Link = status.Link;
+        Event = status.Event;
+        FullReason = status.Reason;
+        FullResult = status.Result;
+        Reason = Compact(FullReason, 90);
+        Result = Compact(FullResult, 95);
+    }
+
     public DualLinkTimelineRow(Iec103MasterEvidenceEvent item)
     {
         Sequence = item.SequenceNumber;
