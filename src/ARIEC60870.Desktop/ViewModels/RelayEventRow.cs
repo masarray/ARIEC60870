@@ -75,6 +75,7 @@ public sealed class RelayEventRow
             _ => "103"
         };
         RelayTime = BuildSoeTime(item);
+        DeliveryEvidence = EventDeliveryEvidenceClassifier.Classify(item);
         Signal = item.SignalName;
         Previous = string.IsNullOrWhiteSpace(item.PreviousValue) ? "-" : item.PreviousValue;
         NewValue = item.NewValue;
