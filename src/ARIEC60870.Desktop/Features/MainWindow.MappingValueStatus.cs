@@ -605,7 +605,7 @@ public partial class MainWindow
             if (item.ProtocolMode is Iec60870ProtocolMode.Iec101 or Iec60870ProtocolMode.Iec104 &&
                 !recordIec10xProcess) return;
 
-            var relayEventRow = new RelayEventRow(new Iec103RelayEventLogEntry
+            var eventSource = new Iec103RelayEventLogEntry
             {
                 EvidenceSequenceNumber = item.SequenceNumber,
                 RelayTimeText = string.IsNullOrWhiteSpace(item.RelayTimestampText) ? "no timestamp" : item.RelayTimestampText,
@@ -638,7 +638,9 @@ public partial class MainWindow
                 QualityText = ExtractQualityTextFromEvidence(item),
                 QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
-            }, item);
+            };
+            var relayEventRow = new RelayEventRow(eventSource, item,
+                deliveryEvidence: _eventDeliverySequence.Observe(eventSource));
 
             RecordEventHistory(relayEventRow);
             _relayEventStore.Add(relayEventRow);
