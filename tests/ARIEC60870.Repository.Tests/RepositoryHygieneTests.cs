@@ -173,11 +173,13 @@ public sealed class RepositoryHygieneTests
         // Historical prior-release links are allowed elsewhere.
         var isRc = version!.Contains("-rc.", StringComparison.Ordinal);
         var releaseChannel = isRc ? "Latest public prerelease" : "Latest public stable";
-        Assert.Contains($"| **{releaseChannel}** | **v{version}**", readme);
+        Assert.Contains($"**{releaseChannel}: [v{version}]({releaseUrl})**", readme);
+        Assert.Contains($"{assetPrefix}-v{version}-setup-win-x64.exe", readme);
+        Assert.Contains($"{assetPrefix}-v{version}-win-x64.zip", readme);
         if (isRc)
         {
             var stable = manifest.RootElement.GetProperty("latestStableVersion").GetString();
-            Assert.Contains($"| **Latest public stable** | **v{stable}**", readme);
+            Assert.Contains($"/releases/tag/v{stable}", readme);
             foreach (var page in new[] { home, indonesian, download })
             {
                 Assert.Contains($"/releases/tag/v{stable}", page);
@@ -352,8 +354,8 @@ public sealed class RepositoryHygieneTests
 
         var siteIndex = File.ReadAllText(root.File("site/index.html"));
         var docsIndex = File.ReadAllText(root.File("docs/index.html"));
-        Assert.Contains("Understand IEC 60870 traffic, from raw frames to engineering evidence.", siteIndex);
-        Assert.Contains("Understand IEC 60870 traffic, from raw frames to engineering evidence.", docsIndex);
+        Assert.Contains("See what your IEC 60870 link is really doing.", siteIndex);
+        Assert.Equal(siteIndex, docsIndex);
         Assert.Contains("https://masarray.github.io/arsee/", docsIndex);
         Assert.True(Directory.Exists(root.File("docs/assets")), "docs/assets compatibility mirror is missing.");
     }
@@ -561,7 +563,10 @@ public sealed class RepositoryHygieneTests
                 || path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.Contains("ArSee · Open-Source IEC 60870-5-101/103/104 Protocol Tester & Analyzer", readme);
+        Assert.Contains("ArSee · IEC 60870 Protocol Tester & Analyzer", readme);
+        Assert.Contains("IEC 60870-5-101", readme);
+        Assert.Contains("IEC 60870-5-103", readme);
+        Assert.Contains("IEC 60870-5-104", readme);
         Assert.Contains("Native PDF evidence report | Implemented baseline", roadmap);
         Assert.DoesNotContain("PDF evidence report | Low", roadmap, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("planned next", roadmap, StringComparison.OrdinalIgnoreCase);
@@ -570,7 +575,8 @@ public sealed class RepositoryHygieneTests
         Assert.Contains("\"@type\": \"FAQPage\"", site);
         Assert.Contains("\"@type\": \"BreadcrumbList\"", site);
         Assert.Contains("Native PDF evidence report", site);
-        Assert.Contains("Understand IEC 60870 traffic, from raw frames to engineering evidence.", docsMirror);
+        Assert.Contains("See what your IEC 60870 link is really doing.", docsMirror);
+        Assert.Equal(site, docsMirror);
         Assert.DoesNotContain("api.scorecard.dev", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", readme, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("img.shields.io/github/v/release", site, StringComparison.OrdinalIgnoreCase);

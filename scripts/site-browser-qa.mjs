@@ -73,6 +73,13 @@ async function runCase(browserName, browser, width, route) {
       assert(release.includes("v" + version), "Published stable release identity missing: " + version);
       const video = page.locator("video").first();
       assert.equal(await video.getAttribute("autoplay"), null, "Unwanted autoplay");
+      const trustCards = page.locator("#open-engineering .credibility-grid article");
+      assert.equal(await trustCards.count(), 3, "Public evidence section needs three source-backed pillars");
+      for (const card of await trustCards.all()) {
+        const href = await card.locator("a").getAttribute("href");
+        assert(href && (href.startsWith("https://github.com/masarray/arsee") || href === "wiki.html"),
+          "Source evidence links must resolve to official ArSee locations: " + href);
+      }
     }
     if (width <= 620 && route.includes("wiki.html")) {
       for (const item of await page.locator(".reading-paths a").all()) {
