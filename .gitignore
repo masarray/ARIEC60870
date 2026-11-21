@@ -28,12 +28,8 @@
 !/robots.txt
 !/sitemap.xml
 !/.nojekyll
-!/RUN_SAMPLE.bat
-!/ANALYZE_LOG.bat
-!/RUN_MASTER_SAMPLE.bat
-!/RUN_DESKTOP.bat
-!/RUN_DEMO_MASTER.bat
-!/RUN_SLAVE_SIMULATOR.bat
+
+# Root .bat convenience launchers are retired; official releases and managed scripts remain.
 
 # Source code, scripts, and tests
 !/src/**

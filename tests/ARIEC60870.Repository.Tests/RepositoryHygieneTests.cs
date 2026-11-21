@@ -245,6 +245,47 @@ public sealed class RepositoryHygieneTests
     }
 
     [Fact]
+    public void ReadmeIncludesOriginalAnimatedDemoAndRealScreenshotGallery()
+    {
+        var root = FindRepositoryRoot();
+        var readme = File.ReadAllText(root.File("README.md"));
+        const string gifPath = "docs/assets/screenshots/IEC-60870.gif";
+        Assert.Contains($"src=\"{gifPath}\"", readme);
+
+        var gif = File.ReadAllBytes(root.File(gifPath));
+        Assert.True(gif.Length > 1_000_000, "The README demo GIF must be the real animation asset, not a stub.");
+        var header = System.Text.Encoding.ASCII.GetString(gif, 0, 6);
+        Assert.Contains(header, new[] { "GIF87a", "GIF89a" });
+
+        var images = Regex.Matches(readme, @"<img\s+src=""(?<path>docs/assets/screenshots/[^""]+\.(?:webp|gif))""",
+            RegexOptions.IgnoreCase)
+            .Select(match => match.Groups["path"].Value)
+            .ToArray();
+        Assert.Equal(12, images.Length); // 1 original GIF + 11 distinct application screenshots.
+        Assert.Equal(images.Length, images.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(11, images.Count(path => path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)));
+
+        foreach (var image in images)
+        {
+            var path = root.File(image);
+            Assert.True(File.Exists(path), $"README media is missing: {image}");
+            Assert.True(new FileInfo(path).Length > 40_000, $"README media is unexpectedly empty: {image}");
+        }
+    }
+
+    [Fact]
+    public void LegacyRootBatchLaunchersAreNotDistributed()
+    {
+        var root = FindRepositoryRoot();
+        Assert.Empty(Directory.EnumerateFiles(root.FullName, "*.bat", SearchOption.TopDirectoryOnly));
+        var ignore = File.ReadAllText(root.File(".gitignore"));
+        Assert.DoesNotContain("!/RUN_", ignore, StringComparison.Ordinal);
+        Assert.DoesNotContain("!/ANALYZE_LOG.bat", ignore, StringComparison.Ordinal);
+        // This synthetic test vector is retained for source-level regression and examples.
+        Assert.True(File.Exists(root.File("samples/sample_iec103_trace.log")));
+    }
+
+    [Fact]
     public void ReadmeLinksPointToExistingLocalFiles()
     {
         var root = FindRepositoryRoot();
