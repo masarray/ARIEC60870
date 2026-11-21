@@ -238,8 +238,8 @@ public sealed class Iec10xEngineeringMappingPresentationTests
             new Iec10xPointMappingProfile());
         var reset = Assert.Single(matching.ReadDisplayPage(journal, 0,
             names: noCalibration));
-        Assert.Equal("Scaled=13641", reset.DisplayValue);
-        Assert.Equal("Scaled=13641", reset.CompactDisplayValue);
+        Assert.Equal("Scaled=13641", reset.DisplayValue); // full forensic decoder fact
+        Assert.Equal("13641", reset.CompactDisplayValue); // operator INT cell, no label
         Assert.Equal(1, reset.EventNumber);
         var staleSearch = EventHistoryQueryEngine.Build(journal, journal.Count,
             "2728.2", ["Digital", "Measurement", "Commands", "GI", "Other"], [],
