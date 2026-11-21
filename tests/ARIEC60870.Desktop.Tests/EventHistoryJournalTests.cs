@@ -80,6 +80,31 @@ public sealed class EventHistoryJournalTests
     }
 
     [Fact]
+    public void BufferInferenceIsPersistedAcrossHistoryPagesNotRecomputedUsingCurrentClock()
+    {
+        using var journal = new EventHistoryJournal();
+        var original = Row(1);
+        var source = original.SourceEntry;
+        var captured = new RelayEventRow(source, original.OriginalFrameEvidence,
+            eventNumber: 1, deliveryEvidence: new EventDeliveryEvidence("Buffer",
+                "Two verified source-matched RTU timestamp catch-up intervals."));
+        journal.Append(captured);
+
+        var committed = journal.ReadAfter(0, 1).Single();
+        Assert.Equal("Buffer", committed.DeliveryEvidence?.Label);
+        Assert.Equal("3 · spontaneous (buffer)", new RelayEventRow(
+            new Iec103RelayEventLogEntry
+            {
+                ProtocolMode = Iec60870ProtocolMode.Iec101,
+                CauseDetails = new Iec10xCauseDetails(3, 3, false, false, 0)
+            }, deliveryEvidence: committed.DeliveryEvidence).CotLabel);
+
+        Assert.Equal("Buffer", committed.ToRow().DeliveryEvidence.Label);
+        Assert.Equal("Buffer", committed.ToQueryRow().DeliveryEvidence.Label);
+        Assert.Equal("Buffer", journal.ReadAfter(0, 1).Single().ToRow().DeliveryHint);
+    }
+
+    [Fact]
     public void ObservedMasterPollIsPersistedBesideOldRxEventWithoutReassigningItsSource()
     {
         using var journal = new EventHistoryJournal();
