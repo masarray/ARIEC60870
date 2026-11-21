@@ -62,7 +62,8 @@ public partial class MainWindow
         _eventHistoryCsvCancel?.Cancel();
         _eventHistoryQueryGeneration++;
         _eventHistoryPageGeneration++;
-        _eventHistoryQuery = new EventHistoryQuerySnapshot(0, null);
+        _eventHistoryQuery = EventHistoryQueryEngine.EmptyForScope(
+            _eventsQuickQuery, _eventIncludeCategories, _eventExcludeCategories);
         _eventHistoryPageStart = 0;
         _eventHistoryObserved = 0;
         SetEventHistoryFollowingLatest(true);
