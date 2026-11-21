@@ -135,6 +135,7 @@ public sealed class SetupHeaderActionStyleTests
         // WPF CheckBox/ToggleButton derive ButtonBase but must not be
         // mistaken for Cancel/Close or other explicit action Buttons.
         Assert.Contains("focused is not System.Windows.Controls.Button button", help);
+        Assert.Contains("ReferenceEquals(button, SetupButton)", help);
         Assert.DoesNotContain("ButtonBase button", help);
         Assert.Contains("SetupConnectButton.RaiseEvent(new RoutedEventArgs(", help);
         Assert.Contains("ButtonBase.ClickEvent", help);
@@ -151,6 +152,8 @@ public sealed class SetupHeaderActionStyleTests
         Assert.Contains("SetupButton.RaiseEvent(new RoutedEventArgs(", acceptance);
         Assert.Contains("ReferenceEquals(Keyboard.FocusedElement, SetupConnectButton)", acceptance);
         Assert.Contains("first Enter must trigger exactly one Connect Click", acceptance);
+        Assert.Contains("immediate Enter before focus transfer failed", acceptance);
+        Assert.Contains("SetupButton.RaiseEvent(immediateEnter);", acceptance);
         Assert.Contains("(1, \"IEC-101 Single\"), (2, \"IEC-101 Dual\")", acceptance);
         Assert.Contains("(0, \"IEC-103\"), (4, \"IEC-104\"), (3, \"IEC-101 Passive\")", acceptance);
         Assert.Contains("VerifySetupEnterRoutingWithoutTransport(\"IEC-101 Single\")", acceptance);
