@@ -57,7 +57,15 @@ public sealed class PublicLandingP1Tests
         var assetPrefix = manifest.RootElement.GetProperty("assetPrefix").GetString();
         Assert.Contains(assetPrefix, new[] { "ArSee", "ARIEC60870" });
         Assert.Contains("v" + stable, html);
-        Assert.Contains("v3.6.17", html);
+        // Previous stable must agree with the release-channel table, not a
+        // hard-coded historical version that becomes stale after publishing.
+        var previous = Regex.Match(html,
+            @"(?:Previous stable:|Stabil sebelumnya:)\s*<a href=""https://github.com/masarray/arsee/releases/tag/(?<tag>v\d+\.\d+\.\d+)"">(?<text>v\d+\.\d+\.\d+)</a>");
+        Assert.True(previous.Success, "Hero must identify the previous public stable release.");
+        Assert.Equal(previous.Groups["tag"].Value, previous.Groups["text"].Value);
+        Assert.NotEqual("v" + stable, previous.Groups["tag"].Value);
+        var readme = File.ReadAllText(Path.Combine(root.FullName, "README.md"));
+        Assert.Contains($"| **Previous stable** | **{previous.Groups["tag"].Value}**", readme);
         Assert.Contains($"{assetPrefix}-v{stable}-setup-win-x64.exe", html);
         Assert.Contains($"{assetPrefix}-v{stable}-win-x64.zip", html);
     }

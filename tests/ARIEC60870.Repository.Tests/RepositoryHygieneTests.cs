@@ -158,6 +158,15 @@ public sealed class RepositoryHygieneTests
         var releaseScript = File.ReadAllText(root.File("site/release-download.js"));
         Assert.Equal(releaseScript, File.ReadAllText(root.File("docs/release-download.js")));
         Assert.Contains($"const fallbackTag = \"v{version}\"", releaseScript);
+        // A literal \n inside a // comment previously hid the active
+        // resolver calculation while static fallback HTML still worked.
+        Assert.DoesNotContain("\\n", releaseScript, StringComparison.Ordinal);
+        Assert.Contains("const current = packages.find(", releaseScript);
+        Assert.Contains($"## Latest public stable: ArSee v{version}",
+            File.ReadAllText(root.File("docs/RELEASE_NOTES.md")));
+        Assert.Contains("Published Public Stable", File.ReadAllText(root.File("CHANGELOG.md")));
+        Assert.Contains($"ArSee Quick Start — v{version} Public Stable",
+            File.ReadAllText(root.File("docs/QUICK_START.md")));
 
         // The no-network fallback, user-facing README and package provenance
         // must be version-consistent with the verified stable site manifest.

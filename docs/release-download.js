@@ -96,7 +96,9 @@
         Date.parse(b.release.published_at || 0) - Date.parse(a.release.published_at || 0));
       // One release must contain matching installer, ZIP, checksum and SBOM.
       // A half-uploaded stable tag must not replace an already working public RC.
-      // The main public download channel prioritizes complete stable releases.\n      const current = packages.find((p) => p.installer && !p.release.prerelease) ??\n        packages.find((p) => p.installer);
+      // The main public download channel prioritizes complete stable releases.
+      const current = packages.find((p) => p.installer && !p.release.prerelease) ??
+        packages.find((p) => p.installer);
       if (current) update(current);
     } catch (_) {
       // Offline/API rate-limited visitors retain the verified public stable v3.6.20 links.
