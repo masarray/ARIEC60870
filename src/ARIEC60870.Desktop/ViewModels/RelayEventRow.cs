@@ -52,7 +52,8 @@ public sealed class RelayEventRow
     public RelayEventRow(Iec103RelayEventLogEntry item,
         Iec103MasterEvidenceEvent? originalFrameEvidence = null, long eventNumber = 0,
         Iec103MasterEvidenceEvent? observedRequestFrame = null,
-        Iec10xEngineeringSample? engineeringSample = null)
+        Iec10xEngineeringSample? engineeringSample = null,
+        EventDeliveryEvidence? deliveryEvidence = null)
     {
         OriginalFrameEvidence = originalFrameEvidence;
         // Historic search uses this bounded numeric snapshot rather than
@@ -75,7 +76,7 @@ public sealed class RelayEventRow
             _ => "103"
         };
         RelayTime = BuildSoeTime(item);
-        DeliveryEvidence = EventDeliveryEvidenceClassifier.Classify(item);
+        DeliveryEvidence = deliveryEvidence ?? EventDeliveryEvidenceClassifier.Classify(item);
         Signal = item.SignalName;
         Previous = string.IsNullOrWhiteSpace(item.PreviousValue) ? "-" : item.PreviousValue;
         NewValue = item.NewValue;
@@ -97,12 +98,11 @@ public sealed class RelayEventRow
         TiExplanation = Iec10xTypeIdPresentation.Tooltip(item.TypeId, Protocol);
         Type = item.SignalType;
         Cot = item.CauseOfTransmission;
-        // Show a compact suspected-buffer cue inside COT, not a redundant
-        // Delivery column. The '?' is essential: IEC-101/104 carry no
-        // universal RTU queue-origin bit and timestamps may be unsynchronized.
+        // Only a persisted, source-qualified *sequence* catch-up observation
+        // may add a buffer cue. Absolute RTU/PC clock offset is never enough.
         var cotBaseLabel = item.CauseDetails is { } cause ? $"{cause.Code} · {cause.Phase}" : Cot;
-        CotLabel = DeliveryEvidence.Label == "Buffered?"
-            ? cotBaseLabel + " (BUFFERED?)" : cotBaseLabel;
+        CotLabel = DeliveryEvidence.Label == "Buffer"
+            ? cotBaseLabel + " (buffer)" : cotBaseLabel;
         CotChips = ProtocolFlagPresentation.Cot(item.CauseDetails);
         CotDetail = item.CauseDetails?.Detail ?? Cot;
         CommonAddress = item.CommonAddress.HasValue ? item.CommonAddress.Value.ToString(CultureInfo.InvariantCulture) : "-";
