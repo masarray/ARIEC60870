@@ -120,8 +120,8 @@ public sealed class EventDeliveryEvidenceTests
         var rtu = new DateTime(2026, 11, 21, 2, 43, 34);
         for (var i = 1; i <= 1000; i++)
         {
-            var source = Timed(i, ArrivalUtc.AddMilliseconds(i * 100),
-                rtu.AddMilliseconds(i * 100));
+            var source = Timed(i, ArrivalUtc.AddMilliseconds(i * 100d),
+                rtu.AddMilliseconds(i * 100d));
             var result = detector.Observe(source);
             Assert.Equal("Spontaneous", result.Label);
             Assert.DoesNotContain("(buffer)", new RelayEventRow(source,
