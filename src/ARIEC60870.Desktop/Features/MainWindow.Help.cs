@@ -14,13 +14,28 @@ public partial class MainWindow
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F1)
+        // Enter applies the visible communication setup through the exact
+        // Connect-button path. It must NEVER disconnect a live session or
+        // steal Enter from a dropdown, multiline editor, or Cancel button.
+        if (e.Key == Key.Enter && SetupOverlay?.IsVisible == true &&
+            _sessionCancellation is null)
         {
+            if (Keyboard.FocusedElement is System.Windows.Controls.ComboBox { IsDropDownOpen: true } ||
+                Keyboard.FocusedElement is System.Windows.Controls.TextBox { AcceptsReturn: true } ||
+                Keyboard.FocusedElement is System.Windows.Controls.Primitives.ButtonBase button &&
+                    !ReferenceEquals(button, SetupConnectButton))
+                return;
+
+            e.Handled = true;
+            CloseSetupAndConnect_Click(SetupConnectButton, new RoutedEventArgs());
             return;
         }
 
-        e.Handled = true;
-        OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
+        if (e.Key == Key.F1)
+        {
+            e.Handled = true;
+            OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
+        }
     }
 
     private void OpenHelpWindow(string topicKey)
