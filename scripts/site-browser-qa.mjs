@@ -225,6 +225,15 @@ async function runCase(browserName, browser, width, route) {
         element.closest(".faq-accordion-card")?.classList.contains("is-open")), "FAQ deep link did not expand");
     }
     if (browserName === "chromium" && (width === 390 || width === 1280)) {
+      // Always capture the actual first fold, not the scrolled-to gallery
+      // left behind by lightbox and keyboard checks on narrow screens.
+      if (route.endsWith("index.html")) {
+        const benefitsShot = browserName + "-" + width + "-" +
+          route.replaceAll("/", "-") + "-benefits.png";
+        await page.locator("#product").screenshot({ path: path.join(outDir, benefitsShot) });
+        entry.benefitsScreenshot = benefitsShot;
+      }
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
       const screenshot = browserName + "-" + width + "-" + route.replaceAll("/", "-") + ".png";
       await page.screenshot({ path: path.join(outDir, screenshot), fullPage: false });
       entry.screenshot = screenshot;
