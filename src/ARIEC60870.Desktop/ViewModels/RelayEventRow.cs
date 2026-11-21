@@ -137,6 +137,9 @@ public sealed class RelayEventRow
     public string TransactionKind { get; }
     public string Protocol { get; }
     public string RelayTime { get; }
+    /// <summary>A forensic hint only, never a confirmed RTU buffer state.</summary>
+    public EventDeliveryEvidence DeliveryEvidence { get; }
+    public string DeliveryHint => DeliveryEvidence.Label;
     public string DisplayRelayTime => RelayTime == "no timestamp" ? "—" : RelayTime;
     public string Signal { get; private set; }
     public string Previous { get; }
