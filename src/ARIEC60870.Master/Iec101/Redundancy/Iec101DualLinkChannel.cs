@@ -26,6 +26,10 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
     private readonly Iec101GiLifecycleTracker _giLifecycle = new();
     private readonly Iec101SboSelectionAuthority _sboSelection = new();
     private long _connectionEpoch;
+    // Session-lifetime write-attempt evidence. Never reset on a COM reopen:
+    // even a partially written startup GI must not be replayed automatically.
+    private long _startupGiWriteAttempts;
+    internal long StartupGiWriteAttempts => Interlocked.Read(ref _startupGiWriteAttempts);
     private long _commandAuthorityEpoch;
     private bool _commandAuthorityReady;
 
@@ -222,7 +226,7 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         return await RequestLinkStatusAsync("Standby dual-link supervision", cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<Iec101ChannelExchangeResult> SendGeneralInterrogationAsync(string reason, CancellationToken cancellationToken, byte qualifier = 20, int? commonAddress = null)
+    public async Task<Iec101ChannelExchangeResult> SendGeneralInterrogationAsync(string reason, CancellationToken cancellationToken, byte qualifier = 20, int? commonAddress = null, bool startupGiIntent = false)
     {
         EnsureActiveOwner("general interrogation");
         var commandSettings = SettingsForCommonAddress(commonAddress);
@@ -231,7 +235,8 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
             "Class 2",
             Iec10xAsduBuilder.GeneralInterrogation(commandSettings, qualifier),
             reason,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            startupGiIntent: startupGiIntent).ConfigureAwait(false);
     }
 
     public async Task<Iec101ChannelExchangeResult> SendClockSyncAsync(string reason, CancellationToken cancellationToken)
@@ -356,12 +361,13 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         return response;
     }
 
-    private async Task<Iec101ChannelExchangeResult> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken)
+    private async Task<Iec101ChannelExchangeResult> SendVariableAndReceiveAsync(string summary, string dataClass, byte[] asdu, string reason, CancellationToken cancellationToken, bool startupGiIntent = false)
     {
         using var exchange = _transactions.BeginVariable(asdu, _settings.LinkAddress,
             _settings.LinkAddressSize, Name);
         _transactions.MarkTransmitAttempt(exchange);
-        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason, cancellationToken).ConfigureAwait(false);
+        await SendRawAsync(exchange.OriginalTransmit, summary, dataClass, reason,
+            cancellationToken, startupGiIntent).ConfigureAwait(false);
         _transactions.MarkAwaitingResponse(exchange);
         var response = await ReceiveOneAsync(dataClass, reason, exchange, cancellationToken).ConfigureAwait(false);
         _transactions.Complete(exchange);
@@ -369,8 +375,14 @@ internal sealed class Iec101DualLinkChannel : IAsyncDisposable, IDisposable
         return response;
     }
 
-    private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason, CancellationToken cancellationToken)
+    private async Task SendRawAsync(byte[] frame, string summary, string dataClass, string reason,
+        CancellationToken cancellationToken, bool startupGiIntent = false)
     {
+        // This is the first irreversible boundary. All preflight ownership,
+        // link and transaction guards run before here. A driver fault may mean
+        // a partial write, so count BEFORE calling WriteAsync.
+        if (startupGiIntent)
+            Interlocked.Increment(ref _startupGiWriteAttempts);
         try
         {
             await _transport.WriteAsync(frame, cancellationToken).ConfigureAwait(false);

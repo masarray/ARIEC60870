@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -111,6 +112,10 @@ public partial class MainWindow
         var previousVisibility = SetupOverlay.Visibility;
         try
         {
+            // Missing regression in the previous CI: it tested Enter only
+            // AFTER the dialog was already shown and its children interacted
+            // with. Reproduce the real first-open rail-focus sequence first.
+            await VerifySetupFirstOpenEnterWithoutTransportAsync();
             SetupOverlay.Visibility = Visibility.Visible;
             // Active IEC-101 settings use the same actual CheckBox instances as
             // normal operation; verify rendered geometry rather than XAML text.
@@ -118,6 +123,7 @@ public partial class MainWindow
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             UpdateLayout();
             VerifySetupHeaderActions();
+            VerifySetupEnterRoutingWithoutTransport("IEC-101 Single");
             VerifyVisibleSetupSwitches(
             [
                 SerialRtsCheckBox, SerialDtrCheckBox,
@@ -154,6 +160,33 @@ public partial class MainWindow
                 throw new InvalidOperationException(
                     "IEC-104 mode switch overwrote the IEC-101 operator's profile.");
 
+            // Real-WPF policy -> BuildSettingsFromUi regression. PR #303's pure
+            // policy tests never exercised the exact Connect settings path.
+            // A stale checkbox visual may NOT override the saved per-protocol
+            // intent; an operator's explicit OFF must still remain OFF.
+            var previousGiOverride = _iec101StartupGiOperatorOverride;
+            try
+            {
+                _iec101StartupGiOperatorOverride = true;
+                GiCheckBox.IsChecked = false; // simulate stale visual state
+                var onSettings = BuildSettingsFromUi(validateActiveProfile: false);
+                if (!onSettings.SendGeneralInterrogationOnConnect || GiCheckBox.IsChecked != true)
+                    throw new InvalidOperationException(
+                        "IEC-101 Connect silently lost explicitly enabled startup GI.");
+
+                _iec101StartupGiOperatorOverride = false;
+                GiCheckBox.IsChecked = true; // stale visual state in reverse
+                var offSettings = BuildSettingsFromUi(validateActiveProfile: false);
+                if (offSettings.SendGeneralInterrogationOnConnect || GiCheckBox.IsChecked != false)
+                    throw new InvalidOperationException(
+                        "IEC-101 Connect ignored explicitly disabled startup GI.");
+            }
+            finally
+            {
+                _iec101StartupGiOperatorOverride = previousGiOverride;
+                ApplyProtocolUxProfile(GetSelectedProtocolMode());
+            }
+
             // Passive mode keeps the identical style and Checked/Unchecked
             // event handlers. Ensure both conditional switches align too.
             ProtocolModeComboBox.SelectedIndex = 3;
@@ -163,6 +196,7 @@ public partial class MainWindow
             [
                 PassiveLinkBEnabledCheckBox, PassiveFullRecordingCheckBox
             ]);
+            VerifySetupEnterRoutingWithoutTransport("IEC-101 Passive");
             // Passive monitor is much shorter than IEC-104; avoid the former
             // enormous blank lower half while preserving a fixed footer.
             if (SetupDialogCard.ActualHeight > 690)
@@ -183,6 +217,12 @@ public partial class MainWindow
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
                 UpdateLayout();
                 VerifySetupHeaderActions();
+                VerifySetupEnterRoutingWithoutTransport(mode switch
+                {
+                    0 => "IEC-103",
+                    2 => "IEC-101 Dual",
+                    _ => "IEC-104"
+                });
                 if (SetupSettingsScroll.ActualHeight <= 0 ||
                     SetupDialogCard.ActualHeight > SetupOverlay.ActualHeight - 30)
                     throw new InvalidOperationException(
@@ -200,6 +240,162 @@ public partial class MainWindow
             ProtocolModeComboBox.SelectedIndex = previousMode;
             SetupOverlay.Visibility = previousVisibility;
             UpdateLayout();
+        }
+    }
+
+    /// <summary>
+    /// First-open regression on the REAL WPF window: focus starts on the rail
+    /// Setup Button, open via its Click, press Enter without touching a field,
+    /// and verify exactly one Connect click. The real Connect handler is
+    /// temporarily detached, so no COM/TCP or session state can be changed.
+    /// </summary>
+    private async Task VerifySetupFirstOpenEnterWithoutTransportAsync()
+    {
+        var source = PresentationSource.FromVisual(this) ??
+            throw new InvalidOperationException("WPF window must be shown for first-open Enter proof.");
+        var clicks = 0;
+        RoutedEventHandler probe = (_, _) => clicks++;
+        SetupConnectButton.Click -= CloseSetupAndConnect_Click;
+        SetupConnectButton.Click += probe;
+        try
+        {
+            foreach (var (mode, name) in new[]
+            {
+                (1, "IEC-101 Single"), (2, "IEC-101 Dual"),
+                (0, "IEC-103"), (4, "IEC-104"), (3, "IEC-101 Passive")
+            })
+            {
+                SetupOverlay.Visibility = Visibility.Collapsed;
+                ProtocolModeComboBox.SelectedIndex = mode;
+                UpdateLayout();
+                Keyboard.Focus(SetupButton);
+                if (!ReferenceEquals(Keyboard.FocusedElement, SetupButton))
+                    throw new InvalidOperationException(
+                        name + ": test could not establish initial keyboard focus on rail Setup.");
+
+                SetupButton.RaiseEvent(new RoutedEventArgs(
+                    System.Windows.Controls.Primitives.ButtonBase.ClickEvent, SetupButton));
+
+                // Immediate Enter BEFORE Dispatcher.Input transfers focus.
+                // This is the exact first-open failure that previous tests
+                // missed; do not let a successful deferred-focus case mask it.
+                if (SetupOverlay.Visibility != Visibility.Visible ||
+                    !CanSubmitSetupOnEnter(SetupButton))
+                    throw new InvalidOperationException(
+                        name + ": first-open rail focus must permit Enter.");
+                var beforeImmediate = clicks;
+                var immediateEnter = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                SetupButton.RaiseEvent(immediateEnter);
+                if (!immediateEnter.Handled || clicks != beforeImmediate + 1 ||
+                    _sessionCancellation is not null)
+                    throw new InvalidOperationException(
+                        name + ": immediate Enter before focus transfer failed.");
+
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                UpdateLayout();
+
+                // No dropdown, field, checkbox, or footer interaction occurred.
+                if (SetupOverlay.Visibility != Visibility.Visible ||
+                    !SetupConnectButton.IsDefault ||
+                    !ReferenceEquals(Keyboard.FocusedElement, SetupConnectButton))
+                    throw new InvalidOperationException(
+                        name + ": opening Setup did not transfer keyboard focus to default Connect.");
+
+                var before = clicks;
+                var enter = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                SetupConnectButton.RaiseEvent(enter);
+                if (!enter.Handled || clicks != before + 1 ||
+                    _sessionCancellation is not null)
+                    throw new InvalidOperationException(
+                        name + ": first Enter must trigger exactly one Connect Click without transport.");
+            }
+        }
+        finally
+        {
+            SetupConnectButton.Click -= probe;
+            SetupConnectButton.Click += CloseSetupAndConnect_Click;
+            SetupOverlay.Visibility = Visibility.Collapsed;
+            UpdateSetupDefaultAction();
+        }
+    }
+
+    /// <summary>
+    /// Actual WPF routed PreviewKeyDown -> footer Click regression on every
+    /// protocol mode. Temporarily replace the Click handler with a counter:
+    /// this drives the real visual/event tree but NEVER opens COM or TCP.
+    /// </summary>
+    private void VerifySetupEnterRoutingWithoutTransport(string profile)
+    {
+        UpdateSetupDefaultAction();
+        if (!SetupConnectButton.IsDefault ||
+            !CanSubmitSetupOnEnter(GiCheckBox) ||
+            !CanSubmitSetupOnEnter(ResetRemoteLinkCheckBox) ||
+            !CanSubmitSetupOnEnter(SerialRtsCheckBox) ||
+            !CanSubmitSetupOnEnter(ProtocolModeComboBox) ||
+            !CanSubmitSetupOnEnter(LinkAddressBox) ||
+            !CanSubmitSetupOnEnter(SetupConnectButton))
+            throw new InvalidOperationException(
+                profile + ": Enter must reach Connect from switch, combo, input, and footer.");
+
+        if (CanSubmitSetupOnEnter(SetupCancelButton) ||
+            CanSubmitSetupOnEnter(SetupCloseButton) ||
+            CanSubmitSetupOnEnter(new TextBox { AcceptsReturn = true }))
+            throw new InvalidOperationException(
+                profile + ": Enter must preserve Cancel/Close/multiline behavior.");
+
+        var presentation = PresentationSource.FromVisual(this) ??
+            throw new InvalidOperationException(profile + ": missing live WPF presentation source.");
+        var switchControl = profile == "IEC-101 Passive"
+            ? (UIElement)PassiveFullRecordingCheckBox : GiCheckBox;
+        var editor = profile == "IEC-104" ? (UIElement)TcpHostBox : LinkAddressBox;
+        var clicks = 0;
+        RoutedEventHandler probe = (_, _) => clicks++;
+        SetupConnectButton.Click -= CloseSetupAndConnect_Click;
+        SetupConnectButton.Click += probe;
+        try
+        {
+            foreach (var target in new UIElement[]
+            {
+                switchControl, editor, ProtocolModeComboBox, SetupConnectButton
+            })
+            {
+                var before = clicks;
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, presentation, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                target.RaiseEvent(key);
+                if (!key.Handled || clicks != before + 1 ||
+                    SetupOverlay.Visibility != Visibility.Visible ||
+                    _sessionCancellation is not null)
+                    throw new InvalidOperationException(
+                        profile + ": routed Enter did not invoke exactly one Connect Click from " +
+                        target.GetType().Name + ".");
+            }
+
+            foreach (var target in new UIElement[] { SetupCancelButton, SetupCloseButton })
+            {
+                var before = clicks;
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, presentation, 0, Key.Enter)
+                {
+                    RoutedEvent = Keyboard.PreviewKeyDownEvent
+                };
+                target.RaiseEvent(key);
+                if (key.Handled || clicks != before)
+                    throw new InvalidOperationException(
+                        profile + ": Enter on an explicit action button was stolen by Connect.");
+            }
+        }
+        finally
+        {
+            SetupConnectButton.Click -= probe;
+            SetupConnectButton.Click += CloseSetupAndConnect_Click;
         }
     }
 

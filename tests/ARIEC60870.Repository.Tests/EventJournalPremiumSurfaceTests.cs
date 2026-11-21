@@ -322,6 +322,34 @@ public sealed class EventJournalPremiumSurfaceTests
         Assert.Equal("{Binding DualLinkTimelineRows}", (string?)timeline.Attribute("ItemsSource"));
     }
 
+    [Fact]
+    public void RedundancyTimelineIsCompactVirtualizedAndRetainsFullSelectedReasonResult()
+    {
+        var doc = XDocument.Load(FindMainWindowXaml());
+        var timeline = Named(doc.Root!, "DataGrid", "DualLinkTimelineGrid");
+        Assert.Equal("31", (string?)timeline.Attribute("RowHeight"));
+        Assert.Equal("29", (string?)timeline.Attribute("ColumnHeaderHeight"));
+        Assert.Equal("Auto", (string?)timeline.Attribute("HorizontalScrollBarVisibility"));
+        Assert.Equal("True", (string?)timeline.Attribute("EnableRowVirtualization"));
+        Assert.Equal("Recycling", (string?)timeline.Attribute("VirtualizingPanel.VirtualizationMode"));
+        Assert.Equal("FullRow", (string?)timeline.Attribute("SelectionUnit"));
+        Assert.Equal("False", (string?)timeline.Attribute("ToolTipService.IsEnabled"));
+
+        var columns = timeline.Descendants().Where(x =>
+            x.Name.LocalName == "DataGridTextColumn").ToArray();
+        Assert.Equal("Time,Link,Event,Reason,Result",
+            string.Join(",", columns.Select(x => (string?)x.Attribute("Header"))));
+        Assert.All(columns, column =>
+            Assert.Equal("{StaticResource GridCellNoWrapText}",
+                (string?)column.Attribute("ElementStyle")));
+        Assert.Equal("180", (string?)columns[3].Attribute("MinWidth"));
+        Assert.Equal("210", (string?)columns[4].Attribute("MinWidth"));
+
+        var details = Named(doc.Root!, "Border", "DualLinkTimelineDetails");
+        Assert.Equal("Collapsed", (string?)details.Attribute("Visibility"));
+        Assert.NotNull(Named(details, "TextBox", "DualLinkTimelineDetailBox"));
+    }
+
     private static string FindIconResourcesXaml()
         => Path.Combine(Path.GetDirectoryName(FindMainWindowXaml())!, "Resources", "LucideIcons.xaml");
 

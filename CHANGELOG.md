@@ -1,3 +1,10 @@
+## [3.6.20] - IEC-101 startup, reconnect filters, Setup and Redundancy (21 November 2026)
+
+- **Public Stable release preparation:** [v3.6.20 notes](docs/archive/release-notes/RELEASE_NOTES_v3.6.20.md); final publication requires exact-source Windows installer/updater FAT, xUnit, real WPF, CodeQL, package integrity and immutable GitHub Release verification. Earlier public v3.6.19 and v3.6.20-rc.1 assets remain unchanged.
+- [PR #305](https://github.com/masarray/arsee/pull/305): session-scoped, link-/DFC-/owner-aware IEC-101 first-Connect GI, no duplicate delivery-ambiguous TX; preserve observed-CA recovery and protocol-specific operator Auto-GI preference.
+- Operator-verified fixes: compact, readable Redundancy timeline; Enter on **first opening** Connection Setup across IEC-101 single/dual/passive and IEC-103/104; Disconnect retains Setup and successful Connect closes; Event Include/Exclude/search persists across reconnect; INT16 grid strips the decoder's `Scaled=` label while preserving original raw and mapped engineering values.
+- Field verification is on the operator's tested device/configuration, not proof of universal hardware/vendor compatibility or energized controls.
+
 ## [3.6.20-rc.1] - IEC-101 first-Connect GI hotfix candidate (not stable)
 
 - **Candidate only:** isolate v3.6.19 first-connect GI corrections from immutable stable; release notes: [v3.6.20-rc.1](docs/archive/release-notes/RELEASE_NOTES_v3.6.20-rc.1.md). Do not mark as stable or physically certified until the official prerelease Package and independent hardware FAT complete.

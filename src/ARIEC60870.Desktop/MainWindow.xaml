@@ -2298,18 +2298,27 @@
                                       ItemsSource="{Binding DualLinkTimelineRows}"
                                       IsReadOnly="True"
                                       AutoGenerateColumns="False"
-                                      HorizontalScrollBarVisibility="Disabled"
+                                      HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"
+                                      RowHeight="31"
+                                      ColumnHeaderHeight="29"
+                                      GridLinesVisibility="None"
+                                      SelectionUnit="FullRow"
+                                      ToolTipService.IsEnabled="False"
+                                      ScrollViewer.CanContentScroll="True"
                                       EnableRowVirtualization="True"
                                       EnableColumnVirtualization="True"
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Recycling">
+                                <!-- A calm, single-line timeline. Full forensic Reason/Result
+                                     are available in the existing selection detail below;
+                                     never grow rows unpredictably or clip the last column. -->
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="105" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Link" Binding="{Binding Link}" Width="95" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="170" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" MinWidth="190" ElementStyle="{StaticResource GridCellText}" />
-                                    <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="2*" MinWidth="210" ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="108" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Link" Binding="{Binding Link}" Width="90" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Event" Binding="{Binding Event}" Width="172" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="1.3*" MinWidth="180" ElementStyle="{StaticResource GridCellNoWrapText}" />
+                                    <DataGridTextColumn Header="Result" Binding="{Binding Result}" Width="1.7*" MinWidth="210" ElementStyle="{StaticResource GridCellNoWrapText}" />
                                 </DataGrid.Columns>
                             </DataGrid>
                             <Border x:Name="DualLinkTimelineDetails" Grid.Row="5" Visibility="Collapsed"

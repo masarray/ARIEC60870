@@ -395,13 +395,12 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
 
         if (_startupGiPending && _active.IsHealthy)
         {
-            _startupGiPending = false;
-            SetControllerState(Iec101RedundancyControllerState.BootstrappingApplicationImage, "Bootstrapping IEC-101 application image", "General Interrogation is sent only on the active link.");
-            await RunGeneralInterrogationLifecycleOnActiveAsync(
+            SetControllerState(Iec101RedundancyControllerState.BootstrappingApplicationImage,
+                "Bootstrapping IEC-101 application image", "General Interrogation is sent only on the active link.");
+            await TryDispatchPendingStartupGiAsync(
                 "Dual-link startup station interrogation",
                 "Dual-link startup GI",
                 "Dual-link startup post-GI Class 2 verification sweep",
-                commonAddress: null,
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -489,19 +488,15 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             return;
         }
 
-        // Startup GI must not be starved by a continuous ACD Class-1 drain:
-        // the same validated active link owns this one operator Connect intent.
-        // Remote DFC=1 or a failed/suspect active is not eligible.
-        if (_startupGiPending && _active.IsHealthy && !ActiveNeedsRescue())
-        {
-            _startupGiPending = false;
-            await RunGeneralInterrogationLifecycleOnActiveAsync(
-                "Deferred startup GI after verified active secondary",
-                "Deferred dual-link startup GI",
-                "Deferred dual-link Class 2 verification",
-                commonAddress: null, cancellationToken).ConfigureAwait(false);
+        // ACD Class-1 drain must not starve the first Connect GI. Keep the
+        // intent pending unless a real GI dispatch was attempted; an early
+        // link/owner guard exit is not a transmitted command.
+        if (await TryDispatchPendingStartupGiAsync(
+            "Deferred startup GI after verified active secondary",
+            "Deferred dual-link startup GI",
+            "Deferred dual-link Class 2 verification",
+            cancellationToken).ConfigureAwait(false))
             return;
-        }
 
         if (_active.LinkState.Acd)
         {
@@ -1104,7 +1099,33 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RunGeneralInterrogationLifecycleOnActiveAsync(string commandReason, string lifecycleLabel, string sweepReason, int? commonAddress, CancellationToken cancellationToken)
+    // One first-Connect GI intention belongs to the session, not a physical
+    // COM epoch. Consume only at the first physical driver write attempt,
+    // never on an eligibility/transaction preflight check.
+    // Failed or ambiguous writes are NOT auto-replayed on recovery/failover.
+    private async Task<bool> TryDispatchPendingStartupGiAsync(
+        string reason, string lifecycle, string sweepReason, CancellationToken cancellationToken)
+    {
+        if (!_startupGiPending || _active is null || !_active.IsHealthy || ActiveNeedsRescue())
+            return false;
+
+        var owner = _active;
+        var attemptsBefore = owner.StartupGiWriteAttempts;
+        try
+        {
+            await RunGeneralInterrogationLifecycleOnActiveAsync(
+                reason, lifecycle, sweepReason, commonAddress: null,
+                cancellationToken, startupGiIntent: true).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (owner.StartupGiWriteAttempts > attemptsBefore)
+                _startupGiPending = false;
+        }
+        return owner.StartupGiWriteAttempts > attemptsBefore;
+    }
+
+    private async Task RunGeneralInterrogationLifecycleOnActiveAsync(string commandReason, string lifecycleLabel, string sweepReason, int? commonAddress, CancellationToken cancellationToken, bool startupGiIntent = false)
     {
         if (_active is null)
         {
@@ -1127,7 +1148,9 @@ public sealed class Iec101DualLinkRedundancySession : IProtocolMasterSession, IP
         // Entered only for configured startup, deliberate manual or post-switch GI.
         _giRequestedOnActiveOwner = true;
         _counters.GiCommands++;
-        var response = await _active.SendGeneralInterrogationAsync(commandReason, cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress).ConfigureAwait(false);
+        var response = await _active.SendGeneralInterrogationAsync(commandReason,
+            cancellationToken, qualifier: 20, commonAddress: effectiveCommonAddress,
+            startupGiIntent: startupGiIntent).ConfigureAwait(false);
         if (response.TimedOut || response.Frame is null ||
             (response.Asdu is null && !response.Succeeded))
         {

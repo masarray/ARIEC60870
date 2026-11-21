@@ -14,13 +14,72 @@ public partial class MainWindow
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F1)
+        // The Setup footer is the only Enter default action. Do not interpret
+        // CheckBox/ToggleButton as explicit action buttons: both inherit
+        // ButtonBase and the old guard silently discarded Enter on Auto-GI
+        // and other focused switches (most visible in IEC-101 Single).
+        if (e.Key == Key.Enter &&
+            CanSubmitSetupOnEnter(ResolveSetupEnterSource(e.OriginalSource)))
         {
+            e.Handled = true;
+            // Route through the actual WPF button Click, exactly as the mouse
+            // does: one validation/start lifecycle, no mode-specific shortcut.
+            SetupConnectButton.RaiseEvent(new RoutedEventArgs(
+                System.Windows.Controls.Primitives.ButtonBase.ClickEvent,
+                SetupConnectButton));
             return;
         }
 
-        e.Handled = true;
-        OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
+        if (e.Key == Key.F1)
+        {
+            e.Handled = true;
+            OpenHelpWindow(GetHelpTopicKeyForCurrentContext());
+        }
+    }
+
+    private static IInputElement? ResolveSetupEnterSource(object? originalSource)
+    {
+        // PreviewKeyDown tunnels through the actual setup control. Resolve
+        // its nearest interactive ancestor, not a possibly stale global
+        // Keyboard.FocusedElement (which differs across protocol templates).
+        var element = originalSource as DependencyObject;
+        while (element is not null)
+        {
+            if (element is System.Windows.Controls.TextBox or
+                System.Windows.Controls.ComboBox or
+                System.Windows.Controls.Primitives.ButtonBase)
+                return (IInputElement)element;
+
+            var visualParent = element is System.Windows.Media.Visual or
+                System.Windows.Media.Media3D.Visual3D
+                ? System.Windows.Media.VisualTreeHelper.GetParent(element)
+                : null;
+            element = visualParent ?? LogicalTreeHelper.GetParent(element);
+        }
+
+        return Keyboard.FocusedElement;
+    }
+
+    // Also used by real-WPF acceptance without opening COM or invoking Click.
+    private bool CanSubmitSetupOnEnter(IInputElement? focused)
+    {
+        if (SetupOverlay?.IsVisible != true ||
+            _sessionCancellation is not null || SetupConnectButton?.IsEnabled != true)
+            return false;
+
+        // Preserve dropdown selection and multiline editing. An ordinary
+        // TextBox, CheckBox, RadioButton or ToggleButton must not block Enter.
+        if (focused is System.Windows.Controls.ComboBox { IsDropDownOpen: true } ||
+            focused is System.Windows.Controls.TextBox { AcceptsReturn: true })
+            return false;
+
+        // Other action Buttons (Cancel/Close/Browse) retain Enter. The
+        // rail Setup button is the only exception: on the first opening it
+        // can still own focus until Dispatcher.Input runs. Enter must work
+        // immediately even in that transitional WPF focus epoch.
+        return focused is not System.Windows.Controls.Button button ||
+            ReferenceEquals(button, SetupConnectButton) ||
+            ReferenceEquals(button, SetupButton);
     }
 
     private void OpenHelpWindow(string topicKey)

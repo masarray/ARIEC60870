@@ -109,6 +109,7 @@ public partial class MainWindow
                 : (isRunning ? "Stop monitor (finalize optional recording)" :
                     "Start receive-only monitor (recording off by default)"))
             : (isRunning ? "Disconnect and close transport" : "Connect and monitor continuously");
+        UpdateSetupDefaultAction();
     }
 
     private async void Start_Click(object sender, RoutedEventArgs e)
@@ -422,7 +423,17 @@ public partial class MainWindow
             ? false
             : ResetFcbCheckBox.IsChecked == true;
         settings.SendClockSyncOnConnect = ClockSyncCheckBox.IsChecked == true;
-        settings.SendGeneralInterrogationOnConnect = GiCheckBox.IsChecked == true;
+        // Resolve from the per-protocol operator-owned policy, not a stale
+        // WPF checkbox snapshot. Explicit active IEC-101 OFF remains respected.
+        // Passive IEC-101 cannot obtain transmit authorization through this path.
+        var effectiveStartupGi = StartupGiPreferencePolicy.OnConnect(
+            settings.ProtocolMode, IsIec101PassiveMonitorSelected(),
+            _iec101StartupGiOperatorOverride,
+            _iec103StartupGiOperatorOverride,
+            _iec104StartupGiOperatorOverride);
+        settings.SendGeneralInterrogationOnConnect = effectiveStartupGi;
+        if (GiCheckBox.IsChecked != effectiveStartupGi)
+            GiCheckBox.IsChecked = effectiveStartupGi;
         settings.RequestClass2ImmediatelyAfterStartup = Class2StartupCheckBox.IsChecked == true;
         settings.MappingProfilePath = _activeMappingProfileFilePath;
         ApplyLowBaudSerialTimingGuard(settings);

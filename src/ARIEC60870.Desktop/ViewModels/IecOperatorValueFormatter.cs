@@ -23,6 +23,22 @@ public static class IecOperatorValueFormatter
                 return step.ToString(CultureInfo.InvariantCulture);
             return original;
         }
+        // M_ME_NB_1/M_ME_TB_1 are signed 16-bit scaled measurement types.
+        // "Scaled=" is a decoder field label, not an engineering unit or a
+        // scaling operation. Preserve raw source/evidence and mapped values;
+        // the grid shows the number only when the token is a valid INT16.
+        if (typeId is "11" or "12" or "35")
+        {
+            var scaledText = original.Trim();
+            if (!scaledText.StartsWith("Scaled=", StringComparison.OrdinalIgnoreCase))
+                return original;
+            var scaledNumber = scaledText["Scaled=".Length..].Trim();
+            var scaledSuffix = scaledNumber.IndexOf(',');
+            if (scaledSuffix >= 0) scaledNumber = scaledNumber[..scaledSuffix].Trim();
+            return short.TryParse(scaledNumber, NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out var raw)
+                ? raw.ToString(CultureInfo.InvariantCulture) : original;
+        }
         if (typeId is not ("13" or "14" or "36")) return original;
         var text = original.Trim();
         if (!text.StartsWith("Float=", StringComparison.OrdinalIgnoreCase))

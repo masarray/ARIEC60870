@@ -124,6 +124,59 @@ public sealed class SetupHeaderActionStyleTests
     }
 
     [Fact]
+    public void EnterConnectDoesNotTriggerOnlineDisconnectOrDismissFailedSetup()
+    {
+        var help = File.ReadAllText(Source("Features/MainWindow.Help.cs"));
+        var setup = File.ReadAllText(Source("MainWindow.xaml.cs"));
+        Assert.Contains("CanSubmitSetupOnEnter(ResolveSetupEnterSource(e.OriginalSource))", help);
+        Assert.Contains("_sessionCancellation is not null", help);
+        Assert.Contains("IsDropDownOpen: true", help);
+        Assert.Contains("AcceptsReturn: true", help);
+        // WPF CheckBox/ToggleButton derive ButtonBase but must not be
+        // mistaken for Cancel/Close or other explicit action Buttons.
+        Assert.Contains("focused is not System.Windows.Controls.Button button", help);
+        Assert.Contains("ReferenceEquals(button, SetupButton)", help);
+        Assert.DoesNotContain("ButtonBase button", help);
+        Assert.Contains("SetupConnectButton.RaiseEvent(new RoutedEventArgs(", help);
+        Assert.Contains("ButtonBase.ClickEvent", help);
+        Assert.Contains("SetupOverlay.IsVisibleChanged += (_, _) =>", setup);
+        Assert.Contains("QueueSetupInitialKeyboardFocus();", setup);
+        Assert.Contains("DispatcherPriority.Input", setup);
+        Assert.Contains("SetupConnectButton.Focus();", setup);
+        Assert.Contains("SetupOverlay.IsAncestorOf(focused)", setup);
+        Assert.Contains("SetupConnectButton.IsDefault =", setup);
+        Assert.Contains("SetupOverlay.IsVisible && _sessionCancellation is null", setup);
+        var acceptance = File.ReadAllText(Source("Features/MainWindow.ObservationAcceptance.cs"));
+        Assert.Contains("await VerifySetupFirstOpenEnterWithoutTransportAsync();", acceptance);
+        Assert.Contains("Keyboard.Focus(SetupButton);", acceptance);
+        Assert.Contains("SetupButton.RaiseEvent(new RoutedEventArgs(", acceptance);
+        Assert.Contains("ReferenceEquals(Keyboard.FocusedElement, SetupConnectButton)", acceptance);
+        Assert.Contains("first Enter must trigger exactly one Connect Click", acceptance);
+        Assert.Contains("immediate Enter before focus transfer failed", acceptance);
+        Assert.Contains("SetupButton.RaiseEvent(immediateEnter);", acceptance);
+        Assert.Contains("(1, \"IEC-101 Single\"), (2, \"IEC-101 Dual\")", acceptance);
+        Assert.Contains("(0, \"IEC-103\"), (4, \"IEC-104\"), (3, \"IEC-101 Passive\")", acceptance);
+        Assert.Contains("VerifySetupEnterRoutingWithoutTransport(\"IEC-101 Single\")", acceptance);
+        Assert.Contains("VerifySetupEnterRoutingWithoutTransport(\"IEC-101 Passive\")", acceptance);
+        Assert.Contains("2 => \"IEC-101 Dual\"", acceptance);
+        Assert.Contains("0 => \"IEC-103\"", acceptance);
+        Assert.Contains("_ => \"IEC-104\"", acceptance);
+        Assert.Contains("target.RaiseEvent(key);", acceptance);
+        Assert.Contains("RoutedEvent = Keyboard.PreviewKeyDownEvent", acceptance);
+        Assert.Contains("SetupConnectButton.Click -= CloseSetupAndConnect_Click;", acceptance);
+        Assert.Contains("SetupConnectButton.Click += CloseSetupAndConnect_Click;", acceptance);
+
+        var handler = setup.Split("private void CloseSetupAndConnect_Click(")[1]
+            .Split("private void RefreshPorts()", 2)[0]
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains("if (_sessionCancellation is not null)", handler);
+        Assert.Contains("ConnectToggle_Click(sender, e);", handler);
+        Assert.Contains("if (_sessionCancellation is not null)\n            SetupOverlay.Visibility = Visibility.Collapsed;", handler);
+        // No unconditional collapse on the Disconnect branch.
+        Assert.DoesNotContain("SetupOverlay.Visibility = Visibility.Collapsed;\n        ConnectToggle_Click", handler);
+    }
+
+    [Fact]
     public void BrandPngAlignsToHeaderTopWithoutShiftingRailButtons()
     {
         var doc = XDocument.Load(Source("MainWindow.xaml"));

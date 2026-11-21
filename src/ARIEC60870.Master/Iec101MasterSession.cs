@@ -283,14 +283,15 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
             await SendFixedAndReceiveAsync("Request link status", "Link", 9, false,
                 "Initial IEC-101 secondary link verification", cancellationToken).ConfigureAwait(false);
 
-        // An initial COM fault must not swallow a GI that was never attempted.
-        // Never replay attempted FC3, nor issue clock-sync on a recovered COM.
-        var pendingStartup = (!reopened && _settings.SendClockSyncOnConnect) ||
-            (_settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted);
-        if (_linkVerified && pendingStartup)
+        // Clock sync is first-epoch only. GI has independent, session-owned intent
+        // until its first actual driver write attempt. A local scheduler flag must
+        // never silently consume GI when no TI100/COT6 write has been attempted.
+        var pendingClockSync = !reopened && _settings.SendClockSyncOnConnect;
+        if (_linkVerified && !_remoteDfcBusy && (pendingClockSync || StartupGiAwaitingFirstWrite))
         {
-            pendingStartup = false;
-            await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
+            var allowClockSync = pendingClockSync;
+            pendingClockSync = false;
+            await RunVerifiedStartupActionsAsync(allowClockSync, cancellationToken).ConfigureAwait(false);
         }
         else if (!_linkVerified)
         {
@@ -327,10 +328,14 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
                 }
             }
 
-            if (pendingStartup)
+            // Preserve approved startup GI until SendRawAsync marks the first
+            // attempt. Re-evaluate after any link proof/DFC recovery; a prior
+            // action that returned early cannot strand GI behind Class2/ACD.
+            if (pendingClockSync || StartupGiAwaitingFirstWrite)
             {
-                pendingStartup = false;
-                await RunVerifiedStartupActionsAsync(allowClockSync: !reopened, cancellationToken).ConfigureAwait(false);
+                var allowClockSync = pendingClockSync;
+                pendingClockSync = false;
+                await RunVerifiedStartupActionsAsync(allowClockSync, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -374,15 +379,25 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         }
     }
 
+    private bool StartupGiAwaitingFirstWrite =>
+        _settings.SendGeneralInterrogationOnConnect && !_startupGiAttempted;
+
     private async Task RunVerifiedStartupActionsAsync(bool allowClockSync, CancellationToken cancellationToken)
     {
-        if (!_linkVerified) return;
+        // The initial FC9/FC0 exchange may have proved the secondary while
+        // simultaneously reporting DFC=1; no application GI/clock TX during busy.
+        if (!_linkVerified || _remoteDfcBusy) return;
         if (allowClockSync && _settings.SendClockSyncOnConnect)
         {
             await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
                 Iec10xAsduBuilder.ClockSynchronization(_settings, DateTime.Now),
                 "Startup CP56Time2a clock synchronization", cancellationToken).ConfigureAwait(false);
         }
+
+        // The clock-sync reply can assert DFC or revoke the verified link.
+        // Do not slip a GI through the newly busy/unverified state. The
+        // session-owned GI intent remains pending until a real wire attempt.
+        if (!_linkVerified || _remoteDfcBusy) return;
 
         if (!_settings.SendGeneralInterrogationOnConnect || _startupGiAttempted) return;
 
