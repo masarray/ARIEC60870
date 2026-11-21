@@ -137,7 +137,23 @@ async function fallbackCase(browserName, browser) {
       try {
         const response = await page.goto(new URL(route, origin).href, { waitUntil: "domcontentloaded" });
         assert(response && response.ok(), "No-JS FAQ not reachable");
-        assert(await page.locator(".site-header .nav-links").isVisible(), "No-JS navigation must remain visible");
+        // GitHub Pages may complete DOMContentLoaded before Firefox finishes
+        // applying the external stylesheet. Require the final nav to become
+        // visible, not an instantaneous measurement in an unstable layout.
+        // A genuinely collapsed no-JS menu still fails after the bounded wait.
+        const staticNav = page.locator(".site-header .nav-links");
+        try {
+          await staticNav.waitFor({ state: "visible", timeout: 6000 });
+        } catch {
+          const detail = await page.evaluate(() => {
+            const n = document.querySelector(".site-header .nav-links");
+            const style = n ? getComputedStyle(n) : null;
+            return { rootClass: document.documentElement.className,
+              display: style?.display, visibility: style?.visibility,
+              navFound: Boolean(n), stylesheets: [...document.styleSheets].length };
+          });
+          throw new Error("No-JS navigation must remain visible: " + JSON.stringify(detail));
+        }
         assert(await page.locator(".faq-accordion-panel").first().isVisible(), "No-JS FAQ answers hidden");
         entry.passed = true;
       } catch (error) {
