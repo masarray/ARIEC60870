@@ -103,6 +103,45 @@ The indicator is derived from the existing Event History follow policy, current 
 
 The **FC** cell shows only confirmed IEC-101 request functions from an exact primary TX and secondary RX match. The tooltip is deliberately short: `FC10 → Class 1 Data Polling` and `FC11 → Class 2 Data Polling`. Without a verified match, FC stays `—`, never an invented Class. It describes **which poll returned the event**, not how the RTU permanently configured that IOA; Class 1 data can arrive during a Class 2 poll. Detailed proof remains in the original frames, exported `RequestFC`, and this policy document, rather than multi-sentence hover text. Do not modify link correlation, source identity or journal serialization merely to change wording.
 
+## 2026-11-21 — EVENT-02: IEC-101 verified Class-1 queue indication (PR #300)
+
+**Field finding:** a 1200-bps IEC101 active master can receive a sustained
+stream of legitimate timestamped events with device time increasing at exactly
+the same rate as host RX. Pure relative CP56 event-time catch-up in #299
+cannot identify an RTU pending queue in this situation, even when the RTU's
+Class-1 Access Demand ACD bit is present on original RX.
+
+- For active IEC-101, only an exact validated physical FC10 Class-1 TX →
+  corresponding FC8 secondary user-data RX permits use of its original
+  `ACD` bit. `ACD=1` means **additional Class-1 data is pending** at that
+  response, not proof that this individual event was old. COT display uses
+  `3 · spontaneous (buffer)` as a compact operator cue for that *observed
+  pending Class-1 queue*. `ACD=0` on the next verified FC10→FC8 removes
+  `(buffer)` immediately. No time synchronization or RTU clock offset is
+  needed to interpret ACD.
+- This decision has priority over speculative CP56 catch-up. An FC11 reply
+  with ACD=1 signals demand for Class1 but **does not** prove its Class2
+  payload is an old buffered event; no FC10-specific label is assigned.
+  Nonmatching, invalid, rejected, checksum-bad, passive or legacy captures
+  without proven TX association do not gain an ACD-based buffer label.
+- ACD=1 is *not* a universal SOE buffering flag or event generation-age
+  proof. The RTU may be accumulating newly generated Class-1 data. RTU
+  FIFO age, overflow and drained-to-empty claims require additional
+  field-verified device clock and/or configured RTU buffer evidence.
+- One physical FC8 frame with many IOAs shares a single decision. Preserve
+  all individual original COT3 values, timestamps, raw bytes, source and
+  immutable hashed Event History decision. Events remains **one COT
+  column**, without Delivery clutter, and reports keep the detailed
+  `DeliveryEvidence` / `DeliveryBasis` explanation.
+- IEC-104, IEC-101 exchanges without verified ACD evidence and replay
+  continue to use the conservative relative-timestamp catch-up inference.
+  The absence of a marker **never proves there was no buffering**.
+- No changes to ACD-driven master polling, Class1/2 priority, FCB,
+  link ownership, controls, GI, clock synchronization or actual UART RX.
+- FAT requires a real RTU Class1 backlog with validated wire `ACD=1` and
+  observed transition `ACD=0`; verify exactly matched FC10/FC8 source/link
+  and no wrongly inferred buffer when only Class2/FC11 or invalid RX exists.
+
 ## 2026-11-21 — EVENT-02: source-qualified transient backlog evidence (PR #299)
 
 ### Operator semantics
