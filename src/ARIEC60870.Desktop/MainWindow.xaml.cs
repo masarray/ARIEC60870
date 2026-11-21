@@ -261,7 +261,12 @@ public partial class MainWindow : Window
         // Native WPF default Enter action is scoped to a visible, idle Setup.
         // Child focus changes between IEC-101 Single/Dual/103/104 must not
         // change whether pressing Enter can start the connection.
-        SetupOverlay.IsVisibleChanged += (_, _) => UpdateSetupDefaultAction();
+        SetupOverlay.IsVisibleChanged += (_, _) =>
+        {
+            UpdateSetupDefaultAction();
+            if (SetupOverlay.IsVisible)
+                QueueSetupInitialKeyboardFocus();
+        };
         ResetEventHistory();
         Closed += (_, _) => _eventHistoryWriter?.Dispose();
         PreviewKeyDown += MainWindow_PreviewKeyDown;
@@ -354,6 +359,29 @@ public partial class MainWindow : Window
         SetupConnectButton.IsDefault =
             SetupOverlay.IsVisible && _sessionCancellation is null &&
             SetupConnectButton.IsEnabled;
+    }
+
+    private void QueueSetupInitialKeyboardFocus()
+    {
+        // The rail's Setup button still owns keyboard focus immediately after
+        // its mouse Click. Native IsDefault does not transfer focus into an
+        // overlay; first Enter would be interpreted as the rail Button instead
+        // of Connect. Defer until WPF has applied visibility/layout.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,
+            new Action(() =>
+            {
+                if (!SetupOverlay.IsVisible || _sessionCancellation is not null ||
+                    !SetupConnectButton.IsEnabled)
+                    return;
+
+                // Do not steal focus if the operator already interacted with
+                // a control inside the dialog after it appeared.
+                if (Keyboard.FocusedElement is DependencyObject focused &&
+                    SetupOverlay.IsAncestorOf(focused))
+                    return;
+
+                SetupConnectButton.Focus();
+            }));
     }
 
     private void OpenSetup_Click(object sender, RoutedEventArgs e)
