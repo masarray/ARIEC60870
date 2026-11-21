@@ -3327,6 +3327,9 @@
 
                                 </StackPanel>
                             </Expander>
+                            <TextBlock x:Name="Iec101WidthReviewText" Visibility="Collapsed" Margin="2,-4,0,12"
+                                       Foreground="#9A5A16" FontSize="11" TextWrapping="Wrap"
+                                       Text="Verify IEC-101 Link/COT/CA/IOA widths with the RTU before connecting."/>
 
                             <StackPanel x:Name="SerialPollingPanel">
                                 <TextBlock x:Name="PollingPolicyTitleText" Text="CLASS POLLING POLICY" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
@@ -3343,8 +3346,9 @@
                                 </Grid>
                             </StackPanel>
 
-                            <StackPanel x:Name="Iec104RuntimePanel" Visibility="Collapsed">
-                                <TextBlock Text="IEC-104 RUNTIME CONTROL" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
+                            <Expander x:Name="Iec104RuntimePanel" Header="APCI timers / window · advanced"
+                                      Visibility="Collapsed" IsExpanded="False" Margin="0,4,0,12">
+                                <StackPanel Margin="0,8,0,0">
                                 <Border Background="{StaticResource Panel100Brush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="APCI timer/window profile" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,0,0,10" ToolTip="IEC-104 STARTDT, TESTFR and APDU timing" />
@@ -3384,7 +3388,8 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
-                            </StackPanel>
+                                </StackPanel>
+                            </Expander>
 
                             <TextBlock Text="SESSION LIMIT" Style="{StaticResource EyebrowText}" Margin="0,4,0,8" />
                             <Grid Margin="0,0,0,12">
