@@ -180,6 +180,27 @@ public sealed class EventDeliveryEvidenceTests
     }
 
     [Fact]
+    public void SeparateObjectSequenceNumbersFromSamePhysicalFrameCountOnce()
+    {
+        var detector = new EventDeliverySequenceClassifier();
+        var t = new DateTime(2026, 11, 21, 2, 43, 34);
+        detector.Observe(Timed(500, ArrivalUtc, t), physicalFrameSequence: 500);
+        detector.Observe(Timed(501, ArrivalUtc.AddSeconds(1), t.AddMinutes(1)),
+            physicalFrameSequence: 501);
+        var oneFrame = detector.Observe(Timed(502, ArrivalUtc.AddSeconds(2),
+            t.AddMinutes(2)), physicalFrameSequence: 502);
+        Assert.Equal("Buffer", oneFrame.Label);
+        var sibling = detector.Observe(Timed(503, ArrivalUtc.AddSeconds(2),
+            t.AddMinutes(3)), physicalFrameSequence: 502);
+        Assert.Equal("Buffer", sibling.Label);
+        // Different object sequence number within parent frame #502 must not
+        // reset or advance the clock series; next normal frame ends the cue.
+        var normal = detector.Observe(Timed(504, ArrivalUtc.AddSeconds(3),
+            t.AddMinutes(2).AddSeconds(1)), physicalFrameSequence: 504);
+        Assert.Equal("Spontaneous", normal.Label);
+    }
+
+    [Fact]
     public void RestartAndClockRollbackDoNotCarryBufferIntoNewSequence()
     {
         var detector = new EventDeliverySequenceClassifier();
