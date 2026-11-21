@@ -71,6 +71,7 @@ Test run metadata: exact Git SHA, test build, machine/OS, RTU CPU/module/firmwar
 | P04 | CTS/DSR/DCD transitions under None vs RTS/CTS | Correct diagnostic; no silent RTS/DTR/baud/parity changes | C+D |
 | P05 | COM unplug during read, reconnect while queue pending | New epoch, bounded permitted auto-recovery, no hidden manual second Start, no mutating replay | A+C |
 | P06 | TX-only FC9: RTU LED TX/RX visible but Windows RX=0 | Precisely distinguish no driver RX from framing/transaction mismatch | A+C+D |
+| P06a | Legacy IEC-101 widths unverified after mode switch; Save / restart / Connect | Review provenance remains persisted in new schema. Show actual Link/COT/CA/IOA before initial active TX, No/Close yields zero TX, explicit Yes is required. Already approved 1-octet profiles remain legal. | A+C |
 | P07 | Identical adapter/cable/port with IEC_Test and ARIEC (one at a time) | Capture exact raw TX/RX and modem lines, document unexplained differences | C+D |
 | P08 | 1-h automated stress + extended physical soak | Stable bounded memory/task/queue depth, throughput and explicit loss counters; no hang | A+C+D |
 | P09 | GUI/RX high load, report export during capture | No blocking UI on COM reader; store and UI projections show truthful loss/health | A+C |
