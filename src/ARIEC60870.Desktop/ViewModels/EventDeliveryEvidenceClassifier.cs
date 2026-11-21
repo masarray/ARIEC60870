@@ -49,23 +49,25 @@ public static class EventDeliveryEvidenceClassifier
                 return new("Unknown", "COT does not identify buffering.");
         }
 
+        return new("Spontaneous",
+            "COT3 spontaneous. Individual timestamps and their absolute PC offset do not identify RTU buffering; sequence evidence is required.");
+    }
+
+    /// <summary>
+    /// Parsed CP56Time2a is an RTU wall clock. Keep Kind=Unspecified:
+    /// the RTU time zone is unknown, so only intra-source elapsed intervals
+    /// may be compared with elapsed PC reception intervals.
+    /// </summary>
+    internal static bool TryDeviceTimestamp(Iec103RelayEventLogEntry item, out DateTime timestamp)
+    {
         var text = item.RelayTimeText?.Trim() ?? string.Empty;
-        if (item.RelayTimeInvalid || string.IsNullOrEmpty(text) ||
-            text.StartsWith("PC ", StringComparison.OrdinalIgnoreCase) ||
-            text.Contains("invalid", StringComparison.OrdinalIgnoreCase) ||
-            !DateTime.TryParseExact(text, AbsoluteTimeFormats, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeLocal, out var deviceLocal) ||
-            item.ArrivalTimeUtc == DateTime.UnixEpoch)
-        {
-            return new("Spontaneous", "COT3 observed. No valid absolute device time to assess delivery delay.");
-        }
-
-        var delay = item.ArrivalTimeUtc.ToUniversalTime() - deviceLocal.ToUniversalTime();
-        if (delay >= TimeSpan.FromSeconds(30))
-            return new("Buffered?", "COT3 spontaneous with RTU timestamp at least 30 s older than PC receipt. Possible queued/buffered event; clock synchronization, RTU time zone and replay are NOT verified.");
-        if (delay.Duration() <= TimeSpan.FromSeconds(5))
-            return new("Spontaneous", "COT3 with near-coincident device and PC time; this does not prove direct live delivery.");
-
-        return new("Spontaneous", "COT3; device/host time difference is inconclusive without clock validation.");
+        timestamp = default;
+        return !item.RelayTimeInvalid &&
+               !string.IsNullOrWhiteSpace(text) &&
+               !text.StartsWith("PC ", StringComparison.OrdinalIgnoreCase) &&
+               !text.Contains("invalid", StringComparison.OrdinalIgnoreCase) &&
+               item.ArrivalTimeUtc != DateTime.UnixEpoch &&
+               DateTime.TryParseExact(text, AbsoluteTimeFormats,
+                   CultureInfo.InvariantCulture, DateTimeStyles.None, out timestamp);
     }
 }
