@@ -287,7 +287,7 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
         // until its first actual driver write attempt. A local scheduler flag must
         // never silently consume GI when no TI100/COT6 write has been attempted.
         var pendingClockSync = !reopened && _settings.SendClockSyncOnConnect;
-        if (_linkVerified && (pendingClockSync || StartupGiAwaitingFirstWrite))
+        if (_linkVerified && !_remoteDfcBusy && (pendingClockSync || StartupGiAwaitingFirstWrite))
         {
             var allowClockSync = pendingClockSync;
             pendingClockSync = false;
@@ -384,7 +384,9 @@ public sealed class Iec101MasterSession : IProtocolMasterSession, IProtocolComma
 
     private async Task RunVerifiedStartupActionsAsync(bool allowClockSync, CancellationToken cancellationToken)
     {
-        if (!_linkVerified) return;
+        // The initial FC9/FC0 exchange may have proved the secondary while
+        // simultaneously reporting DFC=1; no application GI/clock TX during busy.
+        if (!_linkVerified || _remoteDfcBusy) return;
         if (allowClockSync && _settings.SendClockSyncOnConnect)
         {
             await SendVariableAndReceiveAsync("IEC-101 clock sync", "Class 2",
