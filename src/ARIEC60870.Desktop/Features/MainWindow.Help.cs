@@ -73,10 +73,13 @@ public partial class MainWindow
             focused is System.Windows.Controls.TextBox { AcceptsReturn: true })
             return false;
 
-        // Only a real action Button (Cancel/Close/Browse/etc) retains Enter.
-        // CheckBox/ToggleButton derive ButtonBase but are not Button.
+        // Other action Buttons (Cancel/Close/Browse) retain Enter. The
+        // rail Setup button is the only exception: on the first opening it
+        // can still own focus until Dispatcher.Input runs. Enter must work
+        // immediately even in that transitional WPF focus epoch.
         return focused is not System.Windows.Controls.Button button ||
-            ReferenceEquals(button, SetupConnectButton);
+            ReferenceEquals(button, SetupConnectButton) ||
+            ReferenceEquals(button, SetupButton);
     }
 
     private void OpenHelpWindow(string topicKey)
