@@ -508,9 +508,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Desktop GUI publish failed.' }
           $exe = Join-Path $publish 'ARIEC60870.Desktop.exe'
           if (!(Test-Path $exe)) { throw 'Expected GUI executable missing.' }
-          # Instantiate actual WPF window and its resource dictionaries without opening any COM.
-          $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
-          if ($smoke.ExitCode -ne 0) { throw "Passive GUI smoke failed with process exit code $($smoke.ExitCode)." }
+          # Self-contained Windows app: verify it launches even if the external
+          # DOTNET_ROOT points to an empty directory. Never download runtimes
+          # on the user's PC or rely on a Visual Studio installation.
+          $env:DOTNET_ROOT = Join-Path $publish 'intentionally-missing-external-runtime'
+          $env:DOTNET_MULTILEVEL_LOOKUP = '0'
+          try {
+            $smoke = Start-Process -FilePath $exe -ArgumentList '--passive-gui-smoke' -Wait -PassThru -NoNewWindow
+            if ($smoke.ExitCode -ne 0) { throw "Self-contained GUI prerequisite isolation smoke failed: $($smoke.ExitCode)." }
+          } finally {
+            Remove-Item Env:DOTNET_ROOT,Env:DOTNET_MULTILEVEL_LOOKUP -ErrorAction SilentlyContinue
+          }
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           $zip = Join-Path $package 'ARIEC60870-Passive-Monitor-P0-GUI-win-x64.zip'
           # Package the current live-first operator workflow, not the retired record-first P0 guide.
