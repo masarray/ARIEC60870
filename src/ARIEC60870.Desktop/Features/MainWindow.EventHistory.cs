@@ -16,6 +16,7 @@ namespace ARIEC60870.Desktop;
 
 public partial class MainWindow
 {
+    private readonly EventDeliverySequenceClassifier _eventDeliverySequence = new();
     private EventHistoryJournal? _eventHistoryJournal;
     private EventHistoryAsyncWriter? _eventHistoryWriter;
 
@@ -52,6 +53,9 @@ public partial class MainWindow
 
     private void ResetEventHistory()
     {
+        // Session/epoch boundary: no prior link, CA or clock catch-up evidence
+        // may leak into a new connection or offline capture.
+        _eventDeliverySequence.Reset();
         _eventHistoryQueryCancel?.Cancel();
         _eventHistoryQueryCancel?.Dispose();
         _eventHistoryQueryCancel = null;
