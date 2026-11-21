@@ -72,7 +72,15 @@ async function runCase(browserName, browser, width, route) {
       const release = await page.locator("body").innerText();
       assert(release.includes("v" + version), "Published stable release identity missing: " + version);
       const video = page.locator("video").first();
-      assert.equal(await video.getAttribute("autoplay"), null, "Unwanted autoplay");
+      assert.equal(await video.getAttribute("autoplay"), null, "Autoplay must be opt-in for JS progressive enhancement");
+      assert(await video.getAttribute("data-auto-preview") !== null, "Lightweight preview hook missing");
+      assert(await video.getAttribute("controls") !== null, "Native Play/Pause controls must remain available");
+      assert.equal(await video.getAttribute("loop"), "", "Hero motion should use compact looping WebM");
+      assert(await video.locator('source[type="video/webm"]').count(), "WebM video source missing");
+      assert.equal(await page.locator("#capabilities .capability-item").count(), 8,
+        "Both landing languages must expose the same eight complete feature families");
+      assert.equal(await page.locator("#screens .zoom-trigger").count(), 11,
+        "The product landing must show eleven distinct application screenshots");
       const trustCards = page.locator("#open-engineering .credibility-grid article");
       assert.equal(await trustCards.count(), 3, "Public evidence section needs three source-backed pillars");
       for (const card of await trustCards.all()) {
@@ -96,15 +104,28 @@ async function runCase(browserName, browser, width, route) {
     if (width === 390 && (route === "index.html" || route === "id/index.html" ||
       route === "demo.html" || route === "id/demo.html")) {
       const gallery = page.locator(".zoom-trigger");
-      assert.equal(await gallery.count(), 4, "Four gallery screenshots expected");
+      const expectedGallerySize = route.endsWith("index.html") ? 11 : 4;
+      assert.equal(await gallery.count(), expectedGallerySize,
+        "The product home must expose 11 screenshots; the focused demo retains four");
+      if (route.endsWith("index.html")) {
+        const paths = await gallery.evaluateAll(elements => elements.map(element => element.dataset.full));
+        assert.equal(new Set(paths).size, 11, "Duplicate application screenshots are not useful");
+        for (const element of await gallery.all()) {
+          const image = element.locator("img");
+          assert.equal(await image.getAttribute("loading"), "lazy", "Screenshots must load lazily");
+          assert(await image.getAttribute("alt"), "Screenshot requires descriptive alternative text");
+        }
+        const isPaused = await page.locator("video[data-auto-preview]").first().evaluate(video => video.paused);
+        assert(isPaused, "Reduced-motion preference must not start autoplaying video");
+      }
       await gallery.first().click();
       const dialog = page.locator(".lightbox");
       assert(await dialog.evaluate(element => element.open), "Gallery modal did not open");
       assert(await page.locator(".lightbox-prev").isDisabled(), "Previous at first image should be disabled");
       await page.locator(".lightbox-next").click();
-      assert((await page.locator(".lightbox figcaption").innerText()).includes("2 / 4"), "Gallery next failed");
+      assert((await page.locator(".lightbox figcaption").innerText()).includes("2 / " + expectedGallerySize), "Gallery next failed");
       await page.keyboard.press("ArrowLeft");
-      assert((await page.locator(".lightbox figcaption").innerText()).includes("1 / 4"), "Gallery ArrowLeft failed");
+      assert((await page.locator(".lightbox figcaption").innerText()).includes("1 / " + expectedGallerySize), "Gallery ArrowLeft failed");
       const imageLoaded = await page.locator(".lightbox img").evaluate(img =>
         img.decode().then(() => img.naturalWidth > 0).catch(() => false));
       assert(imageLoaded, "Expanded gallery image failed to load");

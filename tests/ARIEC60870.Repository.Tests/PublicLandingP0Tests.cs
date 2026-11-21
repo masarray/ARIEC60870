@@ -14,7 +14,7 @@ public sealed class PublicLandingP0Tests
     [InlineData("site/id/index.html")]
     [InlineData("docs/index.html")]
     [InlineData("docs/id/index.html")]
-    public void LandingGalleryHasWorkingZoomMarkupAndFourDifferentScreenshots(string page)
+    public void LandingGalleryHasElevenDistinctRealScreenshots(string page)
     {
         var path = Path.Combine(RepositoryRoot().FullName, page.Replace('/', Path.DirectorySeparatorChar));
         var html = File.ReadAllText(path);
@@ -26,7 +26,7 @@ public sealed class PublicLandingP0Tests
         var screenshots = Regex.Matches(
             html,
             @"class=""screen-frame zoom-trigger""[^>]*data-full=""(?<src>[^""]+)""");
-        Assert.Equal(4, screenshots.Count);
+        Assert.Equal(11, screenshots.Count);
 
         var uniqueImageHashes = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match screenshot in screenshots)

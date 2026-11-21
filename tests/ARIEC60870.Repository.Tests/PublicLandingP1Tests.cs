@@ -89,6 +89,51 @@ public sealed class PublicLandingP1Tests
         Assert.Contains("class=\"lang-switch\"", nav);
     }
 
+    [Theory]
+    [InlineData("site/index.html", "docs/index.html")]
+    [InlineData("site/id/index.html", "docs/id/index.html")]
+    public void ProductLandingsExposeFullFeatureAtlasAndRealScreenshots(string sitePath, string mirrorPath)
+    {
+        var root = RepositoryRoot();
+        var site = File.ReadAllText(Path.Combine(root.FullName, sitePath.Replace('/', Path.DirectorySeparatorChar)));
+        var mirror = File.ReadAllText(Path.Combine(root.FullName, mirrorPath.Replace('/', Path.DirectorySeparatorChar)));
+
+        Assert.Equal(site, mirror);
+        Assert.Contains("id=\"capabilities\"", site);
+        Assert.Equal(8, Regex.Matches(site, "class=\"capability-item\"").Count);
+        Assert.Equal(11, Regex.Matches(site, "class=\"screen-frame zoom-trigger\"").Count);
+        Assert.Contains("data-auto-preview", site);
+        Assert.Contains("IEC-60870.webm", site);
+        Assert.DoesNotContain("<video autoplay", site);
+
+        var paths = Regex.Matches(site, @"data-full=""(?<path>[^""]+\.webp)""")
+            .Select(match => match.Groups["path"].Value)
+            .ToArray();
+        Assert.Equal(11, paths.Length);
+        Assert.Equal(paths.Length, paths.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        foreach (var image in paths)
+        {
+            var relative = image.StartsWith("../", StringComparison.Ordinal) ? "site/" + image[3..] : "site/" + image;
+            Assert.True(File.Exists(Path.Combine(root.FullName, relative.Replace('/', Path.DirectorySeparatorChar))),
+                $"Missing screenshot: {image}");
+        }
+    }
+
+    [Fact]
+    public void LightweightMotionHonorsVisitorPreferences()
+    {
+        var root = RepositoryRoot();
+        var script = File.ReadAllText(Path.Combine(root.FullName, "site/script.js"));
+        var css = File.ReadAllText(Path.Combine(root.FullName, "site/styles.css"));
+        Assert.Contains("IntersectionObserver", script);
+        Assert.Contains("prefers-reduced-motion: reduce", script);
+        Assert.Contains("navigator.connection?.saveData", script);
+        Assert.Contains("autoPreview.play().catch", script);
+        Assert.Contains("capability-atlas", css);
+        Assert.Equal(script, File.ReadAllText(Path.Combine(root.FullName, "docs/script.js")));
+        Assert.Equal(css, File.ReadAllText(Path.Combine(root.FullName, "docs/styles.css")));
+    }
+
     [Fact]
     public void SharedMobileNavigationIsKeyboardFriendlyAndHasNoJsFallback()
     {

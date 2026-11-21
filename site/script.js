@@ -141,4 +141,22 @@
     screenshotOpener?.focus();
     screenshotOpener = null;
   });
+  // Lightweight autoplay enhancement: the page remains usable with JS disabled.
+  // Motion starts only when the hero is visible and the visitor has not asked
+  // for reduced motion or data saving. Native controls always allow manual pause.
+  const autoPreview = document.querySelector("video[data-auto-preview]");
+  if (autoPreview && "IntersectionObserver" in window &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
+      !navigator.connection?.saveData) {
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= 0.35)) return;
+      observer.disconnect();
+      autoPreview.play().catch(() => { /* Native Play control is the fallback. */ });
+    }, { threshold: 0.35 });
+    observer.observe(autoPreview);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && !autoPreview.paused) autoPreview.pause();
+    });
+  }
+
 })();
