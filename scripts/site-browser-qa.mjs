@@ -168,6 +168,63 @@ async function fallbackCase(browserName, browser) {
   }
 }
 
+async function releaseResolverCase(browserName, browser, route) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
+  const entry = { label, browser: browserName, width: 390, route, mode: "release-api", passed: false };
+  const errorsOnPage = [];
+  results.push(entry);
+  page.on("pageerror", error => errorsOnPage.push(String(error)));
+  const repoUrl = "https://github.com/masarray/arsee";
+  function fakeRelease(tag, publishedAt, prerelease, complete = true) {
+    const prefix = "ArSee-" + tag;
+    const names = [prefix + "-setup-win-x64.exe", prefix + "-win-x64.zip",
+      "SHA256SUMS.txt", prefix + "-sbom.spdx.json"];
+    return {
+      tag_name: tag, published_at: publishedAt, prerelease, draft: false,
+      html_url: repoUrl + "/releases/tag/" + tag,
+      assets: names.slice(0, complete ? 4 : 1).map(name => ({
+        name,
+        size: name === "SHA256SUMS.txt" ? 288 :
+          name.endsWith("-sbom.spdx.json") ? 4500 : 70000000,
+        browser_download_url: repoUrl + "/releases/download/" + tag + "/" + name,
+      })),
+    };
+  }
+  try {
+    // The fake tags are TEST FIXTURES, not real releases. Newer incomplete
+    // stable and newer prerelease must not displace the complete stable.
+    const apiData = [
+      fakeRelease("v9.9.11", "2026-11-24T00:00:00Z", false, false),
+      fakeRelease("v9.9.10-rc.1", "2026-11-23T00:00:00Z", true),
+      fakeRelease("v9.9.9", "2026-11-22T00:00:00Z", false),
+    ];
+    await page.route("https://api.github.com/repos/masarray/arsee/releases?per_page=30",
+      request => request.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify(apiData) }));
+    const response = await page.goto(new URL(route, origin).href,
+      { waitUntil: "domcontentloaded", timeout: 45000 });
+    assert(response && response.ok(), "Release resolver page not reachable");
+    await page.waitForFunction(() =>
+      document.querySelector("[data-release-version]")?.textContent === "v9.9.9",
+      null, { timeout: 8000 });
+    const prefix = repoUrl + "/releases/download/v9.9.9/ArSee-v9.9.9-";
+    assert(await page.locator('a[href="' + prefix + 'setup-win-x64.exe"]').count(),
+      "Resolver did not select complete stable installer");
+    assert(await page.locator('a[href="' + prefix + 'win-x64.zip"]').count(),
+      "Resolver did not select complete stable portable ZIP");
+    assert.equal(await page.locator('meta[name="application-version"]').getAttribute("content"),
+      "9.9.9", "API version did not update structured page metadata");
+    assert.equal(errorsOnPage.length, 0, "Browser JS errors: " + errorsOnPage.join("; "));
+    entry.passed = true;
+  } catch (error) {
+    entry.error = String(error?.message || error);
+    errors.push(entry);
+    console.error("FAIL " + browserName + " release resolver " + route + " " + entry.error);
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   for (const [name, engine] of [["chromium", chromium], ["firefox", firefox]]) {
     const browser = await engine.launch({ headless: true });
@@ -177,6 +234,8 @@ try {
         console.log("Checked " + label + " / " + name + " / " + width + "px");
       }
       await fallbackCase(name, browser);
+      for (const route of ["download.html", "id/download.html"])
+        await releaseResolverCase(name, browser, route);
     } finally {
       await browser.close();
     }
