@@ -1778,11 +1778,10 @@ p { color: var(--muted); }
   border-top: 1px solid var(--public-rule); border-radius: 0;
   background: transparent; box-shadow: none; transform: none;
 }
-.landing-home #product .proof-card .card-top-icon {
-  display: inline-flex; width: 27px; height: 27px; margin-bottom: 9px;
-  border-radius: 7px; background: #eef5f8; box-shadow: none;
+.landing-home #product .proof-card .proof-index {
+  display: block; margin-bottom: 9px; color: var(--brand-ink);
+  font-size: 10.5px; font-weight: 580; line-height: 1.4; letter-spacing: .05em;
 }
-.landing-home #product .proof-card .card-top-icon .material-icon { width: 15px; height: 15px; }
 .landing-home #product .proof-card strong { display: block; max-width: 40ch; margin-bottom: 6px; font-size: 14.2px; font-weight: 560; line-height: 1.4; }
 .landing-home #product .proof-card span:not(.card-top-icon) {
   display: block; max-width: 60ch; font-size: 13.5px; line-height: 1.72; color: var(--muted);
