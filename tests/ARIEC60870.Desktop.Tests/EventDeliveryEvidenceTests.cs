@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Globalization;
+using ARIEC60870.Core.Model;
+using ARIEC60870.Core.Parsing;
 using ARIEC60870.Desktop.ViewModels;
 using ARIEC60870.Master.Model;
 using ARIEC60870.Master.Protocol.Iec10x;
@@ -236,6 +238,158 @@ public sealed class EventDeliveryEvidenceTests
         Assert.Equal("Spontaneous", detector.Observe(observations[4]).Label);
         Assert.Equal("Spontaneous", detector.Observe(
             Timed(6, ArrivalUtc.AddMinutes(2), t.AddHours(1))).Label);
+    }
+
+    private static Iec103MasterEvidenceEvent Wire(
+        long sequence, bool primary, bool acd = false,
+        string source = "Link A", byte? controlOverride = null, long? parent = null)
+    {
+        const byte link = 105;
+        var control = controlOverride ?? (primary ? (byte)0x5A :
+            acd ? (byte)0x28 : (byte)0x08);
+        byte[] wire;
+        if (primary)
+        {
+            wire = [0x10, control, link, (byte)((control + link) & 0xFF), 0x16];
+        }
+        else
+        {
+            // Real FT1.2 variable frame: C=0x28 ACD=1 / C=0x08 ACD=0.
+            // Type30, VSQ1, COT3, CA1, IOA7, SPS and CP56Time2a.
+            byte[] asdu =
+                [30, 1, 3, 0, 1, 0, 7, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
+            var length = asdu.Length + 2;
+            wire = new byte[length + 6];
+            wire[0] = 0x68;
+            wire[1] = (byte)length;
+            wire[2] = (byte)length;
+            wire[3] = 0x68;
+            wire[4] = control;
+            wire[5] = link;
+            Array.Copy(asdu, 0, wire, 6, asdu.Length);
+            wire[4 + length] = (byte)(wire.AsSpan(4, length).ToArray()
+                .Sum(x => (int)x) & 0xFF);
+            wire[5 + length] = 0x16;
+        }
+
+        var parsed = Ft12Parser.ForIec101(1).Decode(wire);
+        Assert.True(parsed.IsLengthValid);
+        Assert.True(parsed.IsChecksumValid);
+        return new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = sequence,
+            PhysicalFrameSequenceNumber = parent,
+            TimestampUtc = ArrivalUtc.AddMilliseconds(sequence),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = source,
+            Direction = primary ? FrameDirection.MasterToSlave :
+                FrameDirection.SlaveToMaster,
+            LinkAddress = link,
+            RawHex = parsed.Hex,
+            Frame = parsed
+        };
+    }
+
+    [Fact]
+    public void MatchedFc10AcdQueuePendingLabelsBufferAndClearsWithAcdZero()
+    {
+        var tracker = new EventFrameExchangeTracker();
+        var detector = new EventDeliverySequenceClassifier();
+        var device = new DateTime(2026, 11, 21, 3, 20, 50);
+        for (var i = 0; i < 6; i++)
+        {
+            var poll = Wire(1000 + i * 2, primary: true);
+            var reply = Wire(1001 + i * 2, primary: false, acd: i < 4);
+            tracker.Observe(poll);
+            tracker.Observe(reply);
+            var matched = tracker.RequestForEvent(reply);
+            Assert.Same(poll, matched);
+            var pending = EventDeliverySequenceClassifier
+                .VerifiedIec101Class1Pending(reply, matched);
+            Assert.Equal(i < 4, pending);
+            var source = Timed(reply.SequenceNumber, ArrivalUtc.AddMilliseconds(i * 100d),
+                device.AddMilliseconds(i * 100d));
+            var result = detector.Observe(source,
+                physicalFrameSequence: reply.SequenceNumber,
+                verifiedClass1Pending: pending);
+            Assert.Equal(i < 4 ? "Buffer" : "Spontaneous", result.Label);
+            var cot = new RelayEventRow(source, reply,
+                observedRequestFrame: poll, deliveryEvidence: result).CotLabel;
+            Assert.Equal(i < 4 ? "3 · spontaneous (buffer)" : "3 · spontaneous", cot);
+        }
+    }
+
+    [Fact]
+    public void ACDObservationNeedsExactValidFc10Fc8PairNotNearbyPolling()
+    {
+        var poll = Wire(200, primary: true);
+        var acd = Wire(201, primary: false, acd: true);
+        Assert.True(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(acd, poll));
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(acd, null));
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(acd,
+                Wire(199, primary: true, controlOverride: 0x5B)));
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(acd,
+                Wire(199, primary: true, source: "Link B")));
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(Wire(202, primary: false,
+                acd: true, source: "Link B"), poll));
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(Wire(203, primary: false,
+                acd: true, controlOverride: 0x29), poll));
+
+        var invalid = new Iec103MasterEvidenceEvent
+        {
+            SequenceNumber = 204,
+            TimestampUtc = ArrivalUtc.AddSeconds(1),
+            ProtocolMode = Iec60870ProtocolMode.Iec101,
+            PhysicalSource = "Link A",
+            Direction = FrameDirection.SlaveToMaster,
+            LinkAddress = 105,
+            RawHex = "10 28 69 00 16",
+            Frame = new Ft12FrameDecode
+            {
+                IsLengthValid = true,
+                IsChecksumValid = false,
+                LinkAddress = 105,
+                LinkControl = new LinkControlInfo
+                {
+                    Prm = false,
+                    FunctionCode = 8,
+                    Acd = true
+                }
+            }
+        };
+        Assert.Null(EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(invalid, poll));
+    }
+
+    [Fact]
+    public void SamePhysicalResponseSiblingSharesWireDecisionAndSessionReset()
+    {
+        var tracker = new EventFrameExchangeTracker();
+        var detector = new EventDeliverySequenceClassifier();
+        var tx = Wire(300, primary: true);
+        var rx = Wire(301, primary: false, acd: true, parent: 301);
+        var sibling = Wire(302, primary: false, acd: true, parent: 301);
+        tracker.Observe(tx);
+        tracker.Observe(rx);
+        var matched = tracker.RequestForEvent(rx);
+        Assert.Same(tx, tracker.RequestForEvent(sibling));
+        var pending = EventDeliverySequenceClassifier
+            .VerifiedIec101Class1Pending(rx, matched);
+        var first = Timed(301, ArrivalUtc, new DateTime(2026, 11, 21, 3, 20, 50));
+        var second = Timed(302, ArrivalUtc, new DateTime(2026, 11, 21, 3, 20, 51));
+        Assert.Equal("Buffer", detector.Observe(first,
+            physicalFrameSequence: 301, verifiedClass1Pending: pending).Label);
+        Assert.Equal("Buffer", detector.Observe(second,
+            physicalFrameSequence: 301, verifiedClass1Pending: pending).Label);
+        detector.Reset();
+        Assert.Equal("Spontaneous", detector.Observe(first,
+            physicalFrameSequence: 301).Label);
     }
 
     [Fact]

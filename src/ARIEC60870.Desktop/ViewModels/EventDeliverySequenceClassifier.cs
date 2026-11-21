@@ -23,13 +23,31 @@ public sealed class EventDeliverySequenceClassifier
 
     public void Reset() => _sources.Clear();
 
+    /// <summary>Return only the Class-1 queue indication from an EXACT,
+    /// validated physical FC10 TX -> addressed FC8 RX exchange. An unmatched
+    /// reply, FC11, other source or invalid frame can never infer queue state.
+    /// ACD=1 reports additional Class 1 data pending, not age of this event.</summary>
+    public static bool? VerifiedIec101Class1Pending(
+        Iec103MasterEvidenceEvent reply, Iec103MasterEvidenceEvent? request)
+    {
+        ArgumentNullException.ThrowIfNull(reply);
+        if (request?.Frame?.LinkControl is not { Prm: true, FunctionCode: 10 } ||
+            !EventFrameExchange.IsObservedPollReply(request, reply) ||
+            reply.Frame?.LinkControl is not { Prm: false, FunctionCode: 8, Acd: bool })
+            return null;
+        return reply.Frame.LinkControl.Acd;
+    }
+
     public EventDeliveryEvidence Observe(Iec103RelayEventLogEntry item,
-        long? physicalFrameSequence = null, string? connectionInstance = null)
+        long? physicalFrameSequence = null, string? connectionInstance = null,
+        bool? verifiedClass1Pending = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         var semantic = EventDeliveryEvidenceClassifier.Classify(item);
-        if (semantic.Label != "Spontaneous" ||
-            !EventDeliveryEvidenceClassifier.TryDeviceTimestamp(item, out var device))
+        if (semantic.Label != "Spontaneous") return semantic;
+        var hasDeviceTime = EventDeliveryEvidenceClassifier.TryDeviceTimestamp(
+            item, out var device);
+        if (!hasDeviceTime && verifiedClass1Pending is null)
             return semantic;
 
         var key = new SourceKey(item.ProtocolMode, item.PhysicalSource ?? string.Empty,
@@ -60,6 +78,33 @@ public sealed class EventDeliverySequenceClassifier
             return state.LastDecision;
         }
 
+        // IEC-101 has an authoritative, *frame-linked* queue pending signal:
+        // ACD in the accepted FC8 reply to this exact FC10 Class 1 request.
+        // This takes precedence over speculative clock/catch-up inference.
+        // ACD=0 ends the cue on this very event, without any hysteresis.
+        if (verifiedClass1Pending is bool pending)
+        {
+            var observed = pending
+                ? new EventDeliveryEvidence("Buffer",
+                    "Observed IEC-101 FC10 → FC8 with secondary ACD=1: " +
+                    "additional Class 1 data pending at the RTU. " +
+                    "The (buffer) cue refers to a reported pending Class 1 queue, " +
+                    "not proven historical age or FIFO origin of this individual event.")
+                : new EventDeliveryEvidence("Spontaneous",
+                    "Observed IEC-101 FC10 → FC8 with secondary ACD=0: " +
+                    "no further Class 1 demand reported in this reply. " +
+                    "This does not prove the event was generated in real time.");
+            state.HasObservation = false;
+            state.CatchupPairs = 0;
+            state.LastArrivalUtc = host;
+            state.LastFrameSequence = frameSequence;
+            state.LastDecision = observed;
+            return observed;
+        }
+
+        // Without usable IEC-101 wire queue state, retain the conservative
+        // cross-protocol timestamp catch-up heuristic (e.g. IEC-104 replay).
+        if (!hasDeviceTime) return semantic;
         var label = semantic;
         if (state.HasObservation)
         {

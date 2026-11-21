@@ -639,10 +639,21 @@ public partial class MainWindow
                 QualityDetails = item.QualityDetails ?? item.InformationObjectDetails?.QualityDetails,
                 CauseDetails = item.CauseDetails ?? item.AsduDetails?.CauseDetails
             };
+            // The original physical RX/TX exchange is already tracked
+            // independently of the bounded Trace grid. Match before deciding
+            // whether the RTU reports pending Class-1 data on this reply.
+            // No retry, poll or on-wire command is generated here.
+            var observedRequest = item.ProtocolMode == Iec60870ProtocolMode.Iec101
+                ? _eventHistoryExchanges.RequestForEvent(item) : null;
+            var class1Pending = item.ProtocolMode == Iec60870ProtocolMode.Iec101
+                ? EventDeliverySequenceClassifier.VerifiedIec101Class1Pending(
+                    item, observedRequest)
+                : null;
             var relayEventRow = new RelayEventRow(eventSource, item,
+                observedRequestFrame: observedRequest,
                 deliveryEvidence: _eventDeliverySequence.Observe(eventSource,
                     item.PhysicalFrameSequenceNumber ?? item.SequenceNumber,
-                    item.ConnectionInstanceId));
+                    item.ConnectionInstanceId, class1Pending));
 
             RecordEventHistory(relayEventRow);
             _relayEventStore.Add(relayEventRow);
