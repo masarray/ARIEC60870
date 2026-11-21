@@ -97,7 +97,9 @@ public sealed class SmartRedundancyUxTests
             LinkA = afterPoll.LinkA,
             LinkB = new Iec101RedundancyChannelSnapshot
             {
-                Name = "Link B", PortName = "COM2", LinkAddress = 105,
+                Name = "Link B",
+                PortName = "COM2",
+                LinkAddress = 105,
                 Role = Iec101RedundancyChannelRole.Standby,
                 IsHealthy = false,
                 State = Iec101RedundancyChannelState.FailedLatched,
@@ -121,17 +123,23 @@ public sealed class SmartRedundancyUxTests
         LastStandbySupervisionUtc = DateTime.UtcNow,
         LinkA = new Iec101RedundancyChannelSnapshot
         {
-            Name = "Link A", PortName = "COM1", LinkAddress = 105,
+            Name = "Link A",
+            PortName = "COM1",
+            LinkAddress = 105,
             Role = Iec101RedundancyChannelRole.Active,
             State = Iec101RedundancyChannelState.ActivePolling,
-            IsHealthy = true, RxFrames = aRx
+            IsHealthy = true,
+            RxFrames = aRx
         },
         LinkB = new Iec101RedundancyChannelSnapshot
         {
-            Name = "Link B", PortName = "COM2", LinkAddress = 105,
+            Name = "Link B",
+            PortName = "COM2",
+            LinkAddress = 105,
             Role = Iec101RedundancyChannelRole.Standby,
             State = Iec101RedundancyChannelState.StandbySupervising,
-            IsHealthy = true, RxFrames = bRx
+            IsHealthy = true,
+            RxFrames = bRx
         }
     };
 
