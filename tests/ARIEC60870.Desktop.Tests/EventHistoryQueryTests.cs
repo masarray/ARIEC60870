@@ -50,6 +50,45 @@ public sealed class EventHistoryQueryTests
         row.TypeId == "30" ? "Digital" : "Measurement";
 
     [Fact]
+    public void NewSessionKeepsExcludeAndSearchFiltersBeforeFirstLiveTailRefresh()
+    {
+        // The event scope is a UI preference, whereas the indexed journal is
+        // session-scoped. A new journal starts with zero rows but MUST retain
+        // a filtered ordinal index, including when the first events arrive.
+        var included = All;
+        var excluded = new[] { "Measurement" };
+        using var firstSession = new EventHistoryJournal();
+        var scope = EventHistoryQueryEngine.EmptyForScope(
+            "", included, excluded);
+        Assert.True(scope.IsFiltered);
+        for (var i = 1; i <= 8; i++) firstSession.Append(Make(i));
+        scope = EventHistoryQueryEngine.Extend(firstSession, scope,
+            firstSession.Count, "", included, excluded, Category);
+        Assert.Equal([1L, 3L, 5L, 7L],
+            scope.ReadPage(firstSession, 0).Select(x => x.EventNumber).ToArray());
+
+        using var reconnectedSession = new EventHistoryJournal();
+        scope = EventHistoryQueryEngine.EmptyForScope(
+            "", included, excluded);
+        for (var i = 1; i <= 6; i++) reconnectedSession.Append(Make(i));
+        scope = EventHistoryQueryEngine.Extend(reconnectedSession, scope,
+            reconnectedSession.Count, "", included, excluded, Category);
+        Assert.Equal([1L, 3L, 5L],
+            scope.ReadPage(reconnectedSession, 0).Select(x => x.EventNumber).ToArray());
+
+        var searched = EventHistoryQueryEngine.EmptyForScope(
+            "#5", All, Array.Empty<string>());
+        Assert.True(searched.IsFiltered);
+        searched = EventHistoryQueryEngine.Extend(reconnectedSession, searched,
+            reconnectedSession.Count, "#5", All, [], Category);
+        Assert.Equal(5, Assert.Single(
+            searched.ReadPage(reconnectedSession, 0)).EventNumber);
+
+        Assert.False(EventHistoryQueryEngine.EmptyForScope(
+            "", All, []).IsFiltered);
+    }
+
+    [Fact]
     public void FullHistoryFiltersNumbersAndCsvExtendBeyondPreview420()
     {
         using var journal = new EventHistoryJournal();
