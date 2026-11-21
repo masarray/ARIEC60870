@@ -42,6 +42,30 @@ async function runCase(browserName, browser, width, route) {
     });
     entry.visual = visual;
     assert(visual.hasCss, "Shared stylesheet did not load");
+    const typography = await page.evaluate(async () => {
+      await document.fonts.load('400 15px "Inter"');
+      await document.fonts.ready;
+      const body = getComputedStyle(document.body);
+      const loaded = [...document.fonts].some(face => face.family === "Inter" && face.status === "loaded");
+      const heading = getComputedStyle(document.querySelector("h1"));
+      const sample = document.querySelector(".hero-copy .lead, .doc-hero p, main p");
+      const color = getComputedStyle(sample).color;
+      return { family: body.fontFamily, loaded, h1Px: parseFloat(heading.fontSize), textColor: color };
+    });
+    assert(typography.family.startsWith('"Inter"') || typography.family.startsWith("Inter,"),
+      "ArSee public pages must use the bundled Inter font: " + typography.family);
+    assert(typography.loaded, "Self-hosted Inter font did not load on " + route);
+    assert(typography.h1Px <= 37, "Oversized/bulky page headline: " + typography.h1Px);
+    const rgb = typography.textColor.match(/[\\d.]+/g)?.slice(0, 3).map(Number);
+    assert(rgb && rgb.length === 3, "Could not inspect body text contrast");
+    const linear = rgb.map(n => {
+      const c = n / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    const contrast = 1.05 / (0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2] + 0.05);
+    assert(contrast >= 4.5, "Text must meet readable WCAG AA contrast: " + contrast.toFixed(2));
+    entry.typography = { ...typography, contrast: +contrast.toFixed(2) };
+
     assert(visual.documentWidth <= visual.viewport + 3, "Horizontal document overflow: " + JSON.stringify(visual));
     assert(visual.headingLeft >= -3 && visual.headingRight <= width + 3, "H1 clipped: " + JSON.stringify(visual));
     assert.equal(visual.language, route.startsWith("id/") ? "id" : "en", "Wrong language");
@@ -93,6 +117,10 @@ async function runCase(browserName, browser, width, route) {
       assert.deepEqual(sectionIds, ["product", "screens", "capabilities",
         "open-engineering", "wiki", "download"],
         "The product tour must flow from benefits through screenshots, features, trust and download");
+      const hero = page.locator(".hero");
+      assert.equal(await hero.locator(".metric-row").count(), 0, "Hero must not repeat three bulky metric tiles");
+      assert.equal(await hero.locator(".trust-strip").count(), 0, "Hero must not duplicate source-backed benefit copy");
+      assert.equal(await hero.locator(".preview-meta").count(), 1, "Video needs one understated preview caption");
       const galleryGrid = page.locator("#screens .screen-grid");
       if (width <= 620) {
         const mobileGallery = await galleryGrid.evaluate(element => ({

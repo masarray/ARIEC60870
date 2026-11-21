@@ -19,6 +19,8 @@ For registered legacy v3.6.17/v3.6.18 installations in `Programs/ARIEC60870`, cl
 
 Edit `site/` and run `scripts/sync-github-pages-docs-mirror.ps1` to refresh `docs/`. Do not maintain two separate public sites.
 
+Self-hosted typography: `assets/fonts/InterVariable.woff2` is the upstream Inter Variable WOFF2 from [`rsms/inter`](https://github.com/rsms/inter) (pinned Git blob `5a8d3e72ad7ffb62af3b146e1b1f54ab5813a212`), redistributed under SIL OFL 1.1 in `assets/fonts/OFL.txt`. The shared `styles.css` uses a single local `@font-face` without Google Fonts/CDN calls; primary EN/ID product, demo and download pages preload it. Keep `site/` and `docs/` font and license bytes identical.
+
 Local preview: `python -m http.server 8080 --directory site`.
 
 The product is **ArSee**. The canonical Pages path is `/arsee/`; `/ARIEC60870/` is historical and is not the active GitHub Pages project URL. See [rename runbook](../docs/ARSEE_REBRANDING_REPOSITORY_RENAME_20261112.md).
