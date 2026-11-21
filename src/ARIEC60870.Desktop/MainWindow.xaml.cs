@@ -361,12 +361,21 @@ public partial class MainWindow : Window
 
     private void CloseSetupAndConnect_Click(object sender, RoutedEventArgs e)
     {
-        if (_sessionCancellation is null)
-            SaveSetupPreferencesFromUi(silent: true);
-        SetupOverlay.Visibility = Visibility.Collapsed;
-        // Reuse the exact same Start/Stop session lifecycle as the rail;
-        // no duplicate disconnect logic, command transactions or transport.
+        // Connected Setup remains an inspector after Disconnect. The operator
+        // must be able to edit/reconnect without reopening the modal panel.
+        // Only a successful Connect closes it; invalid settings remain visible.
+        if (_sessionCancellation is not null)
+        {
+            ConnectToggle_Click(sender, e);
+            return;
+        }
+
+        SaveSetupPreferencesFromUi(silent: true);
+        // Reuse the exact existing Start lifecycle, including validation and
+        // passive-mode handling. Do not hide a failed Connection attempt.
         ConnectToggle_Click(sender, e);
+        if (_sessionCancellation is not null)
+            SetupOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void RefreshPorts()
