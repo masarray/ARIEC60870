@@ -227,7 +227,8 @@ public static class EventHistoryCsvExporter
                             row.TypeId, row.Cot, row.RequestFcCode, row.Quality,
                             row.IsQualityInvalid ? "true" : "false",
                             original?.EvidenceReference ?? row.EvidenceReference,
-                            original?.RawHex ?? row.RawHex
+                            original?.RawHex ?? row.RawHex,
+                            row.DeliveryHint, row.DeliveryEvidence.Basis
                         };
                         await csv.WriteLineAsync(string.Join(",", data.Select(Escape))).ConfigureAwait(false);
                         written++;
