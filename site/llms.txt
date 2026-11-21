@@ -3,21 +3,26 @@
 Free Apache-2.0 Windows IEC 60870-5-101, IEC 60870-5-103 and IEC 60870-5-104 tester and evidence analyzer. Inspect original TX/RX frames, supported values/events, findings and native PDF reports. Not a production SCADA or certified IEC conformance suite.
 
 ## Published builds
-- Latest public stable v3.6.19: https://github.com/masarray/arsee/releases/tag/v3.6.19
-- Stable Windows installer: https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-setup-win-x64.exe
-- Stable Windows portable ZIP: https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-win-x64.zip
-- Stable SHA-256: https://github.com/masarray/arsee/releases/download/v3.6.19/SHA256SUMS.txt
-- Previous stable v3.6.18: https://github.com/masarray/arsee/releases/tag/v3.6.18
-- Archived public prerelease v3.6.17-rc.7: https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7
-- Exact-source stable Package/provenance: https://github.com/masarray/arsee/actions/runs/44869528440
-- Native Windows previous-release updater and branded installer migration FAT: https://github.com/masarray/arsee/actions/runs/44869011472
+- Latest public stable v3.6.20: https://github.com/masarray/arsee/releases/tag/v3.6.20
+- Stable Windows installer: https://github.com/masarray/arsee/releases/download/v3.6.20/ArSee-v3.6.20-setup-win-x64.exe
+- Stable Windows portable ZIP: https://github.com/masarray/arsee/releases/download/v3.6.20/ArSee-v3.6.20-win-x64.zip
+- Stable SHA-256: https://github.com/masarray/arsee/releases/download/v3.6.20/SHA256SUMS.txt
+- Previous stable v3.6.19: https://github.com/masarray/arsee/releases/tag/v3.6.19
+- Archived public prerelease v3.6.20-rc.1: https://github.com/masarray/arsee/releases/tag/v3.6.20-rc.1
+- Exact-source stable Package/provenance: https://github.com/masarray/arsee/actions/runs/44898156357
+- Native Windows previous-release updater and branded installer migration FAT: https://github.com/masarray/arsee/actions/runs/44897646916
 - Historical IEC-101 draft #145 is closed superseded; physical RTU/SCADA FAT remains separately unverified.
 
-## Stable v3.6.19 improvements (published 21 November 2026)
-- IEC-101 Class-1 queue evidence uses validated original FC10 request / FC8 reply and ACD=1 to add inline `3 · spontaneous (buffer)`, disappearing for new events on ACD=0; no claim of a universal per-event FIFO-origin/age flag.
-- Working IEC-101 field widths persist across IEC-103/104 setup switches; IEC-104 settings and Frame Details are more compact, and command feedback/redundancy presentation is clearer.
-- Native Windows updater and authentic v3.6.17/v3.6.18 program-folder migration tests passed; legacy installs use official direct setup, user workspace remains under `%LOCALAPPDATA%/ARIEC60870`.
-- Tested Windows software package, **not** multi-vendor RTU conformance or physical FIFO/overflow certification.
+## Stable v3.6.20 improvements (published 21 November 2026)
+- Operator-tested IEC-101 first-Connect automatic GI, active A/B ownership and safe COM recovery, without replaying ambiguous transmitted commands.
+- Compact, readable Redundancy timeline; Enter immediately on first opening Connection Setup triggers Connect; Disconnect keeps Setup open.
+- Events Include/Exclude filters persist across new sessions; compact INT16 values show numeric raw/engineering scaling without decoder label.
+- Full source-bound Windows package, installer upgrade FAT, CodeQL, SBOM and provenance passed. Independent multi-vendor physical FAT remains separate.
+
+## Historical stable v3.6.19 improvements (published 21 November 2026)
+- IEC-101 Class-1 queue evidence uses verified FC10→FC8 and ACD=1 to mark pending data; ACD=0 removes the cue from subsequent events. Not a per-event FIFO-origin/age bit.
+- IEC-101 field widths persist across IEC-103/104 mode changes; compact dialogs and clearer feedback.
+- Authentic v3.6.17/v3.6.18 folder migration and installed updater tests passed. User data stays in `%LOCALAPPDATA%/ARIEC60870`.
 
 ## Historical stable v3.6.18 improvements (published 20 November 2026)
 - User-facing Windows application is ArSee.exe with one ArSee Start Menu shortcut; new installs default to Programs/ArSee.

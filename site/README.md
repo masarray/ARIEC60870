@@ -2,10 +2,10 @@
 
 Canonical English/Indonesian site: https://masarray.github.io/arsee/
 
-**Latest public stable:** [v3.6.19](https://github.com/masarray/arsee/releases/tag/v3.6.19) · **previous stable:** [v3.6.18](https://github.com/masarray/arsee/releases/tag/v3.6.18) · [RC.7 prerelease archive](https://github.com/masarray/arsee/releases/tag/v3.6.17-rc.7). [Stable installer](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-setup-win-x64.exe) and [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.19/ArSee-v3.6.19-win-x64.zip) are official, source-bound published assets. Physical SICAM/SCADA FAT is not certified; historical IEC-101 draft #145 is closed superseded.
+**Latest public stable:** [v3.6.20](https://github.com/masarray/arsee/releases/tag/v3.6.20) · **previous stable:** [v3.6.19](https://github.com/masarray/arsee/releases/tag/v3.6.19) · [RC.1 prerelease archive](https://github.com/masarray/arsee/releases/tag/v3.6.20-rc.1). [Stable installer](https://github.com/masarray/arsee/releases/download/v3.6.20/ArSee-v3.6.20-setup-win-x64.exe) and [portable ZIP](https://github.com/masarray/arsee/releases/download/v3.6.20/ArSee-v3.6.20-win-x64.zip) are official, source-bound published assets. Multi-vendor IEC physical FAT remains a separate qualification; historical IEC-101 draft #145 is closed superseded.
 
 
-For registered legacy v3.6.17/v3.6.18 installations in `Programs/ARIEC60870`, close IEC/capture sessions and run the official v3.6.19 installer directly for a guarded move to `Programs/ArSee`. Do **not** manually uninstall or delete `%LOCALAPPDATA%/ARIEC60870`, which contains operator data. The old in-app updater cannot relocate its own program folder.
+For registered legacy v3.6.17/v3.6.18 installations in `Programs/ARIEC60870`, close IEC/capture sessions and run the official v3.6.20 installer directly for a guarded move to `Programs/ArSee`. Do **not** manually uninstall or delete `%LOCALAPPDATA%/ARIEC60870`, which contains operator data. The old in-app updater cannot relocate its own program folder.
 
 - `index.html`, `id/index.html`: bilingual product landing with concise hero copy.
 - `demo.html`, `id/demo.html`: localized product demo, screenshots, and video.
